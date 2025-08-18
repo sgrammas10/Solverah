@@ -8,7 +8,7 @@ def extract_text_from_pdf(pdf_path):
         reader = PyPDF2.PdfReader(file)
         for page in reader.pages:
             text += page.extract_text() or ""
-    return text
+    return text.replace("\n","")
 
 def extract_text_from_docx(docx_path):
     doc = docx.Document(docx_path)
@@ -30,5 +30,5 @@ def parse_resume(file_path):
         raise ValueError("Unsupported file type: {}".format(ext))
 
 # Example usage:
-# text = parse_resume("resume.pdf")
+# text = parse_resume("Sebastian Grammas Resume S25.pdf")
 # print(text)
