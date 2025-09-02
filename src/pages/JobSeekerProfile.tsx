@@ -19,6 +19,8 @@ function JobSeekerProfile() {
   const { user, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState('personal');
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadedResume, setUploadedResume] = useState<File | null>(null);
+  const [resumeUploaded, setResumeUploaded] = useState(false);
 
   const [formData, setFormData] = useState({
     // Personal Info
@@ -78,11 +80,11 @@ function JobSeekerProfile() {
     
     // Psychometric Results
     psychometricResults: {
-      leadership: { score: 85, percentile: 78 },
-      problemSolving: { score: 92, percentile: 89 },
-      communication: { score: 78, percentile: 65 },
-      creativity: { score: 88, percentile: 82 },
-      teamwork: { score: 90, percentile: 85 }
+      leadership: { score: null, percentile: null, completed: false },
+      problemSolving: { score: null, percentile: null, completed: false },
+      communication: { score: null, percentile: null, completed: false },
+      creativity: { score: null, percentile: null, completed: false },
+      teamwork: { score: null, percentile: null, completed: false }
     }
   });
 
@@ -141,6 +143,45 @@ function JobSeekerProfile() {
     setFormData({
       ...formData,
       skills: formData.skills.filter(s => s !== skill)
+    });
+  };
+
+  const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadedResume(file);
+      setResumeUploaded(true);
+    }
+  };
+
+  const addEducation = () => {
+    const newEdu = {
+      id: Date.now(),
+      institution: '',
+      degree: '',
+      startDate: '',
+      endDate: '',
+      gpa: ''
+    };
+    setFormData({
+      ...formData,
+      education: [...formData.education, newEdu]
+    });
+  };
+
+  const removeEducation = (id: number) => {
+    setFormData({
+      ...formData,
+      education: formData.education.filter(edu => edu.id !== id)
+    });
+  };
+
+  const updateEducation = (id: number, field: string, value: string) => {
+    setFormData({
+      ...formData,
+      education: formData.education.map(edu => 
+        edu.id === id ? { ...edu, [field]: value } : edu
+      )
     });
   };
 
@@ -271,13 +312,53 @@ function JobSeekerProfile() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Resume
                 </label>
+                {(uploadedResume || resumeUploaded) && (
+                  <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm font-medium text-green-800">
+                            {uploadedResume?.name || 'Resume uploaded successfully'}
+                          </p>
+                          <p className="text-xs text-green-600">
+                            {uploadedResume ? `${(uploadedResume.size / 1024 / 1024).toFixed(2)} MB` : 'File processed'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUploadedResume(null);
+                          setResumeUploaded(false);
+                        }}
+                        className="text-green-600 hover:text-green-500"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
                   <div className="space-y-1 text-center">
                     <Upload className="mx-auto h-12 w-12 text-gray-400" />
                     <div className="flex text-sm text-gray-600">
                       <label htmlFor="resume-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500">
-                        <span>Upload your resume</span>
-                        <input id="resume-upload" name="resume-upload" type="file" className="sr-only" accept=".pdf,.doc,.docx" />
+                        <span>{(uploadedResume || resumeUploaded) ? 'Replace resume' : 'Upload your resume'}</span>
+                        <input 
+                          id="resume-upload" 
+                          name="resume-upload" 
+                          type="file" 
+                          className="sr-only" 
+                          accept=".pdf,.doc,.docx"
+                          onChange={handleResumeUpload}
+                        />
                       </label>
                       <p className="pl-1">or drag and drop</p>
                     </div>
@@ -441,69 +522,97 @@ function JobSeekerProfile() {
         {activeTab === 'education' && (
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Education</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Education</h2>
+                <button
+                  type="button"
+                  onClick={addEducation}
+                  className="flex items-center px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-500"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Education
+                </button>
+              </div>
               
-              {formData.education.map((edu, index) => (
-                <div key={edu.id} className="p-4 border border-gray-200 rounded-lg">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Institution
-                      </label>
-                      <input
-                        type="text"
-                        value={edu.institution}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
+              <div className="space-y-6">
+                {formData.education.map((edu, index) => (
+                  <div key={edu.id} className="p-4 border border-gray-200 rounded-lg">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-medium text-gray-900">Education #{index + 1}</h3>
+                      <button
+                        type="button"
+                        onClick={() => removeEducation(edu.id)}
+                        className="text-red-600 hover:text-red-500"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
 
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Degree
-                      </label>
-                      <input
-                        type="text"
-                        value={edu.degree}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Institution
+                        </label>
+                        <input
+                          type="text"
+                          value={edu.institution}
+                          onChange={(e) => updateEducation(edu.id, 'institution', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Start Date
-                      </label>
-                      <input
-                        type="month"
-                        value={edu.startDate}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Degree
+                        </label>
+                        <input
+                          type="text"
+                          value={edu.degree}
+                          onChange={(e) => updateEducation(edu.id, 'degree', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        End Date
-                      </label>
-                      <input
-                        type="month"
-                        value={edu.endDate}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Start Date
+                        </label>
+                        <input
+                          type="month"
+                          value={edu.startDate}
+                          onChange={(e) => updateEducation(edu.id, 'startDate', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        GPA (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        value={edu.gpa}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="3.8"
-                      />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          End Date
+                        </label>
+                        <input
+                          type="month"
+                          value={edu.endDate}
+                          onChange={(e) => updateEducation(edu.id, 'endDate', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          GPA (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={edu.gpa}
+                          onChange={(e) => updateEducation(edu.id, 'gpa', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="3.8"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -567,38 +676,39 @@ function JobSeekerProfile() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {Object.entries(formData.psychometricResults).map(([trait, result]) => (
                   <div key={trait} className="p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between mb-4">
                       <h3 className="font-medium text-gray-900 capitalize">
                         {trait.replace(/([A-Z])/g, ' $1').trim()}
                       </h3>
-                      <span className="text-2xl font-bold text-blue-600">{result.score}</span>
+                      <span className="text-sm text-gray-500">Not completed</span>
                     </div>
                     
-                    <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full" 
-                        style={{ width: `${result.score}%` }}
-                      ></div>
+                    <div className="text-center py-4">
+                      <p className="text-sm text-gray-500 mb-3">
+                        Complete this assessment to see your score
+                      </p>
+                      <button
+                        type="button"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                      >
+                        Take Assessment
+                      </button>
                     </div>
-                    
-                    <p className="text-sm text-gray-600">
-                      {result.percentile}th percentile
-                    </p>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+              <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <div className="flex items-center">
-                  <Brain className="h-5 w-5 text-blue-600 mr-2" />
+                  <Brain className="h-5 w-5 text-yellow-600 mr-2" />
                   <div>
-                    <h3 className="font-medium text-blue-900">Need to Complete More Assessments?</h3>
-                    <p className="text-sm text-blue-700">
-                      Take additional assessments to improve your job matching accuracy.
+                    <h3 className="font-medium text-yellow-900">Complete Your Assessments</h3>
+                    <p className="text-sm text-yellow-700">
+                      Take our psychometric assessments to improve your job matching accuracy and showcase your potential to employers.
                     </p>
                   </div>
-                  <button className="ml-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
-                    Take Assessment
+                  <button className="ml-auto px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm">
+                    Start Assessments
                   </button>
                 </div>
               </div>
