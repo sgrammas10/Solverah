@@ -6,6 +6,7 @@ interface User {
   name: string;
   role: 'job-seeker' | 'recruiter';
   profileComplete: boolean;
+  profileData?: any;
 }
 
 interface AuthContextType {
@@ -14,6 +15,7 @@ interface AuthContextType {
   register: (email: string, password: string, name: string, role: 'job-seeker' | 'recruiter') => Promise<void>;
   logout: () => void;
   updateProfile: (updates: Partial<User>) => void;
+  updateProfileData: (profileData: any) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -72,12 +74,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateProfileData = (profileData: any) => {
+    if (user) {
+      const updatedUser = { ...user, profileData, profileComplete: true };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    }
+  };
+
   const value = {
     user,
     login,
     register,
     logout,
-    updateProfile
+    updateProfile,
+    updateProfileData
   };
 
   if (loading) {
