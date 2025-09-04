@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   User, 
@@ -16,88 +16,83 @@ import {
 } from 'lucide-react';
 
 function JobSeekerProfile() {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, updateProfileData } = useAuth();
   const [activeTab, setActiveTab] = useState('personal');
   const [isSaving, setIsSaving] = useState(false);
   const [uploadedResume, setUploadedResume] = useState<File | null>(null);
   const [resumeUploaded, setResumeUploaded] = useState(false);
 
-  const [formData, setFormData] = useState({
-    // Personal Info
-    firstName: 'John',
-    lastName: 'Doe',
-    email: user?.email || '',
-    phone: '+1 (555) 123-4567',
-    location: 'San Francisco, CA',
-    summary: 'Experienced software developer with 5+ years in full-stack development. Passionate about creating scalable solutions and leading technical teams.',
-    
-    // Experience
-    experience: [
-      {
-        id: 1,
-        company: 'Tech Innovations Inc.',
-        position: 'Senior Full Stack Developer',
-        startDate: '2021-03',
-        endDate: 'Present',
-        description: 'Led development of microservices architecture, mentored junior developers, and improved system performance by 40%.'
-      },
-      {
-        id: 2,
-        company: 'StartupCorp',
-        position: 'Frontend Developer',
-        startDate: '2019-06',
-        endDate: '2021-02',
-        description: 'Built responsive web applications using React and TypeScript, collaborated with design team to improve UX.'
-      }
-    ],
-    
-    // Education
-    education: [
-      {
-        id: 1,
-        institution: 'University of California, Berkeley',
-        degree: 'Bachelor of Science in Computer Science',
-        startDate: '2015-09',
-        endDate: '2019-05',
-        gpa: '3.8'
-      }
-    ],
-    
-    // Skills
-    skills: ['JavaScript', 'React', 'Node.js', 'Python', 'PostgreSQL', 'AWS', 'Docker', 'Git'],
-    
-    // Performance Reviews
-    performanceReviews: [
-      {
-        id: 1,
-        company: 'Tech Innovations Inc.',
-        period: 'Q4 2023',
-        rating: 4.5,
-        summary: 'Exceptional performance in leading the mobile app project. Strong technical skills and excellent team collaboration.',
-        keyAchievements: ['Led mobile app launch', 'Mentored 3 junior developers', 'Reduced deployment time by 50%']
-      }
-    ],
-    
-    // Psychometric Results
-    psychometricResults: {
-      leadership: { score: null, percentile: null, completed: false },
-      problemSolving: { score: null, percentile: null, completed: false },
-      communication: { score: null, percentile: null, completed: false },
-      creativity: { score: null, percentile: null, completed: false },
-      teamwork: { score: null, percentile: null, completed: false }
+  const getInitialFormData = () => {
+    if (user?.profileData) {
+      return user.profileData;
     }
-  });
+    return {
+      // Personal Info
+      firstName: '',
+      lastName: '',
+      email: user?.email || '',
+      phone: '',
+      location: '',
+      summary: '',
+      
+      // Experience
+      experience: [],
+      
+      // Education
+      education: [],
+      
+      // Skills
+      skills: [],
+      
+      // Performance Reviews
+      performanceReviews: [],
+      
+      // Psychometric Results
+      psychometricResults: {
+        leadership: { score: null, percentile: null, completed: false },
+        problemSolving: { score: null, percentile: null, completed: false },
+        communication: { score: null, percentile: null, completed: false },
+        creativity: { score: null, percentile: null, completed: false },
+        teamwork: { score: null, percentile: null, completed: false }
+      }
+    };
+  };
+
+  const [formData, setFormData] = useState(getInitialFormData);
+
+  // Update form data when user profile data changes
+  useEffect(() => {
+    if (user?.profileData) {
+      setFormData(user.profileData);
+    }
+  }, [user?.profileData]);
+
+  // Check for uploaded resume in profile data
+  useEffect(() => {
+    if (user?.profileData?.uploadedResume) {
+      setResumeUploaded(true);
+    }
+  }, [user?.profileData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     
+    // Include resume data in form data
+    const profileDataToSave = {
+      ...formData,
+      uploadedResume: uploadedResume ? {
+        name: uploadedResume.name,
+        size: uploadedResume.size,
+        type: uploadedResume.type
+      } : (resumeUploaded ? formData.uploadedResume : null)
+    };
+    
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    updateProfile({ profileComplete: true });
+    updateProfileData(profileDataToSave);
     setIsSaving(false);
-  };
 
   const addExperience = () => {
     const newExp = {
@@ -325,10 +320,11 @@ function JobSeekerProfile() {
                         </div>
                         <div className="ml-3">
                           <p className="text-sm font-medium text-green-800">
-                            {uploadedResume?.name || 'Resume uploaded successfully'}
+                            {uploadedResume?.name || formData.uploadedResume?.name || 'Resume uploaded successfully'}
                           </p>
                           <p className="text-xs text-green-600">
-                            {uploadedResume ? `${(uploadedResume.size / 1024 / 1024).toFixed(2)} MB` : 'File processed'}
+                            {uploadedResume ? `${(uploadedResume.size / 1024 / 1024).toFixed(2)} MB` : 
+                             formData.uploadedResume ? `${(formData.uploadedResume.size / 1024 / 1024).toFixed(2)} MB` : 'File processed'}
                           </p>
                         </div>
                       </div>
