@@ -102,4 +102,4 @@ for _, row in df.iterrows():
 pairs_df = pd.DataFrame(pairs)
 pairs_df.to_csv("../Filtered_data/resume_job_pairs.csv", index=False)
 
-print("✅ Training pairs generated and saved to resume_job_pairs.csv")
+print("Training pairs generated and saved to resume_job_pairs.csv")
