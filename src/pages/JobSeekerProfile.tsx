@@ -93,6 +93,7 @@ function JobSeekerProfile() {
     
     updateProfileData(profileDataToSave);
     setIsSaving(false);
+  };
 
   const addExperience = () => {
     const newExp = {
