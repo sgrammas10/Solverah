@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
 
 #  1. Load  dataset 
-df = pd.read_csv("Filtered_Data/resume_job_pairs.csv")
+df = pd.read_csv("Filtered_Data/resume_job_pairs2.csv")
 
 #  2. Split into train, validation, and test 
 # First split: train vs temp (val + test)
