@@ -1,8 +1,16 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { Users, Target, BarChart3, Shield, ArrowRight } from 'lucide-react';
 
 function LandingPage() {
+  const { user } = useAuth();
+
+  // If user is logged in, redirect to feed
+  if (user) {
+    return <Navigate to="/feed" replace />;
+  }
+
   return (
     <div className="bg-white">
       {/* Hero Section */}

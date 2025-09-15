@@ -9,6 +9,7 @@ import JobSeekerDashboard from './pages/JobSeekerDashboard';
 import RecruiterDashboard from './pages/RecruiterDashboard';
 import JobSeekerProfile from './pages/JobSeekerProfile';
 import RecruiterProfile from './pages/RecruiterProfile';
+import Feed from './pages/Feed';
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles: string[] }) {
   const { user } = useAuth();
@@ -35,6 +36,14 @@ function App() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route 
+                path="/feed" 
+                element={
+                  <ProtectedRoute allowedRoles={['job-seeker', 'recruiter']}>
+                    <Feed />
+                  </ProtectedRoute>
+                } 
+              />
               <Route 
                 path="/job-seeker/dashboard" 
                 element={
