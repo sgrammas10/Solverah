@@ -28,8 +28,8 @@ function JobSeekerProfile() {
     }
     return {
       // Personal Info
-      firstName: '',
-      lastName: '',
+      firstName: user?.name?.split(' ')[0] || '',
+      lastName: user?.name?.split(' ').slice(1).join(' ') || '',
       email: user?.email || '',
       phone: '',
       location: '',
@@ -90,6 +90,10 @@ function JobSeekerProfile() {
     
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Update the user's name in the auth context as well
+    const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
+    updateProfile({ name: fullName });
     
     updateProfileData(profileDataToSave);
     setIsSaving(false);

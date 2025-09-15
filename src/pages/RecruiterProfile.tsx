@@ -75,7 +75,13 @@ function RecruiterProfile() {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    updateProfile({ profileComplete: true });
+    // Update the user's name and profile completion status
+    const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+    updateProfile({ 
+      name: fullName,
+      profileComplete: true 
+    });
+    
     setIsSaving(false);
   };
 
