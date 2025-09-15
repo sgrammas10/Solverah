@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 function RecruiterProfile() {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, updateProfileData } = useAuth();
   const [activeTab, setActiveTab] = useState('company');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -72,17 +72,27 @@ function RecruiterProfile() {
     e.preventDefault();
     setIsSaving(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Update the user's name and profile completion status
-    const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-    updateProfile({ 
-      name: fullName,
-      profileComplete: true 
-    });
-    
-    setIsSaving(false);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Update the user's name and profile completion status
+      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+      updateProfile({ 
+        name: fullName,
+        profileComplete: true 
+      });
+      
+      // Save the profile data using updateProfileData
+      updateProfileData(formData);
+      
+      // Show success message or feedback
+      console.log('Profile saved successfully!');
+    } catch (error) {
+      console.error('Error saving profile:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const addRole = (role: string) => {

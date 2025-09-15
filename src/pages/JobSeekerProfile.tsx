@@ -78,25 +78,34 @@ function JobSeekerProfile() {
     e.preventDefault();
     setIsSaving(true);
     
-    // Include resume data in form data
-    const profileDataToSave = {
-      ...formData,
-      uploadedResume: uploadedResume ? {
-        name: uploadedResume.name,
-        size: uploadedResume.size,
-        type: uploadedResume.type
-      } : (resumeUploaded ? formData.uploadedResume : null)
-    };
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Update the user's name in the auth context as well
-    const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
-    updateProfile({ name: fullName });
-    
-    updateProfileData(profileDataToSave);
-    setIsSaving(false);
+    try {
+      // Include resume data in form data
+      const profileDataToSave = {
+        ...formData,
+        uploadedResume: uploadedResume ? {
+          name: uploadedResume.name,
+          size: uploadedResume.size,
+          type: uploadedResume.type
+        } : (resumeUploaded ? formData.uploadedResume : null)
+      };
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Update the user's name in the auth context as well
+      const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
+      updateProfile({ name: fullName });
+      
+      // Save the profile data
+      updateProfileData(profileDataToSave);
+      
+      // Show success message or feedback
+      console.log('Profile saved successfully!');
+    } catch (error) {
+      console.error('Error saving profile:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const addExperience = () => {
