@@ -1,9 +1,9 @@
 import pandas as pd
 import random
 
-# === Load your resume dataset ===
+#  Load your resume dataset 
 df = pd.read_csv("UpdatedResumeDataSet.csv")
-# === Job descriptions for each category ===
+#  Job descriptions for each category 
 job_desc = {
     "Data Science": [
         "Looking for a Data Scientist with strong skills in Python, machine learning, and SQL to analyze large datasets and build predictive models."
@@ -82,7 +82,7 @@ job_desc = {
     ],
 }
 
-# === Build positive & negative training pairs ===
+#  Build positive & negative training pairs 
 pairs = []
 
 for _, row in df.iterrows():
