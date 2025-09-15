@@ -31,7 +31,7 @@ function Feed() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">
-          Welcome to your feed, {user?.name}!
+          Welcome to your feed, {user?.name?.split(' ')[0] || user?.name}!
         </h1>
         <p className="text-gray-600 mt-2">
           Stay updated with the latest opportunities and connections.
