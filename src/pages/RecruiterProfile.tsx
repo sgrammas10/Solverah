@@ -73,9 +73,6 @@ function RecruiterProfile() {
     setIsSaving(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
       // Update the user's name and profile completion status
       const fullName = `${formData.firstName} ${formData.lastName}`.trim();
       updateProfile({ 
@@ -83,10 +80,9 @@ function RecruiterProfile() {
         profileComplete: true 
       });
       
-      // Save the profile data using updateProfileData
+      // Save the profile data to localStorage via context
       updateProfileData(formData);
       
-      // Show success message or feedback
       console.log('Profile saved successfully!');
     } catch (error) {
       console.error('Error saving profile:', error);
