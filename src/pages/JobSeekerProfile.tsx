@@ -89,17 +89,16 @@ function JobSeekerProfile() {
         } : (resumeUploaded ? formData.uploadedResume : null)
       };
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Update the user's name in the auth context as well
+      // Update the user's name in the auth context
       const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
-      updateProfile({ name: fullName });
+      updateProfile({ name: fullName, profileComplete: true });
       
-      // Save the profile data
+      // Save the profile data to localStorage via context
       updateProfileData(profileDataToSave);
       
-      // Show success message or feedback
+      // Update local form data state to reflect saved data
+      setFormData(profileDataToSave);
+      
       console.log('Profile saved successfully!');
     } catch (error) {
       console.error('Error saving profile:', error);
