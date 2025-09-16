@@ -72,23 +72,18 @@ function RecruiterProfile() {
     e.preventDefault();
     setIsSaving(true);
     
-    try {
-      // Update the user's name and profile completion status
-      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-      updateProfile({ 
-        name: fullName,
-        profileComplete: true 
-      });
-      
-      // Save the profile data to localStorage via context
-      updateProfileData(formData);
-      
-      console.log('Profile saved successfully!');
-    } catch (error) {
-      console.error('Error saving profile:', error);
-    } finally {
-      setIsSaving(false);
-    }
+    // Update the user's name and profile completion status
+    const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+    updateProfile({ 
+      name: fullName,
+      profileComplete: true 
+    });
+    
+    // Save the profile data to localStorage via context
+    updateProfileData(formData);
+    
+    console.log('Profile saved successfully!', formData);
+    setIsSaving(false);
   };
 
   const addRole = (role: string) => {

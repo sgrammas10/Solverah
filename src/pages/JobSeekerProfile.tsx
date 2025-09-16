@@ -78,33 +78,28 @@ function JobSeekerProfile() {
     e.preventDefault();
     setIsSaving(true);
     
-    try {
-      // Include resume data in form data
-      const profileDataToSave = {
-        ...formData,
-        uploadedResume: uploadedResume ? {
-          name: uploadedResume.name,
-          size: uploadedResume.size,
-          type: uploadedResume.type
-        } : (resumeUploaded ? formData.uploadedResume : null)
-      };
-      
-      // Update the user's name in the auth context
-      const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
-      updateProfile({ name: fullName, profileComplete: true });
-      
-      // Save the profile data to localStorage via context
-      updateProfileData(profileDataToSave);
-      
-      // Update local form data state to reflect saved data
-      setFormData(profileDataToSave);
-      
-      console.log('Profile saved successfully!');
-    } catch (error) {
-      console.error('Error saving profile:', error);
-    } finally {
-      setIsSaving(false);
-    }
+    // Include resume data in form data
+    const profileDataToSave = {
+      ...formData,
+      uploadedResume: uploadedResume ? {
+        name: uploadedResume.name,
+        size: uploadedResume.size,
+        type: uploadedResume.type
+      } : (resumeUploaded ? formData.uploadedResume : null)
+    };
+    
+    // Update the user's name in the auth context
+    const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
+    updateProfile({ name: fullName, profileComplete: true });
+    
+    // Save the profile data to localStorage via context
+    updateProfileData(profileDataToSave);
+    
+    // Update local form data state to reflect saved data
+    setFormData(profileDataToSave);
+    
+    console.log('Profile saved successfully!', profileDataToSave);
+    setIsSaving(false);
   };
 
   const addExperience = () => {
