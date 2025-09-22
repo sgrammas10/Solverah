@@ -4,7 +4,9 @@ from resume_parser import parse_resume
 from sentence_transformers import SentenceTransformer, util
 
 # Load your fine-tuned model
-model = SentenceTransformer("fine_tuned_resume_model")
+#model = SentenceTransformer("fine_tuned_resume_model")
+model_path = "LLM/fine_tuned_resume_model"
+model = SentenceTransformer(model_path)
 
 output_file = "Filtered_Data/untrained_data.csv"
 os.makedirs("Filtered_Data", exist_ok=True)
@@ -44,6 +46,6 @@ def evaluate_and_save(resume_path, job_file):
     print(f"Saved to {output_file} with label {label}")
 
 # Example usage
-evaluate_and_save("Sebastian Grammas Resume S25.pdf", "mock_job.txt")
+evaluate_and_save("Sebastian Grammas Resume S25.pdf", "mock_job1.txt")
 
 
