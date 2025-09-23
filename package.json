@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@types/node": "^24.3.0",
+    "@vitalets/google-translate-api": "^9.2.1",
+    "json2csv": "^6.0.0-alpha.2",
     "lucide-react": "^0.344.0",
     "node-fetch": "^3.3.2",
     "react": "^18.3.1",

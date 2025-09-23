@@ -4,7 +4,8 @@ import { parse } from "json2csv";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import translate from "google-translate-api-x";
+import translate from '@vitalets/google-translate-api';
+
 
 // Get script directory
 const __filename = fileURLToPath(import.meta.url);
