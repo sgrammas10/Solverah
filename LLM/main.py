@@ -47,5 +47,3 @@ def evaluate_and_save(resume_path, job_file):
 
 # Example usage
 evaluate_and_save("Sebastian Grammas Resume S25.pdf", "mock_job1.txt")
-
-
