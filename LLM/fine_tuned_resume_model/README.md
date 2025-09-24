@@ -5,1098 +5,1330 @@ tags:
 - feature-extraction
 - dense
 - generated_from_trainer
-- dataset_size:3254
+- dataset_size:3456
 - loss:CosineSimilarityLoss
 base_model: sentence-transformers/all-MiniLM-L6-v2
 widget:
-- source_sentence: "         PRODUCT SPECIALISTS       Professional Summary    To\
-    \ obtain a Merchandising position within a company to provide a style and culture\
-    \ that exudes ones present mindset of the retail industry. Ultimately to provide\
-    \ an excellent customer experience in order to maximize revenues and market share\
-    \ to receive a healthy return on investment.      Experience     08/2014   to\
-    \   Current     Product Specialists    Company Name   －   City  ,   State    \
-    \  Responsibilities for this role include receiving and answering customer inquiries\
-    \ and requests  regarding products, orders, pricing and other services offered\
-    \ and providing operational support for Garmin's consumer electronic products\
-    \ and working with customers to determine which products, accessories and plan\
-    \ of action best serves the customer's individual needs. Other responsibilities\
-    \ include:   Remain current on changes in policies, procedures, and product offerings\
-    \   Report any and all out-of-line conditions affecting customer satisfaction\
-    \   Develop and maintain department and company image and philosophy to the public\
-    \   Become highly knowledgeable in the specifications, capabilities and operation\
-    \ of Garmin products   Answer customer technical inquiries regarding Garmin products\
-    \ via telephone, letters, fax and electronic mail   Monitor, document and report\
-    \ failure trends in Garmin equipment   Identify and recommend improvements in\
-    \ Garmin products, documentation and procedures   Review special circumstances\
-    \ and authorize warranty service when deemed appropriate.         09/2012   to\
-    \   08/2014     Assistant Manager/Manager    Company Name   －   City  ,   State\
-    \      Deliver premium customer service   Driving sales goals to meet and exceed\
-    \ company standards   Training and hiring current and new employees   Implementing\
-    \ company visual merchandising standards   Responsible for paperwork regarding\
-    \ payroll, managing hours, and daily operations Manage employees and set individual\
-    \ goals that allow for personal and growth of business   Work with district manager\
-    \ to implement loss prevention standards through weekly audits and customer awareness.\
-    \         06/2012   to   09/2012     Apparel Sales Lead    Company Name   －  \
-    \ City  ,   State      Implementing the merchandise presentation standards and\
-    \ signage of the apparel department to meet company standards and maximize profits\
-    \   Supporting company standards of selling and customer service   Assisting the\
-    \ store management team with general supervision in the store in accordance with\
-    \ company policies and procedures including opening and closing the store and\
-    \ front end coverage as assigned   Complying with cash office procedures and preparing\
-    \ deposits and balancing cashiers Compliance to loss prevention standards and\
-    \ audit requirements.         07/2010   to   05/2012     Team Scout Coordinator\
-    \    Company Name   －   City  ,   State      Set up in store displays, maintain\
-    \ and change out graphics.  Move product to optimize location on floor/shelf.\
-    \  Refresh product presence to ensure full and neat presentation of available\
-    \ inventory.  Provide in store support around key marketing programs, initiatives\
-    \ and major product launches   Educate retail managers and sales associates on\
-    \ Under Armour in store programs, sales initiatives, product launches and corporate\
-    \ merchandising guidelines   Provide a high level of customer service within Under\
-    \ Armour merchandise areas, the location of which within the store to be based\
-    \ on season, launch and/or event.         09/2009   to   07/2010     Footwear\
-    \ Specialist    Company Name   －   City  ,   State      Assist customers with\
-    \ footwear needs Knowledge of all types of athletic footwear   Stock and remodel\
-    \ footwear sales floor to company standards weekly based on company initiatives\
-    \ and weekly planner.  Loss Prevention measures taken daily by daily self audits\
-    \ and weekly shakedowns of stockroom   Work closely with management to maximize\
-    \ sales and generate new customers   Provide exceptional customer service needs.\
-    \         12/2006   to   08/2009     Sales Associate / Assistant Manager    Company\
-    \ Name   －   City  ,   State      Assist customers with sportswear and equipment\
-    \ needs   Achieve daily sales goals through customer satisfaction   Stock and\
-    \ remodel store sales floor to emphasize new product and in-season sports.  Supervise\
-    \ and train employees on company brand standards through workshops and weekly\
-    \ meetings.  Complete daily and weekend ending paperwork to present business results\
-    \ to district manager.  Handle daily deposits and store reports.          Education\
-    \     12 2009     Bachelor of Science Hotel and Restaurant Administration \t \
-    \       Degree  :   Hospitality    University of Central Missouri   －   City \
-    \ ,   State      GPA:   GPA: 3.0     GPA: 3.0         Skills     customer satisfaction,\
-    \ customer service, documentation, Driving, electronic mail, fax, graphics, hiring,\
-    \ inventory, letters, Loss Prevention, managing, marketing, meetings, merchandising,\
-    \ office, neat, payroll, philosophy, policies, pricing, receiving, retail, selling,\
-    \ sales, supervision, telephone, workshops    "
+- source_sentence: '     Karla    Lee       Summary     Results-focused people advocate
+    with vast experience in Wealth Management and Deposit Financial Services. Targets
+    growth through nurturing exemplary teams and focusing on a format of listening
+    to our clients for best outcomes. Proactive leader experienced in deep internal
+    and external partnerships for best client outcome.       Skills          Industry
+    partnership development  Team building  Recruiting and hiring  Process improvement  Operations
+    oversight      Executive leadership  Problem resolution  Relationship building  Data
+    management            Experience      Regional Director of Banking and Wealth     Mar
+    2018   to   Dec 2020      Company Name    －    City  ,   State      Responsible
+    for overall growth performance of strategic marketplace.   Encouraged work environment
+    conducive to development of high performing distinct teams by inspiring innovation
+    and excellence in all CRM/Customer Engagement deliverables.  Outcome:  Had 3 diverse
+    direct reports promoted to Managing Director roles in 2 years.  Revitalized client
+    engagement routines to include cultural/geographic relevance. Engaged NY based
+    Portfolio Managers and analysts to host clients on rotating schedule  Outcome:  Advisor
+    acumen and loyalty to the firm increased significantly (turnover decreased by
+    50%), Client retention and share of wallet increased. AUM grew by client added
+    investments and referrals. The Bay Area had the highest deposit market share gain
+    in the country in 2019 in excess of $10b, 2nd highest AUM growth (3 consecutive
+    years over 20%).  Aligned all Wealth Management efforts by different LOBs to include
+    each other.  Outcome  (example). JP Morgan''s Healthcare conference not only included
+    our biggest institutional clients, but speakers were leveraged to host auxiliary
+    sessions with Private Banking and Chase Private Clients. Chase Center suites were
+    co-hosted by client affinities to create more engagement opportunities.  Transformed
+    departmental operations through aggressive process overhaul and attention to quality.
+    Advisor and banker turnover reduced in half from 2018 to 2020.         Northern
+    CA Operations Executive     Nov 2016   to   Mar 2018      Company Name    －    City  ,   State      Responsible
+    for profitability of the most elite marketplace in the Bank of America franchise;
+    350 Financial Centers with close to 3000 Associates.   Led the Northern CA region
+    (30 billion in deposits) through best in class Enterprise partnerships with Small
+    Business, Home Loans and Merrill Edge investments.  Outcome:  Recognized by CEO
+    for best in class performance.  Initiated local monthly Client listening sessions
+    aimed at bringing forward all enterprise capabilities. Focused particularly on
+    the Silicon Valley client.  Outcome:  Advocated for change in ability to recast
+    mortgages to accommodate large inflows of bonus cash. Partnered with credit card
+    underwriting to accommodate a new to country deposit based credit solution ultimately
+    being a factor in Apple having Bank of America as a preferred/only vendor on campus.  Completed
+    60 Financial Center renovations to adhere to "Advice Center" model highlighting
+    Merrill Edge capabilities. Included extraordinary external partnerships into specifications
+    (Apple campus, UC Berkeley campus, Samsung technology in SF).         Sales and
+    Service Executive-West Coast     Nov 2011   to   Nov 2016      Company Name    －    City  ,   State      Responsible
+    for the revenue growth of 40% of the consumer franchise.   Significant work integrating
+    Merrill Lynch into the client spectrum for Bank of America. Participated in first
+    pilot hiring and scaling capabilities of the Merrill Edge organization.  Outcome:  Successful
+    Boston based pilot was scaled nationwide, moved to Los Angeles to launch West
+    Coast. Collaborated in SLAs based on client feedback for best outcome.  Key executive
+    for pilot bringing all specialized sales inside Financial Centers inclusive of
+    Countrywide acquisition lending capabilities.  Outcome:  Best in class teams following
+    CEOs scorecard accountabilities, best in class portfolio penetration.  Motivated
+    and encouraged team members to communicate more openly and constructively with
+    each other as well as addressed the need to share local talent.  Outcome:  established
+    leadership councils in all key cities to mitigate delivery escalations and establish
+    cross LOB referral accountability.         Education and Training      MBA  ,   School
+    of Management   Expected in   May 2023     University of San Francisco   －   City  ,   State            Pacific
+    Coast Banking School  ,   Finance    University of Washington   －   City  ,   State            Bachelor
+    of Arts  ,   Art History    Toulouse Lautrec School of Art   －   City              Accomplishments      ALPFA
+    (Association of Latino Professionals for America) mentor.  San Francisco Times
+    Most influential Woman in business 2020 (JP Morgan Chase)  San Francisco Times
+    Most influential Woman in business 2016 (Bank of America)  Working Mother Magazine
+    honoree 2011 (Bank of America)        Certifications     Series 7, 9, 10 and 66
+    Licenses  CA Life & Health Insurance License  Native Spanish Speaker    '
   sentences:
-  - "do you have deep experience supporting a toplevel executive are you known for\
-    \ keeping your cool under pressure can you interact with the most senior levels\
-    \ of management if youre nodding your head then a senior executive support professional\
-    \ position in disney general entertainment at the walt disney company might be\
-    \ right for you\n\nour senior executive support professionals are highlyrespected\
-    \ because their skills are quite simply essential youd be a key member of a dynamic\
-    \ fastpaced team that oversees the highest office of abc news we work with some\
-    \ of the most creative intelligent people in the business join us  apply today\n\
-    \nworking in the office of the president this position will be the lead executive\
-    \ assistant to the president of abc news you will very closely partner with the\
-    \ executive assistant  office of the president to share a schedule that covers\
-    \ the hours of  et\n\nyou would be responsible for managing the day to day schedule\
-    \ of the president of abc news it goes without saying that there will be expense\
-    \ reports travel planning hundreds of phone messages and endless calendar jockeying\
-    \ but this job is very much about people the relationship you form with the executives\
-    \ you support is absolutely critical because thats what enables you to become\
-    \ a true partner in addition to understanding your executives business  and business\
-    \ needs  inside and out youll also need deep knowledge of the leadership and workings\
-    \ of owned television disney general entertainment and related departments across\
-    \ the disney enterprise as the face of your executive within the walt disney company\
-    \ your professionalism loyalty and attitude are a reflection of the office and\
-    \ as such are a key component to its success\n\nprimary responsibilities in this\
-    \ role will include\n oversee the presidents calendar and manage her day to day\
-    \ schedule understand each days priorities so you can be strategic about how you\
-    \ direct calls and other meeting requests be ready to throw the entire schedule\
-    \ out the door when an emergency comes up then pick it up again when the dust\
-    \ settles\n booking and managing regular travel often creating multicity travel\
-    \ itineraries and taking into account time zones weather delays traffic and fatigue\
-    \ levels\n serve as the primary interface for internal senior executives management\
-    \ and their support teams across both abc news and broader disney  your ability\
-    \ to work well with people on all levels is a very important part of your job\n\
-    \ schedule and arrange news senior leadership meetings and conference calls as\
-    \ well as those with other key internal stakeholders including offsites when necessary\
-    \ this may require handling logistics such as vendor selection catering venue\
-    \ and audiovisual and\n partner with the ea office of the president to handle\
-    \ heavy volume of incoming calls with all levels of internal and external executive\
-    \ management and employees\n\nthat said every day as an executive support professional\
-    \ is different on any given day you might also\n read relevant newspapers and\
-    \ trade journals so you are completely immersed in the mission of the office and\
-    \ can inform the president when you see something she should know\n conduct research\
-    \ factcheck existing work and prepare regular reports and summaries  youll have\
-    \ tasks that you own completely and will provide regular assistance on others\n\
-    \ review your leaders schedule to buildin time for things like thinking and traveling\
-    \ to their next meeting\n understand the days priorities so you can be strategic\
-    \ about how you direct phone calls\n schedule conference rooms meetings and video\
-    \ chats\n handle extremely confidential sensitive information remembering that\
-    \ disney is a publicly traded company\n draft letters and emails on behalf of\
-    \ your leaders\n assist with onboarding new employees  youll be the friendly face\
-    \ that newbies count on to answer all their questions including some who are extremely\
-    \ senior in the organization\n manage large purchase orders and vendor contracts\n\
-    \ mentor and train younger support professionals in hard skills like computer\
-    \ programs and soft skills like teamwork and\n plan large highprofile events like\
-    \ premiers product launches offsites and teambuilding activities\n\nheres what\
-    \ you will need to be successful in this role\n at least  years supporting senior\
-    \ executive leaders andor equivalent experience\n sharp written and verbal communication\
-    \ skills including flawless grammar and a rich vocabulary\n a strong interest\
-    \ in and passion for news keeping a pulse on breaking news stories and current\
-    \ events\n ability to multitask and prioritize deadlinesdeliverables\n strong\
-    \ proficiency with all types of computers phones and office equipment as well\
-    \ as mastery of microsoft office programs sap confluence concur and working in\
-    \ a windows environment\n a calm head and steady hand to deal with the unexpected\n\
-    \ eq skills to build bridges forge alliances and encourage people to want to work\
-    \ with you\n complete reliability handling confidential often highly sensitive\
-    \ information\n desire to truly be helpful to your leaders and coworkers to go\
-    \ the extra mile without being asked\n some flexibility in your schedule  we value\
-    \ worklife balance but in a pinch a bit more time is needed\n very strong organizational\
-    \ skills and extreme attention to detail and\n a highly professional demeanor\
-    \ positive outlook and a cando attitude\n\nit would be great if you also had these\
-    \ skills\n experience at the walt disney company andor\n experience working in\
-    \ a large public corporation\n\neducation is important to us here is what we are\
-    \ looking for\n required  high school diploma\n preferred  bachelors degree andor\
-    \ equivalent experience"
-  - "job details\n\ndescription\n\nthe sales associate  design consultant is responsible\
-    \ for maximizing sales and delivering an exceptional guest experience in this\
-    \ exciting role you are creating lasting relationships while assisting clients\
-    \ with the selection customization and purchase of merchandise in this retail\
-    \ sales role the design consultant will have the ability to read each clients\
-    \ need for assistance and match their requirements to the benefits of the merchandise\n\
-    \nas a sales associate  design consultant you will be providing customer service\
-    \ and space planning assistance as well as maintaining a sales driven focus\n\n\
-    if this sounds like the type of environment in which you would flourish we invite\
-    \ you to apply for our opening at the freehold raceway mall\n\nessential duties\
-    \  responsibilities\n meets required monthly sales and productivity standards\n\
-    \ demonstrates strong product knowledge furniture accessories fabrics etc\n maintains\
-    \ a guest book to organize generate and cultivate business\n performs proactive\
-    \ and consistent followup with all guests before and after the sale and at delivery\n\
-    \ works to improve performance based on feedback provided by store management\n\
-    \ promptly solves guest concerns\n performs all opening and closing duties as\
-    \ directed\n accurately performs all systems functions and maintain operational\
-    \ standards\n works in collaboration with all team members\n\nminimum qualifications\n\
-    \ high school diploma required college preferred\n some work experience in a retail\
-    \ environment\n ability to work nights and weekends\n intermediate computer literacy\n\
-    \ ability to work independently with little supervisionselfmotivated\n ability\
-    \ to work well with others\n must be willing to work extended hours as needed\n\
-    \nto perform this retail sales position successfully an individual must be able\
-    \ to perform each job duty satisfactorily the requirements listed below are representative\
-    \ of the knowledge skills andor abilities required reasonable accommodations may\
-    \ be made to enable individuals with disabilities to perform the essential duties\n\
-    \ncompensation\n base salary plus commission and team bonus\n\nbenefits\n exceptional\
-    \ advancement opportunities\n competitive earnings bonus opportunities and generous\
-    \ employee discount\n medical dental and life insurance benefits programs differ\
-    \ between fulltime and parttime employees benefits vary based on position\n flex\
-    \ spending plan\n  retirement program and  college savings plan\n paid vacations\
-    \ and holidays fulltime employees only"
-  - "passionate about precision medicine and advancing the healthcare industry\n\n\
-    recent advancements in underlying technology have finally made it possible for\
-    \ ai to impact clinical care in a meaningful way tempus proprietary platform connects\
-    \ an entire ecosystem of realworld evidence to deliver realtime actionable insights\
-    \ to physicians providing critical information about the right treatments for\
-    \ the right patients at the right time\n\nare you passionate about building great\
-    \ software products\n\nat tempus software products are owned and developed by\
-    \ small autonomous teams composed of developers designers scientists and product\
-    \ managers you and your team set the goals build the software deploy the code\
-    \ and contribute to a growing software platform that will make a lasting impact\
-    \ in the field of cancer research and treatment\n\ntempus builds software as nimble\
-    \ as our teams our modern cloudnative data infrastructure build on aws  allows\
-    \ our teams to iterate rapidly and lead our industry in innovation our decentralized\
-    \ microservice architecture and emphasis on automation allow us to deliver advanced\
-    \ solutions with confidence and at scale\n\nwhy were looking for you\n youve got\
-    \ experience managing software development teams and can lead technical analysis\
-    \  design evaluating tradeoffs and establishing best practices\n you love exploring\
-    \ hard problems and solving them with datadriven iterative software development\n\
-    \ you understand the challenges and planning required to reap the rewards of distributed\
-    \ bigdata technologies\n youve worked in fastpaced agile environments and helped\
-    \ keep projects on track troubleshoot roadblocks write documentation and tests\
-    \ and coordinate crossteam collaboration\n you enjoy exercising handson keyboard\
-    \ muscles and maintain the ability to serve the team as a technical mentor\n\n\
-    bonus points for\n experience with some of the technologies we use such as aws\
-    \ redshift apache airflow python and docker orchestration via aws batch\n experience\
-    \ in biotech genomics clinical research and precision medicine\n have built a\
-    \ platform to enable data science teams selfservice capabilities supporting an\
-    \ applied machine learning workflow\n\nresponsibilities for the position\n works\
-    \ with product manager to build quarterly resourcing plans systems design and\
-    \ product increment planning to delivery a scalable data infrastructure supporting\
-    \ analytics and machine learning\n leverages the engineering career progression\
-    \ framework to develop people for a small crossfunctional team of  people actively\
-    \ manages the performance of team seeking support from supervisor on occasion\n\
-    \ works with engineering on your team to produce design artifacts that describe\
-    \ software architectures involving multiple technologies\n provides team structure\
-    \ norms to achieve a well designed system and clean code\n if applicable works\
-    \ with product manager to plan across multiple scrum teams and presenting solutions\
-    \ to optimize for effort across the endtoend tempus ecosystem\n actively drives\
-    \ team improvement through retrospective action items"
-- source_sentence: "         IT TECHNOLOGY SPECIALIST       Professional Summary \
-    \    Analyst with extensive experience in Information Technology. Proficiencies\
-    \ include trouble shooting hardware and software issues.  Experienced Service\
-    \ tech with excellent client and project management skills. Action-oriented with\
-    \ strong ability to communicate effectively with technology, executive, and business\
-    \ audiences.         Core Qualifications        TCP/IP, Network monitoring and\
-    \ tools, storage management, knowledge of desktop support procedures and active\
-    \ directory,  skilled in software and  Microsoft operation installation and maintenance,\
-    \ working knowledge with Windows 2000, 2003 & 2008 Server install, Microsoft office\
-    \ 2000 through 20010 applications software, Windows XP, Vista, 7 and 8 pc and\
-    \ lap top install and management.  Professional installation and upgrades, Network\
-    \ Security and protection measures, networking cable patch panel install, testing\
-    \ and layout, fiber optic installation, testing and lay.  Web development and\
-    \ design using software front page, html and python applications.            Experience\
-    \      IT Technology Specialist   09/2015   to   04/2016     Company Name   City\
-    \  ,   State         Monitored multiple databases to keep track of all company\
-    \ inventory.  Successfully led key projects which resulted in  [positive outcome]\
-    \ .   Provided onsite training.  Provided Tier1 & Tier2 level support;.  Perform\
-    \ Tier 3 level support to customers on operational or maintenance aspects of system\
-    \ equipment.  Perform service, repair and/or install of company products including\
-    \ system hardware, software, PCs and POS equipment.  Perform general maintenance,\
-    \ repair computer systems and peripheral equipment.  Replace and install cable\
-    \ (cat5) network cable.  Managed and trouble shoot telecom phone system.     \
-    \     Field Service Tech    03/2014   to   04/2015     Company Name   City  ,\
-    \   State       Level 1 Field Service Tech Provided Tier1 & Tier2 level support;\
-    \ Perform Tier 3 level support to customers on operational or maintenance aspects\
-    \ of system equipment.  Perform service, repair and/or install of company products\
-    \ including system hardware, software, PCs and POS equipment.  Perform general\
-    \ maintenance, repair computer systems and peripheral equipment.  Replace and\
-    \ install cable (cat5) network cable.          Information Technology Specialist\
-    \   08/2010   to   09/2006     Company Name   City  ,   State       Provided hardware\
-    \ support related to pc, lap tops, note books technical issues, software application\
-    \ and OS issues.  Assists clients with recommending, scheduling and implementing\
-    \ system hardware and/or software upgrades based on needs and anticipated growth.\
-    \  Set up and maintained active directory requests, setup network ids/email accounts\
-    \ and remote desktop support for specific client.  Offered assist for website\
-    \ design, layout and hosting.  Offered residential customers technical support\
-    \ with hardware and software issues related to hard drives, power supply replacements\
-    \ and virus removal.          Information Technology Specialist   09/2006   to\
-    \   08/2010     Company Name       Conducted analysis to address network issues which\
-    \ led to  install of a T1 line.  Monitored multiple databases to keep track of\
-    \ all company technology inventory.    Provide trouble shooting support in matters\
-    \ related to computer hardware and software issues.  Identify any computer architectural\
-    \ requirements; establish and upgrade systems; maintain installation records;\
-    \ improve system performance; maintain technical knowledge.  Set up and maintain\
-    \ local area network using cable layout and fiber optic connections.  Configure\
-    \ and trouble shooting routers, pix, Domino Server and Microsoft Windows 2003\
-    \ Server.  Oversee staff related issues related to computer upgrades, hardware\
-    \ problems, virus, email accounts/ network ids, remote desktop support and training.\
-    \  Develop policies and procedures for internet access and antivirus installations.\
-    \  Communicate effectively with end users, vendors and upper management.  Trained\
-    \ end users in office applications and security issues.  Managed all pc hardware\
-    \ and software office applications and installations at the local branch offices,\
-    \ feed mills and truck shop in the Laurinburg, Bladenboro, Tar heel and Nichols\
-    \ S.C.  locations.          Education      Bachelor of Science  :   Business Management\
-    \   August-05       National American University   City  ,   State       Business\
-    \ Management        Associate/Degree  :   Business Computer Programming   May-92\
-    \       Robeson Community College    Business Computer Programming        CERTIFICATIONS\
-    \      Comptia Network  \t\t\t\t\t\t\tFebruary-14.  Comptia A \t\t\t\t\t\t\tFebruary-14.\
-    \        Skills    active directory, antivirus, C, cable, cat5, computer hardware,\
-    \ hardware, client, clients, email, front page, hard drives, hardware support,\
-    \ html, ids, internet access, local area network, layout, Domino, office applications,\
-    \ Microsoft office 2000, Windows 2000, Microsoft Windows 2003 Server, Windows\
-    \ XP, Network Security, Network, networking, OS, all pc hardware, phone system,\
-    \ Develop policies, POS, power supply, python, routers, scheduling, TCP/IP, technical\
-    \ support, desktop support, telecom, tops, trouble shooting, upgrades, upgrade,\
-    \ Vista, website design, Web development and design   "
+  - 'Access card management:Prepare &amp; issue access card for new joiner, lost one,...Take
+    photo for new joiners to create access card.Manage access right to common areas
+    including: grant access, block access, terminate access,...Distribute access card
+    to employee.HRS Administration:Daily perform scanning and saving employees e-file
+    in systems.Documentation supports for e-file processes, training materials, meeting
+    minutes.Weekly support on updating status related e-file management.Training coordinator:Support
+    training organization (Pre  During  Post Training)Support BTC-AS projects, training
+    events organized in Vietnam &amp; Region (such as training material designing
+    &amp; delivery, send communication to stakeholders, support and guide visitors,
+    participants...).Data maintenance &amp; reporting by frequency (daily, weekly,
+    monthly...)Other task assigned by HRS TeamLast year students in: Human Resources,
+    Economics or related majors.Detail-oriented and possess good organizational skillsAble
+    to work in a fast-paced and dynamic working environmentGood communication, verbal
+    and written both in English and Vietnamese.Having experience in handling projects,
+    events is a plus.Can submit the recommendation letter from university with:+ Full
+    name of intern, date of birth, student code and ID Number.+ Name of University+
+    Period of internship program+ Date of issue letter must be before internship term.+
+    Signature (Official universitys representative with stamp)Why BOSCH?Because we
+    do not just follow trends, we create them. Together we turn ideas into reality,
+    working every day to make the world of tomorrow a better place.Do you set high
+    expectations for your learning journey? So do we. At Bosch, youll explore, grow,
+    and challenge yourself in a dynamic and innovative environment.Internship Benefits
+    &amp; Learning Opportunities at BoschMonthly Internship Allowance, plus Meal and
+    Parking support.1 paid leave day + 1 sick leave day for each internship month.1
+    birthday leave day if your birthday falls during the internship period.Accident
+    insurance provided throughout the internship.Opportunity to observe and engage
+    in international projects and innovation.Access to our diverse training programs
+    which surely help strengthen both your personal and professionalism.Participation
+    in various company activities such as football, yoga, badminton, and team building.'
+  - 'As a key player of the Financial Services team, Head of Finance Spain owns and
+    supervises the financial accounting and processes.Main responsibilities include
+    coordination and execution of finance operations to ensure accurate and timely
+    delivery of financial reports, analytics and compliance.The role is based at AFRYs
+    office in MadridRole:Reporting to Head of Finance EMEA, the main responsibilities
+    include:Areas of responsibility:Produce accurate and timely financial statements
+    (IFRS and Local GAAP)Manage Balance Sheet accounts as well as act on discrepancies
+    and outstanding items.  Manage and execute month-end close process coordinating
+    finance operationsP&amp;L variance analysis and reporting as well as ensure accurate
+    Project Accounting within the line of businessCash-flow management and reportingIncome
+    Tax returns and VAT returns preparation and filingAct as a business partner to
+    management and financial controllers  and support with needed financial data for
+    decisions or analyticsEnsure internal controls compliance in accordance with Corporate
+    directives and policiesPrepare documentation and manage external and internal
+    auditsManage local finance team and personal developments as well as performance
+    managementLiaise with all business areas and external companies to answer finance
+    related questionsSupport implementation of financial processes and ensure adherence
+    to themSupport and promote digital transformationSkills required:5-10 years of
+    experience in a Senior accounting position within an international organizationBachelor
+    degree in Business Administration (MBA desirable) and/or Accounting Professional
+    qualification (ACCA or similar)Fluent in Spanish &amp; English, both written and
+    verbalSolid working knowledge of local GAAP and IFRS and accounting procedures
+    including preparing month-end close and forecastsStrong financial analysis skills
+    and Excel proficiencyHigh integrity as well as good communicator to promote internal
+    controls, policy and global processes complianceEnergetic, flexible and dependable.
+    Able to work independently and ensure delivery of within communicated deadlinesService
+    and results oriented: hands-on attitude, innovative, solver, initiative and strive
+    for continuous process improvementOutstanding team player able to lead and promote
+    collaborationAs part of your online application process, please provide a CV and
+    covering letter stating why you want to work for AFRY and your salary expectations.
+    We only accept online applications.If we think you could be a good fit for the
+    organization you will be invited for a telephone interview following which, if
+    we are both happy to continue the process, you will then be invited to a face-to-face
+    interview and through Teams with other team members.You must have a right to live
+    and work in Spain.At AFRY, we engineer change in everything we do. Change happens
+    when brave ideas come together. When we collaborate, innovate technology, and
+    embrace challenging points of view. Thats how we''re making future. We are actively
+    looking for qualified candidates to join our inclusive and diverse teams across
+    the globe. Join us in accelerating the transition towards a sustainable future.'
+  - Serve as an IT point of contact for ad hoc requests from the company concerning
+    systems managed and supported by the P&amp;L IT team;Analyze the company's needs
+    by collaborating with the business and end-users to understand their requirements
+    and processes;As part of the requested analysis, design the IT solution, draft
+    user stories in Jira, and verify requirement understanding with users;Work closely
+    with IT developers to discuss development options and feasible features that can
+    be implemented;Ensure a clear understanding of the company's needs;Ensure development
+    work planning aligns with the project schedule, monitor development work, and
+    report issues affecting quality or delivery timeline to the BA team lead;Define,
+    execute, and document the functional testing plan, including regression tests,
+    in coordination with the regression tester;Ensure teams are informed about upcoming
+    changes;Appropriately escalate risks and issues to the BA team lead and the P&amp;L
+    team lead;Gain and maintain a strong detailed understanding of Global Markets
+    business, regularly documenting on wiki pages;Provide user training as needed
+    and offer functional assistance when necessary;Actively contribute to the development
+    and enhancement of the business analyst methodology by sharing key skills, knowledge,
+    and experience with other team members, as well as providing cross-training;Ensure
+    compliance with IT security guidelines;Proven experience in business analysis;Strong
+    communication and interpersonal skills;High level of autonomy and proactivity;Proven
+    experience in the banking sector would be ideal;Ability to prepare specifications
+    and write/execute functional tests;Ability to organize the UAT process and the
+    approval process;Ability to support computer applications;Familiarity with Agile
+    methods, particularly Scrum;Experience working in an environment where deadlines
+    and delivery quality are under significant pressure;Basic familiarity with SQL
+    syntax is a plus;Fluency in English;Proficiency in French (preferably);Devoteam
+    Group works for equal opportunities, promoting its employees based on merit and
+    actively fights against all forms of discrimination. We are convinced that diversity
+    contributes to the creativity, dynamism and excellence of our organization. All
+    of our vacancies are open to people with disabilities.
+- source_sentence: "         CONSULTANT       Professional Summary    Highly organized\
+    \ Microbiologist successful at managing people and time, with expertise in Molecular\
+    \ Genetic Research, Quality Control System Operations, Cross Functional Leadership,\
+    \ Consulting, Training and Development and Validation of new products and facilities.\
+    \      Skills          RNA isolation knowledge  Proficient in PCR  In-vivo transcription\
+    \  Published researcher  Skilled in genotyping  Protein isolation  Southern blotting\
+    \  Transcription profiling  Equipment maintenance  Statistical analysis  ELISA\
+    \ assay  Expert in design control  ISO 9001 environment  Extraction  Separation\
+    \ and purification techniques  Trained in lab safety  MS Office proficiency  Training\
+    \ proposals  Expert in developing inventory systems  Creative instruction styles\
+    \ and techniques  Certified Training Specialist in Consulting  Project management\
+    \  Presentations expert  Charismatic public speaker  Skilled in working with special\
+    \ needs adults  Proficient in creating and maintaining schedules  Taught Aseptic\
+    \ technique lessons to over 400 participants  Instructional technologies knowledge\
+    \  Intuitive people management skills  Assisted in OOS Investigations  Change\
+    \ Control for Quality Systems RDP, NCBI, TIGR, KEGG, OMIM, Entrez, Minitab, PSI-Blast,\
+    \ Tree View, Gen Bank, Pub Med, Gene Pix Pro 5.0 analysis of COGS and CDD  MS\
+    \ Office, MS Outlook, Citrix Sever, FTP clients, LIMS, SAP, Isotrain, and IKAT,\
+    \ VIBES, COGNOS, Word, Power Point, Access, Outlook.              Work History\
+    \      Consultant     04/2016   to   Current      Company Name   –   City  , \
+    \  State      As a Consultant, I provide consulting and technical training on\
+    \ proper aseptic techniques and FDA regulatory compliant behavior required while\
+    \ working in an aseptic and/or clean environment.  Clean-room (Aseptic)Gowning\
+    \ Technique Training (ISO 5 - ISO 8)* Clean-room Technique Training (ISO 5 - ISO8)\
+    \ Clean-room (Aseptic)Manufacturing Technique Training (ISO 5 - ISO 8) Environmental\
+    \ Monitoring Technique Training Aseptic Cleaning Technique Training Sterile Gloves\
+    \ Techniques Training Basic Aseptic Technique Training.         Consultant Microbiologist\
+    \     12/2016   to   05/2017      Company Name   –   City  ,   State      Conduct\
+    \ Bio Burden testing, Media Testing, water and clean steam testing for Aseptic\
+    \ GMP Facility Qualification.  Facility Qualification and equipment/process or\
+    \ methods validation MODA (environmental monitoring system) development and uses.\
+    \  Commissioning Qualification Validation (CQV) activities Lead teams of validation\
+    \ professionals, and provided subject matter expertise in the validation of a\
+    \ variety of utility, facility and process equipment.  Developed project scope\
+    \ statements, estimates and proposals.  Developed policies, programs, and standard\
+    \ operating procedures.  Developed and executed validation of documents/protocols\
+    \ for equipment compliance.  IQ and OQ documentation development and execution\
+    \ of MODA System.  Provide regulatory, quality and compliance solutions for the\
+    \ pharmaceutical, biotech, medical device and other regulated industries.  Develop\
+    \ microbiological monitoring, control and continuous improvement strategies for\
+    \ API and fill-finish manufacturing, fermentation, recovery and purification,\
+    \ and aseptic processing and non-sterile manufacturing.  Design and administer\
+    \ microbiological programs including environmental monitoring, investigations\
+    \ of laboratory and manufacturing microbial excursions and out-of-specification\
+    \ findings, laboratory audits, optimization and management, laboratory and facility\
+    \ design and qualification, cGMP compliance, Pharmacopoeia compliance, barrier\
+    \ isolator design and microbiological validation, microbiology method and protocol\
+    \ development, validation and technology transfer, contact lens care formulation\
+    \ development, manufacturing, stability testing and product release, disinfection,\
+    \ sterilization and the use of biological indicators, cleaning validation, process\
+    \ development, regulatory audit response (e.g., FDA 483 and warning letters),\
+    \ regulatory dossier development support, and Process Analytical Technology (PAT).\
+    \  Support microbiology and rapid microbiological method suppliers and industry\
+    \ end-users in developing next generation technology platforms, validation and\
+    \ testing plans, financial and return on investment (ROI) strategies, commercialization\
+    \ approaches, and global regulatory and pharmacopoeia compliance.  Act as subject\
+    \ matter expert for microbiology technology companies during due diligence, partnership,\
+    \ collaboration, merger and acquisition activities.  Expert witness for matters\
+    \ related to pharmaceutical microbiology, ophthalmic formulations, contamination\
+    \ control, antimicrobial and preservative effectiveness, sterilization, pharmacopoeia\
+    \ interpretation and compliance, USP microbiology test methods, laboratory and\
+    \ manufacturing GMPs, formulation development and stability, sterile and nonsterile\
+    \ manufacturing, research and development, and product quality.         Corporate\
+    \ Trainer/Lead Aseptic Technique/Behavior Specialist     12/2011   to   12/2015\
+    \      Company Name   –   City  ,   State      Spearheaded expansion and development\
+    \ initiatives in Aseptic Area.  Used role-playing, simulations, team exercises,\
+    \ group discussions, videos and lectures to instruct participants in a variety\
+    \ of ways.  Assessed training needs through surveys, interviews with employees,\
+    \ focus groups and consultation with managers.  Created an online training program\
+    \ to be used during video training conferences.  Organized training for 25 new\
+    \ employees per week.  Increased performance scores by 80% by developing new employee\
+    \ processes.  Extensively trained new and existing employees.  Planned and delivered\
+    \ account management training to an average of 10 account managers per week. \
+    \ Reviewed daily metrics of account executives and employees to evaluate their\
+    \ strengths and weaknesses.  Monitored participant workflow and behaviors throughout\
+    \ the training process.  Conducted one-on-one tutoring sessions for new employees.\
+    \  Administered performance reviews to evaluate each participant's progress. \
+    \ Clearly communicated objectives for all lessons, units, and projects to all\
+    \ participants.  Used a variety of assessment tools and strategies to improve\
+    \ instruction methods.  Addressed all questions from training program participants.\
+    \  Created online training courses in Aseptic and Terminally Sterile Area.  Assumed\
+    \ ownership of all training program initiatives.  Align with functional managers\
+    \ on the management of training records to ensure that individual training plans\
+    \ and training records are accurate and up to date in accordance with 21 CFE Part\
+    \ 11 Identified core competencies of assigned functional areas to develop, within\
+    \ the Quality System, short and long-term planning strategies and initiatives\
+    \ in accordance with 21 CFR 820 Assess external service providers and/or site\
+    \ staff training needs and to support the development of eventual training programs\
+    \ for Terminal Sterilization Filling Line.  Participated in research of regulatory\
+    \ issues and dissemination regulatory information to Production, QA, QC, and R&D\
+    \ departments and senior management as required.  Actively, participated in the\
+    \ evaluation of regulatory compliance of documents/ products/ process/ test method\
+    \ changes.  Reviews labeling and labels for compliance with regulatory requirements.\
+    \  Conducted internal audits.  Lead department initiatives to improve current\
+    \ processes and procedures.         Quality Control - Assistant Scientist    \
+    \ 10/2010   to   10/2011      Company Name   –   City  ,   State      Executed\
+    \ experimental tasks Obtained and interpret experimental data Conducted TMC, LAL,\
+    \ Micro-ID, TOC, and Purification Test Reviewed and edited protocols and standard\
+    \ operating procedures (SOPs) Maintain regular laboratory and system functions\
+    \ for the group Ensure compliance with cGMP, FDA, and SOPs guidelines and regulations.\
+    \  Performed tests on water, and the environment to detect harmful microorganisms\
+    \ and to obtain information about sources of pollution and contamination.  Cleaned\
+    \ and maintained laboratory equipment.  Stocked and rotated all prepared growth\
+    \ media.  Performed routine monitoring of cleanroom manufacturing environments\
+    \ Performed micro'ID and organism analysis.  Perform compliance adherence checks\
+    \ to all FDA, GMP regulations Collected and analyzed biological data about relationships\
+    \ between organisms and their environment.  Interpreted research findings and\
+    \ summarized data into reports.  Complied with Good Laboratory Practices and Title\
+    \ 21 CFR Part 11.  Collected and processed specimens for clinical protocols. \
+    \        Laboratory Manager - Laboratory Technological Assistant/ Research Assistant/Trainer\
+    \     08/2007   to   06/2009      Company Name   –   City  ,   State      Ordered\
+    \ laboratory equipment and supplies.  Operated a genetic analyzer to sequence\
+    \ DNA.  Kept accurate databases of specimens collected and stored in a repository.\
+    \  Collected and processed specimens for clinical protocols.  Successfully completed\
+    \ transcription profiling experiments.  Complied with Good Laboratory Practices\
+    \ and Title 21 Code of Federal Regulations Part 11.  Scheduled and trained student\
+    \ staff members.  Managed overall laboratory functions.  Investigated the impact\
+    \ of intrinsic target properties on siRNAs pharmaceutical properties.  Extracted\
+    \ DNA and genotype samples using SNP technology.  Interpreted research findings\
+    \ and summarized data into reports.  Collected and analyzed biological data about\
+    \ relationships between organisms and their environment.  Programmed computers\
+    \ to store, process and analyze data.  Maintained laboratory instruments and developed\
+    \ new laboratory equipment.  Interpreted test results and developed nonstandard\
+    \ tests.  Ordered chemicals for analysis and prepared reagents for analysis. \
+    \ Maintained compliance with DEC and EPA.  Set up standards for sampling analysis\
+    \ and data interpretation using effluent analysis.  Operated wet methods and instrumentation\
+    \ analysis.  Accurately inventoried lab chemicals and supplies.  Monitored and\
+    \ maintained specialized lab equipment (e.g.  Minispec, shared microscope, etc.),\
+    \ laboratory supplies, and materials.  Trained and developed undergraduate research\
+    \ assistants on proper protocol and procedures in the HIV lab.  Conducted one-on-one\
+    \ tutoring sessions for new students.         Microbiology- Laboratory Technician\
+    \     06/2007   to   09/2008      Company Name   –   City  ,   State      Maintained\
+    \ laboratory instruments and developed new laboratory equipment.  Organized lab\
+    \ test solutions, compounds, and reagents.  Routinely calibrated scales to minimize\
+    \ leakage due to calibration errors.  Determined equipment operating efficiency.\
+    \  Interpreted test results and developed nonstandard tests.  Maintained records\
+    \ for Michigan Department of Health audits.  Ordered chemicals for analysis and\
+    \ prepared reagents for analysis.  Recorded test results using a variety of chemistry-specific\
+    \ software programs.  Operated wet methods and instrumentation analysis.  Accurately\
+    \ inventoried lab chemicals and supplies.  Collaborated with business units for\
+    \ cost model analysis.  Created a rapid screening and testing factory to find\
+    \ acceptable materials.  Steered process development experiments in the lab and\
+    \ support scale-up processes.  Computed taxes owed by applying prescribed rates,\
+    \ laws and regulations.  Complied with Good Laboratory Practices and Title 21\
+    \ CFR Part 11.         Education      B.S  :   Microbiology     May 2009     Michigan\
+    \ State University    -\n                          City  ,\n                 \
+    \         State       Microbiology       Skills    21 CFR Part 11, account management,\
+    \ API, aseptic techniques, Aseptic Technique, Basic, calibration, chemistry, Citrix,\
+    \ cleaning validation, COGNOS, conferences, Consultant, consultation, Consulting,\
+    \ continuous improvement, clients, databases, DEC, Department of Health, DNA,\
+    \ documentation, due diligence, ELISA, staff training, Equipment maintenance,\
+    \ senior management, experiments, Filling, financial, focus, FTP, functional,\
+    \ GMP, Good Laboratory Practices, in design, instruction, internal audits, interpretation,\
+    \ inventory, IQ, ISO 5, ISO 8, ISO8, ISO 9001, laboratory equipment, lab test,\
+    \ regulatory compliance, letters, LIMS, people management, materials, Access,\
+    \ MS Office, MS Outlook, Outlook, Power Point, Word, Minitab, next, optimization,\
+    \ OQ, PCR, performance reviews, policies, Presentations, process development,\
+    \ processes, process equipment, progress, Project management, proposals, protocols,\
+    \ public speaker, Quality, QA, research, researcher, safety, SAP, Southern blotting,\
+    \ specification, Statistical analysis, surveys, taxes, technical training, TOC,\
+    \ training programs, Transcription, tutoring, Validation, video, View, workflow\
+    \   "
   sentences:
-  - "requirements for senior accountant\n minimum of five  years related experience\
-    \ in banking\n bachelors degree in accounting finance business or related field\n\
-    \ specialized bank financeaccounting educationtraining\n thorough knowledge of\
-    \ general ledger reconciliations and accounts payable\n thorough knowledge of\
-    \ gaap and financial reporting requirements\n proficient in\n english reading\
-    \ writing grammar and mathematics\n interpersonal relations and communication\
-    \ skills\n organizational and processproject management skills\n pc skills including\
-    \ microsoft office\n accounting skills\n\nwe offer the following excellent benefits\
-    \ to our fulltime employees\n medical insurance\n dental insurance\n vision insurance\n\
-    \ life insurance employer paid\n ltd insurance employer paid\n paid federal bank\
-    \ holidays\n flexible spending account\n health savings account employer contributed\n\
-    \ k matching\n pto paid time off\n lifemart employee discount program\n\nyour\
-    \ responsibilities will include\n perform various duties to support the banks\
-    \ accounting financial reporting and control functions\n coordinate work within\
-    \ all departments and respond to inquiries for information\n comply with operating\
-    \ policies and procedures established for the accounting function\n maintain appropriate\
-    \ records and provide assigned reports\n perform various duties to support the\
-    \ banks accounting financial reporting and control functions\n prepare monthly\
-    \ financial statements reports and records by collecting analyzing and summarizing\
-    \ account information\n prepare journal entries and reconciliations for monthly\
-    \ general ledger close\n maintain the banks accounting systems for accounts payable\
-    \ fixed assets prepaid expenses and accrued expenses including related processing\
-    \ and reporting\n maintain the banks internal demand deposit accounts and reconcile\
-    \ account statements\n review bank statements and reconcile general ledger balances\
-    \ with corresponding banks such as the frbny fhlbny and acbb\n research and reconcile\
-    \ all discrepancies including auditing and verifying all financial documents\n\
-    \ prepare vendor checks utilizing accounts payable system process incoming and\
-    \ outgoing wire transfers and prepare sales and use taxes\n assist with testing\
-    \ of the system reports required for management financial reporting and general\
-    \ ledger reconciliations\n assist with completion of quarterly and annual regulatory\
-    \ reporting including the call report summary of deposits gudpa and fr \n assist\
-    \ with preparing for various audits and regulatory examinations by gathering requested\
-    \ materials and assist in preparing assigned schedules\n assist with various accounting\
-    \ related projects and special projects as assigned\n crosstrain in order to perform\
-    \ backup duties for other financeaccounting personnel as required\n abide by current\
-    \ laws and organizational policies and procedures to promote an environment free\
-    \ of harassment and discrimination\n cooperate with participate in and support\
-    \ the adherence to all internal policies procedures and practices in support of\
-    \ risk management and overall safety and soundness and the banks compliance with\
-    \ all regulatory requirements ie community reinvestment act cra bank secrecy act\
-    \ bsa equal credit opportunity act etc\n maintain appropriate records and provides\
-    \ assigned reports\n\nfirst commerce bank is dedicated to providing people businesses\
-    \ and communities in our markets with high quality products and services with\
-    \ superior customer service we provide products and services through secure userfriendly\
-    \ technology and customer friendly locations our relationships are founded in\
-    \ our responsiveness to the financial needs of our customers in an atmosphere\
-    \ of personal attention professionalism trust integrity and fairness first commerce\
-    \ prides itself on maintaining personal communications beginning with the board\
-    \ of directors\n\nfirst commerce bank is an equal opportunity employer all qualified\
-    \ applicants receive consideration for employment without regard to race color\
-    \ religion sex age disability protected veteran status national origin sexual\
-    \ orientation gender identity or expression genetic information or any other characteristic\
-    \ protected by applicable law"
-  - "overview\n\nif you want an exciting job with one of the largest offprice retail\
-    \ stores in the nation join the burlington stores inc team as a retail sales associate\
-    \ are you an outgoing upbeat peopleperson with great organizational skills would\
-    \ you thrive in a highenergy environment where associates work together to drive\
-    \ results is it important to you to make a difference in the community where you\
-    \ live and work if you answered yes then this may be the right opportunity for\
-    \ you\n\nretail sales associates are important ambassadors of the burlington brand\
-    \ at the front lines in our mission to provide worldclass service to our customers\
-    \ youll be responsible for greeting and assisting customers maintaining a neat\
-    \ organized and clean sales floor and supporting the management team with daytoday\
-    \ store operations retail sales associates may be assigned to work in any or all\
-    \ of the following departments ladies men youth sportswear shoes home or baby\
-    \ depot\n\nresponsibilities\n assisting customers in locating merchandise when\
-    \ needed\n assisting in floor moves merchandising display maintenance and housekeeping\n\
-    \ assisting in ringing up sales at registers andor bagging merchandise\n performing\
-    \ other tasks as assigned by manager from timetotime\n\ncandidates must be able\
-    \ to work a flexible schedule including nights weekends and holidays as required\
-    \ physical requirements may include the ability to lift and move boxes weighing\
-    \  lbs or more and the ability to stand for extended periods of time\n\nif you\n\
-    \nare excited to deliver great values to customers every day\n\ntake a sense of\
-    \ pride and ownership in helping drive positive results for a team\n\nare committed\
-    \ to treating colleagues and customers with respect\n\nbelieve in the power of\
-    \ diversity and inclusion\n\nwant to participate in initiatives that positively\
-    \ impact the world around you\n\ncome join our team youre going to like it here\n\
-    \nyou will enjoy a competitive wage flexible hours and an associate discount parttime\
-    \ associates based on hours worked may be eligible for burlingtons benefits package\
-    \ which includes dental and vision coverage and including life insurance parttime\
-    \ associates may also be eligible for paid time off paid holidays and a k plan\n\
-    \nwe are a rapidly growing brand and provide a variety of training and development\
-    \ opportunities so our associates can grow with us our store teams work hard and\
-    \ have fun together burlington associates make a difference in the lives of customers\
-    \ colleagues and the communities where we live and work every day burlington stores\
-    \ inc is an equal opportunity employer committed to workplace diversity"
-  - " job summarydo you want to be a part of an exciting team reimagining how artists\
-    \ and their teams connect with fans and grow their business across amazon\n amazon\
-    \ music for artists is building scalable solutions for artists which include selfservice\
-    \ tools to provide data and insights promote their brand and grow their nonstreaming\
-    \ revenue\n for this role we are seeking a  growth marketing specialist to help\
-    \ lead initiatives that drive lead generation  influence pipeline for amazon music\
-    \ for artists\n youll be working closely with a wide crossfunctional group of\
-    \ analysts product ux research design marketing ops and business teams\n you must\
-    \ be comfortable working in a highgrowth startup within a larger organization\
-    \  willing to wear many hats roll up your sleeves and get the job done\n the ideal\
-    \ candidate has an understanding of the marketing funnel and knows how to optimize\
-    \ it for each stage\n they also have strong personal organization and project\
-    \ management skills\n about amazon musicamazon music reimagines music listening\
-    \ by enabling customers to unlock millions of songs and thousands of curated playlists\
-    \ and stations with their voice\n amazon music provides unlimited access to new\
-    \ releases and classic hits across ios and android mobile devices pc mac echo\
-    \ and alexaenabled devices including fire tv and more\n with amazon music prime\
-    \ members have access to adfree listening of  million songs at no additional cost\
-    \ to their membership\n listeners can also enjoy the premium subscription service\
-    \ amazon music unlimited which provides access to more than  million songs and\
-    \ the latest new releases\n amazon music unlimited customers also now have access\
-    \ to the highestquality listening experience available with more than  million\
-    \ songs available in high definition hd more than  million songs in ultra hd and\
-    \ a growing catalog of spatial audio\n customers also have free access to an adsupported\
-    \ selection of top playlists and stations on amazon music\n all amazon music tiers\
-    \ now offer a wide selection of podcasts at no additional cost and live streaming\
-    \ in partnership with twitch\n engaging with music and culture has never been\
-    \ more natural simple and fun\n for more information visit amazonmusiccom or download\
-    \ the amazon music app\n key job responsibilities\n design and operate a sales\
-    \ and marketing leads pipeline with support from product and engineering\n this\
-    \ includes requirements building marketing automation to enable lead acquisition\
-    \ nurturing and conversion including lead grading and scoring and daytoday salesmarketing\
-    \ ops\n collaborate with business intelligence marketing operations product marketing\
-    \ and industry relations teams on account segmentation to ensure we are targeting\
-    \ the ideal artist prospects\n optimize overall sales processes drive crossfunctional\
-    \ partnership and buyin\n collaborate with the gtm stakeholders to translate strategy\
-    \ into pipeline by informing and guiding campaigns and tactics\n measure analyze\
-    \ and report your impact on key business metrics to leadership identify opportunities\
-    \ for improved performance and influence amazon music for artists app users towards\
-    \ specific engagement journeys\n grow further adoption retention and engagement\
-    \ across our portfolio of products and features\n a day in the lifeabout amazon\
-    \ musicamazon music reimagines music listening by enabling customers to unlock\
-    \ millions of songs and thousands of curated playlists and stations with their\
-    \ voice\n  years of experience with end to end product delivery\n experience owning\
-    \ roadmap strategy and definition\n experience owning feature delivery and tradeoffs\
-    \ of a product\n experience with product cycles of  months\n  years of experience\
-    \ in product or program management product marketing business development or technology\n\
-    \  years experience in growth marketing for a digital or tech company with an\
-    \ emphasis on leveraging   account based marketing strategies aimed at sourcing\
-    \ and progressing pipeline to drive business\n proven ability to initiate and\
-    \ drive complex projects with minimal guidance and then communicate insights with\
-    \ senior stakeholders\n experience with salesforce marketing cloud and sales cloud\
-    \ andor similar products\n you have owned growth marketing channels and driven\
-    \ demonstrable results owning and achieving core growth and engagement kpis\n\
-    \ you understand marketing funnels and know how to optimize and drive each stage\n\
-    \ extremely organized with strong project management skills with a bias towards\
-    \ action and proactive communications\n experience working with product and engineering\
-    \ teams influencing roadmaps\n an understanding of the music ecosystem  the value\
-    \ chain the key players what motivates them and how they operate is a plus but\
-    \ not required\n amazon is committed to a diverse and inclusive workplace\n amazon\
-    \ is an equal opportunity employer and does not discriminate on the basis of race\
-    \ national origin gender gender identity sexual orientation protected veteran\
-    \ status disability age or other legally protected status\n for individuals with\
-    \ disabilities who would like to request an accommodation please visit"
-- source_sentence: "         SUPERVISOR       Summary    I was a supervisor for two\
-    \ years in a corrosion control facility for the US Government. As a shift supervisor\
-    \ of three employees I was directly responsible for the maintenance and upkeep\
-    \ of twelve aircraft paint schemes. I currently maintain a US Government \"Secret\
-    \ Security Clearance\".          Experience     January 2004   to   January 2012\
-    \     Company Name   City  ,   State     Supervisor        Worked on F/A-18C.\
-    \  Masked and covered surfaces not to be painted.  Performed Plastic Media Blasting\
-    \ to remove paint and corrosion.  Striped, sanded, masked, and repainted surfaces,\
-    \ and blended and polished finish to match surrounding areas, manually or using\
-    \ portable power tools.  Cleaned, sanded, and applied chemical solutions to prepare\
-    \ and condition surfaces prior to painting.  Mixed and thinned paint or other\
-    \ coating to specified color and consistency according to standard formulas or\
-    \ color charts, using mixing equipment.  Sprayed specified amount or thickness\
-    \ of primer, protective, decorative, or finish coatings, such as paint, lacquer,\
-    \ sealer, or enamel, onto prepared surfaces, using spray equipment.  Painted surfaces\
-    \ of aircraft, applying knowledge of surface preparation and painting techniques,\
-    \ using spray painting equipment, power tools, and work aids.  Applied or retouched\
-    \ paint, using brush.  Laid out and painted insignias, symbols, designs, or other\
-    \ markings on painted surfaces, according to blueprints or specifications, using\
-    \ stencils, patterns, measuring instruments, brushes, or spray equipment.  Regulated\
-    \ controls on equipment to cure and dry paint or other coatings.  Set up portable\
-    \ ventilators, exhaust units, ladders, and scaffolding prior to painting.  Mainly\
-    \ worked on Aluminum metals.  Respirator qualified.  Supervised corrosion control\
-    \ facility supervising three employees directly responsible for the maintenance\
-    \ and upkeep of twelve aircraft paint schemes Ran and followed Tool Control Program\
-    \ and procedures Followed technical manuals and safety procedures Inventoried\
-    \ HAZMAT Separated HAZWASTE to EPA regulations Recorded and tracked HAZMAT usage\
-    \ Ordered HAZMAT for daily use Helped maintain an 0% accident rate in safety within\
-    \ my shop.         January 2012   to   Current     Company Name   City  ,   State\
-    \     Administration Clerk        Prepare, type, and route correspondence and\
-    \ reports.  Organize and maintain files.  Recieve office visits and handle telephone\
-    \ communications.  Operate computers, word processing, and duplicating documents.\
-    \  Maintain records and other official publications.         October 2013   to\
-    \   June 2014     Company Name   City  ,   State     Aircraft Worker        Worked\
-    \ on P-3s, T-34s, T-44s, and F/A-18s.  Masked and covered surfaces not to be painted.\
-    \  Performed Plastic Media Blasting to remove paint and corrosion.  Striped, sanded,\
-    \ masked, and repainted surfaces, and blended and polished finish to match surrounding\
-    \ areas, manually or using portable power tools.  Cleaned, sanded, and applied\
-    \ chemical solutions to prepare and condition surfaces prior to painting.  Mixed\
-    \ and thinned paint or other coating to specified color and consistency according\
-    \ to standard formulas or color charts, using mixing equipment.  Sprayed specified\
-    \ amount or thickness of primer, protective, decorative, or finish coatings, such\
-    \ as paint, lacquer, sealer, or enamel, onto prepared surfaces, using spray equipment.\
-    \  Painted surfaces of aircraft, applying knowledge of surface preparation and\
-    \ painting techniques, using spray painting equipment, power tools, and work aids.\
-    \  Used chemicals to strip paint and clean aircraft parts Masked and covered surfaces\
-    \ to prevent Plastic Media and chemical stripper from entering unwanted areas.\
-    \         November 2014   to   March 2015     Company Name   City  ,   State \
-    \    Aircraft Painter        Worked on Boeing 737 - 777 and Airbus 320.  Masked\
-    \ and covered surfaces not to be painted.  Striped, sanded, masked, and repainted\
-    \ surfaces, and blended and polished finish to match surrounding areas, manually\
-    \ or using portable power tools.  Cleaned, sanded, and applied chemical solutions\
-    \ to prepare and condition surfaces prior to painting.  Mixed and thinned paint\
-    \ or other coating to specified color and consistency according to standard formulas\
-    \ or color charts, using mixing equipment.  Sprayed specified amount or thickness\
-    \ of primer, protective, decorative, or finish coatings, such as paint, lacquer,\
-    \ sealer, or enamel, onto prepared surfaces, using spray equipment.  Used rollers\
-    \ and brushes to apply paint Painted surfaces of aircraft, applying knowledge\
-    \ of surface preparation and painting techniques, using spray painting equipment,\
-    \ power tools, and work aids Used chemicals to strip paint and clean aircraft\
-    \ parts Masked and covered surfaces to prevent chemical stripper from entering\
-    \ unwanted areas Followed blueprints to apply stencils for markings and placards.\
-    \         April 2015   to   October 2015     Company Name   City  ,   State  \
-    \   Aircraft Painter        Worked on Airbus 319 & 320.  Masked and covered surfaces\
-    \ not to be painted.  Sanded, masked, and repainted surfaces, and blended and\
-    \ polished finish to match surrounding areas, manually or using portable power\
-    \ tools.  Cleaned, sanded, and applied chemical solutions to prepare and condition\
-    \ surfaces prior to painting.  Mixed and thinned paint or other coating to specified\
-    \ color and consistency according to standard formulas or color charts, using\
-    \ mixing equipment.  Rolled or brushed specified amount or thickness of primer,\
-    \ protective, decorative, or finish coatings, such as paint, lacquer, sealer,\
-    \ or enamel, onto prepared surfaces, using spray equipment.          Education\
-    \          Florida State College of Jacksonville   City  ,   State       Aircraft\
-    \ Coating Technician Certificate\n*Intern Hours; 148 hours with Associated Painters\
-    \            Tulsa Welding School   City  ,   State       Welding Certificate\n\
-    Job-Related Training              Interests    Aviation Structural Mechanics Common\
-    \ Core, Class A1 \t\t(4 weeks)\nAviation Structural Mechanic Organizational Level\
-    \ Strand Class \t(40 hours)\nAircraft Corrosion \t\t\t\t\t\t\t(40 hours)\nAircraft\
-    \ Paint/Finish \t\t\t\t\t\t\t(80 hours)      Additional Information      Aviation\
-    \ Structural Mechanics Common Core, Class A1 \t\t(4 weeks) Aviation Structural\
-    \ Mechanic Organizational Level Strand Class \t(40 hours) Aircraft Corrosion \t\
-    \t\t\t\t\t\t(40 hours) Aircraft Paint/Finish \t\t\t\t\t\t\t(80 hours) Honors,\
-    \ Awards Navy HYPERLINK \"http://www.usamilitarymedals.com/navy-ribbons-awards-navy-marine-corps-achievement-medal-ribbon-c-2070_21_230.html\"\
-    &HYPERLINK \"http://www.usamilitarymedals.com/navy-ribbons-awards-navy-marine-corps-achievement-medal-ribbon-c-2070_21_230.html\"\
-    \ Marine Corps Achievement Medal Ribbon Affiliations Member of the American Legion\
-    \ Post 76 M.U.C.H. (Makers United for Children's Hope)  Foundation         Skills\
-    \    blueprints, C, charts, color, office, painting, paint, power tools, publications,\
-    \ Maintain records, maintain files, safety, supervising, technical manuals, Technician,\
-    \ telephone, type, Welding, word processing   "
+  - 'Your CareerAs a Principal Consultant for SOC Transformation &amp; XSIAM Deployment,
+    you will be a seasoned leader at the forefront of our most strategic customer
+    engagements. You will leverage a rare blend of consultative presence, deep technical
+    mastery, and executive influence to guide our customers through complex SOC transformations.
+    Your primary role is to drive these large-scale programs, ensuring the successful
+    execution of foundational elements like seamless log migration and the development
+    of sophisticated detection strategies, to deliver measurable security outcomes
+    in highly dynamic enterprise environments.Your ImpactServe as the lead strategic
+    advisor and subject matter expert for customers undertaking a full-scale SOC modernization
+    with XSIAMLead multi-national SOC transformation programs, consolidating fragmented
+    detection and response processes into a unified, AI-driven platformDirect enterprise-scale
+    XSIAM deployments, guiding customers from initial strategy to full operationalizationDevise
+    and oversee comprehensive log ingestion strategies to ensure high-quality data
+    fuels the XSIAM platformArchitect and implement sophisticated detection strategies
+    and correlation rules to fortify customer defenses against advanced threatsFine-tune
+    and optimize log sources and correlation rules to maximize system performance
+    and detection efficacyIdentify opportunities to enhance analyst alert handling
+    and response through automationTransform ambiguity into structured action plans,
+    driving accountability at every level of a customer engagementBuild and mentor
+    high-performing professional services teams that blend consulting, engineering,
+    and change management expertisePartner with Product and R&amp;D teams to incorporate
+    field insights into roadmap prioritiesYour Experience A proven track record in
+    modernizing and transforming Security Operations Centers (SOCs) to achieve automation,
+    AI-driven detection, and measurable improvements in MTTD/MTTRExceptional executive
+    presence, with strong verbal and written communication skills to engage with stakeholders
+    from the SOC analyst to the CISOExperience acting as a trusted advisor to senior
+    security leaders, with the ability to diagnose challenges and deliver strategic
+    recommendations10+ years of hands-on experience in deploying and integrating SIEM/security
+    analytics solutions within large enterprise environments8+ years of experience
+    with Security Operations Center (SOC) tooling, processes, and workflowsHands-on
+    technical mastery across SIEM, SOAR, EDR, cloud security, and threat intelligenceAbility
+    to conceive, architect, and develop effective correlation and detection rulesFamiliarity
+    with a range of SIEM technologies, such as Splunk and IBM QRadar, is a plusStrong
+    expertise in Regular Expressions (Regex)Relevant bachelor''s degree or industry-recognized
+    qualifications (CISSP, GIAC, etc.), is a plusPreSales is a Plus 20% TravelThe
+    TeamOur technical services team is critical to our success and mission. As part
+    of this team, you enable customer success by providing support to clients post-sale.
+    Our dedication to our customers doesn''t stop once they sign - it evolves. As
+    threats and technology evolve, we stay in step to accomplish our mission. You''ll
+    be involved in implementing new products, transitioning from old products to new,
+    and will fix integrations and critical issues as they are raised. But you won''t
+    wait for them to be raised, you''ll seek them out, too. We fix and identify technical
+    problems, with a pointed focus of providing the best customer support in the industry.Our
+    Commitment
+
+
+    Were problem solvers that take risks and challenge cybersecuritys status quo.
+    Its simple: we cant accomplish our mission without diverse teams innovating, together.We
+    are committed to providing reasonable accommodations for all qualified individuals
+    with a disability. If you require assistance or accommodation due to a disability
+    or special need, please contact us at  accommodations@paloaltonetworks.com.Palo
+    Alto Networks is an equal opportunity employer. We celebrate diversity in our
+    workplace, and all qualified applicants will receive consideration for employment
+    without regard to age, ancestry, color, family or medical care leave, gender identity
+    or expression, genetic information, marital status, medical condition, national
+    origin, physical or mental disability, political affiliation, protected veteran
+    status, race, religion, sex (including pregnancy), sexual orientation, or other
+    legally protected characteristics.All your information will be kept confidential
+    according to EEO guidelines.'
+  - "About Neuralink:\nWe are creating devices that enable a bi-directional interface\
+    \ with the brain. These devices allow us to restore movement to the paralyzed,\
+    \ restore sight to the blind, and revolutionize how humans interact with their\
+    \ digital world.Team Description:\nJoin the Brain Interfaces Embedded Systems\
+    \ Team and be part of an elite team of engineers working on high-performance,\
+    \ safety-critical embedded systems for the next-generation brain-computer interfaces.\
+    \ You will have the opportunity to work closely with chip designers, electrical\
+    \ engineers, and software engineers on a small, fast-moving team.\nJob Description\
+    \ and Responsibilities: \nWe are looking for experienced, hands-on engineers who\
+    \ are interested in exploring what's possible in highly powered and latency-constrained\
+    \ environments. Firmware is the kernel of operation for the implant, and you have\
+    \ the chance to define and implement features that have a significant impact on\
+    \ the products capabilities. As an Embedded Software Engineer, you will be expected\
+    \ to:\n\nOwn complex challenges from definition to solution\nUtilize your ability\
+    \ to work cross functionally to deliver safety critical systems while considering\
+    \ power, radio, and thermal requirements\nTake ownership of products and/or core\
+    \ features; from planning and design to execution and testing\nBuild on your fundamental\
+    \ understanding of hardware while contributing to bare-metal firmware\nEmbrace\
+    \ a fast-paced iterative environment that prioritizes shipping manufacturable\
+    \ solutions \n\nNote: The team is hiring embedded engineers at all levels, both\
+    \ junior and senior. What matters most is evidence of exceptional abilities and\
+    \ a drive to succeed.\nRequired Qualifications: \n\nBachelor's degree in computer\
+    \ science, electrical engineering, related field, or equivalent experience \n\
+    1+ years of experience with embedded systems (including internships)\nProficient\
+    \ in C/C++, and Python\nKnowledge of MCU architectures, peripherals, and development\
+    \ environments\nComfortable reading electrical schematics and datasheets\nDeep\
+    \ knowledge of the embedded toolchains and workflows\nStrong EE &amp; DSP fundamentals\n\
+    HW/SW debugging skills with lab equipment\nYou find enormous challenges exciting\
+    \ and enjoy discovering and defining problems as much as solving them\nYou deliver.\
+    \ You may enjoy thoughtful conversations about problems and perfecting design,\
+    \ but in the end, you know that delivering reliable manufacturable solutions matters\n\
+    You are a cross-disciplinary team member. You are excited to work with and learn\
+    \ from chip designers to neuroscientists\n\nPreferred Qualifications: \n\nExperience\
+    \ with embedded stacks for ARM cores\nExperience with safety-critical systems\n\
+    Experience with FPGA development and testing\nExperience with RF, BLE, TCP/IP\
+    \ stacks from a practical embedded perspective\nPrior work or experience with\
+    \ applied cryptography and embedded systems security\nExpected Compensation:\n\
+    The anticipated base salary for this position is expected to be within the following\
+    \ range. Your actual base pay will be determined by your job-related skills, experience,\
+    \ and relevant education or training. We also believe in aligning our employees\
+    \ success with the company's long-term growth. As such, in addition to base salary,\
+    \ Neuralink offers equity compensation (in the form of Restricted Stock Units\
+    \ (RSU)) for all full-time employees.Base Salary Range:$119,000$281,000 USD\n\
+    What We Offer:\nFull-time employees are eligible for the following benefits listed\
+    \ below.\n\nAn opportunity to change the world and work with some of the smartest\
+    \ and most talented experts from different fields\nGrowth potential; we rapidly\
+    \ advance team members who have an outsized impact\nExcellent medical, dental,\
+    \ and vision insurance through a PPO plan\nPaid holidays\nCommuter benefits\n\
+    Meals provided\nEquity (RSUs) *Temporary Employees &amp; Interns excluded\n401(k)\
+    \ plan *Interns initially excluded until they work 1,000 hours\nParental leave\
+    \ *Temporary Employees &amp; Interns excluded\nFlexible time off *Temporary Employees\
+    \ &amp; Interns excluded"
+  - 'Universal Product &amp; Experiences is a division that creates and extends quality
+    entertainment that positively impacts audiences through universally engaging stories,
+    play and experiences.The Finance Intern position is a key member of the APAC Consumer
+    Product Finance team. Their primary role is to be the support function for the
+    Finance team with the various finance processes and other ad hoc tasks, especially
+    during the forecasting cycles.For the intern, this role will provide a wide exposure
+    across different responsibilities within the finance team, and will be a vital
+    member to ensure the team can continue to provide the assistance and business
+    partnering requirements necessary to all territory teams across APAC
+
+
+    Essential Responsibilities:Key contributor supporting all financial cycles: Annual
+    Budget, Quarterly Forecasts / Pacings, Long Range Planning and Quarterly Close.
+    This includes assisting in data uploads, helping with the preparation of data
+    tables and presentation slidesAssisting with the various ongoing financial processes
+    in UP&amp;E, which includes the checking of data to assist with deliverables submissions,
+    preparation and updating of reports, PO checking process, and various other tasksSupporting
+    the finance team with other various ad hoc analysis and tasks for the wider territory
+    teams across the APAC business, which includes pulling together data to assist
+    in financial analysis, building slides and graphs, and downloading contract information
+    for analysisBasic Qualifications: Intermediate Microsoft Excel, PowerPoint and
+    Word proficiencyAbility to interact with various teams across UP&amp;EGeneral
+    accounting knowledge requiredAbility to multi-task and prioritize work assignments
+    and work well under pressureThis part time role requires a 9-month commitment,
+    from February 2026 - November 2026You also MUST include a cover letter stating
+    the month and year you graduate, why you would like to work for NBCUniversal,
+    and what you feel you can bring to the role.  This is an integral of the application
+    processDesired Qualifications:Currently completing a Bachelor of Accounting, Commerce
+    or Business equivalent degree with a background in accounting, ideally in their
+    second last or final year of their degreeExcellent communication skills, both
+    verbal and writtenMust be a team player and be able to work with a variety of
+    personalities and stakeholdersHighly organized with great attention to detailSelf
+    starter and has a proactive approach to problem solvingStrong work ethic and follow
+    throughAustralian Citizen or Permanent ResidentVisa sponsorship is not available
+    for this positionPlease note that future visa sponsorship at NBCUniversal is rarely
+    available for post-graduate employment opportunities.As part of our selection
+    process, external candidates may be required to attend an in-person interview
+    with an NBCUniversal employee at one of our locations prior to a hiring decision.
+    NBCUniversal''s policy is to provide equal employment opportunities to all applicants
+    and employees without regard to race, color, religion, creed, gender, gender identity
+    or expression, age, national origin or ancestry, citizenship, disability, sexual
+    orientation, marital status, pregnancy, veteran status, membership in the uniformed
+    services, genetic information, or any other basis protected by applicable law.If
+    you are a qualified individual with a disability or a disabled veteran and require
+    support throughout the application and/or recruitment process as a result of your
+    disability, you have the right to request a reasonable accommodation. You can
+    submit your request to AccessibilitySupport@nbcuni.com.'
+- source_sentence: '         ACCOUNTANT           Interests    Buffalo Creek Golf
+    Club, Rockwall, TX          May 2012-August 2012
+
+    *Maintain golf carts and driving range      Experience     03/2016   to   03/2018     Accountant    Company
+    Name   －   City  ,   State      Reconcile bank accounts daily Process accounts
+    payable Maintain general ledgers Create and modify existing Excel documents Maintain
+    and process payroll Maintain accounting system Perform month-end procedures and
+    account reconciliations Create and modify existing journal entries Perform accounting
+    data reconciliations and verifications Prepare and file 1099s, 941s, 940s, W-2s,
+    and C-3s Pay payroll taxes every pay period using the Electronic Federal Tax Payment
+    System (EFTPS) Roll over tax and fiscal years at year-end and perform all closing
+    procedures Organize and prepare files for yearly audit.         06/2015   to   08/2015     Office
+    Assistant    Company Name   －   City  ,   State      Answer phone.  Deliver mail.  Help
+    professors maintain Excel documents.  Organize papers for professors.         05/2014   to   08/2014     Assistant    Company
+    Name   －   City  ,   State      Maintain Excel spreadsheets.          Education
+    and Training          Texas A&M Commerce             December 2017     Masters
+    of Science  :   Accounting    Baylor University          Accounting GPA: 3.58       August
+    2015     Bachelor of Business Administration  :   Accounting    Accounting GPA:
+    3.0 GPA: 3.28        Skills    account reconciliations, accounting system, accounts
+    payable, process payroll, spreadsheets      Additional Information      Buffalo
+    Creek Golf Club, Rockwall, TX          May 2012-August 2012 Maintain golf carts
+    and driving range Activities/Achievements President''s Gold Scholarship Awarded
+    7,500/year for exemplary academic performance in high school and maintaining 3.0
+    cumulative GPA in undergrad Zeta Zigga Zamma (20012 - 2015) Mission Trips (2003,
+    2005, 2006, 2011) Bonaire (2003,2005) - Vacation Bible School helper Santa Gertrudis,
+    Mexico (2006) - Building houses, testimony Victory Ranch; Eastover, South Carolina
+    (2011) - Prepping location for Army retreat, shared testimony with army men        '
   sentences:
-  - "job description\n\nwe are seeking a commercial real estate attorney to become\
-    \ a part of our team you will represent clients in variety of negotiations and\
-    \ sophisticated transactions\n\nresponsibilities\n prepare and draft legal documents\
-    \ on behalf of clients\n advise clients on business and legal transactions\n negotiate\
-    \ a variety of transactions including joint ventures commercial leases financings\
-    \ acquisitions and dispositions\n facilitate and attend closings\n participate\
-    \ in business develop activities\n\nqualifications\n  years of legal experience\
-    \ in general commercial real state transactions including joint ventures commercial\
-    \ leases financings acquisitions and dispositions\n familiarity with various transactions\
-    \ legal documents relating to the foregoing practice areas\n strong analytical\
-    \ and problem solving skills\n ability to build rapport with clients\n excellent\
-    \ written and verbal communication skills\n\ncompany description\nwe are an entrepreneurial\
-    \ firm that started as inhouse counsel for one large owneroperator in new york\
-    \ and then grew to a nationwide client base serving a diverse real estate asset\
-    \ mix including multi family office retail mobile home parks and industrial our\
-    \ recent transactions outside of the new york include deals in arizona arkansas\
-    \ florida ohio west virginia and alaska"
-  - "at haley  aldrich we pride ourselves on our smallcompany culture with bigcompany\
-    \ opportunities our staff appreciate that project diversity and flexible environment\n\
-    \nare you looking to take your career to the next level bring your expertise industry\
-    \ knowledge and leadership to haley  aldrich  well give you the flexibility and\
-    \ support to chart your own career path and explore the areas youre passionate\
-    \ about\n\nthe energy business unit at haley  aldrich is growing and we currently\
-    \ are seeking a project manager with strong technical and leadership skills we\
-    \ offer engineers geologists and scientists the opportunity to work on challenging\
-    \ environmental and integrated environmentalgeotechnical services projects for\
-    \ a wide range of clients projects include general site civilgeotechnical water\
-    \ resources management waste management remediation and contaminated site management\
-    \ this is an excellent opportunity to join a growing business unit in a privately\
-    \ held company with over  years of preparing smart integrated solutions for our\
-    \ clients this position will be remote with some travel to cleveland oh\n\ndutiesresponsibilities\n\
-    \nthe successful candidate will\n understand client needs and is able to develop\
-    \ strong client relationships\n be capable of managing financial and technical\
-    \ aspects of projects\n execute projects to meet technical quality budgetary and\
-    \ scheduling requirements\n demonstrate very strong verbal communications and\
-    \ written skills including client deliverables and regulatory submittals\n be\
-    \ effective in assigning and managing work\n demonstrate strong coaching and mentoring\
-    \ skills\n have skills in quality control planning cost estimating and scheduling\n\
-    \ have experience in planning and directing environmental field observation and\
-    \ testing programs including laboratory test selection and data evaluation\n work\
-    \ collaboratively and lead multidisciplinary project teams on all aspects the\
-    \ project to address client goals and objectives with primary focus on\n site\
-    \ investigations to delineate the extent of contamination in soil sediment groundwater\
-    \ surface water and soil gas including phase iphase ii environmental assessments\n\
-    \ developing remedial alternative analysis assessments and remedial action work\
-    \ plans and\n preparing proposals project reportdeliverables and regulatory compliance\
-    \ submissions\n\nskillsexperience\n minimum of bachelor of science in civil or\
-    \ environmental engineering geologyhydrogeology environmental science or related\
-    \ field masters degree highly preferred\n minimum of  years of environmental experience\n\
-    \ computer skills  strong computer literacy skills including proficiency in industry\
-    \ standard software\n osha hr hazwoper and msha new miner training required\n\
-    \ familiarity with earthwork sitecivil geotechnical stormwater aspects of residentialcommercialindustrial\
-    \ projects is expected\n experience in engineering design supporting sitecivil\
-    \ and geoenvironmental projects associated with site civil development heavy industry\
-    \ and waste management coal combustion residual ccr and industrialsolid waste\
-    \ management experience a plus\n\nabout haley  aldrich\n\nhaley  aldrich inc is\
-    \ committed to delivering the value our clients need from their capital operations\
-    \ and environmental projects our oneteam approach allows us to draw from our \
-    \ engineers scientists and constructors in  offices for creative collaboration\
-    \ and expert perspectives since our founding in  we have one goal in all we do\
-    \ deliver longterm value efficiently no matter how straightforward or complex\
-    \ the challenge in  haley  aldrich acquired hart crowser an engineering and environmental\
-    \ consultancy with extensive expertise in the pacific northwest and recognized\
-    \ for its cuttingedge performancebased seismic design methods visit  \n\nhaley\
-    \  aldrich is an equal opportunity employer all qualified applicants will receive\
-    \ consideration for employment without regard to gender race age disability veteran\
-    \ or any other legally protected status we offer excellent career growth a highly\
-    \ competitive total compensation plan and a solid benefits package that includes\
-    \ health dental vision shorttermlongterm disability k with match generous vacation\
-    \ plan and paid time off tuition reimbursement longterm care and more interested\
-    \ candidates should apply online on our careers page "
-  - "in the minute it takes you to read this job description bluecore has launched\
-    \ over  individually personalized marketing campaigns for our retail ecommerce\
-    \ customers\n\nbluecore is expanding our finance team and is looking for a senior\
-    \ accountant with a positive attitude who is highly motivated to learn and grow\
-    \ within a fastpaced organization this role will be responsible for supporting\
-    \ the monthly close processes as well as supporting and initiating general accounting\
-    \ and reporting process improvements to gain efficiencies and strengthen the overall\
-    \ control environment\n\nthis position requires a driven selfstarter who is able\
-    \ to work comfortably with stakeholders across the organization takes tasks from\
-    \ start to finish and someone who enjoys working in a fastpaced challenging environment\
-    \ this is a great opportunity to become a member of the finance team for a breakthrough\
-    \ company that is disrupting the retail market\n\nthe role\n perform monthend\
-    \ close activities including preparation of journal entries and reconciliations\
-    \ for various balance sheet and income statement accounts\n perform financial\
-    \ statement analysis and document meaningful explanations for fluctuations\n review\
-    \ revenue contracts and transactions to ensure compliance with the companys revenue\
-    \ recognition policies under \n prepare memos and analyses surrounding revenue\
-    \ recognition under asc  for more complicated billing arrangements\n responsible\
-    \ for creating and maintaining commission calculation files for variable compensation\
-    \ plans including those for the sales and customer success teams as well as potentially\
-    \ implementing a commissions system\n work closely with sales operations and fpa\
-    \ to evaluate new compensation plan changes and assess accounting impact and operational\
-    \ feasibility\n participate in streamlining and process improvement projects enhancing\
-    \ the internal controls over accounting processes and systems\n assist in implementing\
-    \ new accounting policies and procedures\n provide a high level of customer service\
-    \ with finance and nonfinance business partners\n support external audit requirements\
-    \ related to specific areas of responsibility including preparation of audit schedules\n\
-    \ support management in completing special projects adhoc reporting and analysis\
-    \ requests and other tasks as assigned\n\nwhat you bring\n  years of accounting\
-    \ experience   years of relevant monthend close experience or audit experience\
-    \ required\n cpa preferred\n strong knowledge and application of gaap\n strong\
-    \ communication and interpersonal skills\n excellent time management skills ability\
-    \ to prioritize and multitask\n high degree of dedication to improvement and strong\
-    \ sense of ownership\n strong problem solving analytical and communication both\
-    \ verbal and written skills\n role is us remote  east coast based\n\nabout us\n\
-    \nbluecore is a multichannel personalization platform that gives retailers a competitive\
-    \ advantage in a digitalfirst world unlike systems built for mass marketing and\
-    \ a physicalfirst world bluecore unifies shopper and product data in a single\
-    \ platform and using aiml activates welcomed personal experiences at the speed\
-    \ and scale of digital through bluecores dynamic shopper and product matching\
-    \ brands can personalize  of communications delivered to consumers through their\
-    \ shopping experiences anywhere\n\nthis comes to life in three core product lines\n\
-    \ bluecore communicate a modern email service provider esp  sms\n bluecore site\
-    \ an onsite personalization product\n bluecore advertise a paid media product\n\
-    \nbluecore is credited with increasing lifetime value of shoppers and overall\
-    \ speed to marketing for more than  brands including express tommy hilfiger the\
-    \ north face teleflora and bass pro shops we have been recognized as one of the\
-    \ best places to work by fortune crains forbes and builtin as well as ranked on\
-    \ the inc  the most prestigious ranking of the nations fastestgrowing private\
-    \ companies\n\nwe are proud of the culture of flexibility inclusivity and trust\
-    \ that we have built around our workforce we are a remote first organization with\
-    \ the option to potentially work in our new york headquarters on occasion moving\
-    \ forward we love the opportunity to come together  but employees will always\
-    \ have the option on where they work best\n\nat bluecore we believe in encouraging\
-    \ an inclusive environment in which employees feel encouraged to share their unique\
-    \ perspectives demonstrate their strengths and act authentically we know that\
-    \ diverse teams are strong teams and welcome those from all backgrounds and varying\
-    \ experiences bluecore is a proud equal opportunity employer we are committed\
-    \ to fair hiring practices and to building a welcoming environment for all team\
-    \ members all qualified applicants will receive consideration for employment without\
-    \ regard to race color religion gender gender identity or expression sexual orientation\
-    \ national origin disability age familial status or veteran status\n\nwe will\
-    \ ensure that individuals with disabilities are provided reasonable accommodation\
-    \ to participate in the job application or interview process to perform essential\
-    \ job functions and to receive other benefits and privileges of employment please\
-    \ contact us to request accommodation"
-- source_sentence: "         SENIOR VP - INFORMATION TECHNOLOGY       Executive Profile\
-    \      CORE SKILLS      Demonstrates ability to be a strong leader in a fast paced\
-    \ environment with strong interpersonal skills, both written and oral, and a positive\
-    \ attitude toward sharing expertise and assisting others to learn. Exceptional\
-    \ ability to manage a group of individuals, and coordinate and distribute daily\
-    \ tasks and unexpected issues that may arise An organized, detail-oriented, and\
-    \ conscientious self-starter, able to strategize and prioritize effectively to\
-    \ accomplish multiple tasks and stay calm under pressure Creative, resourceful\
-    \ and flexible, able to adapt to changing priorities and maintain a positive attitude\
-    \ and strong work ethic        Skill Highlights          Expertise  Technology\
-    \ Optimization  Budgeting & Operational Cost  Team-Building, Training, & Leadership\
-    \  Goal-Setting & Business Planning  Policy & Procedure Creation  Conflict Resolution\
-    \ & Management  Productivity, Efficiency, & Performance Improvements  IT Security\
-    \  Project Management  Vendor Relations  Data Center Operations      Operating\
-    \ Systems: Windows 7, XP, Server 2013, 2008, 2003, Microsoft \nActive Directory,\
-    \ SharePoint, Exchange Server: 2003, 2007, 2013, VM \nWare, Trend Micro, Cisco\
-    \ Infrastructure Routers and Switches, Palo Alto,\n EMC storage solutions, Data\
-    \ Center Management Market Data & Trading\n Systems: Open Bloomberg and Server\
-    \ API, FactSet, Fidessa, Tethys, Lava,\n LEK, ICE, Tradeware, Reuters Eikon, Thomson\
-    \ One, Reuters Station, \nInstinet, NASDAQ Trader, Advent            Professional\
-    \ Experience      Senior VP - Information Technology   08/2014   to   09/2015\
-    \     Company Name   City  ,   State       Experienced technology leader with\
-    \ expertise in managing all aspects of front and back office systems in the Financial\
-    \ Services Industry.  A solid leader who can utilize his diverse background of\
-    \ information technology and business management skills to create winning teams\
-    \ to support mission-critical infrastructure SVP, Head of Technology Infrastructure\
-    \ U.S.  Direct information technology operations for a global Institutional sales,\
-    \ trading firm specializing in high yield and distressed debt, convertible bonds,\
-    \ international bonds, investment grade debt and asset-backed securities Coordinated\
-    \ relocation and setup of our primary NYC office location to a new office space,\
-    \ which included an entire hardware refresh for all network and desktop equipment\
-    \ Led migration of the existing legacy site-to-site VPN network in the U.S which\
-    \ consisted of 6 branch offices to the Toronto based MPLS network in conjunction\
-    \ with NYC office relocation Managed implementation of a NJ data center for high\
-    \ availability for critical U.S.  trading operations, and migrated direct client\
-    \ wires to the data center Implemented a VM environment which reduced hardware,\
-    \ energy, and licensing costs saving $1.5M in capital expenditure Managed the\
-    \ migration of legacy PBX telecommunications system and implemented VoIP and video\
-    \ conferencing Coordinated setup and configuration of 3 new branch offices in\
-    \ Houston, TX, Stamford, CT, and New Orleans, LA Implemented disaster recovery\
-    \ plan which would make the Stamford, CT branch office the DR site for the NYC\
-    \ office Managed and negotiated all new and renewal vendor support contracts Managed\
-    \ Bloomberg terminal contracts and FIX connections for SSEOMS equity trading,\
-    \ and TOMS sell-side fixed income and derivative trading Member of the GMP steering\
-    \ committee for the approval, planning, and prioritization of all future IT projects.\
-    \          Chief Information Officer   01/2006   to   08/2014     Company Name\
-    \   City  ,   State       Managed technology for an institutional trading firm,\
-    \ specializing in Fixed Income and Equities products.  Responsible for strategy,\
-    \ support and technology initiatives in a dynamic trading environment resulting\
-    \ in maximum system availability and responsive customer support.  Worked very\
-    \ closely with Fixed Income and Equities traders, sales, analysts and senior management.\
-    \  Motivated direct reports and instilled a culture of teamwork to aid in the\
-    \ support and administration of a shared network and telecommunications infrastructure\
-    \ for both firms with 8 branch offices in the U.S Established policies and procedures\
-    \ and implemented a change control process to iron out all issues related to all\
-    \ new hardware and software rollouts Managed and negotiated all new and renewal\
-    \ IT related contracts with various vendors Successfully implemented and provided\
-    \ managerial oversight for a disaster recovery and business continuity plan Facilitated\
-    \ weekly meetings with upper management to communicate project status, targets,\
-    \ and issues Negotiated and implemented a new order management trading system\
-    \ and coordinated the migration of existing FIX connections to the new OMS Managed\
-    \ the successful replacement of core infrastructure appliances and negotiated\
-    \ costs with the vendor given the limited budget, and coordinated the design and\
-    \ construction of a more powerful UPS for the core infrastructure providing 3\
-    \ hours of up-time in the event of a power outage to allow mission critical systems\
-    \ to remain functioning until main power is restored Planned and implemented the\
-    \ replacement of legacy web security appliances with Cisco ASA and IronPort appliances\
-    \ reducing network vulnerability, and allowing traders secure remote access to\
-    \ network resources Upgraded all primary and secondary network circuits due to\
-    \ the growing business relieving network latency issues.          IT Support Manager\
-    \    02/2001   to   06/2006     Company Name   City  ,   State       Worked directly\
-    \ with vendors to implement/upgrade market data software and hardware Coordinated\
-    \ a successful PC hardware and operating system upgrade for all branch offices\
-    \ Managed and administered the upgrade of the Microsoft Exchange email system\
-    \ which included hardware replacement and server software upgrades Managed daily\
-    \ and incremental backups of critical files, and mail servers, and coordinated\
-    \ off-site storage of backup tapes Set standards and ordered equipment for the\
-    \ firm including PCs, servers and network peripherals Managed market data entitlements,\
-    \ FIX connections and new systems for all traders Participate in FINRA and 'in-house'\
-    \ audits, requests and regulation requirements.          Education      B.S  :\
-    \   Computer Science   1999       Montclair State University    Computer Science\
-    \        Skills    Active Directory, API, backup, Bloomberg, bonds, Budgeting,\
-    \ budget, business management, Business Planning, Cisco, hardware, Conflict Resolution,\
-    \ contracts, client, customer support, design and construction, disaster recovery,\
-    \ email, Equities, equity, senior management, Fidessa, Financial, Fixed Income,\
-    \ GMP, Goal-Setting, information technology, Leadership, Team-Building, managerial,\
-    \ managing, Market, meetings, access, Exchange Server, Microsoft Exchange, mail,\
-    \ office, SharePoint, Windows 7, migration, network hardware, network, Operating\
-    \ Systems, operating system, Optimization, order management, PBX, PC hardware,\
-    \ peripherals, policies, Project Management, Reuters, Routers, sales, securities,\
-    \ servers, strategy, Switches, teamwork, telecommunications, Trading Systems,\
-    \ trading system, Trend, upgrades, upgrade, Vendor Relations, video conferencing,\
-    \ VPN, VM, VoIP   "
+  - "Who We Are\nThe Farmers Dog was born from a mission to change the landscape of\
+    \ pet health, providing dogs and their humans with honest, smart, and simple care.\
+    \ Were starting by radically improving the $90 billion pet food industry, replacing\
+    \ bags of highly-processed pellets with a personalized subscription service that\
+    \ sends complete and balanced, freshly-made dog food directly to customers doors.\
+    \ Our ultimate goal is to create innovative, delightful and personalized experiences\
+    \ across all aspects of pet care, and we believe our direct-to-consumer business\
+    \ model, holistic approach to growth, and dynamic culture uniquely position us\
+    \ to shepherd this backwards industry into the future.To date, The Farmers Dog\
+    \ has delivered over 1 billion meals nationwide and raised over $150M in funding\
+    \ to help us build a company as healthy as the dogs who are eating those meals.\
+    \ Join us as we continue to develop ways of bringing peace of mind to customers,\
+    \ health to their companions, and much-needed change to the way people feed and\
+    \ care for their pets.\n#LongLiveDogs\nWhat We Stand For and Where Youll Come\
+    \ In\nThe Senior Manager, Finance will be the primary finance business partner\
+    \ for our New Verticals function, which encompasses exciting new product lines\
+    \ and offerings, including Treats, DIY, and other emerging categories. This role\
+    \ will own the P&amp;Ls end-to-end across these verticals, driving analysis, evaluating\
+    \ investments, and leading long-term planning to enable profitable growth. Working\
+    \ hand-in-hand with business partners, this person will provide financial insights\
+    \ and advise on strategic decisions that shape the future of our expanding product\
+    \ portfolio. This role reports directly to the VP of FP&amp;A/Finance.\nOne Team:\
+    \ We dont think of ourselves as Acquisition Marketers, Engineers, Data Analysts,\
+    \ or Product Managers. Beyond denoting skill sets and areas of expertise, we dont\
+    \ think departments matter. Wed rather align ourselves to the goals were working\
+    \ to achieve and make sure we have necessary subject matter expertise to drive\
+    \ meaningful impact. We strive to orient ourselves around customer problems TOGETHER\
+    \  getting the right people, with the right context, in the right rooms/Zooms\
+    \ to solve problems holistically.\nWe are skeptical about everything and precious\
+    \ about nothing:  Ideas can and should come from anywhere, and we arent tied to\
+    \ our own. We proactively source input. We talk to our customers and leads regularly\
+    \ and are quick to change course if we know theres a better or more impactful\
+    \ way to solve problems.\nWe consider the customer journey in all of our decisions:\
+    \  We know that no interaction exists in a silo and therefore understand how important\
+    \ every single one is.  We ensure our strategy sets prospective and new customers\
+    \ up for success and drives long-term retention.  We answer questions and address\
+    \ problems early and proactively.  We understand the value of different channels,\
+    \ initiatives, and messages and know how to articulate impact and advocate for\
+    \ prioritization holistically.\nWe Execute For Impact: We dont subscribe to best\
+    \ practices or industry KPIs. Were uninterested in how we compare to benchmarks;\
+    \ instead we orient ourselves around being the best we can possibly be. Similarly,\
+    \ we dont subscribe to rigid or classical expectations of roles  i.e. acquisition\
+    \ is hyper-focused on improving customer retention and experience.\nWe Are Focused\
+    \ and Work Without Assumption: We are not beholden to ideas. We have goals and\
+    \ believe everything beyond that is a series of hypotheses to validate. To that\
+    \ end, we seek to work in sequence and not in parallel. We constantly ask ourselves,\
+    \ whats the most important hypothesis I should be working on right now? How do\
+    \ I confirm or reject that hypothesis as fast as possible?. We rarely have timelines/deadlines\
+    \ and are constantly taking in new information and adjusting our priorities accordingly.\
+    \ We dont expect to be perfect the first time.\nHow You'll Make An Impact\n\n\
+    Serve as the primary finance business partner for New Verticals, providing expertise\
+    \ in ad hoc analysis (e.g., payback, margin, demand forecast), owning forecasting\
+    \ and scenario planning, A/B test evaluation, and KPI development and monitoring.\n\
+    Own the P&amp;Ls across New Verticals, partnering with business leaders to drive\
+    \ revenue growth, margin expansion, and overall profitability across product lines.\n\
+    Lead the development and implementation of key analyses and processes to evaluate\
+    \ and scale new businesses, from early concept through rollout and ongoing optimization.\n\
+    Partner with Marketing, Operations and Supply Chain to ensure successful product\
+    \ launches, efficient scaling, margin optimization, and agility in adapting to\
+    \ shifts in demand.\nDevelop, maintain, and improve financial models; conduct\
+    \ scenario analyses on financial implications to support leadership decision-making.\n\
+    Drive integration of new verticals performance into consolidated forecasts, models,\
+    \ and other financial analyses.\nOwn the annual budgeting and long-range planning\
+    \ processes for New Verticals, delivering rigorous analysis and partnering with\
+    \ budget owners to ensure aligned, actionable plans.\nEstablish and iterate on\
+    \ weekly/monthly performance reporting and KPI monitoring across new verticals.\n\
+    Deliver impactful recommendations to leadership, distilling complexity into clear\
+    \ financial insights and strategic guidance.\n\nWe're Excited About You Because\n\
+    \nYou have 7+ years of Strategic Finance, Finance Business Partnering, Finance\
+    \ or related finance experience \nYou have experience in a high-growth D2C and/or\
+    \ subscription business.\nYou are adept at owning full P&amp;Ls and acting as\
+    \ the go-to business partner for new business lines or channels.\nYou combine\
+    \ strategic thinking with strong financial modeling skills, a solid grasp of operations\
+    \ and supply chain dynamics, and an understanding of subscription businesses.\n\
+    You have experience leveraging data to drive key insights and influence strategic\
+    \ decisions\nYou are an owner with strong problem-solving skills, comfortable\
+    \ navigating ambiguity, managing multiple projects, and driving impact.\nYou're\
+    \ a skilled communicator and have the ability to absorb and distill complexity\
+    \ into simple terms to drive decision making.\nYou are able to build strong cross-functional\
+    \ relationships, effectively facilitate discussions and drive consensus  \nFamiliarity\
+    \ with Looker is preferred, and experience with systems like Workday and NetSuite\
+    \ is a plus!\n\nOffice Guidelines\nWe are an in-office culture, made of in-office\
+    \ people who thrive on the collaboration and magnetism of working in a shared\
+    \ space. We are seeking individuals who excel in this type of environment, where\
+    \ being present fosters deeper connections and engagement.\nOur Belonging Philosophy:\n\
+    At TFD, we believe Belonging is a shared commitment to creating a workplace where\
+    \ every person feels respected, valued, and empowered to be themselves. When people\
+    \ feel a true sense of belonging, they do their best work, take smart risks, and\
+    \ bring forward diverse perspectives  leading to stronger decisions and deeper\
+    \ relationships.We anchor this belief in a simple phrase: Everyones welcome at\
+    \ the dog park. No matter your background, identity, or role, theres space for\
+    \ you here. Theres no one way to show up at the dog park just shared space, mutual\
+    \ respect, and the freedom to be yourself. Being included is just the beginning,\
+    \ its about contributing your voice, growing through challenges, and building\
+    \ trust through shared goals. This philosophy guides how we lead, how we hire,\
+    \ how we communicate, and how we grow.                    We continuously evaluate\
+    \ to ensure we are creating a consistent experience that cultivates belonging\
+    \ for all employees, from hiring and performance reviews to talent development.\
+    \ We also believe Belonging happens in everyday moments of connection; lunch with\
+    \ a new teammate, a shared laugh, or a quick story about your weekend. Our structure\
+    \ includes biannual employee surveys, manager training, TFD camps, and support\
+    \ from Humans to ensure were listening and learning from our Team.\nTogether,\
+    \ these efforts reflect what Belonging means at TFD: a culture where everyone\
+    \ can thrive.\nA Few of Our Best Benefits\n\nDog-friendly office in Greenwich\
+    \ Village\nMarket-competitive compensation and equity packages\nComprehensive\
+    \ Healthcare, Dental, and Vision\nCompany supported mental health benefits\n12\
+    \ week paid parental leave\nCompetitive 401k plan with company match\nFlexible\
+    \ PTO \nDiscounted fresh food for your pup\nYour pet interrupting video calls\
+    \ (and in-person meetings) is now a feature, not a bug\n\nWe commit to building\
+    \ a competitive compensation package and company environment for all individuals\
+    \ to thrive. We believe in competitive base compensation rooted in location specific\
+    \ market data and performance along with equity ownership in the company that\
+    \ allows every team member to build their personal wealth as the company grows,\
+    \ just as much as we believe in fostering a culture that supports our team members\
+    \ personally, professionally, and holistically. For this role the anticipated\
+    \ hiring base compensation range is $155,000 - $170,000 USD Annual and the compensation\
+    \ offered will include a robust market competitive package of base and equity.\
+    \ In addition to your base compensation offer you will also receive equity ownership\
+    \ in the company. More information about the value of this equity will be shared\
+    \ at the time of offer. This range is representative of NYC Market Data if you\
+    \ are applying to this role outside of the NYC area the range may change.\nEqual\
+    \ Employment Opportunity Statement\nThe Farmer's Dog, Inc. is an equal employment\
+    \ opportunity employer and does not discriminate in hiring on the basis of sex,\
+    \ gender identity, sexual orientation, race, color, religion, creed, national\
+    \ origin, physical or mental disability, protected veteran status or any other\
+    \ legally protected characteristic or status. For more information, please visit\
+    \ Know Your Rights.\nReasonable Accommodations\nTFD complies with applicable federal,\
+    \ state, and local disability laws and makes reasonable accommodations for applicants\
+    \ and employees with disabilities.  If a reasonable accommodation is needed to\
+    \ participate in the job application or interview process, to perform essential\
+    \ job functions, and/or to receive other benefits and privileges of employment,\
+    \ please contact humansops@thefarmersdog.com."
+  - 'FloQast has a mission to support accounting and finance departments with workflow
+    automation by accountants, for accountants. Founded in 2013 in Los Angeles, FloQast
+    now has offices in New York, London and Sydney!The Enterprise Account Manager
+    will be joining a fast-growing team to help our technology company expand and
+    renew our client base for our Accounting Workflow Automation solution. This Account
+    Manager will be responsible for applying an understanding of FloQasts products,
+    sales methodology, processes, and prospecting techniques to our customer base.
+    They will work closely with the Customer Success team to ensure we renew our client
+    base while maintaining a high level of customer satisfaction. In this role, the
+    main focus will be collaborating across Customer Success, Sales, and Product to
+    ensure our clients renew and expand.*Visa sponsorship is NOT available at this
+    time#LI-BT1#LI-HybridAbout FloQast:FloQast is the leading Accounting Transformation
+    Platform in accounting workflow automation created by actual former accountants
+    for accountants. By streamlining and modernizing daily accounting tasks, FloQast
+    helps teams collaborate more effectively and complete their work with greater
+    efficiency and precision. This cloud-based, AI-powered software is trusted by
+    over 3,000 accounting teams, including those at Snowflake, Twilio, Instacart,
+    and The Golden State Warriorsand continues to grow. Our mission is to continuously
+    elevate the accounting profession, enhancing both its practice and perception.Our
+    values act as a guiding compass, shaping every decision we make, and are non-negotiable,
+    particularly in our hiring process. Alongside our employees, partners, and customers,
+    we embody these values every day:Unwaveringly Authentic Ambitious with IntegrityEmpowered
+    to GrowCommitted to CollaborationCustomer Obsessed in All WaysFloQast is regularly
+    rated as a Best Place to Work!- Inc. Magazines Best Workplaces in 2024, 2023,
+    2022, and 2021- Best Places to Work by LA Business Journal since 2017 (thats 8
+    years!)- Built Ins Best Place to Work in Los Angeles 6 years in a row!Because
+    we are Customer Obsessed in All Ways, check out what our customers have to say
+    about FloQast on G2 Crowd. If this aligns closely with what you are looking for,
+    hit Apply and come join our growing team!FloQast, Inc is committed to operating
+    fair and unbiased recruitment procedures allowing all applicants an equal opportunity
+    for employment, free from discrimination on the basis of religion, race, sex,
+    age, sexual orientation, disability, color, ethnic or national origin, or any
+    other classification as may be protected by applicable law. We aim to recruit
+    the right people for the jobs we have to offer, and to assess applications on
+    the basis of relevant skills, education, and experience. We welcome people of
+    different backgrounds, experiences, abilities, and perspectives. We are an equal
+    opportunity employer and strive to provide a professional and welcoming workplace
+    for all employees.What You''ll Do:Lead a book of business for existing enterprise
+    clients to effectively expand partnerships within the FloQast customer base. Work
+    cross-functionally with internal teams such as Accounting Success, Sales Engineering,
+    and Sales Operations. Maintain accurate and up-to-date forecasts in salesforce.comProvide
+    sales management with reports on sales activities and projects as requested.Pursue
+    and increase knowledge of key competitors to ensure that our value proposition
+    is effectively communicated to customers.Manage and maintain accurate renewal
+    opportunities, and account information within Salesforce.comAchieve or exceed
+    monthly and quarterly targets.Networking, relationship building, coordinating
+    internal resources to solve client issues, and execution of service agreements.Travel
+    as required within assigned territory to accomplish and exceed goals, up to 30%.Other
+    projects as assigned.What You''ll Bring: BA/BS or equivalent experience preferred4+
+    years of demonstrated successful experience in software sales in B2B SaaS2+ years
+    of experience selling into enterprise accountsExperience managing enterprise accounts
+    (1K+ FTE)Experience using a consultative, solution-based sales methodology desiredProven
+    record of success in an inside sales and or outside sales-based selling modelExcellent
+    written and verbal skills with a proven ability to communicate effectively via
+    telephone and email with customersAbility and resilience to work in a fast-paced
+    sales environment with a proven history of meeting or exceeding monthly and quarterly
+    targetsAbility to develop trusted relationships with clients and internal teamsProficiency
+    with Microsoft Office products and online collaboration toolsExperience with CRM
+    and opportunity management systems, preferably Salesforce and OutreachProven ability
+    to develop and manage pipeline and forecasting'
+  - Following up on payments with internal and external Customers to ensure the correct
+    booking of received payments.Preparing bank reconciliations, aging reports, and
+    statements of Accounts Receivables.Proactively engaging in continuous improvement
+    initiatives for the AR process.Supporting internal / external audit requirements
+    and Treasury activities.Code, process, and follow-up of Customers / Partners related
+    invoices in SAP system.Check the due and overdue Customers invoice statis daily
+    and mail tray regularly.Compile Customers payments schedules. Plan the incoming
+    payments in Treasury systems.Follow-up, create and send out Payment Reminders
+    towards overdue AR items.Analyze and manage disputes with Customers, together
+    with the responsible Sales ManagementCommunicate with Customers / Partner in an
+    appropriate and timely manner.Maintain Customers databases, set up new Customers
+    accounts in SAP.Assist and participate in monthly, quarterly and yearly closing
+    and reporting procedures.Manage and direct the processes of Cash-Collection procedures
+    of the Business UnitLiaise with administration and finance staff in other locations
+    on Accounts Receivable matters.Ensure AR records are filed correctly and efficiently
+    in SAP and in other systems.Identify areas where processes could be made more
+    efficient and offer solutions.Very good spoken and written Hungarian and English
+    knowledge (German or French is advantage)Bachelors or masters degree in economics
+    / accounting, having at least 3 years of experience as an AR Accountant in an
+    industrial and international environment. (Local GAAP and IAS/IFRS; US-GAAP is
+    an advance).Demonstrable knowledge and experience in using SAP.Profound knowledge
+    of IAS / IFRS regulations and guidelines.Recent experiences in an AR position.Strong
+    Microsoft Office (Outlook, Excel, Word, PowerPoint etc.) skills.Professional people
+    skills, autonomy, and high sense of confidentiality.Experiences of planning and
+    processing multi-currency transactions.Professional English is required. IFRS
+    (ACCA) and/or Local GAAP Chartered Accountant certification is an advanceSkills
+    and AttributesHighly organized and focused, able to multi-task and manage the
+    workload.High level of attention to details. Ability to provide reliable and accurate
+    work.A motivated team-player, who can collaborate effectively with staff at all
+    levels.Eagerness to learn and willingness to listen to others.Ability to follow
+    instructions and respond positively to constructive feedback.Ability to work and
+    make decisions autonomously.Ability to be discreet, with an understanding that
+    confidentiality is essential.Ability to be flexible, understanding that sometimes
+    requirements can change.Motivation and intention to travel and work outside of
+    Hungary in multinational circumstances.Flexible work-time options, wide range
+    of benefits and services, employee discounts to several facilities, free or discounted
+    sports opportunities, use of company bus service, on-site parking, catering facility,
+    travel to work allowance.
+- source_sentence: '         INFORMATION TECHNOLOGY SPECIALIST           Career Overview    Permanent            Certifications    ITNW
+    1458 CompTIA Network+ ITMT 1350 MS 70-270 Managing and Maintaining an MS Windows
+    2003 Environment ITMT 1355 Server 2003 Network Infrastructure ITMT 1400 MS 70-270
+    Implementing and Supporting MS Windows XP Professional Job Related   Microsoft
+    Certified IT Professional (MCITP) Apr 2012 Training:     CompTIA Security+ Certified
+    Professional (Mar 2010) Microsoft Certified Professional (MCP) Oct 2008 CompTIA
+    Network+ Certified Professional (May 2008) CompTIA A+ Certified Professional (Apr
+    2008) Language      Language          Spoken          Written          Read Skills:       Spanish          Advanced          Advanced          Advanced
+    References:   Name        Employer          Title        Phone        Email William     407th
+    AFSB        Supervisor   254-287-7798 william.cook2@conus.army.mil Cook (*) Mr.
+    John    First Army        Chief,      254-553-5006 Ciesiolka   Division West     Information
+    (*)          Systems
+
+    8 of 9          9/2/2015 7:58 AM
+
+    USAJOBS - Resumes          https://my.usajobs.gov/Applicant/Resume/ListResumes
+    Name        Employer          Title      Phone        Email Division Leonard     DEFENSE          IT
+    Manager 714-385-4605 Flemons     CONTRACT (*)         MANAGEMENT          leonard.flemons@dcma.mil      Work
+    Experience      Company Name     May 2012   to   Current     Information Technology
+    Specialist   City  ,   State      Indicates professional reference.             October
+    2009   to   May 2012       Salary: 65,150.00 USD Per Year Hours per week: 40 G6,
+    IT Specialist (CUSTSPT) (This is a federal job Served as a systems administrator
+    for First Army Division West Command and Staff.  Administered over 800 NIPR workstations,
+    300 SIPR workstations and 100 ARNET workstations.  This includes hardware, software,
+    and Local Area Network (LAN)and Wide Area Network (WAN) infrastructures.  Monitored
+    system resources, the installation and integration of systems fixes and workarounds,
+    updates, and enhancements, including performance, capacity, availability, serviceability,
+    and recoverability.  Maintained systems configuration as well as resolving IT
+    equipment/software interfaces and interoperability problems.  Performed customer
+    service help desk/IT support operations and technical assistance to First Army
+    Division West command and staff.  Diagnosed and resolved problems in response
+    to customer trouble tickets.  Recieved, responded to and provides resolutions
+    to a variety of help desk calls/tickets.  A thorough understanding of and ability
+    to manipulate, features of Microsoft Shared Point, XML, HTML, SQL, C++, VB08/10,
+    Visio, Adobe CS5 Dreamweaver and Microsoft Management Console and registry settings.  Ensured
+    availability of telephones, emails, and Local Area Network (LAN).  Exceled in
+    troubleshooting software and hardware issues of microcomputers and peripheral
+    devices.  This includes scanners, digital senders, printers, and other video telecommunication''s
+    equipment.  Maintained MS active directory user accounts and Microsoft exchange
+    Outlook accounts.  Participated in the planning and execution of unit and systems
+    testing, installing applications and images remotely, providing technical support
+    on execution problems, troubleshooting applications packages, and modifying applications
+    as necessary.  Reconfigured file structures; used knowledge of Windows XP, Vista
+    and Win 7 operating systems, to include the Microsoft Management Console (MMC)
+    ensuring systems are configured according to policy.  Frequently trained IMOs
+    on Desktop Management functions to enhance.  4 of 9          9/2/2015 7:58 AM.  USAJOBS
+    - Resumes          https://my.usajobs.gov/Applicant/Resume/ListResumes knowledge
+    of Army and NEC policies, thus affording the ability to accomplish their duties
+    more effectively.  Executed a variety of database utility functions.  Updated
+    user manuals, authentication procedures, systems administrator functions, and
+    related IT security features.  In accomplishing assignments, ensures the rigorous
+    application of information security/information assurance policies, principles,
+    and practices.  Developed IA reporting requirements for submission to higher-level
+    management, as required - Maintained a continuing awareness of technical changes
+    in the areas of equipment technology and software development.  Managed Unit''s
+    Active Directory Share Server with over 600 Gb of share space.  Served as an Active
+    Directory (AD) Manager and System Administrator for multiple servers in a complex
+    networked environment.  Maintained Microsoft Exchange on primary and backup servers
+    to provide email with full backup and disaster recovery capabilities.  Supervisor:
+    Mr.  John Ciesiolka (254-553-5006) Okay to contact this Supervisor: Yes 407th
+    AFSB/ Vista International Operations.             January 2009   to   September
+    2009     IT Network System Administrator II   City  ,   State      65,000.00 USD
+    Per Year Hours per week: 40 Served as part of the units S-6 Brigade level office
+    with duties as Network and Computer Systems Administrator.  Directly responsible
+    for design, install, and support of organizations computer systems as well as
+    the local-area networks (LAN), wide-area networks (WAN), network segments, internet
+    and intranet systems.  Supported logistics systems client notebooks, workstations,
+    scanners, digital senders, fax machines, copiers and printers.  Developed system
+    usage policies and server administration procedures.  5 of 9          9/2/2015
+    7:58 AM USAJOBS - Resumes          https://my.usajobs.gov/Applicant/Resume/ListResumes
+    Created, tested, and deployed group policy objects (GPO) within the AD.  Responded
+    to system failures by determining the cause and taking corrective action to address
+    the issue.  Maintained systems tables, directories, security files, and indices.-
+    - Developed and modifies databases.  Performed database queries and file transfers
+    using SQL.  Installed new software releases, system upgrades, evaluates and installs
+    patches and resolves software related problems.  Established and maintain user
+    and group accounts and permissions.  Develops and tests system disaster recovery
+    plans.  Troubleshot a wide variety of user difficulties with desktop computer
+    hardware, software, peripherals, or network/ telecommunication lines.  Coordinated
+    with installation NEC to establish domain and mail accounts.  Participated in
+    the design, development, and modification of logistics automated systems.  Daily
+    duties also include responsible for maintaining network efficiency; monitors and
+    adjusts the performance of existing networks and continually survey the current
+    computer site to determine future network needs.  Performs customer service help
+    desk/IT support operations and technical assistance to over 800 users.  As required,
+    plans, coordinates, and implements the organizations information security.  In
+    addition, conducted customer support studies and recommended necessary IT action
+    pertinent to all aspects of customer support.  Maintained systems configuration
+    as well as resolving IT equipment/software interfaces and interoperability problems.  Help
+    desk/IT support duties.  Participated in the planning and execution of unit and
+    systems testing, installing applications and images remotely, providing technical
+    support on execution problems, troubleshooting applications packages.  Used IT
+    knowledge, skills, and abilities to quickly and effectively troubleshoot access
+    permissions on computers.  Managed video teleconference (VTC) suite for unclassified
+    and classified 6 of 9          9/2/2015 7:58 AM USAJOBS - Resumes          https://my.usajobs.gov/Applicant/Resume/ListResumes
+    access.  Managed unit''s SharePoint site, control access, developed and established
+    policies and accounts, trained users Supervisor: William Cook (254-287-6841) Okay
+    to contact this Supervisor: Yes.          Company Name     October 2005   to   August
+    2008     First Sergeant   City  ,   State      Salary: 55,000.00 USD Per Year
+    Hours per week: 70 Over 5 years of Top management experience.  Led a multi-functional
+    unit with over 120 team members and billions of dollars worth of equipment into
+    combat during Operation Enduring Freedom (Afghanistan) and Operation Iraqi Freedom
+    (Iraq) - Company Senior Non-Commissioned Officer served as administrative liaison
+    with other services, top management, and outside agencies - Coordinated operational
+    and administrative duties required for the company''s mission - Supervised operations
+    and performance of Battalion Level Information Systems/Communication Shop (S-6)
+    - Senior advisor to Company commander and resource manager for a Headquarters
+    Company - Directly responsible for managing and implementing Company''s administrative,
+    standards, policies and Training.  Supervisor: Paul Mercator (254-288-0527) Okay
+    to contact this Supervisor: Yes.          Education and Training      Texas A
+    & M University Central Texas     08/2011       Master''s Degree      City  ,   State  ,   United
+    States    GPA:   GPA: 3.80    GPA: 3.80 Credits Earned: 36 Semester hours        Masters
+    of Sciences  :   Information Systems    Information Systems        Central Texas
+    College     12/2008       United States Technical or Occupational Certificate      City  ,   State      GPA:   GPA:
+    4.0    GPA: 4.0 Credits Earned: 18 Quarter hours             9/2/2015       Microsoft
+    System Administrator Relevant Coursework, Licenses and Certifications: ITNW 2435
+    CompTIA A+ Harware and Software ITNW 1458 CompTIA Network+
+
+    7 of 9      USAJOBS - Resumes          https://my.usajobs.gov/Applicant/Resume/ListResumes
+    ITMT 1350 MS 70-270 Managing and Maintaining an MS Windows 2003 Environment ITMT
+    1355 Server 2003 Network Infrastructure ITMT 1400 MS 70-270 Implementing and Supporting
+    MS Windows XP Professional        Saint Leo University     10/2007       Bachelor''s
+    Degree      City  ,   State  ,   United States    GPA:   GPA: 3.25 GPA: 4.0    GPA:
+    3.25 GPA: 4.0        Bachelor of Science  :   Computer Information Systems    Computer
+    Information Systems        Successfully completed the following computer courses
+    with Saint Leo University: COM-130 PC applications COM-207 Programming in C/C+
+    COM-208 Programming Visual Basic COM-230 Spreadsheet Applications COM-312 Computer
+    Architecture COM-315 Decision Support Systems COM-320 Systems Analysis COM-410
+    Database Concepts Programming COM-415 Network Theory and Design COM-498 Information
+    Resource Management COM-499 Computer Information Systems Exam Successfully completed
+    the following computer courses with Central Texas College: ITNW 2435 CompTIA A+
+    Harware and Software              Interests    May 2005) - for superior leadership
+    skills during deployment to Afghanistan in support of Operation Enduring Freedom.
+
+    9 of 9          9/2/2015 7:58 AM      Additional Information      Additional   Awarded
+    the Achievement Medal for his outstanding civilian service while Information:
+    assigned to First Division West Awarded the Legion of Merit award (Jun 1986 -
+    Aug 2008) for 22 years of dedication, loyalty and selfless service to our nation
+    and the people of United States of America Awarded the Bronze Star Medal (1 Sep
+    2006 ­ 15 Dec 2007) - for outstanding leadership during recent 15 month deployment
+    to Iraq in support of Operation Iraqi Freedom. Awarded the Bronze Star Medal (1
+    Apr 2004 ­ 1 May 2005) - for superior leadership skills during deployment to Afghanistan
+    in support of Operation Enduring Freedom.
+
+    9 of 9          9/2/2015 7:58 AM        Skills    A+, A+ Certified, Active Directory,
+    administrative, administrative duties, Adobe, Dreamweaver, AD, Army, Agency, automation,
+    backup, basic, C, C+, C++, COM, hardware configuration, computer hardware, hardware,
+    configuration management, consulting, CONTRACT MANAGEMENT, Contract Management,
+    copying, client, customer service, customer support, databases, Database, Decision
+    Support, disaster recovery, Email, equipment installation, XML, fax machines,
+    features, functional, Help desk, HTML, information security, Information Systems,
+    Information Systems, Information Technology, information technology, computer
+    support, IT support, Local Area Network, Local Area Networks, Local Area Network,
+    LAN, notebooks, leadership, logistics, Managing, Mercator, microcomputers, access,
+    Microsoft Certified Professional, MCP, Microsoft Certified, exchange, Microsoft
+    Exchange, mail, Office, Outlook, SharePoint, share point, MS Windows, Win 7, Windows
+    2000, Windows XP, MS Windows XP, monitors, NEC, network administrator, Network,
+    networks, Novell, Oct, operating systems, ORACLE, organizational, peripherals,
+    personnel, copiers, policies, PR, printers, processes, Programming, project management,
+    Read, repairs, reporting, safety, scanners, servers, software development, software
+    troubleshooting, Spanish, Spreadsheet, SQL, strategic, Supervisor, System Administrator,
+    systems administration, Systems Analysis, systems development, tables, technical
+    support, technical assistance, user manuals, telecommunications, telecommunication,
+    telephones, Phone, troubleshoot, troubleshooting, unique, upgrades, video, Visio,
+    Vista, Visual Basic, Wide Area Network (WAN), WAN, workflow, Written   '
   sentences:
-  - "why youll love working here\n\nstarry is a fastgrowing company with incredible\
-    \ ambition to build new markets and new products and services at starry autonomy\
-    \ and creativity are rewarded youll have control of your own time and the opportunity\
-    \ to develop your ideas and initiatives our team is tightlyknit highly collaborative\
-    \ and very driven we value each others contributions and we dont hire jerks\n\n\
-    who were looking for\n\nstarry is seeking a  marketing manager for our denver\
-    \ co and columbus oh markets you will be leading initiatives to drive awareness\
-    \ and relationships for starry with real estate and community decision makers\
-    \ our ideal candidate will be a dynamic and resultsoriented individual who can\
-    \ work collaboratively with the sales team to ensure business objectives are met\n\
-    \nreporting to the chief marketing officer you will contribute to the success\
-    \ of our brand by driving the growth of starry internet throughout your named\
-    \ markets our ideal candidate is a positive selfstarter who is confident analytical\
-    \ creative and well spoken you must reside in either denver co or columbus oh\n\
-    \nyou are\n\nquick whip smart and able to pick up knowledge onthego you know hustle\n\
-    \npositive sunny outlook and full of enthusiasm for events and people\n\ncommunicator\
-    \ able to speak and write effectively and with recognition of timeliness in addition\
-    \ to forging valuable relationships in the real estate and local communities\n\
-    \na problem solver can identify opportunities through information data and insights\n\
-    \norganized strong prioritization skills with an affinity for multitasking and\
-    \ the details\n\nwhat youll do\n manage  marketing strategies and tactics for\
-    \ the denver and columbus market\n identify and lead local  marketing events \
-    \ hosted and sponsored\n cultivate local partnerships with key real estate decision\
-    \ makers\n identify local advertising  sponsorship opportunities to raise brand\
-    \ awareness\n optimize  marketing programs with a focus on measurable performance\n\
-    \ work with internal teams and external vendors to achieve results\n implement\
-    \ test and learn methodologies across all programs\n\npoints for\n ba or bs degree\
-    \ required\n  years of relevant experience\n performance oriented  marketing background\n\
-    \ analytical problem solving mindset\n effective communicator written and spoken\n\
-    \ enthusiasm for new technology and the internet space\n experience with a high\
-    \ growth startup\n experience using salesforce\n\nbonus points if\n you have passionate\
-    \ feelings about starry and our mission\n you have a sense of humor\n you have\
-    \ knowledge or relationships in the real estate space"
-  - 'equity research associate  biotechnology  
+  - 'Your CareerAs a Senior Technical Support Engineer, you will be heavily engaged
+    to personalize their customers experience and ensure a successful Palo Alto Networks
+    product experience.  In this role, you will develop a working partnership to mitigate
+    risks and troubleshoot to resolve technical issues for their customers. You will
+    partner with the Technical Account Manager to effectively become a virtual part
+    of their customers teams.  You will engage both proactively and reactively with
+    the customer to address any Palo Alto Networks technology technical needs. You
+    will also provide escalation management for any technical issues encountered with
+    their customers enterprise deployment, resulting in faster time to value. This
+    role requires strong fault isolation and root cause analysis skills to diagnose
+    and solve complex technical issues and provide timely solutions to customers in
+    a professional manner. Regularly updating customer cases to record the progress
+    of calls in call tracking system and documenting technical solutions and product
+    information in account-specific repositories.  Work to reproduce customer issues
+    and work with developers to resolve technical issues.Your ImpactProvide reactive/proactive
+    technical support to top-tier customersProvide configuration review, troubleshooting
+    and best practices to named customersManage support cases to ensure issues are
+    recorded, tracked, resolved, and follow-ups are done in a timely mannerProvide
+    fault isolation and root cause analysis for technical issuesPublish Technical
+    Support Bulletins and other technical documentation in the Knowledge BaseGather
+    and retain customer-specific documentation in a secure location for ease of troubleshootingReview
+    of technical documentation for training materials, technical marketing collateral,
+    manuals, troubleshooting guides, etc.Travel may be required to customer sites
+    in the event of a critical situation to expedite resolutionWork shoulder to shoulder
+    with the Sales and Sales Engineering TeamsYour Experience5+ years of experience
+    in client-facing, technical support type rolesExcellent written and verbal communication
+    skillsExperience in TCP/IP, Routing &amp; Switching (OSPF / BGP / VLAN / STP)Experience
+    with Palo Alto Networks products and technology or similarStrong ability to independently
+    debug broad, complex, and unique networks with mixed media and protocolsExperience
+    with Authentication Protocols (Radius / TACACS) is preferredAbility to clearly
+    articulate technical issues to both technical and non-technical audiences, and
+    explain the impact in business termsAbility to summarise a situation clearly for
+    executives internally and externally, and in delivering presentations to senior
+    stakeholdersFlexibility to work shift hours as required, including afternoons,
+    evenings, and weekendsThe TeamOur technical support team is essential to our success
+    and mission. As part of this team, you enable customer success by providing support
+    to clients after they have purchased our products. Our dedication to our customers
+    doesn''t stop once they sign - it just evolves. Our technical team provides the
+    behind-the-scenes support to meet our customer''s needs. As threats and technology
+    evolve, we stay in step to accomplish our mission. You''ll be involved in implementing
+    new products, transitioning from old products to new, and will fix integrations
+    and critical issues as they are raised - in fact, you''ll seek them out to ensure
+    our clients are safely supported. We fix and identify technical problems, with
+    a pointed focus of providing the best customer support in the industry.We''re
+    a fast-growing, immensely successful organization because of our people and products
+    (built and supported by our people). We work the frontlines against cyberthreats
+    and attacks, protecting every day transactions in the digital environment. It
+    means we''re good at scaling quickly to new threats, get fulfillment from resolving
+    new problems, and think about things just plain differently.Our Commitment
 
-    description
 
-     
+    Were problem solvers that take risks and challenge cybersecuritys status quo.
+    Its simple: we cant accomplish our mission without diverse teams innovating, together.We
+    are committed to providing reasonable accommodations for all qualified individuals
+    with a disability. If you require assistance or accommodation due to a disability
+    or special need, please contact us at  accommodations@paloaltonetworks.com.Palo
+    Alto Networks is an equal opportunity employer. We celebrate diversity in our
+    workplace, and all qualified applicants will receive consideration for employment
+    without regard to age, ancestry, color, family or medical care leave, gender identity
+    or expression, genetic information, marital status, medical condition, national
+    origin, physical or mental disability, political affiliation, protected veteran
+    status, race, religion, sex (including pregnancy), sexual orientation, or other
+    legally protected characteristics.All your information will be kept confidential
+    according to EEO guidelines.'
+  - 'Key ResponsibilitiesInformation Gathering: Lead the elicitation of complex business
+    processes and requirements from various stakeholders through interviews, workshops,
+    and data analysis;Documentation: Create and maintain comprehensive functional
+    documentation, including Business Requirements Documents (BRDs), use cases, and
+    process flows;Requirements Translation: Effectively translate high-level business
+    requirements into detailed technical requirements, ensuring clarity and accuracy
+    for the development team;Flow Analysis: Develop a deep understanding of user and
+    information flows within the organization and model them visually to identify
+    opportunities for improvement;Organizational Understanding: Analyze and comprehend
+    the organizational structure, including the roles and relationships of key stakeholders,
+    to ensure solutions meet the needs of all relevant parties;Agile Development:
+    Convert functional requirements into well-defined user stories with clear acceptance
+    criteria.Backlog Management: Collaborate with the Product Owner and development
+    team to build, prioritize, and refine the solution backlog, ensuring that the
+    most valuable work is always addressed first;Proven experience as a Business Analyst
+    in a software development environment.Strong analytical and problem-solving skills
+    with the ability to break down complex problems into manageable parts.Excellent
+    communication and interpersonal skills, with the ability to facilitate discussions
+    and build consensus among diverse groups of people.Proficiency in business analysis
+    tools and methodologies (e.g., Agile, Scrum, Jira, Confluence).Experience with
+    process modeling tools (e.g., Visio, Lucidchart) is a plus.A solid understanding
+    of the software development lifecycle.The Devoteam Group works for equal opportunities,
+    promoting its employees based on merit and actively fights against all forms of
+    discrimination. We are convinced that diversity contributes to the creativity,
+    dynamism and excellence of our organization. All of our vacancies are open to
+    people with disabilities.'
+  - "The Office of Chief Medical Examiner investigates cases of persons who die within\
+    \ New York City from criminal violence, by accident, by suicide, suddenly when\
+    \ in apparent health, when unattended by a physician, in a correctional facility\
+    \ or in any suspicious or unusual manner or where an application is made pursuant\
+    \ to law for a permit to cremate a body of a person.The core values of CARES guide\
+    \ our work for communities and inform our behavior toward each other and all those\
+    \ we serve.-\tCommitment: Dedicated to the mission at all times-\tAccountability:\
+    \ Responsible to each other and the community-\tResilience: Adapt in the face\
+    \ of adversity-\tExcellence: Achieve and maintain the highest quality-\tService:\
+    \ Innovate to meet evolving needsDuties will include but are not limited to:-\
+    \ Performs efficiently all the functions of the Management Auditor level 1 position.\
+    \ - Verifies correctness of expenditures to determine instances of misappropriation\
+    \ and fraud. - Independently analyzes and review payments on technical contracts\
+    \ to determine correctness of invoicing and payments withing prompt payment deadlines.\
+    \ - Understands and independently reviews miscellaneous and employee expense transactions\
+    \ to ensure correctness of payments. - Drafts reports analyzing results of audit\
+    \ findings included comments and recommendations. - Assist supervisors when needed.\
+    \ - Performs other duties as assigned.MANAGEMENT AUDITOR - 405021. A baccalaureate\
+    \ degree from an accredited college or university, accredited by regional, national,\
+    \ professional or specialized agencies recognized as accrediting bodies by the\
+    \ U.S. Secretary of Education and by the Council for Higher Education Accreditation\
+    \ (CHEA) including or supplemented by 24 semester credits in accounting, including\
+    \ one course each in: advanced accounting, auditing, and cost accounting; and\
+    \ one of the following: (A) one year of full-time satisfactory experience in management\
+    \ auditing, financial auditing, and/or information technology (IT) auditing; or\
+    \ (B) a valid Certified Public Accountant license issued by the New York State\
+    \ Education Department; or (C) a valid Certified Internal Auditor certificate\
+    \ issued by the Institute of Internal Auditors (IIA); or 2. A satisfactory combination\
+    \ of education and/or experience equivalent to \"1\" above. Education and/or experience\
+    \ may be substituted as follows: (A) two years of full-time satisfactory experience\
+    \ in financial or managerial accounting may be substituted for the one year of\
+    \ experience described in \"1(A)\" above; (B) undergraduate or graduate credits\
+    \ from an accredited college or university, accredited by regional, national,\
+    \ professional or specialized agencies recognized as accrediting bodies by the\
+    \ U.S. Secretary of Education and by the Council for Higher Education Accreditation\
+    \ (CHEA) in management, computer science, public administration, and/or business\
+    \ administration may be substituted for up to 9 semester credits in accounting,\
+    \ on a credit for credit basis. However, all candidates must have a baccalaureate\
+    \ degree including or supplemented by 15 semester credits in accounting, including\
+    \ one course each in advanced accounting, auditing, and cost accounting, and one\
+    \ of the following: at least one year of the experience described in \"1(A)\"\
+    \ above or its equivalent; or a Certified Public Accountant license; or a Certified\
+    \ Internal Auditor certificate, as described in \"1(B)\" or \"1(C)\" above. To\
+    \ be eligible for placement in Assignment Level II individuals must have, in addition\
+    \ to meeting the minimum requirements, at least one year of experience as a Management\
+    \ Auditor - Assignment I or at least two years of experience in management auditing,\
+    \ financial auditing, and/or information technology (IT) auditing.The City of\
+    \ New York is an inclusive equal opportunity employer committed to recruiting\
+    \ and retaining a diverse workforce and providing a work environment that is free\
+    \ from discrimination and harassment based upon any legally protected status or\
+    \ protected characteristic, including but not limited to an individual's sex,\
+    \ race, color, ethnicity, national origin, age, religion, disability, sexual orientation,\
+    \ veteran status, gender identity, or pregnancy."
+- source_sentence: '           CONSULTANT         Professional Summary    Accomplished
+    seller with marketing and entrepreneurial chops. Proven record of exceeding service
+    standards
 
-    jefferies group llc the largest independent global fullservice investment banking
-    and capital markets firm headquartered in the us focused on serving clients for  years
-    is a leader in providing insight expertise and execution to investors companies
-    and governments we offer deep sector expertise across a full range of products
-    and services in investment banking equities fixed income asset and wealth management
-    in the americas europe and the middle east and asia jefferies group llc is a wholly
-    owned subsidiary of jefferies financial group inc nyse jef a diversified financial
-    services company 
+    and outpacing performance goals. Solid technical background with a focus on B2B
+    SAAS and programmatic
 
-     
+    advertising. Motivated, team-oriented and enthusiastic about helping companies
+    grow.      Skills          B2B sales  Network development  Lead prospecting  Interpersonal
+    communication skills  Brand marketing  Business development  Product development  Content
+    creation  Accounting, VC  Advertising, Website  Agency  B2B  Billing  Book  Brand
+    strategy  Budgets  Business development  C      Com  Interpersonal communication  Content  Content
+    creation  Clients  Client  Delivery  Product development  E-commerce  Editorial  Finance  Managing  Marketing  Meetings  Enterprise  Network  Sales  Selling  Staffing  Strategic  Phone  TV            Work
+    History      Consultant  ,     01/2020   to   Current     Company Name    –    City  ,   State        Project
+    manage drinkbumpcoffee.com and sheau.com website launches.  Oversee marketing,
+    content creation, and 3rd
 
-    overview  
+    party integrations for all three brands.  Prospect and onboard 100+ traditional
+    retailers and D2C e-commerce brands to Sheau within first 3
 
-    jefferies is seeking an equity research associate to support the senior equity
-    research analysts healthcare coverage with a focus on smallmid cap biotech companies
-    the position is ideal for someone with life sciences and finance background who
-    has an interest in public markets and biotech investing
+    months through in person meetings, cold emails and phone calls.  Sourced 30+ new
+    relationships with VC''s, like-minded brands and affiliates to partner with Sohuis
+    on
 
-     
+    content and events.         Senior Account Executive  ,     03/2019   to   01/2020     Company
+    Name    –    City  ,   State        Grew $500K book of business by 10% through
+    cross-sell and up-sell opportunities while managing
 
-     
+    pipeline of 60+ enterprise brands.  Conducted client QBR''s and developed plans
+    with internal teams to grow territory through customized
 
-    responsibilities  
+    demo''s, mock-ups and strategic partners.  Created new process for documenting
+    sales "wins" that was implemented company wide.         Senior Account Executive  ,     04/2018   to   03/2019     Company
+    Name    –    City  ,   State        Achieved $224K in new business selling influencer
+    marketing solutions to C-suite executives.  Brought on company''s first airline
+    client, which was self-sourced and opened up new revenue channel.  Spearheaded
+    east coast agency business working internally with marketing and finance to develop
+    new
 
-    conducting proprietary research evaluating drug pipelines by analyzing scientific
-    literature attending medical conferences and speaking with key opinion leadersbuilding
-    and maintaining financial modelswriting research reports for initiations of coverage
-    analysis of data and industrycompany newsconceiving and executing on differentiated
-    project ideasinterfacing with company management teams internal sales and trading
-    personnel and institutional investors 
+    pitch and terms.         Account Director  ,     03/2017   to   04/2018     Company
+    Name    –    City  ,   State        Managed $1MM quarterly pipeline selling programmatic
+    advertising solutions to agencies and brands.  Increased sales revenue by 315%
+    over 9 months as team''s top seller.  Exceeded quarterly quotas hitting 123% to
+    goal in Q4 2017.         Account Manager  ,     06/2015   to   03/2017     Company
+    Name    –    City  ,   State        Supported $3MM average quarterly book of business
+    and consistently contributed to regional
 
-    qualifications
+    incremental goals earning multiple spot bonuses.  Addressed problems with accounting,
+    billing and service delivery to maintain and enhance client
 
-     
+    satisfaction.  Mentored and trained Account Coordinators and Account Managers.         Production
+    Coordinator  ,     07/2014   to   06/2015     Company Name    –    City  ,   State        Act
+    as main point of contact for high profile clients and internal teams to develop
+    events, on-site
 
-    qualifications  
+    activations, website builds, design work, brand strategy and editorial content.  Defined
+    project scope including goals, deliverables, schedules, staffing, SOWs, and budgets.         Sales
+    Coordinator  ,     12/2012   to   07/2014     Company Name    –    City  ,   State        Supported
+    sales team in selling, managing and executing large scale out-of-home advertising
+    programs.         Assistant Media Planner  ,     10/2011   to   11/2012     Company
+    Name    –    City  ,   State        Developed and executed multimillion-dollar
+    digital, TV, print and mobile campaigns for J&J.         Education      BA  :   Rhetoric
+    and Communications  ,   05/2011     University of Richmond   -   City  ,   State    Division
+    1 Women''s Lacrosse, Writing Consultant, Kappa Alpha Theta Member, Global Players
+    Study Abroad for Student Athletes: Competed in Prague and Berlin World Cup
 
-    minimum babs degree life sciencesrelated or financeeconomics with demonstrated
-    interest in life sciencesadvanced degree in life sciences preferably phdmd alternatively  years
-    of relevant working experiencembacfa andor programming pythonsql skills a plusworking
-    experience in biotechpharma equity research consulting investment banking tech
-    transfer or industry is highly desirablefamiliarity with cancer biology or immuneoncology
-    is preferredproficiency in writtenverbal communication and in building financial
-    models utilizing exceldemonstrates a high degree of attention to detail and an
-    ability to complete work in a timely manner against strict deadlinesselfdriven
-    and motivated takes personal ownership of specific assignmentshighly collaborative
-    and ability to build good relationships internally and externally'
-  - job descriptionyour rolecandidate taking on this role is expected to to be responsible
-    for the coding innovative design and layout of companys website candidate should
-    be able to oversee website development process from concept all the way to completion
-    from the bottom up fashioning everything from the home page to site layout and
-    function using various web development softwareresponsibilities design and implement
-    solutions leveraging content management system cms eg adobe aem sitestranslate
-    marketing and web site needs into aem specific recommendations and solutionsleverage
-    aem other state of the art technologies and integration patterns to solve cross
-    departmental challengesdrive project scope and timeline definition based on collaborative
-    needs assessmentsresponsible for delivery of assigned module components phases
-    of a projectresponsible for status reportingresponsible for estimation planning
-    and execution with specific focus on requirement analysis and designresponsible
-    for knowledge transfer and arriving at slas for steady statetechnical problem
-    solving skills to  years of working experience in the related field is required
-    for this positionpossess a diploma bachelors degree in computer science or any
-    related fieldexcellent programming skills and in depth knowledge of modern html
-    cssfamiliarity or well versed with at least one of the following programming languages  php
-    aspnet javascript  front end languages and frameworks ie angular react html css
-    css framework etc  back end languages and frameworks ie typescript javascript
-    nodejs etc  sql and nosql databases mysql postgresql mongodb redis etc  git source
-    control and gitflow workflow  devops continuous integration ci and continuous
-    delivery cd  search engine optimization seoexperienced in cms systemsolid understanding
-    of how web applications work including security session management and best development
-    practicesbasic knowledge of search engine optimization processhands on experienced
-    with network diagnostics network analytics toolsaggressive problem diagnosis and
-    creative problem solving  to  years of working experience in the related field
-    is required for this position possess a diploma bachelors degree in computer science
-    or any related field excellent programming skills and in depth knowledge of modern
-    html css familiarity or well versed with at least one of the following programming
-    languages  php aspnet javascript  front end languages and frameworks ie angular
-    react html css css framework etc  back end languages and frameworks ie typescript
-    javascript nodejs etc  sql and nosql databases mysql postgresql mongodb redis
-    etc  git source control and gitflow workflow  devops continuous integration ci
-    and continuous delivery cd  search engine optimization seo experienced in cms
-    system solid understanding of how web applications work including security session
-    management and best development practices basic knowledge of search engine optimization
-    process hands on experienced with network diagnostics network analytics tools
-    aggressive problem diagnosis and creative problem solving skills
-- source_sentence: "         AVIATION OPERATION SPECIALIST           Summary     Pursuing\
-    \ a position as a Client Support Specialist II, along with the opportunity to\
-    \ achieve and maintain the highest level of customer service, data compilation,\
-    \ and team excellence.       Highlights          Staff training and development\
-    \  New employee orientations  Microsoft Office Suite expert  Attention to detail\
-    \      Maintains confidentiality  People-oriented  Organized  Exceptional communicator\
-    \  Secret Security Clearance (Clearable)            Accomplishments     Awarded\
-    \ with good conduct medal for excellent military service   Awarded (2) Army Achievement\
-    \ Medals.       Experience      Aviation Operation Specialist    January 2014\
-    \   to   February 2015     Company Name   -   City  ,   State      Compiled, managed,\
-    \ and maintained sensitive flight data for more than 60 aviators ensuring all\
-    \ flight departures and arrivals were successful and all aviator flight information\
-    \ was accurately and consistently logged for daily and weekly flight reports.\
-    \  Safeguarded, analyzed and maintained up-to-date aviator flight hours and personnel\
-    \ individual flight records utilizing Centralized Aviation Flight Records (CAFRS)\
-    \ information operating systems for more than 60 aviators identifying and correcting\
-    \ deficiencies by 20%.  Presented excellent communication skills through secured\
-    \ radios identifying all aviators medical status, their aircraft information and\
-    \ location in cases of precautionary landings due to aircraft deficiencies, weather\
-    \ or accidents, in order to inform the appropriate channels with a increased response\
-    \ and personnel and aircraft recovery time.  Monitored secured radios in order\
-    \ to assist the aviators with their take off and landing by contacting maintenance\
-    \ crews and fueling crews when needed increasing communication between all parties\
-    \ and rapid service.  Managed equipment with a cost of more than 30 thousand dollars\
-    \ with no loss conducting constant inventory checks and following detail specific\
-    \ procedures when issuing and receiving specific equipment.  Continuously organized\
-    \ and created systems of labeling and storing of classified documents and equipment.\
-    \  Provided excellent customer service to all aviators who had issues or concerns\
-    \ regarding their flight hours by searching through all previous records ensuring\
-    \ that all their current hours were accurate.  Tracked all aviators and aircraft\
-    \ utilizing digital mapping systems.  Assisted the control tower and base ops\
-    \ by communicating aviator and flight information.  Secret security clearance.\
-    \          Defense Travel System Representative    January 2012   to   December\
-    \ 2014     Company Name   -   City  ,   State      Managed over 1 million dollars\
-    \ of Federal funds in travel arrangements, claims and travel reimbursements for\
-    \ over 300 employees using Defense Travel Operating Systems (DTS) resulting in\
-    \ a decrease of error with excessive expenses by 10%.  Ensured rapid travel pay\
-    \ reimbursement and entitlements.  Excelled in communicating data, reports and\
-    \ trackers of all Federal funds utilized for personnel travel, claims and reimbursements.\
-    \  Safe guarded and destroyed all sensitive personnel information such as social\
-    \ security numbers, and bank accounts decreasing identity theft.  Provided stellar\
-    \ customer service to more than 300 employees individually and collectively by\
-    \ coordinating all of their travel arrangements for career progression training\
-    \ and special missions within different states and countries providing them with\
-    \ a smooth transition.  Maintained all accounts for over 300 employees and created\
-    \ trackers through excel their inbound and outbound dates.  Worked side by side\
-    \ with SATO travel agency in order to book flights and car rentals for all employees\
-    \ who were travelling on missions, trainings and/or emergencies.  Created reports\
-    \ for all employees who were delinquent in closing out their travel vouchers Trained\
-    \ 5 employees on DTS policies and procedures along with federal fund allocation\
-    \ and entitlements.  Secret security clearance.          Administrative Assistant\
-    \    July 2011   to   December 2011     Company Name   -   City  ,   State   \
-    \   Secret security clearance Created weekly rotational day and night flight schedules\
-    \ on excel assigning aviators specific dates and times for potential flights enforcing\
-    \ fairness while maximizing productivity.  Filed all approved flight schedules\
-    \ as per the FAA Created battle rhythm books for missions and training with policies,\
-    \ procedures, directories, maps, schedules, all content needed as reference to\
-    \ complete specific missions.  Excellent communication skills by answering phone\
-    \ calls and relaying messages, sending out emails and replying to emails with\
-    \ a fast response time.  Prepared weekly reports of actual flight times, aviators\
-    \ and of aircrafts flown.          Education      Bachelor of Arts   :   Organizational\
-    \ Leadership      University of Brandman   -   City  ,   State  ,   US     Expected\
-    \ graduation date of February 2017         BBA   :   Business Administration Accounting\
-    \      University of Puerto Rico\t   -   City  ,   State  ,   USA     Completed\
-    \ 115 credit hours towards Business Administration, Accounting         Personal\
-    \ Information    I enjoy reading, dancing, watching scary movies, and spending\
-    \ time with my family.      Additional Information      Honorable Discharge  \
-    \      Skills     travel agent, flight hours keeper, trainer, excellent communication,\
-    \ fast learner, content, high motivation, excellent customer service, manager\
-    \ of DTS, digital mapping, manager of funds, inventory, excel, personnel tracker,\
-    \ policies enforcer and trainer, honest, high levels of integrity, efficient under\
-    \ high levels of stress, team leader, enjoy challenges,  security clearance (clearable),\
-    \ travel arrangements coordinator, fully bilingual Spanish/English.     "
+    Tournaments and developed club lacrosse clinics in Central Europe       Work History      Consultant  ,   01/2020   to   Current     Company
+    Name   –   City  ,   State      Project manage drinkbumpcoffee.com and sheau.com
+    website launches.  Oversee marketing, content creation, and 3rd
+
+    party integrations for all three brands.  Prospect and onboard 100+ traditional
+    retailers and D2C e-commerce brands to Sheau within first 3
+
+    months through in person meetings, cold emails and phone calls.  Sourced 30+ new
+    relationships with VC''s, like-minded brands and affiliates to partner with Sohuis
+    on
+
+    content and events.         Senior Account Executive  ,   03/2019   to   01/2020     Company
+    Name   –   City  ,   State      Grew $500K book of business by 10% through cross-sell
+    and up-sell opportunities while managing
+
+    pipeline of 60+ enterprise brands.  Conducted client QBR''s and developed plans
+    with internal teams to grow territory through customized
+
+    demo''s, mock-ups and strategic partners.  Created new process for documenting
+    sales "wins" that was implemented company wide.         Senior Account Executive  ,   04/2018   to   03/2019     Company
+    Name   –   City  ,   State      Achieved $224K in new business selling influencer
+    marketing solutions to C-suite executives.  Brought on company''s first airline
+    client, which was self-sourced and opened up new revenue channel.  Spearheaded
+    east coast agency business working internally with marketing and finance to develop
+    new
+
+    pitch and terms.         Account Director  ,   03/2017   to   04/2018     Company
+    Name   –   City  ,   State      Managed $1MM quarterly pipeline selling programmatic
+    advertising solutions to agencies and brands.  Increased sales revenue by 315%
+    over 9 months as team''s top seller.  Exceeded quarterly quotas hitting 123% to
+    goal in Q4 2017.         Account Manager  ,   06/2015   to   03/2017     Company
+    Name   –   City  ,   State      Supported $3MM average quarterly book of business
+    and consistently contributed to regional
+
+    incremental goals earning multiple spot bonuses.  Addressed problems with accounting,
+    billing and service delivery to maintain and enhance client
+
+    satisfaction.  Mentored and trained Account Coordinators and Account Managers.         Production
+    Coordinator  ,   07/2014   to   06/2015     Company Name   –   City  ,   State      Act
+    as main point of contact for high profile clients and internal teams to develop
+    events, on-site
+
+    activations, website builds, design work, brand strategy and editorial content.  Defined
+    project scope including goals, deliverables, schedules, staffing, SOWs, and budgets.         Sales
+    Coordinator  ,   12/2012   to   07/2014     Company Name   –   City  ,   State      Supported
+    sales team in selling, managing and executing large scale out-of-home advertising
+    programs.         Assistant Media Planner  ,   10/2011   to   11/2012     Company
+    Name   –   City  ,   State      Developed and executed multimillion-dollar digital,
+    TV, print and mobile campaigns for J&J.         Personal Information    INTERESTS
+
+    , Lover of the great outdoors and extreme hikes including the Kalalau Trail in
+    Kauai, HI and Wai Rata canyon
+
+    in New Zealand. Avid audiobook listener, documentary watcher and true crime enthusiast.
+    Self-proclaimed
+
+    chef and creative writing hobbyist.      Skills     B2B sales  NNetwork development  LLead
+    prospecting  IInterpersonal communication skills  BBrand marketing  BBusiness
+    development  PProduct development  CContent creation,  Accounting, advertising,
+    agency, B2B, billing, book, brand strategy, budgets, Business development, C,
+    com, Interpersonal communication, content, Content creation, clients, client,
+    delivery, Product development, e-commerce, editorial, finance, managing, marketing,
+    meetings, enterprise, Network, sales, selling, staffing, strategic, phone, TV,
+    VC, website    '
   sentences:
-  - the apply with seek option will be utilized for international applicants mainly
-    australia if this does not apply to you please use the apply optionsenior web
-    designer remoteif you care theres a place for you herefor a career path that is
-    both challenging and rewarding join sedgwicks talented team of  colleagues around
-    the globe sedgwick is a leading provider of technologyenabled risk benefits and
-    integrated business solutions taking care of people is at the heart of everything
-    we do millions of people and organizations count on sedgwick each year to take
-    care of their needs when they face a major life event or something unexpected
-    happens whether they have a workplace injury suffer property or financial loss
-    or damage from a natural or manmade disaster are involved in an auto or other
-    type of accident or need time away from work for the birth of a child or another
-    medical situation we are here to provide compassionate care and expert guidance
-    our clients depend on our talented colleagues to take care of their most valuable
-    assetstheir employees their customers and their property at sedgwick caring counts
-    join our team of creative and caring people of all backgrounds and help us make
-    a difference in the lives of othersopen to remote work all locations within the
-    usprimary purpose  conceptualize and design user experience projects and initiatives
-    and oversee designers to ensure highquality work throughout the entirety of the
-    projectessential functions and responsibilities create userfriendly designs that
-    improve the overall user experience oversee user experience projects to support
-    global marcomm deliverables ideas and solutions creates strategic and compelling
-    user experience design solutions that are visually engaging and onbrand to drive
-    an optimized experience manages execution of design projects and initiatives to
-    deliver onbrand solutions that are based on best practices and meet the needs
-    of the timeline requirements prepares wireframes that are strategic optimize the
-    user flow and incorporate the desired calltoaction and brand engagement participates
-    in brainstorming sessions key milestone meetings and status meetings with the
-    team to ensure alignment with strategic objectives and teambusiness priorities
-    stay uptodate with industry best practices and tools ensures that user experience
-    projects are accessible and follow wcag guidelines aa requirementsadditional functions
-    and responsibilities performs other duties as assigned supports the organizations
-    quality programs travels as required this is a remote positionqualificationseducation  licensingbachelors
-    degree in uiux or graphic design from an accredited college or university preferredexperienceseven  years
-    of uiux or graphic design experience or equivalent combination of education and
-    experience requiredskills  knowledge attention to detail strong design asthetic
-    strategic mindset knowledge of adobe creative suite knowledge of sketch excellent
-    oral and written communication skills including presentation skills strong knowledge
-    of css and html websites strong organizational skills excellent interpersonal
-    skills ability to work in a fast paced team environmentwork environmentwhen applicable
-    and appropriate consideration will be given to reasonable accommodationsmental  clear
-    and conceptual thinking ability excellent judgment troubleshooting problem solving
-    analysis and discretion ability to handle workrelated stress ability to handle
-    multiple priorities simultaneously and ability to meet deadlinesphysical  computer
-    keyboarding travel as requiredauditoryvisual  hearing vision and talkingthe statements
-    contained in this document are intended to describe the general nature and level
-    of work being performed by a colleague assigned to this description they are not
-    intended to constitute a comprehensive list of functions duties or local variances
-    management retains the discretion to add or to change the duties of the position
-    at any timesedgwick is an equal opportunity employer and a drugfree workplace
-  - "rtp north carolina or remote est only\n\nbiofidelitys mission is to improve and\
-    \ extend the lives of patients with cancer by enabling better targeting of therapies\
-    \ early detection of treatment resistance and routine monitoring of treatment\
-    \ response our unique technology is designed to allow rapid broad adoption of\
-    \ our assays in testing labs around the world enabling a step change in patient\
-    \ care\n\nat biofidelity we are proud to have built a culture of humanity openness\
-    \ and high expectations we work towards welldefined goals with a strong belief\
-    \ that we can bring real benefits to patients our people are keen to take responsibility\
-    \ for their work and share both their successes and challenges\n\nalongside a\
-    \ competitive salary and opportunities for career development we offer a comprehensive\
-    \ benefits package including medical dental and vision coverage k bonus stock\
-    \ options  days per year pto allowance and  floating holidays in addition to company\
-    \ observed holidays\n\nthe role\n\nbiofidelity is seeking an experienced software\
-    \ developer to help lead development of the software used to run biofidelitys\
-    \ clinical laboratory the candidate will have a key role in architecting and implementing\
-    \ a maintainable and secure system\n\nkey responsibilities\n architect workflows\
-    \ and interfaces between thirdparty and internally developed software components\
-    \ to support laboratory operations\n implementing components of the system in\
-    \ clean testable code\n implementing highquality testing of the system as a whole\n\
-    \ evaluation of third party software\n monitoring and maintaining the high performance\
-    \ availability and reliability of the system\n work with the quality team to develop\
-    \ solutions in compliance with relevant regulations\n\nknowledge skills and abilities\n\
-    \ ability to clearly communicate technical concepts including working across the\
-    \ company with nontechnical colleagues essential\n willingness to learn new technologies\
-    \ and skills as required and happy to take ownership of projects in a small team\
-    \ environment essential\n experience in requirements gathering and development\
-    \ of usecases technical specifications and design documentation desired\n\nrequisite\
-    \ education and experience  minimum qualifications\n software development experience\
-    \ in industry essential python preferred\n experience in architecting and developing\
-    \ cloudbased solutions essential aws preferred\n experience implementing and testing\
-    \ security authentication and access management essential\n prior experience adhering\
-    \ to software development life cycle processes andor working within regulated\
-    \ environments essential\n design of schemas for and administration of relational\
-    \ databases essential\n knowledge of software development quality assurance and\
-    \ regulations such as iso  en  iso  and hipaa desired\n\nfor informal enquiries\
-    \ about the post please contact ana kukic hr business partner careersbiofidelitycom\n\
-    \nbiofidelity prefers our employees to be vaccinated for covid but we are not\
-    \ requiring covid vaccinations at this time we are requiring twice weekly antigen\
-    \ testing for any employees that visit or work onsite"
-  - "patient care tech\nhca florida memorial hospital\nlocation_on jacksonville fl\
-    \ united states\nschedule fulltime  nights   hrswkends rotate\n nursing support  \
-    \   job id \n\ndescription\nintroductiondo you have the career opportunities as\
-    \ aan patient care tech you want with your current employer we have an exciting\
-    \ opportunity for you to join hca florida memorial hospital which is part of the\
-    \ nations leading provider of healthcare services hca healthcare\nbenefitshca\
-    \ florida memorial hospital offers a total rewards package that supports the health\
-    \ life career and retirement of our colleagues the available plans and programs\
-    \ include\ncomprehensive medical coverage that covers many common services at\
-    \ no cost or for a low copay plans include prescription drug and behavioral health\
-    \ coverage as well as telemedicine services and free airmed medical transportationadditional\
-    \ options for dental and vision benefits life and disability coverage flexible\
-    \ spending accounts supplemental health protection plans accident critical illness\
-    \ hospital indemnity auto and home insurance identity theft protection legal counseling\
-    \ longterm care coverage moving assistance pet insurance and morefertility and\
-    \ family building benefits through progynyfree counseling services and resources\
-    \ for emotional physical and financial wellbeingfamily support including adoption\
-    \ assistance child and elder care resources and consumer k plan with a  match\
-    \ on  to  of pay based on years of serviceemployee stock purchase planretirement\
-    \ readiness and rollover services and preferred banking partnershipseducation\
-    \ assistance tuition student loan certification support dependent scholarshipscolleague\
-    \ recognition programtime away from work program paid time off paid family leave\
-    \ long and shortterm disability coverage and leaves of absencelearn more about\
-    \ employee benefits\nnote eligibility for benefits may vary by location\nour teams\
-    \ are a committed caring group of colleagues do you want to work as aan patient\
-    \ care tech where your passion for creating positive patient interactions are\
-    \ valued if you are dedicated to caring for the wellbeing of others this could\
-    \ be your next opportunity we want your knowledge and expertise\njob summary and\
-    \ qualificationsthe patient care technician pct delivers high quality patientcentered\
-    \ care by performing a variety of delegated basic patient care services related\
-    \ to common nursing functions and activities of daily living under the supervision\
-    \ of the registered nurse rn the pct assists the nursing staff in providing patient\
-    \ care in accordance with the pcts skillstraining and the needs of the department\
-    \ and consistently assists the patient care team with maintaining a clean wellorganized\
-    \ and safe patient care environment the pct complies with all hospital policiesprocedures\
-    \ and observes the state board of nursing rules for unlicensed personnel\nwhat\
-    \ you will do in this role\nparticipates in the implementation of nursing care\
-    \ plans by performing direct and indirect patient care under the supervision of\
-    \ the licensed nurseobtains and records initial and ongoing patient information\
-    \ throughout the cycle of care including admissions data vital signs height and\
-    \ weight blood pressure oxygen saturation intake and output calorie counts and\
-    \ other patient information as outlined by policyassists with mobility by regular\
-    \ turning and positioning dangling and ambulating patients assists with use of\
-    \ walkers crutches canes and wheelchairs transfers patients to and from other\
-    \ units departments or entities assists with discharges demonstrates proper body\
-    \ mechanicsobtains or assists in the collection of specimens for diagnostic or\
-    \ waived tests ensures accuracy of all labels and timely transfer of specimenassists\
-    \ patients with activities of daily living to include eating and drinking bathing\
-    \ shaving oral care grooming and elimination changes bed linens as neededserves\
-    \ as monitortelemetry tech for the unit as neededengages in evidencebased best\
-    \ practices that enhance the patient experience including safety rounding communication\
-    \ fundamentalsaidet teachback narrating care etcwhat qualifications you will need\n\
-    \ a current american heart association aha or american red cross basic life support\
-    \ bls health care provider is required  year of acutehospital experience is preferred"
+  - "Who We Are\nKonrad is a next generation digital consultancy. We are dedicated\
+    \ to solving complex business problems for our global clients with creative and\
+    \ forward-thinking solutions. Our employees enjoy a culture built on innovation\
+    \ and a commitment to creating best-in-class digital products in use by hundreds\
+    \ of millions of consumers around the world. We hire exceptionally smart, analytical,\
+    \ and hard working people who are lifelong learners. \nAbout The Role\nAs an Associate\
+    \ Consultant in our Associate Program, you will work in a multifaceted role in\
+    \ collaboration with our Strategy, Project Management, Design, and Technology\
+    \ teams. You will support senior team members on our projects as you build up\
+    \ your experience in the role. Our graduate program includes an exciting digital\
+    \ training and onboarding program during the first 3 months of employment. \n\
+    You enjoy solving complex business problems by creating smart, intuitive, and\
+    \ human-centered experiences. You have an excellent eye for detail, love to learn,\
+    \ and enjoy new challenges. Technology excites you and youre on top of emerging\
+    \ trends.\nThis cohort will commence on July 7, 2026.\nWhat Youll Do\n\nAssist\
+    \ in the creation of digital solutions for a variety of clients and verticals\n\
+    Gain expertise as a design and technology thought leader in a number of industries\n\
+    Support the broader team in understanding and interpreting our clients business\
+    \ challenges and goals\nCollaborate with our Design and Technology teams to deliver\
+    \ elegant user experiences\nGather information on our clients business processes,\
+    \ critical success factors, marketplace, and competitive standing through interviews\
+    \ and research\nCoordinate and participate in user experience design thinking\
+    \ workshops, technology architecture workshops and, project planning and delivery\
+    \ activities\nStructure presentations, documentation, request for proposal responses,\
+    \ and other collateral\n\nQualifications\n\nPrevious experience in consulting,\
+    \ user experience and/or software development is an asset\nA demonstrable passion\
+    \ for and understanding of great user experiences and technology\nExcellent writing\
+    \ competency and communication skills\nA constant desire to learn more about the\
+    \ latest technology trends\nStrong problem-solving ability\nSelf-motivated individual\
+    \ with a desire to do their best every day\nAbility to work in a team environment\
+    \ and independently\nComfortable with presenting and public speaking is an asset\n\
+    \nPerks and Benefits\n\nMentorship Program\nSocials, Outings &amp; Retreats\n\
+    Culture of Learning &amp; Development\nAnnual tech &amp; travel allowance\nComprehensive\
+    \ Health &amp; Wellness Benefits Package \nRetirement Planning\nFlexible Working\
+    \ Hours\nWork from Home Flexibility\nService Recognition Programs\n\nBonus Points\n\
+    Have you taken any courses at BrainStation? A lot of our design and development\
+    \ best practices and processes are taught during our courses - make sure to highlight\
+    \ this experience in your cover letter if you have!\nKonrad is committed to maintaining\
+    \ a diverse work environment and is proud to be an equal opportunity employer.\
+    \ All qualified applicants, regardless of race, color, religion, gender, gender\
+    \ identity or expression, sexual orientation, national origin, genetics, disability,\
+    \ age, or veteran status will receive consideration for employment. If you have\
+    \ any accessibility requirements or concerns regarding the hiring process or employment\
+    \ with us, please notify us so we can provide suitable accommodation.\nWhile we\
+    \ sincerely appreciate all applications, only those candidates selected for an\
+    \ interview will be contacted.\n#LI-Hybrid"
+  - "The salary range for this position is $66,025 - $72,200 per year. The base salary\
+    \ offered may vary depending on location, job-related knowledge, skills, and experience.\n\
+    Schedule: \n\nMonday - Friday 6 pm - 2:30 am \n\nWe are Wayfair; we deliver a\
+    \ best-in-class customer experience in the furniture and home space because of\
+    \ people like you, who are driven, determined, collaborative, and thrive in a\
+    \ fast-paced environment. In order to maintain our high level of delivery standards\
+    \ and meet our customers needs, the Wayfair Distribution team plays a key role\
+    \ in improving customer satisfaction and driving repeat business. Weve been busy\
+    \ building a best-in-class logistics network that allows us to delight customers\
+    \ by speeding up deliveries, adding services, and reducing damage using our own\
+    \ physical, asset-based warehouses. We are looking for talented hard-working individuals\
+    \ to join our growing team  your professional home awaits you at Wayfair!\nWhat\
+    \ You'll Do\n\nSupervise the functions and working of the warehouse workers.\n\
+    Delegate and assign tasks and targets and evaluate the work of the staff.\nAdhere\
+    \ to the compliance of all legal and safety procedures.\nSupervise proper shift\
+    \ allocations and ensure efficiency of all warehouse staff.\nOrganize and conduct\
+    \ necessary training activities for the staff and workers.\nEnsure the proper\
+    \ functioning and safe operations of all warehouse tools and equipment.\nWork\
+    \ effectively with other managers within functional team and supports new team\
+    \ members.\nDrive specific initiatives that have proven business results.\nProactively\
+    \ think beyond the explicit assignment to ask second-order questions and identify\
+    \ additional analytic needs.\nAccurately, quickly, and clearly answer questions\
+    \ related to your area of focus.\nBe viewed as a credible company expert on your\
+    \ area of focus.\nEffectively prepare and run internal meetings with supporting\
+    \ analytics and data.\nAdditional responsibilities as assigned.\n\nWhat You'll\
+    \ Need\n\nBachelors or associate degree in management, administration, supply\
+    \ chain, customer service, or 5+ years working experience in product distribution\
+    \ to customer base.\nKnowledge of the safety and legal documentation processes\
+    \ for handling related warehouse activities (MSDS, Equipment checklist, BOL).\n\
+    Working understanding of Warehouse Management System.\nShould have excellent leadership\
+    \ and administration skills and abilities.\nStrong motivational, effectual team\
+    \ building, and decision-making skills.\nAbility to effectively manage time and\
+    \ resolve crises.\nMust be comfortable repeatedly lifting up to 75 pounds unassisted\
+    \ and maneuvering product 150+ pounds unassisted or via team lift.\nAble to read\
+    \ and comprehend English to ensure your safety and the safety of those working\
+    \ around you.\nAbility to work overtime as needed.\nAbout Wayfair Inc.\nWayfair\
+    \ is one of the worlds largest online destinations for the home. Whether you work\
+    \ in our global headquarters in Boston, or in our warehouses or offices throughout\
+    \ the world, were reinventing the way people shop for their homes. Through our\
+    \ commitment to industry-leading technology and creative problem-solving, we are\
+    \ confident that Wayfair will be home to the most rewarding work of your career.\
+    \ If youre looking for rapid growth, constant learning, and dynamic challenges,\
+    \ then youll find that amazing career opportunities are knocking.\nNo matter who\
+    \ you are, Wayfair is a place you can call home. Were a community of innovators,\
+    \ risk-takers, and trailblazers who celebrate our differences, and know that our\
+    \ unique perspectives make us stronger, smarter, and well-positioned for success.\
+    \ We value and rely on the collective voices of our employees, customers, community,\
+    \ and suppliers to help guide us as we build a better Wayfair  and world  for\
+    \ all. Every voice, every perspective matters. Thats why were proud to be an equal\
+    \ opportunity employer. We do not discriminate on the basis of race, color, ethnicity,\
+    \ ancestry, religion, sex, national origin, sexual orientation, age, citizenship\
+    \ status, marital status, disability, gender identity, gender expression, veteran\
+    \ status, genetic information, or any other legally protected characteristic.\n\
+    Your personal data is processed in accordance with our Candidate Privacy Notice\
+    \ (https://www.wayfair.com/careers/privacy). If you have any questions or wish\
+    \ to exercise your rights under applicable privacy and data protection laws, please\
+    \ contact us at dataprotectionofficer@wayfair.com."
+  - 'About BridgeWeve provided millions with faster and cheaper access to cross-border
+    payments, enabled governments and aid agencies to more efficiently distribute
+    funds to thousands, and given millions more true economic choice, enabling them
+    to easily save and spend in USD or EUR. And were just getting started. Bridge
+    enables faster, cheaper payments and borderless access to dollars via stablecoins.
+    Through our APIs, businesses can send and receive funds across borders faster
+    / cheaper vs. SWIFT and other fiat-only rails. Our virtual accounts enable international
+    consumers and businesses to easily access, store and spend US dollars. Our payouts
+    infrastructure enables platforms to disburse USD to anyone globally. We believe
+    many trillions of dollars will move and settle through stablecoin payment rails.
+    Bridge is pulling this future forward.What youll doBridge is seeking an extremely
+    creative and metrics-driven Event Marketing Lead to build, execute, and scale
+    our event strategy. Youll be responsible for shaping and executing the Bridge
+    events portfolioinclusive of industry conference activations, hosted first-party
+    events, virtual events, and community events . This role will consist of a mix
+    of creative work and growth-minded thinking: were looking for someone who can
+    dream up creative experiences, manage the logistics to bring them to life, and
+    ensure they fuel our overall growth strategy.About the RoleBuild, scale, and own
+    Bridges event program, spanning industry conference activations, hosted first-party
+    events, virtual events, and community events.Lead Bridges presence at major industry
+    events, including activation strategy, booth assembly, speaking opportunities,
+    and pre/post-event engagement in partnership with Sales.Develop creative event
+    concepts and pay extreme attention to detail.Create experiences that surprise
+    and delight attendees, and reinforce Bridges reputation as a leader and innovator
+    in the stablecoin infrastructure space.Manage vendor relationships, contracts,
+    and budgets for all events.Partner with GTM, Product, and Executive leadership
+    to align events with Bridges all-up marketing strategy, ensuring seamless integration
+    into broader campaigns and GTM initiatives.Measure event ROI and impact, tracking
+    key results and shipping post-event reports with recommendations for future improvements.Serve
+    as the onsite lead at events, ensuring flawless execution of all activations.Qualifications48
+    years of experience in event marketing or field marketing roles with a focus on
+    B2B.Proven ability to own complex live-event projects end-to-end, with an exceptional
+    eye for detail and creative thinking.Strong cross-functional collaboration skills
+    - you know how to keep stakeholders aligned across teams.Ability to transform
+    creative concepts into memorable experiences through operational excellence.Experience
+    with CRM tools (Hubspot/Salesforce)Comfort with fast-paced, high-growth, high-intensity
+    environments with shifting priorities.Experience in web3 and fintech, with an
+    understanding of how to run events built for these audiences.Willingness to travel
+    ~50% of the time, including internationally.'
 pipeline_tag: sentence-similarity
 library_name: sentence-transformers
 metrics:
@@ -1113,10 +1345,10 @@ model-index:
       type: resume-job-val
     metrics:
     - type: pearson_cosine
-      value: 0.8805561818130924
+      value: 0.8533786740707511
       name: Pearson Cosine
     - type: spearman_cosine
-      value: 0.8168224320525292
+      value: 0.8133023792962869
       name: Spearman Cosine
 ---
 
@@ -1170,9 +1402,9 @@ from sentence_transformers import SentenceTransformer
 model = SentenceTransformer("sentence_transformers_model_id")
 # Run inference
 sentences = [
-    '         AVIATION OPERATION SPECIALIST           Summary     Pursuing a position as a Client Support Specialist II, along with the opportunity to achieve and maintain the highest level of customer service, data compilation, and team excellence.       Highlights          Staff training and development  New employee orientations  Microsoft Office Suite expert  Attention to detail      Maintains confidentiality  People-oriented  Organized  Exceptional communicator  Secret Security Clearance (Clearable)            Accomplishments     Awarded with good conduct medal for excellent military service   Awarded (2) Army Achievement Medals.       Experience      Aviation Operation Specialist    January 2014   to   February 2015     Company Name   -   City  ,   State      Compiled, managed, and maintained sensitive flight data for more than 60 aviators ensuring all flight departures and arrivals were successful and all aviator flight information was accurately and consistently logged for daily and weekly flight reports.  Safeguarded, analyzed and maintained up-to-date aviator flight hours and personnel individual flight records utilizing Centralized Aviation Flight Records (CAFRS) information operating systems for more than 60 aviators identifying and correcting deficiencies by 20%.  Presented excellent communication skills through secured radios identifying all aviators medical status, their aircraft information and location in cases of precautionary landings due to aircraft deficiencies, weather or accidents, in order to inform the appropriate channels with a increased response and personnel and aircraft recovery time.  Monitored secured radios in order to assist the aviators with their take off and landing by contacting maintenance crews and fueling crews when needed increasing communication between all parties and rapid service.  Managed equipment with a cost of more than 30 thousand dollars with no loss conducting constant inventory checks and following detail specific procedures when issuing and receiving specific equipment.  Continuously organized and created systems of labeling and storing of classified documents and equipment.  Provided excellent customer service to all aviators who had issues or concerns regarding their flight hours by searching through all previous records ensuring that all their current hours were accurate.  Tracked all aviators and aircraft utilizing digital mapping systems.  Assisted the control tower and base ops by communicating aviator and flight information.  Secret security clearance.          Defense Travel System Representative    January 2012   to   December 2014     Company Name   -   City  ,   State      Managed over 1 million dollars of Federal funds in travel arrangements, claims and travel reimbursements for over 300 employees using Defense Travel Operating Systems (DTS) resulting in a decrease of error with excessive expenses by 10%.  Ensured rapid travel pay reimbursement and entitlements.  Excelled in communicating data, reports and trackers of all Federal funds utilized for personnel travel, claims and reimbursements.  Safe guarded and destroyed all sensitive personnel information such as social security numbers, and bank accounts decreasing identity theft.  Provided stellar customer service to more than 300 employees individually and collectively by coordinating all of their travel arrangements for career progression training and special missions within different states and countries providing them with a smooth transition.  Maintained all accounts for over 300 employees and created trackers through excel their inbound and outbound dates.  Worked side by side with SATO travel agency in order to book flights and car rentals for all employees who were travelling on missions, trainings and/or emergencies.  Created reports for all employees who were delinquent in closing out their travel vouchers Trained 5 employees on DTS policies and procedures along with federal fund allocation and entitlements.  Secret security clearance.          Administrative Assistant    July 2011   to   December 2011     Company Name   -   City  ,   State      Secret security clearance Created weekly rotational day and night flight schedules on excel assigning aviators specific dates and times for potential flights enforcing fairness while maximizing productivity.  Filed all approved flight schedules as per the FAA Created battle rhythm books for missions and training with policies, procedures, directories, maps, schedules, all content needed as reference to complete specific missions.  Excellent communication skills by answering phone calls and relaying messages, sending out emails and replying to emails with a fast response time.  Prepared weekly reports of actual flight times, aviators and of aircrafts flown.          Education      Bachelor of Arts   :   Organizational Leadership      University of Brandman   -   City  ,   State  ,   US     Expected graduation date of February 2017         BBA   :   Business Administration Accounting      University of Puerto Rico\t   -   City  ,   State  ,   USA     Completed 115 credit hours towards Business Administration, Accounting         Personal Information    I enjoy reading, dancing, watching scary movies, and spending time with my family.      Additional Information      Honorable Discharge        Skills     travel agent, flight hours keeper, trainer, excellent communication, fast learner, content, high motivation, excellent customer service, manager of DTS, digital mapping, manager of funds, inventory, excel, personnel tracker, policies enforcer and trainer, honest, high levels of integrity, efficient under high levels of stress, team leader, enjoy challenges,  security clearance (clearable), travel arrangements coordinator, fully bilingual Spanish/English.     ',
-    'patient care tech\nhca florida memorial hospital\nlocation_on\xa0jacksonville fl united states\nschedule\xa0fulltime  nights   hrswkends rotate\n\xa0nursing support\xa0\xa0   job id \n\ndescription\nintroductiondo you have the career opportunities as aan patient care tech you want with your current employer we have an exciting opportunity for you to join hca florida memorial hospital which is part of the nations leading provider of healthcare services hca healthcare\nbenefitshca florida memorial hospital offers a total rewards package that supports the health life career and retirement of our colleagues the available plans and programs include\ncomprehensive medical coverage that covers many common services at no cost or for a low copay plans include prescription drug and behavioral health coverage as well as telemedicine services and free airmed medical transportationadditional options for dental and vision benefits life and disability coverage flexible spending accounts supplemental health protection plans accident critical illness hospital indemnity auto and home insurance identity theft protection legal counseling longterm care coverage moving assistance pet insurance and morefertility and family building benefits through progynyfree counseling services and resources for emotional physical and financial wellbeingfamily support including adoption assistance child and elder care resources and consumer k plan with a  match on  to  of pay based on years of serviceemployee stock purchase planretirement readiness and rollover services and preferred banking partnershipseducation assistance tuition student loan certification support dependent scholarshipscolleague recognition programtime away from work program paid time off paid family leave long and shortterm disability coverage and leaves of absencelearn more about employee benefits\nnote eligibility for benefits may vary by location\nour teams are a committed caring group of colleagues do you want to work as aan patient care tech where your passion for creating positive patient interactions are valued if you are dedicated to caring for the wellbeing of others this could be your next opportunity we want your knowledge and expertise\njob summary and qualificationsthe patient care technician pct delivers high quality patientcentered care by performing a variety of delegated basic patient care services related to common nursing functions and activities of daily living under the supervision of the registered nurse rn the pct assists the nursing staff in providing patient care in accordance with the pcts skillstraining and the needs of the department and consistently assists the patient care team with maintaining a clean wellorganized and safe patient care environment the pct complies with all hospital policiesprocedures and observes the state board of nursing rules for unlicensed personnel\nwhat you will do in this role\nparticipates in the implementation of nursing care plans by performing direct and indirect patient care under the supervision of the licensed nurseobtains and records initial and ongoing patient information throughout the cycle of care including admissions data vital signs height and weight blood pressure oxygen saturation intake and output calorie counts and other patient information as outlined by policyassists with mobility by regular turning and positioning dangling and ambulating patients assists with use of walkers crutches canes and wheelchairs transfers patients to and from other units departments or entities\xa0assists with discharges\xa0demonstrates proper body mechanicsobtains or assists in the collection of specimens for diagnostic or waived tests ensures accuracy of all labels and timely transfer of specimenassists patients with activities of daily living to include eating and drinking bathing shaving oral care grooming and elimination changes bed linens as neededserves as monitortelemetry tech for the unit as neededengages in evidencebased best practices that enhance the patient experience including safety rounding communication fundamentalsaidet teachback narrating care etcwhat qualifications you will need\n a current american heart association aha or american red cross basic life support bls health care provider is required  year of acutehospital experience is preferred',
-    'the apply with seek option will be utilized for international applicants mainly australia if this does not apply to you please use the apply optionsenior web designer remoteif you care theres a place for you herefor a career path that is both challenging and rewarding join sedgwicks talented team of  colleagues around the globe sedgwick is a leading provider of technologyenabled risk benefits and integrated business solutions taking care of people is at the heart of everything we do millions of people and organizations count on sedgwick each year to take care of their needs when they face a major life event or something unexpected happens whether they have a workplace injury suffer property or financial loss or damage from a natural or manmade disaster are involved in an auto or other type of accident or need time away from work for the birth of a child or another medical situation we are here to provide compassionate care and expert guidance our clients depend on our talented colleagues to take care of their most valuable assetstheir employees their customers and their property at sedgwick caring counts join our team of creative and caring people of all backgrounds and help us make a difference in the lives of othersopen to remote work all locations within the usprimary purpose  conceptualize and design user experience projects and initiatives and oversee designers to ensure highquality work throughout the entirety of the projectessential functions and responsibilities create userfriendly designs that improve the overall user experience oversee user experience projects to support global marcomm deliverables ideas and solutions creates strategic and compelling user experience design solutions that are visually engaging and onbrand to drive an optimized experience manages execution of design projects and initiatives to deliver onbrand solutions that are based on best practices and meet the needs of the timeline requirements prepares wireframes that are strategic optimize the user flow and incorporate the desired calltoaction and brand engagement participates in brainstorming sessions key milestone meetings and status meetings with the team to ensure alignment with strategic objectives and teambusiness priorities stay uptodate with industry best practices and tools ensures that user experience projects are accessible and follow wcag guidelines aa requirementsadditional functions and responsibilities performs other duties as assigned supports the organizations quality programs travels as required this is a remote positionqualificationseducation  licensingbachelors degree in uiux or graphic design from an accredited college or university preferredexperienceseven  years of uiux or graphic design experience or equivalent combination of education and experience requiredskills  knowledge attention to detail strong design asthetic strategic mindset knowledge of adobe creative suite knowledge of sketch excellent oral and written communication skills including presentation skills strong knowledge of css and html websites strong organizational skills excellent interpersonal skills ability to work in a fast paced team environmentwork environmentwhen applicable and appropriate consideration will be given to reasonable accommodationsmental  clear and conceptual thinking ability excellent judgment troubleshooting problem solving analysis and discretion ability to handle workrelated stress ability to handle multiple priorities simultaneously and ability to meet deadlinesphysical  computer keyboarding travel as requiredauditoryvisual  hearing vision and talkingthe statements contained in this document are intended to describe the general nature and level of work being performed by a colleague assigned to this description they are not intended to constitute a comprehensive list of functions duties or local variances management retains the discretion to add or to change the duties of the position at any timesedgwick is an equal opportunity employer and a drugfree workplace',
+    '           CONSULTANT         Professional Summary    Accomplished seller with marketing and entrepreneurial chops. Proven record of exceeding service standards\nand outpacing performance goals. Solid technical background with a focus on B2B SAAS and programmatic\nadvertising. Motivated, team-oriented and enthusiastic about helping companies grow.      Skills          B2B sales  Network development  Lead prospecting  Interpersonal communication skills  Brand marketing  Business development  Product development  Content creation  Accounting, VC  Advertising, Website  Agency  B2B  Billing  Book  Brand strategy  Budgets  Business development  C      Com  Interpersonal communication  Content  Content creation  Clients  Client  Delivery  Product development  E-commerce  Editorial  Finance  Managing  Marketing  Meetings  Enterprise  Network  Sales  Selling  Staffing  Strategic  Phone  TV            Work History      Consultant  ,     01/2020   to   Current     Company Name    –    City  ,   State        Project manage drinkbumpcoffee.com and sheau.com website launches.  Oversee marketing, content creation, and 3rd\nparty integrations for all three brands.  Prospect and onboard 100+ traditional retailers and D2C e-commerce brands to Sheau within first 3\nmonths through in person meetings, cold emails and phone calls.  Sourced 30+ new relationships with VC\'s, like-minded brands and affiliates to partner with Sohuis on\ncontent and events.         Senior Account Executive  ,     03/2019   to   01/2020     Company Name    –    City  ,   State        Grew $500K book of business by 10% through cross-sell and up-sell opportunities while managing\npipeline of 60+ enterprise brands.  Conducted client QBR\'s and developed plans with internal teams to grow territory through customized\ndemo\'s, mock-ups and strategic partners.  Created new process for documenting sales "wins" that was implemented company wide.         Senior Account Executive  ,     04/2018   to   03/2019     Company Name    –    City  ,   State        Achieved $224K in new business selling influencer marketing solutions to C-suite executives.  Brought on company\'s first airline client, which was self-sourced and opened up new revenue channel.  Spearheaded east coast agency business working internally with marketing and finance to develop new\npitch and terms.         Account Director  ,     03/2017   to   04/2018     Company Name    –    City  ,   State        Managed $1MM quarterly pipeline selling programmatic advertising solutions to agencies and brands.  Increased sales revenue by 315% over 9 months as team\'s top seller.  Exceeded quarterly quotas hitting 123% to goal in Q4 2017.         Account Manager  ,     06/2015   to   03/2017     Company Name    –    City  ,   State        Supported $3MM average quarterly book of business and consistently contributed to regional\nincremental goals earning multiple spot bonuses.  Addressed problems with accounting, billing and service delivery to maintain and enhance client\nsatisfaction.  Mentored and trained Account Coordinators and Account Managers.         Production Coordinator  ,     07/2014   to   06/2015     Company Name    –    City  ,   State        Act as main point of contact for high profile clients and internal teams to develop events, on-site\nactivations, website builds, design work, brand strategy and editorial content.  Defined project scope including goals, deliverables, schedules, staffing, SOWs, and budgets.         Sales Coordinator  ,     12/2012   to   07/2014     Company Name    –    City  ,   State        Supported sales team in selling, managing and executing large scale out-of-home advertising programs.         Assistant Media Planner  ,     10/2011   to   11/2012     Company Name    –    City  ,   State        Developed and executed multimillion-dollar digital, TV, print and mobile campaigns for J&J.         Education      BA  :   Rhetoric and Communications  ,   05/2011     University of Richmond   -   City  ,   State    Division 1 Women\'s Lacrosse, Writing Consultant, Kappa Alpha Theta Member, Global Players Study Abroad for Student Athletes: Competed in Prague and Berlin World Cup\nTournaments and developed club lacrosse clinics in Central Europe       Work History      Consultant  ,   01/2020   to   Current     Company Name   –   City  ,   State      Project manage drinkbumpcoffee.com and sheau.com website launches.  Oversee marketing, content creation, and 3rd\nparty integrations for all three brands.  Prospect and onboard 100+ traditional retailers and D2C e-commerce brands to Sheau within first 3\nmonths through in person meetings, cold emails and phone calls.  Sourced 30+ new relationships with VC\'s, like-minded brands and affiliates to partner with Sohuis on\ncontent and events.         Senior Account Executive  ,   03/2019   to   01/2020     Company Name   –   City  ,   State      Grew $500K book of business by 10% through cross-sell and up-sell opportunities while managing\npipeline of 60+ enterprise brands.  Conducted client QBR\'s and developed plans with internal teams to grow territory through customized\ndemo\'s, mock-ups and strategic partners.  Created new process for documenting sales "wins" that was implemented company wide.         Senior Account Executive  ,   04/2018   to   03/2019     Company Name   –   City  ,   State      Achieved $224K in new business selling influencer marketing solutions to C-suite executives.  Brought on company\'s first airline client, which was self-sourced and opened up new revenue channel.  Spearheaded east coast agency business working internally with marketing and finance to develop new\npitch and terms.         Account Director  ,   03/2017   to   04/2018     Company Name   –   City  ,   State      Managed $1MM quarterly pipeline selling programmatic advertising solutions to agencies and brands.  Increased sales revenue by 315% over 9 months as team\'s top seller.  Exceeded quarterly quotas hitting 123% to goal in Q4 2017.         Account Manager  ,   06/2015   to   03/2017     Company Name   –   City  ,   State      Supported $3MM average quarterly book of business and consistently contributed to regional\nincremental goals earning multiple spot bonuses.  Addressed problems with accounting, billing and service delivery to maintain and enhance client\nsatisfaction.  Mentored and trained Account Coordinators and Account Managers.         Production Coordinator  ,   07/2014   to   06/2015     Company Name   –   City  ,   State      Act as main point of contact for high profile clients and internal teams to develop events, on-site\nactivations, website builds, design work, brand strategy and editorial content.  Defined project scope including goals, deliverables, schedules, staffing, SOWs, and budgets.         Sales Coordinator  ,   12/2012   to   07/2014     Company Name   –   City  ,   State      Supported sales team in selling, managing and executing large scale out-of-home advertising programs.         Assistant Media Planner  ,   10/2011   to   11/2012     Company Name   –   City  ,   State      Developed and executed multimillion-dollar digital, TV, print and mobile campaigns for J&J.         Personal Information    INTERESTS\n, Lover of the great outdoors and extreme hikes including the Kalalau Trail in Kauai, HI and Wai Rata canyon\nin New Zealand. Avid audiobook listener, documentary watcher and true crime enthusiast. Self-proclaimed\nchef and creative writing hobbyist.      Skills     B2B sales  NNetwork development  LLead prospecting  IInterpersonal communication skills  BBrand marketing  BBusiness development  PProduct development  CContent creation,  Accounting, advertising, agency, B2B, billing, book, brand strategy, budgets, Business development, C, com, Interpersonal communication, content, Content creation, clients, client, delivery, Product development, e-commerce, editorial, finance, managing, marketing, meetings, enterprise, Network, sales, selling, staffing, strategic, phone, TV, VC, website    ',
+    'Who We Are\nKonrad is a next generation digital consultancy. We are dedicated to solving complex business problems for our global clients with creative and forward-thinking solutions. Our employees enjoy a culture built on innovation and a commitment to creating best-in-class digital products in use by hundreds of millions of consumers around the world. We hire exceptionally smart, analytical, and hard working people who are lifelong learners. \nAbout The Role\nAs an Associate Consultant in our Associate Program, you will work in a multifaceted role in collaboration with our Strategy, Project Management, Design, and Technology teams. You will support senior team members on our projects as you build up your experience in the role. Our graduate program includes an exciting digital training and onboarding program during the first 3 months of employment. \nYou enjoy solving complex business problems by creating smart, intuitive, and human-centered experiences. You have an excellent eye for detail, love to learn, and enjoy new challenges. Technology excites you and youre on top of emerging trends.\nThis cohort will commence on July 7, 2026.\nWhat Youll Do\n\nAssist in the creation of digital solutions for a variety of clients and verticals\nGain expertise as a design and technology thought leader in a number of industries\nSupport the broader team in understanding and interpreting our clients business challenges and goals\nCollaborate with our Design and Technology teams to deliver elegant user experiences\nGather information on our clients business processes, critical success factors, marketplace, and competitive standing through interviews and research\nCoordinate and participate in user experience design thinking workshops, technology architecture workshops and, project planning and delivery activities\nStructure presentations, documentation, request for proposal responses, and other collateral\n\nQualifications\n\nPrevious experience in consulting, user experience and/or software development is an asset\nA demonstrable passion for and understanding of great user experiences and technology\nExcellent writing competency and communication skills\nA constant desire to learn more about the latest technology trends\nStrong problem-solving ability\nSelf-motivated individual with a desire to do their best every day\nAbility to work in a team environment and independently\nComfortable with presenting and public speaking is an asset\n\nPerks and Benefits\n\nMentorship Program\nSocials, Outings &amp; Retreats\nCulture of Learning &amp; Development\nAnnual tech &amp; travel allowance\nComprehensive Health &amp; Wellness Benefits Package \nRetirement Planning\nFlexible Working Hours\nWork from Home Flexibility\nService Recognition Programs\n\nBonus Points\nHave you taken any courses at BrainStation? A lot of our design and development best practices and processes are taught during our courses - make sure to highlight this experience in your cover letter if you have!\nKonrad is committed to maintaining a diverse work environment and is proud to be an equal opportunity employer. All qualified applicants, regardless of race, color, religion, gender, gender identity or expression, sexual orientation, national origin, genetics, disability, age, or veteran status will receive consideration for employment. If you have any accessibility requirements or concerns regarding the hiring process or employment with us, please notify us so we can provide suitable accommodation.\nWhile we sincerely appreciate all applications, only those candidates selected for an interview will be contacted.\n#LI-Hybrid',
+    'About BridgeWeve provided millions with faster and cheaper access to cross-border payments, enabled governments and aid agencies to more efficiently distribute funds to thousands, and given millions more true economic choice, enabling them to easily save and spend in USD or EUR. And were just getting started. Bridge enables faster, cheaper payments and borderless access to dollars via stablecoins. Through our APIs, businesses can send and receive funds across borders faster / cheaper vs. SWIFT and other fiat-only rails. Our virtual accounts enable international consumers and businesses to easily access, store and spend US dollars. Our payouts infrastructure enables platforms to disburse USD to anyone globally. We believe many trillions of dollars will move and settle through stablecoin payment rails. Bridge is pulling this future forward.What youll doBridge is seeking an extremely creative and metrics-driven Event Marketing Lead to build, execute, and scale our event strategy. Youll be responsible for shaping and executing the Bridge events portfolioinclusive of industry conference activations, hosted first-party events, virtual events, and community events . This role will consist of a mix of creative work and growth-minded thinking: were looking for someone who can dream up creative experiences, manage the logistics to bring them to life, and ensure they fuel our overall growth strategy.About the RoleBuild, scale, and own Bridges event program, spanning industry conference activations, hosted first-party events, virtual events, and community events.Lead Bridges presence at major industry events, including activation strategy, booth assembly, speaking opportunities, and pre/post-event engagement in partnership with Sales.Develop creative event concepts and pay extreme attention to detail.Create experiences that surprise and delight attendees, and reinforce Bridges reputation as a leader and innovator in the stablecoin infrastructure space.Manage vendor relationships, contracts, and budgets for all events.Partner with GTM, Product, and Executive leadership to align events with Bridges all-up marketing strategy, ensuring seamless integration into broader campaigns and GTM initiatives.Measure event ROI and impact, tracking key results and shipping post-event reports with recommendations for future improvements.Serve as the onsite lead at events, ensuring flawless execution of all activations.Qualifications48 years of experience in event marketing or field marketing roles with a focus on B2B.Proven ability to own complex live-event projects end-to-end, with an exceptional eye for detail and creative thinking.Strong cross-functional collaboration skills - you know how to keep stakeholders aligned across teams.Ability to transform creative concepts into memorable experiences through operational excellence.Experience with CRM tools (Hubspot/Salesforce)Comfort with fast-paced, high-growth, high-intensity environments with shifting priorities.Experience in web3 and fintech, with an understanding of how to run events built for these audiences.Willingness to travel ~50% of the time, including internationally.',
 ]
 embeddings = model.encode(sentences)
 print(embeddings.shape)
@@ -1181,9 +1413,9 @@ print(embeddings.shape)
 # Get the similarity scores for the embeddings
 similarities = model.similarity(embeddings, embeddings)
 print(similarities)
-# tensor([[1.0000, 0.1656, 0.0082],
-#         [0.1656, 1.0000, 0.0773],
-#         [0.0082, 0.0773, 1.0000]])
+# tensor([[ 1.0000,  0.9233, -0.1463],
+#         [ 0.9233,  1.0000, -0.1039],
+#         [-0.1463, -0.1039,  1.0000]])
 ```
 
 <!--
@@ -1221,8 +1453,8 @@ You can finetune this model on your own dataset.
 
 | Metric              | Value      |
 |:--------------------|:-----------|
-| pearson_cosine      | 0.8806     |
-| **spearman_cosine** | **0.8168** |
+| pearson_cosine      | 0.8534     |
+| **spearman_cosine** | **0.8133** |
 
 <!--
 ## Bias, Risks and Limitations
@@ -1242,19 +1474,19 @@ You can finetune this model on your own dataset.
 
 #### Unnamed Dataset
 
-* Size: 3,254 training samples
+* Size: 3,456 training samples
 * Columns: <code>sentence_0</code>, <code>sentence_1</code>, and <code>label</code>
 * Approximate statistics based on the first 1000 samples:
-  |         | sentence_0                                                                           | sentence_1                                                                          | label                                                          |
-  |:--------|:-------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------|:---------------------------------------------------------------|
-  | type    | string                                                                               | string                                                                              | float                                                          |
-  | details | <ul><li>min: 157 tokens</li><li>mean: 255.5 tokens</li><li>max: 256 tokens</li></ul> | <ul><li>min: 6 tokens</li><li>mean: 238.92 tokens</li><li>max: 256 tokens</li></ul> | <ul><li>min: 0.0</li><li>mean: 0.39</li><li>max: 1.0</li></ul> |
+  |         | sentence_0                                                                            | sentence_1                                                                            | label                                                          |
+  |:--------|:--------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------|:---------------------------------------------------------------|
+  | type    | string                                                                                | string                                                                                | float                                                          |
+  | details | <ul><li>min: 133 tokens</li><li>mean: 255.61 tokens</li><li>max: 256 tokens</li></ul> | <ul><li>min: 144 tokens</li><li>mean: 255.04 tokens</li><li>max: 256 tokens</li></ul> | <ul><li>min: 0.0</li><li>mean: 0.42</li><li>max: 1.0</li></ul> |
 * Samples:
-  | sentence_0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | sentence_1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | label            |
-  |:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-----------------|
-  | <code>         TUTOR       Professional Summary    Self-motivated and detail oriented individual with comprehensive training in ICD-10-CM/PCS, CPT and HCPCS II coding. Focused individual who has demonstrated ability to work well independently while actively coordinating with other team members. Seeking medical coding position.      Education and Training     July 2016     Career Step Professional Medical Coding and Billing Program        City  ,   State      Certificate of Graduation with Honors<br>*Inpatient and Outpatient coding<br>*Medical Terminology<br>*Anatomy & Pathophysiology        Professional Affiliations     American Academy of Professional Coders (AAPC) -Member			CPC-A (7/23/2016)  <br>American Health Information Management Association (AHIMA)-Member        Professional Experience     01/2013   to   01/2015     Tutor    Company Name          Tutored homeschool students in weekly high school prep courses.  Researched, planned and facilitated studies in Latin, Debate, Literature, Composition,...</code> | <code>job description<br><br>strategic resource manager srm<br><br>job description <br><br>the capacity and resource management crm team strategic resource manager srm role is responsible for assigning the right resource to the right client at the right time while balancing and optimizing employee growth client results and business metrics the srm will anticipate needs and work with partners mds and project managers to ensure open seats are filled and the bench is minimized in order to maximize utilization and minimize past due open seats heshe will have deep knowledge of the skills of the resources in hisher area as well as the skills required by projects in hisher area heshe will meet with staff regularly to ensure heshe understands their growth needs and project preferences as well as to set expectations with hisher staff re project and skill demand and possible opportunities heshe must anticipate project conflicts and identify alternatives to resolve conflicts as well as be opportunistic in managing the b...</code>                | <code>0.0</code> |
-  | <code>           PROGRAM MANAGER & DESIGNER         Professional Summary     A talented program designer and learning specialist with experience developing and managing curricula across cultural, academic and organizational contexts. With a background in Brain & Cognitive Science and Learning Design, I bring a strong understanding of how the brain functions to inform the design of effective learning experiences. Experienced project manager adept at leading projects from concept through completion with a high degree of cultural competence, having run projects in seven countries over the last five years.       Skills          Program development  Intermediate coding in R studio,  Project management  Proficient in Salesforce  Fluent in 4 languages  Facilitation      Stakeholder Management  Research  Curriculum development  Clear public speaking skills  Program evaluation            Work History      Program Manager & Designer  ,     05/2018   to   08/2019     Company Name   –   City  ,   State ...</code>             | <code>iowa residents only<br><br>come join the safelite family and see why safelite will be the best place youll ever work were seeking work from home candidates who have their own personal computer macs and chromebooks are not compatible and high speed internet download speed   mbps or higher  upload speed   mpbs or higher<br><br>this service role always puts the customer first  delivering a critical first impression that sets the stage for an allaround extraordinary experience that customers will tell their friends about<br><br>find a career gain a family<br><br>safelite will be unlike any place youve ever worked this wont be just the daily grind youll join caring and passionate teams that collaborate to make a difference deliver extraordinary results and bring unexpected happiness every day your effort heart and creative ideas will be valued and rewarded and we care about your wellbeing so well strive to give you what you need to be happy at work and at home<br><br>essential activities<br> uses professional communication...</code> | <code>0.0</code> |
-  | <code>         AREA MANAGER       Professional Summary      Project Manager and Operations Manager with a proven record of success in overseeing all phases of multi-million-dollar construction and infrastructure projects for government and private-sector clients.   Experience includes: managing crews for utility infrastructure construction and improvements, preparing proposals, managing day-to-day business operations, leading in project risk management, and maintaining OSHA safety compliance standards.   Strong credentials and a proven history of on-time, on-budget, and high-quality project completion. Recognized for project management know-how with a focus on completing projects on-time and under budget.   Recognized as troubleshooter and problem solver adept at conceptualizing/implementing solutions to accomplish project goals quickly and efficiently with attention to continuous productivity improvements.   Demonstrated expertise in the following areas: Construction Projects. Infrastructur...</code>             | <code>at five below our growth is a result of the people who embrace our purpose we know life is way better when you are free to let go  have fun in an amazing experience filled with unlimited possibilities priced so low you can always say yes to the newest coolest stuff just ask any of our over  associates who work at five below and theyll tell you theres no other place like it it all starts with our purpose and then the five below way which is our values and behaviors that each and every associate believes in<br><br>its all about culture at five below making this a place that can inspire you as much as you inspire us with big ideas super energy passion and the ability to make the workplace a wowplace<br><br>what does the sales associate do<br><br>if you want to be at the beat of the five below pulse our parttime sales associates get right in the middle of all store action perfect candidates have an undying passion for delivering amazing customer service while also driving high sales results key traits inclu...</code>                | <code>0.0</code> |
+  | sentence_0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | sentence_1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | label            |
+  |:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-----------------|
+  | <code>         TEACHER       Summary     Child care professional with background as a Family Support  Specialist and a Teacher looking to join a growing  and service-driven organization.       Highlights          Detail oriented  Skilled multi-tasker  Deadline- driven     Fast Learner   Culturally sensitive  Effective communicator           Accomplishments      Received a Certificate of Appreciation  for dedication of service and  outstanding performance in August 2004.   Received a Certificate of Completion at Los Angeles Southwest College.        Experience      Teacher   08/2014   to   Current     Company Name   City  ,   State       Provide children ages 3 to 5 years old with a learning environment and experiences which help them develop socially, physically, and emotionally in a manner appropriate to their age and stage of development.  Promote family engagement in the child's education and well being.  Provide training and guidance for parent and other classroom volunteers.  Make a min...</code>                      | <code>Were looking for a Senior Partner Engineer to join one of our teams that owns partner integrations with major platforms. In this role, you will collaborate with stakeholders, both internal and external, to drive integrations, resolve technical issues, and enhance the overall Spotify experience.As a member of our team, you will become an expert in our partner integrations: a diverse range of APIs and SDKs.You will collaborate with partners all around the world, and work with them to integrate the Spotify experience into their platforms and surfaces; or understand their requirements and translate them into actionable work for our engineering teams.Spotify is an equal opportunity employer. You are welcome at Spotify for who you are, no matter where you come from, what you look like, or whats playing in your headphones. Our platform is for everyone, and so is our workplace. The more voices we have represented and amplified in our business, the more we will all thrive, contribute, and be fo...</code>                         | <code>0.0</code> |
+  | <code>         DOMESTIC VIOLENCE COUNSELOR ADVOCATE       Summary    I am a responsible self-starter who communicates well and is dedicated to providing great customer service and staff support. I am comfortable working autonomously or in a team-based setting. I am both calm and  focused, great at prioritizing, completing multiple tasks simultaneously and following through to achieve project goals.        Experience     01/2015   -   Current     Company Name   －   City  ,   State     Domestic Violence Counselor Advocate      The nonprofit organization that I<br>work for has had a contract with the Department of Children and Family Services<br>of San Bernardino County since 2010 to provide Domestic Violence counseling,<br>education, advocacy and support for their staff and clients at their Eastern<br>office. I work onsite at the county office Monday through Friday 8am to 5pm and<br>provide the follow Duties; crisis<br>intervention, trauma informed care, preventative services, and support services<br>to victims of...</code> | <code>MongoDBs mission is to empower innovators to create, transform, and disrupt industries by unleashing the power of software and data. We enable organizations of all sizes to easily build, scale, and run modern applications by helping them modernize legacy workloads, embrace innovation, and unleash AI. Our industry-leading developer data platform, MongoDB Atlas, is the only globally distributed, multi-cloud database and is available in more than 115 regions across AWS, Google Cloud, and Microsoft Azure. Atlas allows customers to build and run applications anywhereon premises, or across cloud providers. With offices worldwide and over 175,000 new developers signing up to use MongoDB every month, its no wonder that leading organizations, like Samsung and Toyota, trust MongoDB to build next-generation, AI-powered applications.<br>Are you a passionate technologist eager to empower developers and shape the future of software innovation? MongoDB is looking for a Senior Developer Advocate to join ...</code>                      | <code>1.0</code> |
+  | <code>         MEDICAL BILLING SPECIALIST         Skill Highlights          Microsoft Office products such as Word, Excel, Access, and PowerPoint  Can type 60 words per minute  Experience with face-to-face customer service interaction  Experience with communications with external clients via email and conference calling  Can create and maintain detailed records of any given project or task  Some experience with mailroom machines (envelope cutters, faxes, copiers, scanners)  Experience reading medical documents (insurance forms, EOBs, procedure notes, etc.)  Strong experience with medical coding ICD-9, CPT, HCPCS II, and medical terminology  Intermediate experience with ICD-10 coding              Professional Experience     July 2014   to   December 2015     Company Name   City  ,   State     Medical Billing Specialist        Run daily report of charges ready to post for claims   Able to understand CPT, HCPCS II, ICD-9, and ICD-10 diagnosis codes   Re-code CPT codes for specialized billing (i...</code>                      | <code>Were hiring for entry-level parts roles at Carvana - the fastest-growing used automotive retailer in U.S. history and one of the four fastest companies to make the Fortune 500.As a Parts Associate, youll be expected to order parts, identify and record parts needed, and maintain an orderly storage area while receiving and picking parts for vehicles. At Carvana, youll receive a competitive wage and amazing perks  including a 401(k) with Carvana match and even a vehicle purchase discount  all while using state of the art tools in one of our high-tech Inspection Centers (click here to learn more). If youre joining us in an entry-level position, we offer training programs to make sure your skills and pay progress along with the company.<br>Other perks of the Job<br><br>100% company-paid healthcare premiums<br>Generous paid-time off and your birthday is a holiday!<br>ASE and tool reimbursement programs<br>Tuition reimbursement and student loan repayment<br><br>How To Get Started - Join the Carvana team by applying ...</code> | <code>1.0</code> |
 * Loss: [<code>CosineSimilarityLoss</code>](https://sbert.net/docs/package_reference/sentence_transformer/losses.html#cosinesimilarityloss) with these parameters:
   ```json
   {
@@ -1397,9 +1629,10 @@ You can finetune this model on your own dataset.
 ### Training Logs
 | Epoch  | Step | resume-job-val_spearman_cosine |
 |:------:|:----:|:------------------------------:|
-| 0.9804 | 200  | 0.7931                         |
-| 1.0    | 204  | 0.7879                         |
-| 1.9608 | 400  | 0.8168                         |
+| 0.9259 | 200  | 0.7643                         |
+| 1.0    | 216  | 0.7737                         |
+| 1.8519 | 400  | 0.8109                         |
+| 2.0    | 432  | 0.8133                         |
 
 
 ### Framework Versions
