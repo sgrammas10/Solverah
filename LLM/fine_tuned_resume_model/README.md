@@ -5,146 +5,175 @@ tags:
 - feature-extraction
 - dense
 - generated_from_trainer
-- dataset_size:100
+- dataset_size:4000
 - loss:CosineSimilarityLoss
 base_model: sentence-transformers/all-MiniLM-L6-v2
 widget:
-- source_sentence: 'Graphic Designer
+- source_sentence: 'Applicant Archetype 06
 
-    Summary: Professional with hands-on experience across the domain.
+    Summary: Hands-on professional with domain experience.
 
-    Skills: adobe cc, assets, branding, illustration, layout, typography.
+    Skills: crm, customer communication, outbound, prospecting, quota, sla, tickets,
+    troubleshooting.
 
-    Highlights: Delivered projects end-to-end; worked cross-functionally; documented
-    results. Passion for continuous learning.'
+    Highlights: Designed, implemented, and improved systems end-to-end.  Demonstrated
+    ownership and collaboration.'
   sentences:
-  - 'UX/UI Designer
+  - 'Full-Stack Developer v4
 
-    Responsibilities: Contribute across the team and deliver high-quality outcomes.
+    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
+    teams.
 
-    Requirements: experience with prototyping, usability testing, user research, wireframing.
-    Focus on quality, reliability, and impact.'
-  - 'Mobile Engineer (iOS/Android)
+    Requirements: experience with bgp, go, ipv6, java, javascript, load balancer,
+    ospf, routing, scala, sql.  Customer-centric approach.'
+  - 'Frontend Engineer v3
 
-    Responsibilities: Contribute across the team and deliver high-quality outcomes.
+    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
+    teams.
 
-    Requirements: experience with android, app store, kotlin, mobile, swift, ui. Focus
-    on quality, reliability, and impact.'
-  - 'Graphic Designer
+    Requirements: experience with angular, compliance, contracts, drafting, html,
+    jest, legal research, litigation, nextjs, vue.  Bias for action and reliability.  Data-driven
+    decision making.  Pragmatic and detail-oriented delivery.'
+  - 'Mechanical Engineer v2
 
-    Responsibilities: Contribute across the team and deliver high-quality outcomes.
+    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
+    teams.
 
-    Requirements: experience with adobe cc, branding, illustration, layout, typography.
-    Focus on quality, reliability, and impact.'
-- source_sentence: 'Sales Representative
+    Requirements: experience with excel, forecasting, fp&a, gaap, kpis, powerpoint,
+    valuation.  Continuous learning mindset.  Focus on measurable outcomes.'
+- source_sentence: 'Applicant Archetype 40
 
-    Summary: Professional with hands-on experience across the domain.
+    Summary: Hands-on professional with domain experience.
 
-    Skills: cold calling, crm, negotiation, pipeline, prospecting, quota.
+    Skills: customer communication, forecasting, fp&a, gaap, knowledge base, kpis,
+    powerpoint, sla, tickets, troubleshooting, valuation.
 
-    Highlights: Delivered projects end-to-end; worked cross-functionally; documented
-    results. Focus on quality, reliability, and impact.'
+    Highlights: Designed, implemented, and improved systems end-to-end.  Data-driven
+    decision making.  Customer-centric approach.  Continuous learning mindset.'
   sentences:
-  - 'SRE
+  - 'Healthcare IT Analyst v2
 
-    Responsibilities: Contribute across the team and deliver high-quality outcomes.
+    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
+    teams.
 
-    Requirements: experience with automation, incident response, kubernetes, linux,
-    observability, slo. Experience in fast-paced environments.'
-  - 'Product Manager (SaaS)
+    Requirements: experience with bgp, customer communication, dhcp, dns, firewall,
+    ipv6, knowledge base, ospf, sla, switching.  Pragmatic and detail-oriented delivery.  Pragmatic
+    and detail-oriented delivery.'
+  - 'Electrical Engineer v2
 
-    Responsibilities: Contribute across the team and deliver high-quality outcomes.
+    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
+    teams.
 
-    Requirements: experience with agile, prioritization, roadmap, stakeholders, user
-    research. Experience in fast-paced environments.'
-  - 'Sales Development Rep (SDR)
+    Requirements: experience with bgp, dhcp, dns, food safety, inventory, line, menu
+    development, ospf, plating, prep.  Demonstrated ownership and collaboration.'
+  - 'Civil Engineer v2
 
-    Responsibilities: Contribute across the team and deliver high-quality outcomes.
+    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
+    teams.
 
-    Requirements: experience with crm, outbound, pipeline, prospecting, quota. Focus
-    on quality, reliability, and impact.'
-- source_sentence: 'Data Scientist
+    Requirements: experience with angular, forecasting, fp&a, gaap, jest, kpis, node,
+    powerpoint, react, valuation.  Bias for action and reliability.  Pragmatic and
+    detail-oriented delivery.  Demonstrated ownership and collaboration.'
+- source_sentence: 'Applicant Archetype 36
 
-    Summary: Professional with hands-on experience across the domain.
+    Summary: Hands-on professional with domain experience.
 
-    Skills: experimentation, ml, nlp, numpy, pandas, python, sklearn, statistics,
-    visualization.
+    Skills: agile, prioritization, risk management, roadmap, scheduling, scrum, stakeholders,
+    user research.
 
-    Highlights: Delivered projects end-to-end; worked cross-functionally; documented
-    results. Focus on quality, reliability, and impact.'
+    Highlights: Designed, implemented, and improved systems end-to-end.  Focus on
+    measurable outcomes.'
   sentences:
-  - 'ML Engineer (Platform)
+  - 'Security Analyst v4
 
-    Responsibilities: Contribute across the team and deliver high-quality outcomes.
+    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
+    teams.
 
-    Requirements: experience with deployment, feature store, inference, mlops, python,
-    pytorch, tensorflow. Passion for continuous learning.'
-  - 'Frontend Engineer (React)
+    Requirements: experience with cad, design systems, fea, firmware, fpga, prototyping,
+    visual design, wireframing.  Pragmatic and detail-oriented delivery.  Focus on
+    measurable outcomes.'
+  - 'Frontend Engineer v4
 
-    Responsibilities: Contribute across the team and deliver high-quality outcomes.
+    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
+    teams.
 
-    Requirements: experience with accessibility, css, html, react, testing, typescript,
-    ui. Demonstrated problem-solving and ownership.'
-  - 'Data Scientist (Product)
+    Requirements: experience with agile, forecasting, fp&a, powerpoint, prioritization,
+    scheduling, scrum, valuation.  Focus on measurable outcomes.'
+  - 'Site Reliability Engineer v3
 
-    Responsibilities: Contribute across the team and deliver high-quality outcomes.
+    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
+    teams.
 
-    Requirements: experience with dashboards, experimentation, ml, numpy, pandas,
-    python, statistics. Strong collaboration and communication.'
-- source_sentence: 'Attorney
+    Requirements: experience with clinical trials, css, emr, hipaa, hl7, html, node,
+    protocols, vue, webpack.  Continuous learning mindset.  Strong communication across
+    teams.'
+- source_sentence: 'Applicant Archetype 01
 
-    Summary: Professional with hands-on experience across the domain.
+    Summary: Hands-on professional with domain experience.
 
-    Skills: compliance, contracts, legal research, litigation, negotiation, writing.
+    Skills: assessment, classroom management, curriculum, lesson planning.
 
-    Highlights: Delivered projects end-to-end; worked cross-functionally; documented
-    results. Focus on quality, reliability, and impact.'
+    Highlights: Designed, implemented, and improved systems end-to-end.  Customer-centric
+    approach.  Continuous learning mindset.  Customer-centric approach.'
   sentences:
-  - 'Teacher (K-12)
+  - 'Mobile Engineer v2
 
-    Responsibilities: Contribute across the team and deliver high-quality outcomes.
+    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
+    teams.
+
+    Requirements: experience with blueprints, concrete, customer communication, framing,
+    knowledge base, osha, safety, sla, tickets, tools.  Strong communication across
+    teams.'
+  - 'Marketing Specialist v3
+
+    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
+    teams.
+
+    Requirements: experience with agile, prioritization, risk management, roadmap,
+    scheduling, scrum, stakeholders, user research.  Pragmatic and detail-oriented
+    delivery.'
+  - 'Data Scientist v2
+
+    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
+    teams.
 
     Requirements: experience with assessment, classroom management, curriculum, lesson
-    planning. Demonstrated problem-solving and ownership.'
-  - 'Attorney (Corporate)
+    planning.  Strong communication across teams.  Demonstrated ownership and collaboration.  Continuous
+    learning mindset.'
+- source_sentence: 'Applicant Archetype 55
 
-    Responsibilities: Contribute across the team and deliver high-quality outcomes.
+    Summary: Hands-on professional with domain experience.
 
-    Requirements: experience with compliance, contracts, drafting, legal research,
-    negotiation. Experience in fast-paced environments.'
-  - 'Backend Software Engineer
+    Skills: cv, feature store, inference, ml, mlops, nlp, numpy, pandas, pytorch,
+    scikit-learn, xgboost.
 
-    Responsibilities: Contribute across the team and deliver high-quality outcomes.
-
-    Requirements: experience with apis, c++, cloud, docker, java, linux, microservices,
-    python. Demonstrated problem-solving and ownership.'
-- source_sentence: 'Software Backend Engineer
-
-    Summary: Professional with hands-on experience across the domain.
-
-    Skills: c++, cloud, docker, java, linux, microservices, python, rest, sql.
-
-    Highlights: Delivered projects end-to-end; worked cross-functionally; documented
-    results. Demonstrated problem-solving and ownership.'
+    Highlights: Designed, implemented, and improved systems end-to-end.  Focus on
+    measurable outcomes.  Pragmatic and detail-oriented delivery.  Bias for action
+    and reliability.  Demonstrated ownership and collaboration.'
   sentences:
-  - 'ML Engineer (Platform)
+  - 'Electrical Engineer v1
 
-    Responsibilities: Contribute across the team and deliver high-quality outcomes.
+    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
+    teams.
 
-    Requirements: experience with deployment, feature store, inference, python, pytorch,
-    tensorflow. Focus on quality, reliability, and impact.'
-  - 'Frontend Engineer (React)
+    Requirements: experience with c, c++, cv, go, java, matlab, ml, mlops, nlp, pandas.  Pragmatic
+    and detail-oriented delivery.  Strong communication across teams.  Data-driven
+    decision making.  Bias for action and reliability.'
+  - 'Full-Stack Developer v1
 
-    Responsibilities: Contribute across the team and deliver high-quality outcomes.
+    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
+    teams.
 
-    Requirements: experience with accessibility, css, html, react, testing, typescript,
-    ui. Passion for continuous learning.'
-  - 'Backend Software Engineer
+    Requirements: experience with compliance, contracts, drafting, embedded, firmware,
+    fpga, legal research, litigation, mechanical design, pcb.  Demonstrated ownership
+    and collaboration.  Strong communication across teams.'
+  - 'Healthcare IT Analyst v4
 
-    Responsibilities: Contribute across the team and deliver high-quality outcomes.
+    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
+    teams.
 
-    Requirements: experience with apis, c++, cloud, docker, java, microservices, python,
-    sql. Strong collaboration and communication.'
+    Requirements: experience with food safety, inventory, line, menu development,
+    plating, prep.  Bias for action and reliability.  Data-driven decision making.'
 pipeline_tag: sentence-similarity
 library_name: sentence-transformers
 metrics:
@@ -161,10 +190,10 @@ model-index:
       type: resume-job-val
     metrics:
     - type: pearson_cosine
-      value: 0.9522756507595216
+      value: 0.9390859578984546
       name: Pearson Cosine
     - type: spearman_cosine
-      value: 0.8660254037844387
+      value: 0.8627498554306413
       name: Spearman Cosine
 ---
 
@@ -218,9 +247,9 @@ from sentence_transformers import SentenceTransformer
 model = SentenceTransformer("sentence_transformers_model_id")
 # Run inference
 sentences = [
-    'Software Backend Engineer\nSummary: Professional with hands-on experience across the domain.\nSkills: c++, cloud, docker, java, linux, microservices, python, rest, sql.\nHighlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.',
-    'Backend Software Engineer\nResponsibilities: Contribute across the team and deliver high-quality outcomes.\nRequirements: experience with apis, c++, cloud, docker, java, microservices, python, sql. Strong collaboration and communication.',
-    'Frontend Engineer (React)\nResponsibilities: Contribute across the team and deliver high-quality outcomes.\nRequirements: experience with accessibility, css, html, react, testing, typescript, ui. Passion for continuous learning.',
+    'Applicant Archetype 55\nSummary: Hands-on professional with domain experience.\nSkills: cv, feature store, inference, ml, mlops, nlp, numpy, pandas, pytorch, scikit-learn, xgboost.\nHighlights: Designed, implemented, and improved systems end-to-end.  Focus on measurable outcomes.  Pragmatic and detail-oriented delivery.  Bias for action and reliability.  Demonstrated ownership and collaboration.',
+    'Electrical Engineer v1\nResponsibilities: Deliver quality outcomes; collaborate with cross-functional teams.\nRequirements: experience with c, c++, cv, go, java, matlab, ml, mlops, nlp, pandas.  Pragmatic and detail-oriented delivery.  Strong communication across teams.  Data-driven decision making.  Bias for action and reliability.',
+    'Healthcare IT Analyst v4\nResponsibilities: Deliver quality outcomes; collaborate with cross-functional teams.\nRequirements: experience with food safety, inventory, line, menu development, plating, prep.  Bias for action and reliability.  Data-driven decision making.',
 ]
 embeddings = model.encode(sentences)
 print(embeddings.shape)
@@ -229,9 +258,9 @@ print(embeddings.shape)
 # Get the similarity scores for the embeddings
 similarities = model.similarity(embeddings, embeddings)
 print(similarities)
-# tensor([[1.0000, 0.8173, 0.5277],
-#         [0.8173, 1.0000, 0.6495],
-#         [0.5277, 0.6495, 1.0000]])
+# tensor([[1.0000, 0.6564, 0.0599],
+#         [0.6564, 1.0000, 0.0853],
+#         [0.0599, 0.0853, 1.0000]])
 ```
 
 <!--
@@ -267,10 +296,10 @@ You can finetune this model on your own dataset.
 * Dataset: `resume-job-val`
 * Evaluated with [<code>EmbeddingSimilarityEvaluator</code>](https://sbert.net/docs/package_reference/sentence_transformer/evaluation.html#sentence_transformers.evaluation.EmbeddingSimilarityEvaluator)
 
-| Metric              | Value     |
-|:--------------------|:----------|
-| pearson_cosine      | 0.9523    |
-| **spearman_cosine** | **0.866** |
+| Metric              | Value      |
+|:--------------------|:-----------|
+| pearson_cosine      | 0.9391     |
+| **spearman_cosine** | **0.8627** |
 
 <!--
 ## Bias, Risks and Limitations
@@ -290,19 +319,19 @@ You can finetune this model on your own dataset.
 
 #### Unnamed Dataset
 
-* Size: 100 training samples
+* Size: 4,000 training samples
 * Columns: <code>sentence_0</code>, <code>sentence_1</code>, and <code>label</code>
-* Approximate statistics based on the first 100 samples:
-  |         | sentence_0                                                                        | sentence_1                                                                         | label                                                         |
-  |:--------|:----------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------|:--------------------------------------------------------------|
-  | type    | string                                                                            | string                                                                             | float                                                         |
-  | details | <ul><li>min: 54 tokens</li><li>mean: 62.1 tokens</li><li>max: 71 tokens</li></ul> | <ul><li>min: 36 tokens</li><li>mean: 44.63 tokens</li><li>max: 53 tokens</li></ul> | <ul><li>min: 0.0</li><li>mean: 0.5</li><li>max: 1.0</li></ul> |
+* Approximate statistics based on the first 1000 samples:
+  |         | sentence_0                                                                         | sentence_1                                                                         | label                                                          |
+  |:--------|:-----------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------|:---------------------------------------------------------------|
+  | type    | string                                                                             | string                                                                             | float                                                          |
+  | details | <ul><li>min: 50 tokens</li><li>mean: 73.4 tokens</li><li>max: 102 tokens</li></ul> | <ul><li>min: 38 tokens</li><li>mean: 59.36 tokens</li><li>max: 88 tokens</li></ul> | <ul><li>min: 0.0</li><li>mean: 0.51</li><li>max: 1.0</li></ul> |
 * Samples:
-  | sentence_0                                                                                                                                                                                                                                                                                                                          | sentence_1                                                                                                                                                                                                                                               | label            |
-  |:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-----------------|
-  | <code>UX/UI Designer<br>Summary: Professional with hands-on experience across the domain.<br>Skills: design systems, figma, prototyping, usability testing, user research, wireframing.<br>Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.</code> | <code>UX/UI Designer<br>Responsibilities: Contribute across the team and deliver high-quality outcomes.<br>Requirements: experience with figma, prototyping, usability testing, wireframing. Experience in fast-paced environments.</code>               | <code>1.0</code> |
-  | <code>Mobile App Developer<br>Summary: Professional with hands-on experience across the domain.<br>Skills: android, ios, kotlin, mobile, push notifications, rest, swift, ui.<br>Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.</code>       | <code>Mobile Engineer (iOS/Android)<br>Responsibilities: Contribute across the team and deliver high-quality outcomes.<br>Requirements: experience with android, app store, kotlin, mobile, swift, ui. Focus on quality, reliability, and impact.</code> | <code>1.0</code> |
-  | <code>Customer Support Specialist<br>Summary: Professional with hands-on experience across the domain.<br>Skills: communication, knowledge base, sla, tickets, troubleshooting.<br>Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.</code>         | <code>Customer Support Specialist<br>Responsibilities: Contribute across the team and deliver high-quality outcomes.<br>Requirements: experience with communication, sla, tickets, troubleshooting. Focus on quality, reliability, and impact.</code>    | <code>1.0</code> |
+  | sentence_0                                                                                                                                                                                                                                                                                                                              | sentence_1                                                                                                                                                                                                                                                                                                                                      | label            |
+  |:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-----------------|
+  | <code>Applicant Archetype 57<br>Summary: Hands-on professional with domain experience.<br>Skills: customer communication, cv, feature store, knowledge base, ml, nlp, sla, tensorflow, tickets, troubleshooting.<br>Highlights: Designed, implemented, and improved systems end-to-end.  Pragmatic and detail-oriented delivery.</code> | <code>Healthcare IT Analyst v3<br>Responsibilities: Deliver quality outcomes; collaborate with cross-functional teams.<br>Requirements: experience with bgp, dhcp, dns, firewall, ipv6, load balancer, ospf, routing, switching, vpn.  Strong communication across teams.</code>                                                                | <code>0.0</code> |
+  | <code>Applicant Archetype 60<br>Summary: Hands-on professional with domain experience.<br>Skills: agile, c++, prioritization, rust, scala, scheduling, scrum, typescript.<br>Highlights: Designed, implemented, and improved systems end-to-end.  Data-driven decision making.  Data-driven decision making.</code>                     | <code>Biomedical Engineer v2<br>Responsibilities: Deliver quality outcomes; collaborate with cross-functional teams.<br>Requirements: experience with agile, prioritization, risk management, roadmap, scheduling, scrum, stakeholders, user research.  Pragmatic and detail-oriented delivery.  Pragmatic and detail-oriented delivery.</code> | <code>1.0</code> |
+  | <code>Applicant Archetype 60<br>Summary: Hands-on professional with domain experience.<br>Skills: agile, c++, prioritization, rust, scala, scheduling, scrum, typescript.<br>Highlights: Designed, implemented, and improved systems end-to-end.  Data-driven decision making.</code>                                                   | <code>Marketing Specialist v1<br>Responsibilities: Deliver quality outcomes; collaborate with cross-functional teams.<br>Requirements: experience with agile, c++, go, matlab, prioritization, python, risk management, roadmap, rust, scheduling.  Customer-centric approach.</code>                                                           | <code>1.0</code> |
 * Loss: [<code>CosineSimilarityLoss</code>](https://sbert.net/docs/package_reference/sentence_transformer/losses.html#cosinesimilarityloss) with these parameters:
   ```json
   {
@@ -313,9 +342,10 @@ You can finetune this model on your own dataset.
 ### Training Hyperparameters
 #### Non-Default Hyperparameters
 
-- `eval_strategy`: steps
 - `per_device_train_batch_size`: 16
 - `per_device_eval_batch_size`: 16
+- `num_train_epochs`: 4
+- `fp16`: True
 - `multi_dataset_batch_sampler`: round_robin
 
 #### All Hyperparameters
@@ -323,7 +353,7 @@ You can finetune this model on your own dataset.
 
 - `overwrite_output_dir`: False
 - `do_predict`: False
-- `eval_strategy`: steps
+- `eval_strategy`: no
 - `prediction_loss_only`: True
 - `per_device_train_batch_size`: 16
 - `per_device_eval_batch_size`: 16
@@ -338,7 +368,7 @@ You can finetune this model on your own dataset.
 - `adam_beta2`: 0.999
 - `adam_epsilon`: 1e-08
 - `max_grad_norm`: 1
-- `num_train_epochs`: 3
+- `num_train_epochs`: 4
 - `max_steps`: -1
 - `lr_scheduler_type`: linear
 - `lr_scheduler_kwargs`: {}
@@ -360,7 +390,7 @@ You can finetune this model on your own dataset.
 - `jit_mode_eval`: False
 - `use_ipex`: False
 - `bf16`: False
-- `fp16`: False
+- `fp16`: True
 - `fp16_opt_level`: O1
 - `half_precision_backend`: auto
 - `bf16_full_eval`: False
@@ -442,9 +472,12 @@ You can finetune this model on your own dataset.
 </details>
 
 ### Training Logs
-| Epoch | Step | resume-job-val_spearman_cosine |
-|:-----:|:----:|:------------------------------:|
-| 1.0   | 7    | 0.8660                         |
+| Epoch | Step | Training Loss | resume-job-val_spearman_cosine |
+|:-----:|:----:|:-------------:|:------------------------------:|
+| 1.0   | 250  | -             | 0.8545                         |
+| 2.0   | 500  | 0.0782        | 0.8562                         |
+| 3.0   | 750  | -             | 0.8624                         |
+| 4.0   | 1000 | 0.045         | 0.8627                         |
 
 
 ### Framework Versions
