@@ -42,7 +42,7 @@ for _, r in resumes.iterrows():
             "label": 0
         })
 
-# === Save result ===
+#  Save result
 pairs_df = pd.DataFrame(pairs)
 pairs_df.to_csv("../Filtered_data/resume_job_pairs2.csv", index=False)
 

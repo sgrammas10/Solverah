@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
 
 #  1. Load  dataset 
-df = pd.read_csv("Filtered_Data/resume_job_pairs3.csv")
+df = pd.read_csv("Filtered_Data/resume_job_pairs4.csv")
 
 #  2. Split into train, validation, and test 
 # First split: train vs temp (val + test)
@@ -47,7 +47,7 @@ evaluator = evaluation.EmbeddingSimilarityEvaluator.from_input_examples(val_exam
 model.fit(
     train_objectives=[(train_dataloader, train_loss)],
     evaluator=evaluator,
-    epochs=2,                  # start small, can increase
+    epochs=3,                  # start small, can increase
     warmup_steps=100,
     evaluation_steps=200,
     output_path="fine_tuned_resume_model"
