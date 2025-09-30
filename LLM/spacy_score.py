@@ -1,3 +1,22 @@
+import math
+# --- Utility: Exponential weighting of words by position ---
+def weight_resume_text_by_position(text, scaling_factor=10, C=4):
+    """
+    Returns a new text where words earlier in the resume are repeated more times,
+    with an exponential decay in weight by position.
+    The exponential factor k is set as k = C / N, where N is the number of words.
+    scaling_factor: controls max number of repeats for first word
+    C: controls overall steepness (higher = steeper for long resumes)
+    """
+    words = re.findall(r"\w+", text)
+    N = max(1, len(words))
+    k = C / N
+    weighted_words = []
+    for i, word in enumerate(words):
+        weight = math.exp(-k * i)
+        n_repeats = max(1, int(round(weight * scaling_factor)))
+        weighted_words.extend([word] * n_repeats)
+    return " ".join(weighted_words)
 import re
 import spacy
 from spacy.matcher import PhraseMatcher
@@ -107,8 +126,11 @@ def dynamic_skill_features(jd_text, resume_text, top_n=60):
     cands = extract_candidates(jd_text)
     jd_phrases = rank_candidates_tfidf(jd_text, cands, top_n=top_n)
 
-    coverage, matched, missing = dynamic_coverage(jd_phrases, resume_text)
-    exp = experience_match_dynamic(jd_phrases, jd_text, resume_text)
+    # Apply exponential weighting to resume words
+    weighted_resume_text = weight_resume_text_by_position(resume_text)
+
+    coverage, matched, missing = dynamic_coverage(jd_phrases, weighted_resume_text)
+    exp = experience_match_dynamic(jd_phrases, jd_text, weighted_resume_text)
 
     return {
         "dynamic_phrases": jd_phrases,
