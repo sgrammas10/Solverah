@@ -6,10 +6,10 @@ from flask_jwt_extended import (
 from flask_sqlalchemy import SQLAlchemy
 
 
-
-
-
 app = Flask(__name__)
+
+from flask_cors import CORS
+CORS(app)
 
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///users.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -23,7 +23,7 @@ bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
 #storing users in dictionary until I have a db setup
-users = {}
+#users = {}
 
 
 class User(db.Model):
@@ -38,51 +38,73 @@ class User(db.Model):
 
 @app.route("/api/login", methods=["POST"])
 def login():
-    data = request.get_json();
-    email = data.get("email")
-    password = data.get("password")
-
-
-    user=users.get(email)
-    
-    if not user or not bcrypt.check_password_hash(user["password"], password):
-        return jsonify({"error": "Invalid credentials"}), 401
-
-    token = create_access_token(identity=email)
-    return jsonify({"message": "login successful", "user": user, "token": token})
-
-
-@app.route("/api/register", methods=["POST"])
-def register():
-
     data = request.get_json()
     email = data.get("email")
     password = data.get("password")
 
-    if email in users:
+    user = User.query.filter_by(email=email).first()
+    if not user or not bcrypt.check_password_hash(user.password, password):
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    #for JWT auth stuff
+    token = create_access_token(identity=user.email)
+    return jsonify({"message": "login successful", "user": {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role
+    }, "token": token})
+
+
+#Registering new user
+@app.route("/api/register", methods=["POST"])
+def register():
+    data = request.get_json()
+    email = data.get("email")
+    password = data.get("password")
+
+    #Check user exsistence off of email
+    if User.query.filter_by(email=email).first():
         return jsonify({"error": "User already exists"}), 400
-    
+
     hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
+    new_user = User(
+        email=email,
+        password=hashed_pw,
+        name=data.get("name"),
+        role=data.get("role")
+    )
+    #adding user to db
+    db.session.add(new_user)
+    db.session.commit()
+
+    return jsonify({"message": "registered", "user": {
+        "id": new_user.id,
+        "email": new_user.email,
+        "name": new_user.name,
+        "role": new_user.role
+    }}), 201
 
 
-    users[email] = {
-        "email": email,
-        "name": data.get("name"),
-        "role": data.get("role"),
-        "password": hashed_pw
-    }
-
-    return jsonify({"message": "registered", "user": users[email]}), 201
 
 
 
-
-
+#For viewing profile info, requires JWT auth
 @app.route("/api/profile", methods=["GET"])
 @jwt_required()
 def profile():
-    current_user = get_jwt_identity()
-    return jsonify(users[current_user])
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    return jsonify({
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role
+    })
+
 
 
 if __name__ == "__main__":
