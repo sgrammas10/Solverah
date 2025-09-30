@@ -16,54 +16,75 @@ interface AuthContextType {
   logout: () => void;
   updateProfile: (updates: Partial<User>) => void;
   updateProfileData: (profileData: any) => void;
+  fetchWithAuth: (endpoint: string, options?: RequestInit) => Promise<any>;
+  getProfile: () => Promise<void>; // 🔹 new function
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const API_URL = "http://127.0.0.1:5000/api"; // Flask backend base URL
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for saved user in localStorage
+    // Restore user + token from localStorage if available
     const savedUser = localStorage.getItem('user');
-    if (savedUser) {
+    const token = localStorage.getItem('token');
+    if (savedUser && token) {
       setUser(JSON.parse(savedUser));
     }
     setLoading(false);
   }, []);
 
-  const login = async (email: string, password: string, role: 'job-seeker' | 'recruiter') => {
-    // Mock authentication - in real app, this would call an API
-    const mockUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      email,
-      name: email.split('@')[0],
-      role,
-      profileComplete: false
+  // 🔹 Centralized fetch helper that attaches JWT if present
+  const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem("token");
+    const headers = {
+      ...(options.headers || {}),
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
     };
-    
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
+
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers
+    });
+
+    if (!res.ok) {
+      throw new Error(`API error: ${res.status}`);
+    }
+
+    return res.json();
+  };
+
+  const login = async (email: string, password: string, role: 'job-seeker' | 'recruiter') => {
+    const data = await fetchWithAuth("/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password })
+    });
+
+    setUser(data.user);
+    localStorage.setItem("user", JSON.stringify(data.user));
+    localStorage.setItem("token", data.token);
   };
 
   const register = async (email: string, password: string, name: string, role: 'job-seeker' | 'recruiter') => {
-    // Mock registration - in real app, this would call an API
-    const mockUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      email,
-      name,
-      role,
-      profileComplete: false
-    };
-    
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
+    const data = await fetchWithAuth("/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password, name, role })
+    });
+
+    setUser(data.user);
+    localStorage.setItem("user", JSON.stringify(data.user));
+    // Note: register doesn’t return token — user logs in after registration
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('user');
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
   };
 
   const updateProfile = (updates: Partial<User>) => {
@@ -82,13 +103,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  //refresh logged-in user’s profile from backend
+  const getProfile = async () => {
+    const data = await fetchWithAuth("/profile", { method: "GET" });
+    setUser(data);
+    localStorage.setItem("user", JSON.stringify(data));
+  };
+
   const value = {
     user,
     login,
     register,
     logout,
     updateProfile,
-    updateProfileData
+    updateProfileData,
+    fetchWithAuth,
+    getProfile
   };
 
   if (loading) {
