@@ -1,22 +1,36 @@
 import math
-# --- Utility: Exponential weighting of words by position ---
-def weight_resume_text_by_position(text, scaling_factor=10, C=4):
-    """
-    Returns a new text where words earlier in the resume are repeated more times,
-    with an exponential decay in weight by position.
-    The exponential factor k is set as k = C / N, where N is the number of words.
-    scaling_factor: controls max number of repeats for first word
-    C: controls overall steepness (higher = steeper for long resumes)
-    """
-    words = re.findall(r"\w+", text)
+from typing import List
+
+def weight_phrase_list_words(phrases: List[str], scaling_factor: int = 10, C: float = 4.0, separator: str = " ") -> str:
+    # Flatten to words (alphanumeric/underscore)
+    words = []
+    for ph in phrases:
+        words.extend(re.findall(r"\w+", ph))
+
+    if not words:
+        return ""
+
     N = max(1, len(words))
     k = C / N
+
     weighted_words = []
-    for i, word in enumerate(words):
+    for i, w in enumerate(words):
+        if len(w) == 1:
+            continue  # skip single-char tokens
+        if w.lower() in {"and", "or", "the", "a", "an", "in", "on", "for", "to", "of", "with", "at", "by", "use", "using", "as", "is", "are", "was", "were", "be", "been", "that", "this", "it", "from", "but", "not", "no", "yes", "if", "then", "else", "when", "while", "all", "any", "some", "such", "more", "most", "many", "few", "several"}:
+            continue  # skip common stopwords
+        if w.isdigit():
+            continue  # skip pure numbers
+        if not w.isalpha() and not w.isdigit():  # skip mixed alphanumeric
+            continue
+
         weight = math.exp(-k * i)
         n_repeats = max(1, int(round(weight * scaling_factor)))
-        weighted_words.extend([word] * n_repeats)
-    return " ".join(weighted_words)
+        weighted_words.extend([w] * n_repeats)
+
+    return separator.join(weighted_words)
+
+
 import re
 import spacy
 from spacy.matcher import PhraseMatcher
@@ -63,6 +77,7 @@ def extract_candidates(text, min_len=3, max_len=6):
     # normalize & filter
     cands = [re.sub(r"\s+", " ", c.strip()) for c in cands]
     cands = [c for c in cands if len(c.split()) <= max_len and len(c) >= 3]
+    print("\n[DEBUG] Extracted candidates:", cands)
     return cands
 
 # --- 2) Rank candidates from JD via TF-IDF ---
@@ -79,6 +94,7 @@ def rank_candidates_tfidf(jd_text, candidates, top_n=60):
     items = sorted(zip(vect.get_feature_names_out(), scores), key=lambda x: x[1], reverse=True)
     # filter out zero-score and take top_n
     items = [w for w,s in items if s > 0][:top_n]
+    print("\n[DEBUG] Ranked JD phrases (filtered):", items)
     return items
 
 # --- 3) Experience extraction around phrases ---
@@ -88,6 +104,7 @@ def extract_years_map(text):
         yrs = int(m.group(1))
         area = m.group(3).lower().strip()
         out[area] = max(out.get(area, 0), yrs)
+    print("\n[DEBUG] Extracted candidates (filtered):", out)
     return out
 
 def experience_match_dynamic(jd_phrases, jd_text, resume_text):
@@ -118,19 +135,31 @@ def dynamic_coverage(jd_phrases, resume_text):
     jd_set = set([p.lower() for p in jd_phrases])
     matched = jd_set & found
     missing = jd_set - found
+
+    print("\n[DEBUG] Resume text :", resume_text)
+    print("\n[DEBUG] Resume text matches:", matched)
+    print("[DEBUG] Missing JD phrases:", missing)
+
     cov = len(matched) / max(1, len(jd_set))
     return cov, matched, missing
 
 # --- 5) End-to-end: build dynamic set + compute features ---
-def dynamic_skill_features(jd_text, resume_text, top_n=60):
+def dynamic_skill_features(jd_text, resume_text, top_n=100):
     cands = extract_candidates(jd_text)
     jd_phrases = rank_candidates_tfidf(jd_text, cands, top_n=top_n)
 
     # Apply exponential weighting to resume words
-    weighted_resume_text = weight_resume_text_by_position(resume_text)
+    filtered_resume_text = extract_candidates(resume_text)
+    resume_phrases = rank_candidates_tfidf(resume_text, filtered_resume_text, top_n=100)
+    weighted_resume_text = weight_phrase_list_words(resume_phrases)
 
     coverage, matched, missing = dynamic_coverage(jd_phrases, weighted_resume_text)
     exp = experience_match_dynamic(jd_phrases, jd_text, weighted_resume_text)
+
+    print("\n[DEBUG] Final comparison summary")
+    print("Dynamic Phrases:", jd_phrases)
+    print("Matched:", matched)
+    print("Missing:", missing)
 
     return {
         "dynamic_phrases": jd_phrases,
