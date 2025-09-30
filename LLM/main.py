@@ -54,4 +54,4 @@ def evaluate_and_save(resume_path, job_file):
     # print(f"Saved to {output_file} with label {label}")
 
 # Example usage
-evaluate_and_save("Sebastian Grammas Resume S25.pdf", "mock_job1.txt")
+evaluate_and_save("Sebastian Grammas .pdf", "mock_job1.txt")
