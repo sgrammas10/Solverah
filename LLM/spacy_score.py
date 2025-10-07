@@ -168,6 +168,3 @@ def dynamic_skill_features(jd_text, resume_text, top_n=100):
         "matched": sorted(matched),
         "missing": sorted(missing)
     }
-
-
-    
