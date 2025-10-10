@@ -22,7 +22,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = "http://127.0.0.1:5000/api"; // Flask backend base URL
+const API_URL = "http://127.0.0.1:5000/api"; // Flask backend base URL, will adapt when we get a fully running one
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  // 🔹 Centralized fetch helper that attaches JWT if present
+  // Centralized fetch helper that attaches JWT if present
   const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
     const token = localStorage.getItem("token");
     const headers = {
@@ -110,6 +110,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("user", JSON.stringify(data));
   };
 
+
+// Fetch full profile (including profileData)
+const fetchProfileData = async () => {
+  const data = await fetchWithAuth("/profile", { method: "GET" });
+  if (data?.profileData) {
+    setUser((prevUser) => (prevUser ? { ...prevUser, profileData: data.profileData } : null));
+    localStorage.setItem("user", JSON.stringify({ ...user, profileData: data.profileData }));
+  }
+  return data;
+};
+
+// Save profileData to backend
+const saveProfileData = async (profileData: any) => {
+  const res = await fetchWithAuth("/profile", {
+    method: "POST",
+    body: JSON.stringify({ profileData }),
+  });
+
+  if (res?.profileData) {
+    setUser((prevUser) => (prevUser ? { ...prevUser, profileData: res.profileData } : null));
+    localStorage.setItem("user", JSON.stringify({ ...user, profileData: res.profileData }));
+  }
+};
+
+
+
   const value = {
     user,
     login,
@@ -118,7 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateProfile,
     updateProfileData,
     fetchWithAuth,
-    getProfile
+    getProfile,
+    fetchProfileData,
+    saveProfileData  
   };
 
   if (loading) {
