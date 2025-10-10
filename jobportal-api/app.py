@@ -4,6 +4,8 @@ from flask_jwt_extended import (
     JWTManager, create_access_token, jwt_required, get_jwt_identity
 )
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects.sqlite import JSON
+
 
 
 app = Flask(__name__)
@@ -32,6 +34,7 @@ class User(db.Model):
     password = db.Column(db.String(200), nullable=False)
     name = db.Column(db.String(120))
     role = db.Column(db.String(50))
+    profile_data = db.Column(JSON, default={})
     
 
 
@@ -90,7 +93,7 @@ def register():
 
 
 #For viewing profile info, requires JWT auth
-@app.route("/api/profile", methods=["GET"])
+@app.route("/api/profile", methods=["GET", "POST"])
 @jwt_required()
 def profile():
     current_email = get_jwt_identity()
@@ -98,12 +101,26 @@ def profile():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
+    if request.method == "GET":
+        return jsonify({
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+            "profileData": user.profile_data or {}
+        })
+
+    # Handle profile update (POST)
+    data = request.get_json()
+    profile_data = data.get("profileData", {})
+    user.profile_data = profile_data
+    db.session.commit()
+
     return jsonify({
-        "id": user.id,
-        "email": user.email,
-        "name": user.name,
-        "role": user.role
+        "message": "Profile updated successfully",
+        "profileData": user.profile_data
     })
+
 
 
 
