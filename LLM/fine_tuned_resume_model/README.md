@@ -5,175 +5,91 @@ tags:
 - feature-extraction
 - dense
 - generated_from_trainer
-- dataset_size:4000
+- dataset_size:11999
 - loss:CosineSimilarityLoss
 base_model: sentence-transformers/all-MiniLM-L6-v2
 widget:
-- source_sentence: 'Applicant Archetype 06
-
-    Summary: Hands-on professional with domain experience.
-
-    Skills: crm, customer communication, outbound, prospecting, quota, sla, tickets,
-    troubleshooting.
-
-    Highlights: Designed, implemented, and improved systems end-to-end.  Demonstrated
-    ownership and collaboration.'
+- source_sentence: 'Summary: Human Resources professional with 4 years of hands-on
+    experience. Skills: Policy Development, Onboarding, Employee Relations, Performance
+    Management, HRIS, Benefits Administration, Recruiting. Education: M.Ed. in Curriculum
+    and Instruction. Delivered projects on time with a focus on measurable outcomes.'
   sentences:
-  - 'Full-Stack Developer v4
-
-    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
-    teams.
-
-    Requirements: experience with bgp, go, ipv6, java, javascript, load balancer,
-    ospf, routing, scala, sql.  Customer-centric approach.'
-  - 'Frontend Engineer v3
-
-    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
-    teams.
-
-    Requirements: experience with angular, compliance, contracts, drafting, html,
-    jest, legal research, litigation, nextjs, vue.  Bias for action and reliability.  Data-driven
-    decision making.  Pragmatic and detail-oriented delivery.'
-  - 'Mechanical Engineer v2
-
-    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
-    teams.
-
-    Requirements: experience with excel, forecasting, fp&a, gaap, kpis, powerpoint,
-    valuation.  Continuous learning mindset.  Focus on measurable outcomes.'
-- source_sentence: 'Applicant Archetype 40
-
-    Summary: Hands-on professional with domain experience.
-
-    Skills: customer communication, forecasting, fp&a, gaap, knowledge base, kpis,
-    powerpoint, sla, tickets, troubleshooting, valuation.
-
-    Highlights: Designed, implemented, and improved systems end-to-end.  Data-driven
-    decision making.  Customer-centric approach.  Continuous learning mindset.'
+  - 'Embedded Systems Engineer Responsibilities: Use data to drive decisions and measure
+    impact. Requirements: experience with RTOS, UART, I2C, PCB Bring-up, Low Power,
+    Oscilloscope, SPI. Strong communication and customer-centric mindset required.
+    Comfortable working in a fast-paced environment.'
+  - 'Project Manager Responsibilities: Own end-to-end execution and communicate progress
+    to stakeholders. Requirements: experience with Procore, Subcontractor Management,
+    Safety, Scheduling, Blueprint Reading, RFIs, Change Orders. Strong communication
+    and customer-centric mindset required. Comfortable working in a fast-paced environment.'
+  - 'Purchasing Specialist Responsibilities: Deliver quality outcomes and collaborate
+    with cross-functional teams. Requirements: experience with Demand Forecasting,
+    Excel Pivots, ERP, Inventory Turns, Vendor Management, Transportation Lanes. Strong
+    communication and customer-centric mindset required.'
+- source_sentence: 'Summary: Retail professional with 7 years of hands-on experience.
+    Skills: Planograms, Customer Service, Shrink Control, Visual Standards, POS. Education:
+    BS in Construction Management. Implemented automation that reduced manual effort
+    by 17%. Recognized for strong collaboration and clear stakeholder communication.'
   sentences:
-  - 'Healthcare IT Analyst v2
-
-    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
-    teams.
-
-    Requirements: experience with bgp, customer communication, dhcp, dns, firewall,
-    ipv6, knowledge base, ospf, sla, switching.  Pragmatic and detail-oriented delivery.  Pragmatic
-    and detail-oriented delivery.'
-  - 'Electrical Engineer v2
-
-    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
-    teams.
-
-    Requirements: experience with bgp, dhcp, dns, food safety, inventory, line, menu
-    development, ospf, plating, prep.  Demonstrated ownership and collaboration.'
-  - 'Civil Engineer v2
-
-    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
-    teams.
-
-    Requirements: experience with angular, forecasting, fp&a, gaap, jest, kpis, node,
-    powerpoint, react, valuation.  Bias for action and reliability.  Pragmatic and
-    detail-oriented delivery.  Demonstrated ownership and collaboration.'
-- source_sentence: 'Applicant Archetype 36
-
-    Summary: Hands-on professional with domain experience.
-
-    Skills: agile, prioritization, risk management, roadmap, scheduling, scrum, stakeholders,
-    user research.
-
-    Highlights: Designed, implemented, and improved systems end-to-end.  Focus on
-    measurable outcomes.'
+  - 'SOC Analyst Responsibilities: Use data to drive decisions and measure impact.
+    Requirements: experience with MITRE ATT&CK, Incident Response, Splunk, SIEM, EDR,
+    SOAR, Purple Team. Strong communication and customer-centric mindset required.
+    Comfortable working in a fast-paced environment.'
+  - 'Financial Analyst Responsibilities: Deliver quality outcomes and collaborate
+    with cross-functional teams. Requirements: experience with Variance Analysis,
+    KPI Reporting, Financial Modeling, SQL, Power BI. Strong communication and customer-centric
+    mindset required. Comfortable working in a fast-paced environment.'
+  - 'Department Supervisor Responsibilities: Mentor junior team members and uphold
+    best practices. Requirements: experience with Customer Service, Scheduling, Planograms,
+    Merchandising, POS. Strong communication and customer-centric mindset required.'
+- source_sentence: 'Summary: Retail professional with 3 years of hands-on experience.
+    Skills: Shrink Control, Inventory, Customer Service, POS, Scheduling. Education:
+    BA in Marketing. Delivered projects on time with a focus on measurable outcomes.'
   sentences:
-  - 'Security Analyst v4
-
-    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
-    teams.
-
-    Requirements: experience with cad, design systems, fea, firmware, fpga, prototyping,
-    visual design, wireframing.  Pragmatic and detail-oriented delivery.  Focus on
-    measurable outcomes.'
-  - 'Frontend Engineer v4
-
-    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
-    teams.
-
-    Requirements: experience with agile, forecasting, fp&a, powerpoint, prioritization,
-    scheduling, scrum, valuation.  Focus on measurable outcomes.'
-  - 'Site Reliability Engineer v3
-
-    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
-    teams.
-
-    Requirements: experience with clinical trials, css, emr, hipaa, hl7, html, node,
-    protocols, vue, webpack.  Continuous learning mindset.  Strong communication across
-    teams.'
-- source_sentence: 'Applicant Archetype 01
-
-    Summary: Hands-on professional with domain experience.
-
-    Skills: assessment, classroom management, curriculum, lesson planning.
-
-    Highlights: Designed, implemented, and improved systems end-to-end.  Customer-centric
-    approach.  Continuous learning mindset.  Customer-centric approach.'
+  - 'Hardware Test Engineer Responsibilities: Deliver quality outcomes and collaborate
+    with cross-functional teams. Requirements: experience with Low Power, RTOS, C/C++,
+    UART, PCB Bring-up, I2C. Strong communication and customer-centric mindset required.
+    Comfortable working in a fast-paced environment.'
+  - 'Talent Acquisition Specialist Responsibilities: Own end-to-end execution and
+    communicate progress to stakeholders. Requirements: experience with Performance
+    Management, Onboarding, HRIS, Policy Development, Benefits Administration, Recruiting,
+    Employee Relations. Strong communication and customer-centric mindset required.'
+  - 'SOC Analyst Responsibilities: Deliver quality outcomes and collaborate with cross-functional
+    teams. Requirements: experience with Splunk, MITRE ATT&CK, Threat Hunting, Incident
+    Response, SIEM. Strong communication and customer-centric mindset required. Comfortable
+    working in a fast-paced environment.'
+- source_sentence: 'Summary: Human Resources professional with 3 years of hands-on
+    experience. Skills: Benefits Administration, Performance Management, Onboarding,
+    Recruiting, Employee Relations. Education: BS in Computer Science.'
   sentences:
-  - 'Mobile Engineer v2
-
-    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
-    teams.
-
-    Requirements: experience with blueprints, concrete, customer communication, framing,
-    knowledge base, osha, safety, sla, tickets, tools.  Strong communication across
-    teams.'
-  - 'Marketing Specialist v3
-
-    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
-    teams.
-
-    Requirements: experience with agile, prioritization, risk management, roadmap,
-    scheduling, scrum, stakeholders, user research.  Pragmatic and detail-oriented
-    delivery.'
-  - 'Data Scientist v2
-
-    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
-    teams.
-
-    Requirements: experience with assessment, classroom management, curriculum, lesson
-    planning.  Strong communication across teams.  Demonstrated ownership and collaboration.  Continuous
-    learning mindset.'
-- source_sentence: 'Applicant Archetype 55
-
-    Summary: Hands-on professional with domain experience.
-
-    Skills: cv, feature store, inference, ml, mlops, nlp, numpy, pandas, pytorch,
-    scikit-learn, xgboost.
-
-    Highlights: Designed, implemented, and improved systems end-to-end.  Focus on
-    measurable outcomes.  Pragmatic and detail-oriented delivery.  Bias for action
-    and reliability.  Demonstrated ownership and collaboration.'
+  - 'SOC Analyst Responsibilities: Maintain documentation and contribute to process
+    improvements. Requirements: experience with Threat Hunting, Purple Team, Incident
+    Response, Splunk, EDR. Strong communication and customer-centric mindset required.
+    Comfortable working in a fast-paced environment.'
+  - 'Project Manager Responsibilities: Mentor junior team members and uphold best
+    practices. Requirements: experience with Procore, RFIs, Blueprint Reading, OSHA
+    30, Scheduling. Strong communication and customer-centric mindset required.'
+  - 'FP&A Analyst Responsibilities: Use data to drive decisions and measure impact.
+    Requirements: experience with Cohort Modeling, Forecasting, Budgeting, SQL, Power
+    BI. Strong communication and customer-centric mindset required. Comfortable working
+    in a fast-paced environment.'
+- source_sentence: 'Summary: Hardware professional with 6 years of hands-on experience.
+    Skills: I2C, UART, C/C++, BLE, RTOS. Education: BA in Marketing. Continuously
+    learning and staying current with industry best practices. Documented processes
+    and mentored junior colleagues.'
   sentences:
-  - 'Electrical Engineer v1
-
-    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
-    teams.
-
-    Requirements: experience with c, c++, cv, go, java, matlab, ml, mlops, nlp, pandas.  Pragmatic
-    and detail-oriented delivery.  Strong communication across teams.  Data-driven
-    decision making.  Bias for action and reliability.'
-  - 'Full-Stack Developer v1
-
-    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
-    teams.
-
-    Requirements: experience with compliance, contracts, drafting, embedded, firmware,
-    fpga, legal research, litigation, mechanical design, pcb.  Demonstrated ownership
-    and collaboration.  Strong communication across teams.'
-  - 'Healthcare IT Analyst v4
-
-    Responsibilities: Deliver quality outcomes; collaborate with cross-functional
-    teams.
-
-    Requirements: experience with food safety, inventory, line, menu development,
-    plating, prep.  Bias for action and reliability.  Data-driven decision making.'
+  - 'Associate Counsel Responsibilities: Use data to drive decisions and measure impact.
+    Requirements: experience with Litigation, Contract Drafting, Discovery, Negotiation,
+    Client Counseling, Motions Practice. Strong communication and customer-centric
+    mindset required. Comfortable working in a fast-paced environment.'
+  - 'Instructional Coach Responsibilities: Use data to drive decisions and measure
+    impact. Requirements: experience with Classroom Management, Assessment, Lesson
+    Planning, IEP, Google Classroom. Strong communication and customer-centric mindset
+    required. Comfortable working in a fast-paced environment.'
+  - 'Clinical Coordinator Responsibilities: Use data to drive decisions and measure
+    impact. Requirements: experience with Patient Education, HIPAA, Vitals, BLS, Epic,
+    EHR. Strong communication and customer-centric mindset required. Comfortable working
+    in a fast-paced environment.'
 pipeline_tag: sentence-similarity
 library_name: sentence-transformers
 metrics:
@@ -190,10 +106,10 @@ model-index:
       type: resume-job-val
     metrics:
     - type: pearson_cosine
-      value: 0.9390859578984546
+      value: 0.9997409114389538
       name: Pearson Cosine
     - type: spearman_cosine
-      value: 0.8627498554306413
+      value: 0.866025599313796
       name: Spearman Cosine
 ---
 
@@ -247,9 +163,9 @@ from sentence_transformers import SentenceTransformer
 model = SentenceTransformer("sentence_transformers_model_id")
 # Run inference
 sentences = [
-    'Applicant Archetype 55\nSummary: Hands-on professional with domain experience.\nSkills: cv, feature store, inference, ml, mlops, nlp, numpy, pandas, pytorch, scikit-learn, xgboost.\nHighlights: Designed, implemented, and improved systems end-to-end.  Focus on measurable outcomes.  Pragmatic and detail-oriented delivery.  Bias for action and reliability.  Demonstrated ownership and collaboration.',
-    'Electrical Engineer v1\nResponsibilities: Deliver quality outcomes; collaborate with cross-functional teams.\nRequirements: experience with c, c++, cv, go, java, matlab, ml, mlops, nlp, pandas.  Pragmatic and detail-oriented delivery.  Strong communication across teams.  Data-driven decision making.  Bias for action and reliability.',
-    'Healthcare IT Analyst v4\nResponsibilities: Deliver quality outcomes; collaborate with cross-functional teams.\nRequirements: experience with food safety, inventory, line, menu development, plating, prep.  Bias for action and reliability.  Data-driven decision making.',
+    'Summary: Hardware professional with 6 years of hands-on experience. Skills: I2C, UART, C/C++, BLE, RTOS. Education: BA in Marketing. Continuously learning and staying current with industry best practices. Documented processes and mentored junior colleagues.',
+    'Clinical Coordinator Responsibilities: Use data to drive decisions and measure impact. Requirements: experience with Patient Education, HIPAA, Vitals, BLS, Epic, EHR. Strong communication and customer-centric mindset required. Comfortable working in a fast-paced environment.',
+    'Instructional Coach Responsibilities: Use data to drive decisions and measure impact. Requirements: experience with Classroom Management, Assessment, Lesson Planning, IEP, Google Classroom. Strong communication and customer-centric mindset required. Comfortable working in a fast-paced environment.',
 ]
 embeddings = model.encode(sentences)
 print(embeddings.shape)
@@ -258,9 +174,9 @@ print(embeddings.shape)
 # Get the similarity scores for the embeddings
 similarities = model.similarity(embeddings, embeddings)
 print(similarities)
-# tensor([[1.0000, 0.6564, 0.0599],
-#         [0.6564, 1.0000, 0.0853],
-#         [0.0599, 0.0853, 1.0000]])
+# tensor([[ 1.0000, -0.0050, -0.0049],
+#         [-0.0050,  1.0000, -0.0050],
+#         [-0.0049, -0.0050,  1.0000]])
 ```
 
 <!--
@@ -296,10 +212,10 @@ You can finetune this model on your own dataset.
 * Dataset: `resume-job-val`
 * Evaluated with [<code>EmbeddingSimilarityEvaluator</code>](https://sbert.net/docs/package_reference/sentence_transformer/evaluation.html#sentence_transformers.evaluation.EmbeddingSimilarityEvaluator)
 
-| Metric              | Value      |
-|:--------------------|:-----------|
-| pearson_cosine      | 0.9391     |
-| **spearman_cosine** | **0.8627** |
+| Metric              | Value     |
+|:--------------------|:----------|
+| pearson_cosine      | 0.9997    |
+| **spearman_cosine** | **0.866** |
 
 <!--
 ## Bias, Risks and Limitations
@@ -319,19 +235,19 @@ You can finetune this model on your own dataset.
 
 #### Unnamed Dataset
 
-* Size: 4,000 training samples
+* Size: 11,999 training samples
 * Columns: <code>sentence_0</code>, <code>sentence_1</code>, and <code>label</code>
 * Approximate statistics based on the first 1000 samples:
-  |         | sentence_0                                                                         | sentence_1                                                                         | label                                                          |
-  |:--------|:-----------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------|:---------------------------------------------------------------|
-  | type    | string                                                                             | string                                                                             | float                                                          |
-  | details | <ul><li>min: 50 tokens</li><li>mean: 73.4 tokens</li><li>max: 102 tokens</li></ul> | <ul><li>min: 38 tokens</li><li>mean: 59.36 tokens</li><li>max: 88 tokens</li></ul> | <ul><li>min: 0.0</li><li>mean: 0.51</li><li>max: 1.0</li></ul> |
+  |         | sentence_0                                                                         | sentence_1                                                                         | label                                                         |
+  |:--------|:-----------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------|:--------------------------------------------------------------|
+  | type    | string                                                                             | string                                                                             | float                                                         |
+  | details | <ul><li>min: 33 tokens</li><li>mean: 55.38 tokens</li><li>max: 80 tokens</li></ul> | <ul><li>min: 41 tokens</li><li>mean: 57.02 tokens</li><li>max: 72 tokens</li></ul> | <ul><li>min: 0.0</li><li>mean: 0.5</li><li>max: 1.0</li></ul> |
 * Samples:
-  | sentence_0                                                                                                                                                                                                                                                                                                                              | sentence_1                                                                                                                                                                                                                                                                                                                                      | label            |
-  |:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-----------------|
-  | <code>Applicant Archetype 57<br>Summary: Hands-on professional with domain experience.<br>Skills: customer communication, cv, feature store, knowledge base, ml, nlp, sla, tensorflow, tickets, troubleshooting.<br>Highlights: Designed, implemented, and improved systems end-to-end.  Pragmatic and detail-oriented delivery.</code> | <code>Healthcare IT Analyst v3<br>Responsibilities: Deliver quality outcomes; collaborate with cross-functional teams.<br>Requirements: experience with bgp, dhcp, dns, firewall, ipv6, load balancer, ospf, routing, switching, vpn.  Strong communication across teams.</code>                                                                | <code>0.0</code> |
-  | <code>Applicant Archetype 60<br>Summary: Hands-on professional with domain experience.<br>Skills: agile, c++, prioritization, rust, scala, scheduling, scrum, typescript.<br>Highlights: Designed, implemented, and improved systems end-to-end.  Data-driven decision making.  Data-driven decision making.</code>                     | <code>Biomedical Engineer v2<br>Responsibilities: Deliver quality outcomes; collaborate with cross-functional teams.<br>Requirements: experience with agile, prioritization, risk management, roadmap, scheduling, scrum, stakeholders, user research.  Pragmatic and detail-oriented delivery.  Pragmatic and detail-oriented delivery.</code> | <code>1.0</code> |
-  | <code>Applicant Archetype 60<br>Summary: Hands-on professional with domain experience.<br>Skills: agile, c++, prioritization, rust, scala, scheduling, scrum, typescript.<br>Highlights: Designed, implemented, and improved systems end-to-end.  Data-driven decision making.</code>                                                   | <code>Marketing Specialist v1<br>Responsibilities: Deliver quality outcomes; collaborate with cross-functional teams.<br>Requirements: experience with agile, c++, go, matlab, prioritization, python, risk management, roadmap, rust, scheduling.  Customer-centric approach.</code>                                                           | <code>1.0</code> |
+  | sentence_0                                                                                                                                                                                                                                                                                                                                                                           | sentence_1                                                                                                                                                                                                                                                                                                                                   | label            |
+  |:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-----------------|
+  | <code>Summary: Finance professional with 7 years of hands-on experience. Skills: SQL, KPI Reporting, Excel, Cohort Modeling, Power BI. Education: MBA. Recognized for strong collaboration and clear stakeholder communication. Implemented automation that reduced manual effort by 31%.</code>                                                                                     | <code>FP&A Analyst Responsibilities: Use data to drive decisions and measure impact. Requirements: experience with Excel, Variance Analysis, Cohort Modeling, Financial Modeling, SQL. Strong communication and customer-centric mindset required. Comfortable working in a fast-paced environment.</code>                                   | <code>1.0</code> |
+  | <code>Summary: Human Resources professional with 6 years of hands-on experience. Skills: Recruiting, HRIS, Policy Development, Performance Management, Benefits Administration. Education: M.Ed. in Curriculum and Instruction. Recognized for strong collaboration and clear stakeholder communication.</code>                                                                      | <code>Medical Assistant Responsibilities: Mentor junior team members and uphold best practices. Requirements: experience with Medication Administration, Phlebotomy, Patient Education, Injections, Triage. Strong communication and customer-centric mindset required. Comfortable working in a fast-paced environment.</code>              | <code>0.0</code> |
+  | <code>Summary: Human Resources professional with 4 years of hands-on experience. Skills: HRIS, Onboarding, Performance Management, Recruiting, Policy Development, Benefits Administration, Employee Relations. Education: BSEE. Led a cross-functional initiative that improved key metrics by 10%. Recognized for strong collaboration and clear stakeholder communication.</code> | <code>HR Generalist Responsibilities: Own end-to-end execution and communicate progress to stakeholders. Requirements: experience with HRIS, Performance Management, Policy Development, Onboarding, Employee Relations. Strong communication and customer-centric mindset required. Comfortable working in a fast-paced environment.</code> | <code>1.0</code> |
 * Loss: [<code>CosineSimilarityLoss</code>](https://sbert.net/docs/package_reference/sentence_transformer/losses.html#cosinesimilarityloss) with these parameters:
   ```json
   {
@@ -472,12 +388,14 @@ You can finetune this model on your own dataset.
 </details>
 
 ### Training Logs
-| Epoch | Step | Training Loss | resume-job-val_spearman_cosine |
-|:-----:|:----:|:-------------:|:------------------------------:|
-| 1.0   | 250  | -             | 0.8545                         |
-| 2.0   | 500  | 0.0782        | 0.8562                         |
-| 3.0   | 750  | -             | 0.8624                         |
-| 4.0   | 1000 | 0.045         | 0.8627                         |
+| Epoch  | Step | Training Loss | resume-job-val_spearman_cosine |
+|:------:|:----:|:-------------:|:------------------------------:|
+| 0.6667 | 500  | 0.0219        | -                              |
+| 1.0    | 750  | -             | 0.8660                         |
+| 1.3333 | 1000 | 0.0015        | -                              |
+| 2.0    | 1500 | 0.0008        | 0.8660                         |
+| 2.6667 | 2000 | 0.0005        | -                              |
+| 3.0    | 2250 | -             | 0.8660                         |
 
 
 ### Framework Versions
