@@ -27,6 +27,43 @@ jwt = JWTManager(app)
 #storing users in dictionary until I have a db setup
 #users = {}
 
+#Helper function for inital setup of profile on registration
+def default_profile(email="", name="", role="job-seeker"):
+    first = name.split(" ")[0] if name else ""
+    last = " ".join(name.split(" ")[1:]) if name else ""
+
+    # Default job-seeker profile
+    profile = {
+        "firstName": first,
+        "lastName": last,
+        "email": email,
+        "phone": "",
+        "location": "",
+        "summary": "",
+        "experience": [],
+        "education": [],
+        "skills": [],
+        "performanceReviews": [],
+        "psychometricResults": {
+            "leadership": {"score": None, "percentile": None, "completed": False},
+            "problemSolving": {"score": None, "percentile": None, "completed": False},
+            "communication": {"score": None, "percentile": None, "completed": False},
+            "creativity": {"score": None, "percentile": None, "completed": False},
+            "teamwork": {"score": None, "percentile": None, "completed": False},
+        },
+    }
+
+    # Optional: recruiter-specific default structure
+    if role == "recruiter":
+        profile.update({
+            "company": "",
+            "position": "",
+            "hiringGoals": "",
+            "openRoles": [],
+        })
+
+    return profile
+
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -34,7 +71,7 @@ class User(db.Model):
     password = db.Column(db.String(200), nullable=False)
     name = db.Column(db.String(120))
     role = db.Column(db.String(50))
-    profile_data = db.Column(JSON, default={})
+    profile_data = db.Column(JSON, default=dict)
     
 
 
@@ -65,17 +102,23 @@ def register():
     data = request.get_json()
     email = data.get("email")
     password = data.get("password")
+    name = data.get("name")
+    role = data.get("role", "job-seeker")
 
     #Check user exsistence off of email
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "User already exists"}), 400
 
     hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
+    profile_data = default_profile(email=email, name=name, role=role)
+
+
     new_user = User(
         email=email,
         password=hashed_pw,
         name=data.get("name"),
-        role=data.get("role")
+        role=data.get("role"),
+        profile_data=profile_data
     )
     #adding user to db
     db.session.add(new_user)
