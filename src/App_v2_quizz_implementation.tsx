@@ -2,7 +2,8 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/Header';
-import CareerAndJobSearchTab from './components/CareerAndJobSearchTab';
+import NextChapterYourWayQuiz from './components/NextChapterYourWayQuiz';
+import SolverahYourFutureYourWayQuiz from './components/SolverahYourFutureYourWayQuiz';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -82,7 +83,15 @@ function App() {
                 path="/career-job-search" 
                 element={
                   <ProtectedRoute allowedRoles={['job-seeker', 'recruiter']}>
-                    <CareerAndJobSearchTab />
+                    <NextChapterYourWayQuiz />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/future-your-way" 
+                element={
+                  <ProtectedRoute allowedRoles={['job-seeker', 'recruiter']}>
+                    <SolverahYourFutureYourWayQuiz />
                   </ProtectedRoute>
                 } 
               />
