@@ -1,5 +1,3 @@
-# preprocess_resume_generic.py
-# Python 3.9+
 # Optional but recommended: pip install spacy==3.7.2 && python -m spacy download en_core_web_sm
 
 from __future__ import annotations
@@ -7,8 +5,8 @@ import re
 import json
 from dataclasses import dataclass, asdict
 from typing import List, Dict, Optional, Tuple
+import pdfplumber
 
-# ---- Optional spaCy (no hardcoded lists; used only for POS/NER if present) ----
 _NLP = None
 try:
     import spacy
@@ -48,6 +46,13 @@ a an and the of for to in on at from with without by as into above below over un
 is are was were be been being have has had do does did can could should would may might must will
 this that these those there here it they them he she we you i me my our your their his her its
 """.split())
+
+def read_pdf_text(path):
+    text = ""
+    with pdfplumber.open(path) as pdf:
+        for page in pdf.pages:
+            text += page.extract_text() + "\n"
+    return text
 
 def tokenize_words(text: str) -> List[str]:
     return re.findall(r"[A-Za-z][A-Za-z0-9\-\+_/]*", text)
@@ -437,20 +442,9 @@ def preprocess_resume(text: str) -> Dict:
         }
     }
 
-# ---- CLI ----
 if __name__ == "__main__":
-    import sys, pathlib
-    if len(sys.argv) < 2:
-        print("Usage: python preprocess_resume_generic.py <resume.txt>")
-        sys.exit(1)
-    p = pathlib.Path(sys.argv[1])
-    text = p.read_text(encoding="utf-8", errors="ignore")
+    path = "Sebastian Grammas .pdf"
+    text = read_pdf_text(path)
     result = preprocess_resume(text)
     print(result["summary"])
-
-    path="Sebastian Grammas .pdf"
-    text=path.read_text(encoding="utf-8", errors="ignore")
-    result = preprocess_resume(text)
-    print(result["summary"])
-
-    # print(json.dumps(result, indent=2))
+    print(json.dumps(result, indent=2))

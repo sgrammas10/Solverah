@@ -30,11 +30,11 @@ def evaluate_and_save(resume_path, job_file):
     ml_score = float(util.cos_sim(resume_emb, job_emb).item())
     print(f"Similarity Score From Model: {ml_score:.4f}")
 
-    soft_skills = soft_skills_score(resume_text)
-    features = dynamic_skill_features(job_text, resume_text, top_n=60)
-    final = ml_score + 0.25*features["coverage"] + 0.1*features["experience_match"] + 0.15*soft_skills["soft_skills_score"]
+    # soft_skills = soft_skills_score(resume_text)
+    # features = dynamic_skill_features(job_text, resume_text, top_n=60)
+    # final = ml_score + 0.25*features["coverage"] + 0.1*features["experience_match"] + 0.15*soft_skills["soft_skills_score"]
     
-    print(f"Final Combined Score: {final:.4f} (Coverage: {features['coverage']}, Experience Match: {features['experience_match']})")
+    #print(f"Final Combined Score: {final:.4f} (Coverage: {features['coverage']}, Experience Match: {features['experience_match']})")
 
     # # Assign label
     # label = 1 if score >= 0.7 else 0
