@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 function JobSeekerProfile() {
-  const { user, updateProfile, updateProfileData } = useAuth();
+  const { user, updateProfile, updateProfileData, fetchProfileData, saveProfileData } = useAuth();
   const [activeTab, setActiveTab] = useState('personal');
   const [isSaving, setIsSaving] = useState(false);
   const [uploadedResume, setUploadedResume] = useState<File | null>(null);
@@ -67,6 +67,24 @@ function JobSeekerProfile() {
     }
   }, [user?.profileData]);
 
+
+
+  //Fetch saved profile data from the backend when page loads
+useEffect(() => {
+  const loadProfile = async () => {
+    try {
+      const data = await fetchProfileData();
+      if (data?.profileData) {
+        setFormData(data.profileData);
+      }
+    } catch (err) {
+      console.error("Error loading profile:", err);
+    }
+  };
+  loadProfile();
+}, []);
+
+
   // Check for uploaded resume in profile data
   useEffect(() => {
     if (user?.profileData?.uploadedResume) {
@@ -95,6 +113,12 @@ function JobSeekerProfile() {
     // Save the profile data to localStorage via context
     updateProfileData(profileDataToSave);
     
+
+    //Save to backend via API
+    await saveProfileData(profileDataToSave);
+    console.log('Profile saved to backend!');
+
+
     // Update local form data state to reflect saved data
     setFormData(profileDataToSave);
     
