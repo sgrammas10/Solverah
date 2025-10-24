@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLocation } from 'react-router-dom';
 import { 
   User, 
   Mail, 
@@ -16,8 +17,16 @@ import {
 } from 'lucide-react';
 
 function JobSeekerProfile() {
+  const location = useLocation();
   const { user, updateProfile, updateProfileData, fetchProfileData, saveProfileData } = useAuth();
   const [activeTab, setActiveTab] = useState('personal');
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab');
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [location.search]);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadedResume, setUploadedResume] = useState<File | null>(null);
   const [resumeUploaded, setResumeUploaded] = useState(false);
@@ -237,7 +246,13 @@ useEffect(() => {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  const params = new URLSearchParams(location.search);
+                  params.set('tab', tab.id);
+                  window.history.replaceState({}, '', `${location.pathname}?${params.toString()}`);
+                }}
+
                 className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'

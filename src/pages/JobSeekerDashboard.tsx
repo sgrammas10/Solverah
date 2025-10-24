@@ -35,19 +35,22 @@ function JobSeekerDashboard() {
       title: 'Complete Psychometric Assessment',
       description: 'Boost your profile visibility by completing our leadership assessment',
       action: 'Take Assessment',
-      priority: 'high'
+      priority: 'high',
+      href: '/job-seeker/profile?tab=assessments'
     },
     {
       title: 'Update Performance Reviews',
       description: 'Add your latest performance review to increase match accuracy',
       action: 'Add Review',
-      priority: 'medium'
+      priority: 'medium',
+      href: '/job-seeker/profile?tab=performance'
     },
     {
       title: 'Optimize Your Skills',
       description: 'Add 3 more skills to improve your job matching score',
       action: 'Update Skills',
-      priority: 'low'
+      priority: 'low',
+      href: '/job-seeker/profile?tab=experience'
     }
   ];
 
@@ -167,9 +170,19 @@ function JobSeekerDashboard() {
                       </span>
                     </div>
                     <p className="text-xs text-gray-600 mb-3">{rec.description}</p>
-                    <button className="text-xs text-blue-600 hover:text-blue-500 font-medium">
-                      {rec.action} →
-                    </button>
+                    {rec.href ? (
+                      <Link
+                        to={rec.href}
+                        className="text-xs text-blue-600 hover:text-blue-500 font-medium"
+                      >
+                        {rec.action} →
+                      </Link>
+                    ) : (
+                      <button className="text-xs text-blue-600 hover:text-blue-500 font-medium">
+                        {rec.action} →
+                      </button>
+                    )}
+
                   </div>
                 ))}
               </div>
