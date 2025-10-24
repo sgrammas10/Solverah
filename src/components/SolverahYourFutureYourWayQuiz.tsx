@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
 type Question = { id: number; text: string; options: string[] };
 
@@ -190,13 +191,36 @@ const questions: Question[] = [
 
 export default function YourFutureYourWayTab() {
   const [answers, setAnswers] = useState<Record<number, number>>({});
+  const { fetchProfileData, saveProfileData } = useAuth();
 
   const onChange = (qid: number, idx: number) =>
     setAnswers((p) => ({ ...p, [qid]: idx }));
 
   const onSubmit = () => {
-    console.log("Your Future, Your Way responses:", answers);
-    alert("Responses saved (see console).");
+    (async () => {
+      try {
+        const current = await (fetchProfileData ? fetchProfileData() : Promise.resolve(null));
+        const profileData = current?.profileData || current || {};
+
+        const newProfileData = {
+          ...profileData,
+          quizResults: {
+            yourFutureYourWay: answers,
+            submittedAt: new Date().toISOString(),
+          },
+        };
+
+        if (saveProfileData) {
+          await saveProfileData(newProfileData);
+          alert("Responses saved to your profile.");
+        } else {
+          alert("Unable to save responses (not authenticated).");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to save responses. Check console for details.");
+      }
+    })();
   };
 
   return (
