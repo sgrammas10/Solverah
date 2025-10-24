@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { 
   User, 
   Mail, 
@@ -17,16 +17,31 @@ import {
 } from 'lucide-react';
 
 function JobSeekerProfile() {
-  const location = useLocation();
   const { user, updateProfile, updateProfileData, fetchProfileData, saveProfileData } = useAuth();
-  const [activeTab, setActiveTab] = useState('personal');
+
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const getTabFromURL = () => {
+    // priority: ?tab=experience → #experience → location.state.initialTab
+    const fromSearch = searchParams.get('tab');
+    if (fromSearch) return fromSearch;
+    if (location.hash && location.hash.length > 1) return location.hash.slice(1);
+    const st = (location.state as any) || {};
+    if (st.initialTab) return st.initialTab;
+    return null;
+  };
+
+  const [activeTab, setActiveTab] = useState<string>(() => getTabFromURL() || 'personal');
+ 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const tab = params.get('tab');
-    if (tab) {
-      setActiveTab(tab);
+    const incoming = getTabFromURL();
+    if (incoming && incoming !== activeTab) {
+      setActiveTab(incoming);
     }
-  }, [location.search]);
+    // we intentionally depend on searchParams/hash/state only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, location.hash, location.state]);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadedResume, setUploadedResume] = useState<File | null>(null);
   const [resumeUploaded, setResumeUploaded] = useState(false);
@@ -248,9 +263,9 @@ useEffect(() => {
                 key={tab.id}
                 onClick={() => {
                   setActiveTab(tab.id);
-                  const params = new URLSearchParams(location.search);
-                  params.set('tab', tab.id);
-                  window.history.replaceState({}, '', `${location.pathname}?${params.toString()}`);
+                  const next = new URLSearchParams(searchParams);
+                  next.set('tab', tab.id);
+                  setSearchParams(next, { replace: true });
                 }}
 
                 className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
