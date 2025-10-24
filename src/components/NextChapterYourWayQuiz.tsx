@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
 type Question = {
   id: number;
@@ -287,15 +288,37 @@ const sections: { title: string; startId: number; questions: Question[] }[] = [
 export default function CareerAndJobSearchTab() {
   // store answers by question id -> option index
   const [answers, setAnswers] = useState<Record<number, number>>({});
+  const { fetchProfileData, saveProfileData } = useAuth();
 
   const handleChange = (qid: number, idx: number) => {
     setAnswers((prev) => ({ ...prev, [qid]: idx }));
   };
 
   const handleSubmit = () => {
-    // super simple: just dump selections to console; replace with your save logic
-    console.log("Career & Job Search responses:", answers);
-    alert("Responses saved (see console).");
+    (async () => {
+      try {
+        const current = await (fetchProfileData ? fetchProfileData() : Promise.resolve(null));
+        const profileData = current?.profileData || current || {};
+
+        const newProfileData = {
+          ...profileData,
+          quizResults: {
+            careerJobSearch: answers,
+            submittedAt: new Date().toISOString(),
+          },
+        };
+
+        if (saveProfileData) {
+          await saveProfileData(newProfileData);
+          alert("Responses saved to your profile.");
+        } else {
+          alert("Unable to save responses (not authenticated).");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to save responses. Check console for details.");
+      }
+    })();
   };
 
   return (
