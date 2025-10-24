@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
 type Question = { id: number; text: string; options: string[] };
 type Quiz = { key: string; title: string; questions: Question[] };
@@ -244,6 +245,7 @@ export default function CareerQuizzesArchetypesTab() {
   const [answers, setAnswers] = useState<Record<string, Record<number, number>>>(
     {}
   );
+  const { fetchProfileData, saveProfileData } = useAuth();
 
   const onChange = (quizKey: string, qid: number, idx: number) => {
     setAnswers((prev) => ({
@@ -253,8 +255,32 @@ export default function CareerQuizzesArchetypesTab() {
   };
 
   const onSubmitAll = () => {
-    console.log("Career Quizzes & Archetypes responses:", answers);
-    alert("Responses saved (see console).");
+    (async () => {
+      try {
+        // fetch current profile to merge
+        const current = await (fetchProfileData ? fetchProfileData() : Promise.resolve(null));
+        const profileData = current?.profileData || current || {};
+
+        const newProfileData = {
+          ...profileData,
+          quizResults: {
+            careerQuizzes: answers,
+            submittedAt: new Date().toISOString(),
+          },
+        };
+
+        if (saveProfileData) {
+          await saveProfileData(newProfileData);
+          alert("Responses saved to your profile.");
+        } else {
+          console.warn("saveProfileData not available on AuthContext");
+          alert("Unable to save responses (not authenticated).");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to save responses. Check console for details.");
+      }
+    })();
   };
 
   return (
