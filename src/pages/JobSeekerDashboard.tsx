@@ -1,21 +1,21 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+/*import React from 'react';*/
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   User, 
-  FileText, 
-  BarChart3, 
+  FileText,  
   Brain, 
   Briefcase, 
   TrendingUp,
-  Calendar,
-  MessageCircle,
-  Star
 } from 'lucide-react';
 
 function JobSeekerDashboard() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const toProfileTab = (href?: string) => {
+    if (!href) return '/job-seeker/profile';
+    const [, hash] = href.split('#');
+    return hash ? `/job-seeker/profile?tab=${encodeURIComponent(hash)}` : '/job-seeker/profile';
+  };
 
   const stats = [
     { label: 'Profile Completion', value: '75%', icon: User, color: 'blue' },
@@ -158,14 +158,13 @@ function JobSeekerDashboard() {
             <div className="p-6">
               <div className="space-y-4">
                 {recommendations.map((rec, index) => (
-                  <div
+                  <Link
                     key={index}
-                    className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition cursor-pointer"
+                    to={toProfileTab(rec.href)}
+                    className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
                   >
                     <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-medium text-gray-900 text-sm">
-                        {rec.title}
-                      </h3>
+                      <h3 className="font-medium text-gray-900 text-sm">{rec.title}</h3>
                       <span
                         className={`px-2 py-1 text-xs rounded-full ${
                           rec.priority === 'high'
@@ -181,39 +180,16 @@ function JobSeekerDashboard() {
 
                     <p className="text-xs text-gray-600 mb-3">{rec.description}</p>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const target = rec.href || '/job-seeker/profile';
-                        console.log('Recommendation click →', target);
-
-                        try {
-                          // useNavigate hook defined above component
-                          if (target.includes('#')) {
-                            const [pathname, hash] = target.split('#');
-                            navigate({ pathname, hash: `#${hash}` });
-                          } else {
-                            navigate(target);
-                          }
-                        } catch (err) {
-                          console.warn(
-                            'navigate() failed, falling back to hard redirect',
-                            err
-                          );
-                          window.location.assign(target);
-                        }
-                      }}
-                      className="text-xs text-blue-600 hover:text-blue-500 font-medium relative z-10"
-                    >
+                    <span className="text-xs text-blue-600 hover:text-blue-500 font-medium">
                       {rec.action} →
-                    </button>
-                  </div>
+                    </span>
+                  </Link>
                 ))}
               </div>
             </div>
           </div>
         </div>
+      </div>
 
       {/* Quick Actions */}
       <div className="mt-8">

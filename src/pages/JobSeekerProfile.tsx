@@ -3,16 +3,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { 
   User, 
-  Mail, 
-  Phone, 
-  MapPin, 
   Briefcase, 
   GraduationCap,
   Upload,
   Plus,
   X,
   Star,
-  Award,
   Brain
 } from 'lucide-react';
 
@@ -46,68 +42,184 @@ function JobSeekerProfile() {
   const [uploadedResume, setUploadedResume] = useState<File | null>(null);
   const [resumeUploaded, setResumeUploaded] = useState(false);
 
-  const getInitialFormData = () => {
-    if (user?.profileData) {
-      return user.profileData;
-    }
-    return {
-      // Personal Info
-      firstName: user?.name?.split(' ')[0] || '',
-      lastName: user?.name?.split(' ').slice(1).join(' ') || '',
-      email: user?.email || '',
-      phone: '',
-      location: '',
-      summary: '',
-      
-      // Experience
-      experience: [],
-      
-      // Education
-      education: [],
-      
-      // Skills
-      skills: [],
-      
-      // Performance Reviews
-      performanceReviews: [],
-      
-      // Psychometric Results
-      psychometricResults: {
-        leadership: { score: null, percentile: null, completed: false },
-        problemSolving: { score: null, percentile: null, completed: false },
-        communication: { score: null, percentile: null, completed: false },
-        creativity: { score: null, percentile: null, completed: false },
-        teamwork: { score: null, percentile: null, completed: false }
-      }
+  interface UploadedResume {
+    name: string;
+    size: number;
+    type: string;
+  }
+
+  interface PsychometricScore {
+    score: number | null;
+    percentile: number | null;
+    completed: boolean;
+  }
+
+  interface ProfileData {
+    // Personal Info
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    location: string;
+    summary: string;
+
+    // Experience / Education / Skills
+    experience: any[];   // (tighten later if you have a shape)
+    education: any[];    // (tighten later if you have a shape)
+    skills: string[];
+
+    // Reviews / Psychometrics
+    performanceReviews: any[]; // (tighten later)
+    psychometricResults: {
+      leadership: PsychometricScore;
+      problemSolving: PsychometricScore;
+      communication: PsychometricScore;
+      creativity: PsychometricScore;
+      teamwork: PsychometricScore;
     };
+
+    // Files & optional fields you mentioned elsewhere
+    uploadedResume: UploadedResume | null;
+    quizResults?: Record<string, unknown>;
+    _quizSummary?: Record<string, unknown>;
+  }
+
+  interface ProfileFormData {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    location: string;
+    summary: string;
+    experience: any[];
+    education: any[];
+    skills: string[];
+    performanceReviews: any[];
+    psychometricResults: {
+      leadership: { score: number | null; percentile: number | null; completed: boolean };
+      problemSolving: { score: number | null; percentile: number | null; completed: boolean };
+      communication: { score: number | null; percentile: number | null; completed: boolean };
+      creativity: { score: number | null; percentile: number | null; completed: boolean };
+      teamwork: { score: number | null; percentile: number | null; completed: boolean };
+    };
+    uploadedResume: { name: string; size: number; type: string } | null;
+    quizResults?: Record<string, unknown>;
+    _quizSummary?: Record<string, unknown>;
+  }
+  type FetchProfileData = () => Promise<{ profileData?: Partial<ProfileFormData> } | null>;
+
+  // Build defaults for the **form**
+  const buildDefaultProfile = (user?: { name?: string; email?: string } | null): ProfileFormData => ({
+    firstName: user?.name?.split(' ')?.[0] ?? '',
+    lastName: user?.name?.split(' ')?.slice(1).join(' ') ?? '',
+    email: user?.email ?? '',
+    phone: '',
+    location: '',
+    summary: '',
+    experience: [],
+    education: [],
+    skills: [],
+    performanceReviews: [],
+    psychometricResults: {
+      leadership: { score: null, percentile: null, completed: false },
+      problemSolving: { score: null, percentile: null, completed: false },
+      communication: { score: null, percentile: null, completed: false },
+      creativity: { score: null, percentile: null, completed: false },
+      teamwork: { score: null, percentile: null, completed: false },
+    },
+    uploadedResume: null,
+  });
+
+  const getInitialFormData = (): ProfileData => {
+    // If you persist profileData in auth, merge it over defaults
+    // so we keep a complete, typed object.
+    // (If user.profileData is unknown, cast it to Partial<ProfileData>.)
+    if (user?.profileData) {
+      return {
+        ...buildDefaultProfile(user),
+        ...(user.profileData as Partial<ProfileData>),
+      };
+    }
+    return buildDefaultProfile(user ?? undefined);
   };
 
-  const [formData, setFormData] = useState(getInitialFormData);
+
+  const [formData, setFormData] = useState<ProfileFormData>(() =>
+    buildDefaultProfile(user ?? undefined)
+  );
+
+  
+  const profileDataToSave: ProfileData = {
+    ...formData,
+    uploadedResume: uploadedResume
+      ? { name: uploadedResume.name, size: uploadedResume.size, type: uploadedResume.type }
+      : (resumeUploaded ? formData.uploadedResume : null),
+  };
+
+  // Now these are valid because profileDataToSave is ProfileData
+  const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
+  updateProfile({ name: fullName, profileComplete: true });
 
   // Update form data when user profile data changes
   useEffect(() => {
     if (user?.profileData) {
-      setFormData(user.profileData);
+      // Treat it as a partial and merge — guarantees we still have every required field
+      setFormData((curr) => ({
+        ...curr,
+        ...(user.profileData as Partial<ProfileData>),
+      }));
+    } else {
+      // optional: when user changes or clears, rebuild from defaults
+      setFormData(buildDefaultProfile(user ?? undefined));
     }
-  }, [user?.profileData]);
-
-
+  }, [user]); // depend on user; using user?.profileData is fine too
 
   //Fetch saved profile data from the backend when page loads
-useEffect(() => {
-  const loadProfile = async () => {
-    try {
-      const data = await fetchProfileData();
-      if (data?.profileData) {
-        setFormData(data.profileData);
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        if (fetchProfileData) {
+          const data = await fetchProfileData();
+          if (data?.profileData) {
+            setFormData((curr) => ({
+              ...curr,
+              ...normalizeProfileData(data.profileData), // merge partial over full
+            }));
+          } else {
+            // optional: reset to defaults if nothing came back
+            setFormData(buildDefaultProfile(user ?? undefined));
+          }
+        }
+      } catch (err) {
+        console.error("Error loading profile:", err);
       }
-    } catch (err) {
-      console.error("Error loading profile:", err);
-    }
-  };
-  loadProfile();
-}, []);
+    };
+    loadProfile();
+  }, [fetchProfileData, user]); // include user so defaults realign if user changes
 
+
+  const normalizeProfileData = (
+    incoming?: Partial<ProfileFormData> | null
+  ): Partial<ProfileFormData> => {
+    if (!incoming || typeof incoming !== 'object') return {};
+    return {
+      // Only copy safe/known keys
+      firstName: incoming.firstName ?? undefined,
+      lastName: incoming.lastName ?? undefined,
+      email: incoming.email ?? undefined,
+      phone: incoming.phone ?? undefined,
+      location: incoming.location ?? undefined,
+      summary: incoming.summary ?? undefined,
+      experience: incoming.experience ?? undefined,
+      education: incoming.education ?? undefined,
+      skills: incoming.skills ?? undefined,
+      performanceReviews: incoming.performanceReviews ?? undefined,
+      psychometricResults: incoming.psychometricResults ?? undefined,
+      uploadedResume: incoming.uploadedResume ?? undefined,
+      quizResults: incoming.quizResults ?? undefined,
+      _quizSummary: incoming._quizSummary ?? undefined,
+    };
+  };
 
   // Check for uploaded resume in profile data
   useEffect(() => {
@@ -139,9 +251,12 @@ useEffect(() => {
     
 
     //Save to backend via API
-    await saveProfileData(profileDataToSave);
-    console.log('Profile saved to backend!');
-
+    if (saveProfileData) {
+      await saveProfileData(profileDataToSave);
+      console.log('Profile saved to backend!');
+    } else {
+      console.warn("saveProfileData is not available from useAuth()");
+    }
 
     // Update local form data state to reflect saved data
     setFormData(profileDataToSave);
@@ -710,8 +825,8 @@ useEffect(() => {
                     <div>
                       <h4 className="font-medium text-gray-900 mb-2">Key Achievements:</h4>
                       <ul className="list-disc list-inside space-y-1">
-                        {review.keyAchievements.map((achievement, index) => (
-                          <li key={index} className="text-sm text-gray-600">{achievement}</li>
+                        {(review.keyAchievements as any[])?.map((achievement: any, index: number) => (
+                          <li key={index}>{achievement}</li>
                         ))}
                       </ul>
                     </div>
