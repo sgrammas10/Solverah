@@ -125,6 +125,48 @@ useEffect(() => {
     console.log('Profile saved successfully!', profileDataToSave);
     setIsSaving(false);
   };
+       
+  const buildProfilePipeline = () => {
+    const sections: { section: string; content: string }[] = [];
+
+   //Personal info
+    const personalInfo = `
+    Name: ${formData.firstName} ${formData.lastName}
+    Email: ${formData.email}
+    Phone: ${formData.phone || "N/A"}
+    Location: ${formData.location || "N/A"}
+    Summary: ${formData.summary || "N/A"}
+    `;
+    sections.push({ section: "Personal Info", content: personalInfo.trim() });
+
+    //Exp
+    const experienceEntries = formData.experience?.map((exp: any) => {
+      return `
+      Company: ${exp.company}
+      Position: ${exp.position}
+      Dates: ${exp.startDate || "?"} → ${exp.endDate || "Present"}
+      Description: ${exp.description || ""}
+      `;
+    }) || [];
+    sections.push({ section: "Experience", content: experienceEntries.join("\n\n") });
+
+    //Skills
+    const skills = formData.skills?.join(", ") || "None listed";
+    sections.push({ section: "Skills", content: `Skills: ${skills}` });
+
+    //Education
+    const educationEntries = formData.education?.map((edu: any) => {
+      return `
+      Institution: ${edu.institution}
+      Degree: ${edu.degree}
+      Dates: ${edu.startDate || "?"} → ${edu.endDate || "?"}
+      GPA: ${edu.gpa || "N/A"}
+      `;
+    }) || [];
+    sections.push({ section: "Education", content: educationEntries.join("\n\n") });
+
+    return sections;
+  };
 
   const addExperience = () => {
     const newExp = {
@@ -752,6 +794,17 @@ useEffect(() => {
             className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
             {isSaving ? 'Saving...' : 'Save Profile'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const pipeline = buildProfilePipeline();
+              const stringified = JSON.stringify(pipeline, null, 2);
+              console.log("List:", stringified);
+              alert("pipeline logged to console");
+            }}
+            className="ml-4 px-6 py-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 font-medium"
+          >
           </button>
         </div>
       </form>
