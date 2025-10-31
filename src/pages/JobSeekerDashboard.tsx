@@ -1,6 +1,6 @@
 /*import React from 'react';*/
-import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   User, 
   FileText,  
@@ -11,10 +11,14 @@ import {
 
 function JobSeekerDashboard() {
   const { user } = useAuth();
-  const toProfileTab = (href?: string) => {
-    if (!href) return '/job-seeker/profile';
-    const [, hash] = href.split('#');
-    return hash ? `/job-seeker/profile?tab=${encodeURIComponent(hash)}` : '/job-seeker/profile';
+  const navigate = useNavigate();
+  const goToProfileTab = (href?: string) => {
+    if (!href) { navigate('/job-seeker/profile'); return; }
+    const hash = href.includes('#') ? href.split('#')[1] : undefined;
+    navigate(hash
+      ? { pathname: '/job-seeker/profile', search: `?tab=${encodeURIComponent(hash)}` }
+      : '/job-seeker/profile'
+    );
   };
 
   const stats = [
@@ -154,14 +158,14 @@ function JobSeekerDashboard() {
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Recommendations</h2>
             </div>
-
-            <div className="p-6">
               <div className="space-y-4">
                 {recommendations.map((rec, index) => (
-                  <Link
+                  <button
                     key={index}
-                    to={toProfileTab(rec.href)}
-                    className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+                    type="button"
+                    onClick={() => goToProfileTab(rec.href)}
+                    className="block w-full text-left p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+                    data-test={`rec-${index}`}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="font-medium text-gray-900 text-sm">{rec.title}</h3>
@@ -183,13 +187,12 @@ function JobSeekerDashboard() {
                     <span className="text-xs text-blue-600 hover:text-blue-500 font-medium">
                       {rec.action} →
                     </span>
-                  </Link>
+                  </button>
                 ))}
               </div>
             </div>
           </div>
         </div>
-      </div>
 
       {/* Quick Actions */}
       <div className="mt-8">

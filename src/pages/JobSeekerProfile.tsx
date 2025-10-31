@@ -16,11 +16,12 @@ function JobSeekerProfile() {
   const { user, updateProfile, updateProfileData, fetchProfileData, saveProfileData } = useAuth();
 
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  
 
   const getTabFromURL = () => {
-    // priority: ?tab=experience → #experience → location.state.initialTab
-    const fromSearch = searchParams.get('tab');
+    // Parse directly from the current location each time
+    const qs = new URLSearchParams(location.search);
+    const fromSearch = qs.get('tab');
     if (fromSearch) return fromSearch;
     if (location.hash && location.hash.length > 1) return location.hash.slice(1);
     const st = (location.state as any) || {};
@@ -35,9 +36,13 @@ function JobSeekerProfile() {
     if (incoming && incoming !== activeTab) {
       setActiveTab(incoming);
     }
-    // we intentionally depend on searchParams/hash/state only
+    // no searchParams here
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, location.hash, location.state]);
+  }, [location.search, location.hash, location.state]);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
+
   const [isSaving, setIsSaving] = useState(false);
   const [uploadedResume, setUploadedResume] = useState<File | null>(null);
   const [resumeUploaded, setResumeUploaded] = useState(false);
@@ -147,18 +152,7 @@ function JobSeekerProfile() {
   const [formData, setFormData] = useState<ProfileFormData>(() =>
     buildDefaultProfile(user ?? undefined)
   );
-
   
-  const profileDataToSave: ProfileData = {
-    ...formData,
-    uploadedResume: uploadedResume
-      ? { name: uploadedResume.name, size: uploadedResume.size, type: uploadedResume.type }
-      : (resumeUploaded ? formData.uploadedResume : null),
-  };
-
-  // Now these are valid because profileDataToSave is ProfileData
-  const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
-  updateProfile({ name: fullName, profileComplete: true });
 
   // Update form data when user profile data changes
   useEffect(() => {
@@ -232,7 +226,6 @@ function JobSeekerProfile() {
     e.preventDefault();
     setIsSaving(true);
     
-    // Include resume data in form data
     const profileDataToSave = {
       ...formData,
       uploadedResume: uploadedResume ? {
@@ -241,16 +234,13 @@ function JobSeekerProfile() {
         type: uploadedResume.type
       } : (resumeUploaded ? formData.uploadedResume : null)
     };
-    
-    // Update the user's name in the auth context
+
+    // ✅ CORRECT: Update profile name and completion only on submit
     const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
     updateProfile({ name: fullName, profileComplete: true });
-    
-    // Save the profile data to localStorage via context
-    updateProfileData(profileDataToSave);
-    
 
-    //Save to backend via API
+    updateProfileData(profileDataToSave);
+
     if (saveProfileData) {
       await saveProfileData(profileDataToSave);
       console.log('Profile saved to backend!');
@@ -258,12 +248,10 @@ function JobSeekerProfile() {
       console.warn("saveProfileData is not available from useAuth()");
     }
 
-    // Update local form data state to reflect saved data
     setFormData(profileDataToSave);
-    
-    console.log('Profile saved successfully!', profileDataToSave);
     setIsSaving(false);
   };
+
 
   const addExperience = () => {
     const newExp = {
@@ -375,6 +363,7 @@ function JobSeekerProfile() {
             const Icon = tab.icon;
             return (
               <button
+                type="button"
                 key={tab.id}
                 onClick={() => {
                   setActiveTab(tab.id);
