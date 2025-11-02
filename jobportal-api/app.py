@@ -156,15 +156,63 @@ def profile():
     # Handle profile update (POST)
     data = request.get_json()
     profile_data = data.get("profileData", {})
-    user.profile_data = profile_data
+
+    # Merge incoming profile_data with existing profile_data (preserve other fields)
+    existing = user.profile_data or {}
+    # shallow merge for top-level; quizzes/results should be a dedicated key
+    merged = {**existing, **profile_data}
+
+    # If there are quiz results, merge those specially and compute a lightweight summary
+    incoming_quiz = profile_data.get("quizResults")
+    existing_quiz = existing.get("quizResults") if isinstance(existing, dict) else None
+
+    if incoming_quiz:
+        merged_quiz = {}
+        if existing_quiz and isinstance(existing_quiz, dict):
+            merged_quiz.update(existing_quiz)
+        # overwrite/insert incoming quiz entries
+        merged_quiz.update(incoming_quiz if isinstance(incoming_quiz, dict) else {})
+        merged["quizResults"] = merged_quiz
+
+        # simple summary computation: counts and average selected option index per quiz
+        def compute_stats(ans):
+            counts = {}
+            total = 0
+            n = 0
+
+            def walk(v):
+                nonlocal total, n
+                if isinstance(v, dict):
+                    for item in v.values():
+                        walk(item)
+                elif isinstance(v, list):
+                    for item in v:
+                        walk(item)
+                elif isinstance(v, int):
+                    counts[str(v)] = counts.get(str(v), 0) + 1
+                    total += v
+                    n += 1
+
+            walk(ans)
+            avg = (total / n) if n > 0 else None
+            return {"counts": counts, "avgIndex": avg, "n": n}
+
+        summary = {}
+        for qkey, qval in merged.get("quizResults", {}).items():
+            try:
+                summary[qkey] = compute_stats(qval)
+            except Exception:
+                summary[qkey] = {"counts": {}, "avgIndex": None, "n": 0}
+
+        merged["_quizSummary"] = summary
+
+    user.profile_data = merged
     db.session.commit()
 
     return jsonify({
         "message": "Profile updated successfully",
         "profileData": user.profile_data
     })
-
-
 
 
 if __name__ == "__main__":

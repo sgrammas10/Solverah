@@ -1,20 +1,25 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+/*import React from 'react';*/
 import { useAuth } from '../contexts/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   User, 
-  FileText, 
-  BarChart3, 
+  FileText,  
   Brain, 
   Briefcase, 
   TrendingUp,
-  Calendar,
-  MessageCircle,
-  Star
 } from 'lucide-react';
 
 function JobSeekerDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const goToProfileTab = (href?: string) => {
+    if (!href) { navigate('/job-seeker/profile'); return; }
+    const hash = href.includes('#') ? href.split('#')[1] : undefined;
+    navigate(hash
+      ? { pathname: '/job-seeker/profile', search: `?tab=${encodeURIComponent(hash)}` }
+      : '/job-seeker/profile'
+    );
+  };
 
   const stats = [
     { label: 'Profile Completion', value: '75%', icon: User, color: 'blue' },
@@ -35,19 +40,22 @@ function JobSeekerDashboard() {
       title: 'Complete Psychometric Assessment',
       description: 'Boost your profile visibility by completing our leadership assessment',
       action: 'Take Assessment',
-      priority: 'high'
+      priority: 'high',
+      href: '/job-seeker/profile#assessments'
     },
     {
       title: 'Update Performance Reviews',
       description: 'Add your latest performance review to increase match accuracy',
       action: 'Add Review',
-      priority: 'medium'
+      priority: 'medium',
+      href: '/job-seeker/profile#performance'
     },
     {
       title: 'Optimize Your Skills',
       description: 'Add 3 more skills to improve your job matching score',
       action: 'Update Skills',
-      priority: 'low'
+      priority: 'low',
+      href: '/job-seeker/profile#experience'
     }
   ];
 
@@ -77,7 +85,7 @@ function JobSeekerDashboard() {
             </div>
             <div className="ml-3">
               <Link
-                to="/job-seeker/profile"
+                to="/job-seeker/profile"  
                 className="text-sm font-medium text-yellow-600 hover:text-yellow-500"
               >
                 Complete Profile →
@@ -150,33 +158,41 @@ function JobSeekerDashboard() {
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Recommendations</h2>
             </div>
-            <div className="p-6">
               <div className="space-y-4">
                 {recommendations.map((rec, index) => (
-                  <div key={index} className="p-4 bg-gray-50 rounded-lg">
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => goToProfileTab(rec.href)}
+                    className="block w-full text-left p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+                    data-test={`rec-${index}`}
+                  >
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="font-medium text-gray-900 text-sm">{rec.title}</h3>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        rec.priority === 'high' 
-                          ? 'bg-red-100 text-red-600' 
-                          : rec.priority === 'medium'
-                          ? 'bg-yellow-100 text-yellow-600'
-                          : 'bg-gray-100 text-gray-600'
-                      }`}>
+                      <span
+                        className={`px-2 py-1 text-xs rounded-full ${
+                          rec.priority === 'high'
+                            ? 'bg-red-100 text-red-600'
+                            : rec.priority === 'medium'
+                            ? 'bg-yellow-100 text-yellow-600'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}
+                      >
                         {rec.priority}
                       </span>
                     </div>
+
                     <p className="text-xs text-gray-600 mb-3">{rec.description}</p>
-                    <button className="text-xs text-blue-600 hover:text-blue-500 font-medium">
+
+                    <span className="text-xs text-blue-600 hover:text-blue-500 font-medium">
                       {rec.action} →
-                    </button>
-                  </div>
+                    </span>
+                  </button>
                 ))}
               </div>
             </div>
           </div>
         </div>
-      </div>
 
       {/* Quick Actions */}
       <div className="mt-8">
