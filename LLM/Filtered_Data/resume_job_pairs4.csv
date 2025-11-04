@@ -1,0 +1,757 @@
+resume_text,job_text,label
+"Electrical Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: circuit design, embedded, fpga, matlab, pcb, signal processing.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","UX/UI Designer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with figma, prototyping, usability testing, wireframing. Demonstrated problem-solving and ownership.",0
+"Frontend Web Developer
+Summary: Professional with hands-on experience across the domain.
+Skills: accessibility, css, html, javascript, node, react, testing, typescript, ui.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Product Manager (SaaS)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with kpis, prioritization, roadmap, stakeholders, user research. Passion for continuous learning.",0
+"Financial Analyst
+Summary: Professional with hands-on experience across the domain.
+Skills: excel, forecasting, kpis, modeling, powerpoint, valuation.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","Data Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with airflow, cloud, data lake, etl, kafka, python, sql. Demonstrated problem-solving and ownership.",0
+"Attorney
+Summary: Professional with hands-on experience across the domain.
+Skills: compliance, contracts, legal research, litigation, negotiation, writing.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Biomedical Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with biomechanics, cad, iso 13485, medical devices, regulatory. Focus on quality, reliability, and impact.",0
+"Marketing Specialist
+Summary: Professional with hands-on experience across the domain.
+Skills: analytics, content, copywriting, email marketing, seo, social media.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Marketing Specialist (Content)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with analytics, content, seo, social media. Passion for continuous learning.",1
+"Network Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: bgp, dhcp, dns, firewalls, network security, ospf, routing, switching.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","Network Administrator
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with bgp, dhcp, dns, firewall, ospf, routing, switching. Focus on quality, reliability, and impact.",1
+"Sales Representative
+Summary: Professional with hands-on experience across the domain.
+Skills: cold calling, crm, negotiation, pipeline, prospecting, quota.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Sales Development Rep (SDR)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with crm, outbound, pipeline, prospecting, quota. Demonstrated problem-solving and ownership.",1
+"Operations Manager
+Summary: Professional with hands-on experience across the domain.
+Skills: kpis, lean, logistics, process improvement, sops, supply chain.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Operations Manager
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with kpis, lean, logistics, process improvement. Passion for continuous learning.",1
+"Frontend Web Developer
+Summary: Professional with hands-on experience across the domain.
+Skills: accessibility, css, html, javascript, node, react, testing, typescript, ui.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Frontend Engineer (React)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with accessibility, css, html, react, testing, typescript, ui. Passion for continuous learning.",1
+"Clinical Research Coordinator
+Summary: Professional with hands-on experience across the domain.
+Skills: clinical trials, data collection, irb, protocols, regulatory.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","ML Engineer (Platform)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with deployment, feature store, inference, python, pytorch, tensorflow. Focus on quality, reliability, and impact.",0
+"Chef
+Summary: Professional with hands-on experience across the domain.
+Skills: food safety, inventory, line, menu development, plating, prep.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Data Scientist (Product)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with dashboards, experimentation, ml, numpy, pandas, python, statistics. Passion for continuous learning.",0
+"Teacher (K-12)
+Summary: Professional with hands-on experience across the domain.
+Skills: assessment, classroom management, curriculum, lesson planning, student engagement.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","Teacher (K-12)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with assessment, classroom management, curriculum, lesson planning. Demonstrated problem-solving and ownership.",1
+"Civil Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: autocad, civil3d, codes, project management, structural, surveying.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Security Analyst (Blue Team)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with ids/ips, incident response, siem, wireshark. Strong collaboration and communication.",0
+"Construction Worker
+Summary: Professional with hands-on experience across the domain.
+Skills: blueprints, concrete, framing, osha, safety, tools.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Registered Nurse (RN)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with care planning, emr, medication administration, patient care, triage. Focus on quality, reliability, and impact.",0
+"UX/UI Designer
+Summary: Professional with hands-on experience across the domain.
+Skills: design systems, figma, prototyping, usability testing, user research, wireframing.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Backend Software Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with apis, c++, cloud, docker, java, microservices, python, sql. Demonstrated problem-solving and ownership.",0
+"Mechanical Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: cad, dfm, fea, manufacturing, mechanical design, solidworks.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Civil Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with autocad, civil3d, codes, project management, structural. Strong collaboration and communication.",0
+"Data Scientist
+Summary: Professional with hands-on experience across the domain.
+Skills: experimentation, ml, nlp, numpy, pandas, python, sklearn, statistics, visualization.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Sous Chef
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with food safety, inventory, line, menu development, prep. Strong collaboration and communication.",0
+"Data Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: airflow, cloud, data warehouse, etl, kafka, python, spark, sql.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Data Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with airflow, cloud, data lake, etl, kafka, python, spark, sql. Experience in fast-paced environments.",1
+"Electrical Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: circuit design, embedded, fpga, matlab, pcb, signal processing.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Frontend Engineer (React)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with accessibility, css, html, react, testing, typescript, ui. Demonstrated problem-solving and ownership.",0
+"Mechanical Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: cad, dfm, fea, manufacturing, mechanical design, solidworks.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Mechanical Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with cad, fea, manufacturing, solidworks. Strong collaboration and communication.",1
+"Mobile App Developer
+Summary: Professional with hands-on experience across the domain.
+Skills: android, ios, kotlin, mobile, push notifications, rest, swift, ui.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Civil Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with autocad, civil3d, codes, project management, structural. Strong collaboration and communication.",0
+"Product Manager
+Summary: Professional with hands-on experience across the domain.
+Skills: agile, kpis, prioritization, roadmap, stakeholders, user research.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Construction Laborer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with blueprints, concrete, framing, osha, tools. Focus on quality, reliability, and impact.",0
+"Teacher (K-12)
+Summary: Professional with hands-on experience across the domain.
+Skills: assessment, classroom management, curriculum, lesson planning, student engagement.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Teacher (K-12)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with assessment, classroom management, curriculum, lesson planning. Passion for continuous learning.",1
+"Customer Support Specialist
+Summary: Professional with hands-on experience across the domain.
+Skills: communication, knowledge base, sla, tickets, troubleshooting.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Customer Support Specialist
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with communication, sla, tickets, troubleshooting. Demonstrated problem-solving and ownership.",1
+"Product Manager
+Summary: Professional with hands-on experience across the domain.
+Skills: agile, kpis, prioritization, roadmap, stakeholders, user research.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","Product Manager (SaaS)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with agile, prioritization, roadmap, stakeholders, user research. Experience in fast-paced environments.",1
+"DevOps Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: aws, ci/cd, docker, gcp, kubernetes, linux, monitoring, terraform.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","DevOps Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with aws, ci/cd, docker, kubernetes, monitoring, terraform. Passion for continuous learning.",1
+"Financial Analyst
+Summary: Professional with hands-on experience across the domain.
+Skills: excel, forecasting, kpis, modeling, powerpoint, valuation.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Mechanical Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with cad, fea, manufacturing, solidworks, tolerancing. Demonstrated problem-solving and ownership.",0
+"Cybersecurity Analyst
+Summary: Professional with hands-on experience across the domain.
+Skills: ids/ips, incident response, malware analysis, siem, threat intel, wireshark.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Security Analyst (Blue Team)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with ids/ips, incident response, siem, wireshark. Passion for continuous learning.",1
+"Electrical Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: circuit design, embedded, fpga, matlab, pcb, signal processing.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Data Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with airflow, cloud, data lake, etl, kafka, python, spark, sql. Passion for continuous learning.",0
+"Site Reliability Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: automation, bash, go, incident response, kubernetes, linux, observability, slo.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Teacher (K-12)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with assessment, classroom management, curriculum, lesson planning. Focus on quality, reliability, and impact.",0
+"DevOps Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: aws, ci/cd, docker, gcp, kubernetes, linux, monitoring, terraform.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Frontend Engineer (React)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with accessibility, css, html, javascript, react, testing, typescript, ui. Focus on quality, reliability, and impact.",0
+"Teacher (K-12)
+Summary: Professional with hands-on experience across the domain.
+Skills: assessment, classroom management, curriculum, lesson planning, student engagement.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Product Manager (SaaS)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with kpis, prioritization, roadmap, stakeholders, user research. Demonstrated problem-solving and ownership.",0
+"Construction Worker
+Summary: Professional with hands-on experience across the domain.
+Skills: blueprints, concrete, framing, osha, safety, tools.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Construction Laborer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with blueprints, concrete, framing, osha, tools. Focus on quality, reliability, and impact.",1
+"UX/UI Designer
+Summary: Professional with hands-on experience across the domain.
+Skills: design systems, figma, prototyping, usability testing, user research, wireframing.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","UX/UI Designer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with figma, prototyping, usability testing, wireframing. Experience in fast-paced environments.",1
+"UX/UI Designer
+Summary: Professional with hands-on experience across the domain.
+Skills: design systems, figma, prototyping, usability testing, user research, wireframing.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","UX/UI Designer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with prototyping, usability testing, user research, wireframing. Focus on quality, reliability, and impact.",1
+"Data Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: airflow, cloud, data warehouse, etl, kafka, python, spark, sql.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Backend Software Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with apis, c++, cloud, docker, java, microservices, python, sql. Demonstrated problem-solving and ownership.",1
+"Construction Worker
+Summary: Professional with hands-on experience across the domain.
+Skills: blueprints, concrete, framing, osha, safety, tools.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","Staff Accountant
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with ap/ar, excel, financial statements, gaap, reconciliation. Focus on quality, reliability, and impact.",0
+"Machine Learning Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: data pipelines, deployment, inference, mlops, python, pytorch, tensorflow.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","ML Engineer (Platform)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with deployment, feature store, inference, python, pytorch, tensorflow. Experience in fast-paced environments.",1
+"Civil Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: autocad, civil3d, codes, project management, structural, surveying.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Frontend Engineer (React)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with accessibility, css, html, javascript, react, testing, typescript, ui. Strong collaboration and communication.",0
+"Civil Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: autocad, civil3d, codes, project management, structural, surveying.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Customer Support Specialist
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with communication, sla, tickets, troubleshooting. Passion for continuous learning.",0
+"Site Reliability Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: automation, bash, go, incident response, kubernetes, linux, observability, slo.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","SRE
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with automation, incident response, kubernetes, linux, observability, slo. Strong collaboration and communication.",1
+"Operations Manager
+Summary: Professional with hands-on experience across the domain.
+Skills: kpis, lean, logistics, process improvement, sops, supply chain.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Operations Manager
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with kpis, lean, logistics, process improvement, supply chain. Demonstrated problem-solving and ownership.",1
+"Software Backend Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: c++, cloud, docker, java, linux, microservices, python, rest, sql.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Backend Software Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with apis, c++, cloud, docker, java, microservices, python, sql. Strong collaboration and communication.",1
+"Attorney
+Summary: Professional with hands-on experience across the domain.
+Skills: compliance, contracts, legal research, litigation, negotiation, writing.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Security Analyst (Blue Team)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with ids/ips, incident response, siem, wireshark. Demonstrated problem-solving and ownership.",0
+"Site Reliability Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: automation, bash, go, incident response, kubernetes, linux, observability, slo.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","SRE
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with automation, incident response, kubernetes, linux, observability, slo. Passion for continuous learning.",1
+"Biomedical Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: biomechanics, cad, clinical standards, medical devices, regulatory.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Biomedical Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with biomechanics, cad, iso 13485, medical devices, regulatory. Focus on quality, reliability, and impact.",1
+"Frontend Web Developer
+Summary: Professional with hands-on experience across the domain.
+Skills: accessibility, css, html, javascript, node, react, testing, typescript, ui.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","ML Engineer (Platform)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with deployment, feature store, inference, python, pytorch, tensorflow. Focus on quality, reliability, and impact.",0
+"Financial Analyst
+Summary: Professional with hands-on experience across the domain.
+Skills: excel, forecasting, kpis, modeling, powerpoint, valuation.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Financial Analyst
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with excel, forecasting, modeling, valuation. Demonstrated problem-solving and ownership.",1
+"Biomedical Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: biomechanics, cad, clinical standards, medical devices, regulatory.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Biomedical Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with biomechanics, cad, iso 13485, regulatory. Experience in fast-paced environments.",1
+"Attorney
+Summary: Professional with hands-on experience across the domain.
+Skills: compliance, contracts, legal research, litigation, negotiation, writing.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Attorney (Corporate)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with compliance, contracts, drafting, legal research, negotiation. Experience in fast-paced environments.",1
+"Data Scientist
+Summary: Professional with hands-on experience across the domain.
+Skills: experimentation, ml, nlp, numpy, pandas, python, sklearn, statistics, visualization.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Operations Manager
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with kpis, lean, logistics, process improvement, supply chain. Strong collaboration and communication.",0
+"Attorney
+Summary: Professional with hands-on experience across the domain.
+Skills: compliance, contracts, legal research, litigation, negotiation, writing.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","DevOps Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with aws, ci/cd, docker, kubernetes, monitoring, terraform. Demonstrated problem-solving and ownership.",0
+"Graphic Designer
+Summary: Professional with hands-on experience across the domain.
+Skills: adobe cc, assets, branding, illustration, layout, typography.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Graphic Designer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with adobe cc, illustration, layout, typography. Strong collaboration and communication.",1
+"DevOps Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: aws, ci/cd, docker, gcp, kubernetes, linux, monitoring, terraform.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Sous Chef
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with food safety, inventory, line, menu development, prep. Strong collaboration and communication.",0
+"Civil Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: autocad, civil3d, codes, project management, structural, surveying.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Electrical Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with circuit design, embedded, fpga, matlab, pcb. Demonstrated problem-solving and ownership.",0
+"Civil Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: autocad, civil3d, codes, project management, structural, surveying.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Civil Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with autocad, civil3d, codes, project management, structural. Demonstrated problem-solving and ownership.",1
+"Software Backend Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: c++, cloud, docker, java, linux, microservices, python, rest, sql.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","Data Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with airflow, cloud, data lake, etl, kafka, python, spark, sql. Passion for continuous learning.",1
+"Nurse (RN)
+Summary: Professional with hands-on experience across the domain.
+Skills: care planning, emr, medication administration, patient care, triage, vitals.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Registered Nurse (RN)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with care planning, emr, medication administration, patient care, triage. Experience in fast-paced environments.",1
+"Machine Learning Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: data pipelines, deployment, inference, mlops, python, pytorch, tensorflow.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Frontend Engineer (React)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with accessibility, css, html, react, testing, typescript, ui. Focus on quality, reliability, and impact.",0
+"Accountant
+Summary: Professional with hands-on experience across the domain.
+Skills: ap/ar, audit, excel, financial statements, gaap, reconciliation.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Staff Accountant
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with ap/ar, excel, financial statements, gaap, reconciliation. Passion for continuous learning.",1
+"Network Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: bgp, dhcp, dns, firewalls, network security, ospf, routing, switching.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Network Administrator
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with bgp, dhcp, dns, firewall, ospf, routing, switching. Strong collaboration and communication.",1
+"Clinical Research Coordinator
+Summary: Professional with hands-on experience across the domain.
+Skills: clinical trials, data collection, irb, protocols, regulatory.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Clinical Research Coordinator
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with clinical trials, crf, gcp, irb, protocols. Demonstrated problem-solving and ownership.",1
+"Customer Support Specialist
+Summary: Professional with hands-on experience across the domain.
+Skills: communication, knowledge base, sla, tickets, troubleshooting.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Product Manager (SaaS)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with agile, prioritization, roadmap, stakeholders, user research. Strong collaboration and communication.",0
+"Civil Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: autocad, civil3d, codes, project management, structural, surveying.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Civil Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with autocad, civil3d, codes, project management, structural. Experience in fast-paced environments.",1
+"Operations Manager
+Summary: Professional with hands-on experience across the domain.
+Skills: kpis, lean, logistics, process improvement, sops, supply chain.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Civil Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with autocad, civil3d, codes, project management, structural. Focus on quality, reliability, and impact.",0
+"Financial Analyst
+Summary: Professional with hands-on experience across the domain.
+Skills: excel, forecasting, kpis, modeling, powerpoint, valuation.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","SRE
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with automation, incident response, kubernetes, linux, observability, slo. Focus on quality, reliability, and impact.",0
+"Frontend Web Developer
+Summary: Professional with hands-on experience across the domain.
+Skills: accessibility, css, html, javascript, node, react, testing, typescript, ui.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Clinical Research Coordinator
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with clinical trials, crf, gcp, irb, protocols. Focus on quality, reliability, and impact.",0
+"Accountant
+Summary: Professional with hands-on experience across the domain.
+Skills: ap/ar, audit, excel, financial statements, gaap, reconciliation.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Operations Manager
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with kpis, lean, logistics, process improvement, supply chain. Passion for continuous learning.",0
+"Accountant
+Summary: Professional with hands-on experience across the domain.
+Skills: ap/ar, audit, excel, financial statements, gaap, reconciliation.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Staff Accountant
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with ap/ar, excel, financial statements, gaap, reconciliation. Focus on quality, reliability, and impact.",1
+"Machine Learning Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: data pipelines, deployment, inference, mlops, python, pytorch, tensorflow.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","ML Engineer (Platform)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with deployment, feature store, inference, mlops, python, pytorch, tensorflow. Demonstrated problem-solving and ownership.",1
+"Electrical Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: circuit design, embedded, fpga, matlab, pcb, signal processing.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Mechanical Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with cad, fea, manufacturing, solidworks. Strong collaboration and communication.",0
+"Network Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: bgp, dhcp, dns, firewalls, network security, ospf, routing, switching.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Backend Software Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with apis, c++, cloud, docker, java, linux, microservices, python. Demonstrated problem-solving and ownership.",0
+"Accountant
+Summary: Professional with hands-on experience across the domain.
+Skills: ap/ar, audit, excel, financial statements, gaap, reconciliation.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","UX/UI Designer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with prototyping, usability testing, user research, wireframing. Experience in fast-paced environments.",0
+"Clinical Research Coordinator
+Summary: Professional with hands-on experience across the domain.
+Skills: clinical trials, data collection, irb, protocols, regulatory.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Clinical Research Coordinator
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with clinical trials, crf, gcp, irb, protocols. Demonstrated problem-solving and ownership.",1
+"DevOps Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: aws, ci/cd, docker, gcp, kubernetes, linux, monitoring, terraform.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","DevOps Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with aws, ci/cd, docker, kubernetes, linux, monitoring, terraform. Strong collaboration and communication.",1
+"Teacher (K-12)
+Summary: Professional with hands-on experience across the domain.
+Skills: assessment, classroom management, curriculum, lesson planning, student engagement.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Data Scientist (Product)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with dashboards, experimentation, ml, numpy, pandas, python, statistics. Focus on quality, reliability, and impact.",0
+"Software Backend Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: c++, cloud, docker, java, linux, microservices, python, rest, sql.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Data Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with airflow, cloud, data lake, etl, kafka, python, sql. Strong collaboration and communication.",1
+"Site Reliability Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: automation, bash, go, incident response, kubernetes, linux, observability, slo.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Backend Software Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with apis, c++, cloud, docker, java, linux, microservices, python. Experience in fast-paced environments.",0
+"Sales Representative
+Summary: Professional with hands-on experience across the domain.
+Skills: cold calling, crm, negotiation, pipeline, prospecting, quota.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Teacher (K-12)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with assessment, classroom management, curriculum, lesson planning. Demonstrated problem-solving and ownership.",0
+"Data Scientist
+Summary: Professional with hands-on experience across the domain.
+Skills: experimentation, ml, nlp, numpy, pandas, python, sklearn, statistics, visualization.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Sous Chef
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with food safety, inventory, line, menu development, prep. Strong collaboration and communication.",0
+"Data Scientist
+Summary: Professional with hands-on experience across the domain.
+Skills: experimentation, ml, nlp, numpy, pandas, python, sklearn, statistics, visualization.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","Data Scientist (Product)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with dashboards, experimentation, numpy, pandas, python, statistics. Experience in fast-paced environments.",1
+"Frontend Web Developer
+Summary: Professional with hands-on experience across the domain.
+Skills: accessibility, css, html, javascript, node, react, testing, typescript, ui.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Frontend Engineer (React)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with accessibility, css, html, javascript, react, testing, typescript, ui. Passion for continuous learning.",1
+"Financial Analyst
+Summary: Professional with hands-on experience across the domain.
+Skills: excel, forecasting, kpis, modeling, powerpoint, valuation.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Financial Analyst
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with excel, forecasting, kpis, modeling, valuation. Strong collaboration and communication.",1
+"Network Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: bgp, dhcp, dns, firewalls, network security, ospf, routing, switching.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","SRE
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with automation, incident response, kubernetes, linux, observability, slo. Experience in fast-paced environments.",0
+"Operations Manager
+Summary: Professional with hands-on experience across the domain.
+Skills: kpis, lean, logistics, process improvement, sops, supply chain.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Mobile Engineer (iOS/Android)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with android, app store, ios, mobile, swift, ui. Experience in fast-paced environments.",0
+"Financial Analyst
+Summary: Professional with hands-on experience across the domain.
+Skills: excel, forecasting, kpis, modeling, powerpoint, valuation.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","UX/UI Designer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with figma, prototyping, usability testing, wireframing. Passion for continuous learning.",0
+"Nurse (RN)
+Summary: Professional with hands-on experience across the domain.
+Skills: care planning, emr, medication administration, patient care, triage, vitals.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Registered Nurse (RN)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with care planning, emr, medication administration, patient care, triage. Experience in fast-paced environments.",1
+"Frontend Web Developer
+Summary: Professional with hands-on experience across the domain.
+Skills: accessibility, css, html, javascript, node, react, testing, typescript, ui.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Mobile Engineer (iOS/Android)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with android, app store, kotlin, mobile, swift, ui. Passion for continuous learning.",0
+"Graphic Designer
+Summary: Professional with hands-on experience across the domain.
+Skills: adobe cc, assets, branding, illustration, layout, typography.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Graphic Designer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with adobe cc, branding, illustration, layout, typography. Focus on quality, reliability, and impact.",1
+"Attorney
+Summary: Professional with hands-on experience across the domain.
+Skills: compliance, contracts, legal research, litigation, negotiation, writing.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Attorney (Corporate)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with compliance, contracts, drafting, legal research, negotiation. Focus on quality, reliability, and impact.",1
+"Civil Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: autocad, civil3d, codes, project management, structural, surveying.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","ML Engineer (Platform)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with deployment, feature store, inference, mlops, python, pytorch, tensorflow. Passion for continuous learning.",0
+"Electrical Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: circuit design, embedded, fpga, matlab, pcb, signal processing.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Electrical Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with circuit design, embedded, fpga, matlab, pcb. Experience in fast-paced environments.",1
+"Chef
+Summary: Professional with hands-on experience across the domain.
+Skills: food safety, inventory, line, menu development, plating, prep.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Sous Chef
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with food safety, inventory, line, menu development, prep. Demonstrated problem-solving and ownership.",1
+"Teacher (K-12)
+Summary: Professional with hands-on experience across the domain.
+Skills: assessment, classroom management, curriculum, lesson planning, student engagement.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Operations Manager
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with kpis, lean, logistics, process improvement, supply chain. Strong collaboration and communication.",0
+"Chef
+Summary: Professional with hands-on experience across the domain.
+Skills: food safety, inventory, line, menu development, plating, prep.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","Electrical Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with circuit design, embedded, fpga, matlab, pcb. Focus on quality, reliability, and impact.",0
+"Biomedical Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: biomechanics, cad, clinical standards, medical devices, regulatory.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Project Manager (Tech)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with agile, risk management, scheduling, scrum, stakeholders. Demonstrated problem-solving and ownership.",0
+"Customer Support Specialist
+Summary: Professional with hands-on experience across the domain.
+Skills: communication, knowledge base, sla, tickets, troubleshooting.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","Customer Support Specialist
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with communication, sla, tickets, troubleshooting. Focus on quality, reliability, and impact.",1
+"Cybersecurity Analyst
+Summary: Professional with hands-on experience across the domain.
+Skills: ids/ips, incident response, malware analysis, siem, threat intel, wireshark.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Security Analyst (Blue Team)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with ids/ips, incident response, siem, wireshark. Demonstrated problem-solving and ownership.",1
+"Mobile App Developer
+Summary: Professional with hands-on experience across the domain.
+Skills: android, ios, kotlin, mobile, push notifications, rest, swift, ui.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Mobile Engineer (iOS/Android)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with android, app store, ios, mobile, swift, ui. Strong collaboration and communication.",1
+"Chef
+Summary: Professional with hands-on experience across the domain.
+Skills: food safety, inventory, line, menu development, plating, prep.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Sous Chef
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with food safety, inventory, line, menu development, prep. Passion for continuous learning.",1
+"Operations Manager
+Summary: Professional with hands-on experience across the domain.
+Skills: kpis, lean, logistics, process improvement, sops, supply chain.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Frontend Engineer (React)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with accessibility, css, html, react, testing, typescript, ui. Passion for continuous learning.",0
+"Software Backend Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: c++, cloud, docker, java, linux, microservices, python, rest, sql.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Backend Software Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with apis, c++, cloud, docker, java, linux, microservices, python. Experience in fast-paced environments.",1
+"Product Manager
+Summary: Professional with hands-on experience across the domain.
+Skills: agile, kpis, prioritization, roadmap, stakeholders, user research.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","Product Manager (SaaS)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with kpis, prioritization, roadmap, stakeholders, user research. Experience in fast-paced environments.",1
+"Mobile App Developer
+Summary: Professional with hands-on experience across the domain.
+Skills: android, ios, kotlin, mobile, push notifications, rest, swift, ui.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Mobile Engineer (iOS/Android)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with android, app store, kotlin, mobile, swift, ui. Focus on quality, reliability, and impact.",1
+"Project Manager
+Summary: Professional with hands-on experience across the domain.
+Skills: agile, budgeting, risk management, scheduling, scrum, stakeholders.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Project Manager (Tech)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with agile, risk management, scheduling, scrum, stakeholders. Demonstrated problem-solving and ownership.",1
+"Electrical Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: circuit design, embedded, fpga, matlab, pcb, signal processing.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Product Manager (SaaS)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with agile, prioritization, roadmap, stakeholders, user research. Focus on quality, reliability, and impact.",0
+"Civil Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: autocad, civil3d, codes, project management, structural, surveying.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Data Scientist (Product)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with dashboards, experimentation, numpy, pandas, python, statistics. Passion for continuous learning.",0
+"Marketing Specialist
+Summary: Professional with hands-on experience across the domain.
+Skills: analytics, content, copywriting, email marketing, seo, social media.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Passion for continuous learning.","Marketing Specialist (Content)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with analytics, content, email marketing, social media. Demonstrated problem-solving and ownership.",1
+"Data Scientist
+Summary: Professional with hands-on experience across the domain.
+Skills: experimentation, ml, nlp, numpy, pandas, python, sklearn, statistics, visualization.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Data Scientist (Product)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with dashboards, experimentation, ml, numpy, pandas, python, statistics. Strong collaboration and communication.",1
+"Frontend Web Developer
+Summary: Professional with hands-on experience across the domain.
+Skills: accessibility, css, html, javascript, node, react, testing, typescript, ui.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","Security Analyst (Blue Team)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with ids/ips, incident response, siem, wireshark. Passion for continuous learning.",0
+"Sales Representative
+Summary: Professional with hands-on experience across the domain.
+Skills: cold calling, crm, negotiation, pipeline, prospecting, quota.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Sales Development Rep (SDR)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with crm, outbound, pipeline, prospecting, quota. Focus on quality, reliability, and impact.",1
+"Project Manager
+Summary: Professional with hands-on experience across the domain.
+Skills: agile, budgeting, risk management, scheduling, scrum, stakeholders.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Attorney (Corporate)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with compliance, contracts, drafting, legal research, negotiation. Demonstrated problem-solving and ownership.",0
+"Accountant
+Summary: Professional with hands-on experience across the domain.
+Skills: ap/ar, audit, excel, financial statements, gaap, reconciliation.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","DevOps Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with aws, ci/cd, docker, kubernetes, linux, monitoring, terraform. Demonstrated problem-solving and ownership.",0
+"Sales Representative
+Summary: Professional with hands-on experience across the domain.
+Skills: cold calling, crm, negotiation, pipeline, prospecting, quota.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Customer Support Specialist
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with communication, sla, tickets, troubleshooting. Focus on quality, reliability, and impact.",0
+"Teacher (K-12)
+Summary: Professional with hands-on experience across the domain.
+Skills: assessment, classroom management, curriculum, lesson planning, student engagement.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","Graphic Designer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with adobe cc, branding, illustration, layout, typography. Focus on quality, reliability, and impact.",0
+"Data Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: airflow, cloud, data warehouse, etl, kafka, python, spark, sql.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Data Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with airflow, cloud, data lake, etl, kafka, python, sql. Focus on quality, reliability, and impact.",1
+"Construction Worker
+Summary: Professional with hands-on experience across the domain.
+Skills: blueprints, concrete, framing, osha, safety, tools.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Construction Laborer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with blueprints, concrete, framing, osha, tools. Strong collaboration and communication.",1
+"Financial Analyst
+Summary: Professional with hands-on experience across the domain.
+Skills: excel, forecasting, kpis, modeling, powerpoint, valuation.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Staff Accountant
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with ap/ar, excel, financial statements, gaap, reconciliation. Experience in fast-paced environments.",0
+"Accountant
+Summary: Professional with hands-on experience across the domain.
+Skills: ap/ar, audit, excel, financial statements, gaap, reconciliation.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","SRE
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with automation, incident response, kubernetes, linux, observability, slo. Experience in fast-paced environments.",0
+"Electrical Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: circuit design, embedded, fpga, matlab, pcb, signal processing.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Electrical Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with circuit design, embedded, fpga, matlab, pcb. Passion for continuous learning.",1
+"Customer Support Specialist
+Summary: Professional with hands-on experience across the domain.
+Skills: communication, knowledge base, sla, tickets, troubleshooting.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Strong collaboration and communication.","Backend Software Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with apis, c++, cloud, docker, java, linux, microservices, python. Passion for continuous learning.",0
+"Product Manager
+Summary: Professional with hands-on experience across the domain.
+Skills: agile, kpis, prioritization, roadmap, stakeholders, user research.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Project Manager (Tech)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with agile, risk management, scheduling, scrum, stakeholders. Experience in fast-paced environments.",0
+"Teacher (K-12)
+Summary: Professional with hands-on experience across the domain.
+Skills: assessment, classroom management, curriculum, lesson planning, student engagement.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Demonstrated problem-solving and ownership.","Project Manager (Tech)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with agile, risk management, scheduling, scrum, stakeholders. Demonstrated problem-solving and ownership.",0
+"Mechanical Engineer
+Summary: Professional with hands-on experience across the domain.
+Skills: cad, dfm, fea, manufacturing, mechanical design, solidworks.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Mechanical Engineer
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with cad, fea, manufacturing, solidworks, tolerancing. Demonstrated problem-solving and ownership.",1
+"Financial Analyst
+Summary: Professional with hands-on experience across the domain.
+Skills: excel, forecasting, kpis, modeling, powerpoint, valuation.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Focus on quality, reliability, and impact.","Marketing Specialist (Content)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with analytics, content, email marketing, social media. Passion for continuous learning.",0
+"Project Manager
+Summary: Professional with hands-on experience across the domain.
+Skills: agile, budgeting, risk management, scheduling, scrum, stakeholders.
+Highlights: Delivered projects end-to-end; worked cross-functionally; documented results. Experience in fast-paced environments.","Project Manager (Tech)
+Responsibilities: Contribute across the team and deliver high-quality outcomes.
+Requirements: experience with agile, risk management, scheduling, scrum, stakeholders. Strong collaboration and communication.",1

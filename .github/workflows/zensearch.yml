@@ -1,0 +1,39 @@
+name: Run ZenSearch Scraper
+
+on:
+  schedule:
+    - cron: "0 0 */2 * *"  # Runs at midnight every 2nd day
+  workflow_dispatch:        # Manual trigger for testing
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+        
+
+
+      - name: Use Node.js 
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+
+      - name: Install Dependencies
+        run: npm install  # Installs required Node.js dependencies
+
+      - name: Run Scraper
+        run: node Scripts/zensearch/zensearch.js run  # Runs scraper directly
+
+      - name: Commit Results
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          git add .
+          git commit -m "Auto-scraped job data [$(date)]" || echo "No changes to commit"
+          git push origin main  # Explicitly push changes
+

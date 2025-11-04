@@ -37,7 +37,7 @@ function Register() {
       await register(formData.email, formData.password, formData.name, formData.role);
       const redirectPath = formData.role === 'job-seeker' ? '/job-seeker/profile' : '/recruiter/profile';
       navigate(redirectPath);
-    } catch (err) {
+    } catch {
       setError('Failed to create account. Please try again.');
     } finally {
       setLoading(false);
