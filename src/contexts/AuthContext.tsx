@@ -61,7 +61,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!res.ok) {
-      throw new Error(`API error: ${res.status}`);
+      // Try to parse a JSON error payload from the backend (e.g. { error: 'User already exists' })
+      try {
+        const errJson = await res.json();
+        const errMessage = (errJson && (errJson.error || errJson.message)) ? (errJson.error || errJson.message) : `API error: ${res.status}`;
+        throw new Error(String(errMessage));
+      } catch {
+        // if parsing fails, fall back to status code message
+        throw new Error(`API error: ${res.status}`);
+      }
     }
 
     const json = await res.json();
