@@ -37,8 +37,15 @@ function Register() {
       await register(formData.email, formData.password, formData.name, formData.role);
       const redirectPath = formData.role === 'job-seeker' ? '/job-seeker/profile' : '/recruiter/profile';
       navigate(redirectPath);
-    } catch {
-      setError('Failed to create account. Please try again.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes('User already exists') || message.toLowerCase().includes('already exists')) {
+        setError('An account with that email already exists');
+      } else if (message.includes('409') || message.includes('400')) {
+        setError('Failed to create account. Please check your input and try again.');
+      } else {
+        setError(message || 'Failed to create account. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
