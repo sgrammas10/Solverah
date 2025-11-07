@@ -19,6 +19,7 @@ function JobSeekerProfile() {
   const { user, updateProfile, updateProfileData, fetchProfileData, saveProfileData } = useAuth();
   const [activeTab, setActiveTab] = useState('personal');
   const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(true);
   const [uploadedResume, setUploadedResume] = useState<File | null>(null);
   const [resumeUploaded, setResumeUploaded] = useState(false);
 
@@ -105,26 +106,44 @@ useEffect(() => {
         type: uploadedResume.type
       } : (resumeUploaded ? formData.uploadedResume : null)
     };
-    
+  
+
+
+
     // Update the user's name in the auth context
     const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
     updateProfile({ name: fullName, profileComplete: true });
     
-    // Save the profile data to localStorage via context
+    // Save locally and to backend
     updateProfileData(profileDataToSave);
-    
-
-    //Save to backend via API
     await saveProfileData(profileDataToSave);
     console.log('Profile saved to backend!');
 
+    // Build AI pipeline automatically
+    const pipeline = buildProfilePipeline();
+    const stringified = JSON.stringify(pipeline, null, 2);
 
-    // Update local form data state to reflect saved data
+    console.log("AI Profile Pipeline:", stringified);
+
+    // Update local form data
     setFormData(profileDataToSave);
-    
-    console.log('Profile saved successfully!', profileDataToSave);
     setIsSaving(false);
+    setIsSaved(true);
+
   };
+
+   //Warns about leaving without saving
+   useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isSaved) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+  
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isSaved]);
        
   const buildProfilePipeline = () => {
     const sections: { section: string; content: string }[] = [];
@@ -254,6 +273,13 @@ useEffect(() => {
     });
   };
 
+
+  const handleChange = (field: string, value: any) => {
+    setFormData({ ...formData, [field]: value });
+    setIsSaved(false);
+  };
+  
+
   const tabs = [
     { id: 'personal', label: 'Personal Info', icon: User },
     { id: 'experience', label: 'Experience', icon: Briefcase },
@@ -294,6 +320,12 @@ useEffect(() => {
         </nav>
       </div>
 
+      
+      {!isSaved && (
+      <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md">
+           You have unsaved changes — don't forget to click <b>Save Profile</b>.
+      </div>
+      )}
       <form onSubmit={handleSubmit}>
         {/* Personal Info Tab */}
         {activeTab === 'personal' && (
@@ -309,7 +341,7 @@ useEffect(() => {
                   <input
                     type="text"
                     value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    onChange={(e) => handleChange("firstName", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -321,7 +353,7 @@ useEffect(() => {
                   <input
                     type="text"
                     value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    onChange={(e) => handleChange("lastName", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -333,7 +365,7 @@ useEffect(() => {
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => handleChange("email", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -345,7 +377,7 @@ useEffect(() => {
                   <input
                     type="tel"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => handleChange("phone", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -357,7 +389,7 @@ useEffect(() => {
                   <input
                     type="text"
                     value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    onChange={(e) => handleChange("location", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -369,7 +401,7 @@ useEffect(() => {
                   <textarea
                     rows={4}
                     value={formData.summary}
-                    onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+                    onChange={(e) => handleChange("summary", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Brief summary of your professional background and career goals..."
                   />
@@ -794,17 +826,6 @@ useEffect(() => {
             className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
             {isSaving ? 'Saving...' : 'Save Profile'}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const pipeline = buildProfilePipeline();
-              const stringified = JSON.stringify(pipeline, null, 2);
-              console.log("List:", stringified);
-              alert("pipeline logged to console");
-            }}
-            className="ml-4 px-6 py-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 font-medium"
-          >
           </button>
         </div>
       </form>
