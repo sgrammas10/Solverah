@@ -24,7 +24,7 @@ def sorted_mlscores(profile_text):
     for _, row in jobs_df.iterrows():
         job_text = row['RoleDescription']
         score = profile_to_model(profile_text, job_text)
-        scores.append((row['ID'], score))
+        scores.append((row['ID'], score, job_text))
 
     # Sort scores in descending order
     sorted_scores = sorted(scores, key=lambda x: x[1], reverse=True)
