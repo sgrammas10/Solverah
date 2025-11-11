@@ -68,8 +68,28 @@ function formatDateUS(dateStr?: string) {
   return `${mm}/${dd}/${yyyy}`;
 }
 
+function formatExperience(exp?: string) {
+  if (!exp) return 'Not specified.';
+  const trimmed = exp.trim();
+  if (!trimmed) return 'Not specified.';
+  if (/^(not\s*specified|n\/a|na|unspecified)$/i.test(trimmed)) return 'Not specified.';
+  const m = trimmed.match(/\d+/);
+  if (!m) {
+    return trimmed;
+  }
+  const n = parseInt(m[0], 10);
+  if (n === 1) return '1 year';
+  return `${n} years`;
+}
+
 function JobRecommendations() {
   const [jobs, setJobs] = React.useState<any[]>([]);
+  const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
+
+  function toggleExpanded(id: string | number) {
+    const key = String(id);
+    setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
 
   useEffect(() => {
     try {
@@ -100,8 +120,11 @@ function JobRecommendations() {
 
   return (
     <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-      {jobs.map((job, idx) => (
-        <div key={job.ID || idx} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm">
+      {jobs.map((job, idx) => {
+        const idKey = job.ID ?? idx;
+        const isExpanded = !!expanded[String(idKey)];
+        return (
+          <div key={idKey} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm">
           <div className="flex items-start justify-between">
             <div>
               <a
@@ -127,11 +150,21 @@ function JobRecommendations() {
           </div>
 
           {job.RoleDescription ? (
-            <p className="text-sm text-gray-700 mt-3 whitespace-pre-line">{truncate(job.RoleDescription, 300)}</p>
+            <p
+              role="button"
+              aria-expanded={isExpanded}
+              onClick={() => toggleExpanded(idKey)}
+              className="text-sm text-gray-700 mt-3 whitespace-pre-line cursor-pointer"
+            >
+              {isExpanded ? job.RoleDescription : truncate(job.RoleDescription, 300)}
+              {!isExpanded && job.RoleDescription.length > 300 ? (
+                <span className="text-blue-600">  (click to expand)</span>
+              ) : null}
+            </p>
           ) : null}
 
           <div className="mt-3 flex items-center justify-between">
-            <div className="text-sm text-gray-500">Experience: {job.Experience || 'N/A'} Years</div>
+            <div className="text-sm text-gray-500">Experience: {formatExperience(job.Experience)}</div>
             <div className="flex items-center gap-2">
               <a
                 href={job.Link || '#'}
@@ -144,7 +177,8 @@ function JobRecommendations() {
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
