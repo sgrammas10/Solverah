@@ -11,47 +11,47 @@ import {
 } from 'lucide-react';
 // import the CSV as a raw string using Vite's ?raw
 // @ts-ignore
-import jobCsv from '../../zensearchData/job_postings.csv?raw';
+//import jobCsv from '../../zensearchData/job_postings.csv?raw';
 
 // simple CSV parser that handles quoted fields and escaped quotes
-function parseCSV(raw: string) {
-  const rows: string[][] = [];
-  let cur = '';
-  let row: string[] = [];
-  let inQuotes = false;
-  for (let i = 0; i < raw.length; i++) {
-    const ch = raw[i];
-    if (ch === '"') {
-      if (inQuotes && raw[i + 1] === '"') {
-        cur += '"';
-        i++; // skip escaped quote
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (ch === ',' && !inQuotes) {
-      row.push(cur);
-      cur = '';
-    } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
-      // handle CRLF or LF
-      if (ch === '\r' && raw[i + 1] === '\n') {
-        // skip, let the \n handle pushing
-      }
-      if (cur !== '' || row.length > 0) {
-        row.push(cur);
-        rows.push(row);
-        row = [];
-        cur = '';
-      }
-    } else {
-      cur += ch;
-    }
-  }
-  if (cur !== '' || row.length > 0) {
-    row.push(cur);
-    rows.push(row);
-  }
-  return rows;
-}
+// function parseCSV(raw: string) {
+//   const rows: string[][] = [];
+//   let cur = '';
+//   let row: string[] = [];
+//   let inQuotes = false;
+//   for (let i = 0; i < raw.length; i++) {
+//     const ch = raw[i];
+//     if (ch === '"') {
+//       if (inQuotes && raw[i + 1] === '"') {
+//         cur += '"';
+//         i++; // skip escaped quote
+//       } else {
+//         inQuotes = !inQuotes;
+//       }
+//     } else if (ch === ',' && !inQuotes) {
+//       row.push(cur);
+//       cur = '';
+//     } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+//       // handle CRLF or LF
+//       if (ch === '\r' && raw[i + 1] === '\n') {
+//         // skip, let the \n handle pushing
+//       }
+//       if (cur !== '' || row.length > 0) {
+//         row.push(cur);
+//         rows.push(row);
+//         row = [];
+//         cur = '';
+//       }
+//     } else {
+//       cur += ch;
+//     }
+//   }
+//   if (cur !== '' || row.length > 0) {
+//     row.push(cur);
+//     rows.push(row);
+//   }
+//   return rows;
+// }
 
 function truncate(text: string, n = 220) {
   if (!text) return '';
@@ -68,32 +68,116 @@ function formatDateUS(dateStr?: string) {
   return `${mm}/${dd}/${yyyy}`;
 }
 
+// function JobRecommendations() {
+//   const [jobs, setJobs] = React.useState<any[]>([]);
+
+//   useEffect(() => {
+//     try {
+//       const rows = parseCSV(String(jobCsv || ''));
+//       if (!rows || rows.length < 2) return;
+//       const headers = rows[0].map((h) => h.replace(/^"|"$/g, '').trim());
+//       const data = rows.slice(1).map((r) => {
+//         const obj: any = {};
+//         headers.forEach((h, i) => (obj[h] = (r[i] ?? '').replace(/^"|"$/g, '').trim()));
+//         return obj;
+//       });
+//       setJobs(data.slice(0, 25));
+//     } catch (err) {
+//       // fallback: empty
+//       setJobs([]);
+//     }
+//   }, []);
+
+//   if (!jobs.length) {
+//     return (
+//       <div className="text-center py-12">
+//         <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+//         <h3 className="text-lg font-medium text-gray-900 mb-2">Job recommendations coming soon</h3>
+//         <p className="text-gray-600">Complete your profile to start receiving personalized job recommendations.</p>
+//       </div>
+//     );
+//   }
+
+//   return (
+//     <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+//       {jobs.map((job, idx) => (
+//         <div key={job.ID || idx} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm">
+//           <div className="flex items-start justify-between">
+//             <div>
+//               <a
+//                 className="text-md font-semibold text-blue-600 hover:underline"
+//                 href={job.Link || '#'}
+//                 target="_blank"
+//                 rel="noreferrer"
+//               >
+//                 {job.Title || 'Untitled Role'}
+//               </a>
+//               <div className="text-sm text-gray-600 mt-1">
+//                 {job.Company ? <span>{job.Company}</span> : null}
+//                 {job.Location ? <span className="mx-2">•</span> : null}
+//                 {job.Location ? <span>{job.Location}</span> : null}
+//                 {job.EmploymentType ? <span className="mx-2">•</span> : null}
+//                 {job.EmploymentType ? <span>{job.EmploymentType}</span> : null}
+//               </div>
+//             </div>
+//             <div className="text-right text-sm text-gray-500">
+//               {job.DatePosted ? <div>Posted {formatDateUS(job.DatePosted)}</div> : null}
+//               {job.Remote ? <div className="mt-1">{job.Remote === 'Yes' ? 'Remote' : 'Onsite'}</div> : null}
+//             </div>
+//           </div>
+
+//           {job.RoleDescription ? (
+//             <p className="text-sm text-gray-700 mt-3 whitespace-pre-line">{truncate(job.RoleDescription, 300)}</p>
+//           ) : null}
+
+//           <div className="mt-3 flex items-center justify-between">
+//             <div className="text-sm text-gray-500">Experience: {job.Experience || 'N/A'} Years</div>
+//             <div className="flex items-center gap-2">
+//               <a
+//                 href={job.Link || '#'}
+//                 target="_blank"
+//                 rel="noreferrer"
+//                 className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+//               >
+//                 View
+//               </a>
+//             </div>
+//           </div>
+//         </div>
+//       ))}
+//     </div>
+//   );
+// }
+
+
 function JobRecommendations() {
   const [jobs, setJobs] = React.useState<any[]>([]);
+  const { fetchWithAuth } = useAuth(); // 👈 get from AuthContext
 
   useEffect(() => {
-    try {
-      const rows = parseCSV(String(jobCsv || ''));
-      if (!rows || rows.length < 2) return;
-      const headers = rows[0].map((h) => h.replace(/^"|"$/g, '').trim());
-      const data = rows.slice(1).map((r) => {
-        const obj: any = {};
-        headers.forEach((h, i) => (obj[h] = (r[i] ?? '').replace(/^"|"$/g, '').trim()));
-        return obj;
-      });
-      setJobs(data.slice(0, 25));
-    } catch (err) {
-      // fallback: empty
-      setJobs([]);
-    }
-  }, []);
+    const load = async () => {
+      try {
+        const res = await fetchWithAuth<{ recommendations: any[] }>("/recommendations", {
+          method: "GET",
+        });
+        setJobs(res.recommendations ?? []);
+      } catch (err) {
+        console.error("Failed to load recommendations", err);
+        setJobs([]);
+      }
+    };
+
+    load();
+  }, [fetchWithAuth]);
 
   if (!jobs.length) {
     return (
       <div className="text-center py-12">
         <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">Job recommendations coming soon</h3>
-        <p className="text-gray-600">Complete your profile to start receiving personalized job recommendations.</p>
+        <p className="text-gray-600">
+          Complete your profile and generate recommendations to start seeing personalized jobs.
+        </p>
       </div>
     );
   }
@@ -122,12 +206,21 @@ function JobRecommendations() {
             </div>
             <div className="text-right text-sm text-gray-500">
               {job.DatePosted ? <div>Posted {formatDateUS(job.DatePosted)}</div> : null}
-              {job.Remote ? <div className="mt-1">{job.Remote === 'Yes' ? 'Remote' : 'Onsite'}</div> : null}
+              {job.Remote ? (
+                <div className="mt-1">{job.Remote === 'Yes' ? 'Remote' : 'Onsite'}</div>
+              ) : null}
+              {typeof job.score === 'number' ? (
+                <div className="mt-1 text-xs text-gray-400">
+                  Match score: {(job.score * 100).toFixed(0)}%
+                </div>
+              ) : null}
             </div>
           </div>
 
           {job.RoleDescription ? (
-            <p className="text-sm text-gray-700 mt-3 whitespace-pre-line">{truncate(job.RoleDescription, 300)}</p>
+            <p className="text-sm text-gray-700 mt-3 whitespace-pre-line">
+              {truncate(job.RoleDescription, 300)}
+            </p>
           ) : null}
 
           <div className="mt-3 flex items-center justify-between">

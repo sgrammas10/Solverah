@@ -1,6 +1,22 @@
 from sentence_transformers import SentenceTransformer, util
 import pandas as pd
+import json
 
+def parse_profile_pipeline(profile_pipeline_str):
+    try:
+        sections = json.loads(profile_pipeline_str)
+        if not isinstance(sections, list):
+            raise ValueError("Expected a list of sections")
+    except Exception as e:
+        print(f"[parse_profile_pipeline] JSON decode error: {e}")
+        return str(profile_pipeline_str)  # fallback to raw
+
+    # Build the combined string
+    combined_text = "\n\n".join(
+        f"{item.get('section', 'Unknown Section')}:\n{item.get('content', '')}".strip()
+        for item in sections
+    )
+    return combined_text
 
 model_path = "LLM/fine_tuned_resume_model"
 model = SentenceTransformer(model_path)
@@ -17,7 +33,8 @@ def profile_to_model(profile_text, job_text):
     return ml_score
 
 
-def sorted_mlscores(profile_text):
+def sorted_mlscores(profile_json):
+    profile_text = parse_profile_pipeline(profile_json)
     jobs_df = pd.read_csv(jobs_path)
     scores = []
 
