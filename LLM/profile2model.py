@@ -2,6 +2,22 @@ from sentence_transformers import SentenceTransformer, util
 import pandas as pd
 import json
 
+
+# model_path = "fine_tuned_resume_model"
+# model = SentenceTransformer(model_path)
+
+# jobs_path = "../zensearchData/job_postings.csv"
+
+from pathlib import Path
+
+
+BASE_DIR = Path(__file__).resolve().parent
+ROOT_DIR = BASE_DIR.parent
+model_path = BASE_DIR / "fine_tuned_resume_model"
+model_path = BASE_DIR / "fine_tuned_resume_model"   # Solverah/LLM/fine_tuned_resume_model
+jobs_path = ROOT_DIR / "zensearchData" / "job_postings.csv"
+model = SentenceTransformer(model_path)
+
 def parse_profile_pipeline(profile_pipeline_str):
     try:
         sections = json.loads(profile_pipeline_str)
@@ -17,11 +33,6 @@ def parse_profile_pipeline(profile_pipeline_str):
         for item in sections
     )
     return combined_text
-
-model_path = "LLM/fine_tuned_resume_model"
-model = SentenceTransformer(model_path)
-
-jobs_path = "../zensearchData/job_postings.csv"
 
 def profile_to_model(profile_text, job_text):
     profile_emb = model.encode(profile_text, convert_to_tensor=True)
