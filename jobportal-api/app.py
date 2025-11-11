@@ -4,9 +4,13 @@ from flask_jwt_extended import (
     JWTManager, create_access_token, jwt_required, get_jwt_identity
 )
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.dialects.sqlite import JSON
-
+# from sqlalchemy.dialects.sqlite import JSON
+import json
+from LLM.profile2model import sorted_mlscores
+from model import JobRecommendation, User
 from datetime import timedelta
+import pandas as pd
+from LLM.profile2model import jobs_path
 
 app = Flask(__name__)
 
@@ -64,16 +68,7 @@ def default_profile(email="", name="", role="job-seeker"):
         })
 
     return profile
-
-
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(200), nullable=False)
-    name = db.Column(db.String(120))
-    role = db.Column(db.String(50))
-    profile_data = db.Column(JSON, default=dict)
-    
+  
 
 
 
@@ -214,6 +209,113 @@ def profile():
         "message": "Profile updated successfully",
         "profileData": user.profile_data
     })
+
+
+
+@app.route("/api/recommendations", methods=["POST"])
+@jwt_required()
+def generate_recommendations():
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first_or_404()
+
+    data = request.get_json() or {}
+    profile_pipeline_str = data.get("profilePipeline")
+    if not profile_pipeline_str:
+        return jsonify({"error": "profilePipeline is required"}), 400
+
+    try:
+        # pipeline is an array of {section, content}
+        pipeline = json.loads(profile_pipeline_str)
+    except json.JSONDecodeError:
+        return jsonify({"error": "Invalid JSON in profilePipeline"}), 400
+
+    # Collapse sections into one text blob for the model
+    # (You can tweak this format as you like.)
+    if isinstance(pipeline, list):
+        profile_text = "\n\n".join(
+            f"{sec.get('section', '')}:\n{sec.get('content', '')}"
+            for sec in pipeline
+        )
+    else:
+        # fallback: treat the whole thing as raw text
+        profile_text = str(pipeline)
+
+    # Use your SentenceTransformer pipeline
+    scores = sorted_mlscores(profile_text)  # returns list of (job_id, score, job_text)
+
+    # Keep only the top N
+    TOP_N = 20
+    top_scores = scores[:TOP_N]
+
+    # Optionally clear old recommendations for this user
+    JobRecommendation.query.filter_by(user_id=user.id).delete()
+
+    # Insert new ones
+    for job_id, score, _job_text in top_scores:
+        rec = JobRecommendation(user_id=user.id, job_id=job_id, score=score)
+        db.session.add(rec)
+
+    db.session.commit()
+
+    # Also return them for immediate use on the frontend
+    return jsonify({
+        "recommendations": [
+            {"job_id": job_id, "score": score}
+            for job_id, score, _ in top_scores
+        ]
+    })
+
+
+@app.route("/api/recommendations", methods=["GET"])
+@jwt_required()
+def get_recommendations():
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first_or_404()
+
+    # Get this user's recommendations ordered by score
+    recs = (
+        JobRecommendation.query
+        .filter_by(user_id=user.id)
+        .order_by(JobRecommendation.score.desc())
+        .all()
+    )
+
+    if not recs:
+        return jsonify({"recommendations": []})
+
+    # Load the jobs CSV and index by ID
+    jobs_df = pd.read_csv(jobs_path)
+    jobs_by_id = {
+        int(row["ID"]): row
+        for _, row in jobs_df.iterrows()
+        if "ID" in row
+    }
+
+    results = []
+    for rec in recs:
+        row = jobs_by_id.get(rec.job_id)
+        if row is None:
+            continue
+
+        # Build a job object matching what Feed.tsx currently uses :contentReference[oaicite:7]{index=7}
+        job_obj = {
+            "ID": rec.job_id,
+            "Title": row.get("Title", ""),
+            "Company": row.get("Company", ""),
+            "Location": row.get("Location", ""),
+            "EmploymentType": row.get("EmploymentType", ""),
+            "DatePosted": row.get("DatePosted", ""),
+            "Remote": row.get("Remote", ""),
+            "RoleDescription": row.get("RoleDescription", ""),
+            "Experience": row.get("Experience", ""),
+            "Link": row.get("Link", ""),
+            "score": rec.score,
+        }
+        results.append(job_obj)
+
+    return jsonify({"recommendations": results})
+
+
 
 
 if __name__ == "__main__":
