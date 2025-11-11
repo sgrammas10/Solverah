@@ -48,36 +48,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  // Centralized fetch helper that attaches JWT if present
-  // const fetchWithAuth = async <T = Record<string, unknown>>(endpoint: string, options: RequestInit = {}): Promise<T> => {
-  //   const token = localStorage.getItem("token");
-  //   const headers = {
-  //     ...(options.headers || {}),
-  //     "Content-Type": "application/json",
-  //     ...(token ? { Authorization: `Bearer ${token}` } : {})
-  //   };
-
-  //   const res = await fetch(`${API_URL}${endpoint}`, {
-  //     ...options,
-  //     headers,
-  //   });
-
-  //   if (!res.ok) {
-  //     // Try to parse a JSON error payload from the backend (e.g. { error: 'User already exists' })
-  //     try {
-  //       const errJson = await res.json();
-  //       const errMessage = (errJson && (errJson.error || errJson.message)) ? (errJson.error || errJson.message) : `API error: ${res.status}`;
-  //       throw new Error(String(errMessage));
-  //     } catch {
-  //       // if parsing fails, fall back to status code message
-  //       throw new Error(`API error: ${res.status}`);
-  //     }
-  //   }
-
-  //   const json = await res.json();
-  //   return json as T;
-  // };
-
   const fetchWithAuth = async <T = Record<string, unknown>>(
     endpoint: string,
     options: RequestInit = {}
@@ -122,29 +92,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return json as T;
   };
-
-
-
-  // const login = async (email: string, password: string, _role: 'job-seeker' | 'recruiter') => {
-  //   const data = await fetchWithAuth<{ user: User; token?: string }>("/login", {
-  //     method: "POST",
-  //     body: JSON.stringify({ email, password }),
-  //   });
-  //   // mark _role as intentionally unused for linters
-  //   void _role;
-
-  //   const typed = data as { user: User; token?: string };
-  //   setUser(typed.user);
-  //   localStorage.setItem("user", JSON.stringify(typed.user));
-  //   // if (typed.token) localStorage.setItem("token", typed.token);
-  //   if (typed.token) {
-  //     localStorage.setItem("token", typed.token);
-  //     console.log("Saved token:", typed.token);
-  //   } else {
-  //     console.warn("No token in login response");
-  //   }
-
-  // };
 
   const login = async (
     email: string,
@@ -212,15 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
 
-// Fetch full profile (including profileData)
-// const fetchProfileData = async (): Promise<{ profileData?: ProfileData } | null> => {
-//   const data = await fetchWithAuth<{ id?: number; email?: string; name?: string; role?: string; profileData?: ProfileData }>("/profile", { method: "GET" });
-//   if (data?.profileData) {
-//     setUser((prevUser) => (prevUser ? { ...prevUser, profileData: data.profileData } : null));
-//     localStorage.setItem("user", JSON.stringify({ ...user, profileData: data.profileData }));
-//   }
-//   return data;
-// };
+
 
   const fetchProfileData = async (): Promise<{ profileData?: ProfileData } | null> => {
     const data = await fetchWithAuth<{
@@ -234,21 +173,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!data) return null;
     return { profileData: data.profileData ?? {} };
   };
-
-// Save profileData to backend
-// const saveProfileData = async (profileData: ProfileData): Promise<{ profileData?: ProfileData } | null> => {
-//   const res = await fetchWithAuth<{ profileData?: ProfileData }>("/profile", {
-//     method: "POST",
-//     body: JSON.stringify({ profileData }),
-//   });
-
-//   if (res?.profileData) {
-//     setUser((prevUser) => (prevUser ? { ...prevUser, profileData: res.profileData } : null));
-//     localStorage.setItem("user", JSON.stringify({ ...user, profileData: res.profileData }));
-//   }
-
-//   return res ?? null;
-// };
 
   const saveProfileData = async (
     profileData: ProfileData
