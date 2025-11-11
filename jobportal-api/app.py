@@ -6,7 +6,7 @@ from flask_jwt_extended import (
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.sqlite import JSON
 
-
+from datetime import timedelta
 
 app = Flask(__name__)
 
@@ -19,6 +19,7 @@ db = SQLAlchemy(app)
 
 #Configuring secret keys for JWTs
 app.config["JWT_SECRET_KEY"] = "super-secret-key"
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1) #token expires in 1 hours
 
 
 bcrypt = Bcrypt(app)
