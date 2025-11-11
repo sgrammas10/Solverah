@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   Briefcase,
@@ -151,8 +151,9 @@ function formatDateUS(dateStr?: string) {
 
 
 function JobRecommendations() {
-  const [jobs, setJobs] = React.useState<any[]>([]);
+  const [jobs, setJobs] = useState<any[]>([]);
   const { fetchWithAuth } = useAuth(); // 👈 get from AuthContext
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -169,6 +170,18 @@ function JobRecommendations() {
 
     load();
   }, [fetchWithAuth]);
+
+  const toggleExpanded = (key: string | number) => {
+    const k = String(key);
+    setExpanded((prev) => ({ ...prev, [k]: !prev[k] }));
+  };
+
+  function formatExperience(exp?: string | number) {
+    if (exp === undefined || exp === null || exp === '') return 'N/A';
+    const num = Number(exp);
+    if (!Number.isNaN(num)) return `${num} Years`;
+    return String(exp);
+  }
 
   if (!jobs.length) {
     return (
@@ -189,70 +202,65 @@ function JobRecommendations() {
         const isExpanded = !!expanded[String(idKey)];
         return (
           <div key={idKey} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm">
-          <div className="flex items-start justify-between">
-            <div>
-              <a
-                className="text-md font-semibold text-blue-600 hover:underline"
-                href={job.Link || '#'}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {job.Title || 'Untitled Role'}
-              </a>
-              <div className="text-sm text-gray-600 mt-1">
-                {job.Company ? <span>{job.Company}</span> : null}
-                {job.Location ? <span className="mx-2">•</span> : null}
-                {job.Location ? <span>{job.Location}</span> : null}
-                {job.EmploymentType ? <span className="mx-2">•</span> : null}
-                {job.EmploymentType ? <span>{job.EmploymentType}</span> : null}
+            <div className="flex items-start justify-between">
+              <div>
+                <a
+                  className="text-md font-semibold text-blue-600 hover:underline"
+                  href={job.Link || '#'}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {job.Title || 'Untitled Role'}
+                </a>
+                <div className="text-sm text-gray-600 mt-1">
+                  {job.Company ? <span>{job.Company}</span> : null}
+                  {job.Location ? <span className="mx-2">•</span> : null}
+                  {job.Location ? <span>{job.Location}</span> : null}
+                  {job.EmploymentType ? <span className="mx-2">•</span> : null}
+                  {job.EmploymentType ? <span>{job.EmploymentType}</span> : null}
+                </div>
+              </div>
+              <div className="text-right text-sm text-gray-500">
+                {job.DatePosted ? <div>Posted {formatDateUS(job.DatePosted)}</div> : null}
+                {job.Remote ? (
+                  <div className="mt-1">{job.Remote === 'Yes' ? 'Remote' : 'Onsite'}</div>
+                ) : null}
+                {typeof job.score === 'number' ? (
+                  <div className="mt-1 text-xs text-gray-400">
+                    Match score: {(job.score * 100).toFixed(0)}%
+                  </div>
+                ) : null}
               </div>
             </div>
-            <div className="text-right text-sm text-gray-500">
-              {job.DatePosted ? <div>Posted {formatDateUS(job.DatePosted)}</div> : null}
-              {job.Remote ? (
-                <div className="mt-1">{job.Remote === 'Yes' ? 'Remote' : 'Onsite'}</div>
-              ) : null}
-              {typeof job.score === 'number' ? (
-                <div className="mt-1 text-xs text-gray-400">
-                  Match score: {(job.score * 100).toFixed(0)}%
-                </div>
-              ) : null}
-            </div>
-          </div>
 
-          {job.RoleDescription ? (
-<<<<<<< HEAD
-            <p className="text-sm text-gray-700 mt-3 whitespace-pre-line">
-              {truncate(job.RoleDescription, 300)}
-=======
-            <p
-              role="button"
-              aria-expanded={isExpanded}
-              onClick={() => toggleExpanded(idKey)}
-              className="text-sm text-gray-700 mt-3 whitespace-pre-line cursor-pointer"
-            >
-              {isExpanded ? job.RoleDescription : truncate(job.RoleDescription, 300)}
-              {!isExpanded && job.RoleDescription.length > 300 ? (
-                <span className="text-blue-600">  (click to expand)</span>
-              ) : null}
->>>>>>> 0096ec8d10933de4c979058ace4b5e72c27bbfab
-            </p>
-          ) : null}
-
-          <div className="mt-3 flex items-center justify-between">
-            <div className="text-sm text-gray-500">Experience: {formatExperience(job.Experience)}</div>
-            <div className="flex items-center gap-2">
-              <a
-                href={job.Link || '#'}
-                target="_blank"
-                rel="noreferrer"
-                className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            {job.RoleDescription ? (
+              <p
+                role="button"
+                aria-expanded={isExpanded}
+                onClick={() => toggleExpanded(idKey)}
+                className="text-sm text-gray-700 mt-3 whitespace-pre-line cursor-pointer"
               >
-                View
-              </a>
+                {isExpanded ? job.RoleDescription : truncate(job.RoleDescription, 300)}
+                {!isExpanded && String(job.RoleDescription).length > 300 ? (
+                  <span className="text-blue-600">  (click to expand)</span>
+                ) : null}
+              </p>
+            ) : null}
+
+            <div className="mt-3 flex items-center justify-between">
+              <div className="text-sm text-gray-500">Experience: {formatExperience(job.Experience)}</div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={job.Link || '#'}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  View
+                </a>
+              </div>
             </div>
           </div>
-        </div>
         );
       })}
     </div>
