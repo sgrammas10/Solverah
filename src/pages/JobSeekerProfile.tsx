@@ -13,11 +13,9 @@ import {
 } from 'lucide-react';
 
 function JobSeekerProfile() {
-  const { user, updateProfile, updateProfileData, fetchProfileData, saveProfileData } = useAuth();
+  const { user, updateProfile, updateProfileData, fetchProfileData, saveProfileData, fetchWithAuth} = useAuth();
 
   const location = useLocation();
-  
-
   const getTabFromURL = () => {
     // Parse directly from the current location each time
     const qs = new URLSearchParams(location.search);
@@ -254,7 +252,16 @@ function JobSeekerProfile() {
 
     // Build AI pipeline automatically
     const pipeline = buildProfilePipeline();
-    const stringified = JSON.stringify(pipeline, null, 2);
+    const stringified = JSON.stringify(pipeline);
+    try {
+      await fetchWithAuth("/recommendations", {
+        method: "POST",
+        body: JSON.stringify({ profilePipeline: stringified }),
+      });
+      console.log("Job recommendations generated and saved!");
+    } catch (err) {
+      console.error("Error generating recommendations:", err);
+    }
 
     console.log("AI Profile Pipeline:", stringified);
 
