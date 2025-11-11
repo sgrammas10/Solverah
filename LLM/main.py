@@ -1,12 +1,11 @@
 import os
 import pandas as pd
 from resume_parser import parse_resume
-from spacy_score import dynamic_skill_features
-from spacy_soft_skills import soft_skills_score
+# from spacy_score import dynamic_skill_features
+# from spacy_soft_skills import soft_skills_score
 from sentence_transformers import SentenceTransformer, util
 
 # Load your fine-tuned model
-#model = SentenceTransformer("fine_tuned_resume_model")
 model_path = "LLM/fine_tuned_resume_model"
 model = SentenceTransformer(model_path)
 
