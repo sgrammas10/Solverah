@@ -241,12 +241,16 @@ function JobSeekerProfile() {
 
     // Update the user's name in the auth context
     const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
-    updateProfile({ name: fullName, profileComplete: true });
+    updateProfile?.({ name: fullName, profileComplete: true });
     
     // Save locally and to backend
-    updateProfileData(profileDataToSave);
-    await saveProfileData(profileDataToSave);
-    console.log('Profile saved to backend!');
+    updateProfileData?.(profileDataToSave);
+    if (saveProfileData) {
+      await saveProfileData(profileDataToSave);
+      console.log('Profile saved to backend!');
+    } else {
+      console.warn('saveProfileData is not available; profile saved locally only.');
+    }
 
     // Build AI pipeline automatically
     const pipeline = buildProfilePipeline();
