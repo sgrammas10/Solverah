@@ -30,7 +30,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = "http://127.0.0.1:5000/api"; // Flask backend base URL, will adapt when we get a fully running one
+
+const API_URL = import.meta.env.VITE_API_URL; // Flask backend base URL, will adapt when we get a fully running one
+//onst API_URL = "http://127.0.0.1:5000/api"; 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
