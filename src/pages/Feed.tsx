@@ -184,8 +184,11 @@ function JobRecommendations() {
 
   return (
     <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-      {jobs.map((job, idx) => (
-        <div key={job.ID || idx} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm">
+      {jobs.map((job, idx) => {
+        const idKey = job.ID ?? idx;
+        const isExpanded = !!expanded[String(idKey)];
+        return (
+          <div key={idKey} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm">
           <div className="flex items-start justify-between">
             <div>
               <a
@@ -218,13 +221,26 @@ function JobRecommendations() {
           </div>
 
           {job.RoleDescription ? (
+<<<<<<< HEAD
             <p className="text-sm text-gray-700 mt-3 whitespace-pre-line">
               {truncate(job.RoleDescription, 300)}
+=======
+            <p
+              role="button"
+              aria-expanded={isExpanded}
+              onClick={() => toggleExpanded(idKey)}
+              className="text-sm text-gray-700 mt-3 whitespace-pre-line cursor-pointer"
+            >
+              {isExpanded ? job.RoleDescription : truncate(job.RoleDescription, 300)}
+              {!isExpanded && job.RoleDescription.length > 300 ? (
+                <span className="text-blue-600">  (click to expand)</span>
+              ) : null}
+>>>>>>> 0096ec8d10933de4c979058ace4b5e72c27bbfab
             </p>
           ) : null}
 
           <div className="mt-3 flex items-center justify-between">
-            <div className="text-sm text-gray-500">Experience: {job.Experience || 'N/A'} Years</div>
+            <div className="text-sm text-gray-500">Experience: {formatExperience(job.Experience)}</div>
             <div className="flex items-center gap-2">
               <a
                 href={job.Link || '#'}
@@ -237,7 +253,8 @@ function JobRecommendations() {
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
