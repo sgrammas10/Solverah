@@ -2,20 +2,8 @@ from sentence_transformers import SentenceTransformer, util
 import pandas as pd
 import json
 
-
-# model_path = "fine_tuned_resume_model"
-# model = SentenceTransformer(model_path)
-
-# jobs_path = "../zensearchData/job_postings.csv"
-
-from pathlib import Path
-
-
-BASE_DIR = Path(__file__).resolve().parent
-ROOT_DIR = BASE_DIR.parent
-model_path = BASE_DIR / "fine_tuned_resume_model"
-model_path = BASE_DIR / "fine_tuned_resume_model"   # Solverah/LLM/fine_tuned_resume_model
-jobs_path = ROOT_DIR / "zensearchData" / "job_postings.csv"
+jobs_path = "../zensearchData/job_postings.csv"
+model_path = "LLM/fine_tuned_resume_model"
 model = SentenceTransformer(model_path)
 
 def parse_profile_pipeline(profile_pipeline_str):
