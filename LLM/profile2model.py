@@ -2,7 +2,7 @@ from sentence_transformers import SentenceTransformer, util
 import pandas as pd
 import json
 
-jobs_path = "../zensearchData/job_postings.csv"
+jobs_path = "zensearchData/job_postings.csv"
 model_path = "LLM/fine_tuned_resume_model"
 model = SentenceTransformer(model_path)
 
