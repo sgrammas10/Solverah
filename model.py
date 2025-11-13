@@ -1,6 +1,7 @@
-from app import db
 from sqlalchemy.dialects.sqlite import JSON
+from flask_sqlalchemy import SQLAlchemy
 
+db = SQLAlchemy()
 
 class JobRecommendation(db.Model):
     id = db.Column(db.Integer, primary_key=True)

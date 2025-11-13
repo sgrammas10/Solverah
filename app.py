@@ -3,11 +3,11 @@ from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (
     JWTManager, create_access_token, jwt_required, get_jwt_identity
 )
-from flask_sqlalchemy import SQLAlchemy
+# from flask_sqlalchemy import SQLAlchemy
 # from sqlalchemy.dialects.sqlite import JSON
 import json
 from LLM.profile2model import sorted_mlscores
-from model import JobRecommendation, User
+from model import JobRecommendation, User, db
 from datetime import timedelta
 import pandas as pd
 from LLM.profile2model import jobs_path
@@ -19,13 +19,13 @@ CORS(app)
 
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///users.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-db = SQLAlchemy(app)
+# db = SQLAlchemy(app)
 
 #Configuring secret keys for JWTs
 app.config["JWT_SECRET_KEY"] = "super-secret-key"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1) #token expires in 1 hours
 
-
+db.init_app(app)
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
