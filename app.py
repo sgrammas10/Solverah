@@ -26,6 +26,10 @@ app.config["JWT_SECRET_KEY"] = "super-secret-key"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1) #token expires in 1 hours
 
 db.init_app(app)
+with app.app_context():
+    db.create_all()
+
+
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
