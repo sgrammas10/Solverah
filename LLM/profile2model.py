@@ -32,8 +32,9 @@ def profile_to_model(profile_text, job_text):
     return ml_score
 
 
-def sorted_mlscores(profile_json):
-    profile_text = parse_profile_pipeline(profile_json)
+def sorted_mlscores(profile_text):
+    # print(profile_json)
+    # profile_text = parse_profile_pipeline(profile_json)
     jobs_df = pd.read_csv(jobs_path)
     scores = []
 
