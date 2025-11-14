@@ -1,12 +1,27 @@
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 
+/* -----------------------------------------------------------
+   Type Definitions
+   ----------------------------------------------------------- */
+// A single question in the quiz.
 type Question = {
-  id: number;
-  text: string;
-  options: string[];
+  id: number;        // Unique question ID
+  text: string;      // Question prompt
+  options: string[]; // List of answer choices
 };
 
+/* -----------------------------------------------------------
+   Quiz Sections
+   -----------------------------------------------------------
+   The quiz is split into sections to group related questions:
+   - Each section has:
+       • title    → displayed heading
+       • startId  → where the ordered list numbering starts
+       • questions → array of Question objects
+   This makes it easier to visually separate themes like:
+   "Career & Job Search", "Work Style & Adulting", etc.
+----------------------------------------------------------- */
 const sections: { title: string; startId: number; questions: Question[] }[] = [
   {
     title: "Career & Job Search",
@@ -285,19 +300,46 @@ const sections: { title: string; startId: number; questions: Question[] }[] = [
   },
 ];
 
+/* ===========================================================
+   COMPONENT: CareerAndJobSearchTab
+   -----------------------------------------------------------
+   Responsibilities:
+   ✔ Render quiz sections and questions
+   ✔ Track selected answers in local state
+   ✔ Persist results to profile via AuthContext
+   =========================================================== */
 export default function CareerAndJobSearchTab() {
-  // store answers by question id -> option index
+  // answers maps questionId → selected option index (0–3)
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const { fetchProfileData, saveProfileData } = useAuth();
 
+  /* ---------------------------------------------------------
+     handleChange
+     ---------------------------------------------------------
+     Update the selected answer for a given question.
+     qid = question id
+     idx = index of the chosen option
+  --------------------------------------------------------- */
   const handleChange = (qid: number, idx: number) => {
     setAnswers((prev) => ({ ...prev, [qid]: idx }));
   };
 
+  /* ---------------------------------------------------------
+     handleSubmit
+     ---------------------------------------------------------
+     - Fetch existing profile data (if any)
+     - Merge in this quiz's results under quizResults.careerJobSearch
+     - Save via saveProfileData from AuthContext
+  --------------------------------------------------------- */
   const handleSubmit = () => {
     (async () => {
       try {
-        const current = await (fetchProfileData ? fetchProfileData() : Promise.resolve(null));
+        // Fetch current profile data if function exists
+        const current = await (fetchProfileData
+          ? fetchProfileData()
+          : Promise.resolve(null));
+
+        // Support both { profileData: {...} } or plain object formats
         const profileData = current?.profileData || current || {};
 
         const newProfileData = {
@@ -321,23 +363,34 @@ export default function CareerAndJobSearchTab() {
     })();
   };
 
+  /* =======================================================
+     RENDER
+     ======================================================= */
   return (
     <div className="p-4 max-w-3xl mx-auto">
+      {/* Page title */}
       <h2 className="text-xl font-semibold mb-2">Career &amp; Job Search</h2>
 
+      {/* Render each section with its questions */}
       {sections.map((sec) => (
         <div key={sec.title} className="mb-6">
+          {/* Section header */}
           <h3 className="text-lg font-medium mb-2">{sec.title}</h3>
+
+          {/* Ordered list with correct starting index for numbering */}
           <ol start={sec.startId} className="space-y-4 pl-5">
             {sec.questions.map((q) => (
               <li key={q.id}>
                 <fieldset>
+                  {/* Question text */}
                   <legend className="mb-1">{q.text}</legend>
+
+                  {/* Options as grouped radio buttons */}
                   {q.options.map((opt, idx) => (
                     <label key={idx} className="block">
                       <input
                         type="radio"
-                        name={`q${q.id}`}
+                        name={`q${q.id}`}              // group by question id
                         checked={answers[q.id] === idx}
                         onChange={() => handleChange(q.id, idx)}
                       />{" "}
@@ -351,6 +404,7 @@ export default function CareerAndJobSearchTab() {
         </div>
       ))}
 
+      {/* Submit button */}
       <button
         onClick={handleSubmit}
         className="border px-3 py-2"

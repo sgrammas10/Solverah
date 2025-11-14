@@ -1,14 +1,34 @@
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 
-type Question = { id: number; text: string; options: string[] };
+/* -----------------------------------------------------------
+   Type Definitions
+   ----------------------------------------------------------- */
+// Each quiz item has an id (unique), display text, and 4 options.
+type Question = { 
+  id: number; 
+  text: string; 
+  options: string[]; 
+};
 
+/* -----------------------------------------------------------
+   Quiz Intro Copy
+   ----------------------------------------------------------- */
+// Simple content block used to render the heading and intro text.
 const intro = {
   title: "Your Future, Your Way",
   subtitle: "A Fun Quiz to Explore What’s Next",
   blurb: "Discover your strengths, explore options, and find your future path.",
 };
 
+/* -----------------------------------------------------------
+   Question Bank
+   -----------------------------------------------------------
+   - 30 questions total
+   - Each question has 4 answer options.
+   - We store responses using the question id as a key and
+     the index of the chosen option (0–3) as the value.
+----------------------------------------------------------- */
 const questions: Question[] = [
   { 
     id: 1, 
@@ -30,7 +50,8 @@ const questions: Question[] = [
       "Hanging out, helping family, or just being the “chill one.”",
     ]
   },
-  { id: 3, 
+  { 
+    id: 3, 
     text: "What class do you usually enjoy the most?", 
     options: [
       "Business or leadership — I like being the boss.",
@@ -39,7 +60,8 @@ const questions: Question[] = [
       "History, psychology, or health — learning about people is actually interesting.",
     ]
   },
-  { id: 4, 
+  { 
+    id: 4, 
     text: "What excites you most about a future job?", 
     options: [
       "Being in charge (hello, CEO vibes).",
@@ -48,7 +70,8 @@ const questions: Question[] = [
       "Helping people — because not everything is about $$$.",
     ]
   },
-  { id: 5, 
+  { 
+    id: 5, 
     text: "When people come to you for help, it’s usually because…", 
     options: [
       "I’ll organize their chaos (and maybe boss them a little).",
@@ -57,7 +80,8 @@ const questions: Question[] = [
       "I’ll listen and probably hand out free therapy sessions.",
     ]
   },
-  { id: 6, 
+  { 
+    id: 6, 
     text: "If you could shadow someone for a day, who would it be?", 
     options: [
       "A business leader, coach, or literally anyone with a corner office.",
@@ -66,7 +90,8 @@ const questions: Question[] = [
       "A teacher, nurse, or the coach who actually cares.",
     ]
   },
-  { id: 7, 
+  { 
+    id: 7, 
     text: "Which phrase fits you best?", 
     options: [
       "I like planning and being in charge (aka boss energy).",
@@ -75,7 +100,8 @@ const questions: Question[] = [
       "I’m the “how are you really doing?” friend.",
     ]
   },
-  { id: 8, 
+  { 
+    id: 8, 
     text: "What kind of work vibe sounds best?", 
     options: [
       "Fast-paced and goal-driven.",
@@ -84,7 +110,8 @@ const questions: Question[] = [
       "Supportive and meaningful.",
     ]
   },
-  { id: 9, 
+  { 
+    id: 9, 
     text: "If money wasn’t an issue, what would you do forever?", 
     options: [
       "Start businesses or lead projects.",
@@ -93,7 +120,8 @@ const questions: Question[] = [
       "Help people improve their lives.",
     ]
   },
-  { id: 10, 
+  { 
+    id: 10, 
     text: "What about the future excites you most?", 
     options: [
       "Building something successful.",
@@ -102,7 +130,8 @@ const questions: Question[] = [
       "Making a positive impact.",
     ]
   },
-  { id: 11, 
+  { 
+    id: 11, 
     text: "School gets canceled for the day — what are you doing?", 
     options: [
       "Making plans with friends.",
@@ -111,7 +140,8 @@ const questions: Question[] = [
       "Hanging with family or helping someone.",
     ] 
   },
-  { id: 12, 
+  { 
+    id: 12, 
     text: "What kind of content do you binge the most?", 
     options: [
       "Funny skits, pranks, or challenges.",
@@ -120,7 +150,8 @@ const questions: Question[] = [
       "Motivational, advice, or feel-good clips.",
     ] 
   },  
-  { id: 13, 
+  { 
+    id: 13, 
     text: "You just got $500 — first move?", 
     options: [
       "Start a side hustle or invest.",
@@ -129,7 +160,8 @@ const questions: Question[] = [
       "Spend it on friends, family, or give some away.",
     ]
   },
-  { id: 14, 
+  { 
+    id: 14, 
     text: "In your friend group, you’re usually the one who…", 
     options: [
       "Makes the plans.",
@@ -138,7 +170,8 @@ const questions: Question[] = [
       "Listens and gives advice.",
     ]
   },
-  { id: 15, 
+  { 
+    id: 15, 
     text: "If you could have a superpower, which would you pick?", 
     options: [
       "Convince or inspire anyone.",
@@ -147,7 +180,8 @@ const questions: Question[] = [
       "Healing/helping powers.",
     ]
   },
-  { id: 16, 
+  { 
+    id: 16, 
     text: "If your friends had to describe you in one word, you’d want it to be…", 
     options: [
       "Successful",
@@ -156,7 +190,8 @@ const questions: Question[] = [
       "Kind",
     ]
   },
-  { id: 17, 
+  { 
+    id: 17, 
     text: "Your school’s doing a fundraiser. Where do you sign up?", 
     options: [
       "Organizing and running it.",
@@ -165,7 +200,8 @@ const questions: Question[] = [
       "Greeting people and hyping the crowd.",
     ]
   },
-  { id: 18, 
+  { 
+    id: 18, 
     text: "If your future job could promise ONE thing, what would you want?", 
     options: [
       "Good money and promotions.",
@@ -174,7 +210,8 @@ const questions: Question[] = [
       "Making a real difference.",
     ]
   },
-  { id: 19, 
+  { 
+    id: 19, 
     text: "Think about your favorite teacher or coach. Why were they great?", 
     options: [
       "They were organized and pushed me to do my best.",
@@ -183,7 +220,8 @@ const questions: Question[] = [
       "They cared about me and were supportive.",
     ]
   },
-  { id: 20,
+  { 
+    id: 20,
     text: "Now think about your least favorite teacher or coach. What bugged you most?", 
     options: [
       "Too strict and never listened.",
@@ -192,7 +230,8 @@ const questions: Question[] = [
       "Didn’t seem to care about students.",
     ] 
   },
-  { id: 21, 
+  { 
+    id: 21, 
     text: "Sports or clubs: what fits you best?", 
     options: [
       "I like being busy and in lots of activities.",
@@ -201,7 +240,8 @@ const questions: Question[] = [
       "I’d rather chill and recharge.",
     ] 
   },
-  { id: 22, 
+  { 
+    id: 22, 
     text: "What’s your least favorite subject — and why?", 
     options: [
       "Math/Science — feels too hard or boring.",
@@ -210,7 +250,8 @@ const questions: Question[] = [
       "PE/Health — just not into it.",
     ]
   },
-  { id: 23, 
+  { 
+    id: 23, 
     text: "When a class gets tough, how do you usually react?", 
     options: [
       "Push through and try to figure it out.",
@@ -219,7 +260,8 @@ const questions: Question[] = [
       "Get frustrated and want to give up.",
     ]
   },
-  { id: 24, 
+  { 
+    id: 24, 
     text: "After high school, what sounds most exciting?", 
     options: [
       "Getting a job and making money right away.",
@@ -228,7 +270,8 @@ const questions: Question[] = [
       "Studying something that helps people, like teaching or healthcare.",
     ]
   },
-  { id: 25, 
+  { 
+    id: 25, 
     text: "What’s most important to you after graduation?", 
     options: [
       "Making money and buying my own stuff.",
@@ -237,7 +280,8 @@ const questions: Question[] = [
       "Being around people and making a difference.",
     ]
   },
-  { id: 26, 
+  { 
+    id: 26, 
     text: "When you have a lot of homework or chores, what do you usually do?", 
     options: [
       "Get it done right away so I can relax later.",
@@ -246,7 +290,8 @@ const questions: Question[] = [
       "Put it off… or bribe my sibling/friend to do it for me. 😅",
     ]
   },
-  { id: 27, 
+  { 
+    id: 27, 
     text: "If a group project is falling apart, what’s your move?", 
     options: [
       "Take charge and run the show.",
@@ -255,7 +300,8 @@ const questions: Question[] = [
       "Shrug — hey, at least it’s not just my grade.",
     ]
   },
-  { id: 28, 
+  { 
+    id: 28, 
     text: "If your teacher or coach gave you the wrong grade/score, what would you do?", 
     options: [
       "March up and argue my case until it’s fixed.",
@@ -264,7 +310,8 @@ const questions: Question[] = [
       "Let it slide — grades aren’t everything.",
     ]
   },
-  { id: 29, 
+  { 
+    id: 29, 
     text: "You’re late to class. Why?", 
     options: [
       "Had a meeting/club thing — I’m busy!",
@@ -273,7 +320,8 @@ const questions: Question[] = [
       "Stopped to help a friend or teacher.",
     ]
   },
-  { id: 30, 
+  { 
+    id: 30, 
     text: "If school let you design your own class, what would it be?", 
     options: [
       "How to start a business and make $$$.",
@@ -284,17 +332,45 @@ const questions: Question[] = [
   },
 ];
 
+/* ===========================================================
+   COMPONENT: YourFutureYourWayTab
+   -----------------------------------------------------------
+   Responsibilities:
+   ✔ Render the quiz UI
+   ✔ Track selected answers
+   ✔ Save results into the user's profile via AuthContext
+   =========================================================== */
 export default function YourFutureYourWayTab() {
+  // answers: maps question id → selected option index (0–3)
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const { fetchProfileData, saveProfileData } = useAuth();
 
+  /* ---------------------------------------------------------
+     onChange
+     ---------------------------------------------------------
+     Updates the selected answer for a single question.
+     qid = question id
+     idx = index of chosen option
+  --------------------------------------------------------- */
   const onChange = (qid: number, idx: number) =>
-    setAnswers((p) => ({ ...p, [qid]: idx }));
+    setAnswers((prev) => ({ ...prev, [qid]: idx }));
 
+  /* ---------------------------------------------------------
+     onSubmit
+     ---------------------------------------------------------
+     - Fetch existing profile data
+     - Adds/overwrites quizResults.yourFutureYourWay
+     - Saves via saveProfileData from AuthContext
+  --------------------------------------------------------- */
   const onSubmit = () => {
     (async () => {
       try {
-        const current = await (fetchProfileData ? fetchProfileData() : Promise.resolve(null));
+        // Get current profile data if available
+        const current = await (fetchProfileData
+          ? fetchProfileData()
+          : Promise.resolve(null));
+
+        // Handle shape { profileData: {...} } or raw object
         const profileData = current?.profileData || current || {};
 
         const newProfileData = {
@@ -318,24 +394,36 @@ export default function YourFutureYourWayTab() {
     })();
   };
 
+  /* =======================================================
+     RENDER
+     ======================================================= */
   return (
     <div className="p-4 max-w-3xl mx-auto">
+      {/* Intro block */}
       <h2 className="text-xl font-semibold">{intro.title}</h2>
       <p className="mt-1">{intro.subtitle}</p>
       <p className="mt-1 mb-4">{intro.blurb}</p>
 
+      {/* Quiz header */}
       <h3 className="text-lg font-medium mb-2">Your Future, Your Way Quiz</h3>
+
+      {/* Question list */}
       <ol start={1} className="space-y-4 pl-5">
         {questions.map((q) => (
           <li key={q.id}>
             <fieldset>
-              <legend className="mb-1">{q.id}. {q.text}</legend>
+              {/* Question text */}
+              <legend className="mb-1">
+                {q.id}. {q.text}
+              </legend>
+
+              {/* Options as radio inputs */}
               {q.options.map((opt, idx) => (
                 <label key={idx} className="block">
                   <input
                     type="radio"
-                    name={`q${q.id}`}
-                    checked={answers[q.id] === idx}
+                    name={`q${q.id}`}               // group radios per question
+                    checked={answers[q.id] === idx} // controlled radio
                     onChange={() => onChange(q.id, idx)}
                   />{" "}
                   {String.fromCharCode(65 + idx)}) {opt}
@@ -346,7 +434,12 @@ export default function YourFutureYourWayTab() {
         ))}
       </ol>
 
-      <button type="button" onClick={onSubmit} className="border px-3 py-2 mt-4">
+      {/* Submit button */}
+      <button
+        type="button"
+        onClick={onSubmit}
+        className="border px-3 py-2 mt-4"
+      >
         Submit
       </button>
     </div>
