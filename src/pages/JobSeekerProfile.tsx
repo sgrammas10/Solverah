@@ -11,6 +11,11 @@ import {
   Star,
   Brain
 } from 'lucide-react';
+import { Link } from "react-router-dom";
+import CareerQuizzes from "../components/CareerQuizzes";
+import NextChapterYourWayQuiz from "../components/NextChapterYourWayQuiz";
+import SolverahYourFutureYourWayQuiz from "../components/SolverahYourFutureYourWayQuiz";
+
 
 function JobSeekerProfile() {
   const { user, updateProfile, updateProfileData, fetchProfileData, saveProfileData, fetchWithAuth} = useAuth();
@@ -918,53 +923,85 @@ function JobSeekerProfile() {
         {activeTab === 'assessments' && (
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Solverah Psychometric Assessments</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Solverah Career & Psychometric Quizzes
+              </h2>
               <p className="text-gray-600 mb-6">
-                Our proprietary assessments help match you with roles that align with your personality and work style.
+                Explore our curated set of quizzes to uncover your strengths, personality traits, 
+                and career motivations. Your responses will be automatically saved to your profile.
               </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {Object.entries(formData.psychometricResults).map(([trait, result]) => (
-                  <div key={trait} className="p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-medium text-gray-900 capitalize">
-                        {trait.replace(/([A-Z])/g, ' $1').trim()}
-                      </h3>
-                      <span className="text-sm text-gray-500">Not completed</span>
-                    </div>
-                    
-                    <div className="text-center py-4">
-                      <p className="text-sm text-gray-500 mb-3">
-                        Complete this assessment to see your score
-                      </p>
-                      <button
-                        type="button"
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
-                      >
-                        Take Assessment
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              {/* Quiz Cards */}
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Career Quizzes & Archetypes */}
+                <div className="border border-gray-200 rounded-lg p-5 bg-gray-50 hover:shadow-md transition">
+                  <h3 className="text-lg font-semibold text-blue-600 mb-2">
+                    Career Quizzes & Archetypes
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Learn what drives your success and identify your career archetype across multiple themed quizzes.
+                  </p>
+                  <Link
+                    to="/career-quizzes"
+                    className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                  >
+                    Start Quiz
+                  </Link>
+                </div>
+
+                {/* Next Chapter: Your Way */}
+                <div className="border border-gray-200 rounded-lg p-5 bg-gray-50 hover:shadow-md transition">
+                  <h3 className="text-lg font-semibold text-blue-600 mb-2">
+                    Next Chapter: Your Way
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    A reflection-based quiz for graduates and early-career professionals navigating their next chapter.
+                  </p>
+                  <Link
+                    to="/career-job-search"
+                    className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                  >
+                    Start Quiz
+                  </Link>
+                </div>
+
+                {/* Your Future, Your Way */}
+                <div className="border border-gray-200 rounded-lg p-5 bg-gray-50 hover:shadow-md transition md:col-span-2">
+                  <h3 className="text-lg font-semibold text-blue-600 mb-2">
+                    Your Future, Your Way
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    A fun, teen-focused quiz that helps you explore interests, personality, and future goals in an engaging way.
+                  </p>
+                  <Link
+                    to="/future-your-way"
+                    className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                  >
+                    Start Quiz
+                  </Link>
+                </div>
               </div>
 
-              <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="flex items-center">
-                  <Brain className="h-5 w-5 text-yellow-600 mr-2" />
-                  <div>
-                    <h3 className="font-medium text-yellow-900">Complete Your Assessments</h3>
-                    <p className="text-sm text-yellow-700">
-                      Take our psychometric assessments to improve your job matching accuracy and showcase your potential to employers.
-                    </p>
-                  </div>
-                  <button className="ml-auto px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm">
-                    Start Assessments
-                  </button>
+              {/* Call to Action Banner */}
+              <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center">
+                <Brain className="h-5 w-5 text-yellow-600 mr-3" />
+                <div>
+                  <h3 className="font-medium text-yellow-900">Complete Your Assessments</h3>
+                  <p className="text-sm text-yellow-700">
+                    Taking these quizzes will improve your personalized job matching accuracy and help you stand out to employers.
+                  </p>
                 </div>
+                <Link
+                  to="/career-quizzes"
+                  className="ml-auto px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm"
+                >
+                  View All Quizzes
+                </Link>
               </div>
             </div>
           </div>
         )}
+
 
         {/* Save Button */}
         <div className="flex justify-end pt-6">
