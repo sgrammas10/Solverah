@@ -1,27 +1,37 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import Header from './components/Header';
-import LandingPage from './pages/LandingPage';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import JobSeekerDashboard from './pages/JobSeekerDashboard';
-import RecruiterDashboard from './pages/RecruiterDashboard';
-import JobSeekerProfile from './pages/JobSeekerProfile';
-import RecruiterProfile from './pages/RecruiterProfile';
-import Feed from './pages/Feed';
+import React from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import Header from "./components/Header";
 
-function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles: string[] }) {
+// ✅ Quiz Components
+import CareerQuizzes from "./components/CareerQuizzes";
+import NextChapterYourWayQuiz from "./components/NextChapterYourWayQuiz";
+import SolverahYourFutureYourWayQuiz from "./components/SolverahYourFutureYourWayQuiz";
+
+// ✅ Core Pages
+import LandingPage from "./pages/LandingPage";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import JobSeekerDashboard from "./pages/JobSeekerDashboard";
+import RecruiterDashboard from "./pages/RecruiterDashboard";
+import JobSeekerProfile from "./pages/JobSeekerProfile";
+import RecruiterProfile from "./pages/RecruiterProfile";
+import Feed from "./pages/Feed";
+import SearchResults from "./pages/SearchResults"; // ✅ from your quiz-aware version
+
+// ✅ Role-based route protection
+function ProtectedRoute({
+  children,
+  allowedRoles,
+}: {
+  children: React.ReactNode;
+  allowedRoles: string[];
+}) {
   const { user } = useAuth();
-  
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  if (!allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
-  }
-  
+
+  if (!user) return <Navigate to="/login" replace />;
+  if (!allowedRoles.includes(user.role)) return <Navigate to="/" replace />;
+
   return <>{children}</>;
 }
 
@@ -33,49 +43,93 @@ function App() {
           <Header />
           <main>
             <Routes>
+              {/* Public routes */}
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route 
-                path="/feed" 
+
+              {/* Shared feed + search routes */}
+              <Route
+                path="/feed"
                 element={
-                  <ProtectedRoute allowedRoles={['job-seeker', 'recruiter']}>
+                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
                     <Feed />
                   </ProtectedRoute>
-                } 
+                }
               />
-              <Route 
-                path="/job-seeker/dashboard" 
+              <Route
+                path="/search"
                 element={
-                  <ProtectedRoute allowedRoles={['job-seeker']}>
+                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                    <SearchResults />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Job Seeker routes */}
+              <Route
+                path="/job-seeker/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <JobSeekerDashboard />
                   </ProtectedRoute>
-                } 
+                }
               />
-              <Route 
-                path="/job-seeker/profile" 
+              <Route
+                path="/job-seeker/profile"
                 element={
-                  <ProtectedRoute allowedRoles={['job-seeker']}>
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <JobSeekerProfile />
                   </ProtectedRoute>
-                } 
+                }
               />
-              <Route 
-                path="/recruiter/dashboard" 
+
+              {/* Recruiter routes */}
+              <Route
+                path="/recruiter/dashboard"
                 element={
-                  <ProtectedRoute allowedRoles={['recruiter']}>
+                  <ProtectedRoute allowedRoles={["recruiter"]}>
                     <RecruiterDashboard />
                   </ProtectedRoute>
-                } 
+                }
               />
-              <Route 
-                path="/recruiter/profile" 
+              <Route
+                path="/recruiter/profile"
                 element={
-                  <ProtectedRoute allowedRoles={['recruiter']}>
+                  <ProtectedRoute allowedRoles={["recruiter"]}>
                     <RecruiterProfile />
                   </ProtectedRoute>
-                } 
+                }
               />
+
+              {/* Quiz routes */}
+              <Route
+                path="/career-quizzes"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                    <CareerQuizzes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/career-job-search"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                    <NextChapterYourWayQuiz />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/future-your-way"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                    <SolverahYourFutureYourWayQuiz />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Catch-all fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
         </div>
