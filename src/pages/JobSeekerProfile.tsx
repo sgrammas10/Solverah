@@ -255,9 +255,23 @@ function JobSeekerProfile() {
       console.warn('saveProfileData is not available; profile saved locally only.');
     }
 
-    // Build AI pipeline automatically
-    const pipeline = buildProfilePipeline();
-    const stringified = JSON.stringify(pipeline);
+    // // Build AI pipeline automatically
+    // const pipeline = buildProfilePipeline();
+    // const stringified = JSON.stringify(pipeline);
+    // try {
+    //   await fetchWithAuth("/recommendations", {
+    //     method: "POST",
+    //     body: JSON.stringify({ profilePipeline: stringified }),
+    //   });
+    //   console.log("Job recommendations generated and saved!");
+    // } catch (err) {
+    //   console.error("Error generating recommendations:", err);
+    // }
+
+
+    // Build AI pipeline automatically (PII-safe for the model)
+    const modelPipeline = buildProfilePipeline();
+    const stringified = JSON.stringify(modelPipeline);
     try {
       await fetchWithAuth("/recommendations", {
         method: "POST",
@@ -290,61 +304,146 @@ function JobSeekerProfile() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isSaved]);
        
+  // const buildProfilePipeline = () => {
+  //   const sections: { section: string; content: string }[] = [];
+
+  //  //Personal info
+  //   const personalInfo = `
+  //   Name: ${formData.firstName} ${formData.lastName}
+  //   Email: ${formData.email}
+  //   Phone: ${formData.phone || "N/A"}
+  //   Location: ${formData.location || "N/A"}
+  //   Summary: ${formData.summary || "N/A"}
+  //   `;
+  //   sections.push({ section: "Personal Info", content: personalInfo.trim() });
+
+  //   //Exp
+  //   const experienceEntries = formData.experience?.map((exp: any) => {
+  //     return `
+  //     Company: ${exp.company}
+  //     Position: ${exp.position}
+  //     Dates: ${exp.startDate || "?"} → ${exp.endDate || "Present"}
+  //     Description: ${exp.description || ""}
+  //     `;
+  //   }) || [];
+  //   sections.push({ section: "Experience", content: experienceEntries.join("\n\n") });
+
+  //   //Skills
+  //   const skills = formData.skills?.join(", ") || "None listed";
+  //   sections.push({ section: "Skills", content: `Skills: ${skills}` });
+
+  //   //Education
+  //   const educationEntries = formData.education?.map((edu: any) => {
+  //     return `
+  //     Institution: ${edu.institution}
+  //     Degree: ${edu.degree}
+  //     Dates: ${edu.startDate || "?"} → ${edu.endDate || "?"}
+  //     GPA: ${edu.gpa || "N/A"}
+  //     `;
+  //   }) || [];
+  //   sections.push({ section: "Education", content: educationEntries.join("\n\n") });
+
+  //   return sections;
+  // };
+
   const buildProfilePipeline = () => {
     const sections: { section: string; content: string }[] = [];
 
-   //Personal info
-    const personalInfo = `
-    Name: ${formData.firstName} ${formData.lastName}
-    Email: ${formData.email}
-    Phone: ${formData.phone || "N/A"}
-    Location: ${formData.location || "N/A"}
-    Summary: ${formData.summary || "N/A"}
-    `;
-    sections.push({ section: "Personal Info", content: personalInfo.trim() });
+    if (formData.summary && formData.summary.trim()) {
+      sections.push({
+        section: "Summary",
+        content: formData.summary.trim(),
+      });
+    }
 
-    //Exp
-    const experienceEntries = formData.experience?.map((exp: any) => {
-      return `
-      Company: ${exp.company}
-      Position: ${exp.position}
-      Dates: ${exp.startDate || "?"} → ${exp.endDate || "Present"}
-      Description: ${exp.description || ""}
-      `;
-    }) || [];
-    sections.push({ section: "Experience", content: experienceEntries.join("\n\n") });
+    const experienceEntries =
+      formData.experience?.map((exp: any) => {
+        const parts: string[] = [];
 
-    //Skills
-    const skills = formData.skills?.join(", ") || "None listed";
-    sections.push({ section: "Skills", content: `Skills: ${skills}` });
+        if (exp.position) {
+          parts.push(`Role: ${exp.position}`);
+        }
+        if (exp.company) {
+          parts.push(`Company: ${exp.company}`);
+        }
+        if (exp.description) {
+          parts.push(`Description: ${exp.description}`);
+        }
 
-    //Education
-    const educationEntries = formData.education?.map((edu: any) => {
-      return `
-      Institution: ${edu.institution}
-      Degree: ${edu.degree}
-      Dates: ${edu.startDate || "?"} → ${edu.endDate || "?"}
-      GPA: ${edu.gpa || "N/A"}
-      `;
-    }) || [];
-    sections.push({ section: "Education", content: educationEntries.join("\n\n") });
+        return parts.join("\n");
+      }) || [];
+
+    if (experienceEntries.length > 0) {
+      sections.push({
+        section: "Experience",
+        content: experienceEntries.join("\n\n"),
+      });
+    }
+
+    if (formData.skills && formData.skills.length > 0) {
+      sections.push({
+        section: "Skills",
+        content: formData.skills.join(", "),
+      });
+    }
+
+    const educationEntries =
+      formData.education?.map((edu: any) => {
+        const parts: string[] = [];
+
+        if (edu.degree) {
+          parts.push(`Degree: ${edu.degree}`);
+        }
+        if (edu.institution) {
+          parts.push(`Institution: ${edu.institution}`);
+        }
+        if (edu.gpa) {
+          parts.push(`GPA: ${edu.gpa}`);
+        }
+
+        return parts.join("\n");
+      }) || [];
+
+    if (educationEntries.length > 0) {
+      sections.push({
+        section: "Education",
+        content: educationEntries.join("\n\n"),
+      });
+    }
+
+    if (formData.location && formData.location.trim()) {
+      sections.push({
+        section: "Location",
+        content: formData.location.trim(),
+      });
+    }
 
     return sections;
   };
 
-
+  const [experienceLimitMsg, setExperienceLimitMsg] = useState("");
+  const MAX_EXPERIENCES = 20;
   const addExperience = () => {
+    if (formData.experience.length >= MAX_EXPERIENCES) {
+      setExperienceLimitMsg(`You have reached the maximum of ${MAX_EXPERIENCES} experiences.`);
+      return;
+    }
+
+    // clear existing message if user goes under the limit later
+    if (experienceLimitMsg) setExperienceLimitMsg("");
+
     const newExp = {
       id: Date.now(),
-      company: '',
-      position: '',
-      startDate: '',
-      endDate: '',
-      description: ''
+      company: "",
+      position: "",
+      startDate: "",
+      endDate: "",
+      description: "",
     };
+
     setFormData({
       ...formData,
-      experience: [...formData.experience, newExp]
+      experience: [...formData.experience, newExp],
     });
   };
 
@@ -364,14 +463,29 @@ function JobSeekerProfile() {
     });
   };
 
+  const MAX_SKILLS = 50;
+  const [skillLimitMsg, setSkillLimitMsg] = useState("");
   const addSkill = (skill: string) => {
-    if (skill && !formData.skills.includes(skill)) {
+    if (!skill) return;
+
+    // Check max skill count
+    if (formData.skills.length >= MAX_SKILLS) {
+      setSkillLimitMsg(`You have reached the maximum of ${MAX_SKILLS} skills.`);
+      return;
+    }
+
+    // Prevent duplicates
+    if (!formData.skills.includes(skill)) {
+      // clear any previous limit message if going back under limit
+      if (skillLimitMsg) setSkillLimitMsg("");
+
       setFormData({
         ...formData,
-        skills: [...formData.skills, skill]
+        skills: [...formData.skills, skill],
       });
     }
   };
+
 
   const removeSkill = (skill: string) => {
     setFormData({
@@ -387,21 +501,33 @@ function JobSeekerProfile() {
       setResumeUploaded(true);
     }
   };
-
+  const MAX_EDUCATIONS = 10;
+  const [educationLimitMsg, setEducationLimitMsg] = useState("");
   const addEducation = () => {
+    // Check max education count
+    if (formData.education.length >= MAX_EDUCATIONS) {
+      setEducationLimitMsg(`You have reached the maximum of ${MAX_EDUCATIONS} education entries.`);
+      return;
+    }
+
+    // Clear warning if we're under the limit again
+    if (educationLimitMsg) setEducationLimitMsg("");
+
     const newEdu = {
       id: Date.now(),
-      institution: '',
-      degree: '',
-      startDate: '',
-      endDate: '',
-      gpa: ''
+      institution: "",
+      degree: "",
+      startDate: "",
+      endDate: "",
+      gpa: "",
     };
+
     setFormData({
       ...formData,
-      education: [...formData.education, newEdu]
+      education: [...formData.education, newEdu],
     });
   };
+
 
   const removeEducation = (id: number) => {
     setFormData({
@@ -493,6 +619,7 @@ function JobSeekerProfile() {
                   </label>
                   <input
                     type="text"
+                    maxLength={25}
                     value={formData.firstName}
                     onChange={(e) => handleChange("firstName", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -505,6 +632,7 @@ function JobSeekerProfile() {
                   </label>
                   <input
                     type="text"
+                    maxLength={25}
                     value={formData.lastName}
                     onChange={(e) => handleChange("lastName", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -517,6 +645,7 @@ function JobSeekerProfile() {
                   </label>
                   <input
                     type="email"
+                    maxLength={50}
                     value={formData.email}
                     onChange={(e) => handleChange("email", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -529,6 +658,7 @@ function JobSeekerProfile() {
                   </label>
                   <input
                     type="tel"
+                    maxLength={25}
                     value={formData.phone}
                     onChange={(e) => handleChange("phone", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -541,6 +671,7 @@ function JobSeekerProfile() {
                   </label>
                   <input
                     type="text"
+                    maxLength={50}
                     value={formData.location}
                     onChange={(e) => handleChange("location", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -553,6 +684,7 @@ function JobSeekerProfile() {
                   </label>
                   <textarea
                     rows={4}
+                    maxLength={4000}
                     value={formData.summary}
                     onChange={(e) => handleChange("summary", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -630,7 +762,7 @@ function JobSeekerProfile() {
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Work Experience</h2>
+                <h2 className="text-lg font-semibold text-gray-900">Work Experience</h2>           
                 <button
                   type="button"
                   onClick={addExperience}
@@ -640,7 +772,11 @@ function JobSeekerProfile() {
                   Add Experience
                 </button>
               </div>
-
+              {experienceLimitMsg && (
+                <div className="p-2 mb-3 text-red-600 bg-red-50 border border-red-200 rounded">
+                  {experienceLimitMsg}
+                </div>
+              )}
               <div className="space-y-6">
                 {formData.experience.map((exp, index) => (
                   <div key={exp.id} className="p-4 border border-gray-200 rounded-lg">
@@ -662,6 +798,7 @@ function JobSeekerProfile() {
                         </label>
                         <input
                           type="text"
+                          maxLength={50}
                           value={exp.company}
                           onChange={(e) => updateExperience(exp.id, 'company', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -674,6 +811,7 @@ function JobSeekerProfile() {
                         </label>
                         <input
                           type="text"
+                          maxLength={50}
                           value={exp.position}
                           onChange={(e) => updateExperience(exp.id, 'position', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -686,6 +824,7 @@ function JobSeekerProfile() {
                         </label>
                         <input
                           type="month"
+                          maxLength={50}
                           value={exp.startDate}
                           onChange={(e) => updateExperience(exp.id, 'startDate', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -698,6 +837,7 @@ function JobSeekerProfile() {
                         </label>
                         <input
                           type="month"
+                          maxLength={50}
                           value={exp.endDate}
                           onChange={(e) => updateExperience(exp.id, 'endDate', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -711,6 +851,7 @@ function JobSeekerProfile() {
                         </label>
                         <textarea
                           rows={3}
+                          maxLength={4000}
                           value={exp.description}
                           onChange={(e) => updateExperience(exp.id, 'description', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -745,6 +886,7 @@ function JobSeekerProfile() {
                 <div className="flex">
                   <input
                     type="text"
+                    maxLength={50}
                     placeholder="Add a skill (press Enter)"
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     onKeyPress={(e) => {
@@ -768,6 +910,11 @@ function JobSeekerProfile() {
                     Add
                   </button>
                 </div>
+                {skillLimitMsg && (
+                  <div className="p-2 mb-3 text-red-600 bg-red-50 border border-red-200 rounded">
+                    {skillLimitMsg}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -788,7 +935,11 @@ function JobSeekerProfile() {
                   Add Education
                 </button>
               </div>
-              
+              {educationLimitMsg && (
+                <div className="p-2 mb-3 text-red-600 bg-red-50 border border-red-200 rounded">
+                  {educationLimitMsg}
+                </div>
+              )}
               <div className="space-y-6">
                 {formData.education.map((edu, index) => (
                   <div key={edu.id} className="p-4 border border-gray-200 rounded-lg">
@@ -810,6 +961,7 @@ function JobSeekerProfile() {
                         </label>
                         <input
                           type="text"
+                          maxLength={50}
                           value={edu.institution}
                           onChange={(e) => updateEducation(edu.id, 'institution', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -822,6 +974,7 @@ function JobSeekerProfile() {
                         </label>
                         <input
                           type="text"
+                          maxLength={50}
                           value={edu.degree}
                           onChange={(e) => updateEducation(edu.id, 'degree', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -834,6 +987,7 @@ function JobSeekerProfile() {
                         </label>
                         <input
                           type="month"
+                          maxLength={50}
                           value={edu.startDate}
                           onChange={(e) => updateEducation(edu.id, 'startDate', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -846,6 +1000,7 @@ function JobSeekerProfile() {
                         </label>
                         <input
                           type="month"
+                          maxLength={50}
                           value={edu.endDate}
                           onChange={(e) => updateEducation(edu.id, 'endDate', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -858,6 +1013,7 @@ function JobSeekerProfile() {
                         </label>
                         <input
                           type="text"
+                          maxLength={50}
                           value={edu.gpa}
                           onChange={(e) => updateEducation(edu.id, 'gpa', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
