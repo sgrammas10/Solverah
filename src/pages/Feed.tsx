@@ -9,6 +9,7 @@ import {
   Building,
   TrendingUp
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 // import the CSV as a raw string using Vite's ?raw
 // @ts-ignore
 //import jobCsv from '../../zensearchData/job_postings.csv?raw';
@@ -271,6 +272,17 @@ function Feed() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('jobs');
 
+  //Search bar functionality
+  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+  };
+
+
   const tabs = [
     { id: 'jobs', label: 'Job Feed', icon: Briefcase },
     { id: 'messages', label: 'Messages', icon: MessageCircle },
@@ -290,22 +302,25 @@ function Feed() {
       </div>
 
       {/* Search and Filter Bar */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
-        <div className="flex-1 relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            placeholder="Search jobs, companies, or people..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+        <div className="mb-6 flex flex-col sm:flex-row gap-4">
+          <form onSubmit={handleSearch} className="flex-1 relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search jobs, companies, or people..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </form>
+          <button className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+            <Filter className="h-4 w-4 mr-2" />
+            Filters
+          </button>
         </div>
-        <button className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-          <Filter className="h-4 w-4 mr-2" />
-          Filters
-        </button>
-      </div>
+
 
       {/* Tab Navigation */}
       <div className="border-b border-gray-200 mb-8">
