@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 
+// Single quiz question type: numeric id, question text, and list of options
 type Question = { id: number; text: string; options: string[] };
+
+// Quiz type: a unique key, display title, and a list of questions
 type Quiz = { key: string; title: string; questions: Question[] };
 
+// Static configuration for all quizzes shown in this tab
 const quizzes: Quiz[] = [
   {
     key: "earlyCareer",
@@ -232,6 +236,7 @@ const quizzes: Quiz[] = [
   },
 ];
 
+// Static copy that explains different "archetypes" the user might align with
 const archetypes = [
   "The Builder – thrives on creating new systems, projects, and opportunities.",
   "The Strategist – excels in long-term planning and pattern recognition.",
@@ -241,42 +246,64 @@ const archetypes = [
 ];
 
 export default function CareerQuizzesArchetypesTab() {
-  // answers[quizKey][questionId] = optionIndex
+  // answers state structure:
+  // answers[quizKey][questionId] = optionIndex (0-based index into options array)
   const [answers, setAnswers] = useState<Record<string, Record<number, number>>>(
     {}
   );
+
+  // Get profile-related actions from AuthContext
   const { fetchProfileData, saveProfileData } = useAuth();
 
+  /**
+   * Handle change for an individual question's selected option.
+   * - quizKey: which quiz this question belongs to
+   * - qid: question ID
+   * - idx: selected option index
+   */
   const onChange = (quizKey: string, qid: number, idx: number) => {
     setAnswers((prev) => ({
+      // keep existing quizzes' answers
       ...prev,
+      // for this quiz, merge existing question answers with this new one
       [quizKey]: { ...(prev[quizKey] || {}), [qid]: idx },
     }));
   };
 
+  /**
+   * Submit all quiz answers at once:
+   * - Fetch existing profile data (if available)
+   * - Merge quiz results into profileData
+   * - Save via saveProfileData from AuthContext
+   */
   const onSubmitAll = () => {
     (async () => {
       try {
-        // fetch current profile to merge
+        // Fetch current profile data so we don't overwrite other fields
         const current = await (fetchProfileData ? fetchProfileData() : Promise.resolve(null));
+        // Some backends may nest data under profileData, so handle both shapes
         const profileData = current?.profileData || current || {};
 
+        // New profile object with quiz results merged in
         const newProfileData = {
           ...profileData,
           quizResults: {
             careerQuizzes: answers,
-            submittedAt: new Date().toISOString(),
+            submittedAt: new Date().toISOString(), // timestamp for when quizzes were submitted
           },
         };
 
+        // If saveProfileData is available, persist the updated profile
         if (saveProfileData) {
           await saveProfileData(newProfileData);
           alert("Responses saved to your profile.");
         } else {
+          // If AuthContext doesn't expose saveProfileData, log and show a fallback message
           console.warn("saveProfileData not available on AuthContext");
           alert("Unable to save responses (not authenticated).");
         }
       } catch (err) {
+        // On any error, log details and show user-friendly message
         console.error(err);
         alert("Failed to save responses. Check console for details.");
       }
@@ -285,8 +312,10 @@ export default function CareerQuizzesArchetypesTab() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
+      {/* Title for the overall tab */}
       <h2 className="text-xl font-semibold mb-2">Career Quizzes &amp; Archetypes</h2>
 
+      {/* Render each quiz section */}
       {quizzes.map((quiz) => (
         <section key={quiz.key} className="mb-8">
           <h3 className="text-lg font-medium mb-2">{quiz.title}</h3>
@@ -297,12 +326,16 @@ export default function CareerQuizzesArchetypesTab() {
                   <legend className="mb-1">
                     {q.id}. {q.text}
                   </legend>
+                  {/* Render options as radio buttons for each question */}
                   {q.options.map((opt, idx) => (
                     <label key={idx} className="block">
                       <input
                         type="radio"
+                        // Use a unique name per question so radios are grouped correctly
                         name={`${quiz.key}-q${q.id}`}
+                        // Check if this option is the selected index for this question
                         checked={(answers[quiz.key]?.[q.id] ?? -1) === idx}
+                        // Update state when user selects this option
                         onChange={() => onChange(quiz.key, q.id, idx)}
                       />{" "}
                       {opt}
@@ -315,6 +348,7 @@ export default function CareerQuizzesArchetypesTab() {
         </section>
       ))}
 
+      {/* Static list of archetypes for the user to read */}
       <section className="mb-6">
         <h3 className="text-lg font-medium mb-2">Archetypes</h3>
         <ul className="list-disc pl-6 space-y-1">
@@ -324,6 +358,7 @@ export default function CareerQuizzesArchetypesTab() {
         </ul>
       </section>
 
+      {/* Button that triggers saving all responses to the profile */}
       <button type="button" onClick={onSubmitAll} className="border px-3 py-2">
         Submit All
       </button>
