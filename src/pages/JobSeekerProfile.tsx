@@ -16,7 +16,11 @@ import CareerQuizzes from "../components/CareerQuizzes";
 import NextChapterYourWayQuiz from "../components/NextChapterYourWayQuiz";
 import SolverahYourFutureYourWayQuiz from "../components/SolverahYourFutureYourWayQuiz";
 
+type QuizQuestion = { id: number; text: string; options: string[] };
 
+// Import question banks from the quiz components
+import { careerJobSearchQuestionBank } from "../components/NextChapterYourWayQuiz";
+import { yourFutureYourWayQuestionBank } from "../components/SolverahYourFutureYourWayQuiz";
 function JobSeekerProfile() {
   const { user, updateProfile, updateProfileData, fetchProfileData, saveProfileData, fetchWithAuth} = useAuth();
 
@@ -50,6 +54,9 @@ function JobSeekerProfile() {
   const [isSaved, setIsSaved] = useState(true);
   const [uploadedResume, setUploadedResume] = useState<File | null>(null);
   const [resumeUploaded, setResumeUploaded] = useState(false);
+
+  const [showQuizResults, setShowQuizResults] = useState(false);
+
 
   interface UploadedResume {
     name: string;
@@ -303,7 +310,52 @@ function JobSeekerProfile() {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isSaved]);
-       
+  
+  type QuizResultsSectionProps = {
+    title: string;
+    questions: QuizQuestion[];
+    answers: Record<string, number> | Record<number, number>;
+  };
+
+  const QuizResultsSection: React.FC<QuizResultsSectionProps> = ({
+    title,
+    questions,
+    answers,
+  }) => {
+    const getQuestionById = (id: number) => questions.find((q) => q.id === id);
+
+    const entries = Object.entries(answers)
+      .map(([idStr, idx]) => ({ id: Number(idStr), idx }))
+      .sort((a, b) => a.id - b.id);
+
+    return (
+      <section className="bg-white border border-gray-200 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">{title}</h3>
+        <ol className="space-y-3 list-decimal list-inside text-sm text-gray-900">
+          {entries.map(({ id, idx }) => {
+            const question = getQuestionById(id);
+            if (!question) return null;
+
+            const choiceIndex = typeof idx === "number" ? idx : Number(idx);
+            const answerText =
+              question.options[choiceIndex] ?? "No answer selected";
+
+            return (
+              <li key={id}>
+                <div className="font-medium">{question.text}</div>
+                <div className="text-gray-700">
+                  <span className="font-semibold">Your answer: </span>
+                  {answerText}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+    );
+  };
+
+
   // const buildProfilePipeline = () => {
   //   const sections: { section: string; content: string }[] = [];
 
@@ -1137,6 +1189,52 @@ function JobSeekerProfile() {
                   </Link>
                 </div>
               </div>
+              {/* View Saved Quiz Results */}
+              {formData.quizResults && (
+                <div className="mt-6 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowQuizResults((prev) => !prev)}
+                    className="px-4 py-2 border border-blue-600 text-blue-600 rounded-md hover:bg-blue-50 text-sm font-medium"
+                  >
+                    {showQuizResults ? 'Hide Quiz Results' : 'View Saved Quiz Results'}
+                  </button>
+                </div>
+              )}
+
+              {showQuizResults && formData.quizResults && (
+                <div className="mt-4 space-y-4">
+                  <h3 className="text-sm font-semibold text-gray-800">
+                    Your Saved Quiz Results
+                  </h3>
+
+                  {(() => {
+                    const quizResults = formData.quizResults as any;
+
+                    return (
+                      <>
+                        {quizResults.careerJobSearch && (
+                          <QuizResultsSection
+                            title="Career & Job Search"
+                            questions={careerJobSearchQuestionBank as QuizQuestion[]}
+                            answers={quizResults.careerJobSearch as Record<string, number>}
+                          />
+                        )}
+
+                        {quizResults.yourFutureYourWay && (
+                          <QuizResultsSection
+                            title="Your Future, Your Way"
+                            questions={yourFutureYourWayQuestionBank as QuizQuestion[]}
+                            answers={quizResults.yourFutureYourWay as Record<string, number>}
+                          />
+                        )}
+
+                        {/*  can add more quizzes here*/}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
 
               {/* Call to Action Banner */}
               <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center">
