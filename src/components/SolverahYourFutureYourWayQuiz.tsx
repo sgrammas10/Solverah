@@ -332,6 +332,9 @@ const questions: Question[] = [
   },
 ];
 
+export const yourFutureYourWayQuestionBank = questions;
+
+
 /* ===========================================================
    COMPONENT: YourFutureYourWayTab
    -----------------------------------------------------------

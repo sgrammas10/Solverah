@@ -300,6 +300,9 @@ const sections: { title: string; startId: number; questions: Question[] }[] = [
   },
 ];
 
+export const careerJobSearchQuestionBank = sections.flatMap((section) => section.questions);
+
+
 /* ===========================================================
    COMPONENT: CareerAndJobSearchTab
    -----------------------------------------------------------
