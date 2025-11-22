@@ -321,6 +321,46 @@ def get_recommendations():
 
 
 
+@app.route("/api/dashboard-data", methods=["GET"])
+@jwt_required()
+def get_dashboard_data():
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first_or_404()
+
+    profile = user.profile_data or {}
+
+    # Example: compute dynamic stats from their data
+    profile_completion = 0
+    fields = ["firstName", "lastName", "email", "summary", "skills", "experience", "education"]
+    filled = sum(1 for f in fields if profile.get(f))
+    profile_completion = int((filled / len(fields)) * 100)
+
+    # Count jobs from recommendations
+    job_matches = JobRecommendation.query.filter_by(user_id=user.id).count()
+
+    # You can extend this later with live data (applications, views, etc.)
+    applications = len(profile.get("applications", [])) if "applications" in profile else 0
+
+    # Simple example recent activity & recommendations
+    recent_activity = [
+        {"type": "match", "text": "New job match found", "time": "2 hours ago", "icon": "Briefcase"},
+        {"type": "assessment", "text": "Complete your leadership assessment", "time": "1 day ago", "icon": "Brain"}
+    ]
+
+    recommendations = [
+        {"title": "Complete Psychometric Assessment", "description": "Boost visibility", "action": "Take Assessment", "priority": "high", "href": "/job-seeker/profile#assessments"},
+        {"title": "Add Recent Experience", "description": "Update your experience section", "action": "Update Profile", "priority": "medium", "href": "/job-seeker/profile#experience"},
+    ]
+
+    return jsonify({
+        "profileCompletion": f"{profile_completion}%",
+        "jobMatches": job_matches,
+        "applications": applications,
+        "recentActivity": recent_activity,
+        "recommendations": recommendations
+    })
+
+
 
 if __name__ == "__main__":
     app.run(debug=True)
