@@ -239,12 +239,11 @@ function JobSeekerProfile() {
     
     const profileDataToSave = {
       ...formData,
-      uploadedResume: uploadedResume ? {
-        name: uploadedResume.name,
-        size: uploadedResume.size,
-        type: uploadedResume.type
-      } : (resumeUploaded ? formData.uploadedResume : null)
+      uploadedResume: uploadedResume
+        ? { name: uploadedResume.name, size: uploadedResume.size, type: uploadedResume.type }
+        : formData.uploadedResume ?? null,
     };
+
   
 
 
@@ -550,7 +549,7 @@ function JobSeekerProfile() {
     const file = e.target.files?.[0];
     if (file) {
       setUploadedResume(file);
-      setResumeUploaded(true);
+      setIsSaved(false);
     }
   };
   const MAX_EDUCATIONS = 10;
@@ -750,7 +749,7 @@ function JobSeekerProfile() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Resume
                 </label>
-                {(uploadedResume || resumeUploaded) && (
+                {(uploadedResume || formData.uploadedResume) && (
                   <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
@@ -775,7 +774,8 @@ function JobSeekerProfile() {
                         type="button"
                         onClick={() => {
                           setUploadedResume(null);
-                          setResumeUploaded(false);
+                          setFormData((curr) => ({ ...curr, uploadedResume: null }));
+                          setIsSaved(false);
                         }}
                         className="text-green-600 hover:text-green-500"
                       >
