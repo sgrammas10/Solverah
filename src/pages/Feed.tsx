@@ -153,7 +153,7 @@ function formatDateUS(dateStr?: string) {
 
 function JobRecommendations() {
   const [jobs, setJobs] = useState<any[]>([]);
-  const { fetchWithAuth } = useAuth(); // 👈 get from AuthContext
+  const { fetchWithAuth } = useAuth(); // get from AuthContext
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {

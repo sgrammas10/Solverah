@@ -1,7 +1,12 @@
 from flask import Flask, jsonify, request
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (
-    JWTManager, create_access_token, jwt_required, get_jwt_identity
+    JWTManager,
+    create_access_token,
+    jwt_required,
+    get_jwt_identity,
+    set_access_cookies,
+    unset_jwt_cookies,
 )
 
 import os
@@ -24,11 +29,16 @@ from flask_cors import CORS
 # })
 
 # update to the one above when domain is ready
-CORS(app, resources={
-    r"/api/*": {
-        "origins": ["http://localhost:4173"],
-    }
-})
+CORS(
+    app,
+    resources={r"/api/*": {
+        "origins": [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ]
+    }},
+    supports_credentials=True,
+)
 
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///users.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -39,6 +49,20 @@ app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY")
 if not app.config["JWT_SECRET_KEY"]:
     raise RuntimeError("JWT_SECRET_KEY is not set")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"]= timedelta(hours=1) #token expires in 1 hours
+
+# Tell JWTs to live in cookies instead of headers
+app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
+
+# In dev (http://localhost), this must be False; in prod over HTTPS set to True
+app.config["JWT_COOKIE_SECURE"] = False  # True on real HTTPS
+
+# If frontend and backend are on same origin, "Lax" is fine; if cross-site + HTTPS, use "None"
+app.config["JWT_COOKIE_SAMESITE"] = "Lax"
+
+# CSRF protection on state-changing methods
+app.config["JWT_COOKIE_CSRF_PROTECT"] = False  # Set to True to enable CSRF protection when done setting up
+app.config["JWT_CSRF_METHODS"] = ["POST", "PUT", "PATCH", "DELETE"]
+
 
 db.init_app(app)
 with app.app_context():
@@ -76,7 +100,6 @@ def default_profile(email="", name="", role="job-seeker"):
         },
     }
 
-    # Optional: recruiter-specific default structure
     if role == "recruiter":
         profile.update({
             "company": "",
@@ -89,29 +112,67 @@ def default_profile(email="", name="", role="job-seeker"):
   
 
 
+# @limiter.limit("5 per minute")
+# @app.route("/api/login", methods=["POST"])
+# def login():
+#     data = request.get_json()
+#     email = data.get("email")
+#     password = data.get("password")
+#     valid, msg = validate_password(password)
+#     if not valid:
+#         return jsonify({"error": msg}), 400
+
+
+#     user = User.query.filter_by(email=email).first()
+#     if not user or not bcrypt.check_password_hash(user.password, password):
+#         return jsonify({"error": "Invalid credentials"}), 401
+
+#     #for JWT auth stuff
+#     token = create_access_token(identity=user.email)
+#     return jsonify({"message": "login successful", "user": {
+#         "id": user.id,
+#         "email": user.email,
+#         "name": user.name,
+#         "role": user.role
+#     }, "token": token})
+
+
 @limiter.limit("5 per minute")
 @app.route("/api/login", methods=["POST"])
 def login():
     data = request.get_json()
     email = data.get("email")
     password = data.get("password")
-    valid, msg = validate_password(password)
-    if not valid:
-        return jsonify({"error": msg}), 400
-
 
     user = User.query.filter_by(email=email).first()
     if not user or not bcrypt.check_password_hash(user.password, password):
         return jsonify({"error": "Invalid credentials"}), 401
 
-    #for JWT auth stuff
-    token = create_access_token(identity=user.email)
-    return jsonify({"message": "login successful", "user": {
-        "id": user.id,
-        "email": user.email,
-        "name": user.name,
-        "role": user.role
-    }, "token": token})
+    access_token = create_access_token(identity=user.email)
+
+    # Build JSON response
+    resp = jsonify({
+        "message": "login successful",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+        }
+        # can omit "token" now, since it's in the cookie
+    })
+
+    # Attach JWT as HttpOnly cookie
+    set_access_cookies(resp, access_token)
+
+    return resp
+
+@app.route("/api/logout", methods=["POST"])
+@jwt_required()  # requires valid cookie
+def logout():
+    resp = jsonify({"message": "logout successful"})
+    unset_jwt_cookies(resp)
+    return resp
 
 
 #Registering new user
