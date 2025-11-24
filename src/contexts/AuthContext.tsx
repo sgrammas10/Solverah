@@ -30,9 +30,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // const API_URL = "http://127.0.0.1:5000/api";
 const API_URL = "http://localhost:5000/api";
 
+const getCookie = (name: string): string | null => {
+  const match = document.cookie.match(
+    new RegExp('(^|;\\s*)' + name + '=([^;]*)')
+  );
+  return match ? decodeURIComponent(match[2]) : null;
+};
+
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [csrfToken, setCsrfToken] = useState<string | null>(null);
 
   // Restore session automatically using secure cookies
   useEffect(() => {
@@ -52,22 +61,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         setUser(null);
       }
+      const csrf = getCookie("csrf_access_token");
+      if (csrf) {
+        setCsrfToken(csrf);
+      }
       setLoading(false);
     })();
   }, []);
 
   // No token needed — cookies handle auth
+  // const fetchWithAuth = async <T = any>(
+  //   endpoint: string,
+  //   options: RequestInit = {}
+  // ): Promise<T> => {
+  //   const res = await fetch(`${API_URL}${endpoint}`, {
+  //     ...options,
+  //     headers: {
+  //       "Content-Type": "application/json",
+  //       ...(options.headers || {}),
+  //     },
+  //     credentials: "include", // SEND COOKIES AUTOMATICALLY
+  //   });
+
+  //   const data = await res.json().catch(() => null);
+
+  //   if (!res.ok) {
+  //     throw new Error(data?.error || data?.message || "Request failed");
+  //   }
+
+  //   return data as T;
+  // };
   const fetchWithAuth = async <T = any>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> => {
+    const method = (options.method || "GET").toUpperCase();
+
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    };
+
+    // attach CSRF token for state-changing requests
+    if (csrfToken && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+      (headers as any)["X-CSRF-TOKEN"] = csrfToken;
+    }
+
     const res = await fetch(`${API_URL}${endpoint}`, {
       ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.headers || {}),
-      },
-      credentials: "include", // SEND COOKIES AUTOMATICALLY
+      headers,
+      credentials: "include",
     });
 
     const data = await res.json().catch(() => null);
@@ -78,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return data as T;
   };
+
 
   // LOGIN — backend sets an HttpOnly JWT cookie
   const login = async (email: string, password: string) => {
@@ -95,6 +139,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // The backend sets a secure cookie — we only store the user object
     setUser(data.user as User);
+
+    const csrf = getCookie("csrf_access_token");
+    if (csrf) {
+      setCsrfToken(csrf);
+    }
   };
 
   // REGISTER — then user logs in normally
@@ -112,12 +161,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // LOGOUT — clears cookie on backend
   const logout = async () => {
-    await fetch(`${API_URL}/logout`, {
-      method: "POST",
-      credentials: "include",
-    });
-    setUser(null);
+    try {
+      await fetchWithAuth("/logout", { method: "POST" });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setUser(null);
+    }
   };
+
 
   const fetchProfile = async () => {
     const data = await fetchWithAuth<User>("/profile", { method: "GET" });

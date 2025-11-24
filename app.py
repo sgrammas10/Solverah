@@ -38,6 +38,7 @@ CORS(
         ]
     }},
     supports_credentials=True,
+    allow_headers=["Content-Type", "X-CSRF-TOKEN"],
 )
 
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///users.db"
@@ -54,7 +55,7 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"]= timedelta(hours=1) #token expires in 1 h
 app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
 
 # In dev (http://localhost), this must be False; in prod over HTTPS set to True
-app.config["JWT_COOKIE_SECURE"] = False  # True on real HTTPS
+app.config["JWT_COOKIE_SECURE"] = True  # True on real HTTPS
 
 # If frontend and backend are on same origin, "Lax" is fine; if cross-site + HTTPS, use "None"
 app.config["JWT_COOKIE_SAMESITE"] = "Lax"
@@ -62,6 +63,7 @@ app.config["JWT_COOKIE_SAMESITE"] = "Lax"
 # CSRF protection on state-changing methods
 app.config["JWT_COOKIE_CSRF_PROTECT"] = False  # Set to True to enable CSRF protection when done setting up
 app.config["JWT_CSRF_METHODS"] = ["POST", "PUT", "PATCH", "DELETE"]
+app.config["JWT_CSRF_HEADER_NAME"] = "X-CSRF-TOKEN"
 
 
 db.init_app(app)
