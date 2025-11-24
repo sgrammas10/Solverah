@@ -8,6 +8,7 @@ from flask_jwt_extended import (
     set_access_cookies,
     unset_jwt_cookies,
 )
+from flask_talisman import Talisman
 
 import os
 import json
@@ -27,6 +28,15 @@ from flask_cors import CORS
 #         "origins": ["http://localhost:4173", "https://yourdomain.com"],
 #     }
 # })
+
+# Security headers with Talisman for CSP 
+Talisman(
+    app,
+    content_security_policy={
+        "default-src": ["'self'", "https://fonts.gstatic.com", "https://fonts.googleapis.com"],
+    },
+)
+
 
 # update to the one above when domain is ready
 CORS(
