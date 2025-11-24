@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 /* -----------------------------------------------------------
    Type Definitions
@@ -315,6 +316,7 @@ export default function CareerAndJobSearchTab() {
   // answers maps questionId → selected option index (0–3)
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const { fetchProfileData, saveProfileData } = useAuth();
+  const navigate = useNavigate();
 
   /* ---------------------------------------------------------
      handleChange
@@ -356,6 +358,7 @@ export default function CareerAndJobSearchTab() {
         if (saveProfileData) {
           await saveProfileData(newProfileData);
           alert("Responses saved to your profile.");
+          navigate("/job-seeker/profile?tab=quizzes");
         } else {
           alert("Unable to save responses (not authenticated).");
         }

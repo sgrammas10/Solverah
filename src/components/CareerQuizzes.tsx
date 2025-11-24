@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+
 
 // Single quiz question type: numeric id, question text, and list of options
 type Question = { id: number; text: string; options: string[] };
@@ -254,6 +256,8 @@ export default function CareerQuizzesArchetypesTab() {
 
   // Get profile-related actions from AuthContext
   const { fetchProfileData, saveProfileData } = useAuth();
+  const navigate = useNavigate();
+
 
   /**
    * Handle change for an individual question's selected option.
@@ -297,6 +301,7 @@ export default function CareerQuizzesArchetypesTab() {
         if (saveProfileData) {
           await saveProfileData(newProfileData);
           alert("Responses saved to your profile.");
+          navigate("/job-seeker/profile?tab=quizzes");
         } else {
           // If AuthContext doesn't expose saveProfileData, log and show a fallback message
           console.warn("saveProfileData not available on AuthContext");
