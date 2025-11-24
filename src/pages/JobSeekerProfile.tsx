@@ -244,10 +244,6 @@ function JobSeekerProfile() {
         : formData.uploadedResume ?? null,
     };
 
-  
-
-
-
     // Update the user's name in the auth context
     const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
     updateProfile?.({ name: fullName, profileComplete: true });
@@ -260,19 +256,6 @@ function JobSeekerProfile() {
     } else {
       console.warn('saveProfileData is not available; profile saved locally only.');
     }
-
-    // // Build AI pipeline automatically
-    // const pipeline = buildProfilePipeline();
-    // const stringified = JSON.stringify(pipeline);
-    // try {
-    //   await fetchWithAuth("/recommendations", {
-    //     method: "POST",
-    //     body: JSON.stringify({ profilePipeline: stringified }),
-    //   });
-    //   console.log("Job recommendations generated and saved!");
-    // } catch (err) {
-    //   console.error("Error generating recommendations:", err);
-    // }
 
 
     // Build AI pipeline automatically (PII-safe for the model)
@@ -1157,10 +1140,10 @@ function JobSeekerProfile() {
                   </Link>
                 </div>
 
-                {/* Next Chapter: Your Way */}
+                {/* Career & Job Search */}
                 <div className="border border-gray-200 rounded-lg p-5 bg-gray-50 hover:shadow-md transition">
                   <h3 className="text-lg font-semibold text-blue-600 mb-2">
-                    Next Chapter: Your Way
+                    Career & Job Search
                   </h3>
                   <p className="text-sm text-gray-600 mb-4">
                     A reflection-based quiz for graduates and early-career professionals navigating their next chapter.
