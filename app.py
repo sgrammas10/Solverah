@@ -3,8 +3,8 @@ from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (
     JWTManager, create_access_token, jwt_required, get_jwt_identity
 )
-# from flask_sqlalchemy import SQLAlchemy
-# from sqlalchemy.dialects.sqlite import JSON
+
+import os
 import json
 from LLM.profile2model import sorted_mlscores
 from model import JobRecommendation, User, db
@@ -13,17 +13,32 @@ import pandas as pd
 from LLM.profile2model import jobs_path
 
 app = Flask(__name__)
+from security import init_rate_limiter
+from validators import validate_password, clean_profile_data
 
 from flask_cors import CORS
-CORS(app)
+# CORS(app, resources={
+#     r"/api/*": {
+#         "origins": ["http://localhost:4173", "https://yourdomain.com"],
+#     }
+# })
+
+# update to the one above when domain is ready
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ["http://localhost:4173"],
+    }
+})
 
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///users.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-# db = SQLAlchemy(app)
+
 
 #Configuring secret keys for JWTs
-app.config["JWT_SECRET_KEY"] = "super-secret-key"
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1) #token expires in 1 hours
+app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY")
+if not app.config["JWT_SECRET_KEY"]:
+    raise RuntimeError("JWT_SECRET_KEY is not set")
+app.config["JWT_ACCESS_TOKEN_EXPIRES"]= timedelta(hours=1) #token expires in 1 hours
 
 db.init_app(app)
 with app.app_context():
@@ -33,8 +48,7 @@ with app.app_context():
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
-#storing users in dictionary until I have a db setup
-#users = {}
+limiter = init_rate_limiter(app)
 
 #Helper function for inital setup of profile on registration
 def default_profile(email="", name="", role="job-seeker"):
@@ -75,12 +89,16 @@ def default_profile(email="", name="", role="job-seeker"):
   
 
 
-
+@limiter.limit("5 per minute")
 @app.route("/api/login", methods=["POST"])
 def login():
     data = request.get_json()
     email = data.get("email")
     password = data.get("password")
+    valid, msg = validate_password(password)
+    if not valid:
+        return jsonify({"error": msg}), 400
+
 
     user = User.query.filter_by(email=email).first()
     if not user or not bcrypt.check_password_hash(user.password, password):
@@ -155,7 +173,14 @@ def profile():
 
     # Handle profile update (POST)
     data = request.get_json()
-    profile_data = data.get("profileData", {})
+    raw_profile_data = data.get("profileData", {})
+
+    # Clean incoming keys
+    profile_data = clean_profile_data(raw_profile_data)
+
+    existing = user.profile_data or {}
+    merged = {**existing, **profile_data}
+
 
     # Merge incoming profile_data with existing profile_data (preserve other fields)
     existing = user.profile_data or {}
