@@ -17,7 +17,7 @@ from model import JobRecommendation, User, db
 from datetime import timedelta
 import pandas as pd
 from LLM.profile2model import jobs_path
-from geo_utils import geocode_city, haversine_miles
+# from geo_utils import geocode_city, haversine_miles
 
 
 app = Flask(__name__)
