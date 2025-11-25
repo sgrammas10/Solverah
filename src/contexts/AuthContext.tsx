@@ -23,7 +23,11 @@ interface AuthContextType {
   fetchWithAuth: <T = any>(endpoint: string, options?: RequestInit) => Promise<T>;
   fetchProfileData?: () => Promise<{ profileData?: ProfileData } | null>;
   saveProfileData?: (profileData: ProfileData) => Promise<{ profileData?: ProfileData } | null>;
+
+  updateProfile?: (updates: Partial<User>) => void;
+  updateProfileData?: (profileData: ProfileData) => void;
 }
+
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -69,28 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  // No token needed — cookies handle auth
-  // const fetchWithAuth = async <T = any>(
-  //   endpoint: string,
-  //   options: RequestInit = {}
-  // ): Promise<T> => {
-  //   const res = await fetch(`${API_URL}${endpoint}`, {
-  //     ...options,
-  //     headers: {
-  //       "Content-Type": "application/json",
-  //       ...(options.headers || {}),
-  //     },
-  //     credentials: "include", // SEND COOKIES AUTOMATICALLY
-  //   });
-
-  //   const data = await res.json().catch(() => null);
-
-  //   if (!res.ok) {
-  //     throw new Error(data?.error || data?.message || "Request failed");
-  //   }
-
-  //   return data as T;
-  // };
+  
   const fetchWithAuth = async <T = any>(
     endpoint: string,
     options: RequestInit = {}
@@ -187,6 +170,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ profileData }),
     });
   };
+  const updateProfile = (updates: Partial<User>) => {
+    setUser((prev) => (prev ? { ...prev, ...updates } : prev));
+  };
+
+  const updateProfileData = (profileData: ProfileData) => {
+    setUser((prev) =>
+      prev ? { ...prev, profileData: { ...(prev.profileData || {}), ...profileData } } : prev
+    );
+  };
+
 
   const value = {
     user,
@@ -197,6 +190,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchWithAuth,
     fetchProfileData,
     saveProfileData,
+    updateProfile,
+    updateProfileData,
   };
 
   if (loading) {
