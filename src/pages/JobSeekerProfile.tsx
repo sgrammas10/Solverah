@@ -76,16 +76,18 @@ function JobSeekerProfile() {
     lastName: string;
     email: string;
     phone: string;
-    location: string;
+    location: string; 
+    primaryLocation?: string;
+    secondaryLocations?: string[];
     summary: string;
 
     // Experience / Education / Skills
-    experience: any[];   // (tighten later if you have a shape)
-    education: any[];    // (tighten later if you have a shape)
+    experience: any[];
+    education: any[];
     skills: string[];
 
     // Reviews / Psychometrics
-    performanceReviews: any[]; // (tighten later)
+    performanceReviews: any[];
     psychometricResults: {
       leadership: PsychometricScore;
       problemSolving: PsychometricScore;
@@ -94,7 +96,6 @@ function JobSeekerProfile() {
       teamwork: PsychometricScore;
     };
 
-    // Files & optional fields you mentioned elsewhere
     uploadedResume: UploadedResume | null;
     quizResults?: Record<string, unknown>;
     _quizSummary?: Record<string, unknown>;
@@ -106,6 +107,8 @@ function JobSeekerProfile() {
     email: string;
     phone: string;
     location: string;
+    primaryLocation: string;   
+    secondaryLocations: string[]; 
     summary: string;
     experience: any[];
     education: any[];
@@ -122,6 +125,7 @@ function JobSeekerProfile() {
     quizResults?: Record<string, unknown>;
     _quizSummary?: Record<string, unknown>;
   }
+
   type FetchProfileData = () => Promise<{ profileData?: Partial<ProfileFormData> } | null>;
 
   // Build defaults for the **form**
@@ -130,7 +134,9 @@ function JobSeekerProfile() {
     lastName: user?.name?.split(' ')?.slice(1).join(' ') ?? '',
     email: user?.email ?? '',
     phone: '',
-    location: '',
+    location: '', 
+    primaryLocation: '', 
+    secondaryLocations: [], 
     summary: '',
     experience: [],
     education: [],
@@ -145,6 +151,7 @@ function JobSeekerProfile() {
     },
     uploadedResume: null,
   });
+
 
   const getInitialFormData = (): ProfileData => {
     // If you persist profileData in auth, merge it over defaults
@@ -207,13 +214,17 @@ function JobSeekerProfile() {
     incoming?: Partial<ProfileFormData> | null
   ): Partial<ProfileFormData> => {
     if (!incoming || typeof incoming !== 'object') return {};
+
+    const legacyLocation = incoming.location;
+
     return {
-      // Only copy safe/known keys
       firstName: incoming.firstName ?? undefined,
       lastName: incoming.lastName ?? undefined,
       email: incoming.email ?? undefined,
       phone: incoming.phone ?? undefined,
-      location: incoming.location ?? undefined,
+      location: legacyLocation ?? undefined,
+      primaryLocation: incoming.primaryLocation ?? legacyLocation ?? undefined, 
+      secondaryLocations: incoming.secondaryLocations ?? [], 
       summary: incoming.summary ?? undefined,
       experience: incoming.experience ?? undefined,
       education: incoming.education ?? undefined,
@@ -225,6 +236,7 @@ function JobSeekerProfile() {
       _quizSummary: incoming._quizSummary ?? undefined,
     };
   };
+
 
   // Check for uploaded resume in profile data
   useEffect(() => {
@@ -338,48 +350,6 @@ function JobSeekerProfile() {
   };
 
 
-  // const buildProfilePipeline = () => {
-  //   const sections: { section: string; content: string }[] = [];
-
-  //  //Personal info
-  //   const personalInfo = `
-  //   Name: ${formData.firstName} ${formData.lastName}
-  //   Email: ${formData.email}
-  //   Phone: ${formData.phone || "N/A"}
-  //   Location: ${formData.location || "N/A"}
-  //   Summary: ${formData.summary || "N/A"}
-  //   `;
-  //   sections.push({ section: "Personal Info", content: personalInfo.trim() });
-
-  //   //Exp
-  //   const experienceEntries = formData.experience?.map((exp: any) => {
-  //     return `
-  //     Company: ${exp.company}
-  //     Position: ${exp.position}
-  //     Dates: ${exp.startDate || "?"} → ${exp.endDate || "Present"}
-  //     Description: ${exp.description || ""}
-  //     `;
-  //   }) || [];
-  //   sections.push({ section: "Experience", content: experienceEntries.join("\n\n") });
-
-  //   //Skills
-  //   const skills = formData.skills?.join(", ") || "None listed";
-  //   sections.push({ section: "Skills", content: `Skills: ${skills}` });
-
-  //   //Education
-  //   const educationEntries = formData.education?.map((edu: any) => {
-  //     return `
-  //     Institution: ${edu.institution}
-  //     Degree: ${edu.degree}
-  //     Dates: ${edu.startDate || "?"} → ${edu.endDate || "?"}
-  //     GPA: ${edu.gpa || "N/A"}
-  //     `;
-  //   }) || [];
-  //   sections.push({ section: "Education", content: educationEntries.join("\n\n") });
-
-  //   return sections;
-  // };
-
   const buildProfilePipeline = () => {
     const sections: { section: string; content: string }[] = [];
 
@@ -445,15 +415,30 @@ function JobSeekerProfile() {
       });
     }
 
-    if (formData.location && formData.location.trim()) {
+    // NEW: Locations section – primary + open-to-work
+    const locationLines: string[] = [];
+
+    const primary = (formData.primaryLocation || formData.location || "").trim();
+    if (primary) {
+      locationLines.push(`Primary: ${primary}`);
+    }
+
+    if (formData.secondaryLocations && formData.secondaryLocations.length > 0) {
+      locationLines.push(
+        `Open to: ${formData.secondaryLocations.join(", ")}`
+      );
+    }
+
+    if (locationLines.length > 0) {
       sections.push({
-        section: "Location",
-        content: formData.location.trim(),
+        section: "Locations",
+        content: locationLines.join("\n"),
       });
     }
 
     return sections;
   };
+
 
   const [experienceLimitMsg, setExperienceLimitMsg] = useState("");
   const MAX_EXPERIENCES = 20;
@@ -580,10 +565,51 @@ function JobSeekerProfile() {
   };
 
 
-  const handleChange = (field: string, value: any) => {
-    setFormData({ ...formData, [field]: value });
+
+  const MAX_SECONDARY_LOCATIONS = 20;
+  const [locationLimitMsg, setLocationLimitMsg] = useState("");
+
+  const addSecondaryLocation = (loc: string) => {
+    const trimmed = loc.trim();
+    if (!trimmed) return;
+
+    if (formData.secondaryLocations.length >= MAX_SECONDARY_LOCATIONS) {
+      setLocationLimitMsg(`You have reached the maximum of ${MAX_SECONDARY_LOCATIONS} locations.`);
+      return;
+    }
+
+    if (!formData.secondaryLocations.includes(trimmed)) {
+      if (locationLimitMsg) setLocationLimitMsg("");
+      setFormData({
+        ...formData,
+        secondaryLocations: [...formData.secondaryLocations, trimmed],
+      });
+      setIsSaved(false);
+    }
+  };
+
+  const removeSecondaryLocation = (loc: string) => {
+    setFormData({
+      ...formData,
+      secondaryLocations: formData.secondaryLocations.filter((l) => l !== loc),
+    });
     setIsSaved(false);
   };
+
+
+  const handleChange = (field: string, value: any) => {
+    setFormData((prev) => {
+      const updated: ProfileFormData = { ...prev, [field]: value } as ProfileFormData;
+
+      if (field === "primaryLocation") {
+        updated.location = value;
+      }
+
+      return updated;
+    });
+    setIsSaved(false);
+  };
+
   
 
   const tabs = [
@@ -699,18 +725,80 @@ function JobSeekerProfile() {
                   />
                 </div>
 
+                {/* Primary Location */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Location
+                    Primary Location (where you live)
                   </label>
                   <input
                     type="text"
                     maxLength={50}
-                    value={formData.location}
-                    onChange={(e) => handleChange("location", e.target.value)}
+                    value={formData.primaryLocation}
+                    onChange={(e) => handleChange("primaryLocation", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., Annapolis, MD"
                   />
                 </div>
+
+                {/* Secondary / Open-to-work Locations */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Open to work locations
+                  </label>
+
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {formData.secondaryLocations.map((loc) => (
+                      <span
+                        key={loc}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                      >
+                        {loc}
+                        <button
+                          type="button"
+                          onClick={() => removeSecondaryLocation(loc)}
+                          className="ml-2 text-blue-600 hover:text-blue-500"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="flex">
+                    <input
+                      type="text"
+                      maxLength={50}
+                      placeholder="Add a location (press Enter)"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          const target = e.target as HTMLInputElement;
+                          addSecondaryLocation(target.value);
+                          target.value = "";
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700"
+                      onClick={(e) => {
+                        const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
+                        addSecondaryLocation(input.value);
+                        input.value = "";
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  {locationLimitMsg && (
+                    <div className="mt-2 p-2 text-red-600 bg-red-50 border border-red-200 rounded">
+                      {locationLimitMsg}
+                    </div>
+                  )}
+                </div>
+
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
