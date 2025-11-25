@@ -17,6 +17,8 @@ from model import JobRecommendation, User, db
 from datetime import timedelta
 import pandas as pd
 from LLM.profile2model import jobs_path
+from geo_utils import geocode_city, haversine_miles
+
 
 app = Flask(__name__)
 from security import init_rate_limiter
@@ -251,10 +253,6 @@ def profile():
 
     # Clean incoming keys
     profile_data = clean_profile_data(raw_profile_data)
-
-    existing = user.profile_data or {}
-    merged = {**existing, **profile_data}
-
 
     # Merge incoming profile_data with existing profile_data (preserve other fields)
     existing = user.profile_data or {}
