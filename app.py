@@ -75,7 +75,7 @@ app.config["JWT_COOKIE_SECURE"] = True  # True on real HTTPS
 app.config["JWT_COOKIE_SAMESITE"] = "None" # set to none for deployment
 
 # CSRF protection on state-changing methods
-app.config["JWT_COOKIE_CSRF_PROTECT"] = False  # Set to True to enable CSRF protection when done setting up
+app.config["JWT_COOKIE_CSRF_PROTECT"] = True  # Set to True to enable CSRF protection when done setting up
 app.config["JWT_CSRF_METHODS"] = ["POST", "PUT", "PATCH", "DELETE"]
 app.config["JWT_CSRF_HEADER_NAME"] = "X-CSRF-TOKEN"
 
