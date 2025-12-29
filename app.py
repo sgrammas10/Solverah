@@ -69,7 +69,7 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"]= timedelta(hours=1) #token expires in 1 h
 app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
 
 # In dev (http://localhost), this must be False; in prod over HTTPS set to True
-app.config["JWT_COOKIE_SECURE"] = False  # True on real HTTPS
+app.config["JWT_COOKIE_SECURE"] = True  # True on real HTTPS
 
 # If frontend and backend are on same origin, "Lax" is fine; if cross-site + HTTPS, use "None"
 app.config["JWT_COOKIE_SAMESITE"] = "Lax"
