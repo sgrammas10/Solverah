@@ -72,7 +72,7 @@ app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
 app.config["JWT_COOKIE_SECURE"] = True  # True on real HTTPS
 
 # If frontend and backend are on same origin, "Lax" is fine; if cross-site + HTTPS, use "None"
-app.config["JWT_COOKIE_SAMESITE"] = "Lax"
+app.config["JWT_COOKIE_SAMESITE"] = "None" # set to none for deployment
 
 # CSRF protection on state-changing methods
 app.config["JWT_COOKIE_CSRF_PROTECT"] = False  # Set to True to enable CSRF protection when done setting up
