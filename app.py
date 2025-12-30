@@ -12,11 +12,16 @@ from flask_talisman import Talisman
 
 import os
 import json
-from LLM.profile2model import sorted_mlscores
+
+
+#from LLM.profile2model import sorted_mlscores
+
 from model import JobRecommendation, User, db
 from datetime import timedelta
 import pandas as pd
-from LLM.profile2model import jobs_path
+
+#from LLM.profile2model import jobs_path
+
 # from geo_utils import geocode_city, haversine_miles
 
 
@@ -127,6 +132,8 @@ def default_profile(email="", name="", role="job-seeker"):
     return profile
   
 ML_ENABLED = os.getenv("ML_ENABLED", "0") == "1"
+DEMO_MODE = os.getenv("DEMO_MODE", "0") == "1"
+
 
 
 @limiter.limit("5 per minute")
@@ -293,6 +300,10 @@ def profile():
 @app.route("/api/recommendations", methods=["POST"])
 @jwt_required()
 def generate_recommendations():
+    if DEMO_MODE:
+        return jsonify({"recommendations": []}), 200
+
+
     current_email = get_jwt_identity()
     user = User.query.filter_by(email=current_email).first_or_404()
 
@@ -319,12 +330,14 @@ def generate_recommendations():
         profile_text = str(pipeline)
 
     # Use your SentenceTransformer pipeline
+
     #remove lines in between when demo is done
     if not ML_ENABLED:
         return jsonify({"error": "Recommendations disabled for demo"}), 503
     
     from LLM.profile2model import sorted_mlscores
     #till here
+    
     scores = sorted_mlscores(profile_text)  # returns list of (job_id, score, job_text)
 
     # Keep only the top N
@@ -353,6 +366,11 @@ def generate_recommendations():
 @app.route("/api/recommendations", methods=["GET"])
 @jwt_required()
 def get_recommendations():
+
+    if DEMO_MODE:
+        return jsonify({"recommendations": []}), 200
+
+
     current_email = get_jwt_identity()
     user = User.query.filter_by(email=current_email).first_or_404()
 
@@ -368,6 +386,7 @@ def get_recommendations():
         return jsonify({"recommendations": []})
 
     # Load the jobs CSV and index by ID
+    
     #removes these lines when demo is done
     from LLM.profile2model import jobs_path
     jobs_df = pd.read_csv(jobs_path)
