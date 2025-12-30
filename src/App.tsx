@@ -5,12 +5,13 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Header from "./components/Header";
 
-// ✅ Quiz Components
+// Quiz Components
 import CareerQuizzes from "./components/CareerQuizzes";
 import NextChapterYourWayQuiz from "./components/NextChapterYourWayQuiz";
 import SolverahYourFutureYourWayQuiz from "./components/SolverahYourFutureYourWayQuiz";
 
-// ✅ Core Pages
+// Core Pages
+import PrelaunchLandingPage from "./pages/prelaunchlandingpage";
 import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -19,9 +20,12 @@ import RecruiterDashboard from "./pages/RecruiterDashboard";
 import JobSeekerProfile from "./pages/JobSeekerProfile";
 import RecruiterProfile from "./pages/RecruiterProfile";
 import Feed from "./pages/Feed";
-import SearchResults from "./pages/SearchResults"; // ✅ from your quiz-aware version
+import SearchResults from "./pages/SearchResults"; // from your quiz-aware version
 
-// ✅ Role-based route protection
+
+const PRELAUNCH_MODE = true;
+
+// Role-based route protection
 function ProtectedRoute({
   children,
   allowedRoles,
@@ -46,9 +50,11 @@ function App() {
           <main>
             <Routes>
               {/* Public routes */}
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+              {/* Prelaunch Landing Page change prelaunch mode to turn off*/}
+              <Route path="/" element={PRELAUNCH_MODE ? <PrelaunchLandingPage /> : <LandingPage />} />
+              <Route path="/login" element={PRELAUNCH_MODE ? <Navigate to="/" replace /> : <Login />} />
+              <Route path="/register" element={PRELAUNCH_MODE ? <Navigate to="/" replace /> : <Register />} />
+
 
               {/* Shared feed + search routes */}
               <Route
