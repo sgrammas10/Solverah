@@ -75,7 +75,7 @@ app.config["JWT_COOKIE_SECURE"] = True  # True on real HTTPS
 app.config["JWT_COOKIE_SAMESITE"] = "None" # set to none for deployment
 
 # CSRF protection on state-changing methods
-app.config["JWT_COOKIE_CSRF_PROTECT"] = True  # Set to True to enable CSRF protection when done setting up
+app.config["JWT_COOKIE_CSRF_PROTECT"] = False  # Set to True to enable CSRF protection when done setting up
 app.config["JWT_CSRF_METHODS"] = ["POST", "PUT", "PATCH", "DELETE"]
 app.config["JWT_CSRF_HEADER_NAME"] = "X-CSRF-TOKEN"
 
@@ -126,31 +126,7 @@ def default_profile(email="", name="", role="job-seeker"):
 
     return profile
   
-
-
-# @limiter.limit("5 per minute")
-# @app.route("/api/login", methods=["POST"])
-# def login():
-#     data = request.get_json()
-#     email = data.get("email")
-#     password = data.get("password")
-#     valid, msg = validate_password(password)
-#     if not valid:
-#         return jsonify({"error": msg}), 400
-
-
-#     user = User.query.filter_by(email=email).first()
-#     if not user or not bcrypt.check_password_hash(user.password, password):
-#         return jsonify({"error": "Invalid credentials"}), 401
-
-#     #for JWT auth stuff
-#     token = create_access_token(identity=user.email)
-#     return jsonify({"message": "login successful", "user": {
-#         "id": user.id,
-#         "email": user.email,
-#         "name": user.name,
-#         "role": user.role
-#     }, "token": token})
+ML_ENABLED = os.getenv("ML_ENABLED", "0") == "1"
 
 
 @limiter.limit("5 per minute")
@@ -343,6 +319,12 @@ def generate_recommendations():
         profile_text = str(pipeline)
 
     # Use your SentenceTransformer pipeline
+    #remove lines in between when demo is done
+    if not ML_ENABLED:
+        return jsonify({"error": "Recommendations disabled for demo"}), 503
+    
+    from LLM.profile2model import sorted_mlscores
+    #till here
     scores = sorted_mlscores(profile_text)  # returns list of (job_id, score, job_text)
 
     # Keep only the top N
@@ -386,6 +368,11 @@ def get_recommendations():
         return jsonify({"recommendations": []})
 
     # Load the jobs CSV and index by ID
+    #removes these lines when demo is done
+    from LLM.profile2model import jobs_path
+    jobs_df = pd.read_csv(jobs_path)
+    #till here
+
     jobs_df = pd.read_csv(jobs_path)
     jobs_by_id = {
         int(row["ID"]): row
