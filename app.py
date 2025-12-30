@@ -53,7 +53,9 @@ CORS(
         "origins": [
             "http://localhost:5173",
             "http://127.0.0.1:5173",
-            "https://solverah.vercel.app"
+            "https://solverah.vercel.app",
+            "https://solverah.com",
+            "https://www.solverah.com"
         ]
     }},
     supports_credentials=True,
