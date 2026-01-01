@@ -1,134 +1,203 @@
-import React from 'react';
-import { FileText, ClipboardList, Lock } from 'lucide-react';
+import React, { useId, useState } from "react";
 
 function PrelaunchLandingPage() {
+  const firstNameId = useId();
+  const lastNameId = useId();
+  const resumeId = useId();
+
+  const [selectedFileName, setSelectedFileName] = useState<string>("");
+
   return (
-    <div className="bg-white">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
-            Solverah is Building the Future of
-            <span className="text-blue-600 block">Career Matching</span>
-          </h1>
+    <div className="bg-white text-gray-900">
+      {/* Page container */}
+      <div className="mx-auto max-w-3xl px-5 sm:px-6 lg:px-8 py-14 sm:py-16">
+        {/* Masthead */}
+        <header className="mb-10 sm:mb-12">
+          <div className="flex items-baseline justify-between gap-6">
+            <div className="flex flex-col">
+              <div className="text-sm tracking-wide text-gray-500">Solverah</div>
+              <h1 className="mt-3 text-2xl sm:text-3xl font-semibold tracking-tight">
+                Clarity about where you fit — grounded in real experience.
+              </h1>
+            </div>
 
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-            We’re currently in private development. Solverah goes beyond resumes by
-            combining skills, work style, and archetype-driven insights to match people
-            with roles where they actually thrive.
-          </p>
-
-          <div className="inline-flex items-center px-4 py-2 rounded-md bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm">
-            <Lock className="h-4 w-4 mr-2" />
-            Private Development · Early Access Intake
           </div>
-        </div>
 
-        {/* Background decoration */}
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full opacity-10 blur-3xl" />
-        </div>
-      </div>
-
-      {/* Intake Form Section */}
-      <div className="py-16 bg-gray-50">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-lg shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">
-              Submit Your Information
-            </h2>
-            <p className="text-gray-600 text-center mb-8">
-              Share your resume and a few details to be considered for early access.
+          <div className="mt-6 space-y-4 text-[15px] leading-7 text-gray-700">
+            <p>
+              Solverah is in early development. We’re building a system that helps people
+              understand fit beyond keywords — with language, context, and work-style
+              signals that reflect how careers actually work.
             </p>
+            <p>
+              We’re starting by listening. A resume and a small amount of context help us understand experience as it’s actually lived, not how it’s summarized.
+            </p>
+          </div>
 
-            <form className="space-y-6">
-              {/* Name Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    First Name
+          {/* Trust note (no icons, no hype) */}
+          <div className="mt-7 border-t border-gray-200 pt-6">
+            <p className="text-sm leading-6 text-gray-600">
+              Clear before clever. Editorial, not app-like. Confidence without pressure.
+              Your information is used only for evaluation and iteration.
+            </p>
+          </div>
+        </header>
+
+        {/* Intake */}
+        <main className="space-y-10">
+          <section aria-labelledby="intake-title" className="space-y-4">
+            <div className="border-t border-gray-200 pt-8">
+              
+              <p className="mt-3 text-[15px] leading-7 text-gray-700">
+                If you want to be part of the early build, share your resume and name below.
+                This is a soft launch intake — no account, no onboarding flow, no noise.
+              </p>
+            </div>
+
+            <form className="mt-6 space-y-7" onSubmit={(e) => e.preventDefault()}>
+              {/* Name */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label
+                    htmlFor={firstNameId}
+                    className="block text-sm font-medium text-gray-800"
+                  >
+                    First name
                   </label>
                   <input
+                    id={firstNameId}
                     type="text"
-                    placeholder="First name"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    placeholder="Your first name"
+                    autoComplete="given-name"
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm
+                               focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Last Name
+                <div className="space-y-2">
+                  <label
+                    htmlFor={lastNameId}
+                    className="block text-sm font-medium text-gray-800"
+                  >
+                    Last name
                   </label>
                   <input
+                    id={lastNameId}
                     type="text"
-                    placeholder="Last name"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    placeholder="Your last name"
+                    autoComplete="family-name"
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm
+                               focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400"
                   />
                 </div>
               </div>
 
-              {/* Resume Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Resume
+              {/* Resume */}
+              <div className="space-y-2">
+                <label
+                  htmlFor={resumeId}
+                  className="block text-sm font-medium text-gray-800"
+                >
+                  Resume (PDF or DOCX)
                 </label>
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
-                    <FileText className="h-6 w-6 text-gray-400 mb-2" />
-                    <span className="text-sm text-gray-600">
-                      Upload PDF or DOCX
-                    </span>
-                    <input type="file" className="hidden" />
-                  </label>
+
+                <div className="rounded-md border border-gray-300">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4">
+                    <div className="text-sm text-gray-700">
+                      <div className="font-medium">Upload your resume</div>
+                      <div className="mt-1 text-gray-500">
+                        We use this to understand your experience in context, not to score you.
+                      </div>
+                      {selectedFileName ? (
+                        <div className="mt-2 text-gray-600">
+                          Selected: <span className="font-medium">{selectedFileName}</span>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="shrink-0">
+                      <label className="inline-flex items-center justify-center rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-800 cursor-pointer hover:bg-gray-50">
+                        Choose file
+                        <input
+                          id={resumeId}
+                          type="file"
+                          accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            setSelectedFileName(f?.name ?? "");
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Archetype Placeholder 1 */}
-              <div className="border border-dashed border-blue-300 rounded-md p-4 bg-blue-50">
-                <div className="flex items-center mb-2">
-                  <ClipboardList className="h-5 w-5 text-blue-600 mr-2" />
-                  <h3 className="font-semibold text-blue-900">
-                    Archetype Assessment (Placeholder)
+              {/* “Quiz placeholders” as editorial notes, not boxes */}
+              <div className="space-y-5">
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Coming shortly: Archetype reflection (Phase 1)
                   </h3>
+                  <p className="mt-2 text-[15px] leading-7 text-gray-700">
+                    A short set of questions to capture work style, motivation, and how you
+                    approach problems. This will help Solverah learn beyond resume structure.
+                  </p>
+                  <p className="mt-3 text-sm text-gray-500">
+                    Placeholder only — not active yet.
+                  </p>
                 </div>
-                <p className="text-sm text-blue-800">
-                  This section will contain a short archetype quiz focused on work style,
-                  motivation, and problem-solving preferences.
-                </p>
-              </div>
 
-              {/* Archetype Placeholder 2 */}
-              <div className="border border-dashed border-purple-300 rounded-md p-4 bg-purple-50">
-                <div className="flex items-center mb-2">
-                  <ClipboardList className="h-5 w-5 text-purple-600 mr-2" />
-                  <h3 className="font-semibold text-purple-900">
-                    Culture & Team Fit Quiz (Placeholder)
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Coming shortly: Culture & team fit reflection.
                   </h3>
+                  <p className="mt-2 text-[15px] leading-7 text-gray-700">
+                    A short reflection on collaboration preferences, feedback style, and how
+                    you like to operate within teams — used to support understanding, not pressure.
+                  </p>
+                  <p className="mt-3 text-sm text-gray-500">
+                    Placeholder only — not active yet.
+                  </p>
                 </div>
-                <p className="text-sm text-purple-800">
-                  This section will later capture how candidates prefer to collaborate,
-                  receive feedback, and operate within teams.
-                </p>
               </div>
 
-              {/* Submit */}
-              <div className="pt-4">
+              {/* Submit (disabled) */}
+              <div className="border-t border-gray-200 pt-7">
                 <button
                   type="submit"
                   disabled
-                  className="w-full inline-flex justify-center items-center px-6 py-3 rounded-md bg-blue-600 text-white font-medium opacity-70 cursor-not-allowed"
+                  className="w-full rounded-md bg-gray-900 px-4 py-3 text-sm font-medium text-white
+                             opacity-60 cursor-not-allowed"
                 >
-                  Submit (Backend Not Wired Yet)
+                  Submit intake (coming soon)
                 </button>
+
+                <p className="mt-3 text-sm leading-6 text-gray-600">
+                  We’ll only use your information to evaluate intake and improve the early system. No hype, no spam.
+                </p>
               </div>
             </form>
-          </div>
+          </section>
 
-          {/* Footer Note */}
-          <p className="text-center text-sm text-gray-500 mt-6">
-            We’ll only use your information to evaluate early access and product fit.
+          {/* Phase 1 definition (editorial footer) */}
+          <section className="border-t border-gray-200 pt-10">
+            <h2 className="text-sm font-semibold text-gray-900">Phase 1 objective</h2>
+            <p className="mt-2 text-[15px] leading-7 text-gray-700">
+              Enable a credible soft launch to collect resumes and career inputs, build early
+              signal for Solverah’s learning systems, and establish trust.
+            </p>
+
+          </section>
+        </main>
+
+        {/* Bottom note */}
+        <footer className="mt-12 border-t border-gray-200 pt-6">
+          <p className="text-xs leading-5 text-gray-500">
+            © {new Date().getFullYear()} Solverah. Private development.
           </p>
-        </div>
+        </footer>
       </div>
     </div>
   );
