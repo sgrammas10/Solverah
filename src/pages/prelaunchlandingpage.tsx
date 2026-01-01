@@ -7,7 +7,130 @@ function PrelaunchLandingPage() {
 
   const [selectedFileName, setSelectedFileName] = useState<string>("");
 
+    const faqs = [
+    {
+        q: "What is Authentic Intelligence?",
+        a: "Authentic Intelligence is Solverah’s approach to generating insights that respect human complexity. It uses structured frameworks, rules-based logic, and automated analysis to surface patterns about how people work and where environments support or create friction.",
+    },
+    {
+        q: "Is this the same as artificial intelligence?",
+        a: "It may use automated systems and AI-supported techniques, but it isn’t designed to replace human judgment. It supports reflection and understanding — not decisions.",
+    },
+    {
+        q: "What information does it use?",
+        a: "Only what you choose to provide — responses, career background, and optional uploads. It may also use contextual information about roles or environments to generate insights.",
+    },
+    {
+        q: "Does it make career or employment decisions?",
+        a: "No. Solverah does not make hiring, promotion, compensation, or career decisions. Insights are advisory and interpretive. Final decisions remain with you or your organization.",
+    },
+    {
+        q: "Are the insights personalized?",
+        a: "Yes — they reflect the factors you provide and how they interact. But personalization is not prediction. Insights describe patterns and possibilities, not outcomes.",
+    },
+    {
+        q: "Does Solverah rescore third-party assessments?",
+        a: "No. If you upload prior assessments (e.g., StrengthsFinder, MBTI, DISC), Solverah does not validate or reinterpret them. They’re used only as contextual inputs for broader reflection.",
+    },
+    {
+        q: "Is my data used to train models?",
+        a: "Solverah uses data to provide and improve its services, with restricted access and responsible handling. User data is not sold.",
+    },
+    {
+        q: "Can Authentic Intelligence be wrong?",
+        a: "It surfaces interpretations, not facts. If something doesn’t resonate, it’s an invitation to question, refine, or explore — not a verdict.",
+    },
+    {
+        q: "Why focus on conditions instead of labels?",
+        a: "Because environments matter. Solverah emphasizes conditions, fit, and context so insights stay humane, flexible, and useful across situations.",
+    },
+    ];
+
+
+
   return (
+  <div className="bg-white text-gray-900">
+    <div className="mx-auto max-w-6xl px-5 sm:px-6 lg:px-8 py-12 sm:py-14">
+      {/* Top bar can stay as-is if you have one */}
+
+      {/* 2-column editorial layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12">
+        {/* Left marginalia (desktop) */}
+        <aside className="hidden lg:block lg:col-span-4">
+          <div className="sticky top-10">
+            <div className="border-l border-red-200 pl-5">
+              <div className="flex items-baseline justify-between gap-4">
+                <h2 className="text-xs font-semibold tracking-wide text-red-700 uppercase">
+                  How it works
+                </h2>
+                <span className="text-xs text-red-700/70">FAQ</span>
+              </div>
+
+              <p className="mt-3 text-sm leading-6 text-gray-600">
+                A few clear answers, written for humans. No jargon. No pressure.
+              </p>
+
+              <div className="mt-6 space-y-6">
+                {faqs.slice(0, 6).map((item) => (
+                  <div key={item.q} className="group">
+                    <div className="text-[13px] font-semibold text-red-700 leading-5">
+                      {item.q}
+                    </div>
+                    <div className="mt-2 text-[13px] leading-5 text-gray-600">
+                      {item.a}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Optional: a “read more” section (still editorial, not a buttony UI) */}
+              <div className="mt-8 border-t border-red-100 pt-6">
+                <div className="text-xs font-semibold tracking-wide text-red-700 uppercase">
+                  Notes
+                </div>
+                <ul className="mt-3 space-y-2 text-sm text-gray-600">
+                  <li>• Solverah supports reflection, not decisions.</li>
+                  <li>• We prioritize care over scale.</li>
+                  <li>• If something feels off, it’s feedback — not failure.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Mobile FAQ (simple + non “app-like”) */}
+        <section className="lg:hidden">
+          <div className="border border-gray-200 rounded-md">
+            <div className="px-4 py-3 border-b border-gray-200">
+              <div className="text-xs font-semibold tracking-wide text-red-700 uppercase">
+                How it works
+              </div>
+              <p className="mt-1 text-sm text-gray-600">
+                A few clear answers. No jargon. No pressure.
+              </p>
+            </div>
+            <div className="px-4 py-4 space-y-4">
+              {faqs.slice(0, 4).map((item) => (
+                <div key={item.q}>
+                  <div className="text-sm font-semibold text-gray-900">{item.q}</div>
+                  <div className="mt-1 text-sm leading-6 text-gray-600">{item.a}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Main column */}
+        <main className="lg:col-span-8">
+          <div className="max-w-3xl">
+            {/* Paste your existing page content here:
+                - Masthead / intro
+                - Trust note
+                - Intake form
+                - Objective / timeline / criteria (optional)
+            */}
+
+            {/* Example: keep your current header intact but ensure left alignment */}
     <div className="bg-white text-gray-900">
       {/* Page container */}
       <div className="mx-auto max-w-3xl px-5 sm:px-6 lg:px-8 py-14 sm:py-16">
@@ -15,7 +138,6 @@ function PrelaunchLandingPage() {
         <header className="mb-10 sm:mb-12">
           <div className="flex items-baseline justify-between gap-6">
             <div className="flex flex-col">
-              <div className="text-sm tracking-wide text-gray-500">Solverah</div>
               <h1 className="mt-3 text-2xl sm:text-3xl font-semibold tracking-tight">
                 Clarity about where you fit — grounded in real experience.
               </h1>
@@ -138,7 +260,7 @@ function PrelaunchLandingPage() {
               <div className="space-y-5">
                 <div className="border-t border-gray-200 pt-6">
                   <h3 className="text-sm font-semibold text-gray-900">
-                    Coming shortly: Archetype reflection (Phase 1)
+                    Coming shortly: Archetype reflection 
                   </h3>
                   <p className="mt-2 text-[15px] leading-7 text-gray-700">
                     A short set of questions to capture work style, motivation, and how you
@@ -183,7 +305,7 @@ function PrelaunchLandingPage() {
 
           {/* Phase 1 definition (editorial footer) */}
           <section className="border-t border-gray-200 pt-10">
-            <h2 className="text-sm font-semibold text-gray-900">Phase 1 objective</h2>
+            <h2 className="text-sm font-semibold text-gray-900">Our Objective</h2>
             <p className="mt-2 text-[15px] leading-7 text-gray-700">
               Enable a credible soft launch to collect resumes and career inputs, build early
               signal for Solverah’s learning systems, and establish trust.
@@ -200,7 +322,12 @@ function PrelaunchLandingPage() {
         </footer>
       </div>
     </div>
-  );
+            </div>
+        </main>
+      </div>
+    </div>
+  </div>
+);
 }
 
 export default PrelaunchLandingPage;
