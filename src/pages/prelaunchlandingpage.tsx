@@ -34,6 +34,7 @@ function PrelaunchLandingPage() {
     },
   ];
 
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="relative isolate overflow-hidden bg-gradient-to-br from-emerald-600/30 via-blue-700/20 to-indigo-800/30">
