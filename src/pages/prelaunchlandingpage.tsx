@@ -1,12 +1,94 @@
-import React, { useId, useState } from "react";
+import React, { FormEvent, useId, useState } from "react";
 
 function PrelaunchLandingPage() {
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    context: "",
+  });
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [submissionStatus, setSubmissionStatus] = useState<
+    "idle" | "submitting" | "success" | "error"
+  >("idle");
+  const [errorMessage, setErrorMessage] = useState("");
   const firstNameId = useId();
   const lastNameId = useId();
+  const emailId = useId();
   const resumeId = useId();
 
   const [selectedFileName, setSelectedFileName] = useState<string>("");
 
+  const handleInputChange = (field: keyof typeof formData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmissionStatus("submitting");
+    setErrorMessage("");
+
+    try {
+      const payload = new FormData();
+      payload.append("firstName", formData.firstName.trim());
+      payload.append("lastName", formData.lastName.trim());
+      payload.append("email", formData.email.trim());
+      payload.append("context", formData.context.trim());
+
+      if (resumeFile) {
+        payload.append("resume", resumeFile);
+      }
+
+      const response = await fetch("/api/prelaunch-intake", {
+        method: "POST",
+        body: payload,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Unable to submit right now.");
+      }
+
+      setSubmissionStatus("success");
+      setFormData({ firstName: "", lastName: "", email: "", context: "" });
+      setResumeFile(null);
+      setSelectedFileName("");
+    } catch (error) {
+      setSubmissionStatus("error");
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to submit right now. Please try again.",
+      );
+    }
+  };
+
+  const faqs = [
+    {
+      q: "What is Authentic Intelligence?",
+      a: "Authentic Intelligence is Solverah’s approach to generating insights that respect human complexity. It uses structured frameworks, rules-based logic, and automated analysis to surface patterns about how people work and where environments support or create friction.",
+    },
+    {
+      q: "Is this the same as artificial intelligence?",
+      a: "It may use automated systems and AI-supported techniques, but it isn’t designed to replace human judgment. It supports reflection and understanding — not decisions.",
+    },
+    {
+      q: "What information does it use?",
+      a: "Only what you choose to provide — responses, career background, and optional uploads. It may also use contextual information about roles or environments to generate insights.",
+    },
+    {
+      q: "Does it make career or employment decisions?",
+      a: "No. Solverah does not make hiring, promotion, compensation, or career decisions. Insights are advisory and interpretive. Final decisions remain with you or your organization.",
+    },
+    {
+      q: "Are the insights personalized?",
+      a: "Yes — they reflect the factors you provide and how they interact. But personalization is not prediction. Insights describe patterns and possibilities, not outcomes.",
+    },
+    {
+      q: "Why focus on conditions instead of labels?",
+      a: "Because environments matter. Solverah emphasizes conditions, fit, and context so insights stay humane, flexible, and useful across situations.",
+    },
+  ];
   const faqs = [
     {
       q: "What is Authentic Intelligence?",
@@ -98,12 +180,82 @@ function PrelaunchLandingPage() {
                   <div>
                     <p className="text-xs uppercase tracking-[0.14em] text-emerald-200">Early Access</p>
                     <h2 className="text-xl font-semibold text-white">Join the Solverah signal</h2>
+                    <p className="mt-1 text-sm text-slate-200/80">
+                      Private intake for thoughtful collaborators. Submissions are stored securely in our
+                      Cloudflare-backed intake database.
+                    </p>
                     <p className="mt-1 text-sm text-slate-200/80">Private intake for thoughtful collaborators.</p>
                   </div>
                   <div className="h-12 w-12 rounded-full bg-gradient-to-tr from-emerald-400 to-blue-500 text-slate-950 flex items-center justify-center text-lg font-bold">
                     S
                   </div>
                 </div>
+
+                <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <label htmlFor={firstNameId} className="text-sm font-medium text-slate-100">
+                        First name
+                      </label>
+                      <input
+                        id={firstNameId}
+                        type="text"
+                        placeholder="Your first name"
+                        autoComplete="given-name"
+                        value={formData.firstName}
+                        onChange={(e) => handleInputChange("firstName", e.target.value)}
+                        required
+                        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor={lastNameId} className="text-sm font-medium text-slate-100">
+                        Last name
+                      </label>
+                      <input
+                        id={lastNameId}
+                        type="text"
+                        placeholder="Your last name"
+                        autoComplete="family-name"
+                        value={formData.lastName}
+                        onChange={(e) => handleInputChange("lastName", e.target.value)}
+                        required
+                        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor={emailId} className="text-sm font-medium text-slate-100">
+                      Email
+                    </label>
+                    <input
+                      id={emailId}
+                      type="email"
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      required
+                      className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-100" htmlFor="projectContext">
+                      What should we know?
+                    </label>
+                    <textarea
+                      id="projectContext"
+                      rows={4}
+                      placeholder="Share a sentence or two about what you want to explore with Solverah."
+                      value={formData.context}
+                      onChange={(e) => handleInputChange("context", e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
 
                 <form className="mt-6 space-y-6" onSubmit={(e) => e.preventDefault()}>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -159,6 +311,7 @@ function PrelaunchLandingPage() {
                             className="hidden"
                             onChange={(e) => {
                               const f = e.target.files?.[0];
+                              setResumeFile(f ?? null);
                               setSelectedFileName(f?.name ?? "");
                             }}
                           />
@@ -170,6 +323,57 @@ function PrelaunchLandingPage() {
                   <div className="space-y-3 rounded-lg bg-emerald-400/10 p-4 text-sm text-emerald-50 ring-1 ring-emerald-300/20">
                     <p className="font-semibold">How we use this</p>
                     <p className="text-slate-100/80">
+                      Your details help us tune the early product. No onboarding, no automated decisions, and no downstream access beyond this prelaunch stage. We only keep the submission in our Cloudflare database for this intake.
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submissionStatus === "submitting"}
+                    className="w-full rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {submissionStatus === "submitting" ? "Submitting..." : "Submit interest (soft launch)"}
+                  </button>
+                  <div className="space-y-2 text-xs text-slate-200/80">
+                    <p>No instant accounts. We will reach out if the early cohort is a fit for this phase.</p>
+                    {submissionStatus === "success" && (
+                      <p className="rounded-md bg-emerald-400/10 p-2 text-emerald-50 ring-1 ring-emerald-300/30">
+                        Thanks — you’re on the early access list. Your submission is saved in our Cloudflare intake store.
+                      </p>
+                    )}
+                    {submissionStatus === "error" && (
+                      <p className="rounded-md bg-red-500/10 p-2 text-red-100 ring-1 ring-red-500/30">
+                        We couldn’t save this right now. {errorMessage || "Please try again in a moment."}
+                      </p>
+                    )}
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="about" className="mx-auto max-w-6xl px-6 py-14 lg:py-20">
+        <div className="grid gap-12 lg:grid-cols-12 lg:items-start">
+          <div className="lg:col-span-7 space-y-4">
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-emerald-300">Why Solverah</p>
+            <h2 className="text-2xl sm:text-3xl font-semibold text-white">Career intelligence that stays human.</h2>
+            <p className="text-base text-slate-200/85 max-w-3xl">
+              We build for people who want clarity without compromise. Solverah reads beyond job titles and buzzwords to understand how you work, what you value, and where you thrive. Authentic Intelligence keeps judgment with humans while giving structure to discovery.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {["Context before automation", "Signals over scores", "Careful by design", "Private by default"].map((item) => (
+                <div key={item} className="rounded-xl border border-white/10 bg-slate-900/60 p-4 shadow-lg shadow-black/30">
+                  <p className="text-sm font-semibold text-white">{item}</p>
+                  <p className="mt-2 text-sm text-slate-200/80">
+                    Thoughtful patterns, editorial clarity, and responsible handling of the details you choose to share.
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
                       Your details help us tune the early product. No onboarding, no automated decisions, and no downstream access beyond this prelaunch stage.
                     </p>
                   </div>
@@ -243,6 +447,15 @@ function PrelaunchLandingPage() {
               <p className="text-sm text-slate-200/80">
                 Straightforward answers so you know how Solverah works at this stage. If something feels unclear, tell us — iteration is the point.
               </p>
+            </div>
+            <div className="grid w-full gap-4 lg:max-w-xl">
+              {faqs.map((item) => (
+                <div key={item.q} className="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-sm font-semibold text-white">{item.q}</p>
+                  <p className="mt-2 text-sm text-slate-200/80">{item.a}</p>
+                </div>
+              ))}
+            </div>
             </div>
             <div className="grid w-full gap-4 lg:max-w-xl">
               {faqs.map((item) => (
