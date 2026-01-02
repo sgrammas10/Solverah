@@ -12,7 +12,19 @@ from flask_talisman import Talisman
 
 import os
 import json
+import uuid
+import datetime
+from urllib.parse import urlparse
+import boto3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
+ALLOWED_MIME = {
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+MAX_BYTES = 10 * 1024 * 1024  # 10MB
 
 #from LLM.profile2model import sorted_mlscores
 
@@ -30,11 +42,7 @@ from security import init_rate_limiter
 from validators import validate_password, clean_profile_data
 
 from flask_cors import CORS
-# CORS(app, resources={
-#     r"/api/*": {
-#         "origins": ["http://localhost:4173", "https://yourdomain.com"],
-#     }
-# })
+
 
 # Security headers with Talisman for CSP 
 Talisman(
@@ -62,7 +70,7 @@ CORS(
     allow_headers=["Content-Type", "X-CSRF-TOKEN"],
 )
 
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///users.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ["DATABASE_URL"]
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 
@@ -96,6 +104,127 @@ bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
 limiter = init_rate_limiter(app)
+
+# Helper function to get a new DB connection
+def get_db_conn():
+    return psycopg2.connect(os.environ["DATABASE_URL"], cursor_factory=RealDictCursor)
+
+# Helper function to get S3 client
+def get_s3_client():
+    # Cloudflare R2 is S3-compatible
+    return boto3.client(
+        "s3",
+        endpoint_url=os.environ["S3_ENDPOINT_URL"],
+        aws_access_key_id=os.environ["S3_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["S3_SECRET_ACCESS_KEY"],
+        region_name=os.environ.get("S3_REGION", "auto"),
+    )
+
+# Endpoint to get presigned upload URL
+@limiter.limit("10 per minute")
+@app.post("/api/intake/presign")
+def presign():
+    data = request.get_json(force=True)
+
+    mime = (data.get("mime") or "").strip()
+    size = int(data.get("size") or 0)
+
+    if mime not in ALLOWED_MIME:
+        return jsonify({"error": "Unsupported file type"}), 400
+    if size <= 0 or size > MAX_BYTES:
+        return jsonify({"error": "File too large (max 10MB)"}), 400
+
+    submission_id = str(uuid.uuid4())
+    ext = {
+        "application/pdf": "pdf",
+        "application/msword": "doc",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+    }.get(mime, "bin")
+
+    # Non-guessable object key
+    object_key = f"intake/{submission_id}/resume.{ext}"
+
+    s3 = get_s3_client()
+    bucket = os.environ["S3_BUCKET_NAME"]
+
+    # Presigned PUT URL for direct browser upload
+    url = s3.generate_presigned_url(
+        ClientMethod="put_object",
+        Params={
+            "Bucket": bucket,
+            "Key": object_key,
+            "ContentType": mime,
+        },
+        ExpiresIn=10 * 60,  # 10 minutes
+        HttpMethod="PUT",
+    )
+
+    return jsonify({
+        "submission_id": submission_id,
+        "object_key": object_key,
+        "upload_url": url,
+        "max_bytes": MAX_BYTES,
+    })
+
+# Endpoint to finalize intake submission
+@limiter.limit("20 per minute")
+@app.post("/api/intake/finalize")
+def finalize():
+    data = request.get_json(force=True)
+
+    submission_id = (data.get("submission_id") or "").strip()
+    first_name = (data.get("first_name") or "").strip()
+    last_name = (data.get("last_name") or "").strip()
+    object_key = (data.get("object_key") or "").strip()
+    mime = (data.get("mime") or "").strip()
+    size = int(data.get("size") or 0)
+
+    # Basic validation
+    try:
+        uuid.UUID(submission_id)
+    except Exception:
+        return jsonify({"error": "Invalid submission_id"}), 400
+
+    if not object_key.startswith(f"intake/{submission_id}/"):
+        return jsonify({"error": "Invalid object_key"}), 400
+    if mime not in ALLOWED_MIME:
+        return jsonify({"error": "Unsupported file type"}), 400
+    if size <= 0 or size > MAX_BYTES:
+        return jsonify({"error": "Invalid file size"}), 400
+
+    # HEAD the object to confirm it exists and matches metadata
+    s3 = get_s3_client()
+    bucket = os.environ["S3_BUCKET_NAME"]
+    try:
+        head = s3.head_object(Bucket=bucket, Key=object_key)
+        actual_size = int(head.get("ContentLength", 0))
+        actual_mime = head.get("ContentType", "")
+        if actual_size != size:
+            return jsonify({"error": "Uploaded file size mismatch"}), 400
+        if actual_mime != mime:
+            return jsonify({"error": "Uploaded file type mismatch"}), 400
+    except Exception:
+        return jsonify({"error": "Upload not found in storage"}), 400
+
+    # Insert record
+    conn = get_db_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO intake_submissions
+                      (id, first_name, last_name, resume_key, resume_mime, resume_size_bytes, status)
+                    VALUES
+                      (%s, %s, %s, %s, %s, %s, 'uploaded')
+                    """,
+                    (submission_id, first_name, last_name, object_key, mime, size),
+                )
+    finally:
+        conn.close()
+
+    return jsonify({"ok": True})
+
 
 #Helper function for inital setup of profile on registration
 def default_profile(email="", name="", role="job-seeker"):
