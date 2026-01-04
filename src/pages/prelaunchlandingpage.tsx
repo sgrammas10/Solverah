@@ -5,6 +5,10 @@ function PrelaunchLandingPage() {
     firstName: "",
     lastName: "",
     email: "",
+    state: "",
+    phone: "",
+    linkedinUrl: "",
+    portfolioUrl: "",
     context: "",
   });
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -15,6 +19,10 @@ function PrelaunchLandingPage() {
   const firstNameId = useId();
   const lastNameId = useId();
   const emailId = useId();
+  const stateId = useId();
+  const phoneId = useId();
+  const linkedinId = useId();
+  const portfolioId = useId();
   const resumeId = useId();
 
   const [selectedFileName, setSelectedFileName] = useState<string>("");
@@ -30,6 +38,20 @@ function PrelaunchLandingPage() {
 
     try {
       const payload = new FormData();
+      payload.append("first_name", formData.firstName.trim());
+      payload.append("last_name", formData.lastName.trim());
+      payload.append("email", formData.email.trim());
+      payload.append("state", formData.state.trim());
+      payload.append("phone", formData.phone.trim());
+      payload.append("linkedin_url", formData.linkedinUrl.trim());
+      payload.append("portfolio_url", formData.portfolioUrl.trim());
+
+      if (!resumeFile) {
+        throw new Error("Please attach your resume before submitting.");
+      }
+
+      payload.append("resume", resumeFile);
+
       payload.append("firstName", formData.firstName.trim());
       payload.append("lastName", formData.lastName.trim());
       payload.append("email", formData.email.trim());
@@ -50,6 +72,15 @@ function PrelaunchLandingPage() {
       }
 
       setSubmissionStatus("success");
+      setFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        state: "",
+        phone: "",
+        linkedinUrl: "",
+        portfolioUrl: "",
+      });
       setFormData({ firstName: "", lastName: "", email: "", context: "" });
       setResumeFile(null);
       setSelectedFileName("");
@@ -64,6 +95,17 @@ function PrelaunchLandingPage() {
   };
 
   const faqs = [
+    {
+      q: "What is Authentic Intelligence?",
+      a: "Authentic Intelligence is Solverah’s approach to generating insights that respect human complexity. It uses structured frameworks, rules-based logic, and automated analysis to surface patterns about how people work and where environments support or create friction.",
+    },
+    {
+      q: "Is this the same as artificial intelligence?",
+      a: "It may use automated systems and AI-supported techniques, but it isn’t designed to replace human judgment. It supports reflection and understanding — not decisions.",
+    },
+    {
+      q: "What information does it use?",
+      a: "Only what you choose to provide — responses, career background, and optional uploads. It may also use contextual information about roles or environments to generate insights.",
     {
       q: "What is Authentic Intelligence?",
       a: "Authentic Intelligence is Solverah’s approach to generating insights that respect human complexity. It uses structured frameworks, rules-based logic, and automated analysis to surface patterns about how people work and where environments support or create friction.",
@@ -91,6 +133,18 @@ function PrelaunchLandingPage() {
   ];
   const faqs = [
     {
+      q: "Does it make career or employment decisions?",
+      a: "No. Solverah does not make hiring, promotion, compensation, or career decisions. Insights are advisory and interpretive. Final decisions remain with you or your organization.",
+    },
+    {
+      q: "Are the insights personalized?",
+      a: "Yes — they reflect the factors you provide and how they interact. But personalization is not prediction. Insights describe patterns and possibilities, not outcomes.",
+    },
+    {
+      q: "Why focus on conditions instead of labels?",
+      a: "Because environments matter. Solverah emphasizes conditions, fit, and context so insights stay humane, flexible, and useful across situations.",
+    },
+  ];
       q: "What is Authentic Intelligence?",
       a: "Authentic Intelligence is Solverah’s approach to generating insights that respect human complexity. It uses structured frameworks, rules-based logic, and automated analysis to surface patterns about how people work and where environments support or create friction.",
     },
@@ -122,6 +176,75 @@ function PrelaunchLandingPage() {
       <div className="relative isolate overflow-hidden bg-gradient-to-br from-emerald-600/30 via-blue-700/20 to-indigo-800/30">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.18),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.18),_transparent_45%)]" />
         <div className="absolute inset-y-0 right-10 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
+
+        <div className="relative mx-auto max-w-6xl px-6 pb-16 pt-14 lg:pt-20">
+          <div className="flex items-center justify-between gap-6">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200 ring-1 ring-white/15">
+                Prelaunch
+              </span>
+              <div className="h-px flex-1 bg-gradient-to-r from-emerald-300/60 via-slate-100/30 to-transparent" />
+            </div>
+            <p className="text-xs text-slate-200/80">Private build · Access by invitation only</p>
+          </div>
+
+          <div className="grid gap-12 lg:grid-cols-12 lg:gap-16 pt-10 lg:pt-14">
+            <div className="lg:col-span-7 space-y-6">
+              <div className="space-y-4">
+                <p className="text-sm font-semibold text-emerald-200 tracking-[0.08em] uppercase">Solverah</p>
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold leading-tight text-slate-50">
+                  Modern careers deserve more than keywords. We’re building human-centered matching grounded in lived experience.
+                </h1>
+                <p className="text-lg text-slate-200/85 max-w-3xl">
+                  Solverah blends structured frameworks with Authentic Intelligence to understand how people actually work — and how environments help them thrive. This prelaunch is focused on careful listening and thoughtful iteration.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3 text-sm text-slate-200/90">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1">
+                  <span className="h-2 w-2 rounded-full bg-emerald-300" /> Early preview
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1">
+                  <span className="h-2 w-2 rounded-full bg-blue-300" /> No accounts or onboarding
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1">
+                  <span className="h-2 w-2 rounded-full bg-indigo-300" /> Human-led evaluation
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4">
+                <a
+                  href="#waitlist"
+                  className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:shadow-emerald-400/25"
+                >
+                  Request early access
+                </a>
+                <a
+                  href="#about"
+                  className="text-sm font-semibold text-emerald-100/90 underline-offset-8 hover:underline"
+                >
+                  Learn more about Solverah
+                </a>
+              </div>
+            </div>
+
+            <div className="lg:col-span-5">
+              <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-6 shadow-2xl shadow-black/40 backdrop-blur">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.14em] text-emerald-200">Early Access</p>
+                    <h2 className="text-xl font-semibold text-white">Join the Solverah signal</h2>
+                    <p className="mt-1 text-sm text-slate-200/80">
+                      Private intake for thoughtful collaborators. Submissions are stored securely in our
+                      Cloudflare-backed intake database.
+                    </p>
+                  </div>
+                  <div className="h-12 w-12 rounded-full bg-gradient-to-tr from-emerald-400 to-blue-500 text-slate-950 flex items-center justify-center text-lg font-bold">
+                    S
+                  </div>
+                </div>
+
+                <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
 
         <div className="relative mx-auto max-w-6xl px-6 pb-16 pt-14 lg:pt-20">
           <div className="flex items-center justify-between gap-6">
@@ -268,6 +391,9 @@ function PrelaunchLandingPage() {
                         type="text"
                         placeholder="Your first name"
                         autoComplete="given-name"
+                        value={formData.firstName}
+                        onChange={(e) => handleInputChange("firstName", e.target.value)}
+                        required
                         className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                       />
                     </div>
@@ -280,12 +406,160 @@ function PrelaunchLandingPage() {
                         type="text"
                         placeholder="Your last name"
                         autoComplete="family-name"
+                        value={formData.lastName}
+                        onChange={(e) => handleInputChange("lastName", e.target.value)}
+                        required
                         className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
+                    <label htmlFor={emailId} className="text-sm font-medium text-slate-100">
+                      Email
+                    </label>
+                    <input
+                      id={emailId}
+                      type="email"
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      required
+                      className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <label htmlFor={stateId} className="text-sm font-medium text-slate-100">
+                        State / region
+                      </label>
+                      <input
+                        id={stateId}
+                        type="text"
+                        placeholder="Where are you based?"
+                        autoComplete="address-level1"
+                        value={formData.state}
+                        onChange={(e) => handleInputChange("state", e.target.value)}
+                        required
+                        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor={phoneId} className="text-sm font-medium text-slate-100">
+                        Phone (optional)
+                      </label>
+                      <input
+                        id={phoneId}
+                        type="tel"
+                        placeholder="(555) 555-5555"
+                        autoComplete="tel"
+                        value={formData.phone}
+                        onChange={(e) => handleInputChange("phone", e.target.value)}
+                        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <label htmlFor={linkedinId} className="text-sm font-medium text-slate-100">
+                        LinkedIn (optional)
+                      </label>
+                      <input
+                        id={linkedinId}
+                        type="url"
+                        placeholder="https://www.linkedin.com/in/you"
+                        value={formData.linkedinUrl}
+                        onChange={(e) => handleInputChange("linkedinUrl", e.target.value)}
+                        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor={portfolioId} className="text-sm font-medium text-slate-100">
+                        Personal site / portfolio (optional)
+                      </label>
+                      <input
+                        id={portfolioId}
+                        type="url"
+                        placeholder="https://your-site.com"
+                        value={formData.portfolioUrl}
+                        onChange={(e) => handleInputChange("portfolioUrl", e.target.value)}
+                        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor={resumeId} className="text-sm font-medium text-slate-100">
+                      Resume (PDF or DOCX)
+                    </label>
+                    <div className="rounded-lg border border-dashed border-white/15 bg-white/5 p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-white">Upload your resume</p>
+                          <p className="text-xs text-slate-200/75">
+                            We read for context, not to score you. Your file stays private.
+                          </p>
+                          {selectedFileName ? (
+                            <p className="mt-2 text-sm text-emerald-100">
+                              Selected: <span className="font-semibold">{selectedFileName}</span>
+                            </p>
+                          ) : null}
+                        </div>
+                        <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-full bg-emerald-400/90 px-4 py-2 text-sm font-semibold text-slate-950 shadow-md shadow-emerald-500/30 transition hover:bg-emerald-300">
+                          Choose file
+                          <input
+                            id={resumeId}
+                            type="file"
+                            accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            className="hidden"
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              setResumeFile(f ?? null);
+                              setSelectedFileName(f?.name ?? "");
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-lg bg-emerald-400/10 p-4 text-sm text-emerald-50 ring-1 ring-emerald-300/20">
+                    <p className="font-semibold">How we use this</p>
+                    <p className="text-slate-100/80">
+                      Your details help us tune the early product. No onboarding, no automated decisions, and no downstream access beyond this prelaunch stage. We only keep the submission in our Cloudflare database for this intake.
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submissionStatus === "submitting"}
+                    className="w-full rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {submissionStatus === "submitting" ? "Submitting..." : "Submit interest (soft launch)"}
+                  </button>
+                  <div className="space-y-2 text-xs text-slate-200/80">
+                    <p>No instant accounts. We will reach out if the early cohort is a fit for this phase.</p>
+                    {submissionStatus === "success" && (
+                      <p className="rounded-md bg-emerald-400/10 p-2 text-emerald-50 ring-1 ring-emerald-300/30">
+                        Thanks — you’re on the early access list. Your submission is saved in our Cloudflare intake store.
+                      </p>
+                    )}
+                    {submissionStatus === "error" && (
+                      <p className="rounded-md bg-red-500/10 p-2 text-red-100 ring-1 ring-red-500/30">
+                        We couldn’t save this right now. {errorMessage || "Please try again in a moment."}
+                      </p>
+                    )}
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
                     <label htmlFor={resumeId} className="text-sm font-medium text-slate-100">
                       Resume (PDF or DOCX)
                     </label>
