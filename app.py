@@ -175,6 +175,12 @@ def finalize():
     submission_id = (data.get("submission_id") or "").strip()
     first_name = (data.get("first_name") or "").strip()
     last_name = (data.get("last_name") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    state = (data.get("state") or "").strip()
+    phone = (data.get("phone") or "").strip()
+    linkedin_url = (data.get("linkedin_url") or "").strip()
+    portfolio_url = (data.get("portfolio_url") or "").strip()
+
     object_key = (data.get("object_key") or "").strip()
     mime = (data.get("mime") or "").strip()
     size = int(data.get("size") or 0)
@@ -191,6 +197,16 @@ def finalize():
         return jsonify({"error": "Unsupported file type"}), 400
     if size <= 0 or size > MAX_BYTES:
         return jsonify({"error": "Invalid file size"}), 400
+    
+    if not email or "@" not in email or len(email) > 254:
+        return jsonify({"error": "Valid email is required"}), 400
+
+    if not state or len(state) > 50:
+        return jsonify({"error": "State is required"}), 400
+
+    if len(phone) > 50 or len(linkedin_url) > 400 or len(portfolio_url) > 400:
+        return jsonify({"error": "One or more fields are too long"}), 400
+
 
     # HEAD the object to confirm it exists and matches metadata
     s3 = get_s3_client()
@@ -214,12 +230,27 @@ def finalize():
                 cur.execute(
                     """
                     INSERT INTO intake_submissions
-                      (id, first_name, last_name, resume_key, resume_mime, resume_size_bytes, status)
+                    (id, first_name, last_name, email, state, phone, linkedin_url, portfolio_url,
+                    resume_key, resume_mime, resume_size_bytes, status)
                     VALUES
-                      (%s, %s, %s, %s, %s, %s, 'uploaded')
+                    (%s, %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, 'uploaded')
                     """,
-                    (submission_id, first_name, last_name, object_key, mime, size),
+                    (
+                        submission_id,
+                        first_name,
+                        last_name,
+                        email,
+                        state,
+                        phone or None,
+                        linkedin_url or None,
+                        portfolio_url or None,
+                        object_key,
+                        mime,
+                        size,
+                    ),
                 )
+
     finally:
         conn.close()
 
