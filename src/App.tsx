@@ -4,6 +4,7 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Header from "./components/Header";
+import { PRELAUNCH_MODE } from "./config";
 
 // Quiz Components
 import CareerQuizzes from "./components/CareerQuizzes";
@@ -22,8 +23,6 @@ import RecruiterProfile from "./pages/RecruiterProfile";
 import Feed from "./pages/Feed";
 import SearchResults from "./pages/SearchResults"; // from your quiz-aware version
 
-
-const PRELAUNCH_MODE = true;
 
 // Role-based route protection
 function ProtectedRoute({
