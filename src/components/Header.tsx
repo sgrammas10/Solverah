@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { PRELAUNCH_MODE } from '../config';
 import { User, LogOut, Briefcase } from 'lucide-react';
 
 function Header() {
@@ -43,32 +44,47 @@ function Header() {
     return '/';
   };
 
+  const isDashboard = location.pathname.includes('dashboard');
+  const isProfile = location.pathname.includes('profile');
+  const isFeed = location.pathname === '/feed';
+
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
+    <header
+      className={
+        PRELAUNCH_MODE
+          ? 'border-b border-white/10 bg-slate-950/80 backdrop-blur supports-[backdrop-filter]:bg-slate-950/60'
+          : 'bg-white shadow-sm border-b border-gray-200'
+      }
+    >
       {/* Centered container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
         {/* Header content wrapper */}
         <div className="flex justify-between items-center h-16">
-
           {/* Logo + Home link */}
           <Link to="/" className="flex items-center space-x-2">
-            <Briefcase className="h-8 w-8 text-blue-600" />
-            <span className="text-2xl font-bold text-gray-900">Solverah</span>
+            <Briefcase className={`h-8 w-8 ${PRELAUNCH_MODE ? 'text-emerald-300' : 'text-blue-600'}`} />
+            <span className={`text-2xl font-bold ${PRELAUNCH_MODE ? 'text-white' : 'text-gray-900'}`}>
+              Solverah
+            </span>
           </Link>
 
           {/* Navigation links */}
           <nav className="flex items-center space-x-6">
-            {user ? (
+            {PRELAUNCH_MODE ? (
+              <div className="flex items-center gap-3 text-xs font-semibold text-emerald-100/80">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-emerald-50">
+                  Prelaunch access only
+                </span>
+                <span className="hidden sm:inline text-slate-100/80">Navigation is gated until full release.</span>
+              </div>
+            ) : user ? (
               // If user IS logged in, show dashboard, feed, profile, logout, etc.
               <>
                 {/* Feed Link (highlight if on /feed) */}
                 <Link
                   to="/feed"
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    location.pathname === '/feed'
-                      ? 'text-blue-600 bg-blue-50'
-                      : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                    isFeed ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
                   }`}
                 >
                   Feed
@@ -78,9 +94,7 @@ function Header() {
                 <Link
                   to={getDashboardPath()}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    location.pathname.includes('dashboard')
-                      ? 'text-blue-600 bg-blue-50'
-                      : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                    isDashboard ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
                   }`}
                 >
                   Dashboard
@@ -90,9 +104,7 @@ function Header() {
                 <Link
                   to={getProfilePath()}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    location.pathname.includes('profile')
-                      ? 'text-blue-600 bg-blue-50'
-                      : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                    isProfile ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
                   }`}
                 >
                   <User className="h-4 w-4 inline mr-1" />
