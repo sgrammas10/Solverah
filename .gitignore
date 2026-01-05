@@ -27,3 +27,5 @@ dist-ssr
 users.db
 *.sqlite
 *.db
+
+.env*
