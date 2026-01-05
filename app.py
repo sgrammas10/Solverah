@@ -124,7 +124,10 @@ def get_s3_client():
 @limiter.limit("10 per minute")
 @app.post("/api/intake/presign")
 def presign():
-    data = request.get_json(force=True)
+    data = request.get_json(silent=True) or {}
+    if not data:
+        return jsonify({"error": "JSON body required"}), 400
+
 
     mime = (data.get("mime") or "").strip()
     size = int(data.get("size") or 0)
@@ -170,7 +173,10 @@ def presign():
 @limiter.limit("20 per minute")
 @app.post("/api/intake/finalize")
 def finalize():
-    data = request.get_json(force=True)
+    data = request.get_json(silent=True) or {}
+    if not data:
+        return jsonify({"error": "JSON body required"}), 400
+
 
     submission_id = (data.get("submission_id") or "").strip()
     first_name = (data.get("first_name") or "").strip()
