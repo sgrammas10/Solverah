@@ -29,3 +29,4 @@ users.db
 *.db
 
 .env*
+datasets/
