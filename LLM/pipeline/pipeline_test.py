@@ -18,7 +18,6 @@ How it works:
 Usage examples:
   python pipeline_test.py --version v1
   python pipeline_test.py --version v1 --steps export,download,extract
-  python pipeline_test.py --version v1 --tika-url http://127.0.0.1:9998/tika  # force fallback if Tika down
 """
 
 from __future__ import annotations
@@ -31,10 +30,7 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
-
-import sys
-from pathlib import Path
+from typing import Any, Callable, Dict, List, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parents[2]  # .../Solverah
 sys.path.insert(0, str(REPO_ROOT))
@@ -190,14 +186,14 @@ def run_download_resumes(mod, p: Paths) -> None:
             print(f"  - {s}")
 
 
-def run_extract_text(mod, p: Paths, tika_url: Optional[str]) -> None:
+def run_extract_text(mod, p: Paths) -> None:
     """
-    Expected: extract_text.py defines extract_from_env(dataset_version, tika_url).
+    Expected: extract_text.py defines extract_from_env(dataset_version).
     """
     func = getattr(mod, "extract_from_env", None)
     if not callable(func):
-        raise AttributeError("extract_text.py must define a callable extract_from_env(dataset_version, tika_url)")
-    func(dataset_version=p.version, tika_url=tika_url)
+        raise AttributeError("extract_text.py must define a callable extract_from_env(dataset_version)")
+    func(version=p.version)
 
     if not p.raw_jsonl.exists():
         raise RuntimeError(f"extract stage did not produce {p.raw_jsonl}")
@@ -260,11 +256,6 @@ def main() -> int:
         help="Comma-separated steps: export,download,extract,clean,build",
     )
     parser.add_argument(
-        "--tika-url",
-        default=os.getenv("TIKA_URL", None),
-        help="Tika URL (e.g., http://127.0.0.1:9998/tika). If unset, uses env TIKA_URL or script default.",
-    )
-    parser.add_argument(
         "--script-dir",
         default=".",
         help="Directory where your pipeline scripts live (default: current directory).",
@@ -283,7 +274,6 @@ def main() -> int:
     print(f"  datasets root: {p.datasets_root.resolve()}")
     print(f"  version dir:   {p.version_dir.resolve()}")
     print(f"  steps:         {steps}")
-    print(f"  tika-url:      {args.tika_url}")
 
     # Load modules only for steps that will run
     modules: Dict[str, Any] = {}
@@ -317,7 +307,7 @@ def main() -> int:
             f"- Will write: {p.raw_jsonl}\n"
             "- After it runs, open resumes_raw.jsonl and check parser/error fields and text quality."
         )
-        run_extract_text(modules["extract"], p, args.tika_url)
+        run_extract_text(modules["extract"], p)
 
     if "clean" in steps:
         modules["clean"] = load_module_from_path("clean_text", scripts["clean"])
@@ -370,13 +360,11 @@ if __name__ == "__main__":
 
 
     # ------------------------------------------------------------------
-    # STEP 3 — Extract raw text (Tika → PDF/DOCX fallback)
+    # STEP 3 — Extract raw text (PDF/DOCX extraction)
     # ------------------------------------------------------------------
-    # Optional: set tika_url to a dead URL to force fallback testing
     from extract_text import extract_from_env
     extract_from_env(
         version=DATASET_VERSION,
-        tika_url="http://127.0.0.1:9998/tika"  # or None
     )
 
 
