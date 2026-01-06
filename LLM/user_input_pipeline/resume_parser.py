@@ -318,6 +318,27 @@ def _collect_experience_blocks(lines: Sequence[str]) -> List[Tuple[int, int]]:
             i += 1
     return blocks
 
+def _collect_experience_blocks(lines: Sequence[str]) -> List[Tuple[int, int]]:
+    """Return (start_idx, end_idx_exclusive) blocks anchored around date lines."""
+
+    blocks: List[Tuple[int, int]] = []
+    i = 0
+    while i < len(lines):
+        if DATE_PATTERN.search(lines[i]):
+            start = i
+            j = i + 1
+            while j < len(lines):
+                if DATE_PATTERN.search(lines[j]):
+                    break
+                if _looks_like_heading(lines[j]) or SECTION_BREAK_PATTERN.search(lines[j]):
+                    break
+                j += 1
+            blocks.append((start, j))
+            i = j
+        else:
+            i += 1
+    return blocks
+
 
 def _parse_experience(lines: Sequence[str]) -> List[Dict[str, object]]:
     experiences: List[Dict[str, object]] = []
@@ -392,6 +413,24 @@ def _tokenize_skill_line(line: str) -> List[str]:
     return tokens
 
 
+def _looks_like_contact_or_noise(token: str) -> bool:
+    lower = token.lower()
+    if "@" in token or "http" in lower or "www." in lower:
+        return True
+    if re.search(r"\b\d{3}[\s.-]?\d{3}[\s.-]?\d{4}\b", token):
+        return True
+    if re.search(r"\b(present|current)\b", lower):
+        return True
+    if re.search(r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\b", lower):
+        return True
+    # Disqualify tokens dominated by digits or punctuation
+    letters = sum(c.isalpha() for c in token)
+    digits = sum(c.isdigit() for c in token)
+    if digits > letters and digits >= 2:
+        return True
+    return False
+
+
 def _is_skill_rich_line(line: str) -> bool:
     lower_line = line.lower()
     separators = line.count(",") + line.count("|") + line.count(";")
@@ -434,6 +473,8 @@ def _score_token_as_skill(token: str) -> int:
     normalized = token.lower()
     if not re.search(r"[a-zA-Z]", token):
         return 0
+    if _looks_like_contact_or_noise(token):
+        return 0
     if normalized in STOPWORDS:
         return 0
     if normalized in SKILL_TERMS:
@@ -469,6 +510,10 @@ def _score_token_as_skill(token: str) -> int:
 
 def _is_tool_token(token: str) -> bool:
     normalized = token.lower()
+    if not re.search(r"[a-zA-Z]", token) and not re.match(r"^v?\d+(?:\.\d+)*$", token.strip()):
+        return False
+    if _looks_like_contact_or_noise(token):
+        return False
     if normalized in TOOL_TERMS:
         return True
     if any(hint in normalized for hint in TOOL_HINTS):
@@ -488,6 +533,9 @@ def _parse_skills_and_tools(lines: Sequence[str]) -> Tuple[List[str], List[str]]
         if not line or DEGREE_PATTERN.search(line) or DATE_PATTERN.search(line) or not _is_skill_rich_line(line):
             continue
 
+        if re.search(r"@|www\.|http", line) or re.search(r"\b\d{3}[\s.-]?\d{3}[\s.-]?\d{4}\b", line):
+            continue
+
         lower_line = line.lower()
         separators = line.count(",") + line.count("|") + line.count(";")
         if "skill" not in lower_line and separators <= 2 and any(v in lower_line for v in EXPERIENCE_VERBS):
@@ -496,6 +544,13 @@ def _parse_skills_and_tools(lines: Sequence[str]) -> Tuple[List[str], List[str]]
         tokens = _tokenize_skill_line(line)
         for token in tokens:
             if not token:
+                continue
+
+            if len(token) > 60:
+                continue
+            if token.lower().startswith(("activities", "experience", "summary", "objective", "education")):
+                continue
+            if _looks_like_contact_or_noise(token):
                 continue
 
             if _is_tool_token(token):
