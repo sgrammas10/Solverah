@@ -2,9 +2,15 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Iterable
 
+
+from LLM.user_input_pipeline.resume_parser import parse_resume
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def build_model_inputs(dataset_root: Path, dataset_version: str) -> None:
     clean_path = dataset_root / "resumes_clean.jsonl"
@@ -16,12 +22,15 @@ def build_model_inputs(dataset_root: Path, dataset_version: str) -> None:
     ) as output_fh:
         for line in clean_fh:
             record = json.loads(line)
+            text = record.get("text", "")
+            parsed_resume = parse_resume(text)
             model_row = {
                 "id": record.get("id"),
-                "text": record.get("text", ""),
+                "text": text,
                 "state": record.get("state"),
                 "resume_key": record.get("resume_key"),
                 "dataset_version": dataset_version,
+                **parsed_resume,
             }
             output_fh.write(json.dumps(model_row) + "\n")
 
