@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from LLM.parsers.docx_fallback import parse_docx
-from LLM.parsers.pdf_fallback import parse_pdf
-from LLM.parsers.tika_server import ParsedDocument, TikaServerClient
+from LLM.parsers.docx_extract import parse_docx
+from LLM.parsers.pdf_extract import parse_pdf
+from LLM.old_code.tika_server import ParsedDocument, TikaServerClient
 
 
 @dataclass
