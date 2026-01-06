@@ -2,20 +2,13 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from pdfminer.high_level import extract_text
 
+from LLM.parsers.types import ParsedDocument
+
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class ParsedDocument:
-    text: str
-    parser: str
-    error: Optional[str]
 
 
 def parse_pdf(file_path: Path) -> ParsedDocument:
