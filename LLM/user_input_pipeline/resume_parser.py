@@ -318,6 +318,27 @@ def _collect_experience_blocks(lines: Sequence[str]) -> List[Tuple[int, int]]:
             i += 1
     return blocks
 
+def _collect_experience_blocks(lines: Sequence[str]) -> List[Tuple[int, int]]:
+    """Return (start_idx, end_idx_exclusive) blocks anchored around date lines."""
+
+    blocks: List[Tuple[int, int]] = []
+    i = 0
+    while i < len(lines):
+        if DATE_PATTERN.search(lines[i]):
+            start = i
+            j = i + 1
+            while j < len(lines):
+                if DATE_PATTERN.search(lines[j]):
+                    break
+                if _looks_like_heading(lines[j]) or SECTION_BREAK_PATTERN.search(lines[j]):
+                    break
+                j += 1
+            blocks.append((start, j))
+            i = j
+        else:
+            i += 1
+    return blocks
+
 
 def _parse_experience(lines: Sequence[str]) -> List[Dict[str, object]]:
     experiences: List[Dict[str, object]] = []
