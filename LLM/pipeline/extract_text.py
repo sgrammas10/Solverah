@@ -1,4 +1,4 @@
-"""Extract resume text using Tika with pdf/docx fallbacks."""
+"""Extract resume text using local PDF/DOCX parsers."""
 from __future__ import annotations
 
 import json
@@ -10,13 +10,12 @@ import pandas as pd
 
 from LLM.parsers.docx_extract import parse_docx
 from LLM.parsers.pdf_extract import parse_pdf
-from LLM.old_code.tika_server import ParsedDocument, TikaServerClient
+from LLM.parsers.types import ParsedDocument
 
 
 @dataclass
 class ExtractOptions:
     dataset_root: Path
-    tika_url: str = "http://localhost:9998/tika"
     resume_dirname: str = "resumes"
 
     @property
@@ -43,11 +42,7 @@ def _detect_extension(resume_key: str, resume_mime: str | None) -> str:
     return ""
 
 
-def _choose_parser(file_path: Path, tika_client: TikaServerClient) -> ParsedDocument:
-    tika_result = tika_client.parse(file_path)
-    if tika_result.text:
-        return tika_result
-
+def _choose_parser(file_path: Path) -> ParsedDocument:
     suffix = file_path.suffix.lower()
     if suffix == ".pdf":
         return parse_pdf(file_path)
@@ -58,7 +53,6 @@ def _choose_parser(file_path: Path, tika_client: TikaServerClient) -> ParsedDocu
 
 
 def extract_resumes(options: ExtractOptions) -> None:
-    tika_client = TikaServerClient(server_url=options.tika_url)
     df = pd.read_csv(options.intake_path)
     options.raw_output.parent.mkdir(parents=True, exist_ok=True)
     with options.raw_output.open("w", encoding="utf-8") as fh:
@@ -68,7 +62,7 @@ def extract_resumes(options: ExtractOptions) -> None:
             resume_mime = row.get("resume_mime")
             suffix = _detect_extension(resume_key, resume_mime) or ".bin"
             resume_path = options.resume_dir / f"{submission_id}{suffix}"
-            parsed = _choose_parser(resume_path, tika_client)
+            parsed = _choose_parser(resume_path)
             record = {
                 "id": submission_id,
                 "resume_key": resume_key,
@@ -83,9 +77,9 @@ def extract_resumes(options: ExtractOptions) -> None:
             fh.write(json.dumps(record) + "\n")
 
 
-def extract_from_env(version: str = "v1", tika_url: str | None = None) -> None:
+def extract_from_env(version: str = "v1") -> None:
     dataset_root = Path("datasets") / version
-    options = ExtractOptions(dataset_root=dataset_root, tika_url=tika_url or "http://localhost:9998/tika")
+    options = ExtractOptions(dataset_root=dataset_root)
     extract_resumes(options)
 
 
