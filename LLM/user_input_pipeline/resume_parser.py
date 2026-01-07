@@ -162,6 +162,9 @@ STOPWORDS: Set[str] = {
 INLINE_TITLE_DATE = re.compile(
     r"^(?P<title>[A-Za-z][A-Za-z /&\-]{3,60})\s*\((?P<dates>[^)]+)\)$"
 )
+INLINE_TITLE_PIPE_DATE = re.compile(
+    r"^(?P<title>[A-Za-z][A-Za-z /&\-]{3,60})\s*\|\s*(?P<dates>.+)$"
+)
 
 
 
@@ -400,11 +403,17 @@ def _infer_title_company_from_context(
     title = ""
     company = ""
     date_line = lines[date_idx].strip()
+
     m = INLINE_TITLE_DATE.match(date_line)
     if m:
         title = m.group("title").strip()
     else:
-        title = ""
+        m2 = INLINE_TITLE_PIPE_DATE.match(date_line)
+        if m2:
+            title = m2.group("title").strip()
+        else:
+            title = ""
+
     start = max(0, date_idx - lookback)
     window = [l for l in lines[start:date_idx] if l.strip()]
 
