@@ -1,24 +1,15 @@
-"""Robust, heading-agnostic resume parser.
+"""Resume parser (rule-based, offline).
 
-This module keeps the original public API ``parse_resume`` while replacing the
-previous heading-only approach with a hybrid heuristic pipeline designed to
-handle messy real-world resumes (PDF extracted text, missing headings,
-multi-column ordering, etc.).
+Public API:
+- parse_resume(text: str) -> dict
 
-Key design points:
-* Normalize text aggressively (bullets, dashes, whitespace, hyphenation).
-* Infer sections via lightweight line classification rather than strict
-  headings.
-* Experience extraction is anchored on date ranges and nearby title/company
-  cues, then gathers subsequent bullets.
-* Skills/tools use lexicon-driven tokenization over comma/pipe/bullet lists.
-* Education and clearances are detected with keyword heuristics even when no
-  section exists.
-* Deterministic and offline by construction; gracefully returns empty fields
-  when uncertain.
+Key heuristics (high-level):
+- Section-scoped extraction: skills are parsed only inside the Skills section; experience
+  only inside the Experience section. This prevents "skills" pollution from summary/contact.
+- Experience entries are anchored on *date range lines* and infer title/company from nearby
+  header lines above the date.
 
-An optional ``evaluate_on_jsonl`` helper at the bottom provides quick recall
-metrics on a JSONL resume file.
+Deterministic and offline by construction.
 """
 
 from __future__ import annotations
@@ -26,7 +17,9 @@ from __future__ import annotations
 import json
 import logging
 import re
-from collections import Counter
+from collections import defaultdict, Counter
+from collections.abc import Mapping, Sequence
+
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Set, Tuple
 
@@ -37,8 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 def _normalize_text(text: str) -> str:
-    """Normalize bullet characters, dashes, and whitespace for downstream parsing."""
-
+    """Normalize bullets/dashes/whitespace for PDF-extracted text."""
     replacements = {
         "·": "-",
         "": "-",
@@ -46,16 +38,18 @@ def _normalize_text(text: str) -> str:
         "•": "-",
         "–": "-",
         "—": "-",
-        " ": " ",
+        " ": " ",
+        # common PDF extraction artifacts
+        "Š": "-",
+        "Œ": "-",
     }
     for src, tgt in replacements.items():
         text = text.replace(src, tgt)
 
-    # De-hyphenate common PDF line breaks: "co-
-    # mputer" -> "computer"
+    # De-hyphenate common PDF line breaks: "co-\nmputer" -> "computer"
     text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
 
-    # Collapse long whitespace sequences
+    # Collapse whitespace
     text = re.sub(r"[\t\f\r]+", " ", text)
     text = re.sub(r" +", " ", text)
     return text
@@ -73,10 +67,41 @@ def _strip_bullet(line: str) -> str:
 # ---------------------------- Shared patterns ----------------------------------
 
 
-MONTH_PATTERN = r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\.?\s+\d{2,4}"
+MONTHS = {
+    "jan",
+    "january",
+    "feb",
+    "february",
+    "mar",
+    "march",
+    "apr",
+    "april",
+    "may",
+    "jun",
+    "june",
+    "jul",
+    "july",
+    "aug",
+    "august",
+    "sep",
+    "sept",
+    "september",
+    "oct",
+    "october",
+    "nov",
+    "november",
+    "dec",
+    "december",
+}
+
+MONTH_PATTERN = (
+    r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|"
+    r"Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|"
+    r"Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{2,4}"
+)
 NUMERIC_PATTERN = r"\d{1,2}/\d{2,4}"
 YEAR_PATTERN = r"\d{4}"
-RANGE_SEP = r"\s*(?:to|-|–|—)\s*"
+RANGE_SEP = r"\s*(?:to|-)\s*"
 
 DATE_PATTERN = re.compile(
     rf"(?:(?:{MONTH_PATTERN}|{NUMERIC_PATTERN}){RANGE_SEP}(?:Present|Current|Now|{MONTH_PATTERN}|{NUMERIC_PATTERN}|{YEAR_PATTERN})"
@@ -100,72 +125,20 @@ CLEARANCE_PATTERN = re.compile(
     flags=re.IGNORECASE,
 )
 
-SECTION_BREAK_PATTERN = re.compile(
-    r"^(skills?|projects?|certifications?|education|summary|technical summary|tools)\b",
-    flags=re.IGNORECASE,
+# Headings
+HEADING_EXPERIENCE = re.compile(r"^(professional\s+experience|work\s+experience|experience)\b", re.I)
+HEADING_SKILLS = re.compile(r"^(technical\s+skills|skills|technologies|tools)\b", re.I)
+HEADING_EDU = re.compile(r"^education\b", re.I)
+HEADING_PROJECTS = re.compile(r"^projects?\b", re.I)
+HEADING_CERTS = re.compile(r"^certifications?\b", re.I)
+
+MASTER_HEADING = re.compile(
+    r"^(professional\s+summary|summary|technical\s+skills|skills|technologies|tools|"
+    r"professional\s+experience|work\s+experience|experience|education|projects?|"
+    r"certifications?|publications?|volunteer\s+experience|additional\s+information)\b",
+    re.I,
 )
 
-
-# Lexicons stay as soft priors, but skill detection is primarily heuristic so
-# new terms can be captured without updating these lists.
-SKILL_TERMS: Set[str] = {
-    "project management",
-    "program management",
-    "leadership",
-    "communication",
-    "operations",
-    "logistics",
-    "supply chain",
-    "budgeting",
-    "forecasting",
-    "training",
-    "mentoring",
-    "quality assurance",
-    "process improvement",
-    "data analysis",
-    "analytics",
-    "research",
-    "marketing",
-    "sales",
-    "customer service",
-    "manufacturing",
-    "maintenance",
-    "clinical",
-    "patient care",
-    "classroom management",
-}
-
-TOOL_TERMS: Set[str] = {
-    "excel",
-    "tableau",
-    "power bi",
-    "salesforce",
-    "sap",
-    "oracle",
-    "quickbooks",
-    "autocad",
-    "solidworks",
-    "matlab",
-    "simulink",
-    "jira",
-    "confluence",
-    "slack",
-    "asana",
-    "trello",
-    "smartsheet",
-    "crm",
-    "erp",
-    "lms",
-    "aws",
-    "gcp",
-    "azure",
-    "docker",
-    "kubernetes",
-    "git",
-}
-
-# Lightweight linguistic priors to identify skill-like tokens without a fixed
-# vocabulary. These sets stay small and interpretable.
 STOPWORDS: Set[str] = {
     "and",
     "or",
@@ -185,101 +158,166 @@ STOPWORDS: Set[str] = {
     "&",
 }
 
-SKILL_SUFFIXES: Set[str] = {
-    "management",
-    "operations",
-    "analysis",
-    "design",
-    "support",
-    "training",
-    "strategy",
-    "marketing",
-    "planning",
-    "research",
-    "compliance",
-    "safety",
-    "analytics",
-    "testing",
-    "development",
-    "leadership",
-    "writing",
-}
-
-TOOL_HINTS: Set[str] = {
-    "sql",
-    "crm",
-    "erp",
-    "lms",
-    "cad",
-    "gis",
-    "bi",
-    "lab",
-    "analytics",
-    "automation",
-}
-
-EXPERIENCE_VERBS = {
-    "built",
-    "developed",
-    "designed",
-    "led",
-    "managed",
-    "created",
-    "presented",
-    "implemented",
-    "launched",
-    "improved",
-    "migrated",
-    "optimized",
-}
 
 
 # ---------------------------- Utility functions --------------------------------
 
 
 def _looks_like_heading(line: str) -> bool:
+    """True only for *section* headings (not job titles)."""
     stripped = line.strip()
     if not stripped:
         return False
-    if len(stripped.split()) <= 5 and stripped.isupper():
+    return bool(MASTER_HEADING.match(stripped))
+
+
+def _is_month_or_year_token(s: str) -> bool:
+    token = re.sub(r"[^\w]", "", s.strip().lower())
+    if token in MONTHS:
         return True
-    if len(stripped) <= 18 and re.match(r"^[A-Za-z /&]+$", stripped) and stripped.istitle():
+    return bool(re.fullmatch(r"\d{4}", token))
+
+
+def _is_bad_title_candidate(line: str) -> bool:
+    """Reject lines that look like dates or fillers when used as job titles."""
+    s = line.strip()
+    if not s:
+        return True
+    if DATE_PATTERN.fullmatch(s) or DATE_PATTERN.search(s):
+        return True
+    if _is_month_or_year_token(s):
+        return True
+    if re.fullmatch(r"(present|current|now)", s, flags=re.I):
+        return True
+    if re.search(r"\b(graduated|relevant coursework)\b", s, flags=re.I):
         return True
     return False
 
 
-def _split_title_company(text: str) -> Tuple[str, str]:
-    text = text.strip("-|")
-    if not text:
-        return "", ""
-
-    parts = re.split(r"\s+(?:@|at|\-|\||,|\u2013|\u2014)\s+", text, maxsplit=1)
-    if len(parts) == 2:
-        return parts[0].strip(), parts[1].strip()
-
-    tokens = text.split(",")
-    if len(tokens) >= 2 and len(tokens[0].split()) <= 6:
-        return tokens[0].strip(), " ".join(tokens[1:]).strip()
-
-    # Fallback: treat first capitalized chunk as company, remaining as title
-    words = text.split()
-    if words and words[0][0].isupper():
-        company = " ".join(words[:2]).strip()
-        title = " ".join(words[2:]).strip()
-        if title:
-            return title, company
-    return text, ""
+def _split_company_location(line: str) -> str:
+    """Return company name from a 'Company - Location' style line."""
+    cleaned = line.strip(" -|")
+    if not cleaned:
+        return ""
+    parts = re.split(r"\s+-\s+", cleaned, maxsplit=1)
+    return parts[0].strip() if parts else cleaned
 
 
 def _unique_preserve_order(items: Iterable[str]) -> List[str]:
     seen: Set[str] = set()
     ordered: List[str] = []
     for item in items:
-        key = item.lower()
-        if key not in seen and item:
+        key = item.lower().strip()
+        if key and key not in seen:
             seen.add(key)
-            ordered.append(item)
+            ordered.append(item.strip())
     return ordered
+
+
+def _find_section_span(lines: Sequence[str], heading_re: re.Pattern[str]) -> Tuple[int, int] | None:
+    """Return (start, end) span of a section (excluding heading line).
+
+    Section termination uses only *known* section headings, not generic ALL-CAPS
+    lines (job titles are often ALL-CAPS).
+    """
+    start = None
+    for i, line in enumerate(lines):
+        if heading_re.match(line.strip()):
+            start = i + 1
+            break
+    if start is None:
+        return None
+
+    end = len(lines)
+    for j in range(start, len(lines)):
+        if MASTER_HEADING.match(lines[j].strip()):
+            end = j
+            break
+    return start, end
+
+
+def _parse_skill_categories(lines: Sequence[str]) -> Dict[str, List[str]]:
+    span = _find_section_span(lines, HEADING_SKILLS)
+    scoped = lines[span[0] : span[1]] if span else []
+    if not scoped:
+        return {}
+
+    categories: Dict[str, List[str]] = defaultdict(list)
+    inline_label_re = re.compile(r"^([A-Za-z0-9][A-Za-z0-9 &/+\-]{0,60}):\s*(\S.*)$")
+
+    current_label: str | None = None
+    for line in scoped:
+        s = line.strip()
+        if not s or _looks_like_heading(s):
+            current_label = None
+            continue
+
+        m = inline_label_re.match(s)
+        if m:
+            current_label = m.group(1).strip()
+            content = m.group(2).strip()
+            for tok in _tokenize_list_content(content):
+                if _is_plausible_skill_item(tok):
+                    categories[current_label].append(tok)
+            continue
+
+        if current_label:
+            for tok in _tokenize_list_content(s):
+                if _is_plausible_skill_item(tok):
+                    categories[current_label].append(tok)
+        else:
+            for tok in _tokenize_list_content(s):
+                if _is_plausible_skill_item(tok):
+                    categories["Skills"].append(tok)
+
+    for k, v in list(categories.items()):
+        categories[k] = _unique_preserve_order(v)
+
+    return dict(categories)
+
+def _flatten_skill_categories(categories: Mapping[str, Sequence[str]]) -> List[str]:
+    skills: List[str] = []
+    for items in categories.values():
+        skills.extend(items)
+    return _unique_preserve_order(skills)
+
+def _is_plausible_skill_item(token: str) -> bool:
+    """Heuristic filter for list-like skill/tool items (industry-agnostic)."""
+    t = re.sub(r"\s+", " ", token.strip(" \t-•*")).strip()
+    if not t:
+        return False
+
+    if _looks_like_contact_or_noise(t):
+        return False
+
+    # Reject headings/labels accidentally tokenized as items
+    if t.endswith(":") or _looks_like_heading(t):
+        return False
+
+    lower = t.lower()
+
+    # Reject pure stopwords / very short junk
+    if lower in STOPWORDS:
+        return False
+    if len(t) < 2:
+        return False
+
+    # Reject long sentences / obviously not a “list item”
+    if len(t) > 70:
+        return False
+    if len(t.split()) > 7:
+        return False
+
+    # Reject “Location: …” style fragments
+    if re.match(r"^(location|phone|email|linkedin|github)\b", lower):
+        return False
+
+    # Reject standalone years/months
+    if _is_month_or_year_token(t):
+        return False
+
+    return True
+
 
 
 # ---------------------------- Years of experience -------------------------------
@@ -297,79 +335,83 @@ def _parse_years_experience(text: str) -> int | float | None:
 # ---------------------------- Experience extraction -----------------------------
 
 
-def _collect_experience_blocks(lines: Sequence[str]) -> List[Tuple[int, int]]:
-    """Return (start_idx, end_idx_exclusive) blocks anchored around date lines."""
+def _collect_date_anchors(lines: Sequence[str]) -> List[int]:
+    return [i for i, line in enumerate(lines) if DATE_PATTERN.search(line)]
 
-    blocks: List[Tuple[int, int]] = []
-    i = 0
-    while i < len(lines):
-        if DATE_PATTERN.search(lines[i]):
-            start = i
-            j = i + 1
-            while j < len(lines):
-                if DATE_PATTERN.search(lines[j]):
-                    break
-                if _looks_like_heading(lines[j]) or SECTION_BREAK_PATTERN.search(lines[j]):
-                    break
-                j += 1
-            blocks.append((start, j))
-            i = j
-        else:
-            i += 1
-    return blocks
 
-def _collect_experience_blocks(lines: Sequence[str]) -> List[Tuple[int, int]]:
-    """Return (start_idx, end_idx_exclusive) blocks anchored around date lines."""
+def _infer_title_company_from_context(
+    lines: Sequence[str],
+    date_idx: int,
+    lookback: int = 6,
+) -> Tuple[str, str]:
+    """Infer (title, company) from lines immediately above a date line."""
+    start = max(0, date_idx - lookback)
+    window = [l for l in lines[start:date_idx] if l.strip()]
 
-    blocks: List[Tuple[int, int]] = []
-    i = 0
-    while i < len(lines):
-        if DATE_PATTERN.search(lines[i]):
-            start = i
-            j = i + 1
-            while j < len(lines):
-                if DATE_PATTERN.search(lines[j]):
-                    break
-                if _looks_like_heading(lines[j]) or SECTION_BREAK_PATTERN.search(lines[j]):
-                    break
-                j += 1
-            blocks.append((start, j))
-            i = j
-        else:
-            i += 1
-    return blocks
+    title = ""
+    company = ""
+
+    for cand in reversed(window):
+        if cand.isupper() and len(cand.split()) <= 8 and not _looks_like_heading(cand) and not _is_bad_title_candidate(cand):
+            title = cand.title()
+            break
+
+    for cand in reversed(window):
+        if _looks_like_heading(cand):
+            continue
+        lower = cand.lower()
+        if any(s in lower for s in (" inc", " llc", " ltd", " technologies", " labs", " analytics", " corp", " company")) or " - " in cand:
+            company = _split_company_location(cand)
+            break
+
+    if not company and window:
+        company = _split_company_location(window[-1])
+
+    if _is_bad_title_candidate(title):
+        title = ""
+    if _is_bad_title_candidate(company):
+        company = ""
+
+    return title, company
 
 
 def _parse_experience(lines: Sequence[str]) -> List[Dict[str, object]]:
     experiences: List[Dict[str, object]] = []
-    blocks = _collect_experience_blocks(lines)
 
-    if not blocks:
-        logger.info("No date-anchored experience blocks detected")
+    span = _find_section_span(lines, HEADING_EXPERIENCE)
+    scoped = lines[span[0] : span[1]] if span else lines
+
+    date_idxs = _collect_date_anchors(scoped)
+    if not date_idxs:
         return experiences
 
-    for start, end in blocks:
-        header_line = lines[start]
-        duration_match = DATE_PATTERN.search(header_line)
+    for k, date_idx in enumerate(date_idxs):
+        date_line = scoped[date_idx]
+        duration_match = DATE_PATTERN.search(date_line)
         duration = duration_match.group(0).strip() if duration_match else ""
-        header_without_dates = DATE_PATTERN.sub("", header_line).strip()
 
-        # Look backward for context if header is sparse
-        context_line = ""
-        if not header_without_dates:
-            for back in range(start - 1, -1, -1):
-                if lines[back].strip():
-                    context_line = lines[back]
-                    break
+        title, company = _infer_title_company_from_context(scoped, date_idx)
 
-        header_source = header_without_dates or context_line
-        title, company = _split_title_company(header_source)
-
+        end_idx = date_idxs[k + 1] if k + 1 < len(date_idxs) else len(scoped)
         impact_bullets: List[str] = []
-        for line in lines[start + 1 : end]:
+        for line in scoped[date_idx + 1 : end_idx]:
+            if _looks_like_heading(line):
+                break
+
+            # Stop when the next role header starts.
+            if line.isupper() and len(line.split()) <= 8 and not line.lstrip().startswith(("-", "*")):
+                break
+
+            # Prefer true bullets to avoid swallowing the next role's header lines.
+            if not re.match(r"^\s*[-*]\s+", line):
+                continue
+
             cleaned = _strip_bullet(line)
             if cleaned:
                 impact_bullets.append(cleaned)
+
+        if not (title or company or impact_bullets):
+            continue
 
         experiences.append(
             {
@@ -387,30 +429,21 @@ def _parse_experience(lines: Sequence[str]) -> List[Dict[str, object]]:
 
 
 def _parse_education(lines: Sequence[str]) -> str:
+    span = _find_section_span(lines, HEADING_EDU)
+    scoped = lines[span[0] : span[1]] if span else lines
+
     edu_lines: List[str] = []
-    for idx, line in enumerate(lines):
+    for idx, line in enumerate(scoped):
         if DEGREE_PATTERN.search(line) or EDU_INSTITUTION_PATTERN.search(line):
             combined = line
-            if idx + 1 < len(lines) and len(lines[idx + 1]) < 120 and not CLEARANCE_PATTERN.search(lines[idx + 1]):
-                combined = combined + " " + lines[idx + 1].strip()
+            if idx + 1 < len(scoped) and scoped[idx + 1] and len(scoped[idx + 1]) < 140 and not _looks_like_heading(scoped[idx + 1]):
+                combined = combined + " " + scoped[idx + 1].strip()
             edu_lines.append(combined.strip())
-    if not edu_lines:
-        logger.info("No education cues found (degree or institution keywords)")
+
     return "\n".join(_unique_preserve_order(edu_lines))
 
 
-# ---------------------------- Skills / tools extraction -------------------------
-
-
-def _tokenize_skill_line(line: str) -> List[str]:
-    parts = re.split(r"[,;|/\\-]\s*|\s+\u2022\s+", line)
-    tokens = []
-    for part in parts:
-        cleaned = part.strip().strip("-•*")
-        cleaned = re.sub(r"^(skills?|tools?|technologies|tech)[:\-]\s*", "", cleaned, flags=re.IGNORECASE)
-        if cleaned:
-            tokens.append(cleaned)
-    return tokens
+# ---------------------------- Skills extraction -------------------------
 
 
 def _looks_like_contact_or_noise(token: str) -> bool:
@@ -421,177 +454,66 @@ def _looks_like_contact_or_noise(token: str) -> bool:
         return True
     if re.search(r"\b(present|current)\b", lower):
         return True
-    if re.search(r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\b", lower):
+    if token.strip().lower() in MONTHS:
         return True
-    # Disqualify tokens dominated by digits or punctuation
     letters = sum(c.isalpha() for c in token)
     digits = sum(c.isdigit() for c in token)
-    if digits > letters and digits >= 2:
-        return True
-    return False
+    return digits > letters and digits >= 2
 
 
-def _is_skill_rich_line(line: str) -> bool:
-    lower_line = line.lower()
-    separators = line.count(",") + line.count("|") + line.count(";")
-    cue_phrases = (
-        "skill",
-        "tool",
-        "technology",
-        "languages",
-        "expertise",
-        "competenc",
-        "strengths",
-        "experience with",
-        "proficient in",
-        "familiar with",
-    )
-    if separators >= 1 or any(cue in lower_line for cue in cue_phrases):
-        return True
+def _tokenize_list_content(s: str) -> List[str]:
+    """Tokenize comma/pipe/semicolon separated lists without breaking hyphenated tech."""
+    parts = re.split(r"\s*(?:,|;|\||/|\\)\s*", s)
+    out: List[str] = []
 
-    raw_tokens = [tok.strip(",.;:()[]{}") for tok in line.split()]
-    tokens = [tok.lower() for tok in raw_tokens if tok]
-    overlap = sum(1 for tok in tokens if tok in SKILL_TERMS)
-
-    if overlap >= 2:
-        return True
-    if len(tokens) >= 4 and overlap >= 1:
-        return True
-
-    phrase_tokens = _tokenize_skill_line(line)
-    short_phrases = [p for p in phrase_tokens if len(p.split()) <= 4]
-    if separators >= 1 and len(short_phrases) >= 3:
-        return True
-    if len(short_phrases) >= 4:
-        return True
-    return False
-
-
-def _score_token_as_skill(token: str) -> int:
-    """Heuristic score indicating how likely a token is to be a skill phrase."""
-
-    normalized = token.lower()
-    if not re.search(r"[a-zA-Z]", token):
-        return 0
-    if _looks_like_contact_or_noise(token):
-        return 0
-    if normalized in STOPWORDS:
-        return 0
-    if normalized in SKILL_TERMS:
-        return 3
-    if normalized in TOOL_TERMS:
-        return 2
-
-    words = normalized.split()
-    score = 0
-
-    if len(words) == 1:
-        word = words[0]
-        if len(word) >= 3:
-            score += 1
-        for suffix in SKILL_SUFFIXES:
-            if word.endswith(suffix):
-                score += 1
-                break
-        if word.isupper() and len(word) <= 6:
-            score += 1
-    else:
-        if len(words) <= 5:
-            score += 2
-        if any(w.endswith(tuple(SKILL_SUFFIXES)) for w in words):
-            score += 1
-
-    capitalized_ratio = sum(1 for w in token.split() if w[:1].isupper()) / max(len(token.split()), 1)
-    if capitalized_ratio >= 0.5:
-        score += 1
-
-    return score
-
-
-def _is_tool_token(token: str) -> bool:
-    normalized = token.lower()
-    if not re.search(r"[a-zA-Z]", token) and not re.match(r"^v?\d+(?:\.\d+)*$", token.strip()):
-        return False
-    if _looks_like_contact_or_noise(token):
-        return False
-    if normalized in TOOL_TERMS:
-        return True
-    if any(hint in normalized for hint in TOOL_HINTS):
-        return True
-    if re.search(r"\b(v?\d+(?:\.\d+)*)\b", normalized):
-        return True
-    if normalized.isupper() and len(normalized) <= 5:
-        return True
-    return False
-
-
-def _parse_skills_and_tools(lines: Sequence[str]) -> Tuple[List[str], List[str]]:
-    skill_bucket: List[str] = []
-    tool_bucket: List[str] = []
-
-    for line in lines:
-        if not line or DEGREE_PATTERN.search(line) or DATE_PATTERN.search(line) or not _is_skill_rich_line(line):
+    for part in parts:
+        cleaned = re.sub(r"\s+", " ", part.strip().strip("•* -"))
+        if not cleaned:
             continue
 
-        if re.search(r"@|www\.|http", line) or re.search(r"\b\d{3}[\s.-]?\d{3}[\s.-]?\d{4}\b", line):
+        # Handle "AWS (EC2" split artifact from "AWS (EC2, S3, Lambda)"
+        if " (" in cleaned and cleaned.count("(") == 1 and cleaned.count(")") == 0:
+            left, right = cleaned.split(" (", 1)
+            left = left.strip()
+            right = right.strip()
+            if left:
+                out.append(left)
+            if right:
+                out.append(right)
             continue
 
-        lower_line = line.lower()
-        separators = line.count(",") + line.count("|") + line.count(";")
-        if "skill" not in lower_line and separators <= 2 and any(v in lower_line for v in EXPERIENCE_VERBS):
-            continue
+        # Only strip orphan parentheses produced by splitting.
+        if cleaned.startswith("(") and cleaned.count(")") == 0:
+            cleaned = cleaned[1:].strip()
+        if cleaned.endswith(")") and cleaned.count("(") == 0:
+            cleaned = cleaned[:-1].strip()
 
-        tokens = _tokenize_skill_line(line)
-        for token in tokens:
-            if not token:
-                continue
+        out.append(cleaned)
 
-            if len(token) > 60:
-                continue
-            if token.lower().startswith(("activities", "experience", "summary", "objective", "education")):
-                continue
-            if _looks_like_contact_or_noise(token):
-                continue
-
-            if _is_tool_token(token):
-                tool_bucket.append(token)
-                continue
-
-            score = _score_token_as_skill(token)
-            if score >= 2:
-                skill_bucket.append(token)
-            elif score == 1 and len(token.split()) <= 3:
-                skill_bucket.append(token)
-
-    if not skill_bucket:
-        logger.info("No likely skill lines detected")
-    if not tool_bucket:
-        logger.info("No likely tool/platform lines detected")
-
-    return _unique_preserve_order(skill_bucket), _unique_preserve_order(tool_bucket)
+    return out
 
 
 # ---------------------------- Projects / certifications -------------------------
 
 
 def _parse_projects(lines: Sequence[str]) -> List[str]:
+    span = _find_section_span(lines, HEADING_PROJECTS)
+    scoped = lines[span[0] : span[1]] if span else []
     projects: List[str] = []
-    for line in lines:
+    for line in scoped:
         cleaned = _strip_bullet(line)
-        if SECTION_BREAK_PATTERN.match(cleaned):
-            continue
-        if re.search(r"project", cleaned, flags=re.IGNORECASE):
+        if cleaned and not _looks_like_heading(cleaned):
             projects.append(cleaned)
     return _unique_preserve_order(projects)
 
 
 def _parse_certifications(lines: Sequence[str]) -> List[str]:
+    span = _find_section_span(lines, HEADING_CERTS)
+    scoped = lines[span[0] : span[1]] if span else []
     certs: List[str] = []
-    for line in lines:
+    for line in scoped:
         cleaned = _strip_bullet(line)
-        if SECTION_BREAK_PATTERN.match(cleaned):
-            continue
-        if re.search(r"cert|certificate|certification", cleaned, flags=re.IGNORECASE):
+        if cleaned and not _looks_like_heading(cleaned):
             certs.append(cleaned)
     return _unique_preserve_order(certs)
 
@@ -608,43 +530,23 @@ def _parse_clearances(text: str) -> str:
 
 
 def parse_resume(text: str) -> Dict[str, object]:
-    """Parse normalized resume text into structured sections.
-
-    The function is deterministic, offline, and returns default values when
-    uncertain to maintain schema stability.
-    """
-
+    """Parse resume text into structured fields."""
     line_list = _lines(text)
 
     years_experience = _parse_years_experience(text) or 0
     experience = _parse_experience(line_list)
     education = _parse_education(line_list)
-    skills, tools_platforms = _parse_skills_and_tools(line_list)
     projects = _parse_projects(line_list)
     certifications = _parse_certifications(line_list)
     clearances_or_work_auth = _parse_clearances(text)
-
-    missing_fields: List[str] = []
-    for name, value in [
-        ("education", education),
-        ("skills", skills),
-        ("tools_platforms", tools_platforms),
-        ("experience", experience),
-        ("projects", projects),
-        ("certifications", certifications),
-        ("clearances_or_work_auth", clearances_or_work_auth),
-    ]:
-        if not value:
-            missing_fields.append(name)
-
-    if missing_fields:
-        logger.info("Resume missing or uncertain sections: %s", ", ".join(missing_fields))
+    skill_categories = _parse_skill_categories(line_list)
+    skills = _flatten_skill_categories(skill_categories)
 
     return {
         "years_experience": years_experience,
         "education": education,
         "skills": skills,
-        "tools_platforms": tools_platforms,
+        "skills_by_category": skill_categories,
         "experience": experience,
         "projects": projects,
         "certifications": certifications,
@@ -656,11 +558,7 @@ def parse_resume(text: str) -> Dict[str, object]:
 
 
 def evaluate_on_jsonl(path: Path, sample_size: int | None = 200) -> Dict[str, float]:
-    """Run quick recall-oriented metrics over a JSONL of resumes.
-
-    Returns a dict of metrics. Designed for offline diagnostics, not training.
-    """
-
+    """Run quick recall-oriented metrics over a JSONL of resumes."""
     totals = Counter()
     experience_counts: List[int] = []
 
@@ -673,20 +571,17 @@ def evaluate_on_jsonl(path: Path, sample_size: int | None = 200) -> Dict[str, fl
 
             totals["resumes"] += 1
             totals["nonempty_experience"] += bool(parsed["experience"])
-            totals["nonempty_skills"] += bool(parsed["skills"] or parsed["tools_platforms"])
+            totals["nonempty_skills"] += bool(parsed["skills"])
             totals["nonempty_education"] += bool(parsed["education"])
             experience_counts.append(len(parsed["experience"]))
 
-    resumes = totals.get("resumes", 1)  # avoid divide-by-zero
-    metrics = {
+    resumes = totals.get("resumes", 1)
+    return {
         "% with non-empty experience": totals["nonempty_experience"] / resumes,
         "% with non-empty skills/tools": totals["nonempty_skills"] / resumes,
         "% with non-empty education": totals["nonempty_education"] / resumes,
         "avg # experience entries": (sum(experience_counts) / resumes) if experience_counts else 0.0,
     }
-
-    logger.info("Evaluation metrics: %s", metrics)
-    return metrics
 
 
 __all__ = ["parse_resume", "evaluate_on_jsonl"]
