@@ -22,6 +22,7 @@ from collections.abc import Mapping, Sequence
 
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Set, Tuple
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +159,10 @@ STOPWORDS: Set[str] = {
     "&",
 }
 
+INLINE_TITLE_DATE = re.compile(
+    r"^(?P<title>[A-Za-z][A-Za-z /&\-]{3,60})\s*\((?P<dates>[^)]+)\)$"
+)
+
 
 
 # ---------------------------- Utility functions --------------------------------
@@ -194,13 +199,33 @@ def _is_bad_title_candidate(line: str) -> bool:
     return False
 
 
+US_STATE = re.compile(r"\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\b", re.I)
+
 def _split_company_location(line: str) -> str:
-    """Return company name from a 'Company - Location' style line."""
-    cleaned = line.strip(" -|")
+    """Return company name from a 'Company - Location' or 'Company, Location' style line."""
+    cleaned = line.strip().strip(" -|•")
     if not cleaned:
         return ""
-    parts = re.split(r"\s+-\s+", cleaned, maxsplit=1)
-    return parts[0].strip() if parts else cleaned
+
+    # 1) Split on dash-like separators first: "Company — City, ST" / "Company – City" / "Company - City"
+    dash_parts = re.split(r"\s*(?:—|–|-)\s+", cleaned, maxsplit=1)
+    left = dash_parts[0].strip()
+
+    # 2) If there's a comma and the RHS looks like a location, drop it: "Company, Hartford CT"
+    if "," in left:
+        maybe_company, maybe_loc = [p.strip() for p in left.split(",", 1)]
+        # Heuristic: treat as location if it contains a US state code or is short (e.g., "Hartford CT")
+        if US_STATE.search(maybe_loc) or len(maybe_loc.split()) <= 4:
+            return maybe_company
+
+    # Also handle the case where the comma is in the original cleaned string, not the dash-left:
+    if "," in cleaned:
+        maybe_company, maybe_loc = [p.strip() for p in cleaned.split(",", 1)]
+        if US_STATE.search(maybe_loc) or len(maybe_loc.split()) <= 4:
+            return maybe_company
+
+    return left
+
 
 
 def _unique_preserve_order(items: Iterable[str]) -> List[str]:
@@ -331,6 +356,32 @@ def _parse_years_experience(text: str) -> int | float | None:
     max_years = max(numeric)
     return int(max_years) if max_years.is_integer() else max_years
 
+def _years_from_duration(duration: str) -> float | None:
+    """
+    Convert duration strings like:
+    - 2014-2018
+    - 2018-Present
+    - June 2019 - May 2021
+    into approximate years.
+    """
+    if not duration:
+        return None
+
+    now_year = datetime.now().year
+
+    # Normalize separators
+    s = duration.lower().replace("–", "-").replace("—", "-")
+
+    # Year-year or year-present
+    m = re.search(r"(\d{4})\s*-\s*(present|current|now|\d{4})", s)
+    if m:
+        start = int(m.group(1))
+        end = now_year if not m.group(2).isdigit() else int(m.group(2))
+        if end >= start:
+            return float(end - start)
+
+    return None
+
 
 # ---------------------------- Experience extraction -----------------------------
 
@@ -344,28 +395,57 @@ def _infer_title_company_from_context(
     date_idx: int,
     lookback: int = 6,
 ) -> Tuple[str, str]:
+    
     """Infer (title, company) from lines immediately above a date line."""
+    title = ""
+    company = ""
+    date_line = lines[date_idx].strip()
+    m = INLINE_TITLE_DATE.match(date_line)
+    if m:
+        title = m.group("title").strip()
+    else:
+        title = ""
     start = max(0, date_idx - lookback)
     window = [l for l in lines[start:date_idx] if l.strip()]
 
-    title = ""
-    company = ""
+    
+    if date_idx + 1 < len(lines):
+        below = lines[date_idx + 1].strip()
+        if below and not _looks_like_heading(below) and not below.lstrip().startswith(("-", "*")):
+            company = _split_company_location(below)
 
     for cand in reversed(window):
         if cand.isupper() and len(cand.split()) <= 8 and not _looks_like_heading(cand) and not _is_bad_title_candidate(cand):
             title = cand.title()
             break
 
-    for cand in reversed(window):
-        if _looks_like_heading(cand):
-            continue
-        lower = cand.lower()
-        if any(s in lower for s in (" inc", " llc", " ltd", " technologies", " labs", " analytics", " corp", " company")) or " - " in cand:
-            company = _split_company_location(cand)
-            break
+    if not company:
+        for cand in reversed(window):
+            if _looks_like_heading(cand):
+                continue
+            lower = cand.lower()
+            if any(s in lower for s in (" inc", " llc", " ltd", " technologies", " labs", " analytics", " corp", " company")) or " - " in cand:
+                company = _split_company_location(cand)
+                break
 
     if not company and window:
-        company = _split_company_location(window[-1])
+        for cand in reversed(window):
+            s = cand.strip()
+            if not s:
+                continue
+            if _looks_like_heading(s):
+                continue
+            if _is_bad_title_candidate(s):
+                continue
+            # Avoid swallowing competency labels / prose / bullets
+            if ":" in s:
+                continue
+            if s.lstrip().startswith(("-", "*")):
+                continue
+            if len(s) > 80 or len(s.split()) > 12:
+                continue
+            company = _split_company_location(s)
+            break
 
     if _is_bad_title_candidate(title):
         title = ""
@@ -533,8 +613,19 @@ def parse_resume(text: str) -> Dict[str, object]:
     """Parse resume text into structured fields."""
     line_list = _lines(text)
 
-    years_experience = _parse_years_experience(text) or 0
+    explicit_years = _parse_years_experience(text)
     experience = _parse_experience(line_list)
+
+    if explicit_years is not None:
+        years_experience = explicit_years
+    else:
+        years = []
+        for exp in experience:
+            y = _years_from_duration(exp.get("duration", ""))
+            if y:
+                years.append(y)
+        years_experience = int(sum(years)) if years else 0
+
     education = _parse_education(line_list)
     projects = _parse_projects(line_list)
     certifications = _parse_certifications(line_list)
