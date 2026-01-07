@@ -157,21 +157,7 @@ STOPWORDS: Set[str] = {
     "as",
     "&",
 }
-TOOL_LABEL_HINTS = (
-    "tool", "tools",
-    "software",
-    "platform", "platforms",
-    "technology", "technologies",
-    "systems",
-    "applications", "apps",
-    "equipment", "machinery", "instruments",
-    "programs",
-    "programming",
-    "framework", "frameworks",
-    "libraries",
-    "database", "databases",
-    "cloud", "devops",
-)
+
 
 
 # ---------------------------- Utility functions --------------------------------
@@ -250,13 +236,6 @@ def _find_section_span(lines: Sequence[str], heading_re: re.Pattern[str]) -> Tup
     return start, end
 
 
-def _category_bucket_from_label(label: str) -> str:
-    l = label.lower().strip().rstrip(":")
-    if any(h in l for h in TOOL_LABEL_HINTS):
-        return "tools"
-    return "skills"
-
-
 def _parse_skill_categories(lines: Sequence[str]) -> Dict[str, List[str]]:
     span = _find_section_span(lines, HEADING_SKILLS)
     scoped = lines[span[0] : span[1]] if span else []
@@ -296,14 +275,11 @@ def _parse_skill_categories(lines: Sequence[str]) -> Dict[str, List[str]]:
 
     return dict(categories)
 
-def _bucket_skills_tools(categories: Mapping[str, Sequence[str]]) -> Tuple[List[str], List[str]]:
-    skills, tools = [], []
-    for label, items in categories.items():
-        if _category_bucket_from_label(label) == "tools":
-            tools.extend(items)
-        else:
-            skills.extend(items)
-    return _unique_preserve_order(skills), _unique_preserve_order(tools)
+def _flatten_skill_categories(categories: Mapping[str, Sequence[str]]) -> List[str]:
+    skills: List[str] = []
+    for items in categories.values():
+        skills.extend(items)
+    return _unique_preserve_order(skills)
 
 def _is_plausible_skill_item(token: str) -> bool:
     """Heuristic filter for list-like skill/tool items (industry-agnostic)."""
@@ -467,7 +443,7 @@ def _parse_education(lines: Sequence[str]) -> str:
     return "\n".join(_unique_preserve_order(edu_lines))
 
 
-# ---------------------------- Skills / tools extraction -------------------------
+# ---------------------------- Skills extraction -------------------------
 
 
 def _looks_like_contact_or_noise(token: str) -> bool:
@@ -517,91 +493,6 @@ def _tokenize_list_content(s: str) -> List[str]:
     return out
 
 
-def _classify_token(token: str) -> str:
-    """Return 'tool' or 'skill'."""
-    norm = token.lower().strip()
-    if norm in TOOL_TERMS:
-        return "tool"
-    if re.fullmatch(r"[A-Z]{2,6}", token) and token.lower() not in STOPWORDS:
-        return "tool"
-    if re.search(r"\b(v?\d+(?:\.\d+)*)\b", token):
-        return "tool"
-    if any(ch in token for ch in ("+", "#")):
-        return "tool"
-    return "skill"
-
-
-def _parse_skills_and_tools(lines: Sequence[str]) -> Tuple[List[str], List[str]]:
-    span = _find_section_span(lines, HEADING_SKILLS)
-    scoped = lines[span[0] : span[1]] if span else []
-
-    if not scoped:
-        scoped = lines  # fallback (stricter filters still apply)
-
-    skill_bucket: List[str] = []
-    tool_bucket: List[str] = []
-
-    # If we have category labels like "Programming Languages:", group content until the next label.
-    label_idxs = [i for i, l in enumerate(scoped) if l.strip().endswith(":") and not _looks_like_heading(l)]
-    if label_idxs:
-        label_idxs.append(len(scoped))
-        for a, b in zip(label_idxs, label_idxs[1:]):
-            label = scoped[a].strip()
-            if MASTER_HEADING.match(label):
-                continue
-
-            buf: List[str] = []
-            for line in scoped[a + 1 : b]:
-                s = line.strip()
-                if not s or _looks_like_heading(s):
-                    continue
-                if s.endswith(":"):
-                    break
-                buf.append(s)
-
-            content = " ".join(buf).strip()
-            if not content:
-                continue
-
-            for tok in _tokenize_list_content(content):
-                if _looks_like_contact_or_noise(tok):
-                    continue
-                if len(tok) > 60 or len(tok.split()) > 6:
-                    continue
-                if _classify_token(tok) == "tool":
-                    tool_bucket.append(tok)
-                else:
-                    skill_bucket.append(tok)
-
-        return _unique_preserve_order(skill_bucket), _unique_preserve_order(tool_bucket)
-
-    # Otherwise, process line-by-line.
-    for line in scoped:
-        line = line.strip()
-        if not line or _looks_like_heading(line) or DATE_PATTERN.search(line) or DEGREE_PATTERN.search(line):
-            continue
-        if re.search(r"@|www\.|http", line):
-            continue
-        if MASTER_HEADING.match(line):
-            continue
-
-        content = line.split(":", 1)[1].strip() if ":" in line else line
-        if not content:
-            continue
-
-        for tok in _tokenize_list_content(content):
-            if _looks_like_contact_or_noise(tok):
-                continue
-            if len(tok) > 60 or len(tok.split()) > 6:
-                continue
-            if _classify_token(tok) == "tool":
-                tool_bucket.append(tok)
-            else:
-                skill_bucket.append(tok)
-
-    return _unique_preserve_order(skill_bucket), _unique_preserve_order(tool_bucket)
-
-
 # ---------------------------- Projects / certifications -------------------------
 
 
@@ -649,13 +540,12 @@ def parse_resume(text: str) -> Dict[str, object]:
     certifications = _parse_certifications(line_list)
     clearances_or_work_auth = _parse_clearances(text)
     skill_categories = _parse_skill_categories(line_list)
-    skills, tools_platforms = _bucket_skills_tools(skill_categories)
+    skills = _flatten_skill_categories(skill_categories)
 
     return {
         "years_experience": years_experience,
         "education": education,
         "skills": skills,
-        "tools_platforms": tools_platforms,
         "skills_by_category": skill_categories,
         "experience": experience,
         "projects": projects,
@@ -681,7 +571,7 @@ def evaluate_on_jsonl(path: Path, sample_size: int | None = 200) -> Dict[str, fl
 
             totals["resumes"] += 1
             totals["nonempty_experience"] += bool(parsed["experience"])
-            totals["nonempty_skills"] += bool(parsed["skills"] or parsed["tools_platforms"])
+            totals["nonempty_skills"] += bool(parsed["skills"])
             totals["nonempty_education"] += bool(parsed["education"])
             experience_counts.append(len(parsed["experience"]))
 
