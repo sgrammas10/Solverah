@@ -13,6 +13,7 @@ from .sectionize import sectionize
 from .validate import validate_output
 
 DATASET_PATH = Path("datasets/v1/jddata.csv")
+JD_TEXT_DIR = Path("datasets/v1/jd_text")
 OUTPUT_PATH = Path("datasets/v1/jd_parsed.jsonl")
 
 ID_COLUMNS = ["id", "jd_id", "job_id"]
@@ -23,10 +24,10 @@ def detect_columns(headers: Iterable[str]) -> Tuple[str, str]:
     header_map = {h.lower().strip(): h for h in headers}
     id_column = next((header_map[h] for h in ID_COLUMNS if h in header_map), "")
     text_column = next((header_map[h] for h in TEXT_COLUMNS if h in header_map), "")
-    if not id_column or not text_column:
+    if not id_column:
         available = ", ".join(headers)
         raise ValueError(
-            "Could not detect required columns. "
+            "Could not detect required id column. "
             f"Available headers: {available}"
         )
     return id_column, text_column
@@ -72,13 +73,20 @@ def parse_csv(path: Path = DATASET_PATH) -> List[JobDescriptionOutput]:
         id_column, text_column = detect_columns(reader.fieldnames)
         for idx, row in enumerate(reader, start=1):
             raw_id = (row.get(id_column) or "").strip()
-            raw_text = (row.get(text_column) or "").strip()
-            if not raw_text:
-                continue
             try:
                 record_id = int(raw_id)
             except ValueError:
                 record_id = idx
+            raw_text = ""
+            if text_column:
+                raw_text = (row.get(text_column) or "").strip()
+            else:
+                text_path = JD_TEXT_DIR / f"{record_id}.txt"
+                if not text_path.exists():
+                    raise FileNotFoundError(f"Job description text not found at {text_path}")
+                raw_text = text_path.read_text(encoding="utf-8").strip()
+            if not raw_text:
+                continue
             outputs.append(parse_job_description(raw_text, record_id))
     return outputs
 
