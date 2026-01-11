@@ -256,9 +256,9 @@ function PrelaunchLandingPage() {
                       Private intake for thoughtful collaborators. Resumes upload directly to secure storage; we store only what you choose to share.
                     </p>
                   </div>
-                  <div className="h-12 w-12 rounded-full bg-gradient-to-tr from-emerald-400 to-blue-500 text-slate-950 flex items-center justify-center text-lg font-bold">
+                  {/*<div className="h-12 w-12 rounded-full bg-gradient-to-tr from-emerald-400 to-blue-500 text-slate-950 flex items-center justify-center text-lg font-bold">
                     S
-                  </div>
+                  </div>*/}
                 </div>
 
                 <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
