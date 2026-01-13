@@ -352,6 +352,10 @@ def register():
     name = data.get("name")
     role = data.get("role", "job-seeker")
 
+    is_valid, validation_message = validate_password(password)
+    if not is_valid:
+        return jsonify({"error": validation_message}), 400
+
     #Check user exsistence off of email
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "User already exists"}), 400
