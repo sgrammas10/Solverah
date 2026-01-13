@@ -80,63 +80,75 @@ function PrelaunchLandingPage() {
       const lastName = formData.lastName.trim();
       const email = formData.email.trim();
       const state = formData.state.trim();
+      const linkedinUrl = formData.linkedinUrl.trim();
 
       if (!firstName || !lastName) throw new Error("Please enter your name.");
       if (!email) throw new Error("Please enter your email.");
       if (!state) throw new Error("Please enter your state / region.");
 
-      if (!resumeFile) throw new Error("Please attach your resume before submitting.");
-      if (!ALLOWED_MIME.has(resumeFile.type)) {
-        throw new Error("Resume must be a PDF or DOC/DOCX file.");
-      }
-      if (resumeFile.size > 10 * 1024 * 1024) {
-        throw new Error("Resume is too large (max 10MB).");
-      }
-
-      // 1) Presign
-      const presignRes = await fetch(`${API_BASE}/api/intake/presign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mime: resumeFile.type, size: resumeFile.size }),
-      });
-
-      const presignData = await presignRes.json().catch(() => ({}));
-      if (!presignRes.ok) {
-        throw new Error(presignData?.error || "Unable to start upload.");
+      // NEW: require at least one of LinkedIn or Resume
+      const hasLinkedIn = linkedinUrl.length > 0;
+      const hasResume = !!resumeFile;
+      if (!hasLinkedIn && !hasResume) {
+        throw new Error("Please provide either a LinkedIn URL or attach a resume (at least one is required).");
       }
 
-      const { submission_id, object_key, upload_url } = presignData as {
-        submission_id: string;
-        object_key: string;
-        upload_url: string;
-      };
-
-      if (!submission_id || !object_key || !upload_url) {
-        throw new Error("Upload initialization failed. Please try again.");
+      // Optional: if LinkedIn provided, ensure it's a valid URL
+      if (hasLinkedIn) {
+        try {
+          new URL(linkedinUrl);
+        } catch {
+          throw new Error("Please enter a valid LinkedIn URL.");
+        }
       }
 
-      // 2) Direct PUT to R2
-      const putRes = await fetch(upload_url, {
-        method: "PUT",
-        headers: { "Content-Type": resumeFile.type },
-        body: resumeFile,
-      });
-      if (!putRes.ok) {
-        throw new Error("Upload failed. Please try again.");
+      let submission_id: string | null = null;
+      let object_key: string | null = null;
+      let mime: string | null = null;
+      let size: number | null = null;
+
+      if (resumeFile) {
+        // 1) Presign
+        const presignRes = await fetch(`${API_BASE}/api/intake/presign`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mime: resumeFile.type, size: resumeFile.size }),
+        });
+
+        const presignData = await presignRes.json().catch(() => ({}));
+        if (!presignRes.ok) throw new Error(presignData?.error || "Unable to start upload.");
+
+        ({ submission_id, object_key } = presignData as { submission_id: string; object_key: string });
+        const { upload_url } = presignData as { upload_url: string };
+
+        if (!submission_id || !object_key || !upload_url) {
+          throw new Error("Upload initialization failed. Please try again.");
+        }
+
+        // 2) PUT upload
+        const putRes = await fetch(upload_url, {
+          method: "PUT",
+          headers: { "Content-Type": resumeFile.type },
+          body: resumeFile,
+        });
+        if (!putRes.ok) throw new Error("Upload failed. Please try again.");
+
+        mime = resumeFile.type;
+        size = resumeFile.size;
       }
 
-      // 3) Finalize (store metadata + contact fields)
+      // 3) Finalize
       const finalizePayload = {
         submission_id,
         object_key,
-        mime: resumeFile.type,
-        size: resumeFile.size,
+        mime,
+        size,
         first_name: firstName,
         last_name: lastName,
         email,
         state,
         phone: formData.phone.trim() || null,
-        linkedin_url: formData.linkedinUrl.trim() || null,
+        linkedin_url: linkedinUrl || null,
         portfolio_url: formData.portfolioUrl.trim() || null,
       };
 
