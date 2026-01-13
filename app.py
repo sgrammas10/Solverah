@@ -28,7 +28,9 @@ MAX_BYTES = 10 * 1024 * 1024  # 10MB
 
 #from LLM.profile2model import sorted_mlscores
 
-from model import JobRecommendation, User, db
+from flask_migrate import Migrate
+
+from model import IntakeSubmission, JobRecommendation, User, db
 from datetime import timedelta
 import pandas as pd
 
@@ -96,8 +98,7 @@ app.config["JWT_CSRF_HEADER_NAME"] = "X-CSRF-TOKEN"
 
 
 db.init_app(app)
-with app.app_context():
-    db.create_all()
+migrate = Migrate(app, db)
 
 
 bcrypt = Bcrypt(app)
