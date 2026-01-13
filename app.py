@@ -28,7 +28,9 @@ MAX_BYTES = 10 * 1024 * 1024  # 10MB
 
 #from LLM.profile2model import sorted_mlscores
 
-from model import JobRecommendation, User, db
+from flask_migrate import Migrate
+
+from model import IntakeSubmission, JobRecommendation, User, db
 from datetime import timedelta
 import pandas as pd
 
@@ -84,10 +86,33 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"]= timedelta(hours=1) #token expires in 1 h
 app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
 
 # In dev (http://localhost), this must be False; in prod over HTTPS set to True
-app.config["JWT_COOKIE_SECURE"] = True  # True on real HTTPS
+def _is_production():
+    env_name = (
+        os.environ.get("FLASK_ENV")
+        or os.environ.get("APP_ENV")
+        or os.environ.get("ENV")
+        or ""
+    )
+    return env_name.lower() in {"production", "prod"}
+
+
+def _parse_bool_env(value, default):
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+is_production = _is_production()
+app.config["JWT_COOKIE_SECURE"] = _parse_bool_env(
+    os.environ.get("JWT_COOKIE_SECURE"),
+    default=is_production,
+)
 
 # If frontend and backend are on same origin, "Lax" is fine; if cross-site + HTTPS, use "None"
-app.config["JWT_COOKIE_SAMESITE"] = "None" # set to none for deployment
+app.config["JWT_COOKIE_SAMESITE"] = os.environ.get(
+    "JWT_COOKIE_SAMESITE",
+    "None" if is_production else "Lax",
+)
 
 # CSRF protection on state-changing methods
 app.config["JWT_COOKIE_CSRF_PROTECT"] = False  # Set to True to enable CSRF protection when done setting up
@@ -96,8 +121,7 @@ app.config["JWT_CSRF_HEADER_NAME"] = "X-CSRF-TOKEN"
 
 
 db.init_app(app)
-with app.app_context():
-    db.create_all()
+migrate = Migrate(app, db)
 
 
 bcrypt = Bcrypt(app)
@@ -350,6 +374,10 @@ def register():
     password = data.get("password")
     name = data.get("name")
     role = data.get("role", "job-seeker")
+
+    is_valid, validation_message = validate_password(password)
+    if not is_valid:
+        return jsonify({"error": validation_message}), 400
 
     #Check user exsistence off of email
     if User.query.filter_by(email=email).first():
