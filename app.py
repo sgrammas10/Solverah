@@ -46,13 +46,35 @@ from validators import validate_password, clean_profile_data
 from flask_cors import CORS
 
 
-# Security headers with Talisman for CSP 
+def _is_production():
+    env_name = (
+        os.environ.get("FLASK_ENV")
+        or os.environ.get("APP_ENV")
+        or os.environ.get("ENV")
+        or ""
+    )
+    return env_name.lower() in {"production", "prod"}
+
+
+def _parse_bool_env(value, default):
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+is_production = _is_production()
+
+# Security headers with Talisman for CSP
 Talisman(
     app,
     content_security_policy={
         "default-src": ["'self'", "https://fonts.gstatic.com", "https://fonts.googleapis.com"],
     },
-    force_https=False,  # Set to True in production with HTTPS
+    force_https=is_production,
+    strict_transport_security=is_production,
+    strict_transport_security_max_age=31536000 if is_production else None,
+    strict_transport_security_include_subdomains=is_production,
+    strict_transport_security_preload=is_production,
 )
 
 
@@ -86,23 +108,9 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"]= timedelta(hours=1) #token expires in 1 h
 app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
 
 # In dev (http://localhost), this must be False; in prod over HTTPS set to True
-def _is_production():
-    env_name = (
-        os.environ.get("FLASK_ENV")
-        or os.environ.get("APP_ENV")
-        or os.environ.get("ENV")
-        or ""
-    )
-    return env_name.lower() in {"production", "prod"}
 
 
-def _parse_bool_env(value, default):
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
-
-is_production = _is_production()
 app.config["JWT_COOKIE_SECURE"] = _parse_bool_env(
     os.environ.get("JWT_COOKIE_SECURE"),
     default=is_production,
@@ -115,7 +123,7 @@ app.config["JWT_COOKIE_SAMESITE"] = os.environ.get(
 )
 
 # CSRF protection on state-changing methods
-app.config["JWT_COOKIE_CSRF_PROTECT"] = False  # Set to True to enable CSRF protection when done setting up
+app.config["JWT_COOKIE_CSRF_PROTECT"] = True  # Set to True to enable CSRF protection when done setting up
 app.config["JWT_CSRF_METHODS"] = ["POST", "PUT", "PATCH", "DELETE"]
 app.config["JWT_CSRF_HEADER_NAME"] = "X-CSRF-TOKEN"
 
@@ -128,6 +136,9 @@ bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
 limiter = init_rate_limiter(app)
+
+MAX_LOGIN_ATTEMPTS = int(os.environ.get("MAX_LOGIN_ATTEMPTS", "5"))
+LOGIN_LOCKOUT_MINUTES = int(os.environ.get("LOGIN_LOCKOUT_MINUTES", "15"))
 
 # Helper function to get a new DB connection
 def get_db_conn():
@@ -336,9 +347,23 @@ def login():
     password = data.get("password")
 
     user = User.query.filter_by(email=email).first()
+    if user and user.locked_until and user.locked_until > datetime.datetime.utcnow():
+        return jsonify({"error": "Account locked. Try again later."}), 423
     if not user or not bcrypt.check_password_hash(user.password, password):
+        if user:
+            user.failed_login_attempts += 1
+            if user.failed_login_attempts >= MAX_LOGIN_ATTEMPTS:
+                user.locked_until = datetime.datetime.utcnow() + datetime.timedelta(
+                    minutes=LOGIN_LOCKOUT_MINUTES
+                )
+                user.failed_login_attempts = 0
+            db.session.commit()
         return jsonify({"error": "Invalid credentials"}), 401
 
+
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.session.commit()
     access_token = create_access_token(identity=user.email)
 
     # Build JSON response
