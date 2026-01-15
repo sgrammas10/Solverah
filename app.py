@@ -14,6 +14,7 @@ import os
 import json
 import uuid
 import datetime
+import re
 from urllib.parse import urlparse
 import boto3
 import psycopg2
@@ -25,6 +26,34 @@ ALLOWED_MIME = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 }
 MAX_BYTES = 10 * 1024 * 1024  # 10MB
+
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+PHONE_PATTERN = re.compile(r"^[0-9+().\-\s]{7,25}$")
+LINKEDIN_ALLOWED_HOSTS = {
+    "linkedin.com",
+    "www.linkedin.com",
+}
+
+def _normalize_whitespace(value: str) -> str:
+    return " ".join(value.split())
+
+
+def _is_valid_email(email: str) -> bool:
+    return bool(EMAIL_PATTERN.match(email))
+
+
+def _is_valid_phone(phone: str) -> bool:
+    return bool(PHONE_PATTERN.match(phone))
+
+
+def _is_valid_https_url(value: str) -> bool:
+    parsed = urlparse(value)
+    return parsed.scheme == "https" and bool(parsed.netloc)
+
+
+def _is_valid_linkedin_url(value: str) -> bool:
+    parsed = urlparse(value)
+    return parsed.scheme == "https" and parsed.netloc in LINKEDIN_ALLOWED_HOSTS
 
 #from LLM.profile2model import sorted_mlscores
 
@@ -123,6 +152,7 @@ app.config["JWT_COOKIE_SAMESITE"] = os.environ.get(
 )
 
 # CSRF protection on state-changing methods
+app.config["JWT_COOKIE_CSRF_PROTECT"] = True
 app.config["JWT_COOKIE_CSRF_PROTECT"] = True  # Set to True to enable CSRF protection when done setting up
 app.config["JWT_CSRF_METHODS"] = ["POST", "PUT", "PATCH", "DELETE"]
 app.config["JWT_CSRF_HEADER_NAME"] = "X-CSRF-TOKEN"
@@ -214,13 +244,14 @@ def finalize():
 
 
     submission_id = (data.get("submission_id") or "").strip()
-    first_name = (data.get("first_name") or "").strip()
-    last_name = (data.get("last_name") or "").strip()
+    first_name = _normalize_whitespace((data.get("first_name") or "").strip())
+    last_name = _normalize_whitespace((data.get("last_name") or "").strip())
     email = (data.get("email") or "").strip().lower()
-    state = (data.get("state") or "").strip()
-    phone = (data.get("phone") or "").strip()
+    state = _normalize_whitespace((data.get("state") or "").strip())
+    phone = _normalize_whitespace((data.get("phone") or "").strip())
     linkedin_url = (data.get("linkedin_url") or "").strip()
     portfolio_url = (data.get("portfolio_url") or "").strip()
+    privacy_consent = data.get("privacy_consent") is True
 
     object_key = (data.get("object_key") or "").strip()
     mime = (data.get("mime") or "").strip()
@@ -239,11 +270,29 @@ def finalize():
     if size <= 0 or size > MAX_BYTES:
         return jsonify({"error": "Invalid file size"}), 400
     
-    if not email or "@" not in email or len(email) > 254:
+    if not email or len(email) > 254 or not _is_valid_email(email):
         return jsonify({"error": "Valid email is required"}), 400
 
     if not state or len(state) > 50:
         return jsonify({"error": "State is required"}), 400
+
+    if not privacy_consent:
+        return jsonify({"error": "Privacy consent is required"}), 400
+
+    if not first_name or not last_name:
+        return jsonify({"error": "First and last name are required"}), 400
+
+    if len(first_name) > 120 or len(last_name) > 120:
+        return jsonify({"error": "First or last name is too long"}), 400
+
+    if phone and not _is_valid_phone(phone):
+        return jsonify({"error": "Invalid phone format"}), 400
+
+    if linkedin_url and not _is_valid_linkedin_url(linkedin_url):
+        return jsonify({"error": "LinkedIn URL must be https://linkedin.com"}), 400
+
+    if portfolio_url and not _is_valid_https_url(portfolio_url):
+        return jsonify({"error": "Portfolio URL must be https://"}), 400
 
     if len(phone) > 50 or len(linkedin_url) > 400 or len(portfolio_url) > 400:
         return jsonify({"error": "One or more fields are too long"}), 400
@@ -349,6 +398,7 @@ def login():
     user = User.query.filter_by(email=email).first()
     if user and user.locked_until and user.locked_until > datetime.datetime.utcnow():
         return jsonify({"error": "Account locked. Try again later."}), 423
+
     if not user or not bcrypt.check_password_hash(user.password, password):
         if user:
             user.failed_login_attempts += 1
@@ -359,6 +409,10 @@ def login():
                 user.failed_login_attempts = 0
             db.session.commit()
         return jsonify({"error": "Invalid credentials"}), 401
+
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.session.commit()
 
 
     user.failed_login_attempts = 0
