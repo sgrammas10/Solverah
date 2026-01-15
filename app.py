@@ -137,6 +137,9 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"]= timedelta(hours=1) #token expires in 1 h
 app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
 
 # In dev (http://localhost), this must be False; in prod over HTTPS set to True
+
+
+
 app.config["JWT_COOKIE_SECURE"] = _parse_bool_env(
     os.environ.get("JWT_COOKIE_SECURE"),
     default=is_production,
@@ -150,6 +153,7 @@ app.config["JWT_COOKIE_SAMESITE"] = os.environ.get(
 
 # CSRF protection on state-changing methods
 app.config["JWT_COOKIE_CSRF_PROTECT"] = True
+app.config["JWT_COOKIE_CSRF_PROTECT"] = True  # Set to True to enable CSRF protection when done setting up
 app.config["JWT_CSRF_METHODS"] = ["POST", "PUT", "PATCH", "DELETE"]
 app.config["JWT_CSRF_HEADER_NAME"] = "X-CSRF-TOKEN"
 
@@ -410,6 +414,10 @@ def login():
     user.locked_until = None
     db.session.commit()
 
+
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.session.commit()
     access_token = create_access_token(identity=user.email)
 
     # Build JSON response
