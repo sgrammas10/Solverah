@@ -19,6 +19,8 @@ class User(db.Model):
     name = db.Column(db.String(120))
     role = db.Column(db.String(50))
     profile_data = db.Column(JSON, default=dict)
+    failed_login_attempts = db.Column(db.Integer, nullable=False, default=0)
+    locked_until = db.Column(db.DateTime)
 
 class IntakeSubmission(db.Model):
     __tablename__ = "intake_submissions"

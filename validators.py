@@ -19,12 +19,16 @@ ALLOWED_PROFILE_FIELDS = {
 
 # Basic password rules for registration
 def validate_password(p: str):
-    if not p or len(p) < 8:
-        return False, "Password must be at least 8 characters."
-    if not re.search(r"[A-Za-z]", p):
-        return False, "Password must contain letters."
+    if not p or len(p) < 12:
+        return False, "Password must be at least 12 characters."
+    if not re.search(r"[A-Z]", p):
+        return False, "Password must contain an uppercase letter."
+    if not re.search(r"[a-z]", p):
+        return False, "Password must contain a lowercase letter."
     if not re.search(r"[0-9]", p):
-        return False, "Password must contain numbers."
+        return False, "Password must contain a number."
+    if not re.search(r"[^A-Za-z0-9]", p):
+        return False, "Password must contain a symbol."
     return True, None
 
 
