@@ -22,6 +22,18 @@ class User(db.Model):
     failed_login_attempts = db.Column(db.Integer, nullable=False, default=0)
     locked_until = db.Column(db.DateTime)
 
+class AuditLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    actor_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    action = db.Column(db.String(50), nullable=False)
+    resource = db.Column(db.String(100), nullable=False)
+    ip_address = db.Column(db.String(64))
+    user_agent = db.Column(db.String(300))
+    metadata = db.Column(JSON, default=dict)
+    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+
+    actor = db.relationship("User", backref="audit_logs")
+
 class IntakeSubmission(db.Model):
     __tablename__ = "intake_submissions"
 
