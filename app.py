@@ -59,7 +59,7 @@ def _is_valid_linkedin_url(value: str) -> bool:
 
 from flask_migrate import Migrate
 
-from model import IntakeSubmission, JobRecommendation, User, db
+from model import AuditLog, IntakeSubmission, JobRecommendation, User, db
 from datetime import timedelta
 import pandas as pd
 
@@ -184,6 +184,19 @@ def get_s3_client():
         aws_secret_access_key=os.environ["S3_SECRET_ACCESS_KEY"],
         region_name=os.environ.get("S3_REGION", "auto"),
     )
+
+
+# Helper to log audit events
+def log_audit_event(action, actor_user_id, resource, metadata=None):
+    audit = AuditLog(
+        actor_user_id=actor_user_id,
+        action=action,
+        resource=resource,
+        ip_address=request.remote_addr,
+        user_agent=request.headers.get("User-Agent", ""),
+        metadata=metadata or {},
+    )
+    db.session.add(audit)
 
 # Endpoint to get presigned upload URL
 @limiter.limit("10 per minute")
@@ -498,6 +511,13 @@ def profile():
         return jsonify({"error": "User not found"}), 404
 
     if request.method == "GET":
+        log_audit_event(
+            action="read",
+            actor_user_id=user.id,
+            resource="profile",
+            metadata={"target_user_id": user.id},
+        )
+        db.session.commit()
         return jsonify({
             "id": user.id,
             "email": user.email,
@@ -563,6 +583,12 @@ def profile():
         merged["_quizSummary"] = summary
 
     user.profile_data = merged
+    log_audit_event(
+        action="update",
+        actor_user_id=user.id,
+        resource="profile",
+        metadata={"updated_fields": sorted(profile_data.keys()), "target_user_id": user.id},
+    )
     db.session.commit()
 
     return jsonify({
