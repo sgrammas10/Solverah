@@ -194,7 +194,7 @@ def log_audit_event(action, actor_user_id, resource, metadata=None):
         resource=resource,
         ip_address=request.remote_addr,
         user_agent=request.headers.get("User-Agent", ""),
-        metadata=metadata or {},
+        event_metadata=metadata or {},
     )
     db.session.add(audit)
 
