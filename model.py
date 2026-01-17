@@ -29,7 +29,7 @@ class AuditLog(db.Model):
     resource = db.Column(db.String(100), nullable=False)
     ip_address = db.Column(db.String(64))
     user_agent = db.Column(db.String(300))
-    metadata = db.Column(JSON, default=dict)
+    event_metadata = db.Column("metadata", JSON, default=dict)
     created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
 
     actor = db.relationship("User", backref="audit_logs")
