@@ -249,7 +249,7 @@ const JobSeekerProfile: React.FC = () => {
   ] as const;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-slate-100">
       <h1 className="text-2xl font-semibold mb-6">Job Seeker Profile</h1>
 
       {/* Tabs */}
@@ -263,8 +263,8 @@ const JobSeekerProfile: React.FC = () => {
               onClick={() => setActiveTab(t.id as typeof activeTab)}
               className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-sm ${
                 selected
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300'
+                  ? 'bg-emerald-400/20 text-emerald-100 border-emerald-300/60'
+                  : 'bg-slate-900/70 text-slate-200/80 border-white/10'
               }`}
               type="button"
             >
@@ -281,7 +281,7 @@ const JobSeekerProfile: React.FC = () => {
           <section className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className="flex flex-col">
-                <span className="text-sm text-gray-700 mb-1 flex items-center gap-2">
+                <span className="text-sm text-slate-200/80 mb-1 flex items-center gap-2">
                   <User size={16} /> First name
                 </span>
                 <input
@@ -293,7 +293,7 @@ const JobSeekerProfile: React.FC = () => {
                 />
               </label>
               <label className="flex flex-col">
-                <span className="text-sm text-gray-700 mb-1">Last name</span>
+                <span className="text-sm text-slate-200/80 mb-1">Last name</span>
                 <input
                   className="border rounded-md px-3 py-2"
                   value={formData.lastName}
@@ -303,7 +303,7 @@ const JobSeekerProfile: React.FC = () => {
                 />
               </label>
               <label className="flex flex-col">
-                <span className="text-sm text-gray-700 mb-1 flex items-center gap-2">
+                <span className="text-sm text-slate-200/80 mb-1 flex items-center gap-2">
                   <Mail size={16} /> Email
                 </span>
                 <input
@@ -316,7 +316,7 @@ const JobSeekerProfile: React.FC = () => {
                 />
               </label>
               <label className="flex flex-col">
-                <span className="text-sm text-gray-700 mb-1 flex items-center gap-2">
+                <span className="text-sm text-slate-200/80 mb-1 flex items-center gap-2">
                   <PhoneIcon size={16} /> Phone
                 </span>
                 <input
@@ -328,7 +328,7 @@ const JobSeekerProfile: React.FC = () => {
                 />
               </label>
               <label className="flex flex-col sm:col-span-2">
-                <span className="text-sm text-gray-700 mb-1 flex items-center gap-2">
+                <span className="text-sm text-slate-200/80 mb-1 flex items-center gap-2">
                   <MapPin size={16} /> Location
                 </span>
                 <input
@@ -340,7 +340,7 @@ const JobSeekerProfile: React.FC = () => {
                 />
               </label>
               <label className="flex flex-col sm:col-span-2">
-                <span className="text-sm text-gray-700 mb-1">Professional summary</span>
+                <span className="text-sm text-slate-200/80 mb-1">Professional summary</span>
                 <textarea
                   className="border rounded-md px-3 py-2 min-h-[120px]"
                   value={formData.summary}
@@ -357,11 +357,11 @@ const JobSeekerProfile: React.FC = () => {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="font-medium mb-1">Resume</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-slate-200/80">
                     Upload a PDF or DOCX. We’ll store basic file info only.
                   </p>
                   {(uploadedResume || resumeUploaded || formData.uploadedResume) && (
-                    <div className="mt-3 text-sm text-gray-700">
+                    <div className="mt-3 text-sm text-slate-200/80">
                       <div className="font-medium">
                         {uploadedResume?.name || formData.uploadedResume?.name || 'Resume uploaded'}
                       </div>
@@ -378,7 +378,7 @@ const JobSeekerProfile: React.FC = () => {
 
                 <label
                   htmlFor="resume-upload"
-                  className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 border rounded-md bg-white font-medium text-blue-600 hover:text-blue-500"
+                  className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 border rounded-md bg-slate-900/70 font-medium text-emerald-200 hover:text-emerald-100"
                 >
                   <Upload size={16} />
                   <span>{(uploadedResume || resumeUploaded) ? 'Replace resume' : 'Upload resume'}</span>
@@ -407,7 +407,7 @@ const JobSeekerProfile: React.FC = () => {
             </div>
 
             {formData.experience.length === 0 && (
-              <p className="text-sm text-gray-600">No experience added yet.</p>
+              <p className="text-sm text-slate-200/80">No experience added yet.</p>
             )}
 
             <div className="space-y-4">
@@ -418,7 +418,7 @@ const JobSeekerProfile: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => removeExperience(exp.id)}
-                      className="text-red-600 hover:text-red-700 inline-flex items-center gap-1"
+                      className="text-red-200 hover:text-red-100 inline-flex items-center gap-1"
                       title="Remove"
                     >
                       <X size={16} /> Remove
@@ -473,7 +473,7 @@ const JobSeekerProfile: React.FC = () => {
             </div>
 
             {formData.education.length === 0 && (
-              <p className="text-sm text-gray-600">No education added yet.</p>
+              <p className="text-sm text-slate-200/80">No education added yet.</p>
             )}
 
             <div className="space-y-4">
@@ -484,7 +484,7 @@ const JobSeekerProfile: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => removeEducation(edu.id)}
-                      className="text-red-600 hover:text-red-700 inline-flex items-center gap-1"
+                      className="text-red-200 hover:text-red-100 inline-flex items-center gap-1"
                       title="Remove"
                     >
                       <X size={16} /> Remove
@@ -555,7 +555,7 @@ const JobSeekerProfile: React.FC = () => {
                   {skill}
                   <button
                     type="button"
-                    className="text-red-600 hover:text-red-700"
+                    className="text-red-200 hover:text-red-100"
                     onClick={() => removeSkill(skill)}
                     title="Remove skill"
                   >
@@ -564,7 +564,7 @@ const JobSeekerProfile: React.FC = () => {
                 </span>
               ))}
               {formData.skills.length === 0 && (
-                <span className="text-sm text-gray-600">No skills added yet.</span>
+                <span className="text-sm text-slate-200/80">No skills added yet.</span>
               )}
             </div>
           </section>
@@ -574,7 +574,7 @@ const JobSeekerProfile: React.FC = () => {
         {activeTab === 'assessments' && (
           <section className="space-y-2">
             <h2 className="font-semibold">Assessments</h2>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-slate-200/80">
               Track leadership, problem solving, communication, creativity, and teamwork scores here.
             </p>
           </section>
@@ -584,7 +584,7 @@ const JobSeekerProfile: React.FC = () => {
         <div className="flex justify-end">
           <button
             type="submit"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-blue-600 text-white disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md  bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 disabled:opacity-60"
             disabled={isSaving}
           >
             {isSaving ? 'Saving…' : 'Save Profile'}
