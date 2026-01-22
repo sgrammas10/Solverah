@@ -672,13 +672,6 @@ function PrelaunchLandingPage() {
               <div className="flex flex-wrap items-center justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setIsEarlyAccessOpen(false)}
-                  className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm font-semibold text-slate-100 transition hover:border-emerald-300/60 hover:text-emerald-100"
-                >
-                  Save for later
-                </button>
-                <button
-                  type="button"
                   className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30"
                 >
                   Send request
