@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { PRELAUNCH_MODE } from '../config';
 import { User, LogOut, Briefcase } from 'lucide-react';
 
 function Header() {
@@ -16,7 +15,7 @@ function Header() {
    * Log out the user and redirect to the home page.
    */
   const handleLogout = () => {
-    logout();      // clears authentication
+    logout(); // clears authentication
     navigate('/'); // redirect to landing page
   };
 
@@ -49,42 +48,29 @@ function Header() {
   const isFeed = location.pathname === '/feed';
 
   return (
-    <header
-      className={
-        PRELAUNCH_MODE
-          ? 'border-b border-white/10 bg-slate-950/80 backdrop-blur supports-[backdrop-filter]:bg-slate-950/60'
-          : 'bg-white shadow-sm border-b border-gray-200'
-      }
-    >
+    <header className="border-b border-white/10 bg-slate-950/80 backdrop-blur supports-[backdrop-filter]:bg-slate-950/60">
       {/* Centered container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header content wrapper */}
         <div className="flex justify-between items-center h-16">
           {/* Logo + Home link */}
           <Link to="/" className="flex items-center space-x-2">
-            <Briefcase className={`h-8 w-8 ${PRELAUNCH_MODE ? 'text-emerald-300' : 'text-blue-600'}`} />
-            <span className={`text-2xl font-bold ${PRELAUNCH_MODE ? 'text-white' : 'text-gray-900'}`}>
-              Solverah
-            </span>
+            <Briefcase className="h-8 w-8 text-emerald-300" />
+            <span className="text-2xl font-bold text-white">Solverah</span>
           </Link>
 
           {/* Navigation links */}
           <nav className="flex items-center space-x-6">
-            {PRELAUNCH_MODE ? (
-              <div className="flex items-center gap-3 text-xs font-semibold text-emerald-100/80">
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-emerald-50">
-                  Prelaunch access only
-                </span>
-                <span className="hidden sm:inline text-slate-100/80">Navigation is gated until full release.</span>
-              </div>
-            ) : user ? (
+            {user ? (
               // If user IS logged in, show dashboard, feed, profile, logout, etc.
               <>
                 {/* Feed Link (highlight if on /feed) */}
                 <Link
                   to="/feed"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isFeed ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                  className={`px-3 py-2 rounded-full text-sm font-medium transition-colors ${
+                    isFeed
+                      ? 'text-emerald-200 bg-white/10'
+                      : 'text-slate-200 hover:text-emerald-200 hover:bg-white/5'
                   }`}
                 >
                   Feed
@@ -93,8 +79,10 @@ function Header() {
                 {/* Dashboard Link (highlight if pathname includes "dashboard") */}
                 <Link
                   to={getDashboardPath()}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isDashboard ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                  className={`px-3 py-2 rounded-full text-sm font-medium transition-colors ${
+                    isDashboard
+                      ? 'text-emerald-200 bg-white/10'
+                      : 'text-slate-200 hover:text-emerald-200 hover:bg-white/5'
                   }`}
                 >
                   Dashboard
@@ -103,8 +91,10 @@ function Header() {
                 {/* Profile Link (highlight if pathname includes "profile") */}
                 <Link
                   to={getProfilePath()}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isProfile ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                  className={`px-3 py-2 rounded-full text-sm font-medium transition-colors ${
+                    isProfile
+                      ? 'text-emerald-200 bg-white/10'
+                      : 'text-slate-200 hover:text-emerald-200 hover:bg-white/5'
                   }`}
                 >
                   <User className="h-4 w-4 inline mr-1" />
@@ -113,14 +103,14 @@ function Header() {
 
                 {/* User info + logout button */}
                 <div className="flex items-center space-x-3">
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-slate-200/80">
                     {user.name} ({user.role === 'job-seeker' ? 'Job Seeker' : 'Recruiter'})
                   </span>
 
                   {/* Logout icon button */}
                   <button
                     onClick={handleLogout}
-                    className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                    className="p-2 text-slate-300 hover:text-red-300 transition-colors"
                     title="Logout"
                   >
                     <LogOut className="h-4 w-4" />
@@ -132,14 +122,14 @@ function Header() {
               <>
                 <Link
                   to="/login"
-                  className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                  className="text-slate-200 hover:text-white px-3 py-2 rounded-full text-sm font-medium transition-colors"
                 >
                   Sign In
                 </Link>
 
                 <Link
                   to="/register"
-                  className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                  className="bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 px-4 py-2 rounded-full text-sm font-semibold transition-colors"
                 >
                   Get Started
                 </Link>
