@@ -19,6 +19,16 @@ function PrelaunchLandingPage() {
     portfolioUrl: "",
   });
 
+  const [isEarlyAccessOpen, setIsEarlyAccessOpen] = useState(false);
+  const [earlyAccessData, setEarlyAccessData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    preferredContact: "email",
+    careerJourney: "",
+  });
+
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string>("");
   const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>("idle");
@@ -32,11 +42,21 @@ function PrelaunchLandingPage() {
   const linkedinId = useId();
   const portfolioId = useId();
   const resumeId = useId();
+  const earlyFirstNameId = useId();
+  const earlyLastNameId = useId();
+  const earlyEmailId = useId();
+  const earlyPhoneId = useId();
+  const earlyContactId = useId();
+  const earlyJourneyId = useId();
 
   const API_BASE = (import.meta as any).env?.VITE_API_URL ?? "";
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleEarlyAccessChange = (field: keyof typeof earlyAccessData, value: string) => {
+    setEarlyAccessData((prev) => ({ ...prev, [field]: value }));
   };
 
   const faqs = useMemo(
@@ -230,12 +250,13 @@ function PrelaunchLandingPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-4">
-                <a
-                  href="#waitlist"
+                <button
+                  type="button"
+                  onClick={() => setIsEarlyAccessOpen(true)}
                   className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:shadow-emerald-400/25"
                 >
                   Request early access
-                </a>
+                </button>
                 <a
                   href="#about"
                   className="text-sm font-semibold text-emerald-100/90 underline-offset-8 hover:underline"
@@ -518,6 +539,148 @@ function PrelaunchLandingPage() {
       <footer className="border-t border-white/10 bg-slate-950/80 py-6 text-center text-xs text-slate-400">
         © {new Date().getFullYear()} Solverah. Soft launch — broader access remains closed.
       </footer>
+      {isEarlyAccessOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-10">
+          <div
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+            onClick={() => setIsEarlyAccessOpen(false)}
+          />
+          <div className="relative w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl shadow-black/50">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.14em] text-emerald-200">Request early access</p>
+                <h3 className="text-2xl font-semibold text-white">Tell us how you want to connect</h3>
+                <p className="mt-2 text-sm text-slate-200/80">
+                  We’ll keep it personal. Share your journey and how you’d like to hear from us.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEarlyAccessOpen(false)}
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-200 transition hover:border-emerald-300/60 hover:text-emerald-100"
+              >
+                Close
+              </button>
+            </div>
+
+            <form className="mt-6 space-y-5">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label htmlFor={earlyFirstNameId} className="text-sm font-medium text-slate-100">
+                    First name
+                  </label>
+                  <input
+                    id={earlyFirstNameId}
+                    type="text"
+                    placeholder="Your first name"
+                    autoComplete="given-name"
+                    value={earlyAccessData.firstName}
+                    onChange={(e) => handleEarlyAccessChange("firstName", e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor={earlyLastNameId} className="text-sm font-medium text-slate-100">
+                    Last name
+                  </label>
+                  <input
+                    id={earlyLastNameId}
+                    type="text"
+                    placeholder="Your last name"
+                    autoComplete="family-name"
+                    value={earlyAccessData.lastName}
+                    onChange={(e) => handleEarlyAccessChange("lastName", e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label htmlFor={earlyEmailId} className="text-sm font-medium text-slate-100">
+                    Email
+                  </label>
+                  <input
+                    id={earlyEmailId}
+                    type="email"
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    value={earlyAccessData.email}
+                    onChange={(e) => handleEarlyAccessChange("email", e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor={earlyPhoneId} className="text-sm font-medium text-slate-100">
+                    Phone
+                  </label>
+                  <input
+                    id={earlyPhoneId}
+                    type="tel"
+                    placeholder="(555) 555-5555"
+                    autoComplete="tel"
+                    value={earlyAccessData.phone}
+                    onChange={(e) => handleEarlyAccessChange("phone", e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor={earlyContactId} className="text-sm font-medium text-slate-100">
+                  Preferred contact method
+                </label>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[
+                    { value: "email", label: "Email" },
+                    { value: "text", label: "Text" },
+                    { value: "call", label: "Call" },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 transition hover:border-emerald-300/60"
+                    >
+                      <input
+                        id={option.value === "email" ? earlyContactId : undefined}
+                        type="radio"
+                        name="preferred-contact"
+                        value={option.value}
+                        checked={earlyAccessData.preferredContact === option.value}
+                        onChange={(e) => handleEarlyAccessChange("preferredContact", e.target.value)}
+                        className="h-4 w-4 border-white/20 bg-white/10 text-emerald-400 focus:ring-emerald-400/60"
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor={earlyJourneyId} className="text-sm font-medium text-slate-100">
+                  Career journey and what you want next
+                </label>
+                <textarea
+                  id={earlyJourneyId}
+                  placeholder="Share your path so far, and the kinds of roles or environments you’re hoping to find."
+                  value={earlyAccessData.careerJourney}
+                  onChange={(e) => handleEarlyAccessChange("careerJourney", e.target.value)}
+                  rows={4}
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                <button
+                  type="button"
+                  className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30"
+                >
+                  Send request
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

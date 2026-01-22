@@ -1,9 +1,27 @@
+"""
+SQLAlchemy models for the application.
+
+This module defines the database schema used by the Flask backend, including:
+
+- User: Authentication/authorization data and a flexible JSON profile payload.
+- JobRecommendation: Stores per-user job recommendations with a score and timestamp.
+- AuditLog: Security and activity logging for traceability and monitoring.
+- IntakeSubmission: Pre-launch / intake form submissions with resume upload metadata.
+
+Notes:
+- JSON columns use the SQLite dialect JSON type for compatibility in local/dev.
+- `created_at` fields default to the database server timestamp via `db.func.now()`.
+"""
+
 from sqlalchemy.dialects.sqlite import JSON
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
+
 class JobRecommendation(db.Model):
+    """Represents a scored job recommendation generated for a specific user."""
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     job_id = db.Column(db.Integer, nullable=False)
@@ -12,7 +30,10 @@ class JobRecommendation(db.Model):
 
     user = db.relationship("User", backref="recommendations")
 
+
 class User(db.Model):
+    """Application user record, including auth credentials and profile metadata."""
+
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
@@ -22,7 +43,10 @@ class User(db.Model):
     failed_login_attempts = db.Column(db.Integer, nullable=False, default=0)
     locked_until = db.Column(db.DateTime)
 
+
 class AuditLog(db.Model):
+    """Tracks user/system actions for auditing, security monitoring, and debugging."""
+
     id = db.Column(db.Integer, primary_key=True)
     actor_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     action = db.Column(db.String(50), nullable=False)
@@ -34,7 +58,10 @@ class AuditLog(db.Model):
 
     actor = db.relationship("User", backref="audit_logs")
 
+
 class IntakeSubmission(db.Model):
+    """Stores pre-launch intake submissions and associated resume upload metadata."""
+
     __tablename__ = "intake_submissions"
 
     id = db.Column(db.String(36), primary_key=True)
