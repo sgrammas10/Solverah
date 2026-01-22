@@ -126,16 +126,16 @@ function RecruiterProfile() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-slate-100">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Recruiter Profile</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-3xl font-bold text-white">Recruiter Profile</h1>
+        <p className="text-slate-200/80 mt-2">
           Complete your company profile to attract the best candidates and showcase your organization.
         </p>
       </div>
 
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200 mb-8">
+      <div className="border-b border-white/10 mb-8">
         <nav className="-mb-px flex space-x-8">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -145,8 +145,8 @@ function RecruiterProfile() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-emerald-300/60 text-emerald-200'
+                    : 'border-transparent text-slate-300 hover:text-slate-200/80 hover:border-white/10'
                 }`}
               >
                 <Icon className="h-5 w-5 mr-2" />
@@ -161,30 +161,30 @@ function RecruiterProfile() {
         {/* Company Info Tab */}
         {activeTab === 'company' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Company Information</h2>
+            <div className="bg-slate-900/70 rounded-lg shadow-sm border border-white/10 p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">Company Information</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     Company Name
                   </label>
                   <input
                     type="text"
                     value={formData.companyName}
                     onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     Industry
                   </label>
                   <select
                     value={formData.industry}
                     onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                   >
                     <option value="Technology">Technology</option>
                     <option value="Healthcare">Healthcare</option>
@@ -197,13 +197,13 @@ function RecruiterProfile() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     Company Size
                   </label>
                   <select
                     value={formData.companySize}
                     onChange={(e) => setFormData({ ...formData, companySize: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                   >
                     <option value="1-10">1-10 employees</option>
                     <option value="11-50">11-50 employees</option>
@@ -215,59 +215,59 @@ function RecruiterProfile() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     Website
                   </label>
                   <input
                     type="url"
                     value={formData.website}
                     onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     Location
                   </label>
                   <input
                     type="text"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     Company Description
                   </label>
                   <textarea
                     rows={4}
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                     placeholder="Describe your company culture, values, and what makes you unique..."
                   />
                 </div>
               </div>
 
               {/* Company Logo Upload */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="mt-6 pt-6 border-t border-white/10">
+                <label className="block text-sm font-medium text-slate-200/80 mb-2">
                   Company Logo
                 </label>
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-white/10 border-dashed rounded-md">
                   <div className="space-y-1 text-center">
-                    <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                    <div className="flex text-sm text-gray-600">
-                      <label htmlFor="logo-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500">
+                    <Upload className="mx-auto h-12 w-12 text-slate-400" />
+                    <div className="flex text-sm text-slate-200/80">
+                      <label htmlFor="logo-upload" className="relative cursor-pointer bg-slate-900/70 rounded-md font-medium text-emerald-200 hover:text-emerald-100">
                         <span>Upload company logo</span>
                         <input id="logo-upload" name="logo-upload" type="file" className="sr-only" accept="image/*" />
                       </label>
                       <p className="pl-1">or drag and drop</p>
                     </div>
-                    <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                    <p className="text-xs text-slate-300">PNG, JPG, GIF up to 10MB</p>
                   </div>
                 </div>
               </div>
@@ -278,67 +278,67 @@ function RecruiterProfile() {
         {/* Contact Info Tab */}
         {activeTab === 'contact' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h2>
+            <div className="bg-slate-900/70 rounded-lg shadow-sm border border-white/10 p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">Contact Information</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     First Name
                   </label>
                   <input
                     type="text"
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     Last Name
                   </label>
                   <input
                     type="text"
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     Job Title
                   </label>
                   <input
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     Email
                   </label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     Phone
                   </label>
                   <input
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                   />
                 </div>
               </div>
@@ -349,25 +349,25 @@ function RecruiterProfile() {
         {/* Hiring Preferences Tab */}
         {activeTab === 'preferences' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Hiring Preferences</h2>
+            <div className="bg-slate-900/70 rounded-lg shadow-sm border border-white/10 p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">Hiring Preferences</h2>
 
               {/* Typical Roles */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-200/80 mb-2">
                   Typical Roles You Hire For
                 </label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {formData.typicalRoles.map((role) => (
                     <span
                       key={role}
-                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-500/10 text-blue-200"
                     >
                       {role}
                       <button
                         type="button"
                         onClick={() => removeRole(role)}
-                        className="ml-2 text-blue-600 hover:text-blue-500"
+                        className="ml-2 text-emerald-200 hover:text-emerald-100"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -378,7 +378,7 @@ function RecruiterProfile() {
                   <input
                     type="text"
                     placeholder="Add a role (press Enter)"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 border border-white/10 rounded-l-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                     onKeyPress={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -390,7 +390,7 @@ function RecruiterProfile() {
                   />
                   <button
                     type="button"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700"
+                    className="px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-r-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400"
                     onClick={(e) => {
                       const input = (e.target as HTMLButtonElement).previousElementSibling as HTMLInputElement;
                       addRole(input.value);
@@ -404,7 +404,7 @@ function RecruiterProfile() {
 
               {/* Experience Levels */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-200/80 mb-2">
                   Preferred Experience Levels
                 </label>
                 <div className="space-y-2">
@@ -426,9 +426,9 @@ function RecruiterProfile() {
                             });
                           }
                         }}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        className="rounded border-white/10 text-emerald-200 focus:ring-emerald-300/50"
                       />
-                      <span className="ml-2 text-sm text-gray-700">{level}</span>
+                      <span className="ml-2 text-sm text-slate-200/80">{level}</span>
                     </label>
                   ))}
                 </div>
@@ -436,13 +436,13 @@ function RecruiterProfile() {
 
               {/* Remote Policy */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-200/80 mb-2">
                   Remote Work Policy
                 </label>
                 <select
                   value={formData.remotePolicy}
                   onChange={(e) => setFormData({ ...formData, remotePolicy: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                 >
                   <option value="On-site">On-site only</option>
                   <option value="Hybrid">Hybrid</option>
@@ -452,20 +452,20 @@ function RecruiterProfile() {
 
               {/* Preferred Skills */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-200/80 mb-2">
                   Preferred Skills & Technologies
                 </label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {formData.preferredSkills.map((skill) => (
                     <span
                       key={skill}
-                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-emerald-500/10 text-emerald-200"
                     >
                       {skill}
                       <button
                         type="button"
                         onClick={() => removeSkill(skill)}
-                        className="ml-2 text-green-600 hover:text-green-500"
+                        className="ml-2 text-emerald-200 hover:text-emerald-100"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -476,7 +476,7 @@ function RecruiterProfile() {
                   <input
                     type="text"
                     placeholder="Add a skill (press Enter)"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 border border-white/10 rounded-l-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                     onKeyPress={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -488,7 +488,7 @@ function RecruiterProfile() {
                   />
                   <button
                     type="button"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700"
+                    className="px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-r-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400"
                     onClick={(e) => {
                       const input = (e.target as HTMLButtonElement).previousElementSibling as HTMLInputElement;
                       addSkill(input.value);
@@ -506,12 +506,12 @@ function RecruiterProfile() {
         {/* Job Postings Tab */}
         {activeTab === 'jobs' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-slate-900/70 rounded-lg shadow-sm border border-white/10 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Active Job Postings</h2>
+                <h2 className="text-lg font-semibold text-white">Active Job Postings</h2>
                 <button
                   type="button"
-                  className="flex items-center px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-500"
+                  className="flex items-center px-3 py-2 text-sm font-medium text-emerald-200 hover:text-emerald-100"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Create New Job
@@ -520,11 +520,11 @@ function RecruiterProfile() {
 
               <div className="space-y-4">
                 {formData.activeJobs.map((job) => (
-                  <div key={job.id} className="p-4 border border-gray-200 rounded-lg">
+                  <div key={job.id} className="p-4 border border-white/10 rounded-lg">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h3 className="font-medium text-gray-900 mb-1">{job.title}</h3>
-                        <div className="text-sm text-gray-600 space-y-1">
+                        <h3 className="font-medium text-white mb-1">{job.title}</h3>
+                        <div className="text-sm text-slate-200/80 space-y-1">
                           <div className="flex items-center">
                             <Building className="h-4 w-4 mr-2" />
                             {job.department}
@@ -548,8 +548,8 @@ function RecruiterProfile() {
                       <div className="ml-4">
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           job.status === 'Active' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
+                            ? 'bg-emerald-500/10 text-emerald-200' 
+                            : 'bg-white/10 text-slate-100'
                         }`}>
                           {job.status}
                         </span>
@@ -557,9 +557,9 @@ function RecruiterProfile() {
                     </div>
                     
                     <div className="mt-3 flex space-x-2">
-                      <button className="text-sm text-blue-600 hover:text-blue-500">Edit</button>
-                      <button className="text-sm text-gray-500 hover:text-gray-700">View Applications</button>
-                      <button className="text-sm text-red-600 hover:text-red-500">Archive</button>
+                      <button className="text-sm text-emerald-200 hover:text-emerald-100">Edit</button>
+                      <button className="text-sm text-slate-300 hover:text-slate-200/80">View Applications</button>
+                      <button className="text-sm text-red-200 hover:text-red-100">Archive</button>
                     </div>
                   </div>
                 ))}
@@ -573,7 +573,7 @@ function RecruiterProfile() {
           <button
             type="submit"
             disabled={isSaving}
-            className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="px-6 py-3 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
             {isSaving ? 'Saving...' : 'Save Profile'}
           </button>

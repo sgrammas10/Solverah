@@ -406,7 +406,7 @@ export default function YourFutureYourWayTab() {
      RENDER
      ======================================================= */
   return (
-    <div className="p-4 max-w-3xl mx-auto">
+    <div className="p-4 max-w-3xl mx-auto text-slate-100">
       {/* Intro block */}
       <h2 className="text-xl font-semibold">{intro.title}</h2>
       <p className="mt-1">{intro.subtitle}</p>
@@ -446,7 +446,7 @@ export default function YourFutureYourWayTab() {
       <button
         type="button"
         onClick={onSubmit}
-        className="border px-3 py-2 mt-4"
+        className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-4 py-2 mt-4 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25"
       >
         Submit
       </button>
