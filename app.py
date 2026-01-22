@@ -14,6 +14,7 @@ import os
 import json
 import uuid
 import datetime
+import re
 from urllib.parse import urlparse
 import boto3
 import psycopg2
@@ -26,9 +27,39 @@ ALLOWED_MIME = {
 }
 MAX_BYTES = 10 * 1024 * 1024  # 10MB
 
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+PHONE_PATTERN = re.compile(r"^[0-9+().\-\s]{7,25}$")
+LINKEDIN_ALLOWED_HOSTS = {
+    "linkedin.com",
+    "www.linkedin.com",
+}
+
+def _normalize_whitespace(value: str) -> str:
+    return " ".join(value.split())
+
+
+def _is_valid_email(email: str) -> bool:
+    return bool(EMAIL_PATTERN.match(email))
+
+
+def _is_valid_phone(phone: str) -> bool:
+    return bool(PHONE_PATTERN.match(phone))
+
+
+def _is_valid_https_url(value: str) -> bool:
+    parsed = urlparse(value)
+    return parsed.scheme == "https" and bool(parsed.netloc)
+
+
+def _is_valid_linkedin_url(value: str) -> bool:
+    parsed = urlparse(value)
+    return parsed.scheme == "https" and parsed.netloc in LINKEDIN_ALLOWED_HOSTS
+
 #from LLM.profile2model import sorted_mlscores
 
-from model import JobRecommendation, User, db
+from flask_migrate import Migrate
+
+from model import AuditLog, IntakeSubmission, JobRecommendation, User, db
 from datetime import timedelta
 import pandas as pd
 
@@ -44,13 +75,35 @@ from validators import validate_password, clean_profile_data
 from flask_cors import CORS
 
 
-# Security headers with Talisman for CSP 
+def _is_production():
+    env_name = (
+        os.environ.get("FLASK_ENV")
+        or os.environ.get("APP_ENV")
+        or os.environ.get("ENV")
+        or ""
+    )
+    return env_name.lower() in {"production", "prod"}
+
+
+def _parse_bool_env(value, default):
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+is_production = _is_production()
+
+# Security headers with Talisman for CSP
 Talisman(
     app,
     content_security_policy={
         "default-src": ["'self'", "https://fonts.gstatic.com", "https://fonts.googleapis.com"],
     },
-    force_https=False,  # Set to True in production with HTTPS
+    force_https=is_production,
+    strict_transport_security=is_production,
+    strict_transport_security_max_age=31536000 if is_production else None,
+    strict_transport_security_include_subdomains=is_production,
+    strict_transport_security_preload=is_production,
 )
 
 
@@ -84,26 +137,38 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"]= timedelta(hours=1) #token expires in 1 h
 app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
 
 # In dev (http://localhost), this must be False; in prod over HTTPS set to True
-app.config["JWT_COOKIE_SECURE"] = True  # True on real HTTPS
+
+
+
+app.config["JWT_COOKIE_SECURE"] = _parse_bool_env(
+    os.environ.get("JWT_COOKIE_SECURE"),
+    default=is_production,
+)
 
 # If frontend and backend are on same origin, "Lax" is fine; if cross-site + HTTPS, use "None"
-app.config["JWT_COOKIE_SAMESITE"] = "None" # set to none for deployment
+app.config["JWT_COOKIE_SAMESITE"] = os.environ.get(
+    "JWT_COOKIE_SAMESITE",
+    "None" if is_production else "Lax",
+)
 
 # CSRF protection on state-changing methods
-app.config["JWT_COOKIE_CSRF_PROTECT"] = False  # Set to True to enable CSRF protection when done setting up
+app.config["JWT_COOKIE_CSRF_PROTECT"] = True
+app.config["JWT_COOKIE_CSRF_PROTECT"] = True  # Set to True to enable CSRF protection when done setting up
 app.config["JWT_CSRF_METHODS"] = ["POST", "PUT", "PATCH", "DELETE"]
 app.config["JWT_CSRF_HEADER_NAME"] = "X-CSRF-TOKEN"
 
 
 db.init_app(app)
-with app.app_context():
-    db.create_all()
+migrate = Migrate(app, db)
 
 
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
 limiter = init_rate_limiter(app)
+
+MAX_LOGIN_ATTEMPTS = int(os.environ.get("MAX_LOGIN_ATTEMPTS", "5"))
+LOGIN_LOCKOUT_MINUTES = int(os.environ.get("LOGIN_LOCKOUT_MINUTES", "15"))
 
 # Helper function to get a new DB connection
 def get_db_conn():
@@ -119,6 +184,19 @@ def get_s3_client():
         aws_secret_access_key=os.environ["S3_SECRET_ACCESS_KEY"],
         region_name=os.environ.get("S3_REGION", "auto"),
     )
+
+
+# Helper to log audit events
+def log_audit_event(action, actor_user_id, resource, metadata=None):
+    audit = AuditLog(
+        actor_user_id=actor_user_id,
+        action=action,
+        resource=resource,
+        ip_address=request.remote_addr,
+        user_agent=request.headers.get("User-Agent", ""),
+        event_metadata=metadata or {},
+    )
+    db.session.add(audit)
 
 # Endpoint to get presigned upload URL
 @limiter.limit("10 per minute")
@@ -179,13 +257,14 @@ def finalize():
 
 
     submission_id = (data.get("submission_id") or "").strip()
-    first_name = (data.get("first_name") or "").strip()
-    last_name = (data.get("last_name") or "").strip()
+    first_name = _normalize_whitespace((data.get("first_name") or "").strip())
+    last_name = _normalize_whitespace((data.get("last_name") or "").strip())
     email = (data.get("email") or "").strip().lower()
-    state = (data.get("state") or "").strip()
-    phone = (data.get("phone") or "").strip()
+    state = _normalize_whitespace((data.get("state") or "").strip())
+    phone = _normalize_whitespace((data.get("phone") or "").strip())
     linkedin_url = (data.get("linkedin_url") or "").strip()
     portfolio_url = (data.get("portfolio_url") or "").strip()
+    privacy_consent = data.get("privacy_consent") is True
 
     object_key = (data.get("object_key") or "").strip()
     mime = (data.get("mime") or "").strip()
@@ -204,11 +283,29 @@ def finalize():
     if size <= 0 or size > MAX_BYTES:
         return jsonify({"error": "Invalid file size"}), 400
     
-    if not email or "@" not in email or len(email) > 254:
+    if not email or len(email) > 254 or not _is_valid_email(email):
         return jsonify({"error": "Valid email is required"}), 400
 
     if not state or len(state) > 50:
         return jsonify({"error": "State is required"}), 400
+
+    if not privacy_consent:
+        return jsonify({"error": "Privacy consent is required"}), 400
+
+    if not first_name or not last_name:
+        return jsonify({"error": "First and last name are required"}), 400
+
+    if len(first_name) > 120 or len(last_name) > 120:
+        return jsonify({"error": "First or last name is too long"}), 400
+
+    if phone and not _is_valid_phone(phone):
+        return jsonify({"error": "Invalid phone format"}), 400
+
+    if linkedin_url and not _is_valid_linkedin_url(linkedin_url):
+        return jsonify({"error": "LinkedIn URL must be https://linkedin.com"}), 400
+
+    if portfolio_url and not _is_valid_https_url(portfolio_url):
+        return jsonify({"error": "Portfolio URL must be https://"}), 400
 
     if len(phone) > 50 or len(linkedin_url) > 400 or len(portfolio_url) > 400:
         return jsonify({"error": "One or more fields are too long"}), 400
@@ -312,9 +409,28 @@ def login():
     password = data.get("password")
 
     user = User.query.filter_by(email=email).first()
+    if user and user.locked_until and user.locked_until > datetime.datetime.utcnow():
+        return jsonify({"error": "Account locked. Try again later."}), 423
+
     if not user or not bcrypt.check_password_hash(user.password, password):
+        if user:
+            user.failed_login_attempts += 1
+            if user.failed_login_attempts >= MAX_LOGIN_ATTEMPTS:
+                user.locked_until = datetime.datetime.utcnow() + datetime.timedelta(
+                    minutes=LOGIN_LOCKOUT_MINUTES
+                )
+                user.failed_login_attempts = 0
+            db.session.commit()
         return jsonify({"error": "Invalid credentials"}), 401
 
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.session.commit()
+
+
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.session.commit()
     access_token = create_access_token(identity=user.email)
 
     # Build JSON response
@@ -350,6 +466,10 @@ def register():
     password = data.get("password")
     name = data.get("name")
     role = data.get("role", "job-seeker")
+
+    is_valid, validation_message = validate_password(password)
+    if not is_valid:
+        return jsonify({"error": validation_message}), 400
 
     #Check user exsistence off of email
     if User.query.filter_by(email=email).first():
@@ -391,6 +511,13 @@ def profile():
         return jsonify({"error": "User not found"}), 404
 
     if request.method == "GET":
+        log_audit_event(
+            action="read",
+            actor_user_id=user.id,
+            resource="profile",
+            metadata={"target_user_id": user.id},
+        )
+        db.session.commit()
         return jsonify({
             "id": user.id,
             "email": user.email,
@@ -456,6 +583,12 @@ def profile():
         merged["_quizSummary"] = summary
 
     user.profile_data = merged
+    log_audit_event(
+        action="update",
+        actor_user_id=user.id,
+        resource="profile",
+        metadata={"updated_fields": sorted(profile_data.keys()), "target_user_id": user.id},
+    )
     db.session.commit()
 
     return jsonify({
