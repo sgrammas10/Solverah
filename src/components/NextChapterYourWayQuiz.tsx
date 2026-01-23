@@ -373,7 +373,7 @@ export default function CareerAndJobSearchTab() {
      RENDER
      ======================================================= */
   return (
-    <div className="p-4 max-w-3xl mx-auto">
+    <div className="p-4 max-w-3xl mx-auto text-slate-100">
       {/* Page title */}
       <h2 className="text-xl font-semibold mb-2">Career &amp; Job Search</h2>
 
@@ -413,7 +413,7 @@ export default function CareerAndJobSearchTab() {
       {/* Submit button */}
       <button
         onClick={handleSubmit}
-        className="border px-3 py-2"
+        className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25"
         type="button"
       >
         Submit
