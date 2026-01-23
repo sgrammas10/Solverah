@@ -117,8 +117,9 @@ CORS(
             "https://solverah.vercel.app",
             "https://solverah.com",
             "https://www.solverah.com"
+            r"^https://.*\.vercel\.app$",
         ],
-        "allow_origin_regex": r"^https://.*\.vercel\.app$",
+        # "allow_origin_regex": r"^https://.*\.vercel\.app$",
     }},
     supports_credentials=True,
     allow_headers=["Content-Type", "X-CSRF-TOKEN"],
