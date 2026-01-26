@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from '../contexts/useAuth';
 import { Search } from "lucide-react";
 
 const RESULTS_PER_PAGE = 5; // adjust as you like

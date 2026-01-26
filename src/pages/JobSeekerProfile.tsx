@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { 
   User, 
@@ -19,8 +19,8 @@ import SolverahYourFutureYourWayQuiz from "../components/SolverahYourFutureYourW
 type QuizQuestion = { id: number; text: string; options: string[] };
 
 // Import question banks from the quiz components
-import { careerJobSearchQuestionBank } from "../components/NextChapterYourWayQuiz";
-import { yourFutureYourWayQuestionBank } from "../components/SolverahYourFutureYourWayQuiz";
+import { careerJobSearchQuestionBank } from "../data/nextChapterYourWayQuiz";
+import { yourFutureYourWayQuestionBank } from "../data/solverahYourFutureYourWayQuiz";
 function JobSeekerProfile() {
   const { user, updateProfile, updateProfileData, fetchProfileData, saveProfileData, fetchWithAuth} = useAuth();
 
