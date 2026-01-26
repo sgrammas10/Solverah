@@ -98,12 +98,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // The backend sets a secure cookie — we only store the user object
-    setUser(data.user as User);
+    const userData = data.user as User;
+    setUser(userData);
 
     const csrf = getCookie("csrf_access_token");
     if (csrf) {
       setCsrfToken(csrf);
     }
+
+    return userData;
   };
 
   // REGISTER — then user logs in normally

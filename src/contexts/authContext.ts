@@ -16,7 +16,7 @@ export interface User {
 
 export interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   register: (email: string, password: string, name: string, role: "job-seeker" | "recruiter") => Promise<void>;
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
