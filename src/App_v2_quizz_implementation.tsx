@@ -5,7 +5,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 // Authentication context: provides user state and login/logout helpers
-import { AuthProvider } from "./contexts/AuthContext";
+import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { useAuth } from "./contexts/useAuth";
 
 // Shared UI
