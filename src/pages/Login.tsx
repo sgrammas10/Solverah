@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
-import { Mail, Lock, Users, Briefcase } from 'lucide-react';
+import { Mail, Lock, Briefcase } from 'lucide-react';
 
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'job-seeker' | 'recruiter'>('job-seeker');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -15,13 +14,12 @@ function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login form submitted:', { email, password, role });
     setError('');
     setLoading(true);
 
     try {
-      await login(email, password, role);
-      const redirectPath = role === 'job-seeker' ? '/job-seeker/dashboard' : '/recruiter/dashboard';
+      const loggedInUser = await login(email, password);
+      const redirectPath = loggedInUser.role === 'job-seeker' ? '/job-seeker/dashboard' : '/recruiter/dashboard';
       navigate(redirectPath);
     } catch (err) {
       setError('Failed to sign in. Please check your credentials.');
@@ -57,39 +55,6 @@ function Login() {
               {error}
             </div>
           )}
-
-          {/* Role Selection */}
-          <div>
-            <label className="block text-sm font-medium text-slate-200 mb-2">
-              I am a:
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setRole('job-seeker')}
-                className={`p-3 rounded-lg border transition-all ${
-                  role === 'job-seeker'
-                    ? 'border-emerald-300/60 bg-emerald-400/10 text-emerald-100'
-                    : 'border-white/10 bg-white/5 text-slate-200 hover:border-emerald-300/50'
-                }`}
-              >
-                <Users className="h-5 w-5 mx-auto mb-1" />
-                <div className="text-sm font-medium">Job Seeker</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('recruiter')}
-                className={`p-3 rounded-lg border transition-all ${
-                  role === 'recruiter'
-                    ? 'border-emerald-300/60 bg-emerald-400/10 text-emerald-100'
-                    : 'border-white/10 bg-white/5 text-slate-200 hover:border-emerald-300/50'
-                }`}
-              >
-                <Briefcase className="h-5 w-5 mx-auto mb-1" />
-                <div className="text-sm font-medium">Recruiter</div>
-              </button>
-            </div>
-          </div>
 
           <div className="space-y-4">
             <div>
