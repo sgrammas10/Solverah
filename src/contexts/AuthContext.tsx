@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 import { useState, useEffect, ReactNode } from "react";
 
 import { AuthContext, ProfileData, User } from "./authContext";
