@@ -1,7 +1,7 @@
 //Seb ur code was really anoying to fix - Sebas.
 // JobSeekerProfile.tsx
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import {
   User,
   Mail,
