@@ -1,4 +1,5 @@
 import React, { FormEvent, useId, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 type SubmissionStatus = "idle" | "submitting" | "success" | "error";
 
@@ -18,6 +19,7 @@ function PrelaunchLandingPage() {
     linkedinUrl: "",
     portfolioUrl: "",
   });
+  const [privacyConsent, setPrivacyConsent] = useState(false);
 
   const [isEarlyAccessOpen, setIsEarlyAccessOpen] = useState(false);
   const [earlyAccessData, setEarlyAccessData] = useState({
@@ -34,6 +36,15 @@ function PrelaunchLandingPage() {
   const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [accountStep, setAccountStep] = useState<"prompt" | "form" | "success">("prompt");
+  const [accountPassword, setAccountPassword] = useState("");
+  const [accountConfirm, setAccountConfirm] = useState("");
+  const [accountError, setAccountError] = useState("");
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const navigate = useNavigate();
+
   const firstNameId = useId();
   const lastNameId = useId();
   const emailId = useId();
@@ -42,6 +53,7 @@ function PrelaunchLandingPage() {
   const linkedinId = useId();
   const portfolioId = useId();
   const resumeId = useId();
+  const privacyConsentId = useId();
   const earlyFirstNameId = useId();
   const earlyLastNameId = useId();
   const earlyEmailId = useId();
@@ -105,6 +117,7 @@ function PrelaunchLandingPage() {
       if (!firstName || !lastName) throw new Error("Please enter your name.");
       if (!email) throw new Error("Please enter your email.");
       if (!state) throw new Error("Please enter your state / region.");
+      if (!privacyConsent) throw new Error("Please agree to the privacy notice to continue.");
 
       // NEW: require at least one of LinkedIn or Resume
       const hasLinkedIn = linkedinUrl.length > 0;
@@ -139,6 +152,7 @@ function PrelaunchLandingPage() {
         if (!presignRes.ok) throw new Error(presignData?.error || "Unable to start upload.");
 
         ({ submission_id, object_key } = presignData as { submission_id: string; object_key: string });
+        setSubmissionId(submission_id);
         const { upload_url } = presignData as { upload_url: string };
 
         if (!submission_id || !object_key || !upload_url) {
@@ -170,6 +184,7 @@ function PrelaunchLandingPage() {
         phone: formData.phone.trim() || null,
         linkedin_url: linkedinUrl || null,
         portfolio_url: formData.portfolioUrl.trim() || null,
+        privacy_consent: privacyConsent,
       };
 
       const finalizeRes = await fetch(`${API_BASE}/api/intake/finalize`, {
@@ -184,6 +199,11 @@ function PrelaunchLandingPage() {
       }
 
       setSubmissionStatus("success");
+      setAccountModalOpen(true);
+      setAccountStep("prompt");
+      setAccountError("");
+      setAccountPassword("");
+      setAccountConfirm("");
       setFormData({
         firstName: "",
         lastName: "",
@@ -193,6 +213,7 @@ function PrelaunchLandingPage() {
         linkedinUrl: "",
         portfolioUrl: "",
       });
+      setPrivacyConsent(false);
       setResumeFile(null);
       setSelectedFileName("");
     } catch (error) {
@@ -202,6 +223,49 @@ function PrelaunchLandingPage() {
           ? error.message
           : "Unable to submit right now. Please try again.",
       );
+    }
+  };
+
+  const handleCreateAccount = async () => {
+    if (!submissionId) {
+      setAccountError("We couldn't find your submission ID. Please resubmit the form.");
+      return;
+    }
+    if (!accountPassword || accountPassword.length < 8) {
+      setAccountError("Please choose a password with at least 8 characters.");
+      return;
+    }
+    if (accountPassword !== accountConfirm) {
+      setAccountError("Passwords do not match.");
+      return;
+    }
+
+    setIsCreatingAccount(true);
+    setAccountError("");
+
+    try {
+      const response = await fetch(`${API_BASE}/api/intake/create-account`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          submission_id: submissionId,
+          password: accountPassword,
+          role: "job-seeker",
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || "Unable to create account right now.");
+      }
+
+      setAccountStep("success");
+    } catch (error) {
+      setAccountError(
+        error instanceof Error ? error.message : "Unable to create account right now.",
+      );
+    } finally {
+      setIsCreatingAccount(false);
     }
   };
 
@@ -427,6 +491,23 @@ function PrelaunchLandingPage() {
                       </div>
                     </div>
                   </div>
+
+                  <label
+                    htmlFor={privacyConsentId}
+                    className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-200/85"
+                  >
+                    <input
+                      id={privacyConsentId}
+                      type="checkbox"
+                      checked={privacyConsent}
+                      onChange={(e) => setPrivacyConsent(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/10 text-emerald-400 focus:ring-emerald-400/60"
+                    />
+                    <span>
+                      I consent to Solverah securely storing my resume and contact information for early
+                      access review.
+                    </span>
+                  </label>
 
                   <button
                     type="submit"
@@ -678,6 +759,122 @@ function PrelaunchLandingPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+      {accountModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-10">
+          <div
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+            onClick={() => setAccountModalOpen(false)}
+          />
+          <div className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl shadow-black/50">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.14em] text-emerald-200">Next step</p>
+                <h3 className="text-2xl font-semibold text-white">Save your profile?</h3>
+                <p className="mt-2 text-sm text-slate-200/80">
+                  Create an account and we’ll auto-fill your profile using your resume. You can edit
+                  anything later.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAccountModalOpen(false)}
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-200 transition hover:border-emerald-300/60 hover:text-emerald-100"
+              >
+                Close
+              </button>
+            </div>
+
+            {accountStep === "prompt" ? (
+              <div className="mt-6 space-y-4">
+                <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-slate-200/80">
+                  We’ll populate your personal info, work experience, skills, and education using the
+                  resume you shared.
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAccountModalOpen(false)}
+                    className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-emerald-300/60 hover:text-emerald-100"
+                  >
+                    Not now
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAccountStep("form")}
+                    className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30"
+                  >
+                    Create account
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {accountStep === "form" ? (
+              <div className="mt-6 space-y-4">
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-100">Create a password</label>
+                    <input
+                      type="password"
+                      value={accountPassword}
+                      onChange={(e) => setAccountPassword(e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-100">Confirm password</label>
+                    <input
+                      type="password"
+                      value={accountConfirm}
+                      onChange={(e) => setAccountConfirm(e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                    />
+                  </div>
+                </div>
+                {accountError ? (
+                  <p className="rounded-md bg-red-500/10 p-2 text-xs text-red-100 ring-1 ring-red-500/30">
+                    {accountError}
+                  </p>
+                ) : null}
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAccountStep("prompt")}
+                    className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-emerald-300/60 hover:text-emerald-100"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isCreatingAccount}
+                    onClick={handleCreateAccount}
+                    className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isCreatingAccount ? "Creating..." : "Create account"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {accountStep === "success" ? (
+              <div className="mt-6 space-y-4">
+                <div className="rounded-lg border border-emerald-300/30 bg-emerald-400/10 p-4 text-sm text-emerald-50">
+                  Account created! Your profile has been filled in from your resume.
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/login")}
+                    className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30"
+                  >
+                    Continue to login
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
