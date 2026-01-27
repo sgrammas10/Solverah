@@ -549,6 +549,85 @@ def intake_create_account():
     }), 201
 
 
+@limiter.limit("5 per minute")
+@app.post("/api/intake/sign-in")
+def intake_sign_in():
+    data = request.get_json(silent=True) or {}
+    if not data:
+        return jsonify({"error": "JSON body required"}), 400
+
+    submission_id = (data.get("submission_id") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
+
+    try:
+        uuid.UUID(submission_id)
+    except Exception:
+        return jsonify({"error": "Invalid submission_id"}), 400
+
+    if not email or not _is_valid_email(email):
+        return jsonify({"error": "Valid email is required"}), 400
+
+    intake = IntakeSubmission.query.filter_by(id=submission_id).first()
+    if not intake:
+        return jsonify({"error": "Submission not found"}), 404
+
+    if intake.email.lower() != email:
+        return jsonify({"error": "Email does not match submission"}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"error": "Account not found"}), 404
+
+    if user.locked_until and user.locked_until > datetime.datetime.utcnow():
+        return jsonify({"error": "Account locked. Try again later."}), 423
+
+    if not bcrypt.check_password_hash(user.password, password):
+        user.failed_login_attempts += 1
+        if user.failed_login_attempts >= MAX_LOGIN_ATTEMPTS:
+            user.locked_until = datetime.datetime.utcnow() + datetime.timedelta(
+                minutes=LOGIN_LOCKOUT_MINUTES
+            )
+            user.failed_login_attempts = 0
+        db.session.commit()
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    user.failed_login_attempts = 0
+    user.locked_until = None
+
+    intake_profile = _build_profile_from_intake(intake)
+    existing_profile = user.profile_data or {}
+    merged_profile = {**existing_profile, **intake_profile}
+    user.profile_data = merged_profile
+
+    full_name = f"{intake.first_name} {intake.last_name}".strip()
+    if full_name:
+        user.name = full_name
+
+    intake.status = "account_linked"
+    log_audit_event(
+        action="intake_attach",
+        actor_user_id=user.id,
+        resource="intake",
+        metadata={"submission_id": intake.id, "user_id": user.id},
+    )
+    db.session.commit()
+
+    access_token = create_access_token(identity=user.email)
+    resp = jsonify({
+        "message": "signed in",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+        },
+    })
+    set_access_cookies(resp, access_token)
+
+    return resp
+
+
 #Helper function for inital setup of profile on registration
 def default_profile(email="", name="", role="job-seeker"):
     first = name.split(" ")[0] if name else ""
