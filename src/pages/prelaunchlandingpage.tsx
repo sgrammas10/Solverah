@@ -37,12 +37,17 @@ function PrelaunchLandingPage() {
   const [errorMessage, setErrorMessage] = useState("");
 
   const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [submissionEmail, setSubmissionEmail] = useState("");
   const [accountModalOpen, setAccountModalOpen] = useState(false);
-  const [accountStep, setAccountStep] = useState<"prompt" | "form" | "success">("prompt");
+  const [accountStep, setAccountStep] = useState<"prompt" | "form" | "signin" | "success">("prompt");
+  const [accountAction, setAccountAction] = useState<"create" | "signin">("create");
+  const [signInEmail, setSignInEmail] = useState("");
+  const [signInPassword, setSignInPassword] = useState("");
   const [accountPassword, setAccountPassword] = useState("");
   const [accountConfirm, setAccountConfirm] = useState("");
   const [accountError, setAccountError] = useState("");
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
   const navigate = useNavigate();
 
   const firstNameId = useId();
@@ -201,7 +206,11 @@ function PrelaunchLandingPage() {
       setSubmissionStatus("success");
       setAccountModalOpen(true);
       setAccountStep("prompt");
+      setAccountAction("create");
       setAccountError("");
+      setSubmissionEmail(email);
+      setSignInEmail(email);
+      setSignInPassword("");
       setAccountPassword("");
       setAccountConfirm("");
       setFormData({
@@ -241,6 +250,7 @@ function PrelaunchLandingPage() {
     }
 
     setIsCreatingAccount(true);
+    setAccountAction("create");
     setAccountError("");
 
     try {
@@ -266,6 +276,51 @@ function PrelaunchLandingPage() {
       );
     } finally {
       setIsCreatingAccount(false);
+    }
+  };
+
+  const handleSignInExisting = async () => {
+    if (!submissionId) {
+      setAccountError("We couldn't find your submission ID. Please resubmit the form.");
+      return;
+    }
+    if (!signInEmail.trim()) {
+      setAccountError("Please enter the email used on your submission.");
+      return;
+    }
+    if (!signInPassword) {
+      setAccountError("Please enter your password.");
+      return;
+    }
+
+    setIsSigningIn(true);
+    setAccountAction("signin");
+    setAccountError("");
+
+    try {
+      const response = await fetch(`${API_BASE}/api/intake/sign-in`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          submission_id: submissionId,
+          email: signInEmail.trim(),
+          password: signInPassword,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || "Unable to sign in right now.");
+      }
+
+      setAccountStep("success");
+    } catch (error) {
+      setAccountError(
+        error instanceof Error ? error.message : "Unable to sign in right now.",
+      );
+    } finally {
+      setIsSigningIn(false);
     }
   };
 
@@ -796,6 +851,18 @@ function PrelaunchLandingPage() {
                 <div className="flex flex-wrap items-center justify-end gap-3">
                   <button
                     type="button"
+                    onClick={() => {
+                      setAccountStep("signin");
+                      setAccountError("");
+                      setSignInEmail(submissionEmail);
+                      setSignInPassword("");
+                    }}
+                    className="rounded-full border border-emerald-300/50 bg-emerald-300/10 px-5 py-2 text-sm font-semibold text-emerald-100 transition hover:border-emerald-200 hover:text-white"
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setAccountModalOpen(false)}
                     className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-emerald-300/60 hover:text-emerald-100"
                   >
@@ -859,19 +926,78 @@ function PrelaunchLandingPage() {
               </div>
             ) : null}
 
-            {accountStep === "success" ? (
+            {accountStep === "signin" ? (
               <div className="mt-6 space-y-4">
-                <div className="rounded-lg border border-emerald-300/30 bg-emerald-400/10 p-4 text-sm text-emerald-50">
-                  Account created! Your profile has been filled in from your resume.
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-100">Email</label>
+                    <input
+                      type="email"
+                      value={signInEmail}
+                      onChange={(e) => setSignInEmail(e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-100">Password</label>
+                    <input
+                      type="password"
+                      value={signInPassword}
+                      onChange={(e) => setSignInPassword(e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                    />
+                  </div>
                 </div>
+                {accountError ? (
+                  <p className="rounded-md bg-red-500/10 p-2 text-xs text-red-100 ring-1 ring-red-500/30">
+                    {accountError}
+                  </p>
+                ) : null}
                 <div className="flex flex-wrap items-center justify-end gap-3">
                   <button
                     type="button"
-                    onClick={() => navigate("/login")}
-                    className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30"
+                    onClick={() => setAccountStep("prompt")}
+                    className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-emerald-300/60 hover:text-emerald-100"
                   >
-                    Continue to login
+                    Back
                   </button>
+                  <button
+                    type="button"
+                    disabled={isSigningIn}
+                    onClick={handleSignInExisting}
+                    className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isSigningIn ? "Signing in..." : "Sign in"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {accountStep === "success" ? (
+              <div className="mt-6 space-y-4">
+                <div className="rounded-lg border border-emerald-300/30 bg-emerald-400/10 p-4 text-sm text-emerald-50">
+                  {accountAction === "signin"
+                    ? "Signed in! Your profile has been updated from your intake submission."
+                    : "Account created! Your profile has been filled in from your resume."}
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  {accountAction === "signin" ? (
+                    <button
+                      type="button"
+                      onClick={() => setAccountModalOpen(false)}
+                      className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30"
+                    >
+                      Continue
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/login")}
+                      className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30"
+                    >
+                      Continue to login
+                    </button>
+                  )}
                 </div>
               </div>
             ) : null}
