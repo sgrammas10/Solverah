@@ -824,7 +824,15 @@ function PrelaunchLandingPage() {
             onClick={() => setAccountModalOpen(false)}
           />
           <div className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl shadow-black/50">
-            <div className="flex flex-wrap items-start justify-between gap-4">
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => setAccountModalOpen(false)}
+              className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-semibold text-slate-200 transition hover:border-emerald-300/60 hover:text-emerald-100"
+            >
+              ×
+            </button>
+            <div className="flex flex-wrap items-start justify-between gap-4 pr-10">
               <div>
                 <p className="text-xs uppercase tracking-[0.14em] text-emerald-200">Next step</p>
                 <h3 className="text-2xl font-semibold text-white">Save your profile?</h3>
@@ -833,13 +841,6 @@ function PrelaunchLandingPage() {
                   anything later.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setAccountModalOpen(false)}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-200 transition hover:border-emerald-300/60 hover:text-emerald-100"
-              >
-                Close
-              </button>
             </div>
 
             {accountStep === "prompt" ? (
@@ -860,13 +861,6 @@ function PrelaunchLandingPage() {
                     className="rounded-full border border-emerald-300/50 bg-emerald-300/10 px-5 py-2 text-sm font-semibold text-emerald-100 transition hover:border-emerald-200 hover:text-white"
                   >
                     Sign in
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAccountModalOpen(false)}
-                    className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-emerald-300/60 hover:text-emerald-100"
-                  >
-                    Not now
                   </button>
                   <button
                     type="button"
