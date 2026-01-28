@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { 
   User, 
@@ -19,8 +19,8 @@ import SolverahYourFutureYourWayQuiz from "../components/SolverahYourFutureYourW
 type QuizQuestion = { id: number; text: string; options: string[] };
 
 // Import question banks from the quiz components
-import { careerJobSearchQuestionBank } from "../components/NextChapterYourWayQuiz";
-import { yourFutureYourWayQuestionBank } from "../components/SolverahYourFutureYourWayQuiz";
+import { careerJobSearchQuestionBank } from "../data/nextChapterYourWayQuiz";
+import { yourFutureYourWayQuestionBank } from "../data/solverahYourFutureYourWayQuiz";
 function JobSeekerProfile() {
   const { user, updateProfile, updateProfileData, fetchProfileData, saveProfileData, fetchWithAuth} = useAuth();
 
@@ -323,9 +323,9 @@ function JobSeekerProfile() {
       .sort((a, b) => a.id - b.id);
 
     return (
-      <section className="bg-white border border-gray-200 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">{title}</h3>
-        <ol className="space-y-3 list-decimal list-inside text-sm text-gray-900">
+      <section className="bg-slate-900/70 border border-white/10 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-white mb-3">{title}</h3>
+        <ol className="space-y-3 list-decimal list-inside text-sm text-white">
           {entries.map(({ id, idx }) => {
             const question = getQuestionById(id);
             if (!question) return null;
@@ -337,7 +337,7 @@ function JobSeekerProfile() {
             return (
               <li key={id}>
                 <div className="font-medium">{question.text}</div>
-                <div className="text-gray-700">
+                <div className="text-slate-200/80">
                   <span className="font-semibold">Your answer: </span>
                   {answerText}
                 </div>
@@ -621,16 +621,16 @@ function JobSeekerProfile() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-slate-100">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Job Seeker Profile</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-3xl font-bold text-white">Job Seeker Profile</h1>
+        <p className="text-slate-200/80 mt-2">
           Complete your profile to get better job matches and increase visibility to recruiters.
         </p>
       </div>
 
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200 mb-8">
+      <div className="border-b border-white/10 mb-8">
         <nav className="-mb-px flex space-x-8">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -647,8 +647,8 @@ function JobSeekerProfile() {
 
                 className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-emerald-300/60 text-emerald-200'
+                    : 'border-transparent text-slate-300 hover:text-slate-200/80 hover:border-white/10'
                 }`}
               >
                 <Icon className="h-5 w-5 mr-2" />
@@ -661,7 +661,7 @@ function JobSeekerProfile() {
 
       
       {!isSaved && (
-      <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md">
+      <div className="mb-4 p-3 bg-amber-500/10 border border-amber-400/30 text-amber-100 rounded-md">
            You have unsaved changes — don't forget to click <b>Save Profile</b>.
       </div>
       )}
@@ -669,12 +669,12 @@ function JobSeekerProfile() {
         {/* Personal Info Tab */}
         {activeTab === 'personal' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h2>
+            <div className="bg-slate-900/70 rounded-lg shadow-sm border border-white/10 p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">Personal Information</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     First Name
                   </label>
                   <input
@@ -682,12 +682,12 @@ function JobSeekerProfile() {
                     maxLength={25}
                     value={formData.firstName}
                     onChange={(e) => handleChange("firstName", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     Last Name
                   </label>
                   <input
@@ -695,12 +695,12 @@ function JobSeekerProfile() {
                     maxLength={25}
                     value={formData.lastName}
                     onChange={(e) => handleChange("lastName", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     Email
                   </label>
                   <input
@@ -708,12 +708,12 @@ function JobSeekerProfile() {
                     maxLength={50}
                     value={formData.email}
                     onChange={(e) => handleChange("email", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     Phone
                   </label>
                   <input
@@ -721,13 +721,13 @@ function JobSeekerProfile() {
                     maxLength={25}
                     value={formData.phone}
                     onChange={(e) => handleChange("phone", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                   />
                 </div>
 
                 {/* Primary Location */}
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     Primary Location (where you live)
                   </label>
                   <input
@@ -735,14 +735,14 @@ function JobSeekerProfile() {
                     maxLength={50}
                     value={formData.primaryLocation}
                     onChange={(e) => handleChange("primaryLocation", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                     placeholder="e.g., Annapolis, MD"
                   />
                 </div>
 
                 {/* Secondary / Open-to-work Locations */}
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     Open to work locations
                   </label>
 
@@ -750,13 +750,13 @@ function JobSeekerProfile() {
                     {formData.secondaryLocations.map((loc) => (
                       <span
                         key={loc}
-                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-500/10 text-blue-100"
                       >
                         {loc}
                         <button
                           type="button"
                           onClick={() => removeSecondaryLocation(loc)}
-                          className="ml-2 text-blue-600 hover:text-blue-500"
+                          className="ml-2 text-emerald-200 hover:text-emerald-100"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -769,7 +769,7 @@ function JobSeekerProfile() {
                       type="text"
                       maxLength={50}
                       placeholder="Add a location (press Enter)"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 border border-white/10 rounded-l-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                       onKeyPress={(e) => {
                         if (e.key === "Enter") {
                           e.preventDefault();
@@ -781,7 +781,7 @@ function JobSeekerProfile() {
                     />
                     <button
                       type="button"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700"
+                      className="px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-r-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400"
                       onClick={(e) => {
                         const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
                         addSecondaryLocation(input.value);
@@ -793,7 +793,7 @@ function JobSeekerProfile() {
                   </div>
 
                   {locationLimitMsg && (
-                    <div className="mt-2 p-2 text-red-600 bg-red-50 border border-red-200 rounded">
+                    <div className="mt-2 p-2 text-red-100 bg-red-500/10 border border-red-500/30 rounded">
                       {locationLimitMsg}
                     </div>
                   )}
@@ -801,7 +801,7 @@ function JobSeekerProfile() {
 
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-slate-200/80 mb-2">
                     Professional Summary
                   </label>
                   <textarea
@@ -809,33 +809,33 @@ function JobSeekerProfile() {
                     maxLength={4000}
                     value={formData.summary}
                     onChange={(e) => handleChange("summary", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                     placeholder="Brief summary of your professional background and career goals..."
                   />
                 </div>
               </div>
 
               {/* Resume Upload */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="mt-6 pt-6 border-t border-white/10">
+                <label className="block text-sm font-medium text-slate-200/80 mb-2">
                   Resume
                 </label>
                 {(uploadedResume || formData.uploadedResume) && (
-                  <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                  <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-400/30 rounded-md">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
-                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                            <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <div className="w-8 h-8 bg-emerald-400/10 rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 text-emerald-200" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
                           </div>
                         </div>
                         <div className="ml-3">
-                          <p className="text-sm font-medium text-green-800">
+                          <p className="text-sm font-medium text-emerald-100">
                             {uploadedResume?.name || formData.uploadedResume?.name || 'Resume uploaded successfully'}
                           </p>
-                          <p className="text-xs text-green-600">
+                          <p className="text-xs text-emerald-200">
                             {uploadedResume ? `${(uploadedResume.size / 1024 / 1024).toFixed(2)} MB` : 
                              formData.uploadedResume ? `${(formData.uploadedResume.size / 1024 / 1024).toFixed(2)} MB` : 'File processed'}
                           </p>
@@ -848,18 +848,18 @@ function JobSeekerProfile() {
                           setFormData((curr) => ({ ...curr, uploadedResume: null }));
                           setIsSaved(false);
                         }}
-                        className="text-green-600 hover:text-green-500"
+                        className="text-emerald-200 hover:text-emerald-100"
                       >
                         <X className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
                 )}
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-white/10 border-dashed rounded-md">
                   <div className="space-y-1 text-center">
-                    <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                    <div className="flex text-sm text-gray-600">
-                      <label htmlFor="resume-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500">
+                    <Upload className="mx-auto h-12 w-12 text-slate-400" />
+                    <div className="flex text-sm text-slate-200/80">
+                      <label htmlFor="resume-upload" className="relative cursor-pointer bg-slate-900/70 rounded-md font-medium text-emerald-200 hover:text-emerald-100">
                         <span>{(uploadedResume || resumeUploaded) ? 'Replace resume' : 'Upload your resume'}</span>
                         <input 
                           id="resume-upload" 
@@ -872,7 +872,7 @@ function JobSeekerProfile() {
                       </label>
                       <p className="pl-1">or drag and drop</p>
                     </div>
-                    <p className="text-xs text-gray-500">PDF, DOC, DOCX up to 10MB</p>
+                    <p className="text-xs text-slate-300">PDF, DOC, DOCX up to 10MB</p>
                   </div>
                 </div>
               </div>
@@ -883,32 +883,32 @@ function JobSeekerProfile() {
         {/* Experience Tab */}
         {activeTab === 'experience' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-slate-900/70 rounded-lg shadow-sm border border-white/10 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Work Experience</h2>           
+                <h2 className="text-lg font-semibold text-white">Work Experience</h2>           
                 <button
                   type="button"
                   onClick={addExperience}
-                  className="flex items-center px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-500"
+                  className="flex items-center px-3 py-2 text-sm font-medium text-emerald-200 hover:text-emerald-100"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Add Experience
                 </button>
               </div>
               {experienceLimitMsg && (
-                <div className="p-2 mb-3 text-red-600 bg-red-50 border border-red-200 rounded">
+                <div className="p-2 mb-3 text-red-100 bg-red-500/10 border border-red-500/30 rounded">
                   {experienceLimitMsg}
                 </div>
               )}
               <div className="space-y-6">
                 {formData.experience.map((exp, index) => (
-                  <div key={exp.id} className="p-4 border border-gray-200 rounded-lg">
+                  <div key={exp.id} className="p-4 border border-white/10 rounded-lg">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-medium text-gray-900">Experience #{index + 1}</h3>
+                      <h3 className="font-medium text-white">Experience #{index + 1}</h3>
                       <button
                         type="button"
                         onClick={() => removeExperience(exp.id)}
-                        className="text-red-600 hover:text-red-500"
+                        className="text-red-200 hover:text-red-100"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -916,7 +916,7 @@ function JobSeekerProfile() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-200/80 mb-1">
                           Company
                         </label>
                         <input
@@ -924,12 +924,12 @@ function JobSeekerProfile() {
                           maxLength={50}
                           value={exp.company}
                           onChange={(e) => updateExperience(exp.id, 'company', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-200/80 mb-1">
                           Position
                         </label>
                         <input
@@ -937,12 +937,12 @@ function JobSeekerProfile() {
                           maxLength={50}
                           value={exp.position}
                           onChange={(e) => updateExperience(exp.id, 'position', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-200/80 mb-1">
                           Start Date
                         </label>
                         <input
@@ -950,12 +950,12 @@ function JobSeekerProfile() {
                           maxLength={50}
                           value={exp.startDate}
                           onChange={(e) => updateExperience(exp.id, 'startDate', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-200/80 mb-1">
                           End Date
                         </label>
                         <input
@@ -963,13 +963,13 @@ function JobSeekerProfile() {
                           maxLength={50}
                           value={exp.endDate}
                           onChange={(e) => updateExperience(exp.id, 'endDate', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                           placeholder="Present"
                         />
                       </div>
 
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-200/80 mb-1">
                           Description
                         </label>
                         <textarea
@@ -977,7 +977,7 @@ function JobSeekerProfile() {
                           maxLength={4000}
                           value={exp.description}
                           onChange={(e) => updateExperience(exp.id, 'description', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                           placeholder="Describe your role, responsibilities, and achievements..."
                         />
                       </div>
@@ -987,19 +987,19 @@ function JobSeekerProfile() {
               </div>
 
               {/* Skills Section */}
-              <div className="mt-8 pt-6 border-t border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Skills</h3>
+              <div className="mt-8 pt-6 border-t border-white/10">
+                <h3 className="text-lg font-medium text-white mb-4">Skills</h3>
                 <div className="flex flex-wrap gap-2 mb-4">
                   {formData.skills.map((skill) => (
                     <span
                       key={skill}
-                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-500/10 text-blue-100"
                     >
                       {skill}
                       <button
                         type="button"
                         onClick={() => removeSkill(skill)}
-                        className="ml-2 text-blue-600 hover:text-blue-500"
+                        className="ml-2 text-emerald-200 hover:text-emerald-100"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -1011,7 +1011,7 @@ function JobSeekerProfile() {
                     type="text"
                     maxLength={50}
                     placeholder="Add a skill (press Enter)"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 border border-white/10 rounded-l-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                     onKeyPress={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -1023,7 +1023,7 @@ function JobSeekerProfile() {
                   />
                   <button
                     type="button"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700"
+                    className="px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-r-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400"
                     onClick={(e) => {
                       const input = (e.target as HTMLButtonElement).previousElementSibling as HTMLInputElement;
                       addSkill(input.value);
@@ -1034,7 +1034,7 @@ function JobSeekerProfile() {
                   </button>
                 </div>
                 {skillLimitMsg && (
-                  <div className="p-2 mb-3 text-red-600 bg-red-50 border border-red-200 rounded">
+                  <div className="p-2 mb-3 text-red-100 bg-red-500/10 border border-red-500/30 rounded">
                     {skillLimitMsg}
                   </div>
                 )}
@@ -1046,32 +1046,32 @@ function JobSeekerProfile() {
         {/* Education Tab */}
         {activeTab === 'education' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-slate-900/70 rounded-lg shadow-sm border border-white/10 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Education</h2>
+                <h2 className="text-lg font-semibold text-white">Education</h2>
                 <button
                   type="button"
                   onClick={addEducation}
-                  className="flex items-center px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-500"
+                  className="flex items-center px-3 py-2 text-sm font-medium text-emerald-200 hover:text-emerald-100"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Add Education
                 </button>
               </div>
               {educationLimitMsg && (
-                <div className="p-2 mb-3 text-red-600 bg-red-50 border border-red-200 rounded">
+                <div className="p-2 mb-3 text-red-100 bg-red-500/10 border border-red-500/30 rounded">
                   {educationLimitMsg}
                 </div>
               )}
               <div className="space-y-6">
                 {formData.education.map((edu, index) => (
-                  <div key={edu.id} className="p-4 border border-gray-200 rounded-lg">
+                  <div key={edu.id} className="p-4 border border-white/10 rounded-lg">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-medium text-gray-900">Education #{index + 1}</h3>
+                      <h3 className="font-medium text-white">Education #{index + 1}</h3>
                       <button
                         type="button"
                         onClick={() => removeEducation(edu.id)}
-                        className="text-red-600 hover:text-red-500"
+                        className="text-red-200 hover:text-red-100"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -1079,7 +1079,7 @@ function JobSeekerProfile() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-200/80 mb-1">
                           Institution
                         </label>
                         <input
@@ -1087,12 +1087,12 @@ function JobSeekerProfile() {
                           maxLength={50}
                           value={edu.institution}
                           onChange={(e) => updateEducation(edu.id, 'institution', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                         />
                       </div>
 
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-200/80 mb-1">
                           Degree
                         </label>
                         <input
@@ -1100,12 +1100,12 @@ function JobSeekerProfile() {
                           maxLength={50}
                           value={edu.degree}
                           onChange={(e) => updateEducation(edu.id, 'degree', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-200/80 mb-1">
                           Start Date
                         </label>
                         <input
@@ -1113,12 +1113,12 @@ function JobSeekerProfile() {
                           maxLength={50}
                           value={edu.startDate}
                           onChange={(e) => updateEducation(edu.id, 'startDate', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-200/80 mb-1">
                           End Date
                         </label>
                         <input
@@ -1126,12 +1126,12 @@ function JobSeekerProfile() {
                           maxLength={50}
                           value={edu.endDate}
                           onChange={(e) => updateEducation(edu.id, 'endDate', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-200/80 mb-1">
                           GPA (Optional)
                         </label>
                         <input
@@ -1139,7 +1139,7 @@ function JobSeekerProfile() {
                           maxLength={50}
                           value={edu.gpa}
                           onChange={(e) => updateEducation(edu.id, 'gpa', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                           placeholder="3.8"
                         />
                       </div>
@@ -1154,12 +1154,12 @@ function JobSeekerProfile() {
         {/* Performance Reviews Tab */}
         {activeTab === 'performance' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-slate-900/70 rounded-lg shadow-sm border border-white/10 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Performance Reviews</h2>
+                <h2 className="text-lg font-semibold text-white">Performance Reviews</h2>
                 <button
                   type="button"
-                  className="flex items-center px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-500"
+                  className="flex items-center px-3 py-2 text-sm font-medium text-emerald-200 hover:text-emerald-100"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Add Review
@@ -1168,23 +1168,23 @@ function JobSeekerProfile() {
 
               <div className="space-y-6">
                 {formData.performanceReviews.map((review) => (
-                  <div key={review.id} className="p-4 bg-gray-50 rounded-lg">
+                  <div key={review.id} className="p-4 bg-slate-900/60 rounded-lg">
                     <div className="flex items-center justify-between mb-3">
                       <div>
-                        <h3 className="font-medium text-gray-900">{review.company}</h3>
-                        <p className="text-sm text-gray-600">{review.period}</p>
+                        <h3 className="font-medium text-white">{review.company}</h3>
+                        <p className="text-sm text-slate-200/80">{review.period}</p>
                       </div>
                       <div className="flex items-center">
-                        <Star className="h-5 w-5 text-yellow-400 mr-1" />
-                        <span className="text-lg font-semibold text-gray-900">{review.rating}</span>
-                        <span className="text-gray-600">/5</span>
+                        <Star className="h-5 w-5 text-amber-300 mr-1" />
+                        <span className="text-lg font-semibold text-white">{review.rating}</span>
+                        <span className="text-slate-200/80">/5</span>
                       </div>
                     </div>
                     
-                    <p className="text-gray-700 mb-3">{review.summary}</p>
+                    <p className="text-slate-200/80 mb-3">{review.summary}</p>
                     
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-2">Key Achievements:</h4>
+                      <h4 className="font-medium text-white mb-2">Key Achievements:</h4>
                       <ul className="list-disc list-inside space-y-1">
                         {(review.keyAchievements as any[])?.map((achievement: any, index: number) => (
                           <li key={index}>{achievement}</li>
@@ -1201,11 +1201,11 @@ function JobSeekerProfile() {
         {/* Assessments Tab */}
         {activeTab === 'assessments' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <div className="bg-slate-900/70 rounded-lg shadow-sm border border-white/10 p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">
                 Solverah Career & Psychometric Quizzes
               </h2>
-              <p className="text-gray-600 mb-6">
+              <p className="text-slate-200/80 mb-6">
                 Explore our curated set of quizzes to uncover your strengths, personality traits, 
                 and career motivations. Your responses will be automatically saved to your profile.
               </p>
@@ -1213,48 +1213,48 @@ function JobSeekerProfile() {
               {/* Quiz Cards */}
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Career Quizzes & Archetypes */}
-                <div className="border border-gray-200 rounded-lg p-5 bg-gray-50 hover:shadow-md transition">
-                  <h3 className="text-lg font-semibold text-blue-600 mb-2">
+                <div className="border border-white/10 rounded-lg p-5 bg-slate-900/60 hover:shadow-md transition">
+                  <h3 className="text-lg font-semibold text-emerald-200 mb-2">
                     Career Quizzes & Archetypes
                   </h3>
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-sm text-slate-200/80 mb-4">
                     Learn what drives your success and identify your career archetype across multiple themed quizzes.
                   </p>
                   <Link
                     to="/career-quizzes"
-                    className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                    className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
                   >
                     Start Quiz
                   </Link>
                 </div>
 
                 {/* Career & Job Search */}
-                <div className="border border-gray-200 rounded-lg p-5 bg-gray-50 hover:shadow-md transition">
-                  <h3 className="text-lg font-semibold text-blue-600 mb-2">
+                <div className="border border-white/10 rounded-lg p-5 bg-slate-900/60 hover:shadow-md transition">
+                  <h3 className="text-lg font-semibold text-emerald-200 mb-2">
                     Career & Job Search
                   </h3>
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-sm text-slate-200/80 mb-4">
                     A reflection-based quiz for graduates and early-career professionals navigating their next chapter.
                   </p>
                   <Link
                     to="/career-job-search"
-                    className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                    className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
                   >
                     Start Quiz
                   </Link>
                 </div>
 
                 {/* Your Future, Your Way */}
-                <div className="border border-gray-200 rounded-lg p-5 bg-gray-50 hover:shadow-md transition md:col-span-2">
-                  <h3 className="text-lg font-semibold text-blue-600 mb-2">
+                <div className="border border-white/10 rounded-lg p-5 bg-slate-900/60 hover:shadow-md transition md:col-span-2">
+                  <h3 className="text-lg font-semibold text-emerald-200 mb-2">
                     Your Future, Your Way
                   </h3>
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-sm text-slate-200/80 mb-4">
                     A fun, teen-focused quiz that helps you explore interests, personality, and future goals in an engaging way.
                   </p>
                   <Link
                     to="/future-your-way"
-                    className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                    className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
                   >
                     Start Quiz
                   </Link>
@@ -1266,7 +1266,7 @@ function JobSeekerProfile() {
                   <button
                     type="button"
                     onClick={() => setShowQuizResults((prev) => !prev)}
-                    className="px-4 py-2 border border-blue-600 text-blue-600 rounded-md hover:bg-blue-50 text-sm font-medium"
+                    className="px-4 py-2 border border-emerald-300/60 text-emerald-200 rounded-md hover:bg-white/10 text-sm font-medium"
                   >
                     {showQuizResults ? 'Hide Quiz Results' : 'View Saved Quiz Results'}
                   </button>
@@ -1275,7 +1275,7 @@ function JobSeekerProfile() {
 
               {showQuizResults && formData.quizResults && (
                 <div className="mt-4 space-y-4">
-                  <h3 className="text-sm font-semibold text-gray-800">
+                  <h3 className="text-sm font-semibold text-slate-100">
                     Your Saved Quiz Results
                   </h3>
 
@@ -1308,17 +1308,17 @@ function JobSeekerProfile() {
               )}
 
               {/* Call to Action Banner */}
-              <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center">
-                <Brain className="h-5 w-5 text-yellow-600 mr-3" />
+              <div className="mt-8 p-4 bg-amber-500/10 border border-amber-400/30 rounded-lg flex items-center">
+                <Brain className="h-5 w-5 text-amber-200 mr-3" />
                 <div>
-                  <h3 className="font-medium text-yellow-900">Complete Your Assessments</h3>
-                  <p className="text-sm text-yellow-700">
+                  <h3 className="font-medium text-amber-100">Complete Your Assessments</h3>
+                  <p className="text-sm text-amber-200/80">
                     Taking these quizzes will improve your personalized job matching accuracy and help you stand out to employers.
                   </p>
                 </div>
                 <Link
                   to="/career-quizzes"
-                  className="ml-auto px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm"
+                  className="ml-auto px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-400 text-sm"
                 >
                   View All Quizzes
                 </Link>
@@ -1333,7 +1333,7 @@ function JobSeekerProfile() {
           <button
             type="submit"
             disabled={isSaving}
-            className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="px-6 py-3 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
             {isSaving ? 'Saving...' : 'Save Profile'}
           </button>
