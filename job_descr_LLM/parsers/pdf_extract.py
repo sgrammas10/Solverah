@@ -6,7 +6,7 @@ from pathlib import Path
 
 from pdfminer.high_level import extract_text
 
-from LLM.parsers.types import ParsedDocument
+from job_descr_LLM.parsers.types import ParsedDocument
 
 logger = logging.getLogger(__name__)
 
