@@ -111,6 +111,11 @@ DATE_PATTERN = re.compile(
     flags=re.IGNORECASE,
 )
 
+MULTI_SUMMER_RANGE = re.compile(
+    rf"(?P<start>{MONTH_PATTERN})\s*[–—-]\s*(?P<end>{MONTH_PATTERN})\s+(?P<y1>\d{{4}})\s*,\s*(?P<y2>\d{{4}})",
+    flags=re.IGNORECASE,
+)
+
 DEGREE_PATTERN = re.compile(
     r"\b((b\.?a\.?|b\.?s\.?|b\.tech|bachelor|bs|ba|ms|m\.?s\.?|m\.sc|master|mba|ph\.?d|phd|associate|beng|meng|jd|md))\b",
     flags=re.IGNORECASE,
@@ -493,8 +498,17 @@ def _parse_experience(lines: Sequence[str]) -> List[Dict[str, object]]:
 
     for k, date_idx in enumerate(date_idxs):
         date_line = scoped[date_idx]
-        duration_match = DATE_PATTERN.search(date_line)
-        duration = duration_match.group(0).strip() if duration_match else ""
+        duration = ""
+        multi_match = MULTI_SUMMER_RANGE.search(date_line)
+        if multi_match:
+            start = multi_match.group("start").strip()
+            end = multi_match.group("end").strip()
+            y1 = multi_match.group("y1")
+            y2 = multi_match.group("y2")
+            duration = f"{start} {y1} - {end} {y2}"
+        else:
+            duration_match = DATE_PATTERN.search(date_line)
+            duration = duration_match.group(0).strip() if duration_match else ""
 
         title, company = _infer_title_company_from_context(scoped, date_idx)
 
