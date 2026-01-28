@@ -127,15 +127,15 @@ CLEARANCE_PATTERN = re.compile(
 )
 
 # Headings
-HEADING_EXPERIENCE = re.compile(r"^(professional\s+experience|work\s+experience|experience)\b", re.I)
-HEADING_SKILLS = re.compile(r"^(technical\s+skills|skills|technologies|tools)\b", re.I)
+HEADING_EXPERIENCE = re.compile(r"^(professional\s+experience|work\s+experience|relevant\s+experience|experience)\b", re.I)
+HEADING_SKILLS = re.compile(r"^(technical\s+skills|relevant\s+skills|skills|technologies|tools)\b", re.I)
 HEADING_EDU = re.compile(r"^education\b", re.I)
 HEADING_PROJECTS = re.compile(r"^projects?\b", re.I)
 HEADING_CERTS = re.compile(r"^certifications?\b", re.I)
 
 MASTER_HEADING = re.compile(
     r"^(professional\s+summary|summary|technical\s+skills|skills|technologies|tools|"
-    r"professional\s+experience|work\s+experience|experience|education|projects?|"
+    r"relevant\s+skills|professional\s+experience|work\s+experience|relevant\s+experience|experience|education|projects?|"
     r"certifications?|publications?|volunteer\s+experience|additional\s+information)\b",
     re.I,
 )
@@ -413,6 +413,23 @@ def _infer_title_company_from_context(
             title = m2.group("title").strip()
         else:
             title = ""
+
+    if not title or not company:
+        date_match = DATE_PATTERN.search(date_line)
+        if date_match:
+            prefix = date_line[: date_match.start()].strip(" -|")
+            suffix = date_line[date_match.end() :].strip(" -|")
+            candidate = prefix or suffix
+            if candidate:
+                parts = re.split(r"\s*(?:—|–)\s*|\s+-\s+|\s*\|\s*", candidate, maxsplit=1)
+                if len(parts) == 2:
+                    if not title:
+                        title = parts[0].strip()
+                    if not company:
+                        company = _split_company_location(parts[1].strip())
+                else:
+                    if not title:
+                        title = candidate.strip()
 
     start = max(0, date_idx - lookback)
     window = [l for l in lines[start:date_idx] if l.strip()]
