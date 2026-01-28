@@ -31,8 +31,11 @@ class ExtractOptions:
         return self.dataset_root / "resumes_raw.jsonl"
 
 
-def _detect_extension(resume_key: str, resume_mime: str | None) -> str:
-    suffix = Path(resume_key).suffix.lower()
+def _detect_extension(resume_key: object, resume_mime: str | None) -> str:
+    if resume_key is None or pd.isna(resume_key):
+        return ""
+    resume_key_str = str(resume_key)
+    suffix = Path(resume_key_str).suffix.lower()
     if suffix:
         return suffix
     if resume_mime == "application/pdf":
@@ -60,8 +63,13 @@ def extract_resumes(options: ExtractOptions) -> None:
             submission_id = row["id"]
             resume_key = row["resume_key"]
             resume_mime = row.get("resume_mime")
-            suffix = _detect_extension(resume_key, resume_mime) or ".bin"
-            resume_path = options.resume_dir / f"{submission_id}{suffix}"
+            suffix = _detect_extension(resume_key, resume_mime)
+            resume_path = options.resume_dir / f"{submission_id}{suffix}" if suffix else None
+            if resume_path is None or not resume_path.exists():
+                matches = list(options.resume_dir.glob(f"{submission_id}.*"))
+                resume_path = matches[0] if matches else None
+            if resume_path is None:
+                resume_path = options.resume_dir / f"{submission_id}.bin"
             parsed = _choose_parser(resume_path)
             record = {
                 "id": submission_id,
