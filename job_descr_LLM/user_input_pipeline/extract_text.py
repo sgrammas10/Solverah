@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from LLM.parsers.docx_extract import parse_docx
-from LLM.parsers.pdf_extract import parse_pdf
-from LLM.parsers.types import ParsedDocument
+from job_descr_LLM.parsers.docx_extract import parse_docx
+from job_descr_LLM.parsers.pdf_extract import parse_pdf
+from job_descr_LLM.parsers.types import ParsedDocument
 
 
 @dataclass
