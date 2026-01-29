@@ -66,7 +66,11 @@ function PrelaunchLandingPage() {
   const earlyContactId = useId();
   const earlyJourneyId = useId();
 
-  const API_BASE = (import.meta as any).env?.VITE_API_URL ?? "";
+  const rawApiUrl = (import.meta.env.VITE_API_URL as string) || "http://localhost:5000/api";
+  const normalizedApiUrl = rawApiUrl.replace(/\/+$/, "");
+  const API_BASE = normalizedApiUrl.endsWith("/api")
+    ? normalizedApiUrl
+    : `${normalizedApiUrl}/api`;
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -147,7 +151,7 @@ function PrelaunchLandingPage() {
 
       if (resumeFile) {
         // 1) Presign
-        const presignRes = await fetch(`${API_BASE}/api/intake/presign`, {
+        const presignRes = await fetch(`${API_BASE}/intake/presign`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ mime: resumeFile.type, size: resumeFile.size }),
@@ -192,7 +196,7 @@ function PrelaunchLandingPage() {
         privacy_consent: privacyConsent,
       };
 
-      const finalizeRes = await fetch(`${API_BASE}/api/intake/finalize`, {
+      const finalizeRes = await fetch(`${API_BASE}/intake/finalize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(finalizePayload),
@@ -254,7 +258,7 @@ function PrelaunchLandingPage() {
     setAccountError("");
 
     try {
-      const response = await fetch(`${API_BASE}/api/intake/create-account`, {
+      const response = await fetch(`${API_BASE}/intake/create-account`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -298,7 +302,7 @@ function PrelaunchLandingPage() {
     setAccountError("");
 
     try {
-      const response = await fetch(`${API_BASE}/api/intake/sign-in`, {
+      const response = await fetch(`${API_BASE}/intake/sign-in`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
