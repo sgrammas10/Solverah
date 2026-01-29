@@ -719,7 +719,6 @@ def login():
     return resp
 
 @app.route("/api/logout", methods=["POST"])
-@jwt_required()  # requires valid cookie
 def logout():
     resp = jsonify({"message": "logout successful"})
     unset_jwt_cookies(resp)
