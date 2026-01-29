@@ -6,7 +6,7 @@ from pathlib import Path
 
 from docx import Document
 
-from LLM.parsers.types import ParsedDocument
+from job_descr_LLM.parsers.types import ParsedDocument
 
 logger = logging.getLogger(__name__)
 

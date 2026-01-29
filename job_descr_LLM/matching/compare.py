@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Mapping, Tuple
 
-from LLM.jd_input_pipeline.schema import JobDescriptionOutput
+from job_descr_LLM.jd_input_pipeline.schema import JobDescriptionOutput
 
 
 @dataclass(frozen=True)
