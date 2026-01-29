@@ -1,8 +1,8 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { AuthProvider } from "./contexts/AuthContext.tsx";
+import { useAuth } from "./contexts/useAuth";
 import Header from "./components/Header";
-import { PRELAUNCH_MODE } from "./config";
 
 // Quiz Components
 import CareerQuizzes from "./components/CareerQuizzes";
@@ -20,7 +20,6 @@ import JobSeekerProfile from "./pages/JobSeekerProfile";
 import RecruiterProfile from "./pages/RecruiterProfile";
 import Feed from "./pages/Feed";
 import SearchResults from "./pages/SearchResults"; // from your quiz-aware version
-
 
 // Role-based route protection
 function ProtectedRoute({
@@ -42,16 +41,15 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-slate-950 text-slate-100">
           <Header />
           <main>
             <Routes>
               {/* Public routes */}
-              {/* Prelaunch Landing Page change prelaunch mode to turn off*/}
-              <Route path="/" element={PRELAUNCH_MODE ? <PrelaunchLandingPage /> : <LandingPage />} />
-              <Route path="/login" element={PRELAUNCH_MODE ? <Navigate to="/" replace /> : <Login />} />
-              <Route path="/register" element={PRELAUNCH_MODE ? <Navigate to="/" replace /> : <Register />} />
-
+              <Route path="/" element={<PrelaunchLandingPage />} />
+              <Route path="/landing" element={<LandingPage />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
 
               {/* Shared feed + search routes */}
               <Route

@@ -1,40 +1,15 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+/// <reference types="vite/client" />
 
-export type ProfileData = Record<string, unknown> & {
-  quizResults?: Record<string, unknown>;
-  _quizSummary?: Record<string, unknown>;
-};
+import { useState, useEffect, ReactNode } from "react";
 
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: 'job-seeker' | 'recruiter';
-  profileComplete: boolean;
-  profileData?: ProfileData;
-}
-
-interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, role: 'job-seeker' | 'recruiter') => Promise<void>;
-  logout: () => Promise<void>;
-  fetchProfile: () => Promise<void>;
-  fetchWithAuth: <T = any>(endpoint: string, options?: RequestInit) => Promise<T>;
-  fetchProfileData?: () => Promise<{ profileData?: ProfileData } | null>;
-  saveProfileData?: (profileData: ProfileData) => Promise<{ profileData?: ProfileData } | null>;
-
-  updateProfile?: (updates: Partial<User>) => void;
-  updateProfileData?: (profileData: ProfileData) => void;
-}
-
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext, ProfileData, User } from "./authContext";
 
 // const API_URL = "http://127.0.0.1:5000/api";
 // const API_URL = "http://localhost:5000/api";
 
-const API_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:5000/api";
+const rawApiUrl = (import.meta.env.VITE_API_URL as string) || "http://localhost:5000/api";
+const normalizedApiUrl = rawApiUrl.replace(/\/+$/, "");
+const API_URL = normalizedApiUrl.endsWith("/api") ? normalizedApiUrl : `${normalizedApiUrl}/api`;
 
 const getCookie = (name: string): string | null => {
   const match = document.cookie.match(
@@ -123,16 +98,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // The backend sets a secure cookie — we only store the user object
-    setUser(data.user as User);
+    const userData = data.user as User;
+    setUser(userData);
 
     const csrf = getCookie("csrf_access_token");
     if (csrf) {
       setCsrfToken(csrf);
     }
+
+    return userData;
   };
 
   // REGISTER — then user logs in normally
-  const register = async (email: string, password: string, name: string, role: 'job-seeker' | 'recruiter') => {
+  const register = async (
+    email: string,
+    password: string,
+    name: string,
+    role: "job-seeker" | "recruiter"
+  ) => {
     const res = await fetch(`${API_URL}/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -199,16 +182,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-400"></div>
       </div>
     );
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
 }
