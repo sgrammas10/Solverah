@@ -327,7 +327,7 @@ export default function CareerQuizzesArchetypesTab() {
           await saveProfileData(newProfileData);
           setHasSaved(true);
           setIsEditing(false);
-          navigate("/job-seeker/profile?tab=quizzes");
+          navigate("/job-seeker/profile?tab=assessments");
         } else {
           // If AuthContext doesn't expose saveProfileData, log and show a fallback message
           console.warn("saveProfileData not available on AuthContext");

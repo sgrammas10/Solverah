@@ -311,6 +311,7 @@ def _build_profile_from_intake(intake: IntakeSubmission) -> dict:
                 "size": intake.resume_size_bytes,
                 "type": intake.resume_mime,
             },
+            "resumeKey": intake.resume_key,
         }
     )
 
@@ -862,6 +863,36 @@ def profile():
         "message": "Profile updated successfully",
         "profileData": user.profile_data
     })
+
+
+@app.route("/api/profile/resume-url", methods=["GET"])
+@jwt_required()
+def get_profile_resume_url():
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    profile = user.profile_data or {}
+    resume_key = profile.get("resumeKey")
+    if not resume_key:
+        return jsonify({"error": "No resume on file"}), 404
+
+    s3 = get_s3_client()
+    bucket = os.environ["S3_BUCKET_NAME"]
+    try:
+        url = s3.generate_presigned_url(
+            ClientMethod="get_object",
+            Params={
+                "Bucket": bucket,
+                "Key": resume_key,
+            },
+            ExpiresIn=10 * 60,
+        )
+    except Exception:
+        return jsonify({"error": "Unable to generate resume URL"}), 500
+
+    return jsonify({"url": url})
 
 
 
