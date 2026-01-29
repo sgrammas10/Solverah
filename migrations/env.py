@@ -1,19 +1,21 @@
 from __future__ import with_statement
 
+import os
+
 from alembic import context
-from flask import current_app
 from sqlalchemy import engine_from_config, pool
+
+from model import db
 
 config = context.config
 
-config.set_main_option(
-    "sqlalchemy.url",
-    current_app.config.get("SQLALCHEMY_DATABASE_URI"),
-)
+database_url = os.environ.get("DATABASE_URL")
+if database_url:
+    config.set_main_option("sqlalchemy.url", database_url)
 
 
 def get_metadata():
-    return current_app.extensions["migrate"].db.metadata
+    return db.metadata
 
 
 def run_migrations_offline():
