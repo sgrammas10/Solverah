@@ -1016,7 +1016,6 @@ def get_dashboard_data():
 
     # Simple example recent activity & recommendations
     recent_activity = [
-        {"type": "match", "text": "New job match found", "time": "2 hours ago", "icon": "Briefcase"},
         {"type": "assessment", "text": "Complete your leadership assessment", "time": "1 day ago", "icon": "Brain"}
     ]
 

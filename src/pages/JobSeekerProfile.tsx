@@ -1224,7 +1224,7 @@ function JobSeekerProfile() {
                     to="/career-quizzes"
                     className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
                   >
-                    Start Quiz
+                    {formData.quizResults?.careerQuizzes ? "View Answers" : "Start Quiz"}
                   </Link>
                 </div>
 
@@ -1240,7 +1240,7 @@ function JobSeekerProfile() {
                     to="/career-job-search"
                     className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
                   >
-                    Start Quiz
+                    {formData.quizResults?.careerJobSearch ? "View Answers" : "Start Quiz"}
                   </Link>
                 </div>
 
@@ -1256,56 +1256,10 @@ function JobSeekerProfile() {
                     to="/future-your-way"
                     className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
                   >
-                    Start Quiz
+                    {formData.quizResults?.yourFutureYourWay ? "View Answers" : "Start Quiz"}
                   </Link>
                 </div>
               </div>
-              {/* View Saved Quiz Results */}
-              {formData.quizResults && (
-                <div className="mt-6 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setShowQuizResults((prev) => !prev)}
-                    className="px-4 py-2 border border-emerald-300/60 text-emerald-200 rounded-md hover:bg-white/10 text-sm font-medium"
-                  >
-                    {showQuizResults ? 'Hide Quiz Results' : 'View Saved Quiz Results'}
-                  </button>
-                </div>
-              )}
-
-              {showQuizResults && formData.quizResults && (
-                <div className="mt-4 space-y-4">
-                  <h3 className="text-sm font-semibold text-slate-100">
-                    Your Saved Quiz Results
-                  </h3>
-
-                  {(() => {
-                    const quizResults = formData.quizResults as any;
-
-                    return (
-                      <>
-                        {quizResults.careerJobSearch && (
-                          <QuizResultsSection
-                            title="Career & Job Search"
-                            questions={careerJobSearchQuestionBank as QuizQuestion[]}
-                            answers={quizResults.careerJobSearch as Record<string, number>}
-                          />
-                        )}
-
-                        {quizResults.yourFutureYourWay && (
-                          <QuizResultsSection
-                            title="Your Future, Your Way"
-                            questions={yourFutureYourWayQuestionBank as QuizQuestion[]}
-                            answers={quizResults.yourFutureYourWay as Record<string, number>}
-                          />
-                        )}
-
-                        {/*  can add more quizzes here*/}
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
 
               {/* Call to Action Banner */}
               <div className="mt-8 p-4 bg-amber-500/10 border border-amber-400/30 rounded-lg flex items-center">
