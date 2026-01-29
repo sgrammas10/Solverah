@@ -90,7 +90,7 @@ export default function YourFutureYourWayTab() {
           await saveProfileData(newProfileData);
           setHasSaved(true);
           setIsEditing(false);
-          navigate("/job-seeker/profile?tab=quizzes");
+          navigate("/job-seeker/profile?tab=assessments");
         } else {
           alert("Unable to save responses (not authenticated).");
         }

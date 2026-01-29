@@ -97,6 +97,7 @@ function JobSeekerProfile() {
     };
 
     uploadedResume: UploadedResume | null;
+    resumeKey?: string | null;
     quizResults?: Record<string, unknown>;
     _quizSummary?: Record<string, unknown>;
   }
@@ -122,6 +123,7 @@ function JobSeekerProfile() {
       teamwork: { score: number | null; percentile: number | null; completed: boolean };
     };
     uploadedResume: { name: string; size: number; type: string } | null;
+    resumeKey?: string | null;
     quizResults?: Record<string, unknown>;
     _quizSummary?: Record<string, unknown>;
   }
@@ -150,6 +152,7 @@ function JobSeekerProfile() {
       teamwork: { score: null, percentile: null, completed: false },
     },
     uploadedResume: null,
+    resumeKey: null,
   });
 
 
@@ -232,6 +235,7 @@ function JobSeekerProfile() {
       performanceReviews: incoming.performanceReviews ?? undefined,
       psychometricResults: incoming.psychometricResults ?? undefined,
       uploadedResume: incoming.uploadedResume ?? undefined,
+      resumeKey: incoming.resumeKey ?? undefined,
       quizResults: incoming.quizResults ?? undefined,
       _quizSummary: incoming._quizSummary ?? undefined,
     };
@@ -518,6 +522,17 @@ function JobSeekerProfile() {
     if (file) {
       setUploadedResume(file);
       setIsSaved(false);
+    }
+  };
+  const handleViewResume = async () => {
+    try {
+      const data = await fetchWithAuth<{ url: string }>("/profile/resume-url", { method: "GET" });
+      if (data?.url) {
+        window.open(data.url, "_blank", "noopener,noreferrer");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Unable to open resume right now.");
     }
   };
   const MAX_EDUCATIONS = 10;
@@ -853,6 +868,17 @@ function JobSeekerProfile() {
                         <X className="h-4 w-4" />
                       </button>
                     </div>
+                    {formData.resumeKey && (
+                      <div className="mt-3 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={handleViewResume}
+                          className="rounded-full border border-emerald-300/50 px-3 py-1 text-xs font-semibold text-emerald-100 hover:border-emerald-200"
+                        >
+                          View Resume
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-white/10 border-dashed rounded-md">
