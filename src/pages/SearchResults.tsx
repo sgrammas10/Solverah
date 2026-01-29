@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from '../contexts/useAuth';
 import { Search } from "lucide-react";
 
 const RESULTS_PER_PAGE = 5; // adjust as you like
@@ -53,36 +53,36 @@ export default function SearchResults() {
   if (loading)
     return (
       <div className="flex justify-center items-center h-64">
-        <Search className="animate-spin w-6 h-6 text-gray-500" />
+        <Search className="animate-spin w-6 h-6 text-slate-400" />
       </div>
     );
 
   if (!filtered.length)
     return (
-      <div className="text-center py-20">
-        <Search className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-        <h2 className="text-lg font-semibold text-gray-700">
+      <div className="text-center py-20 text-slate-100">
+        <Search className="mx-auto h-12 w-12 text-slate-500 mb-4" />
+        <h2 className="text-lg font-semibold text-white">
           No results found for “{query}”
         </h2>
-        <p className="text-gray-500">Try adjusting your search terms.</p>
-        <Link to="/feed" className="text-blue-600 mt-4 hover:underline">
+        <p className="text-slate-300">Try adjusting your search terms.</p>
+        <Link to="/feed" className="text-emerald-200 mt-4 hover:underline">
           ← Back to Feed
         </Link>
       </div>
     );
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-10">
-      <div className="mb-6 flex justify-between items-center">
+    <div className="max-w-5xl mx-auto px-6 py-10 text-slate-100">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">
+          <h1 className="text-2xl font-semibold text-white">
             Search results for “{query}”
           </h1>
-          <p className="text-gray-500">
+          <p className="text-slate-300">
             Showing {startIdx + 1}–{Math.min(endIdx, filtered.length)} of {filtered.length} results
           </p>
         </div>
-        <Link to="/feed" className="text-blue-600 hover:underline">
+        <Link to="/feed" className="text-emerald-200 hover:underline">
           ← Back to Feed
         </Link>
       </div>
@@ -93,20 +93,20 @@ export default function SearchResults() {
           const isExpanded = !!expanded[idKey];
 
           return (
-            <div key={idKey} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm">
+            <div key={idKey} className="border border-white/10 rounded-lg bg-slate-900/60 p-4 shadow-lg shadow-black/20">
               <a
                 href={job.Link || "#"}
-                className="text-blue-600 font-semibold text-lg hover:underline"
+                className="text-emerald-200 font-semibold text-lg hover:underline"
                 target="_blank"
                 rel="noreferrer"
               >
                 {job.Title}
               </a>
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-slate-200/80">
                 {job.Company} • {job.Location} • {job.EmploymentType}
               </div>
 
-              <div className="text-gray-700 mt-3 whitespace-pre-line">
+              <div className="text-slate-200/80 mt-3 whitespace-pre-line">
                 {isExpanded
                   ? job.RoleDescription
                   : job.RoleDescription?.slice(0, 250) + (job.RoleDescription?.length > 250 ? "..." : "")}
@@ -115,13 +115,13 @@ export default function SearchResults() {
               {job.RoleDescription?.length > 250 && (
                 <button
                   onClick={() => toggleExpanded(idKey)}
-                  className="mt-2 text-sm text-blue-600 hover:underline"
+                  className="mt-2 text-sm text-emerald-200 hover:underline"
                 >
                   {isExpanded ? "View less" : "View more"}
                 </button>
               )}
 
-              <div className="text-xs text-gray-400 mt-2">
+              <div className="text-xs text-slate-400 mt-2">
                 Match score: {(job.score * 100).toFixed(0)}%
               </div>
             </div>
@@ -131,12 +131,14 @@ export default function SearchResults() {
 
       {/* Pagination controls */}
       {totalPages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-8">
+        <div className="flex flex-wrap justify-center items-center gap-2 mt-8">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className={`px-3 py-1 border rounded-md ${
-              page === 1 ? "text-gray-400 border-gray-200" : "text-blue-600 border-blue-300 hover:bg-blue-50"
+            className={`px-3 py-1 border rounded-full text-sm ${
+              page === 1
+                ? "text-slate-500 border-white/10"
+                : "text-emerald-200 border-emerald-300/40 hover:bg-white/5"
             }`}
           >
             Previous
@@ -146,10 +148,10 @@ export default function SearchResults() {
             <button
               key={i}
               onClick={() => setPage(i + 1)}
-              className={`px-3 py-1 rounded-md border ${
+              className={`px-3 py-1 rounded-full border text-sm ${
                 page === i + 1
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "border-gray-300 hover:bg-gray-100"
+                  ? "bg-emerald-400/20 text-emerald-100 border-emerald-300/40"
+                  : "border-white/10 text-slate-200 hover:bg-white/5"
               }`}
             >
               {i + 1}
@@ -159,10 +161,10 @@ export default function SearchResults() {
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className={`px-3 py-1 border rounded-md ${
+            className={`px-3 py-1 border rounded-full text-sm ${
               page === totalPages
-                ? "text-gray-400 border-gray-200"
-                : "text-blue-600 border-blue-300 hover:bg-blue-50"
+                ? "text-slate-500 border-white/10"
+                : "text-emerald-200 border-emerald-300/40 hover:bg-white/5"
             }`}
           >
             Next

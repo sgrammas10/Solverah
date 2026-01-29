@@ -111,6 +111,11 @@ DATE_PATTERN = re.compile(
     flags=re.IGNORECASE,
 )
 
+MULTI_SUMMER_RANGE = re.compile(
+    rf"(?P<start>{MONTH_PATTERN})\s*[–—-]\s*(?P<end>{MONTH_PATTERN})\s+(?P<y1>\d{{4}})\s*,\s*(?P<y2>\d{{4}})",
+    flags=re.IGNORECASE,
+)
+
 DEGREE_PATTERN = re.compile(
     r"\b((b\.?a\.?|b\.?s\.?|b\.tech|bachelor|bs|ba|ms|m\.?s\.?|m\.sc|master|mba|ph\.?d|phd|associate|beng|meng|jd|md))\b",
     flags=re.IGNORECASE,
@@ -127,15 +132,15 @@ CLEARANCE_PATTERN = re.compile(
 )
 
 # Headings
-HEADING_EXPERIENCE = re.compile(r"^(professional\s+experience|work\s+experience|experience)\b", re.I)
-HEADING_SKILLS = re.compile(r"^(technical\s+skills|skills|technologies|tools)\b", re.I)
+HEADING_EXPERIENCE = re.compile(r"^(professional\s+experience|work\s+experience|relevant\s+experience|experience)\b", re.I)
+HEADING_SKILLS = re.compile(r"^(technical\s+skills|relevant\s+skills|skills|technologies|tools)\b", re.I)
 HEADING_EDU = re.compile(r"^education\b", re.I)
 HEADING_PROJECTS = re.compile(r"^projects?\b", re.I)
 HEADING_CERTS = re.compile(r"^certifications?\b", re.I)
 
 MASTER_HEADING = re.compile(
     r"^(professional\s+summary|summary|technical\s+skills|skills|technologies|tools|"
-    r"professional\s+experience|work\s+experience|experience|education|projects?|"
+    r"relevant\s+skills|professional\s+experience|work\s+experience|relevant\s+experience|experience|education|projects?|"
     r"certifications?|publications?|volunteer\s+experience|additional\s+information)\b",
     re.I,
 )
@@ -414,6 +419,23 @@ def _infer_title_company_from_context(
         else:
             title = ""
 
+    if not title or not company:
+        date_match = DATE_PATTERN.search(date_line)
+        if date_match:
+            prefix = date_line[: date_match.start()].strip(" -|")
+            suffix = date_line[date_match.end() :].strip(" -|")
+            candidate = prefix or suffix
+            if candidate:
+                parts = re.split(r"\s*(?:—|–)\s*|\s+-\s+|\s*\|\s*", candidate, maxsplit=1)
+                if len(parts) == 2:
+                    if not title:
+                        title = parts[0].strip()
+                    if not company:
+                        company = _split_company_location(parts[1].strip())
+                else:
+                    if not title:
+                        title = candidate.strip()
+
     start = max(0, date_idx - lookback)
     window = [l for l in lines[start:date_idx] if l.strip()]
 
@@ -476,8 +498,17 @@ def _parse_experience(lines: Sequence[str]) -> List[Dict[str, object]]:
 
     for k, date_idx in enumerate(date_idxs):
         date_line = scoped[date_idx]
-        duration_match = DATE_PATTERN.search(date_line)
-        duration = duration_match.group(0).strip() if duration_match else ""
+        duration = ""
+        multi_match = MULTI_SUMMER_RANGE.search(date_line)
+        if multi_match:
+            start = multi_match.group("start").strip()
+            end = multi_match.group("end").strip()
+            y1 = multi_match.group("y1")
+            y2 = multi_match.group("y2")
+            duration = f"{start} {y1} - {end} {y2}"
+        else:
+            duration_match = DATE_PATTERN.search(date_line)
+            duration = duration_match.group(0).strip() if duration_match else ""
 
         title, company = _infer_title_company_from_context(scoped, date_idx)
 

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-from LLM.user_input_pipeline.resume_parser import parse_resume
+from job_descr_LLM.user_input_pipeline.resume_parser import parse_resume
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

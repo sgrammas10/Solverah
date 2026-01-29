@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from '../contexts/useAuth';
 import { useNavigate } from "react-router-dom";
 
 
@@ -316,7 +316,7 @@ export default function CareerQuizzesArchetypesTab() {
   };
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
+    <div className="p-4 max-w-4xl mx-auto text-slate-100">
       {/* Title for the overall tab */}
       <h2 className="text-xl font-semibold mb-2">Career Quizzes &amp; Archetypes</h2>
 
@@ -364,7 +364,7 @@ export default function CareerQuizzesArchetypesTab() {
       </section>
 
       {/* Button that triggers saving all responses to the profile */}
-      <button type="button" onClick={onSubmitAll} className="border px-3 py-2">
+      <button type="button" onClick={onSubmitAll} className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25">
         Submit All
       </button>
     </div>

@@ -1,3 +1,21 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100;
+  }
+
+  input,
+  textarea,
+  select {
+    @apply bg-white/5 text-slate-100 placeholder:text-slate-400 border-white/10;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    @apply outline-none ring-2 ring-emerald-300/50 border-emerald-300/70;
+  }
+}

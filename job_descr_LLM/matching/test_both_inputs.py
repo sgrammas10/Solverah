@@ -9,11 +9,11 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-from LLM.jd_input_pipeline import run as jd_run
-from LLM.matching.compare import compare_profiles
-from LLM.user_input_pipeline.build_model_inputs import build_model_inputs
-from LLM.user_input_pipeline.clean_text import clean_raw_resumes
-from LLM.user_input_pipeline.extract_text import ExtractOptions, extract_resumes
+from job_descr_LLM.jd_input_pipeline import run as jd_run
+from job_descr_LLM.matching.compare import compare_profiles
+from job_descr_LLM.user_input_pipeline.build_model_inputs import build_model_inputs
+from job_descr_LLM.user_input_pipeline.clean_text import clean_raw_resumes
+from job_descr_LLM.user_input_pipeline.extract_text import ExtractOptions, extract_resumes
 
 
 class TestTwoInputPipelineFlow(unittest.TestCase):
