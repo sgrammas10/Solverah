@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from '../contexts/useAuth';
 import { useNavigate } from "react-router-dom";
 
@@ -250,13 +250,36 @@ const archetypes = [
 export default function CareerQuizzesArchetypesTab() {
   // answers state structure:
   // answers[quizKey][questionId] = optionIndex (0-based index into options array)
-  const [answers, setAnswers] = useState<Record<string, Record<number, number>>>(
-    {}
-  );
+  const [answers, setAnswers] = useState<Record<string, Record<number, number>>>({});
+  const [isEditing, setIsEditing] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false);
 
   // Get profile-related actions from AuthContext
   const { fetchProfileData, saveProfileData } = useAuth();
   const navigate = useNavigate();
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!fetchProfileData) {
+          setIsEditing(true);
+          return;
+        }
+        const current = await fetchProfileData();
+        const profileData = current?.profileData || current || {};
+        const saved = (profileData as any)?.quizResults?.careerQuizzes;
+        if (saved && typeof saved === "object") {
+          setAnswers(saved);
+          setHasSaved(true);
+          setIsEditing(false);
+        } else {
+          setIsEditing(true);
+        }
+      } catch (err) {
+        console.error(err);
+        setIsEditing(true);
+      }
+    })();
+  }, [fetchProfileData]);
 
 
   /**
@@ -289,18 +312,21 @@ export default function CareerQuizzesArchetypesTab() {
         const profileData = current?.profileData || current || {};
 
         // New profile object with quiz results merged in
+        const existingQuizResults = (profileData as any)?.quizResults || {};
         const newProfileData = {
           ...profileData,
           quizResults: {
+            ...existingQuizResults,
             careerQuizzes: answers,
-            submittedAt: new Date().toISOString(), // timestamp for when quizzes were submitted
+            careerQuizzesSubmittedAt: new Date().toISOString(),
           },
         };
 
         // If saveProfileData is available, persist the updated profile
         if (saveProfileData) {
           await saveProfileData(newProfileData);
-          alert("Responses saved to your profile.");
+          setHasSaved(true);
+          setIsEditing(false);
           navigate("/job-seeker/profile?tab=quizzes");
         } else {
           // If AuthContext doesn't expose saveProfileData, log and show a fallback message
@@ -320,38 +346,89 @@ export default function CareerQuizzesArchetypesTab() {
       {/* Title for the overall tab */}
       <h2 className="text-xl font-semibold mb-2">Career Quizzes &amp; Archetypes</h2>
 
-      {/* Render each quiz section */}
-      {quizzes.map((quiz) => (
-        <section key={quiz.key} className="mb-8">
-          <h3 className="text-lg font-medium mb-2">{quiz.title}</h3>
-          <ol start={1} className="space-y-4 pl-5">
-            {quiz.questions.map((q) => (
-              <li key={q.id}>
-                <fieldset>
-                  <legend className="mb-1">
-                    {q.id}. {q.text}
-                  </legend>
-                  {/* Render options as radio buttons for each question */}
-                  {q.options.map((opt, idx) => (
-                    <label key={idx} className="block">
-                      <input
-                        type="radio"
-                        // Use a unique name per question so radios are grouped correctly
-                        name={`${quiz.key}-q${q.id}`}
-                        // Check if this option is the selected index for this question
-                        checked={(answers[quiz.key]?.[q.id] ?? -1) === idx}
-                        // Update state when user selects this option
-                        onChange={() => onChange(quiz.key, q.id, idx)}
-                      />{" "}
-                      {opt}
-                    </label>
-                  ))}
-                </fieldset>
-              </li>
+      {!isEditing && hasSaved ? (
+        <div className="mb-8 rounded-2xl border border-white/10 bg-slate-900/60 p-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-semibold text-white">Your Results</h3>
+              <p className="text-sm text-slate-200/80">
+                Review your saved responses. You can update them anytime.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate("/job-seeker/profile?tab=assessments")}
+                className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-emerald-300/60"
+              >
+                Back to Assessments
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-emerald-300/60"
+              >
+                Change Answers
+              </button>
+            </div>
+          </div>
+          <div className="mt-6 space-y-6">
+            {quizzes.map((quiz) => (
+              <section key={quiz.key}>
+                <h4 className="text-base font-semibold text-white">{quiz.title}</h4>
+                <ul className="mt-3 space-y-3">
+                  {quiz.questions.map((q) => {
+                    const selected = answers?.[quiz.key]?.[q.id];
+                    const answerText =
+                      typeof selected === "number" ? q.options[selected] : "No answer selected";
+                    return (
+                      <li key={q.id} className="rounded-lg border border-white/10 bg-white/5 p-3">
+                        <p className="text-sm text-slate-100">{q.text}</p>
+                        <p className="mt-1 text-sm text-emerald-200">{answerText}</p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
             ))}
-          </ol>
-        </section>
-      ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Render each quiz section */}
+          {quizzes.map((quiz) => (
+            <section key={quiz.key} className="mb-8">
+              <h3 className="text-lg font-medium mb-2">{quiz.title}</h3>
+              <ol start={1} className="space-y-4 pl-5">
+                {quiz.questions.map((q) => (
+                  <li key={q.id}>
+                    <fieldset>
+                      <legend className="mb-1">
+                        {q.id}. {q.text}
+                      </legend>
+                      {/* Render options as radio buttons for each question */}
+                      {q.options.map((opt, idx) => (
+                        <label key={idx} className="block">
+                          <input
+                            type="radio"
+                            // Use a unique name per question so radios are grouped correctly
+                            name={`${quiz.key}-q${q.id}`}
+                            // Check if this option is the selected index for this question
+                            checked={(answers[quiz.key]?.[q.id] ?? -1) === idx}
+                            // Update state when user selects this option
+                            onChange={() => onChange(quiz.key, q.id, idx)}
+                          />{" "}
+                          {opt}
+                        </label>
+                      ))}
+                    </fieldset>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ))}
+        </>
+      )}
 
       {/* Static list of archetypes for the user to read */}
       <section className="mb-6">
@@ -364,9 +441,11 @@ export default function CareerQuizzesArchetypesTab() {
       </section>
 
       {/* Button that triggers saving all responses to the profile */}
-      <button type="button" onClick={onSubmitAll} className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25">
-        Submit All
-      </button>
+      {isEditing && (
+        <button type="button" onClick={onSubmitAll} className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25">
+          Save Answers
+        </button>
+      )}
     </div>
   );
 }

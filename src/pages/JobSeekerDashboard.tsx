@@ -27,6 +27,7 @@ function JobSeekerDashboard() {
   };
 
   const [dashboardData, setDashboardData] = useState<any>(null);
+  const [jobsPopupOpen, setJobsPopupOpen] = useState(false);
   const { user, fetchWithAuth } = useAuth();
 
   useEffect(() => {
@@ -47,7 +48,7 @@ function JobSeekerDashboard() {
   };
 
   const handleBrowseJobs = () => {
-    navigate('/job-seeker/feed');
+    setJobsPopupOpen(true);
   };
 
   return (
@@ -235,6 +236,36 @@ function JobSeekerDashboard() {
           </button>
         </div>
       </div>
+      {jobsPopupOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/80 px-4 pt-24"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="jobs-popup-title"
+        >
+          <div className="w-full max-w-xl rounded-3xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl">
+            <div>
+              <p
+                id="jobs-popup-title"
+                className="text-xl font-semibold text-white"
+              >
+                Feature coming soon
+              </p>
+              <p className="mt-2 text-sm text-slate-200/80">
+                This feature will be available soon.
+              </p>
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setJobsPopupOpen(false)}
+                className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-slate-950 hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
