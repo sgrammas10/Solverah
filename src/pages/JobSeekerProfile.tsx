@@ -97,6 +97,7 @@ function JobSeekerProfile() {
     };
 
     uploadedResume: UploadedResume | null;
+    resumeKey?: string | null;
     quizResults?: Record<string, unknown>;
     _quizSummary?: Record<string, unknown>;
   }
@@ -122,6 +123,7 @@ function JobSeekerProfile() {
       teamwork: { score: number | null; percentile: number | null; completed: boolean };
     };
     uploadedResume: { name: string; size: number; type: string } | null;
+    resumeKey?: string | null;
     quizResults?: Record<string, unknown>;
     _quizSummary?: Record<string, unknown>;
   }
@@ -150,6 +152,7 @@ function JobSeekerProfile() {
       teamwork: { score: null, percentile: null, completed: false },
     },
     uploadedResume: null,
+    resumeKey: null,
   });
 
 
@@ -232,6 +235,7 @@ function JobSeekerProfile() {
       performanceReviews: incoming.performanceReviews ?? undefined,
       psychometricResults: incoming.psychometricResults ?? undefined,
       uploadedResume: incoming.uploadedResume ?? undefined,
+      resumeKey: incoming.resumeKey ?? undefined,
       quizResults: incoming.quizResults ?? undefined,
       _quizSummary: incoming._quizSummary ?? undefined,
     };
@@ -518,6 +522,17 @@ function JobSeekerProfile() {
     if (file) {
       setUploadedResume(file);
       setIsSaved(false);
+    }
+  };
+  const handleViewResume = async () => {
+    try {
+      const data = await fetchWithAuth<{ url: string }>("/profile/resume-url", { method: "GET" });
+      if (data?.url) {
+        window.open(data.url, "_blank", "noopener,noreferrer");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Unable to open resume right now.");
     }
   };
   const MAX_EDUCATIONS = 10;
@@ -853,6 +868,17 @@ function JobSeekerProfile() {
                         <X className="h-4 w-4" />
                       </button>
                     </div>
+                    {formData.resumeKey && (
+                      <div className="mt-3 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={handleViewResume}
+                          className="rounded-full border border-emerald-300/50 px-3 py-1 text-xs font-semibold text-emerald-100 hover:border-emerald-200"
+                        >
+                          View Resume
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-white/10 border-dashed rounded-md">
@@ -1224,7 +1250,7 @@ function JobSeekerProfile() {
                     to="/career-quizzes"
                     className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
                   >
-                    Start Quiz
+                    {formData.quizResults?.careerQuizzes ? "View Answers" : "Start Quiz"}
                   </Link>
                 </div>
 
@@ -1240,7 +1266,7 @@ function JobSeekerProfile() {
                     to="/career-job-search"
                     className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
                   >
-                    Start Quiz
+                    {formData.quizResults?.careerJobSearch ? "View Answers" : "Start Quiz"}
                   </Link>
                 </div>
 
@@ -1256,56 +1282,10 @@ function JobSeekerProfile() {
                     to="/future-your-way"
                     className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
                   >
-                    Start Quiz
+                    {formData.quizResults?.yourFutureYourWay ? "View Answers" : "Start Quiz"}
                   </Link>
                 </div>
               </div>
-              {/* View Saved Quiz Results */}
-              {formData.quizResults && (
-                <div className="mt-6 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setShowQuizResults((prev) => !prev)}
-                    className="px-4 py-2 border border-emerald-300/60 text-emerald-200 rounded-md hover:bg-white/10 text-sm font-medium"
-                  >
-                    {showQuizResults ? 'Hide Quiz Results' : 'View Saved Quiz Results'}
-                  </button>
-                </div>
-              )}
-
-              {showQuizResults && formData.quizResults && (
-                <div className="mt-4 space-y-4">
-                  <h3 className="text-sm font-semibold text-slate-100">
-                    Your Saved Quiz Results
-                  </h3>
-
-                  {(() => {
-                    const quizResults = formData.quizResults as any;
-
-                    return (
-                      <>
-                        {quizResults.careerJobSearch && (
-                          <QuizResultsSection
-                            title="Career & Job Search"
-                            questions={careerJobSearchQuestionBank as QuizQuestion[]}
-                            answers={quizResults.careerJobSearch as Record<string, number>}
-                          />
-                        )}
-
-                        {quizResults.yourFutureYourWay && (
-                          <QuizResultsSection
-                            title="Your Future, Your Way"
-                            questions={yourFutureYourWayQuestionBank as QuizQuestion[]}
-                            answers={quizResults.yourFutureYourWay as Record<string, number>}
-                          />
-                        )}
-
-                        {/*  can add more quizzes here*/}
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
 
               {/* Call to Action Banner */}
               <div className="mt-8 p-4 bg-amber-500/10 border border-amber-400/30 rounded-lg flex items-center">

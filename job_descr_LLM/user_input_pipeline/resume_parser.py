@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 def _normalize_text(text: str) -> str:
     """Normalize bullets/dashes/whitespace for PDF-extracted text."""
     replacements = {
+        "?": "-",
         "·": "-",
         "": "-",
         "●": "-",
@@ -522,13 +523,16 @@ def _parse_experience(lines: Sequence[str]) -> List[Dict[str, object]]:
             if line.isupper() and len(line.split()) <= 8 and not line.lstrip().startswith(("-", "*")):
                 break
 
-            # Prefer true bullets to avoid swallowing the next role's header lines.
-            if not re.match(r"^\s*[-*]\s+", line):
+            is_bullet = bool(re.match(r"^\s*[-*]\s+", line))
+            if is_bullet:
+                cleaned = _strip_bullet(line)
+                if cleaned:
+                    impact_bullets.append(cleaned)
                 continue
 
-            cleaned = _strip_bullet(line)
-            if cleaned:
-                impact_bullets.append(cleaned)
+            # Continuation of the previous bullet (wrapped line)
+            if impact_bullets and line.strip() and not DATE_PATTERN.search(line):
+                impact_bullets[-1] = f"{impact_bullets[-1]} {line.strip()}"
 
         if not (title or company or impact_bullets):
             continue
