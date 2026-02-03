@@ -14,6 +14,8 @@ import PrelaunchLandingPage from "./pages/prelaunchlandingpage";
 import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ConfirmEmail from "./pages/ConfirmEmail";
+import CheckEmail from "./pages/CheckEmail";
 import JobSeekerDashboard from "./pages/JobSeekerDashboard";
 import RecruiterDashboard from "./pages/RecruiterDashboard";
 import JobSeekerProfile from "./pages/JobSeekerProfile";
@@ -50,6 +52,8 @@ function App() {
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/confirm-email" element={<ConfirmEmail />} />
+              <Route path="/check-email" element={<CheckEmail />} />
 
               {/* Shared feed + search routes */}
               <Route

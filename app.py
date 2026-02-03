@@ -523,7 +523,8 @@ def intake_create_account():
     if existing:
         return jsonify({"error": "User already exists"}), 400
 
-    profile_data = _build_profile_from_intake(intake)
+    # Create user with confirmation token
+    token = uuid.uuid4().hex
     hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
     full_name = f"{intake.first_name} {intake.last_name}".strip()
 
@@ -533,11 +534,20 @@ def intake_create_account():
         name=full_name,
         role=role,
         profile_data=profile_data,
+        email_confirmed=False,
+        confirmation_token=token,
+        confirmation_sent_at=datetime.datetime.utcnow(),
     )
     db.session.add(new_user)
 
     intake.status = "account_created"
     db.session.commit()
+
+    # Send confirmation email (best-effort)
+    try:
+        send_confirmation_email(new_user.email, token)
+    except Exception:
+        log_audit_event(action="email_send_failed", actor_user_id=new_user.id, resource="email", metadata={})
 
     return jsonify({
         "message": "registered",
@@ -692,14 +702,15 @@ def login():
             db.session.commit()
         return jsonify({"error": "Invalid credentials"}), 401
 
+    # Reset failed attempts and clear lockout
     user.failed_login_attempts = 0
     user.locked_until = None
     db.session.commit()
 
+    # Require email confirmation
+    if not getattr(user, "email_confirmed", False):
+        return jsonify({"error": "Email not confirmed"}), 403
 
-    user.failed_login_attempts = 0
-    user.locked_until = None
-    db.session.commit()
     access_token = create_access_token(identity=user.email)
 
     # Build JSON response
@@ -726,7 +737,65 @@ def logout():
     return resp
 
 
+# Email confirmation endpoints
+@limiter.limit("5 per minute")
+@app.route("/api/confirm-email", methods=["POST"])
+def confirm_email():
+    data = request.get_json() or {}
+    token = (data.get("token") or "").strip()
+    if not token:
+        return jsonify({"error": "token required"}), 400
+
+    user = User.query.filter_by(confirmation_token=token).first()
+    if not user:
+        return jsonify({"error": "invalid token"}), 404
+
+    # Check expiry
+    exp_hours = int(os.environ.get("CONFIRM_TOKEN_EXP_HOURS", "48"))
+    if not user.confirmation_sent_at or user.confirmation_sent_at + datetime.timedelta(hours=exp_hours) < datetime.datetime.utcnow():
+        return jsonify({"error": "token expired"}), 400
+
+    user.email_confirmed = True
+    user.confirmation_token = None
+    user.confirmation_sent_at = None
+    db.session.commit()
+
+    return jsonify({"message": "email confirmed"}), 200
+
+
+@limiter.limit("5 per minute")
+@app.route("/api/resend-confirmation", methods=["POST"])
+def resend_confirmation():
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    if not email or not _is_valid_email(email):
+        return jsonify({"error": "Valid email is required"}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"error": "Account not found"}), 404
+
+    if getattr(user, "email_confirmed", False):
+        return jsonify({"error": "Email already confirmed"}), 400
+
+    token = uuid.uuid4().hex
+    user.confirmation_token = token
+    user.confirmation_sent_at = datetime.datetime.utcnow()
+    db.session.commit()
+
+    try:
+        send_confirmation_email(user.email, token)
+    except Exception:
+        log_audit_event(action="email_send_failed", actor_user_id=user.id, resource="email", metadata={})
+        return jsonify({"error": "Failed to send email"}), 500
+
+    return jsonify({"message": "confirmation_sent"}), 200
+
+
 #Registering new user
+from email_utils import send_confirmation_email
+
+@limiter.limit("5 per minute")
 @app.route("/api/register", methods=["POST"])
 def register():
     data = request.get_json()
@@ -747,16 +816,27 @@ def register():
     profile_data = default_profile(email=email, name=name, role=role)
 
 
+    # Create user with confirmation token
+    token = uuid.uuid4().hex
     new_user = User(
         email=email,
         password=hashed_pw,
         name=data.get("name"),
         role=data.get("role"),
-        profile_data=profile_data
+        profile_data=profile_data,
+        email_confirmed=False,
+        confirmation_token=token,
+        confirmation_sent_at=datetime.datetime.utcnow(),
     )
-    #adding user to db
     db.session.add(new_user)
     db.session.commit()
+
+    # Send confirmation email (best-effort; failures shouldn't break registration)
+    try:
+        send_confirmation_email(new_user.email, token)
+    except Exception:
+        # Log in audit but don't expose details to user
+        log_audit_event(action="email_send_failed", actor_user_id=new_user.id, resource="email", metadata={})
 
     return jsonify({"message": "registered", "user": {
         "id": new_user.id,
