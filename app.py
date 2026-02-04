@@ -527,6 +527,7 @@ def intake_create_account():
     token = uuid.uuid4().hex
     hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
     full_name = f"{intake.first_name} {intake.last_name}".strip()
+    profile_data = _build_profile_from_intake(intake)
 
     new_user = User(
         email=intake.email.lower(),
