@@ -9,7 +9,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '20260203_add_email_confirmation_to_user'
-down_revision = '139e1d37427a_add_login_lockout_columns'
+down_revision = '139e1d37427a'
 branch_labels = None
 depends_on = None
 
