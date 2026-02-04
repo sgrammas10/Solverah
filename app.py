@@ -708,9 +708,23 @@ def login():
     user.locked_until = None
     db.session.commit()
 
-    # Require email confirmation
+    # Require email confirmation; resend confirmation on login attempt
     if not getattr(user, "email_confirmed", False):
-        return jsonify({"error": "Email not confirmed"}), 403
+        token = uuid.uuid4().hex
+        user.confirmation_token = token
+        user.confirmation_sent_at = datetime.datetime.utcnow()
+        db.session.commit()
+        try:
+            send_confirmation_email(user.email, token)
+        except Exception:
+            log_audit_event(
+                action="email_send_failed",
+                actor_user_id=user.id,
+                resource="email",
+                metadata={"context": "login_resend_confirmation"},
+            )
+            db.session.commit()
+        return jsonify({"error": "Email not confirmed. Confirmation email resent."}), 403
 
     access_token = create_access_token(identity=user.email)
 
