@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
 """
 Resume parser regression tester.
 
 Reads datasets/<version>/resumes_clean.jsonl, parses each resume, and writes
 datasets/<version>/resume_parser_expected.jsonl with expected + actual outputs.
+Paths are resolved relative to the repo root so it can be run from any cwd.
 
 Usage:
   python resume_parser_test.py --version v1
@@ -12,11 +12,22 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import csv
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 
-from job_descr_LLM.user_input_pipeline.resume_parser import parse_resume
+def resolve_repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+REPO_ROOT = resolve_repo_root()
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+
+from job_descr_LLM.user_input_pipeline.resume_parser import parse_resume  # noqa: E402
 
 
 def load_jsonl(path: Path) -> List[Dict[str, Any]]:
@@ -30,6 +41,19 @@ def load_jsonl(path: Path) -> List[Dict[str, Any]]:
                 continue
             rows.append(json.loads(line))
     return rows
+
+
+def load_intake_ids(path: Path) -> set[str]:
+    if not path.exists():
+        raise FileNotFoundError(f"Missing intake file: {path}")
+    ids: set[str] = set()
+    with path.open("r", encoding="utf-8", newline="") as fh:
+        reader = csv.DictReader(fh)
+        for row in reader:
+            row_id = (row.get("id") or "").strip()
+            if row_id:
+                ids.add(row_id)
+    return ids
 
 
 def index_by_id(rows: Iterable[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
@@ -82,6 +106,11 @@ def write_jsonl(path: Path, rows: Iterable[Dict[str, Any]]) -> None:
             fh.write(json.dumps(row) + "\n")
 
 
+def resolve_path(root: Path, value: str) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else root / path
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", default="v1", help="Dataset version folder name (default: v1)")
@@ -90,14 +119,21 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=None, help="Optional cap on number of resumes to test")
     args = parser.parse_args()
 
-    dataset_root = Path(args.datasets_root) / args.version
+    repo_root = resolve_repo_root()
+    datasets_root = resolve_path(repo_root, args.datasets_root)
+    dataset_root = datasets_root / args.version
     clean_path = dataset_root / "resumes_clean.jsonl"
+    intake_path = dataset_root / "intake.csv"
     expected_path = dataset_root / args.expected_file
 
     if not clean_path.exists():
         print(f"[ERROR] Missing clean resumes file: {clean_path}")
         return 1
+    if not intake_path.exists():
+        print(f"[ERROR] Missing intake file: {intake_path}")
+        return 1
 
+    allowed_ids = load_intake_ids(intake_path)
     expected_rows = load_jsonl(expected_path)
     expected_index = index_by_id(expected_rows)
 
@@ -118,6 +154,9 @@ def main() -> int:
             record = json.loads(line)
             record_id = record.get("id")
             if record_id is None:
+                continue
+
+            if str(record_id) not in allowed_ids:
                 continue
 
             total += 1
