@@ -15,6 +15,7 @@ import argparse
 import csv
 import json
 import sys
+from difflib import unified_diff
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 
@@ -72,6 +73,31 @@ def compare_expected(expected: Dict[str, Any], actual: Dict[str, Any]) -> Tuple[
         if key not in actual or actual[key] != expected_value:
             mismatches.append(key)
     return (len(mismatches) == 0, mismatches)
+
+
+def format_mismatch_details(
+    expected: Dict[str, Any],
+    actual: Dict[str, Any],
+    mismatch_keys: List[str],
+) -> str:
+    if not mismatch_keys:
+        return ""
+    lines: List[str] = []
+    for key in mismatch_keys:
+        exp_value = expected.get(key, "<missing>")
+        act_value = actual.get(key, "<missing>")
+        lines.append(f"  - {key}")
+        exp_dump = json.dumps(exp_value, ensure_ascii=False, indent=2, sort_keys=True)
+        act_dump = json.dumps(act_value, ensure_ascii=False, indent=2, sort_keys=True)
+        diff = unified_diff(
+            exp_dump.splitlines(),
+            act_dump.splitlines(),
+            fromfile="expected",
+            tofile="actual",
+            lineterm="",
+        )
+        lines.extend(f"    {line}" for line in diff)
+    return "\n".join(lines)
 
 
 def build_output_row(
@@ -176,6 +202,9 @@ def main() -> int:
                     mismatched += 1
                     mismatch_str = ", ".join(mismatch_keys)
                     print(f"[MISMATCH] id={record_id} resume_key={record.get('resume_key')} fields={mismatch_str}")
+                    details = format_mismatch_details(expected, actual, mismatch_keys)
+                    if details:
+                        print(details)
                 output_rows.append(
                     build_output_row(record, existing, actual, is_match, mismatch_keys)
                 )
