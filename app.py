@@ -1112,10 +1112,12 @@ def quiz_insights():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    profile = user.profile_data or {}
+    profile = dict(user.profile_data or {})
     quiz_insights = profile.get("quizInsights")
     if not isinstance(quiz_insights, dict):
         quiz_insights = {}
+    else:
+        quiz_insights = dict(quiz_insights)
 
     timestamp = datetime.datetime.utcnow().isoformat()
 
@@ -1123,6 +1125,8 @@ def quiz_insights():
         group_store = quiz_insights.get("careerQuizzes")
         if not isinstance(group_store, dict):
             group_store = {}
+        else:
+            group_store = dict(group_store)
         if overall_summary:
             group_store["_overallSummary"] = overall_summary
         group_store["_generatedAt"] = timestamp
