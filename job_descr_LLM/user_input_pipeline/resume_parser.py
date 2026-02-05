@@ -134,15 +134,19 @@ CLEARANCE_PATTERN = re.compile(
 
 # Headings
 HEADING_EXPERIENCE = re.compile(r"^(professional\s+experience|work\s+experience|relevant\s+experience|experience)\b", re.I)
-HEADING_SKILLS = re.compile(r"^(technical\s+skills|relevant\s+skills|skills|technologies|tools)\b", re.I)
+HEADING_SKILLS = re.compile(
+    r"^(technical\s+skills|relevant\s+skills|clinical\s+skills|skills|technologies|tools)\b",
+    re.I,
+)
 HEADING_EDU = re.compile(r"^education\b", re.I)
 HEADING_PROJECTS = re.compile(r"^projects?\b", re.I)
-HEADING_CERTS = re.compile(r"^certifications?\b", re.I)
+HEADING_CERTS = re.compile(r"^(licensure\s*&\s*certifications|licensure|licenses?\s*&\s*certifications|certifications?)\b", re.I)
+HEADING_VOLUNTEER = re.compile(r"^volunteer\s+experience\b", re.I)
 
 MASTER_HEADING = re.compile(
-    r"^(professional\s+summary|summary|technical\s+skills|skills|technologies|tools|"
+    r"^(professional\s+summary|summary|technical\s+skills|clinical\s+skills|skills|technologies|tools|"
     r"relevant\s+skills|professional\s+experience|work\s+experience|relevant\s+experience|experience|education|projects?|"
-    r"certifications?|publications?|volunteer\s+experience|additional\s+information)\b",
+    r"(licensure\s*&\s*certifications|licensure|licenses?\s*&\s*certifications|certifications?)|publications?|volunteer\s+experience|additional\s+information)\b",
     re.I,
 )
 
@@ -558,6 +562,8 @@ def _parse_education(lines: Sequence[str]) -> str:
 
     edu_lines: List[str] = []
     for idx, line in enumerate(scoped):
+        if re.search(r"\bcredentials?\b", line, flags=re.IGNORECASE):
+            continue
         if DEGREE_PATTERN.search(line) or EDU_INSTITUTION_PATTERN.search(line):
             combined = line
             if idx + 1 < len(scoped) and scoped[idx + 1] and len(scoped[idx + 1]) < 140 and not _looks_like_heading(scoped[idx + 1]):
@@ -639,7 +645,95 @@ def _parse_certifications(lines: Sequence[str]) -> List[str]:
         cleaned = _strip_bullet(line)
         if cleaned and not _looks_like_heading(cleaned):
             certs.append(cleaned)
+
+    if not certs:
+        # Fallback: pull explicit "Credentials:" lines found anywhere (often under Education & Training)
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            if re.search(r"\bcredentials?\b", line, flags=re.IGNORECASE):
+                cleaned = _strip_bullet(line)
+                if ":" in cleaned:
+                    cleaned = cleaned.split(":", 1)[1].strip()
+                # Join continuation lines until blank/heading.
+                j = i + 1
+                while j < len(lines):
+                    next_line = lines[j].strip()
+                    if not next_line or _looks_like_heading(next_line):
+                        break
+                    if re.match(r"^\s*[-*]\s+", next_line):
+                        break
+                    cleaned = f"{cleaned} {next_line}".strip()
+                    j += 1
+                if cleaned:
+                    certs.extend(_tokenize_list_content(cleaned))
+                i = j
+                continue
+            i += 1
+
     return _unique_preserve_order(certs)
+
+
+def _parse_volunteer_experience(lines: Sequence[str]) -> List[Dict[str, object]]:
+    span = _find_section_span(lines, HEADING_VOLUNTEER)
+    scoped = lines[span[0] : span[1]] if span else []
+    if not scoped:
+        return []
+
+    experiences: List[Dict[str, object]] = []
+    i = 0
+    while i < len(scoped):
+        line = scoped[i].strip()
+        if not line:
+            i += 1
+            continue
+        if _looks_like_heading(line):
+            break
+
+        title = line
+        company = ""
+        impact_bullets: List[str] = []
+
+        j = i + 1
+        while j < len(scoped) and not scoped[j].strip():
+            j += 1
+
+        if j < len(scoped):
+            next_line = scoped[j].strip()
+            if next_line and not next_line.lstrip().startswith(("-", "*")) and not _looks_like_heading(next_line):
+                company = _split_company_location(next_line)
+                j += 1
+
+        while j < len(scoped):
+            cur = scoped[j]
+            if not cur.strip():
+                break
+            if _looks_like_heading(cur):
+                break
+            if re.match(r"^\s*[-*]\s+", cur):
+                cleaned = _strip_bullet(cur)
+                if cleaned:
+                    impact_bullets.append(cleaned)
+                j += 1
+                continue
+            # Treat non-bullet text as a bullet if none exist; otherwise append.
+            if impact_bullets:
+                impact_bullets[-1] = f"{impact_bullets[-1]} {cur.strip()}"
+            else:
+                impact_bullets.append(cur.strip())
+            j += 1
+
+        experiences.append(
+            {
+                "title": title,
+                "company": company,
+                "duration": "",
+                "impact_bullets": impact_bullets,
+            }
+        )
+        i = j + 1
+
+    return experiences
 
 
 # ---------------------------- Clearance / work auth -----------------------------
@@ -659,6 +753,9 @@ def parse_resume(text: str) -> Dict[str, object]:
 
     explicit_years = _parse_years_experience(text)
     experience = _parse_experience(line_list)
+    volunteer_experience = _parse_volunteer_experience(line_list)
+    if volunteer_experience:
+        experience.extend(volunteer_experience)
 
     if explicit_years is not None:
         years_experience = explicit_years
