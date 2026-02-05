@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from '../contexts/useAuth';
 import { useNavigate } from "react-router-dom";
+import QuizInsightModal from "./QuizInsightModal";
 
 
 // Single quiz question type: numeric id, question text, and list of options
@@ -8,6 +9,20 @@ type Question = { id: number; text: string; options: string[] };
 
 // Quiz type: a unique key, display title, and a list of questions
 type Quiz = { key: string; title: string; questions: Question[] };
+
+type QuizInsight = {
+  key?: string;
+  title?: string;
+  summary?: string;
+  keyTakeaways?: string[];
+  combinedMeaning?: string;
+  nextSteps?: string[];
+};
+
+type QuizInsightResponse = {
+  overallSummary?: string | null;
+  insights: QuizInsight[];
+};
 
 // Static configuration for all quizzes shown in this tab
 const quizzes: Quiz[] = [
@@ -253,9 +268,15 @@ export default function CareerQuizzesArchetypesTab() {
   const [answers, setAnswers] = useState<Record<string, Record<number, number>>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
+  const [insightModalOpen, setInsightModalOpen] = useState(false);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insightProgress, setInsightProgress] = useState(0);
+  const [insightError, setInsightError] = useState<string | null>(null);
+  const [insightResponse, setInsightResponse] = useState<QuizInsightResponse | null>(null);
+  const [navigateAfterInsight, setNavigateAfterInsight] = useState(false);
 
   // Get profile-related actions from AuthContext
-  const { fetchProfileData, saveProfileData } = useAuth();
+  const { fetchProfileData, saveProfileData, fetchWithAuth } = useAuth();
   const navigate = useNavigate();
   useEffect(() => {
     (async () => {
@@ -274,12 +295,44 @@ export default function CareerQuizzesArchetypesTab() {
         } else {
           setIsEditing(true);
         }
+        const storedInsights = (profileData as any)?.quizInsights?.careerQuizzes;
+        if (storedInsights && typeof storedInsights === "object") {
+          const insightList = quizzes
+            .map((quiz) => {
+              const entry = storedInsights[quiz.key];
+              if (!entry) return null;
+              return {
+                key: quiz.key,
+                title: entry.title || quiz.title,
+                summary: entry.summary,
+                keyTakeaways: entry.keyTakeaways,
+                combinedMeaning: entry.combinedMeaning,
+                nextSteps: entry.nextSteps,
+              };
+            })
+            .filter(Boolean) as QuizInsight[];
+          if (insightList.length > 0) {
+            setInsightResponse({
+              overallSummary: storedInsights._overallSummary || null,
+              insights: insightList,
+            });
+          }
+        }
       } catch (err) {
         console.error(err);
         setIsEditing(true);
       }
     })();
   }, [fetchProfileData]);
+
+  useEffect(() => {
+    if (!insightLoading) return;
+    setInsightProgress(8);
+    const id = setInterval(() => {
+      setInsightProgress((prev) => (prev < 90 ? Math.min(90, prev + 6 + Math.random() * 6) : prev));
+    }, 350);
+    return () => clearInterval(id);
+  }, [insightLoading]);
 
 
   /**
@@ -327,7 +380,41 @@ export default function CareerQuizzesArchetypesTab() {
           await saveProfileData(newProfileData);
           setHasSaved(true);
           setIsEditing(false);
-          navigate("/job-seeker/profile?tab=assessments");
+          if (fetchWithAuth) {
+            const payload = {
+              quizGroup: "careerQuizzes",
+              quizzes: quizzes.map((quiz) => ({
+                key: quiz.key,
+                title: quiz.title,
+                items: quiz.questions
+                  .map((q) => {
+                    const selectedIdx = answers?.[quiz.key]?.[q.id];
+                    if (typeof selectedIdx !== "number") return null;
+                    return { question: q.text, selected: q.options[selectedIdx] };
+                  })
+                  .filter(Boolean),
+              })),
+            };
+            setInsightModalOpen(true);
+            setInsightLoading(true);
+            setInsightError(null);
+            setNavigateAfterInsight(true);
+            try {
+              const res = await fetchWithAuth<QuizInsightResponse>("/quiz-insights", {
+                method: "POST",
+                body: JSON.stringify(payload),
+              });
+              setInsightResponse({
+                overallSummary: res.overallSummary || null,
+                insights: res.insights || [],
+              });
+              setInsightProgress(100);
+            } catch (err) {
+              setInsightError(err instanceof Error ? err.message : "Failed to generate insights.");
+            } finally {
+              setInsightLoading(false);
+            }
+          }
         } else {
           // If AuthContext doesn't expose saveProfileData, log and show a fallback message
           console.warn("saveProfileData not available on AuthContext");
@@ -339,6 +426,16 @@ export default function CareerQuizzesArchetypesTab() {
         alert("Failed to save responses. Check console for details.");
       }
     })();
+  };
+
+  const handleInsightClose = () => {
+    setInsightModalOpen(false);
+    setInsightError(null);
+    setInsightProgress(0);
+    if (navigateAfterInsight) {
+      setNavigateAfterInsight(false);
+      navigate("/job-seeker/profile?tab=assessments");
+    }
   };
 
   return (
@@ -356,6 +453,15 @@ export default function CareerQuizzesArchetypesTab() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              {insightResponse?.insights?.length ? (
+                <button
+                  type="button"
+                  onClick={() => setInsightModalOpen(true)}
+                  className="rounded-full border border-emerald-300/60 px-4 py-2 text-sm font-semibold text-emerald-100 hover:border-emerald-200"
+                >
+                  View Insight
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => navigate("/job-seeker/profile?tab=assessments")}
@@ -446,6 +552,17 @@ export default function CareerQuizzesArchetypesTab() {
           Save Answers
         </button>
       )}
+
+      <QuizInsightModal
+        open={insightModalOpen}
+        loading={insightLoading}
+        progress={insightProgress}
+        title="Career Quizzes Insight"
+        overallSummary={insightResponse?.overallSummary || null}
+        insights={insightResponse?.insights || []}
+        error={insightError}
+        onClose={handleInsightClose}
+      />
     </div>
   );
 }

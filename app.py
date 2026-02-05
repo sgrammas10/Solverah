@@ -19,6 +19,7 @@ import importlib
 import importlib.util
 import sys
 import tempfile
+import traceback
 from pathlib import Path
 from urllib.parse import urlparse
 import boto3
@@ -27,6 +28,10 @@ from psycopg2.extras import RealDictCursor
 
 from dotenv import load_dotenv
 load_dotenv()
+try:
+    from openai import OpenAI
+except Exception:
+    OpenAI = None
 
 
 JOB_LLM_DIR = Path(__file__).resolve().parent / "job_descr_LLM"
@@ -214,6 +219,87 @@ def get_s3_client():
 
 def _module_available(module_name: str) -> bool:
     return importlib.util.find_spec(module_name) is not None
+
+
+def _get_openai_client():
+    if OpenAI is None:
+        raise RuntimeError("OpenAI SDK not installed")
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not set")
+    return OpenAI(api_key=api_key)
+
+
+def _build_quiz_insight_prompt(quiz_group: str, quizzes: list[dict]) -> list[dict]:
+    system = (
+        "You are a career insight assistant. "
+        "Given quiz answers, produce concise, supportive insights that explain patterns "
+        "in the combined answers. Avoid medical/legal claims. "
+        "Return JSON only with the exact keys requested."
+    )
+    user_payload = {
+        "quiz_group": quiz_group,
+        "quizzes": quizzes,
+        "output_rules": {
+            "tone": "clear, supportive, non-judgmental",
+            "length": "short but meaningful",
+            "key_takeaways_count": "3-5",
+            "next_steps_count": "2-4",
+        },
+        "output_format": {
+            "overallSummary": "string",
+            "insights": [
+                {
+                    "key": "string",
+                    "title": "string",
+                    "summary": "string",
+                    "keyTakeaways": ["string"],
+                    "combinedMeaning": "string",
+                    "nextSteps": ["string"],
+                }
+            ],
+        },
+    }
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": json.dumps(user_payload)},
+    ]
+
+
+def _coerce_insight_payload(payload: dict, quiz_group: str, fallback_quizzes: list[dict]) -> dict:
+    if not isinstance(payload, dict):
+        return {}
+    insights = payload.get("insights")
+    overall = payload.get("overallSummary") if isinstance(payload.get("overallSummary"), str) else None
+
+    if isinstance(insights, dict):
+        insights = [insights]
+
+    if not isinstance(insights, list):
+        return {}
+
+    normalized = []
+    for idx, item in enumerate(insights):
+        if not isinstance(item, dict):
+            continue
+        key = item.get("key")
+        if not key and fallback_quizzes and idx < len(fallback_quizzes):
+            key = fallback_quizzes[idx].get("key")
+        normalized.append(
+            {
+                "key": key or f"{quiz_group}-{idx+1}",
+                "title": item.get("title"),
+                "summary": item.get("summary"),
+                "keyTakeaways": item.get("keyTakeaways"),
+                "combinedMeaning": item.get("combinedMeaning"),
+                "nextSteps": item.get("nextSteps"),
+            }
+        )
+
+    if not normalized:
+        return {}
+
+    return {"overallSummary": overall, "insights": normalized}
 
 
 def _extract_resume_text(file_path: Path, mime: str) -> str:
@@ -957,6 +1043,128 @@ def profile():
     return jsonify({
         "message": "Profile updated successfully",
         "profileData": user.profile_data
+    })
+
+
+@limiter.limit("10 per minute")
+@app.post("/api/quiz-insights")
+@jwt_required()
+def quiz_insights():
+    data = request.get_json(silent=True) or {}
+    quiz_group = (data.get("quizGroup") or "").strip()
+    quizzes = data.get("quizzes") or []
+
+    if not quiz_group or not isinstance(quizzes, list) or not quizzes:
+        return jsonify({"error": "quizGroup and quizzes are required"}), 400
+
+    normalized_quizzes = []
+    for quiz in quizzes:
+        if not isinstance(quiz, dict):
+            continue
+        key = (quiz.get("key") or "").strip()
+        title = (quiz.get("title") or "").strip()
+        items = quiz.get("items") or []
+        if not key or not title or not isinstance(items, list) or not items:
+            continue
+        normalized_items = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            question = (item.get("question") or "").strip()
+            selected = (item.get("selected") or "").strip()
+            if question and selected:
+                normalized_items.append({"question": question, "selected": selected})
+        if normalized_items:
+            normalized_quizzes.append({"key": key, "title": title, "items": normalized_items})
+
+    if not normalized_quizzes:
+        return jsonify({"error": "No valid quiz answers provided"}), 400
+
+    try:
+        client = _get_openai_client()
+        model = os.environ.get("OPENAI_QUIZ_MODEL", "gpt-4o-mini")
+        messages = _build_quiz_insight_prompt(quiz_group, normalized_quizzes)
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            response_format={"type": "json_object"},
+        )
+        content = response.choices[0].message.content or "{}"
+        insight_payload = json.loads(content)
+    except Exception as exc:
+        app.logger.exception("Quiz insight generation failed")
+        if not is_production:
+            return jsonify({"error": f"Unable to generate insight: {exc}"}), 500
+        return jsonify({"error": "Unable to generate insight"}), 500
+
+    normalized_payload = _coerce_insight_payload(insight_payload, quiz_group, normalized_quizzes)
+    insights = normalized_payload.get("insights") if isinstance(normalized_payload, dict) else None
+    overall_summary = (
+        normalized_payload.get("overallSummary") if isinstance(normalized_payload, dict) else None
+    )
+
+    if not isinstance(insights, list):
+        return jsonify({"error": "Malformed insight response"}), 500
+
+    # Persist to user profile
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    profile = user.profile_data or {}
+    quiz_insights = profile.get("quizInsights")
+    if not isinstance(quiz_insights, dict):
+        quiz_insights = {}
+
+    timestamp = datetime.datetime.utcnow().isoformat()
+
+    if quiz_group == "careerQuizzes":
+        group_store = quiz_insights.get("careerQuizzes")
+        if not isinstance(group_store, dict):
+            group_store = {}
+        if overall_summary:
+            group_store["_overallSummary"] = overall_summary
+        group_store["_generatedAt"] = timestamp
+        group_store["_model"] = model
+        for insight in insights:
+            if not isinstance(insight, dict):
+                continue
+            key = insight.get("key")
+            if not key:
+                continue
+            store = {
+                "title": insight.get("title"),
+                "summary": insight.get("summary"),
+                "keyTakeaways": insight.get("keyTakeaways"),
+                "combinedMeaning": insight.get("combinedMeaning"),
+                "nextSteps": insight.get("nextSteps"),
+                "generatedAt": timestamp,
+                "model": model,
+            }
+            group_store[key] = store
+        quiz_insights["careerQuizzes"] = group_store
+    else:
+        first = insights[0] if insights else {}
+        quiz_insights[quiz_group] = {
+            "title": first.get("title"),
+            "summary": first.get("summary"),
+            "keyTakeaways": first.get("keyTakeaways"),
+            "combinedMeaning": first.get("combinedMeaning"),
+            "nextSteps": first.get("nextSteps"),
+            "overallSummary": overall_summary,
+            "generatedAt": timestamp,
+            "model": model,
+        }
+
+    profile["quizInsights"] = quiz_insights
+    user.profile_data = profile
+    db.session.commit()
+
+    return jsonify({
+        "quizGroup": quiz_group,
+        "overallSummary": overall_summary,
+        "insights": insights,
     })
 
 

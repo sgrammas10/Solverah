@@ -6,6 +6,20 @@ import {
   yourFutureYourWayIntro,
   yourFutureYourWayQuestions,
 } from "../data/solverahYourFutureYourWayQuiz";
+import QuizInsightModal from "./QuizInsightModal";
+
+type QuizInsight = {
+  title?: string;
+  summary?: string;
+  keyTakeaways?: string[];
+  combinedMeaning?: string;
+  nextSteps?: string[];
+};
+
+type QuizInsightResponse = {
+  overallSummary?: string | null;
+  insights: QuizInsight[];
+};
 
 
 /* ===========================================================
@@ -21,7 +35,14 @@ export default function YourFutureYourWayTab() {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
-  const { fetchProfileData, saveProfileData } = useAuth();
+  const [insightModalOpen, setInsightModalOpen] = useState(false);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insightProgress, setInsightProgress] = useState(0);
+  const [insightError, setInsightError] = useState<string | null>(null);
+  const [insightResponse, setInsightResponse] = useState<QuizInsightResponse | null>(null);
+  const [navigateAfterInsight, setNavigateAfterInsight] = useState(false);
+
+  const { fetchProfileData, saveProfileData, fetchWithAuth } = useAuth();
   const navigate = useNavigate();
   useEffect(() => {
     (async () => {
@@ -40,12 +61,36 @@ export default function YourFutureYourWayTab() {
         } else {
           setIsEditing(true);
         }
+        const stored = (profileData as any)?.quizInsights?.yourFutureYourWay;
+        if (stored && typeof stored === "object") {
+          setInsightResponse({
+            overallSummary: stored.overallSummary || null,
+            insights: [
+              {
+                title: stored.title,
+                summary: stored.summary,
+                keyTakeaways: stored.keyTakeaways,
+                combinedMeaning: stored.combinedMeaning,
+                nextSteps: stored.nextSteps,
+              },
+            ],
+          });
+        }
       } catch (err) {
         console.error(err);
         setIsEditing(true);
       }
     })();
   }, [fetchProfileData]);
+
+  useEffect(() => {
+    if (!insightLoading) return;
+    setInsightProgress(8);
+    const id = setInterval(() => {
+      setInsightProgress((prev) => (prev < 90 ? Math.min(90, prev + 6 + Math.random() * 6) : prev));
+    }, 350);
+    return () => clearInterval(id);
+  }, [insightLoading]);
 
 
   /* ---------------------------------------------------------
@@ -90,7 +135,43 @@ export default function YourFutureYourWayTab() {
           await saveProfileData(newProfileData);
           setHasSaved(true);
           setIsEditing(false);
-          navigate("/job-seeker/profile?tab=assessments");
+          if (fetchWithAuth) {
+            const payload = {
+              quizGroup: "yourFutureYourWay",
+              quizzes: [
+                {
+                  key: "yourFutureYourWay",
+                  title: "Your Future, Your Way",
+                  items: yourFutureYourWayQuestions
+                    .map((q) => {
+                      const selectedIdx = answers?.[q.id];
+                      if (typeof selectedIdx !== "number") return null;
+                      return { question: q.text, selected: q.options[selectedIdx] };
+                    })
+                    .filter(Boolean),
+                },
+              ],
+            };
+            setInsightModalOpen(true);
+            setInsightLoading(true);
+            setInsightError(null);
+            setNavigateAfterInsight(true);
+            try {
+              const res = await fetchWithAuth<QuizInsightResponse>("/quiz-insights", {
+                method: "POST",
+                body: JSON.stringify(payload),
+              });
+              setInsightResponse({
+                overallSummary: res.overallSummary || null,
+                insights: res.insights || [],
+              });
+              setInsightProgress(100);
+            } catch (err) {
+              setInsightError(err instanceof Error ? err.message : "Failed to generate insights.");
+            } finally {
+              setInsightLoading(false);
+            }
+          }
         } else {
           alert("Unable to save responses (not authenticated).");
         }
@@ -99,6 +180,16 @@ export default function YourFutureYourWayTab() {
         alert("Failed to save responses. Check console for details.");
       }
     })();
+  };
+
+  const handleInsightClose = () => {
+    setInsightModalOpen(false);
+    setInsightError(null);
+    setInsightProgress(0);
+    if (navigateAfterInsight) {
+      setNavigateAfterInsight(false);
+      navigate("/job-seeker/profile?tab=assessments");
+    }
   };
 
   /* =======================================================
@@ -121,6 +212,15 @@ export default function YourFutureYourWayTab() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              {insightResponse?.insights?.length ? (
+                <button
+                  type="button"
+                  onClick={() => setInsightModalOpen(true)}
+                  className="rounded-full border border-emerald-300/60 px-4 py-2 text-sm font-semibold text-emerald-100 hover:border-emerald-200"
+                >
+                  View Insight
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => navigate("/job-seeker/profile?tab=assessments")}
@@ -193,6 +293,17 @@ export default function YourFutureYourWayTab() {
           </button>
         </>
       )}
+
+      <QuizInsightModal
+        open={insightModalOpen}
+        loading={insightLoading}
+        progress={insightProgress}
+        title="Your Future, Your Way Insight"
+        overallSummary={insightResponse?.overallSummary || null}
+        insights={insightResponse?.insights || []}
+        error={insightError}
+        onClose={handleInsightClose}
+      />
     </div>
   );
 }
