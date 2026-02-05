@@ -273,7 +273,6 @@ export default function CareerQuizzesArchetypesTab() {
   const [insightProgress, setInsightProgress] = useState(0);
   const [insightError, setInsightError] = useState<string | null>(null);
   const [insightResponse, setInsightResponse] = useState<QuizInsightResponse | null>(null);
-  const [navigateAfterInsight, setNavigateAfterInsight] = useState(false);
 
   // Get profile-related actions from AuthContext
   const { fetchProfileData, saveProfileData, fetchWithAuth } = useAuth();
@@ -398,7 +397,6 @@ export default function CareerQuizzesArchetypesTab() {
             setInsightModalOpen(true);
             setInsightLoading(true);
             setInsightError(null);
-            setNavigateAfterInsight(true);
             try {
               const res = await fetchWithAuth<QuizInsightResponse>("/quiz-insights", {
                 method: "POST",
@@ -432,9 +430,13 @@ export default function CareerQuizzesArchetypesTab() {
     setInsightModalOpen(false);
     setInsightError(null);
     setInsightProgress(0);
-    if (navigateAfterInsight) {
-      setNavigateAfterInsight(false);
-      navigate("/job-seeker/profile?tab=assessments");
+  };
+
+  const handleViewInsights = () => {
+    if (insightResponse?.insights?.length) {
+      navigate("/quiz-insights?group=careerQuizzes", { state: { insight: insightResponse } });
+    } else {
+      navigate("/quiz-insights?group=careerQuizzes");
     }
   };
 
@@ -453,15 +455,13 @@ export default function CareerQuizzesArchetypesTab() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              {insightResponse?.insights?.length ? (
-                <button
-                  type="button"
-                  onClick={() => setInsightModalOpen(true)}
-                  className="rounded-full border border-emerald-300/60 px-4 py-2 text-sm font-semibold text-emerald-100 hover:border-emerald-200"
-                >
-                  View Insight
-                </button>
-              ) : null}
+              <button
+                type="button"
+                onClick={handleViewInsights}
+                className="rounded-full border border-emerald-300/60 px-4 py-2 text-sm font-semibold text-emerald-100 hover:border-emerald-200"
+              >
+                View Insight
+              </button>
               <button
                 type="button"
                 onClick={() => navigate("/job-seeker/profile?tab=assessments")}
@@ -558,10 +558,10 @@ export default function CareerQuizzesArchetypesTab() {
         loading={insightLoading}
         progress={insightProgress}
         title="Career Quizzes Insight"
-        overallSummary={insightResponse?.overallSummary || null}
-        insights={insightResponse?.insights || []}
         error={insightError}
         onClose={handleInsightClose}
+        onViewInsights={handleViewInsights}
+        onBackToAssessments={() => navigate("/job-seeker/profile?tab=assessments")}
       />
     </div>
   );

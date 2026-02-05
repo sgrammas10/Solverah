@@ -1,21 +1,12 @@
-type QuizInsight = {
-  key?: string;
-  title?: string;
-  summary?: string;
-  keyTakeaways?: string[];
-  combinedMeaning?: string;
-  nextSteps?: string[];
-};
-
 type QuizInsightModalProps = {
   open: boolean;
   loading: boolean;
   progress: number;
   title: string;
-  overallSummary?: string | null;
-  insights?: QuizInsight[];
   error?: string | null;
   onClose: () => void;
+  onViewInsights: () => void;
+  onBackToAssessments: () => void;
 };
 
 export default function QuizInsightModal({
@@ -23,10 +14,10 @@ export default function QuizInsightModal({
   loading,
   progress,
   title,
-  overallSummary,
-  insights,
   error,
   onClose,
+  onViewInsights,
+  onBackToAssessments,
 }: QuizInsightModalProps) {
   if (!open) return null;
 
@@ -67,50 +58,33 @@ export default function QuizInsightModal({
             {error}
           </div>
         ) : (
-          <div className="mt-6 space-y-5 text-sm text-slate-100">
-            {overallSummary ? (
-              <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.16em] text-emerald-200">Overall</p>
-                <p className="mt-2 text-sm text-slate-100">{overallSummary}</p>
-              </div>
-            ) : null}
-
-            {(insights || []).map((insight, idx) => (
-              <div key={`${insight.key || "insight"}-${idx}`} className="rounded-xl border border-white/10 bg-white/5 p-4">
-                <h4 className="text-base font-semibold text-white">
-                  {insight.title || `Insight ${idx + 1}`}
-                </h4>
-                {insight.summary ? (
-                  <p className="mt-2 text-sm text-slate-200/90">{insight.summary}</p>
-                ) : null}
-                {insight.keyTakeaways && insight.keyTakeaways.length > 0 ? (
-                  <div className="mt-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-emerald-200">Key takeaways</p>
-                    <ul className="mt-2 space-y-1 text-sm text-slate-200/90">
-                      {insight.keyTakeaways.map((item, i) => (
-                        <li key={i}>• {item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-                {insight.combinedMeaning ? (
-                  <div className="mt-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-emerald-200">Combined meaning</p>
-                    <p className="mt-2 text-sm text-slate-200/90">{insight.combinedMeaning}</p>
-                  </div>
-                ) : null}
-                {insight.nextSteps && insight.nextSteps.length > 0 ? (
-                  <div className="mt-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-emerald-200">Next steps</p>
-                    <ul className="mt-2 space-y-1 text-sm text-slate-200/90">
-                      {insight.nextSteps.map((item, i) => (
-                        <li key={i}>• {item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </div>
-            ))}
+          <div className="mt-6 space-y-4 text-sm text-slate-100">
+            <p className="text-sm text-slate-200/80">
+              Your insights are ready. Choose where you want to go next.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={onViewInsights}
+                className="rounded-full bg-emerald-400/90 px-4 py-2 text-sm font-semibold text-slate-950 shadow-md shadow-emerald-500/30"
+              >
+                View insights
+              </button>
+              <button
+                type="button"
+                onClick={onBackToAssessments}
+                className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-emerald-300/60"
+              >
+                Back to assessments
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-emerald-300/60"
+              >
+                Close
+              </button>
+            </div>
           </div>
         )}
       </div>

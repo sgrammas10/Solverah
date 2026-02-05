@@ -22,6 +22,7 @@ import JobSeekerProfile from "./pages/JobSeekerProfile";
 import RecruiterProfile from "./pages/RecruiterProfile";
 import Feed from "./pages/Feed";
 import SearchResults from "./pages/SearchResults"; // from your quiz-aware version
+import QuizInsights from "./pages/QuizInsights";
 
 // Role-based route protection
 function ProtectedRoute({
@@ -131,6 +132,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
                     <SolverahYourFutureYourWayQuiz />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/quiz-insights"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                    <QuizInsights />
                   </ProtectedRoute>
                 }
               />
