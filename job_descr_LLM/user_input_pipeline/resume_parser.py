@@ -53,12 +53,14 @@ def _normalize_text(text: str) -> str:
 
     # Join stacked headings like "PROFESSIONAL\nSUMMARY".
     text = re.sub(r"(?mi)\bPROFESSIONAL\s*\n\s*SUMMARY\b", "PROFESSIONAL SUMMARY", text)
+    text = re.sub(r"(?mi)\bSKILLS\s*\n\s*SUMMARY\b", "SKILLS SUMMARY", text)
     text = re.sub(r"(?mi)\bWORK\s*\n\s*HISTORY\b", "WORK HISTORY", text)
 
     # If a heading shares a line with content, split it onto its own line.
     inline_headings = [
         "PROFESSIONAL SUMMARY",
         "SUMMARY",
+        "SKILLS SUMMARY",
         "SKILLS",
         "WORK HISTORY",
         "EXPERIENCE",
@@ -80,7 +82,10 @@ def _normalize_text(text: str) -> str:
         "VOLUNTEER EXPERIENCE",
     ]
     for heading in inline_headings:
-        pattern = re.compile(rf"(?im)^(?P<h>{re.escape(heading)})\s+(?=\S)")
+        if heading == "SKILLS":
+            pattern = re.compile(r"(?im)^(?P<h>SKILLS)(?!\s+SUMMARY)\s+(?=\S)")
+        else:
+            pattern = re.compile(rf"(?im)^(?P<h>{re.escape(heading)})\s+(?=\S)")
         text = pattern.sub(r"\g<h>\n", text)
 
     # Collapse whitespace
@@ -170,7 +175,7 @@ HEADING_EXPERIENCE = re.compile(
     re.I,
 )
 HEADING_SKILLS = re.compile(
-    r"^(technical\s+skills|relevant\s+skills|clinical\s+skills|skills|technologies|tools)\b",
+    r"^(skills\s+summary|technical\s+skills|relevant\s+skills|clinical\s+skills|skills|technologies|tools)\b",
     re.I,
 )
 HEADING_EDU = re.compile(r"^education\b", re.I)
@@ -179,7 +184,7 @@ HEADING_CERTS = re.compile(r"^(licensure\s*&\s*certifications|licensure|licenses
 HEADING_VOLUNTEER = re.compile(r"^volunteer\s+experience\b", re.I)
 
 MASTER_HEADING = re.compile(
-    r"^(professional\s+summary|summary|technical\s+skills|clinical\s+skills|skills|technologies|tools|"
+    r"^(professional\s+summary|summary|skills\s+summary|technical\s+skills|clinical\s+skills|skills|technologies|tools|"
     r"relevant\s+skills|professional\s+experience|work\s+experience|relevant\s+experience|experience|work\s+history|education|projects?|"
     r"(licensure\s*&\s*certifications|licensure|licenses?\s*&\s*certifications|certifications?)|publications?|volunteer\s+experience|additional\s+information)\b",
     re.I,
@@ -335,6 +340,8 @@ def _parse_skill_categories(lines: Sequence[str]) -> Dict[str, List[str]]:
             return False
         if prev_s.lstrip().startswith(("-", "*")) or nxt_s.lstrip().startswith(("-", "*")):
             return False
+        if "," in prev_s and nxt_s and nxt_s[0].islower():
+            return True
         if prev_s.endswith(("and", "&")):
             return True
         return False
@@ -370,18 +377,18 @@ def _parse_skill_categories(lines: Sequence[str]) -> Dict[str, List[str]]:
         m = inline_label_re.match(s)
         if m:
             current_label = m.group(1).strip()
-            content = m.group(2).strip()
+            content = _strip_skill_leadin(m.group(2).strip())
             for tok in _tokenize_list_content(content):
                 if _is_plausible_skill_item(tok):
                     categories[current_label].append(tok)
             continue
 
         if current_label:
-            for tok in _tokenize_list_content(s):
+            for tok in _tokenize_list_content(_strip_skill_leadin(s)):
                 if _is_plausible_skill_item(tok):
                     categories[current_label].append(tok)
         else:
-            for tok in _tokenize_list_content(s):
+            for tok in _tokenize_list_content(_strip_skill_leadin(s)):
                 if _is_plausible_skill_item(tok):
                     categories["Skills"].append(tok)
 
@@ -395,6 +402,37 @@ def _flatten_skill_categories(categories: Mapping[str, Sequence[str]]) -> List[s
     for items in categories.values():
         skills.extend(items)
     return _unique_preserve_order(skills)
+
+def _strip_skill_leadin(s: str) -> str:
+    """Remove common lead-in phrases to surface list-like skill fragments."""
+    if not s:
+        return s
+    lower = s.lower()
+    leadins = [
+        r"\bwell-versed in(?: the use of)?\b",
+        r"\bexperienced in\b",
+        r"\bexperience in\b",
+        r"\bproficient in\b",
+        r"\bskilled in\b",
+        r"\bknowledge of\b",
+        r"\bfamiliar with\b",
+        r"\bexpertise in\b",
+        r"\busing\b",
+        r"\butilizing\b",
+        r"\bincluding\b",
+    ]
+    # Strip everything up to the last lead-in if the remainder looks list-like.
+    last_match = None
+    for pat in leadins:
+        for m in re.finditer(pat, lower):
+            last_match = m
+    if last_match:
+        remainder = s[last_match.end() :].strip(" :;-")
+        if "." in remainder:
+            remainder = remainder.split(".", 1)[0].strip()
+        if re.search(r"[;,]|\\band\\b", remainder, flags=re.IGNORECASE):
+            return remainder
+    return s
 
 def _is_plausible_skill_item(token: str) -> bool:
     """Heuristic filter for list-like skill/tool items (industry-agnostic)."""
@@ -425,7 +463,10 @@ def _is_plausible_skill_item(token: str) -> bool:
 
     # Reject “Location: …” style fragments
     if re.match(r"^(location|phone|email|linkedin|github)\b", lower):
-        return False
+        if lower in {"location", "phone", "email", "linkedin", "github"}:
+            return False
+        if ":" in lower:
+            return False
 
     # Reject standalone years/months
     if _is_month_or_year_token(t):
@@ -439,7 +480,14 @@ def _is_plausible_skill_item(token: str) -> bool:
 
 
 def _parse_years_experience(text: str) -> int | float | None:
-    matches = re.findall(r"(\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs)\b", text, flags=re.IGNORECASE)
+    patterns = [
+        r"(\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs)\s+of\s+experience\b",
+        r"(\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs)\s+experience\b",
+        r"(\d+(?:\.\d+)?)\s*\+\s*(?:years?|yrs)\b",
+    ]
+    matches: list[str] = []
+    for pat in patterns:
+        matches.extend(re.findall(pat, text, flags=re.IGNORECASE))
     numeric = [float(m) for m in matches]
     if not numeric:
         return None
@@ -488,6 +536,56 @@ def _years_from_duration(duration: str) -> float | None:
         if 1 <= start_month <= 12 and 1 <= end_month <= 12:
             start_total = start_year * 12 + (start_month - 1)
             end_total = end_year * 12 + (end_month - 1)
+            if end_total >= start_total:
+                return (end_total - start_total) / 12.0
+
+    # Month-name year ranges (e.g., "September 2020 - Current")
+    month_regex = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
+    m = re.search(
+        rf"(?P<sm>{month_regex})\s+(?P<sy>\d{{4}})\s*-\s*(?:(?P<em>{month_regex})\s+(?P<ey>\d{{4}})|(?P<now>present|current|now))",
+        s,
+        flags=re.I,
+    )
+    if m:
+        sm = m.group("sm").lower()[:3]
+        sy = int(m.group("sy"))
+        if m.group("now"):
+            em = now_month
+            ey = now_year
+        else:
+            em = m.group("em").lower()[:3]
+            ey = int(m.group("ey"))
+            em = {
+                "jan": 1,
+                "feb": 2,
+                "mar": 3,
+                "apr": 4,
+                "may": 5,
+                "jun": 6,
+                "jul": 7,
+                "aug": 8,
+                "sep": 9,
+                "oct": 10,
+                "nov": 11,
+                "dec": 12,
+            }.get(em, 0)
+        sm = {
+            "jan": 1,
+            "feb": 2,
+            "mar": 3,
+            "apr": 4,
+            "may": 5,
+            "jun": 6,
+            "jul": 7,
+            "aug": 8,
+            "sep": 9,
+            "oct": 10,
+            "nov": 11,
+            "dec": 12,
+        }.get(sm, 0)
+        if 1 <= sm <= 12 and 1 <= em <= 12:
+            start_total = sy * 12 + (sm - 1)
+            end_total = ey * 12 + (em - 1)
             if end_total >= start_total:
                 return (end_total - start_total) / 12.0
 
@@ -742,11 +840,15 @@ def _looks_like_contact_or_noise(token: str) -> bool:
 
 def _tokenize_list_content(s: str) -> List[str]:
     """Tokenize comma/pipe/semicolon separated lists without breaking hyphenated tech."""
+    if re.search(r"[;,|/\\\\]", s):
+        s = re.sub(r"\band\b", ",", s, flags=re.IGNORECASE)
     parts = re.split(r"\s*(?:,|;|\||/|\\)\s*", s)
     out: List[str] = []
 
     for part in parts:
         cleaned = re.sub(r"\s+", " ", part.strip().strip("•* -"))
+        cleaned = re.sub(r"^(and|&)\s+", "", cleaned, flags=re.IGNORECASE)
+        cleaned = cleaned.strip(" .;:")
         if not cleaned:
             continue
 
