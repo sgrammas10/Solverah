@@ -130,15 +130,13 @@ function PrelaunchLandingPage() {
       if (!state) throw new Error("Please enter your state / region.");
       if (!privacyConsent) throw new Error("Please agree to the privacy notice to continue.");
 
-      // NEW: require at least one of LinkedIn or Resume
-      const hasLinkedIn = linkedinUrl.length > 0;
       const hasResume = !!resumeFile;
-      if (!hasLinkedIn && !hasResume) {
-        throw new Error("Please provide either a LinkedIn URL or attach a resume (at least one is required).");
+      if (!hasResume) {
+        throw new Error("Please attach your resume to continue.");
       }
 
       // Optional: if LinkedIn provided, ensure it's a valid URL
-      if (hasLinkedIn) {
+      if (linkedinUrl.length > 0) {
         try {
           new URL(linkedinUrl);
         } catch {
@@ -522,7 +520,7 @@ function PrelaunchLandingPage() {
 
                   <div className="space-y-2">
                     <label htmlFor={resumeId} className="text-sm font-medium text-slate-100">
-                      Resume (PDF or DOCX)
+                      Resume (PDF or DOCX) <span className="text-emerald-200">(required)</span>
                     </label>
                     <div className="rounded-lg border border-dashed border-white/15 bg-white/5 p-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -544,6 +542,7 @@ function PrelaunchLandingPage() {
                             type="file"
                             accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                             className="hidden"
+                            required
                             onChange={(e) => {
                               const f = e.target.files?.[0] ?? null;
                               setResumeFile(f);
