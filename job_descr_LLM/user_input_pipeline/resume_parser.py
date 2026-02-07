@@ -539,6 +539,33 @@ def _years_from_duration(duration: str) -> float | None:
             if end_total >= start_total:
                 return (end_total - start_total) / 12.0
 
+    # Month/year short format (e.g., "3/15-present", "12/14-3/15")
+    m = re.search(r"(\d{1,2})/(\d{2})\s*-\s*(present|current|now|(\d{1,2})/(\d{2}))", s)
+    if m:
+        start_month = int(m.group(1))
+        start_year_2 = int(m.group(2))
+        if m.group(4) and m.group(5):
+            end_month = int(m.group(4))
+            end_year_2 = int(m.group(5))
+        else:
+            end_month = now_month
+            end_year_2 = now_year % 100
+        # Interpret two-digit years with a sliding window around current year.
+        def _to_year(two_digit: int) -> int:
+            pivot = (now_year % 100) + 5
+            century = now_year - (now_year % 100)
+            year = century + two_digit
+            if two_digit > pivot:
+                year -= 100
+            return year
+        start_year = _to_year(start_year_2)
+        end_year = _to_year(end_year_2)
+        if 1 <= start_month <= 12 and 1 <= end_month <= 12:
+            start_total = start_year * 12 + (start_month - 1)
+            end_total = end_year * 12 + (end_month - 1)
+            if end_total >= start_total:
+                return (end_total - start_total) / 12.0
+
     # Month-name year ranges (e.g., "September 2020 - Current")
     month_regex = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
     m = re.search(
@@ -609,6 +636,8 @@ def _infer_title_company_from_context(
     title = ""
     company = ""
     date_line = lines[date_idx].strip()
+    prefix = ""
+    suffix = ""
 
     m = INLINE_TITLE_DATE.match(date_line)
     if m:
@@ -640,11 +669,59 @@ def _infer_title_company_from_context(
     start = max(0, date_idx - lookback)
     window = [l for l in lines[start:date_idx] if l.strip()]
 
+    def _looks_like_company_line(s: str) -> bool:
+        lower = s.lower()
+        if re.search(r"(—|–|-)\s+", s):
+            return True
+        if re.search(r",\s*[A-Z]{2}\b", s):
+            return True
+        return bool(
+            re.search(
+                r"\b(inc|llc|ltd|company|schools?|university|college|hospital|clinic|department|county|city|state|agency|association|foundation|center|centre|district|public|government)\b",
+                lower,
+            )
+        )
+
+    def _looks_like_title_line(s: str) -> bool:
+        lower = s.lower()
+        if "/" in s:
+            return True
+        return bool(
+            re.search(
+                r"\b(manager|director|engineer|developer|analyst|specialist|coordinator|assistant|teacher|counselor|consultant|intern|lead|supervisor|officer|administrator|facilitator)\b",
+                lower,
+            )
+        )
+
     
     if date_idx + 1 < len(lines):
         below = lines[date_idx + 1].strip()
         if below and not _looks_like_heading(below) and not below.lstrip().startswith(("-", "*")):
-            company = _split_company_location(below)
+            # If the date line already implies a company, treat the next line as title.
+            if prefix and not title and not _is_bad_title_candidate(below) and not DATE_PATTERN.search(below):
+                title = below
+                if not company:
+                    company = _split_company_location(prefix)
+            elif not company:
+                company = _split_company_location(below)
+
+    if not title and window:
+        last = window[-1].strip()
+        prev = window[-2].strip() if len(window) > 1 else ""
+        if (
+            last
+            and prev
+            and not _looks_like_heading(last)
+            and not _looks_like_heading(prev)
+            and not last.lstrip().startswith(("-", "*"))
+            and not prev.lstrip().startswith(("-", "*"))
+            and not DATE_PATTERN.search(last)
+            and not DATE_PATTERN.search(prev)
+        ):
+            if _looks_like_title_line(last) and (_looks_like_company_line(prev) or not company):
+                title = last
+                if not company:
+                    company = _split_company_location(prev)
 
     for cand in reversed(window):
         if cand.isupper() and len(cand.split()) <= 8 and not _looks_like_heading(cand) and not _is_bad_title_candidate(cand):
@@ -738,13 +815,53 @@ def _parse_experience(lines: Sequence[str]) -> List[Dict[str, object]]:
         end_idx = date_idxs[k + 1] if k + 1 < len(date_idxs) else len(scoped)
         impact_bullets: List[str] = []
         first_company_line = company.strip().lower() if company else ""
-        for line in scoped[date_idx + 1 : end_idx]:
+        for i, line in enumerate(scoped[date_idx + 1 : end_idx], start=date_idx + 1):
             if _looks_like_heading(line):
                 break
 
             # Stop when the next role header starts.
             if line.isupper() and len(line.split()) <= 8 and not line.lstrip().startswith(("-", "*")):
                 break
+
+            # Stop if this looks like the header of the next role (company/title lines) before its date.
+            cleaned_line = line.strip()
+            if cleaned_line and not cleaned_line.lstrip().startswith(("-", "*")) and not DATE_PATTERN.search(cleaned_line):
+                lower_line = cleaned_line.lower()
+                looks_like_header_candidate = (
+                    len(cleaned_line.split()) <= 6
+                    and (
+                        "/" in cleaned_line
+                        or cleaned_line.isupper()
+                        or cleaned_line.istitle()
+                        or re.search(
+                            r"\b(inc|llc|ltd|company|schools?|university|college|hospital|clinic|department|county|city|state|agency|association|foundation|center|centre|district|public|government|group|garden)\b",
+                            lower_line,
+                        )
+                        or re.search(
+                            r"\b(manager|director|engineer|developer|analyst|specialist|coordinator|assistant|teacher|counselor|consultant|intern|lead|supervisor|officer|administrator|facilitator)\b",
+                            lower_line,
+                        )
+                    )
+                )
+                next_line = ""
+                next_next = ""
+                for j in range(i + 1, min(end_idx + 1, len(scoped))):
+                    if scoped[j].strip():
+                        next_line = scoped[j].strip()
+                        for k2 in range(j + 1, min(end_idx + 1, len(scoped))):
+                            if scoped[k2].strip():
+                                next_next = scoped[k2].strip()
+                                break
+                        break
+                if (
+                    looks_like_header_candidate
+                    and next_line
+                    and not next_line.lstrip().startswith(("-", "*"))
+                    and not DATE_PATTERN.search(next_line)
+                    and next_next
+                    and DATE_PATTERN.search(next_next)
+                ):
+                    break
 
             is_bullet = bool(re.match(r"^\s*[-*]\s+", line))
             if is_bullet:
