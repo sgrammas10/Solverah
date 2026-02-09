@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 def _normalize_text(text: str) -> str:
     """Normalize bullets/dashes/whitespace for PDF-extracted text."""
     replacements = {
+        "?": "-",
         "·": "-",
         "": "-",
         "●": "-",
@@ -49,6 +50,43 @@ def _normalize_text(text: str) -> str:
 
     # De-hyphenate common PDF line breaks: "co-\nmputer" -> "computer"
     text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
+
+    # Join stacked headings like "PROFESSIONAL\nSUMMARY".
+    text = re.sub(r"(?mi)\bPROFESSIONAL\s*\n\s*SUMMARY\b", "PROFESSIONAL SUMMARY", text)
+    text = re.sub(r"(?mi)\bSKILLS\s*\n\s*SUMMARY\b", "SKILLS SUMMARY", text)
+    text = re.sub(r"(?mi)\bWORK\s*\n\s*HISTORY\b", "WORK HISTORY", text)
+
+    # If a heading shares a line with content, split it onto its own line.
+    inline_headings = [
+        "PROFESSIONAL SUMMARY",
+        "SUMMARY",
+        "SKILLS SUMMARY",
+        "SKILLS",
+        "WORK HISTORY",
+        "EXPERIENCE",
+        "PROFESSIONAL EXPERIENCE",
+        "WORK EXPERIENCE",
+        "RELEVANT EXPERIENCE",
+        "EDUCATION",
+        "PROJECTS",
+        "CERTIFICATIONS",
+        "LICENSURE & CERTIFICATIONS",
+        "LICENSES & CERTIFICATIONS",
+        "TECHNICAL SKILLS",
+        "RELEVANT SKILLS",
+        "CLINICAL SKILLS",
+        "TOOLS",
+        "TECHNOLOGIES",
+        "ADDITIONAL INFORMATION",
+        "PUBLICATIONS",
+        "VOLUNTEER EXPERIENCE",
+    ]
+    for heading in inline_headings:
+        if heading == "SKILLS":
+            pattern = re.compile(r"(?im)^(?P<h>SKILLS)(?!\s+SUMMARY)\s+(?=\S)")
+        else:
+            pattern = re.compile(rf"(?im)^(?P<h>{re.escape(heading)})\s+(?=\S)")
+        text = pattern.sub(r"\g<h>\n", text)
 
     # Collapse whitespace
     text = re.sub(r"[\t\f\r]+", " ", text)
@@ -111,6 +149,11 @@ DATE_PATTERN = re.compile(
     flags=re.IGNORECASE,
 )
 
+MULTI_SUMMER_RANGE = re.compile(
+    rf"(?P<start>{MONTH_PATTERN})\s*[–—-]\s*(?P<end>{MONTH_PATTERN})\s+(?P<y1>\d{{4}})\s*,\s*(?P<y2>\d{{4}})",
+    flags=re.IGNORECASE,
+)
+
 DEGREE_PATTERN = re.compile(
     r"\b((b\.?a\.?|b\.?s\.?|b\.tech|bachelor|bs|ba|ms|m\.?s\.?|m\.sc|master|mba|ph\.?d|phd|associate|beng|meng|jd|md))\b",
     flags=re.IGNORECASE,
@@ -127,16 +170,23 @@ CLEARANCE_PATTERN = re.compile(
 )
 
 # Headings
-HEADING_EXPERIENCE = re.compile(r"^(professional\s+experience|work\s+experience|experience)\b", re.I)
-HEADING_SKILLS = re.compile(r"^(technical\s+skills|skills|technologies|tools)\b", re.I)
+HEADING_EXPERIENCE = re.compile(
+    r"^(professional\s+experience|work\s+experience|relevant\s+experience|experience|work\s+history)\b",
+    re.I,
+)
+HEADING_SKILLS = re.compile(
+    r"^(skills\s+summary|technical\s+skills|relevant\s+skills|clinical\s+skills|skills|technologies|tools)\b",
+    re.I,
+)
 HEADING_EDU = re.compile(r"^education\b", re.I)
 HEADING_PROJECTS = re.compile(r"^projects?\b", re.I)
-HEADING_CERTS = re.compile(r"^certifications?\b", re.I)
+HEADING_CERTS = re.compile(r"^(licensure\s*&\s*certifications|licensure|licenses?\s*&\s*certifications|certifications?)\b", re.I)
+HEADING_VOLUNTEER = re.compile(r"^volunteer\s+experience\b", re.I)
 
 MASTER_HEADING = re.compile(
-    r"^(professional\s+summary|summary|technical\s+skills|skills|technologies|tools|"
-    r"professional\s+experience|work\s+experience|experience|education|projects?|"
-    r"certifications?|publications?|volunteer\s+experience|additional\s+information)\b",
+    r"^(professional\s+summary|summary|skills\s+summary|technical\s+skills|clinical\s+skills|skills|technologies|tools|"
+    r"relevant\s+skills|professional\s+experience|work\s+experience|relevant\s+experience|experience|work\s+history|education|projects?|"
+    r"(licensure\s*&\s*certifications|licensure|licenses?\s*&\s*certifications|certifications?)|publications?|volunteer\s+experience|additional\s+information)\b",
     re.I,
 )
 
@@ -176,7 +226,16 @@ def _looks_like_heading(line: str) -> bool:
     stripped = line.strip()
     if not stripped:
         return False
-    return bool(MASTER_HEADING.match(stripped))
+    return _is_clean_heading_line(stripped, MASTER_HEADING)
+
+
+def _is_clean_heading_line(line: str, heading_re: re.Pattern[str]) -> bool:
+    stripped = line.strip()
+    match = heading_re.match(stripped)
+    if not match:
+        return False
+    remainder = stripped[match.end() :].strip(" :|-")
+    return remainder == ""
 
 
 def _is_month_or_year_token(s: str) -> bool:
@@ -250,7 +309,7 @@ def _find_section_span(lines: Sequence[str], heading_re: re.Pattern[str]) -> Tup
     """
     start = None
     for i, line in enumerate(lines):
-        if heading_re.match(line.strip()):
+        if _is_clean_heading_line(line, heading_re):
             start = i + 1
             break
     if start is None:
@@ -258,7 +317,7 @@ def _find_section_span(lines: Sequence[str], heading_re: re.Pattern[str]) -> Tup
 
     end = len(lines)
     for j in range(start, len(lines)):
-        if MASTER_HEADING.match(lines[j].strip()):
+        if _is_clean_heading_line(lines[j], MASTER_HEADING):
             end = j
             break
     return start, end
@@ -270,11 +329,46 @@ def _parse_skill_categories(lines: Sequence[str]) -> Dict[str, List[str]]:
     if not scoped:
         return {}
 
+    def _should_merge_skill_lines(prev: str, nxt: str) -> bool:
+        prev_s = prev.strip()
+        nxt_s = nxt.strip()
+        if not prev_s or not nxt_s:
+            return False
+        if _looks_like_heading(prev_s) or _looks_like_heading(nxt_s):
+            return False
+        if re.search(r":\s*\S", prev_s) or re.search(r":\s*\S", nxt_s):
+            return False
+        if prev_s.lstrip().startswith(("-", "*")) or nxt_s.lstrip().startswith(("-", "*")):
+            return False
+        if "," in prev_s and nxt_s and nxt_s[0].islower():
+            return True
+        if prev_s.endswith(("and", "&")):
+            return True
+        return False
+
+    merged_scoped: List[str] = []
+    buffer = ""
+    for line in scoped:
+        s = line.strip()
+        if not s or _looks_like_heading(s):
+            if buffer:
+                merged_scoped.append(buffer)
+                buffer = ""
+            continue
+        if buffer and _should_merge_skill_lines(buffer, s):
+            buffer = f"{buffer} {s}"
+            continue
+        if buffer:
+            merged_scoped.append(buffer)
+        buffer = s
+    if buffer:
+        merged_scoped.append(buffer)
+
     categories: Dict[str, List[str]] = defaultdict(list)
     inline_label_re = re.compile(r"^([A-Za-z0-9][A-Za-z0-9 &/+\-]{0,60}):\s*(\S.*)$")
 
     current_label: str | None = None
-    for line in scoped:
+    for line in merged_scoped:
         s = line.strip()
         if not s or _looks_like_heading(s):
             current_label = None
@@ -283,18 +377,18 @@ def _parse_skill_categories(lines: Sequence[str]) -> Dict[str, List[str]]:
         m = inline_label_re.match(s)
         if m:
             current_label = m.group(1).strip()
-            content = m.group(2).strip()
+            content = _strip_skill_leadin(m.group(2).strip())
             for tok in _tokenize_list_content(content):
                 if _is_plausible_skill_item(tok):
                     categories[current_label].append(tok)
             continue
 
         if current_label:
-            for tok in _tokenize_list_content(s):
+            for tok in _tokenize_list_content(_strip_skill_leadin(s)):
                 if _is_plausible_skill_item(tok):
                     categories[current_label].append(tok)
         else:
-            for tok in _tokenize_list_content(s):
+            for tok in _tokenize_list_content(_strip_skill_leadin(s)):
                 if _is_plausible_skill_item(tok):
                     categories["Skills"].append(tok)
 
@@ -308,6 +402,37 @@ def _flatten_skill_categories(categories: Mapping[str, Sequence[str]]) -> List[s
     for items in categories.values():
         skills.extend(items)
     return _unique_preserve_order(skills)
+
+def _strip_skill_leadin(s: str) -> str:
+    """Remove common lead-in phrases to surface list-like skill fragments."""
+    if not s:
+        return s
+    lower = s.lower()
+    leadins = [
+        r"\bwell-versed in(?: the use of)?\b",
+        r"\bexperienced in\b",
+        r"\bexperience in\b",
+        r"\bproficient in\b",
+        r"\bskilled in\b",
+        r"\bknowledge of\b",
+        r"\bfamiliar with\b",
+        r"\bexpertise in\b",
+        r"\busing\b",
+        r"\butilizing\b",
+        r"\bincluding\b",
+    ]
+    # Strip everything up to the last lead-in if the remainder looks list-like.
+    last_match = None
+    for pat in leadins:
+        for m in re.finditer(pat, lower):
+            last_match = m
+    if last_match:
+        remainder = s[last_match.end() :].strip(" :;-")
+        if "." in remainder:
+            remainder = remainder.split(".", 1)[0].strip()
+        if re.search(r"[;,]|\\band\\b", remainder, flags=re.IGNORECASE):
+            return remainder
+    return s
 
 def _is_plausible_skill_item(token: str) -> bool:
     """Heuristic filter for list-like skill/tool items (industry-agnostic)."""
@@ -338,7 +463,10 @@ def _is_plausible_skill_item(token: str) -> bool:
 
     # Reject “Location: …” style fragments
     if re.match(r"^(location|phone|email|linkedin|github)\b", lower):
-        return False
+        if lower in {"location", "phone", "email", "linkedin", "github"}:
+            return False
+        if ":" in lower:
+            return False
 
     # Reject standalone years/months
     if _is_month_or_year_token(t):
@@ -352,7 +480,14 @@ def _is_plausible_skill_item(token: str) -> bool:
 
 
 def _parse_years_experience(text: str) -> int | float | None:
-    matches = re.findall(r"(\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs)\b", text, flags=re.IGNORECASE)
+    patterns = [
+        r"(\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs)\s+of\s+experience\b",
+        r"(\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs)\s+experience\b",
+        r"(\d+(?:\.\d+)?)\s*\+\s*(?:years?|yrs)\b",
+    ]
+    matches: list[str] = []
+    for pat in patterns:
+        matches.extend(re.findall(pat, text, flags=re.IGNORECASE))
     numeric = [float(m) for m in matches]
     if not numeric:
         return None
@@ -364,16 +499,21 @@ def _years_from_duration(duration: str) -> float | None:
     Convert duration strings like:
     - 2014-2018
     - 2018-Present
+    - 08/2020 to CURRENT
+    - 02/2019 to 08/2020
     - June 2019 - May 2021
     into approximate years.
     """
     if not duration:
         return None
 
-    now_year = datetime.now().year
+    now = datetime.now()
+    now_year = now.year
+    now_month = now.month
 
     # Normalize separators
     s = duration.lower().replace("–", "-").replace("—", "-")
+    s = re.sub(r"\s+to\s+", " - ", s)
 
     # Year-year or year-present
     m = re.search(r"(\d{4})\s*-\s*(present|current|now|\d{4})", s)
@@ -382,6 +522,99 @@ def _years_from_duration(duration: str) -> float | None:
         end = now_year if not m.group(2).isdigit() else int(m.group(2))
         if end >= start:
             return float(end - start)
+
+    m = re.search(r"(\d{1,2})/(\d{4})\s*-\s*(present|current|now|(\d{1,2})/(\d{4}))", s)
+    if m:
+        start_month = int(m.group(1))
+        start_year = int(m.group(2))
+        if m.group(4) and m.group(5):
+            end_month = int(m.group(4))
+            end_year = int(m.group(5))
+        else:
+            end_month = now_month
+            end_year = now_year
+        if 1 <= start_month <= 12 and 1 <= end_month <= 12:
+            start_total = start_year * 12 + (start_month - 1)
+            end_total = end_year * 12 + (end_month - 1)
+            if end_total >= start_total:
+                return (end_total - start_total) / 12.0
+
+    # Month/year short format (e.g., "3/15-present", "12/14-3/15")
+    m = re.search(r"(\d{1,2})/(\d{2})\s*-\s*(present|current|now|(\d{1,2})/(\d{2}))", s)
+    if m:
+        start_month = int(m.group(1))
+        start_year_2 = int(m.group(2))
+        if m.group(4) and m.group(5):
+            end_month = int(m.group(4))
+            end_year_2 = int(m.group(5))
+        else:
+            end_month = now_month
+            end_year_2 = now_year % 100
+        # Interpret two-digit years with a sliding window around current year.
+        def _to_year(two_digit: int) -> int:
+            pivot = (now_year % 100) + 5
+            century = now_year - (now_year % 100)
+            year = century + two_digit
+            if two_digit > pivot:
+                year -= 100
+            return year
+        start_year = _to_year(start_year_2)
+        end_year = _to_year(end_year_2)
+        if 1 <= start_month <= 12 and 1 <= end_month <= 12:
+            start_total = start_year * 12 + (start_month - 1)
+            end_total = end_year * 12 + (end_month - 1)
+            if end_total >= start_total:
+                return (end_total - start_total) / 12.0
+
+    # Month-name year ranges (e.g., "September 2020 - Current")
+    month_regex = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
+    m = re.search(
+        rf"(?P<sm>{month_regex})\s+(?P<sy>\d{{4}})\s*-\s*(?:(?P<em>{month_regex})\s+(?P<ey>\d{{4}})|(?P<now>present|current|now))",
+        s,
+        flags=re.I,
+    )
+    if m:
+        sm = m.group("sm").lower()[:3]
+        sy = int(m.group("sy"))
+        if m.group("now"):
+            em = now_month
+            ey = now_year
+        else:
+            em = m.group("em").lower()[:3]
+            ey = int(m.group("ey"))
+            em = {
+                "jan": 1,
+                "feb": 2,
+                "mar": 3,
+                "apr": 4,
+                "may": 5,
+                "jun": 6,
+                "jul": 7,
+                "aug": 8,
+                "sep": 9,
+                "oct": 10,
+                "nov": 11,
+                "dec": 12,
+            }.get(em, 0)
+        sm = {
+            "jan": 1,
+            "feb": 2,
+            "mar": 3,
+            "apr": 4,
+            "may": 5,
+            "jun": 6,
+            "jul": 7,
+            "aug": 8,
+            "sep": 9,
+            "oct": 10,
+            "nov": 11,
+            "dec": 12,
+        }.get(sm, 0)
+        if 1 <= sm <= 12 and 1 <= em <= 12:
+            start_total = sy * 12 + (sm - 1)
+            end_total = ey * 12 + (em - 1)
+            if end_total >= start_total:
+                return (end_total - start_total) / 12.0
 
     return None
 
@@ -403,6 +636,8 @@ def _infer_title_company_from_context(
     title = ""
     company = ""
     date_line = lines[date_idx].strip()
+    prefix = ""
+    suffix = ""
 
     m = INLINE_TITLE_DATE.match(date_line)
     if m:
@@ -414,14 +649,79 @@ def _infer_title_company_from_context(
         else:
             title = ""
 
+    if not title or not company:
+        date_match = DATE_PATTERN.search(date_line)
+        if date_match:
+            prefix = date_line[: date_match.start()].strip(" -|")
+            suffix = date_line[date_match.end() :].strip(" -|")
+            candidate = prefix or suffix
+            if candidate:
+                parts = re.split(r"\s*(?:—|–)\s*|\s+-\s+|\s*\|\s*", candidate, maxsplit=1)
+                if len(parts) == 2:
+                    if not title:
+                        title = parts[0].strip()
+                    if not company:
+                        company = _split_company_location(parts[1].strip())
+                else:
+                    if not title:
+                        title = candidate.strip()
+
     start = max(0, date_idx - lookback)
     window = [l for l in lines[start:date_idx] if l.strip()]
+
+    def _looks_like_company_line(s: str) -> bool:
+        lower = s.lower()
+        if re.search(r"(—|–|-)\s+", s):
+            return True
+        if re.search(r",\s*[A-Z]{2}\b", s):
+            return True
+        return bool(
+            re.search(
+                r"\b(inc|llc|ltd|company|schools?|university|college|hospital|clinic|department|county|city|state|agency|association|foundation|center|centre|district|public|government)\b",
+                lower,
+            )
+        )
+
+    def _looks_like_title_line(s: str) -> bool:
+        lower = s.lower()
+        if "/" in s:
+            return True
+        return bool(
+            re.search(
+                r"\b(manager|director|engineer|developer|analyst|specialist|coordinator|assistant|teacher|counselor|consultant|intern|lead|supervisor|officer|administrator|facilitator)\b",
+                lower,
+            )
+        )
 
     
     if date_idx + 1 < len(lines):
         below = lines[date_idx + 1].strip()
         if below and not _looks_like_heading(below) and not below.lstrip().startswith(("-", "*")):
-            company = _split_company_location(below)
+            # If the date line already implies a company, treat the next line as title.
+            if prefix and not title and not _is_bad_title_candidate(below) and not DATE_PATTERN.search(below):
+                title = below
+                if not company:
+                    company = _split_company_location(prefix)
+            elif not company:
+                company = _split_company_location(below)
+
+    if not title and window:
+        last = window[-1].strip()
+        prev = window[-2].strip() if len(window) > 1 else ""
+        if (
+            last
+            and prev
+            and not _looks_like_heading(last)
+            and not _looks_like_heading(prev)
+            and not last.lstrip().startswith(("-", "*"))
+            and not prev.lstrip().startswith(("-", "*"))
+            and not DATE_PATTERN.search(last)
+            and not DATE_PATTERN.search(prev)
+        ):
+            if _looks_like_title_line(last) and (_looks_like_company_line(prev) or not company):
+                title = last
+                if not company:
+                    company = _split_company_location(prev)
 
     for cand in reversed(window):
         if cand.isupper() and len(cand.split()) <= 8 and not _looks_like_heading(cand) and not _is_bad_title_candidate(cand):
@@ -476,14 +776,46 @@ def _parse_experience(lines: Sequence[str]) -> List[Dict[str, object]]:
 
     for k, date_idx in enumerate(date_idxs):
         date_line = scoped[date_idx]
-        duration_match = DATE_PATTERN.search(date_line)
-        duration = duration_match.group(0).strip() if duration_match else ""
+        duration = ""
+        multi_match = MULTI_SUMMER_RANGE.search(date_line)
+        if multi_match:
+            start = multi_match.group("start").strip()
+            end = multi_match.group("end").strip()
+            y1 = multi_match.group("y1")
+            y2 = multi_match.group("y2")
+            duration = f"{start} {y1} - {end} {y2}"
+        else:
+            duration_match = DATE_PATTERN.search(date_line)
+            duration = duration_match.group(0).strip() if duration_match else ""
 
         title, company = _infer_title_company_from_context(scoped, date_idx)
+        if not title and duration:
+            duration_match = DATE_PATTERN.search(date_line)
+            if duration_match:
+                remainder = date_line[duration_match.end() :].strip(" -|")
+                if remainder and not _looks_like_heading(remainder):
+                    title = remainder.title()
+
+        if not company:
+            for look_ahead in range(1, 3):
+                if date_idx + look_ahead >= len(scoped):
+                    break
+                candidate = scoped[date_idx + look_ahead].strip()
+                if not candidate or _looks_like_heading(candidate):
+                    continue
+                if candidate.lstrip().startswith(("-", "*")):
+                    continue
+                if DATE_PATTERN.search(candidate):
+                    continue
+                if " | " in candidate or "," in candidate or " - " in candidate:
+                    company = _split_company_location(candidate)
+                    if company:
+                        break
 
         end_idx = date_idxs[k + 1] if k + 1 < len(date_idxs) else len(scoped)
         impact_bullets: List[str] = []
-        for line in scoped[date_idx + 1 : end_idx]:
+        first_company_line = company.strip().lower() if company else ""
+        for i, line in enumerate(scoped[date_idx + 1 : end_idx], start=date_idx + 1):
             if _looks_like_heading(line):
                 break
 
@@ -491,12 +823,83 @@ def _parse_experience(lines: Sequence[str]) -> List[Dict[str, object]]:
             if line.isupper() and len(line.split()) <= 8 and not line.lstrip().startswith(("-", "*")):
                 break
 
-            # Prefer true bullets to avoid swallowing the next role's header lines.
-            if not re.match(r"^\s*[-*]\s+", line):
+            # Stop if this looks like the header of the next role (company/title lines) before its date.
+            cleaned_line = line.strip()
+            if cleaned_line and not cleaned_line.lstrip().startswith(("-", "*")) and not DATE_PATTERN.search(cleaned_line):
+                lower_line = cleaned_line.lower()
+                looks_like_header_candidate = (
+                    len(cleaned_line.split()) <= 6
+                    and (
+                        "/" in cleaned_line
+                        or cleaned_line.isupper()
+                        or cleaned_line.istitle()
+                        or re.search(
+                            r"\b(inc|llc|ltd|company|schools?|university|college|hospital|clinic|department|county|city|state|agency|association|foundation|center|centre|district|public|government|group|garden)\b",
+                            lower_line,
+                        )
+                        or re.search(
+                            r"\b(manager|director|engineer|developer|analyst|specialist|coordinator|assistant|teacher|counselor|consultant|intern|lead|supervisor|officer|administrator|facilitator)\b",
+                            lower_line,
+                        )
+                    )
+                )
+                next_line = ""
+                next_next = ""
+                for j in range(i + 1, min(end_idx + 1, len(scoped))):
+                    if scoped[j].strip():
+                        next_line = scoped[j].strip()
+                        for k2 in range(j + 1, min(end_idx + 1, len(scoped))):
+                            if scoped[k2].strip():
+                                next_next = scoped[k2].strip()
+                                break
+                        break
+                if (
+                    looks_like_header_candidate
+                    and next_line
+                    and not next_line.lstrip().startswith(("-", "*"))
+                    and not DATE_PATTERN.search(next_line)
+                    and next_next
+                    and DATE_PATTERN.search(next_next)
+                ):
+                    break
+
+            is_bullet = bool(re.match(r"^\s*[-*]\s+", line))
+            if is_bullet:
+                cleaned = _strip_bullet(line)
+                if cleaned:
+                    impact_bullets.append(cleaned)
+                continue
+            cleaned = line.strip()
+            if not cleaned or DATE_PATTERN.search(cleaned):
                 continue
 
-            cleaned = _strip_bullet(line)
-            if cleaned:
+            # Skip duplicate company line in bullets when it appears immediately after the date line.
+            if first_company_line and cleaned.lower() == first_company_line:
+                continue
+            if company:
+                compact_company = re.sub(r"\s+", "", company).lower()
+                compact_line = re.sub(r"\s+", "", cleaned).lower()
+                if compact_company and compact_company in compact_line:
+                    continue
+
+            # Treat non-bulleted lines as bullet text (common in resumes without bullets)
+            if not impact_bullets:
+                impact_bullets.append(cleaned)
+                continue
+
+            prev = impact_bullets[-1].rstrip()
+            role_header = bool(
+                re.match(r"^[A-Z][A-Za-z0-9 /&().'-]{3,80}[–—-].*\b(19|20)\d{2}\b", cleaned)
+            )
+            is_wrap = (
+                cleaned[:1].islower()
+                or prev.endswith((",", "and", "&", "+", "/"))
+                or role_header
+            )
+            if is_wrap:
+                # Continuation of the previous bullet (wrapped line)
+                impact_bullets[-1] = f"{impact_bullets[-1]} {cleaned}"
+            else:
                 impact_bullets.append(cleaned)
 
         if not (title or company or impact_bullets):
@@ -523,6 +926,8 @@ def _parse_education(lines: Sequence[str]) -> str:
 
     edu_lines: List[str] = []
     for idx, line in enumerate(scoped):
+        if re.search(r"\bcredentials?\b", line, flags=re.IGNORECASE):
+            continue
         if DEGREE_PATTERN.search(line) or EDU_INSTITUTION_PATTERN.search(line):
             combined = line
             if idx + 1 < len(scoped) and scoped[idx + 1] and len(scoped[idx + 1]) < 140 and not _looks_like_heading(scoped[idx + 1]):
@@ -552,11 +957,15 @@ def _looks_like_contact_or_noise(token: str) -> bool:
 
 def _tokenize_list_content(s: str) -> List[str]:
     """Tokenize comma/pipe/semicolon separated lists without breaking hyphenated tech."""
+    if re.search(r"[;,|/\\\\]", s):
+        s = re.sub(r"\band\b", ",", s, flags=re.IGNORECASE)
     parts = re.split(r"\s*(?:,|;|\||/|\\)\s*", s)
     out: List[str] = []
 
     for part in parts:
         cleaned = re.sub(r"\s+", " ", part.strip().strip("•* -"))
+        cleaned = re.sub(r"^(and|&)\s+", "", cleaned, flags=re.IGNORECASE)
+        cleaned = cleaned.strip(" .;:")
         if not cleaned:
             continue
 
@@ -604,7 +1013,95 @@ def _parse_certifications(lines: Sequence[str]) -> List[str]:
         cleaned = _strip_bullet(line)
         if cleaned and not _looks_like_heading(cleaned):
             certs.append(cleaned)
+
+    if not certs:
+        # Fallback: pull explicit "Credentials:" lines found anywhere (often under Education & Training)
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            if re.search(r"\bcredentials?\b", line, flags=re.IGNORECASE):
+                cleaned = _strip_bullet(line)
+                if ":" in cleaned:
+                    cleaned = cleaned.split(":", 1)[1].strip()
+                # Join continuation lines until blank/heading.
+                j = i + 1
+                while j < len(lines):
+                    next_line = lines[j].strip()
+                    if not next_line or _looks_like_heading(next_line):
+                        break
+                    if re.match(r"^\s*[-*]\s+", next_line):
+                        break
+                    cleaned = f"{cleaned} {next_line}".strip()
+                    j += 1
+                if cleaned:
+                    certs.extend(_tokenize_list_content(cleaned))
+                i = j
+                continue
+            i += 1
+
     return _unique_preserve_order(certs)
+
+
+def _parse_volunteer_experience(lines: Sequence[str]) -> List[Dict[str, object]]:
+    span = _find_section_span(lines, HEADING_VOLUNTEER)
+    scoped = lines[span[0] : span[1]] if span else []
+    if not scoped:
+        return []
+
+    experiences: List[Dict[str, object]] = []
+    i = 0
+    while i < len(scoped):
+        line = scoped[i].strip()
+        if not line:
+            i += 1
+            continue
+        if _looks_like_heading(line):
+            break
+
+        title = line
+        company = ""
+        impact_bullets: List[str] = []
+
+        j = i + 1
+        while j < len(scoped) and not scoped[j].strip():
+            j += 1
+
+        if j < len(scoped):
+            next_line = scoped[j].strip()
+            if next_line and not next_line.lstrip().startswith(("-", "*")) and not _looks_like_heading(next_line):
+                company = _split_company_location(next_line)
+                j += 1
+
+        while j < len(scoped):
+            cur = scoped[j]
+            if not cur.strip():
+                break
+            if _looks_like_heading(cur):
+                break
+            if re.match(r"^\s*[-*]\s+", cur):
+                cleaned = _strip_bullet(cur)
+                if cleaned:
+                    impact_bullets.append(cleaned)
+                j += 1
+                continue
+            # Treat non-bullet text as a bullet if none exist; otherwise append.
+            if impact_bullets:
+                impact_bullets[-1] = f"{impact_bullets[-1]} {cur.strip()}"
+            else:
+                impact_bullets.append(cur.strip())
+            j += 1
+
+        experiences.append(
+            {
+                "title": title,
+                "company": company,
+                "duration": "",
+                "impact_bullets": impact_bullets,
+            }
+        )
+        i = j + 1
+
+    return experiences
 
 
 # ---------------------------- Clearance / work auth -----------------------------
@@ -624,6 +1121,9 @@ def parse_resume(text: str) -> Dict[str, object]:
 
     explicit_years = _parse_years_experience(text)
     experience = _parse_experience(line_list)
+    volunteer_experience = _parse_volunteer_experience(line_list)
+    if volunteer_experience:
+        experience.extend(volunteer_experience)
 
     if explicit_years is not None:
         years_experience = explicit_years

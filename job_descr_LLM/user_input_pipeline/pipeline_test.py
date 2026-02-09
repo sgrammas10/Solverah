@@ -35,8 +35,6 @@ from typing import Any, Callable, Dict, List, Tuple
 REPO_ROOT = Path(__file__).resolve().parents[2]  # .../Solverah
 sys.path.insert(0, str(REPO_ROOT))
 
-# --------- CONFIG: point these at where the scripts live in your repo ----------
-# If you put this file in the same folder as the scripts, these defaults work.
 DEFAULT_SCRIPT_PATHS = {
     "export": Path("export_intake.py"),
     "download": Path("download_resumes.py"),
@@ -151,7 +149,7 @@ class Paths:
         return self.version_dir / "model_inputs.jsonl"
 
 
-# --------- Stage runners (call your existing functions if present) ----------
+# --------- Stage runners  ----------
 def run_export_intake(mod, p: Paths) -> None:
     """
     Expected: export_intake.py defines export_intake(dataset_version=...).

@@ -1,8 +1,8 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { AuthProvider } from "./contexts/AuthContext.tsx";
+import { useAuth } from "./contexts/useAuth";
 import Header from "./components/Header";
-import { PRELAUNCH_MODE } from "./config";
 
 // Quiz Components
 import CareerQuizzes from "./components/CareerQuizzes";
@@ -14,13 +14,15 @@ import PrelaunchLandingPage from "./pages/prelaunchlandingpage";
 import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ConfirmEmail from "./pages/ConfirmEmail";
+import CheckEmail from "./pages/CheckEmail";
 import JobSeekerDashboard from "./pages/JobSeekerDashboard";
 import RecruiterDashboard from "./pages/RecruiterDashboard";
 import JobSeekerProfile from "./pages/JobSeekerProfile";
 import RecruiterProfile from "./pages/RecruiterProfile";
 import Feed from "./pages/Feed";
 import SearchResults from "./pages/SearchResults"; // from your quiz-aware version
-
+import QuizInsights from "./pages/QuizInsights";
 
 // Role-based route protection
 function ProtectedRoute({
@@ -42,16 +44,17 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-slate-950 text-slate-100">
           <Header />
           <main>
             <Routes>
               {/* Public routes */}
-              {/* Prelaunch Landing Page change prelaunch mode to turn off*/}
-              <Route path="/" element={PRELAUNCH_MODE ? <PrelaunchLandingPage /> : <LandingPage />} />
-              <Route path="/login" element={PRELAUNCH_MODE ? <Navigate to="/" replace /> : <Login />} />
-              <Route path="/register" element={PRELAUNCH_MODE ? <Navigate to="/" replace /> : <Register />} />
-
+              <Route path="/" element={<PrelaunchLandingPage />} />
+              <Route path="/landing" element={<LandingPage />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/confirm-email" element={<ConfirmEmail />} />
+              <Route path="/check-email" element={<CheckEmail />} />
 
               {/* Shared feed + search routes */}
               <Route
@@ -129,6 +132,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
                     <SolverahYourFutureYourWayQuiz />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/quiz-insights"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                    <QuizInsights />
                   </ProtectedRoute>
                 }
               />

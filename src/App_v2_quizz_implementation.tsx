@@ -5,7 +5,8 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 // Authentication context: provides user state and login/logout helpers
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider } from "./contexts/AuthContext.tsx";
+import { useAuth } from "./contexts/useAuth";
 
 // Shared UI
 import Header from './components/Header';
@@ -30,6 +31,7 @@ import RecruiterProfile from './pages/RecruiterProfile';
 
 // Pages accessible to both roles
 import Feed from './pages/Feed';
+import QuizInsights from './pages/QuizInsights';
 
 
 /**
@@ -72,7 +74,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-slate-950 text-slate-100">
           {/* Navigation bar that appears on all pages */}
           <Header />
           
@@ -124,6 +126,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['job-seeker', 'recruiter']}>
                     <CareerQuizzes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/quiz-insights"
+                element={
+                  <ProtectedRoute allowedRoles={['job-seeker', 'recruiter']}>
+                    <QuizInsights />
                   </ProtectedRoute>
                 }
               />
