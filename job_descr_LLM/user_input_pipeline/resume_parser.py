@@ -270,7 +270,7 @@ def _split_company_location(line: str) -> str:
         return ""
 
     # 1) Split on dash-like separators first: "Company — City, ST" / "Company – City" / "Company - City"
-    dash_parts = re.split(r"\s*(?:—|–|-)\s+", cleaned, maxsplit=1)
+    dash_parts = re.split(r"\s*(?:-|\|)\s+", cleaned, maxsplit=1)
     left = dash_parts[0].strip()
 
     # 2) If there's a comma and the RHS looks like a location, drop it: "Company, Hartford CT"
@@ -287,6 +287,28 @@ def _split_company_location(line: str) -> str:
             return maybe_company
 
     return left
+
+def _looks_like_location_line(line: str) -> bool:
+    s = line.strip()
+    if not s:
+        return False
+    if "," not in s:
+        return False
+    if not US_STATE.search(s):
+        return False
+    return len(s.split()) <= 5
+
+
+def _looks_like_cert_line(line: str) -> bool:
+    s = line.strip()
+    if not s:
+        return False
+    lower = s.lower()
+    if re.search(r"\b(cert|certified|certification|license|licensed|licensure|credential|registered)\b", lower):
+        return True
+    if re.search(r"\([A-Z]{2,6}\)", s):
+        return True
+    return False
 
 
 
@@ -671,7 +693,9 @@ def _infer_title_company_from_context(
 
     def _looks_like_company_line(s: str) -> bool:
         lower = s.lower()
-        if re.search(r"(—|–|-)\s+", s):
+        if re.search(r"-\s+", s):
+            return True
+        if "|" in s:
             return True
         if re.search(r",\s*[A-Z]{2}\b", s):
             return True
@@ -702,10 +726,29 @@ def _infer_title_company_from_context(
                 title = below
                 if not company:
                     company = _split_company_location(prefix)
+            elif _looks_like_title_line(below) and not _is_bad_title_candidate(below):
+                if not title:
+                    title = below
+                if not company:
+                    for look_ahead in range(2, 5):
+                        if date_idx + look_ahead >= len(lines):
+                            break
+                        candidate = lines[date_idx + look_ahead].strip()
+                        if not candidate or _looks_like_heading(candidate):
+                            continue
+                        if candidate.lstrip().startswith(("-", "*")):
+                            continue
+                        if DATE_PATTERN.search(candidate):
+                            continue
+                        if _looks_like_title_line(candidate):
+                            continue
+                        company = _split_company_location(candidate)
+                        if company:
+                            break
             elif not company:
                 company = _split_company_location(below)
 
-    if not title and window:
+    if window:
         last = window[-1].strip()
         prev = window[-2].strip() if len(window) > 1 else ""
         if (
@@ -718,10 +761,14 @@ def _infer_title_company_from_context(
             and not DATE_PATTERN.search(last)
             and not DATE_PATTERN.search(prev)
         ):
-            if _looks_like_title_line(last) and (_looks_like_company_line(prev) or not company):
+            if not title and _looks_like_title_line(last) and (_looks_like_company_line(prev) or not company):
                 title = last
                 if not company:
                     company = _split_company_location(prev)
+            if not title and _looks_like_company_line(last) and _looks_like_title_line(prev):
+                title = prev
+                if not company:
+                    company = _split_company_location(last)
 
     for cand in reversed(window):
         if cand.isupper() and len(cand.split()) <= 8 and not _looks_like_heading(cand) and not _is_bad_title_candidate(cand):
@@ -866,11 +913,15 @@ def _parse_experience(lines: Sequence[str]) -> List[Dict[str, object]]:
             is_bullet = bool(re.match(r"^\s*[-*]\s+", line))
             if is_bullet:
                 cleaned = _strip_bullet(line)
-                if cleaned:
+                if cleaned and cleaned not in {"-"} and not _looks_like_location_line(cleaned):
                     impact_bullets.append(cleaned)
                 continue
             cleaned = line.strip()
             if not cleaned or DATE_PATTERN.search(cleaned):
+                continue
+            if cleaned in {"-"}:
+                continue
+            if _looks_like_location_line(cleaned):
                 continue
 
             # Skip duplicate company line in bullets when it appears immediately after the date line.
@@ -1011,8 +1062,19 @@ def _parse_certifications(lines: Sequence[str]) -> List[str]:
     certs: List[str] = []
     for line in scoped:
         cleaned = _strip_bullet(line)
+        if cleaned:
+            cleaned = re.split(
+                r"\b(systems?\s+exposure|other\s+notes|eligible\s+to\s+work|available\s+for|professional\s+interests)\b",
+                cleaned,
+                flags=re.IGNORECASE,
+            )[0].strip()
         if cleaned and not _looks_like_heading(cleaned):
-            certs.append(cleaned)
+            if re.search(r"[;,|/\\]", cleaned):
+                for token in _tokenize_list_content(cleaned):
+                    if _looks_like_cert_line(token):
+                        certs.append(token)
+            elif _looks_like_cert_line(cleaned):
+                certs.append(cleaned)
 
     if not certs:
         # Fallback: pull explicit "Credentials:" lines found anywhere (often under Education & Training)
@@ -1034,7 +1096,9 @@ def _parse_certifications(lines: Sequence[str]) -> List[str]:
                     cleaned = f"{cleaned} {next_line}".strip()
                     j += 1
                 if cleaned:
-                    certs.extend(_tokenize_list_content(cleaned))
+                    for token in _tokenize_list_content(cleaned):
+                        if _looks_like_cert_line(token):
+                            certs.append(token)
                 i = j
                 continue
             i += 1
