@@ -3,6 +3,56 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
 import { Mail, Lock, Briefcase } from 'lucide-react';
 
+function ResendConfirmation({ email }: { email: string }) {
+  const [status, setStatus] = useState<'idle'|'sending'|'sent'|'error'>('idle');
+  const [msg, setMsg] = useState('');
+
+  const rawApiUrl = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
+  const normalizedApiUrl = rawApiUrl.replace(/\/+$/, '');
+  const API_URL = normalizedApiUrl.endsWith('/api') ? normalizedApiUrl : `${normalizedApiUrl}/api`;
+
+  const handleResend = async () => {
+    if (!email) {
+      setMsg('Please enter your email above before resending.');
+      setStatus('error');
+      return;
+    }
+    setStatus('sending');
+    setMsg('');
+    try {
+      const res = await fetch(`${API_URL}/resend-confirmation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setStatus('error');
+        setMsg(data?.error || 'Failed to resend confirmation');
+        return;
+      }
+      setStatus('sent');
+      setMsg('Confirmation email resent. Check your inbox.');
+    } catch (err: any) {
+      setStatus('error');
+      setMsg(err?.message || 'Network error');
+    }
+  };
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={handleResend}
+        className="text-sm underline text-emerald-200"
+        disabled={status === 'sending' || status === 'sent'}
+      >
+        {status === 'sending' ? 'Sending...' : status === 'sent' ? 'Sent' : 'Resend confirmation email'}
+      </button>
+      {msg && <div className={`text-sm ${status === 'error' ? 'text-red-300' : 'text-emerald-300'}`}>{msg}</div>}
+    </div>
+  );
+}
+
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,7 +72,12 @@ function Login() {
       const redirectPath = loggedInUser.role === 'job-seeker' ? '/job-seeker/dashboard' : '/recruiter/dashboard';
       navigate(redirectPath);
     } catch (err) {
-      setError('Failed to sign in. Please check your credentials.');
+      const message = err instanceof Error ? err.message : String(err);
+      if (message && message.toLowerCase().includes('email not confirmed')) {
+        setError('Your email is not confirmed. Please check your inbox.');
+      } else {
+        setError('Failed to sign in. Please check your credentials.');
+      }
     } finally {
       setLoading(false);
     }
@@ -53,6 +108,14 @@ function Login() {
           {error && (
             <div className="rounded-md bg-red-500/10 p-4 text-sm text-red-100 ring-1 ring-red-500/30">
               {error}
+              {/* Resend confirmation when email not confirmed */}
+            </div>
+          )}
+
+          {/* Resend confirmation UI when appropriate */}
+          {error && error.toLowerCase().includes('not confirmed') && (
+            <div className="mt-3 text-center">
+              <ResendConfirmation email={email} />
             </div>
           )}
 

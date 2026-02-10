@@ -31,6 +31,7 @@ import RecruiterProfile from './pages/RecruiterProfile';
 
 // Pages accessible to both roles
 import Feed from './pages/Feed';
+import QuizInsights from './pages/QuizInsights';
 
 
 /**
@@ -125,6 +126,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['job-seeker', 'recruiter']}>
                     <CareerQuizzes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/quiz-insights"
+                element={
+                  <ProtectedRoute allowedRoles={['job-seeker', 'recruiter']}>
+                    <QuizInsights />
                   </ProtectedRoute>
                 }
               />

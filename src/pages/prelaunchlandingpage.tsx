@@ -20,6 +20,7 @@ function PrelaunchLandingPage() {
     portfolioUrl: "",
   });
   const [privacyConsent, setPrivacyConsent] = useState(false);
+  const [infoOptIn, setInfoOptIn] = useState(false);
 
   const [isEarlyAccessOpen, setIsEarlyAccessOpen] = useState(false);
   const [earlyAccessData, setEarlyAccessData] = useState({
@@ -59,6 +60,7 @@ function PrelaunchLandingPage() {
   const portfolioId = useId();
   const resumeId = useId();
   const privacyConsentId = useId();
+  const infoOptInId = useId();
   const earlyFirstNameId = useId();
   const earlyLastNameId = useId();
   const earlyEmailId = useId();
@@ -192,6 +194,7 @@ function PrelaunchLandingPage() {
         linkedin_url: linkedinUrl || null,
         portfolio_url: formData.portfolioUrl.trim() || null,
         privacy_consent: privacyConsent,
+        info_opt_in: infoOptIn,
       };
 
       const finalizeRes = await fetch(`${API_BASE}/intake/finalize`, {
@@ -225,6 +228,7 @@ function PrelaunchLandingPage() {
         portfolioUrl: "",
       });
       setPrivacyConsent(false);
+      setInfoOptIn(false);
       setResumeFile(null);
       setSelectedFileName("");
     } catch (error) {
@@ -564,6 +568,22 @@ function PrelaunchLandingPage() {
                     <span>
                       I consent to Solverah securely storing my resume and contact information for early
                       access review.
+                    </span>
+                  </label>
+
+                  <label
+                    htmlFor={infoOptInId}
+                    className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-200/85"
+                  >
+                    <input
+                      id={infoOptInId}
+                      type="checkbox"
+                      checked={infoOptIn}
+                      onChange={(e) => setInfoOptIn(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/10 text-emerald-400 focus:ring-emerald-400/60"
+                    />
+                    <span>
+                      I want more information about how Solverah can help me.
                     </span>
                   </label>
 

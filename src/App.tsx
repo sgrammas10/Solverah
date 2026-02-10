@@ -14,12 +14,15 @@ import PrelaunchLandingPage from "./pages/prelaunchlandingpage";
 import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ConfirmEmail from "./pages/ConfirmEmail";
+import CheckEmail from "./pages/CheckEmail";
 import JobSeekerDashboard from "./pages/JobSeekerDashboard";
 import RecruiterDashboard from "./pages/RecruiterDashboard";
 import JobSeekerProfile from "./pages/JobSeekerProfile";
 import RecruiterProfile from "./pages/RecruiterProfile";
 import Feed from "./pages/Feed";
 import SearchResults from "./pages/SearchResults"; // from your quiz-aware version
+import QuizInsights from "./pages/QuizInsights";
 
 // Role-based route protection
 function ProtectedRoute({
@@ -50,6 +53,8 @@ function App() {
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/confirm-email" element={<ConfirmEmail />} />
+              <Route path="/check-email" element={<CheckEmail />} />
 
               {/* Shared feed + search routes */}
               <Route
@@ -127,6 +132,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
                     <SolverahYourFutureYourWayQuiz />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/quiz-insights"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                    <QuizInsights />
                   </ProtectedRoute>
                 }
               />
