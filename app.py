@@ -754,6 +754,8 @@ def default_profile(email="", name="", role="job-seeker"):
         "email": email,
         "phone": "",
         "location": "",
+        "primaryLocation": "",
+        "secondaryLocations": [],
         "summary": "",
         "experience": [],
         "education": [],

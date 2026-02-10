@@ -7,6 +7,8 @@ ALLOWED_PROFILE_FIELDS = {
     "email",
     "phone",
     "location",
+    "primaryLocation",
+    "secondaryLocations",
     "summary",
     "experience",
     "education",
@@ -15,6 +17,8 @@ ALLOWED_PROFILE_FIELDS = {
     "psychometricResults",
     "quizResults",
     "applications",
+    "uploadedResume",
+    "resumeKey",
 }
 
 # Basic password rules for registration
