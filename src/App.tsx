@@ -120,6 +120,38 @@ function App() {
                 }
               />
               <Route
+                path="/career-quizzes/early-career"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                    <CareerQuizzes quizKey="earlyCareer" />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/career-quizzes/career-transition"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                    <CareerQuizzes quizKey="careerTransition" />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/career-quizzes/mid-career"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                    <CareerQuizzes quizKey="midCareer" />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/career-quizzes/teen-focused"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                    <CareerQuizzes quizKey="teenFocused" />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/career-job-search"
                 element={
                   <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>

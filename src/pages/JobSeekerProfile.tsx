@@ -1387,19 +1387,35 @@ function JobSeekerProfile() {
 
               {/* Quiz Cards */}
               <div className="grid md:grid-cols-2 gap-6">
-                {/* Career Quizzes & Archetypes */}
+                {/* Early Career */}
                 <div className="border border-white/10 rounded-lg p-5 bg-slate-900/60 hover:shadow-md transition">
                   <h3 className="text-lg font-semibold text-emerald-200 mb-2">
-                    Career Quizzes & Archetypes
+                    Early Career
                   </h3>
                   <p className="text-sm text-slate-200/80 mb-4">
-                    Learn what drives your success and identify your career archetype across multiple themed quizzes.
+                    Explore your motivations, feedback preferences, and ideal early-career environment.
                   </p>
                   <Link
-                    to="/career-quizzes"
+                    to="/career-quizzes/early-career"
                     className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
                   >
-                    {formData.quizResults?.careerQuizzes ? "View Answers" : "Start Quiz"}
+                    {(formData.quizResults as any)?.careerQuizzes?.earlyCareer ? "View Answers" : "Start Quiz"}
+                  </Link>
+                </div>
+
+                {/* Career Transition */}
+                <div className="border border-white/10 rounded-lg p-5 bg-slate-900/60 hover:shadow-md transition">
+                  <h3 className="text-lg font-semibold text-emerald-200 mb-2">
+                    Career Transition
+                  </h3>
+                  <p className="text-sm text-slate-200/80 mb-4">
+                    Clarify what you want to leave behind and what success looks like in your next chapter.
+                  </p>
+                  <Link
+                    to="/career-quizzes/career-transition"
+                    className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
+                  >
+                    {(formData.quizResults as any)?.careerQuizzes?.careerTransition ? "View Answers" : "Start Quiz"}
                   </Link>
                 </div>
 
@@ -1419,19 +1435,35 @@ function JobSeekerProfile() {
                   </Link>
                 </div>
 
-                {/* Your Future, Your Way */}
+                {/* Mid-Career / Strategic */}
+                <div className="border border-white/10 rounded-lg p-5 bg-slate-900/60 hover:shadow-md transition">
+                  <h3 className="text-lg font-semibold text-emerald-200 mb-2">
+                    Mid-Career / Strategic
+                  </h3>
+                  <p className="text-sm text-slate-200/80 mb-4">
+                    Define your leadership legacy, strategic growth areas, and ideal team environment.
+                  </p>
+                  <Link
+                    to="/career-quizzes/mid-career"
+                    className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
+                  >
+                    {(formData.quizResults as any)?.careerQuizzes?.midCareer ? "View Answers" : "Start Quiz"}
+                  </Link>
+                </div>
+
+                {/* Your Future, Your Way (Teen-Focused) */}
                 <div className="border border-white/10 rounded-lg p-5 bg-slate-900/60 hover:shadow-md transition md:col-span-2">
                   <h3 className="text-lg font-semibold text-emerald-200 mb-2">
-                    Your Future, Your Way
+                    Your Future, Your Way (Teen-Focused)
                   </h3>
                   <p className="text-sm text-slate-200/80 mb-4">
                     A fun, teen-focused quiz that helps you explore interests, personality, and future goals in an engaging way.
                   </p>
                   <Link
-                    to="/future-your-way"
+                    to="/career-quizzes/teen-focused"
                     className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
                   >
-                    {formData.quizResults?.yourFutureYourWay ? "View Answers" : "Start Quiz"}
+                    {(formData.quizResults as any)?.careerQuizzes?.teenFocused ? "View Answers" : "Start Quiz"}
                   </Link>
                 </div>
               </div>
