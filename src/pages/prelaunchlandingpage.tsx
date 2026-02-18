@@ -397,20 +397,27 @@ function PrelaunchLandingPage() {
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setIsEarlyAccessOpen(true)}
-                  className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:shadow-emerald-400/25"
-                >
-                  Request early access
-                </button>
-                <a
-                  href="#about"
-                  className="text-sm font-semibold text-emerald-100/90 underline-offset-8 hover:underline"
-                >
-                  Learn more
-                </a>
+                <div className="flex flex-wrap items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsEarlyAccessOpen(true)}
+                    className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:shadow-emerald-400/25"
+                  >
+                    Request early access
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/quiz-preview")}
+                    className="rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-300/60 hover:text-emerald-100"
+                  >
+                    Want a feel for what an account unlocks?
+                  </button>
+                  <a
+                    href="#about"
+                    className="text-sm font-semibold text-emerald-100/90 underline-offset-8 hover:underline"
+                  >
+                    Learn more
+                  </a>
               </div>
             </div>
 

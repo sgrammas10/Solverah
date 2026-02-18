@@ -1300,6 +1300,71 @@ def quiz_insights():
     })
 
 
+@limiter.limit("1 per day")
+@app.post("/api/quiz-insights-guest")
+def quiz_insights_guest():
+    data = request.get_json(silent=True) or {}
+    quiz_group = (data.get("quizGroup") or "").strip()
+    quizzes = data.get("quizzes") or []
+
+    if not quiz_group or not isinstance(quizzes, list) or not quizzes:
+        return jsonify({"error": "quizGroup and quizzes are required"}), 400
+
+    normalized_quizzes = []
+    for quiz in quizzes:
+        if not isinstance(quiz, dict):
+            continue
+        key = (quiz.get("key") or "").strip()
+        title = (quiz.get("title") or "").strip()
+        items = quiz.get("items") or []
+        if not key or not title or not isinstance(items, list) or not items:
+            continue
+        normalized_items = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            question = (item.get("question") or "").strip()
+            selected = (item.get("selected") or "").strip()
+            if question and selected:
+                normalized_items.append({"question": question, "selected": selected})
+        if normalized_items:
+            normalized_quizzes.append({"key": key, "title": title, "items": normalized_items})
+
+    if not normalized_quizzes:
+        return jsonify({"error": "No valid quiz answers provided"}), 400
+
+    try:
+        client = _get_openai_client()
+        model = os.environ.get("OPENAI_QUIZ_MODEL", "gpt-4o-mini")
+        messages = _build_quiz_insight_prompt(quiz_group, normalized_quizzes)
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            response_format={"type": "json_object"},
+        )
+        content = response.choices[0].message.content or "{}"
+        insight_payload = json.loads(content)
+    except Exception as exc:
+        app.logger.exception("Quiz insight generation failed")
+        if not is_production:
+            return jsonify({"error": f"Unable to generate insight: {exc}"}), 500
+        return jsonify({"error": "Unable to generate insight"}), 500
+
+    normalized_payload = _coerce_insight_payload(insight_payload, quiz_group, normalized_quizzes)
+    insights = normalized_payload.get("insights") if isinstance(normalized_payload, dict) else None
+    overall_summary = (
+        normalized_payload.get("overallSummary") if isinstance(normalized_payload, dict) else None
+    )
+
+    if not isinstance(insights, list):
+        return jsonify({"error": "Malformed insight response"}), 500
+
+    return jsonify({
+        "quizGroup": quiz_group,
+        "overallSummary": overall_summary,
+        "insights": insights,
+    })
+
 @app.route("/api/profile/resume-url", methods=["GET"])
 @jwt_required()
 def get_profile_resume_url():
