@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from '../contexts/useAuth';
 import { useNavigate } from "react-router-dom";
 import QuizInsightModal from "./QuizInsightModal";
+import { API_BASE } from "../utils/api";
+import { setPendingQuizSave } from "../utils/guestQuiz";
 
 
 // Single quiz question type: numeric id, question text, and list of options
@@ -264,9 +266,10 @@ const archetypes = [
 
 type CareerQuizzesProps = {
   quizKey?: string;
+  guest?: boolean;
 };
 
-export default function CareerQuizzesArchetypesTab({ quizKey }: CareerQuizzesProps) {
+export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQuizzesProps) {
   // answers state structure:
   // answers[quizKey][questionId] = optionIndex (0-based index into options array)
   const [answers, setAnswers] = useState<Record<string, Record<number, number>>>({});
@@ -315,6 +318,11 @@ export default function CareerQuizzesArchetypesTab({ quizKey }: CareerQuizzesPro
   useEffect(() => {
     (async () => {
       try {
+        if (guest) {
+          setIsEditing(true);
+          setHasSaved(false);
+          return;
+        }
         if (!fetchProfileData) {
           setIsEditing(true);
           return;
@@ -363,7 +371,7 @@ export default function CareerQuizzesArchetypesTab({ quizKey }: CareerQuizzesPro
         setIsEditing(true);
       }
     })();
-  }, [fetchProfileData, quizKey, visibleQuizzes]);
+  }, [fetchProfileData, guest, quizKey, visibleQuizzes]);
 
   useEffect(() => {
     if (!insightLoading) return;
@@ -399,6 +407,62 @@ export default function CareerQuizzesArchetypesTab({ quizKey }: CareerQuizzesPro
   const onSubmitAll = () => {
     (async () => {
       try {
+        if (guest) {
+          const quizResults = {
+            careerQuizzes: visibleQuizzes.reduce<Record<string, Record<number, number>>>((acc, quiz) => {
+              const quizAnswers = answers?.[quiz.key];
+              if (quizAnswers && typeof quizAnswers === "object") {
+                acc[quiz.key] = quizAnswers;
+              }
+              return acc;
+            }, {}),
+            careerQuizzesSubmittedAt: new Date().toISOString(),
+          };
+          const payload = {
+            quizGroup: "careerQuizzes",
+            quizzes: visibleQuizzes.map((quiz) => ({
+              key: quiz.key,
+              title: quiz.title,
+              items: quiz.questions
+                .map((q) => {
+                  const selectedIdx = answers?.[quiz.key]?.[q.id];
+                  if (typeof selectedIdx !== "number") return null;
+                  return { question: q.text, selected: q.options[selectedIdx] };
+                })
+                .filter(Boolean),
+            })),
+          };
+          setPendingQuizSave({
+            quizGroup: "careerQuizzes",
+            quizResults,
+            quizPayload: payload,
+            createdAt: new Date().toISOString(),
+          });
+          setInsightModalOpen(true);
+          setInsightLoading(true);
+          setInsightError(null);
+          try {
+            const res = await fetch(`${API_BASE}/quiz-insights-guest`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+              throw new Error(data?.error || "Failed to generate insights.");
+            }
+            setInsightResponse({
+              overallSummary: data?.overallSummary || null,
+              insights: data?.insights || [],
+            });
+            setInsightProgress(100);
+          } catch (err) {
+            setInsightError(err instanceof Error ? err.message : "Failed to generate insights.");
+          } finally {
+            setInsightLoading(false);
+          }
+          return;
+        }
         // Fetch current profile data so we don't overwrite other fields
         const current = await (fetchProfileData ? fetchProfileData() : Promise.resolve(null));
         // Some backends may nest data under profileData, so handle both shapes
@@ -485,6 +549,10 @@ export default function CareerQuizzesArchetypesTab({ quizKey }: CareerQuizzesPro
   };
 
   const handleViewInsights = () => {
+    if (guest) {
+      navigate("/quiz-preview/insights", { state: { insight: insightResponse } });
+      return;
+    }
     if (insightResponse?.insights?.length) {
       navigate("/quiz-insights?group=careerQuizzes", { state: { insight: insightResponse } });
     } else {
@@ -497,7 +565,7 @@ export default function CareerQuizzesArchetypesTab({ quizKey }: CareerQuizzesPro
       {/* Title for the overall tab */}
       <h2 className="text-xl font-semibold mb-2">{headerTitle}</h2>
 
-      {!isEditing && hasSaved ? (
+      {!guest && !isEditing && hasSaved ? (
         <div className="mb-8 rounded-2xl border border-white/10 bg-slate-900/60 p-6">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -603,7 +671,7 @@ export default function CareerQuizzesArchetypesTab({ quizKey }: CareerQuizzesPro
       {/* Button that triggers saving all responses to the profile */}
       {isEditing && (
         <button type="button" onClick={onSubmitAll} className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25">
-          Save Answers
+          {guest ? "Get Insight" : "Save Answers"}
         </button>
       )}
 
@@ -615,7 +683,11 @@ export default function CareerQuizzesArchetypesTab({ quizKey }: CareerQuizzesPro
         error={insightError}
         onClose={handleInsightClose}
         onViewInsights={handleViewInsights}
-        onBackToAssessments={() => navigate("/job-seeker/profile?tab=assessments")}
+        onBackToAssessments={() =>
+          navigate(guest ? "/quiz-preview" : "/job-seeker/profile?tab=assessments")
+        }
+        backLabel={guest ? "Back to quizzes" : undefined}
+        viewLabel={guest ? "View insights" : undefined}
       />
     </div>
   );

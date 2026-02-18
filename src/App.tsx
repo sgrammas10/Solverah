@@ -23,6 +23,8 @@ import RecruiterProfile from "./pages/RecruiterProfile";
 import Feed from "./pages/Feed";
 import SearchResults from "./pages/SearchResults"; // from your quiz-aware version
 import QuizInsights from "./pages/QuizInsights";
+import GuestQuizPreview from "./pages/GuestQuizPreview";
+import GuestQuizInsights from "./pages/GuestQuizInsights";
 
 // Role-based route protection
 function ProtectedRoute({
@@ -51,6 +53,8 @@ function App() {
               {/* Public routes */}
               <Route path="/" element={<PrelaunchLandingPage />} />
               <Route path="/landing" element={<LandingPage />} />
+              <Route path="/quiz-preview" element={<GuestQuizPreview />} />
+              <Route path="/quiz-preview/insights" element={<GuestQuizInsights />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/confirm-email" element={<ConfirmEmail />} />
@@ -119,6 +123,10 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/quiz-preview/early-career" element={<CareerQuizzes quizKey="earlyCareer" guest />} />
+              <Route path="/quiz-preview/career-transition" element={<CareerQuizzes quizKey="careerTransition" guest />} />
+              <Route path="/quiz-preview/mid-career" element={<CareerQuizzes quizKey="midCareer" guest />} />
+              <Route path="/quiz-preview/teen-focused" element={<CareerQuizzes quizKey="teenFocused" guest />} />
               <Route
                 path="/career-quizzes/early-career"
                 element={
@@ -159,6 +167,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/quiz-preview/career-job-search" element={<NextChapterYourWayQuiz guest />} />
               <Route
                 path="/future-your-way"
                 element={

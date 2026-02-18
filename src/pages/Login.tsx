@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
+import { getPendingQuizSave, clearPendingQuizSave } from "../utils/guestQuiz";
 import { Mail, Lock, Briefcase } from 'lucide-react';
 
 function ResendConfirmation({ email }: { email: string }) {
@@ -59,7 +60,7 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { login } = useAuth();
+  const { login, fetchWithAuth } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,7 +70,33 @@ function Login() {
 
     try {
       const loggedInUser = await login(email, password);
-      const redirectPath = loggedInUser.role === 'job-seeker' ? '/job-seeker/dashboard' : '/recruiter/dashboard';
+      let redirectPath =
+        loggedInUser.role === 'job-seeker' ? '/job-seeker/dashboard' : '/recruiter/dashboard';
+
+      const pending = getPendingQuizSave();
+      if (pending && loggedInUser.role === "job-seeker" && fetchWithAuth) {
+        try {
+          await fetchWithAuth("/profile", {
+            method: "POST",
+            body: JSON.stringify({
+              profileData: {
+                quizResults: pending.quizResults,
+              },
+            }),
+          });
+
+          await fetchWithAuth("/quiz-insights", {
+            method: "POST",
+            body: JSON.stringify(pending.quizPayload),
+          });
+
+          redirectPath = `/quiz-insights?group=${encodeURIComponent(pending.quizGroup)}`;
+          clearPendingQuizSave();
+        } catch (saveErr) {
+          console.error("Failed to save pending quiz:", saveErr);
+        }
+      }
+
       navigate(redirectPath);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
