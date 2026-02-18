@@ -8,7 +8,7 @@ import {
 } from "../data/solverahYourFutureYourWayQuiz";
 import QuizInsightModal from "./QuizInsightModal";
 import { API_BASE } from "../utils/api";
-import { setPendingQuizSave } from "../utils/guestQuiz";
+import { markGuestQuizCompleted, setPendingQuizSave } from "../utils/guestQuiz";
 
 type QuizInsight = {
   title?: string;
@@ -124,6 +124,7 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
     (async () => {
       try {
         if (guest) {
+          markGuestQuizCompleted();
           const payload = {
             quizGroup: "yourFutureYourWay",
             quizzes: [

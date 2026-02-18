@@ -6,6 +6,7 @@ export type PendingQuizSave = {
 };
 
 const STORAGE_KEY = "pendingQuizSave";
+const COMPLETED_KEY = "guestQuizCompletedAt";
 
 export const setPendingQuizSave = (payload: PendingQuizSave) => {
   try {
@@ -30,5 +31,21 @@ export const clearPendingQuizSave = () => {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
     // ignore storage failures
+  }
+};
+
+export const markGuestQuizCompleted = () => {
+  try {
+    localStorage.setItem(COMPLETED_KEY, new Date().toISOString());
+  } catch {
+    // ignore storage failures
+  }
+};
+
+export const hasCompletedGuestQuiz = (): boolean => {
+  try {
+    return Boolean(localStorage.getItem(COMPLETED_KEY));
+  } catch {
+    return false;
   }
 };

@@ -1300,6 +1300,7 @@ def quiz_insights():
     })
 
 
+@limiter.limit("1 per day")
 @app.post("/api/quiz-insights-guest")
 def quiz_insights_guest():
     data = request.get_json(silent=True) or {}

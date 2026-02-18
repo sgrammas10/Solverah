@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/useAuth';
 import { useNavigate } from "react-router-dom";
 import QuizInsightModal from "./QuizInsightModal";
 import { API_BASE } from "../utils/api";
-import { setPendingQuizSave } from "../utils/guestQuiz";
+import { markGuestQuizCompleted, setPendingQuizSave } from "../utils/guestQuiz";
 
 
 // Single quiz question type: numeric id, question text, and list of options
@@ -408,6 +408,7 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
     (async () => {
       try {
         if (guest) {
+          markGuestQuizCompleted();
           const quizResults = {
             careerQuizzes: visibleQuizzes.reduce<Record<string, Record<number, number>>>((acc, quiz) => {
               const quizAnswers = answers?.[quiz.key];

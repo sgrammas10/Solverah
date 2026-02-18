@@ -5,7 +5,7 @@ import { useAuth } from "../contexts/useAuth";
 import { nextChapterSections } from "../data/nextChapterYourWayQuiz";
 import QuizInsightModal from "./QuizInsightModal";
 import { API_BASE } from "../utils/api";
-import { setPendingQuizSave } from "../utils/guestQuiz";
+import { markGuestQuizCompleted, setPendingQuizSave } from "../utils/guestQuiz";
 
 type QuizInsight = {
   title?: string;
@@ -120,6 +120,7 @@ export default function CareerAndJobSearchTab({ guest }: CareerAndJobSearchTabPr
     (async () => {
       try {
         if (guest) {
+          markGuestQuizCompleted();
           const items = nextChapterSections.flatMap((section) =>
             section.questions
               .map((q) => {
