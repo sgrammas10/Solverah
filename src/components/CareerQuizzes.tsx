@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from '../contexts/useAuth';
 import { useNavigate } from "react-router-dom";
 import QuizInsightModal from "./QuizInsightModal";
@@ -262,7 +262,11 @@ const archetypes = [
   "The Connector – builds relationships and drives collaboration.",
 ];
 
-export default function CareerQuizzesArchetypesTab() {
+type CareerQuizzesProps = {
+  quizKey?: string;
+};
+
+export default function CareerQuizzesArchetypesTab({ quizKey }: CareerQuizzesProps) {
   // answers state structure:
   // answers[quizKey][questionId] = optionIndex (0-based index into options array)
   const [answers, setAnswers] = useState<Record<string, Record<number, number>>>({});
@@ -277,6 +281,37 @@ export default function CareerQuizzesArchetypesTab() {
   // Get profile-related actions from AuthContext
   const { fetchProfileData, saveProfileData, fetchWithAuth } = useAuth();
   const navigate = useNavigate();
+
+  const visibleQuizzes = useMemo(() => {
+    if (!quizKey) return quizzes;
+    return quizzes.filter((quiz) => quiz.key === quizKey);
+  }, [quizKey]);
+
+  const headerTitle = useMemo(() => {
+    if (!quizKey) return "Career Quizzes & Archetypes";
+    return visibleQuizzes[0]?.title ?? "Career Quiz";
+  }, [quizKey, visibleQuizzes]);
+
+  const showArchetypes = !quizKey;
+
+  if (quizKey && visibleQuizzes.length === 0) {
+    return (
+      <div className="p-4 max-w-3xl mx-auto text-slate-100">
+        <h2 className="text-xl font-semibold mb-2">Career Quiz</h2>
+        <p className="text-sm text-slate-200/80 mb-4">
+          That quiz could not be found. Please return to assessments to choose a quiz.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate("/job-seeker/profile?tab=assessments")}
+          className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-emerald-300/60"
+        >
+          Back to Assessments
+        </button>
+      </div>
+    );
+  }
+
   useEffect(() => {
     (async () => {
       try {
@@ -289,14 +324,20 @@ export default function CareerQuizzesArchetypesTab() {
         const saved = (profileData as any)?.quizResults?.careerQuizzes;
         if (saved && typeof saved === "object") {
           setAnswers(saved);
-          setHasSaved(true);
-          setIsEditing(false);
+          if (quizKey) {
+            const hasQuiz = typeof (saved as Record<string, unknown>)[quizKey] === "object";
+            setHasSaved(hasQuiz);
+            setIsEditing(!hasQuiz);
+          } else {
+            setHasSaved(true);
+            setIsEditing(false);
+          }
         } else {
           setIsEditing(true);
         }
         const storedInsights = (profileData as any)?.quizInsights?.careerQuizzes;
         if (storedInsights && typeof storedInsights === "object") {
-          const insightList = quizzes
+          const insightList = visibleQuizzes
             .map((quiz) => {
               const entry = storedInsights[quiz.key];
               if (!entry) return null;
@@ -322,7 +363,7 @@ export default function CareerQuizzesArchetypesTab() {
         setIsEditing(true);
       }
     })();
-  }, [fetchProfileData]);
+  }, [fetchProfileData, quizKey, visibleQuizzes]);
 
   useEffect(() => {
     if (!insightLoading) return;
@@ -365,11 +406,22 @@ export default function CareerQuizzesArchetypesTab() {
 
         // New profile object with quiz results merged in
         const existingQuizResults = (profileData as any)?.quizResults || {};
+        const existingCareerQuizzes = (existingQuizResults as any)?.careerQuizzes || {};
+        const updatedCareerQuizzes = {
+          ...existingCareerQuizzes,
+          ...visibleQuizzes.reduce<Record<string, Record<number, number>>>((acc, quiz) => {
+            const quizAnswers = answers?.[quiz.key];
+            if (quizAnswers && typeof quizAnswers === "object") {
+              acc[quiz.key] = quizAnswers;
+            }
+            return acc;
+          }, {}),
+        };
         const newProfileData = {
           ...profileData,
           quizResults: {
             ...existingQuizResults,
-            careerQuizzes: answers,
+            careerQuizzes: updatedCareerQuizzes,
             careerQuizzesSubmittedAt: new Date().toISOString(),
           },
         };
@@ -382,7 +434,7 @@ export default function CareerQuizzesArchetypesTab() {
           if (fetchWithAuth) {
             const payload = {
               quizGroup: "careerQuizzes",
-              quizzes: quizzes.map((quiz) => ({
+              quizzes: visibleQuizzes.map((quiz) => ({
                 key: quiz.key,
                 title: quiz.title,
                 items: quiz.questions
@@ -443,7 +495,7 @@ export default function CareerQuizzesArchetypesTab() {
   return (
     <div className="p-4 max-w-4xl mx-auto text-slate-100">
       {/* Title for the overall tab */}
-      <h2 className="text-xl font-semibold mb-2">Career Quizzes &amp; Archetypes</h2>
+      <h2 className="text-xl font-semibold mb-2">{headerTitle}</h2>
 
       {!isEditing && hasSaved ? (
         <div className="mb-8 rounded-2xl border border-white/10 bg-slate-900/60 p-6">
@@ -479,7 +531,7 @@ export default function CareerQuizzesArchetypesTab() {
             </div>
           </div>
           <div className="mt-6 space-y-6">
-            {quizzes.map((quiz) => (
+            {visibleQuizzes.map((quiz) => (
               <section key={quiz.key}>
                 <h4 className="text-base font-semibold text-white">{quiz.title}</h4>
                 <ul className="mt-3 space-y-3">
@@ -502,7 +554,7 @@ export default function CareerQuizzesArchetypesTab() {
       ) : (
         <>
           {/* Render each quiz section */}
-          {quizzes.map((quiz) => (
+          {visibleQuizzes.map((quiz) => (
             <section key={quiz.key} className="mb-8">
               <h3 className="text-lg font-medium mb-2">{quiz.title}</h3>
               <ol start={1} className="space-y-4 pl-5">
@@ -537,14 +589,16 @@ export default function CareerQuizzesArchetypesTab() {
       )}
 
       {/* Static list of archetypes for the user to read */}
-      <section className="mb-6">
-        <h3 className="text-lg font-medium mb-2">Archetypes</h3>
-        <ul className="list-disc pl-6 space-y-1">
-          {archetypes.map((a, i) => (
-            <li key={i}>{a}</li>
-          ))}
-        </ul>
-      </section>
+      {showArchetypes ? (
+        <section className="mb-6">
+          <h3 className="text-lg font-medium mb-2">Archetypes</h3>
+          <ul className="list-disc pl-6 space-y-1">
+            {archetypes.map((a, i) => (
+              <li key={i}>{a}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {/* Button that triggers saving all responses to the profile */}
       {isEditing && (
