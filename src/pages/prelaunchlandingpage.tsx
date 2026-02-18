@@ -1,4 +1,4 @@
-import React, { FormEvent, useId, useMemo, useState } from "react";
+import React, { FormEvent, useEffect, useId, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 type SubmissionStatus = "idle" | "submitting" | "success" | "error";
@@ -111,6 +111,29 @@ function PrelaunchLandingPage() {
     ],
     [],
   );
+
+  useEffect(() => {
+    if (!isEarlyAccessOpen && !accountModalOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      if (isEarlyAccessOpen) {
+        setIsEarlyAccessOpen(false);
+      }
+      if (accountModalOpen) {
+        setAccountModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [accountModalOpen, isEarlyAccessOpen]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -698,13 +721,13 @@ function PrelaunchLandingPage() {
       <footer className="border-t border-white/10 bg-slate-950/80 py-6 text-center text-xs text-slate-400">
         © {new Date().getFullYear()} Solverah. Soft launch — broader access remains closed.
       </footer>
-      {isEarlyAccessOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-10">
-          <div
-            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
-            onClick={() => setIsEarlyAccessOpen(false)}
-          />
-          <div className="relative w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl shadow-black/50">
+        {isEarlyAccessOpen ? (
+          <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6 sm:py-10">
+            <div
+              className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+              onClick={() => setIsEarlyAccessOpen(false)}
+            />
+            <div className="relative w-full max-w-2xl max-h-[calc(100vh-3rem)] overflow-y-auto rounded-2xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl shadow-black/50">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.14em] text-emerald-200">Request early access</p>
@@ -840,13 +863,13 @@ function PrelaunchLandingPage() {
           </div>
         </div>
       ) : null}
-      {accountModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-10">
-          <div
-            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
-            onClick={() => setAccountModalOpen(false)}
-          />
-          <div className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl shadow-black/50">
+        {accountModalOpen ? (
+          <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6 sm:py-10">
+            <div
+              className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+              onClick={() => setAccountModalOpen(false)}
+            />
+            <div className="relative w-full max-w-lg max-h-[calc(100vh-3rem)] overflow-y-auto rounded-2xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl shadow-black/50">
             <button
               type="button"
               aria-label="Close"
