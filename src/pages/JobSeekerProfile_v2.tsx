@@ -23,6 +23,13 @@ type UploadedResumeMeta = {
   type: string;
 } | null;
 
+type PendingResumeUpload = {
+  objectKey: string;
+  mime: string;
+  size: number;
+  name: string;
+} | null;
+
 interface Experience {
   id: number;
   company: string;
@@ -72,7 +79,7 @@ interface FormData {
 
 // ============================  Component  ============================
 const JobSeekerProfile: React.FC = () => {
-  const { user } = useAuth() as any; // keep loose if your context isn't typed yet
+  const { user, fetchWithAuth, updateProfileData } = useAuth() as any; // keep loose if your context isn't typed yet
 
   const getInitialFormData = (): FormData => ({
     firstName: user?.name?.split(' ')[0] || '',
@@ -98,9 +105,31 @@ const JobSeekerProfile: React.FC = () => {
   const [formData, setFormData] = useState<FormData>(getInitialFormData());
   const [uploadedResume, setUploadedResume] = useState<File | null>(null);
   const [resumeUploaded, setResumeUploaded] = useState<boolean>(false);
+  const [pendingResume, setPendingResume] = useState<PendingResumeUpload>(null);
   const [activeTab, setActiveTab] = useState<'personal' | 'experience' | 'education' | 'performance' | 'assessments'>('personal');
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [saveProgress, setSaveProgress] = useState(0);
   const [skillInput, setSkillInput] = useState<string>('');
+  const [isUploadingResume, setIsUploadingResume] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  useEffect(() => {
+    if (!isSaving) return;
+    setSaveProgress(8);
+    const timer = setInterval(() => {
+      setSaveProgress((prev) => (prev < 90 ? Math.min(90, prev + 6 + Math.random() * 6) : prev));
+    }, 450);
+    return () => clearInterval(timer);
+  }, [isSaving]);
+
+  useEffect(() => {
+    if (!isUploadingResume) return;
+    setUploadProgress(8);
+    const timer = setInterval(() => {
+      setUploadProgress((prev) => (prev < 90 ? Math.min(90, prev + 6 + Math.random() * 6) : prev));
+    }, 450);
+    return () => clearInterval(timer);
+  }, [isUploadingResume]);
 
   // Load profile data if it exists
   useEffect(() => {
@@ -125,17 +154,52 @@ const JobSeekerProfile: React.FC = () => {
   }, [user?.profileData]);
 
   // ============================  Resume Upload  ============================ 
-  const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
+    if (!file) return;
+
     setUploadedResume(file);
-    setResumeUploaded(!!file);
-    // store a light-weight meta in form state (not the File itself)
-    setFormData((prev) => ({
-      ...prev,
-      uploadedResume: file
-        ? { name: file.name, size: file.size, type: file.type }
-        : null,
-    }));
+    setResumeUploaded(true);
+    setIsUploadingResume(true);
+
+    try {
+      const presign = await fetchWithAuth<{
+        object_key: string;
+        upload_url: string;
+        max_bytes: number;
+      }>("/profile/resume/presign", {
+        method: "POST",
+        body: JSON.stringify({ mime: file.type, size: file.size }),
+      });
+
+      await fetch(presign.upload_url, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      setPendingResume({
+        objectKey: presign.object_key,
+        mime: file.type,
+        size: file.size,
+        name: file.name,
+      });
+
+      setFormData((prev) => ({
+        ...prev,
+        uploadedResume: file
+          ? { name: file.name, size: file.size, type: file.type }
+          : null,
+      }));
+    } catch (err) {
+      console.error(err);
+      alert("Unable to process resume right now.");
+    } finally {
+      setUploadedResume(null);
+      setUploadProgress(100);
+      setIsUploadingResume(false);
+      setTimeout(() => setUploadProgress(0), 600);
+    }
   };
 
   // ============================  Experience  ============================ 
@@ -231,11 +295,42 @@ const JobSeekerProfile: React.FC = () => {
     e.preventDefault();
     setIsSaving(true);
     try {
+      if (pendingResume) {
+        const finalized = await fetchWithAuth<{ profileData?: Partial<FormData> }>(
+          "/profile/resume/finalize",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              object_key: pendingResume.objectKey,
+              mime: pendingResume.mime,
+              size: pendingResume.size,
+              name: pendingResume.name,
+            }),
+          }
+        );
+
+        if (finalized?.profileData) {
+          setFormData((prev) => ({
+            ...prev,
+            ...finalized.profileData,
+            experience: finalized.profileData.experience ?? prev.experience,
+            education: finalized.profileData.education ?? prev.education,
+            skills: finalized.profileData.skills ?? prev.skills,
+            uploadedResume: finalized.profileData.uploadedResume ?? prev.uploadedResume,
+            psychometricResults:
+              finalized.profileData.psychometricResults ?? prev.psychometricResults,
+          }));
+          updateProfileData?.(finalized.profileData as any);
+          setPendingResume(null);
+        }
+      }
       // If you have an API or context method, call it here.
       // e.g., await updateProfile(formData);
       console.log('Saving profile data:', formData);
     } finally {
+      setSaveProgress(100);
       setIsSaving(false);
+      setTimeout(() => setSaveProgress(0), 600);
     }
   };
 
@@ -360,6 +455,19 @@ const JobSeekerProfile: React.FC = () => {
                   <p className="text-sm text-slate-200/80">
                     Upload a PDF or DOCX. We’ll store basic file info only.
                   </p>
+                  {isUploadingResume && (
+                    <div className="mt-3">
+                      <div className="text-xs uppercase tracking-[0.18em] text-emerald-200/80">
+                        Uploading resume
+                      </div>
+                      <div className="mt-2 h-2 w-full rounded-full bg-white/10">
+                        <div
+                          className="h-2 rounded-full bg-emerald-400 transition-all duration-300"
+                          style={{ width: `${Math.min(100, Math.max(4, uploadProgress))}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                   {(uploadedResume || resumeUploaded || formData.uploadedResume) && (
                     <div className="mt-3 text-sm text-slate-200/80">
                       <div className="font-medium">
@@ -411,53 +519,73 @@ const JobSeekerProfile: React.FC = () => {
             )}
 
             <div className="space-y-4">
-              {formData.experience.map((exp) => (
-                <div key={exp.id} className="border rounded-md p-4 space-y-3">
-                  <div className="flex justify-between">
-                    <p className="font-medium">{exp.position || 'New role'}</p>
-                    <button
-                      type="button"
-                      onClick={() => removeExperience(exp.id)}
-                      className="text-red-200 hover:text-red-100 inline-flex items-center gap-1"
-                      title="Remove"
-                    >
-                      <X size={16} /> Remove
-                    </button>
+              {formData.experience.map((exp) => {
+                const isCurrent =
+                  (exp.endDate || "").toLowerCase() === "present" ||
+                  (exp.endDate || "").toLowerCase() === "current";
+                return (
+                  <div key={exp.id} className="border rounded-md p-4 space-y-3">
+                    <div className="flex justify-between">
+                      <p className="font-medium">{exp.position || 'New role'}</p>
+                      <button
+                        type="button"
+                        onClick={() => removeExperience(exp.id)}
+                        className="text-red-200 hover:text-red-100 inline-flex items-center gap-1"
+                        title="Remove"
+                      >
+                        <X size={16} /> Remove
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <input
+                        className="border rounded-md px-3 py-2"
+                        placeholder="Company"
+                        value={exp.company}
+                        onChange={(e) => updateExperience(exp.id, 'company', e.target.value)}
+                      />
+                      <input
+                        className="border rounded-md px-3 py-2"
+                        placeholder="Position"
+                        value={exp.position}
+                        onChange={(e) => updateExperience(exp.id, 'position', e.target.value)}
+                      />
+                      <input
+                        className="border rounded-md px-3 py-2"
+                        placeholder="Start date (e.g., 2024-06)"
+                        value={exp.startDate}
+                        onChange={(e) => updateExperience(exp.id, 'startDate', e.target.value)}
+                      />
+                      <input
+                        className="border rounded-md px-3 py-2"
+                        placeholder="End date (or Present)"
+                        value={isCurrent ? "Present" : exp.endDate}
+                        onChange={(e) => updateExperience(exp.id, 'endDate', e.target.value)}
+                        disabled={isCurrent}
+                      />
+                      <label className="text-sm text-slate-200/80 inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isCurrent}
+                          onChange={(e) =>
+                            updateExperience(
+                              exp.id,
+                              'endDate',
+                              e.target.checked ? 'Present' : ''
+                            )
+                          }
+                        />
+                        I currently work here
+                      </label>
+                      <textarea
+                        className="border rounded-md px-3 py-2 sm:col-span-2"
+                        placeholder="Describe your role, responsibilities, and achievements..."
+                        value={exp.description}
+                        onChange={(e) => updateExperience(exp.id, 'description', e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input
-                      className="border rounded-md px-3 py-2"
-                      placeholder="Company"
-                      value={exp.company}
-                      onChange={(e) => updateExperience(exp.id, 'company', e.target.value)}
-                    />
-                    <input
-                      className="border rounded-md px-3 py-2"
-                      placeholder="Position"
-                      value={exp.position}
-                      onChange={(e) => updateExperience(exp.id, 'position', e.target.value)}
-                    />
-                    <input
-                      className="border rounded-md px-3 py-2"
-                      placeholder="Start date (e.g., 2024-06)"
-                      value={exp.startDate}
-                      onChange={(e) => updateExperience(exp.id, 'startDate', e.target.value)}
-                    />
-                    <input
-                      className="border rounded-md px-3 py-2"
-                      placeholder="End date (or Present)"
-                      value={exp.endDate}
-                      onChange={(e) => updateExperience(exp.id, 'endDate', e.target.value)}
-                    />
-                    <textarea
-                      className="border rounded-md px-3 py-2 sm:col-span-2"
-                      placeholder="Describe your role, responsibilities, and achievements..."
-                      value={exp.description}
-                      onChange={(e) => updateExperience(exp.id, 'description', e.target.value)}
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         )}
@@ -581,14 +709,29 @@ const JobSeekerProfile: React.FC = () => {
         )}
 
         {/* Footer actions */}
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-md  bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 disabled:opacity-60"
-            disabled={isSaving}
-          >
-            {isSaving ? 'Saving…' : 'Save Profile'}
-          </button>
+        <div className="pt-4">
+          {isSaving && (
+            <div className="mb-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-emerald-200/80">
+                Saving profile
+              </div>
+              <div className="mt-2 h-2 w-full rounded-full bg-white/10">
+                <div
+                  className="h-2 rounded-full bg-emerald-400 transition-all duration-300"
+                  style={{ width: `${Math.min(100, Math.max(4, saveProgress))}%` }}
+                />
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md  bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 disabled:opacity-60"
+              disabled={isSaving}
+            >
+              {isSaving ? 'Saving…' : 'Save Profile'}
+            </button>
+          </div>
         </div>
       </form>
     </div>

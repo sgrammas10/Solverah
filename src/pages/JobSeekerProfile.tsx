@@ -52,16 +52,45 @@ function JobSeekerProfile() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(true);
+  const [isUploadingResume, setIsUploadingResume] = useState(false);
   const [uploadedResume, setUploadedResume] = useState<File | null>(null);
   const [resumeUploaded, setResumeUploaded] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [pendingResume, setPendingResume] = useState<PendingResumeUpload | null>(null);
 
   const [showQuizResults, setShowQuizResults] = useState(false);
+
+  useEffect(() => {
+    if (!isSaving) return;
+    setSaveProgress(8);
+    const timer = setInterval(() => {
+      setSaveProgress((prev) => (prev < 90 ? Math.min(90, prev + 6 + Math.random() * 6) : prev));
+    }, 450);
+    return () => clearInterval(timer);
+  }, [isSaving]);
+
+  useEffect(() => {
+    if (!isUploadingResume) return;
+    setUploadProgress(8);
+    const timer = setInterval(() => {
+      setUploadProgress((prev) => (prev < 90 ? Math.min(90, prev + 6 + Math.random() * 6) : prev));
+    }, 450);
+    return () => clearInterval(timer);
+  }, [isUploadingResume]);
 
 
   interface UploadedResume {
     name: string;
     size: number;
     type: string;
+  }
+
+  interface PendingResumeUpload {
+    objectKey: string;
+    mime: string;
+    size: number;
+    name: string;
   }
 
   interface PsychometricScore {
@@ -253,12 +282,46 @@ function JobSeekerProfile() {
     e.preventDefault();
     setIsSaving(true);
     
-    const profileDataToSave = {
+    let profileDataToSave = {
       ...formData,
       uploadedResume: uploadedResume
         ? { name: uploadedResume.name, size: uploadedResume.size, type: uploadedResume.type }
         : formData.uploadedResume ?? null,
     };
+
+    if (pendingResume) {
+      try {
+        const finalized = await fetchWithAuth<{ profileData?: Partial<ProfileFormData> }>(
+          "/profile/resume/finalize",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              object_key: pendingResume.objectKey,
+              mime: pendingResume.mime,
+              size: pendingResume.size,
+              name: pendingResume.name,
+            }),
+          }
+        );
+
+        if (finalized?.profileData) {
+          const normalized = normalizeProfileData(finalized.profileData);
+          profileDataToSave = {
+            ...profileDataToSave,
+            ...normalized,
+            experience: normalized.experience ?? profileDataToSave.experience,
+            education: normalized.education ?? profileDataToSave.education,
+            skills: normalized.skills ?? profileDataToSave.skills,
+            uploadedResume: normalized.uploadedResume ?? profileDataToSave.uploadedResume,
+            resumeKey: normalized.resumeKey ?? profileDataToSave.resumeKey,
+          };
+          setPendingResume(null);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Unable to process resume right now.");
+      }
+    }
 
     // Update the user's name in the auth context
     const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
@@ -291,8 +354,10 @@ function JobSeekerProfile() {
 
     // Update local form data
     setFormData(profileDataToSave);
+    setSaveProgress(100);
     setIsSaving(false);
     setIsSaved(true);
+    setTimeout(() => setSaveProgress(0), 600);
 
   };
 
@@ -517,11 +582,50 @@ function JobSeekerProfile() {
     });
   };
 
-  const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setUploadedResume(file);
-      setIsSaved(false);
+    if (!file) return;
+
+    setUploadedResume(file);
+    setIsSaved(false);
+    setIsUploadingResume(true);
+
+    try {
+      const presign = await fetchWithAuth<{
+        object_key: string;
+        upload_url: string;
+        max_bytes: number;
+      }>("/profile/resume/presign", {
+        method: "POST",
+        body: JSON.stringify({ mime: file.type, size: file.size }),
+      });
+
+      await fetch(presign.upload_url, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      setPendingResume({
+        objectKey: presign.object_key,
+        mime: file.type,
+        size: file.size,
+        name: file.name,
+      });
+
+      setFormData((prev) => ({
+        ...prev,
+        uploadedResume: { name: file.name, size: file.size, type: file.type },
+      }));
+      setResumeUploaded(true);
+    } catch (err) {
+      console.error(err);
+      alert("Unable to process resume right now.");
+    } finally {
+      setUploadedResume(null);
+      setUploadProgress(100);
+      setIsUploadingResume(false);
+      setTimeout(() => setUploadProgress(0), 600);
     }
   };
   const handleViewResume = async () => {
@@ -835,6 +939,19 @@ function JobSeekerProfile() {
                 <label className="block text-sm font-medium text-slate-200/80 mb-2">
                   Resume
                 </label>
+                {isUploadingResume && (
+                  <div className="mb-4">
+                    <div className="text-xs uppercase tracking-[0.18em] text-emerald-200/80">
+                      Uploading resume
+                    </div>
+                    <div className="mt-2 h-2 w-full rounded-full bg-white/10">
+                      <div
+                        className="h-2 rounded-full bg-emerald-400 transition-all duration-300"
+                        style={{ width: `${Math.min(100, Math.max(4, uploadProgress))}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
                 {(uploadedResume || formData.uploadedResume) && (
                   <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-400/30 rounded-md">
                     <div className="flex items-center justify-between">
@@ -860,7 +977,9 @@ function JobSeekerProfile() {
                         type="button"
                         onClick={() => {
                           setUploadedResume(null);
-                          setFormData((curr) => ({ ...curr, uploadedResume: null }));
+                          setFormData((curr) => ({ ...curr, uploadedResume: null, resumeKey: null }));
+                          setResumeUploaded(false);
+                          setPendingResume(null);
                           setIsSaved(false);
                         }}
                         className="text-emerald-200 hover:text-emerald-100"
@@ -929,6 +1048,17 @@ function JobSeekerProfile() {
               <div className="space-y-6">
                 {formData.experience.map((exp, index) => (
                   <div key={exp.id} className="p-4 border border-white/10 rounded-lg">
+                    {/*
+                      If endDate is "Present"/"Current", treat as currently employed.
+                      Keep the input empty/disabled to avoid invalid value for type="month".
+                    */}
+                    {(() => {
+                      const isCurrent =
+                        (exp.endDate || "").toLowerCase() === "present" ||
+                        (exp.endDate || "").toLowerCase() === "current";
+                      const endDateValue = isCurrent ? "" : exp.endDate;
+                      return (
+                        <>
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-medium text-white">Experience #{index + 1}</h3>
                       <button
@@ -987,11 +1117,27 @@ function JobSeekerProfile() {
                         <input
                           type="month"
                           maxLength={50}
-                          value={exp.endDate}
+                          value={endDateValue}
                           onChange={(e) => updateExperience(exp.id, 'endDate', e.target.value)}
+                          disabled={isCurrent}
                           className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                           placeholder="Present"
                         />
+                        <label className="mt-2 inline-flex items-center gap-2 text-sm text-slate-200/80">
+                          <input
+                            type="checkbox"
+                            checked={isCurrent}
+                            onChange={(e) =>
+                              updateExperience(
+                                exp.id,
+                                'endDate',
+                                e.target.checked ? 'Present' : ''
+                              )
+                            }
+                            className="h-4 w-4 rounded border-white/20 bg-transparent text-emerald-300 focus:ring-emerald-300/50"
+                          />
+                          I currently work here
+                        </label>
                       </div>
 
                       <div className="md:col-span-2">
@@ -1008,6 +1154,9 @@ function JobSeekerProfile() {
                         />
                       </div>
                     </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
@@ -1309,7 +1458,21 @@ function JobSeekerProfile() {
 
 
         {/* Save Button */}
-        <div className="flex justify-end pt-6">
+        <div className="pt-6">
+          {isSaving && (
+            <div className="mb-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-emerald-200/80">
+                Saving profile
+              </div>
+              <div className="mt-2 h-2 w-full rounded-full bg-white/10">
+                <div
+                  className="h-2 rounded-full bg-emerald-400 transition-all duration-300"
+                  style={{ width: `${Math.min(100, Math.max(4, saveProgress))}%` }}
+                />
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end">
           <button
             type="submit"
             disabled={isSaving}
@@ -1317,6 +1480,7 @@ function JobSeekerProfile() {
           >
             {isSaving ? 'Saving...' : 'Save Profile'}
           </button>
+          </div>
         </div>
       </form>
     </div>

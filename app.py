@@ -373,19 +373,36 @@ def _build_profile_from_intake(intake: IntakeSubmission) -> dict:
         )
 
     education_entries = []
-    education_raw = parsed.get("education", "") if isinstance(parsed, dict) else ""
-    for idx, line in enumerate([item.strip() for item in str(education_raw).splitlines() if item.strip()]):
-        education_entries.append(
-            {
-                "id": idx + 1,
-                "institution": "",
-                "degree": line,
-                "startDate": "",
-                "endDate": "",
-                "gpa": "",
-                "description": "",
-            }
-        )
+    education_structured = parsed.get("education_entries") if isinstance(parsed, dict) else None
+    if isinstance(education_structured, list) and education_structured:
+        for idx, entry in enumerate(education_structured):
+            if not isinstance(entry, dict):
+                continue
+            education_entries.append(
+                {
+                    "id": idx + 1,
+                    "institution": entry.get("institution", ""),
+                    "degree": entry.get("degree", ""),
+                    "startDate": entry.get("startDate", ""),
+                    "endDate": entry.get("endDate", ""),
+                    "gpa": entry.get("gpa", ""),
+                    "description": "",
+                }
+            )
+    else:
+        education_raw = parsed.get("education", "") if isinstance(parsed, dict) else ""
+        for idx, line in enumerate([item.strip() for item in str(education_raw).splitlines() if item.strip()]):
+            education_entries.append(
+                {
+                    "id": idx + 1,
+                    "institution": "",
+                    "degree": line,
+                    "startDate": "",
+                    "endDate": "",
+                    "gpa": "",
+                    "description": "",
+                }
+            )
 
     skills = parsed.get("skills", []) if isinstance(parsed, dict) else []
     if isinstance(skills, str):
@@ -419,6 +436,99 @@ def _build_profile_from_intake(intake: IntakeSubmission) -> dict:
 
     return profile
 
+
+def _build_profile_from_resume_key(
+    resume_key: str,
+    resume_mime: str,
+    resume_size_bytes: int,
+    resume_name: str | None = None,
+) -> dict:
+    resume_text = ""
+    try:
+        s3 = get_s3_client()
+        bucket = os.environ["S3_BUCKET_NAME"]
+        obj = s3.get_object(Bucket=bucket, Key=resume_key)
+        raw_bytes = obj["Body"].read()
+
+        suffix = Path(resume_key).suffix or ".bin"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+            tmp_file.write(raw_bytes)
+            temp_path = Path(tmp_file.name)
+
+        resume_text = _extract_resume_text(temp_path, resume_mime)
+    except Exception:
+        resume_text = ""
+    finally:
+        if "temp_path" in locals() and temp_path.exists():
+            temp_path.unlink()
+
+    parsed = parse_resume(resume_text) if resume_text else {}
+
+    experience_entries = []
+    for idx, exp in enumerate(parsed.get("experience", []) if isinstance(parsed, dict) else []):
+        bullets = exp.get("impact_bullets") or []
+        description = "\n".join(f"- {bullet}" for bullet in bullets) if bullets else ""
+        experience_entries.append(
+            {
+                "id": idx + 1,
+                "company": exp.get("company", ""),
+                "position": exp.get("title", ""),
+                "startDate": "",
+                "endDate": exp.get("duration", ""),
+                "description": description,
+            }
+        )
+
+    education_entries = []
+    education_structured = parsed.get("education_entries") if isinstance(parsed, dict) else None
+    if isinstance(education_structured, list) and education_structured:
+        for idx, entry in enumerate(education_structured):
+            if not isinstance(entry, dict):
+                continue
+            education_entries.append(
+                {
+                    "id": idx + 1,
+                    "institution": entry.get("institution", ""),
+                    "degree": entry.get("degree", ""),
+                    "startDate": entry.get("startDate", ""),
+                    "endDate": entry.get("endDate", ""),
+                    "gpa": entry.get("gpa", ""),
+                    "description": "",
+                }
+            )
+    else:
+        education_raw = parsed.get("education", "") if isinstance(parsed, dict) else ""
+        for idx, line in enumerate([item.strip() for item in str(education_raw).splitlines() if item.strip()]):
+            education_entries.append(
+                {
+                    "id": idx + 1,
+                    "institution": "",
+                    "degree": line,
+                    "startDate": "",
+                    "endDate": "",
+                    "gpa": "",
+                    "description": "",
+                }
+            )
+
+    skills = parsed.get("skills", []) if isinstance(parsed, dict) else []
+    if isinstance(skills, str):
+        skills = [skills]
+    skills = [skill for skill in skills if skill]
+
+    filename = resume_name.strip() if resume_name else Path(resume_key).name
+
+    return {
+        "experience": experience_entries,
+        "education": education_entries,
+        "skills": skills,
+        "uploadedResume": {
+            "name": filename,
+            "size": resume_size_bytes,
+            "type": resume_mime,
+        },
+        "resumeKey": resume_key,
+    }
 
 # Helper to log audit events
 def log_audit_event(action, actor_user_id, resource, metadata=None):
@@ -1219,6 +1329,91 @@ def get_profile_resume_url():
 
     return jsonify({"url": url})
 
+
+
+@app.post("/api/profile/resume/presign")
+@jwt_required()
+def profile_resume_presign():
+    data = request.get_json(silent=True) or {}
+    mime = (data.get("mime") or "").strip()
+    size = int(data.get("size") or 0)
+
+    if mime not in ALLOWED_MIME:
+        return jsonify({"error": "Unsupported file type"}), 400
+    if size <= 0 or size > MAX_BYTES:
+        return jsonify({"error": "File too large (max 10MB)"}), 400
+
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    ext = {
+        "application/pdf": "pdf",
+        "application/msword": "doc",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+    }.get(mime, "bin")
+
+    object_key = f"profile/{user.id}/{uuid.uuid4()}/resume.{ext}"
+
+    s3 = get_s3_client()
+    bucket = os.environ["S3_BUCKET_NAME"]
+    url = s3.generate_presigned_url(
+        ClientMethod="put_object",
+        Params={
+            "Bucket": bucket,
+            "Key": object_key,
+            "ContentType": mime,
+        },
+        ExpiresIn=10 * 60,
+        HttpMethod="PUT",
+    )
+
+    return jsonify({
+        "object_key": object_key,
+        "upload_url": url,
+        "max_bytes": MAX_BYTES,
+    })
+
+
+@app.post("/api/profile/resume/finalize")
+@jwt_required()
+def profile_resume_finalize():
+    data = request.get_json(silent=True) or {}
+    object_key = (data.get("object_key") or "").strip()
+    mime = (data.get("mime") or "").strip()
+    size = int(data.get("size") or 0)
+    name = (data.get("name") or "").strip()
+
+    if mime not in ALLOWED_MIME:
+        return jsonify({"error": "Unsupported file type"}), 400
+    if size <= 0 or size > MAX_BYTES:
+        return jsonify({"error": "Invalid file size"}), 400
+
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    if not object_key.startswith(f"profile/{user.id}/"):
+        return jsonify({"error": "Invalid object_key"}), 400
+
+    profile_updates = _build_profile_from_resume_key(
+        resume_key=object_key,
+        resume_mime=mime,
+        resume_size_bytes=size,
+        resume_name=name or None,
+    )
+
+    existing = user.profile_data or {}
+    merged = {**existing, **profile_updates}
+    user.profile_data = merged
+    db.session.commit()
+
+    return jsonify({
+        "message": "Resume processed",
+        "profileData": user.profile_data,
+    })
 
 
 @app.route("/api/recommendations", methods=["POST"])
