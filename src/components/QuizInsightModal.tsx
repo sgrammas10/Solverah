@@ -7,6 +7,8 @@ type QuizInsightModalProps = {
   onClose: () => void;
   onViewInsights: () => void;
   onBackToAssessments: () => void;
+  viewLabel?: string;
+  backLabel?: string;
 };
 
 export default function QuizInsightModal({
@@ -18,6 +20,8 @@ export default function QuizInsightModal({
   onClose,
   onViewInsights,
   onBackToAssessments,
+  viewLabel = "View insights",
+  backLabel = "Back to assessments",
 }: QuizInsightModalProps) {
   if (!open) return null;
 
@@ -68,14 +72,14 @@ export default function QuizInsightModal({
                 onClick={onViewInsights}
                 className="rounded-full bg-emerald-400/90 px-4 py-2 text-sm font-semibold text-slate-950 shadow-md shadow-emerald-500/30"
               >
-                View insights
+                {viewLabel}
               </button>
               <button
                 type="button"
                 onClick={onBackToAssessments}
                 className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-emerald-300/60"
               >
-                Back to assessments
+                {backLabel}
               </button>
               <button
                 type="button"

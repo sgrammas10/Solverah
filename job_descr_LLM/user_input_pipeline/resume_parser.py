@@ -133,6 +133,21 @@ MONTHS = {
     "december",
 }
 
+MONTH_ABBR = {
+    "jan": "01",
+    "feb": "02",
+    "mar": "03",
+    "apr": "04",
+    "may": "05",
+    "jun": "06",
+    "jul": "07",
+    "aug": "08",
+    "sep": "09",
+    "oct": "10",
+    "nov": "11",
+    "dec": "12",
+}
+
 MONTH_PATTERN = (
     r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|"
     r"Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|"
@@ -146,6 +161,16 @@ DATE_PATTERN = re.compile(
     rf"(?:(?:{MONTH_PATTERN}|{NUMERIC_PATTERN}){RANGE_SEP}(?:Present|Current|Now|{MONTH_PATTERN}|{NUMERIC_PATTERN}|{YEAR_PATTERN})"
     rf"|{YEAR_PATTERN}{RANGE_SEP}(?:Present|Current|Now|{YEAR_PATTERN})"
     rf"|{MONTH_PATTERN}|{NUMERIC_PATTERN})",
+    flags=re.IGNORECASE,
+)
+
+EDU_GPA_RE = re.compile(r"\bGPA\s*[:\-]?\s*([0-4](?:\.\d{1,2})?)\b", flags=re.IGNORECASE)
+EDU_DATE_TOKEN_RE = re.compile(
+    rf"(?:{MONTH_PATTERN}|\b\d{{1,2}}/\d{{2,4}}\b)",
+    flags=re.IGNORECASE,
+)
+EDU_EXPECTED_RE = re.compile(
+    rf"\b(expected|anticipated|projected|graduation|graduated|completion|complete)\b\s+(?P<date>{MONTH_PATTERN}|\b\d{{1,2}}/\d{{2,4}}\b|\d{{4}})",
     flags=re.IGNORECASE,
 )
 
@@ -940,6 +965,92 @@ def _parse_education(lines: Sequence[str]) -> str:
 # ---------------------------- Skills extraction -------------------------
 
 
+def _normalize_month_year(token: str) -> str | None:
+    if not token:
+        return None
+    raw = token.strip().strip(".")
+    m = re.search(r"(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+(?P<y>\d{4})", raw, flags=re.IGNORECASE)
+    if m:
+        month_token = re.sub(r"[^\w]", "", m.group(1).lower())
+        month_abbr = month_token[:3]
+        month_num = MONTH_ABBR.get(month_abbr)
+        year = m.group("y")
+        if month_num:
+            return f"{year}-{month_num}"
+        return None
+    m = re.search(r"\b(?P<m>\d{1,2})/(?P<y>\d{2,4})\b", raw)
+    if m:
+        month = int(m.group("m"))
+        year = m.group("y")
+        if len(year) == 2:
+            year = f"20{year}"
+        if 1 <= month <= 12:
+            return f"{year}-{month:02d}"
+    return None
+
+
+def _extract_education_end_date(line: str) -> str:
+    if not line:
+        return ""
+    expected = EDU_EXPECTED_RE.search(line)
+    if expected:
+        normalized = _normalize_month_year(expected.group("date"))
+        if normalized:
+            return normalized
+    tokens = list(EDU_DATE_TOKEN_RE.finditer(line))
+    if tokens:
+        normalized = _normalize_month_year(tokens[-1].group(0))
+        if normalized:
+            return normalized
+    return ""
+
+
+def _strip_education_extras(line: str) -> str:
+    if not line:
+        return ""
+    cleaned = EDU_GPA_RE.sub("", line)
+    cleaned = EDU_EXPECTED_RE.sub("", cleaned)
+    cleaned = EDU_DATE_TOKEN_RE.sub("", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" ,|-")
+    return cleaned
+
+
+def _split_education_parts(line: str) -> tuple[str, str]:
+    if not line:
+        return "", ""
+    match = DEGREE_PATTERN.search(line)
+    if match:
+        institution = line[: match.start()].strip(" ,|-")
+        degree = line[match.start() :].strip(" ,|-")
+        return institution, degree
+    return line.strip(" ,|-"), ""
+
+
+def _parse_education_entries(education_text: str) -> List[Dict[str, str]]:
+    if not education_text:
+        return []
+    entries: List[Dict[str, str]] = []
+    for raw in education_text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        gpa_match = EDU_GPA_RE.search(line)
+        gpa = gpa_match.group(1) if gpa_match else ""
+        end_date = _extract_education_end_date(line)
+        cleaned = _strip_education_extras(line)
+        institution, degree = _split_education_parts(cleaned)
+        entries.append(
+            {
+                "institution": institution,
+                "degree": degree,
+                "startDate": "",
+                "endDate": end_date,
+                "gpa": gpa,
+            }
+        )
+    return entries
+
+
 def _looks_like_contact_or_noise(token: str) -> bool:
     lower = token.lower()
     if "@" in token or "http" in lower or "www." in lower:
@@ -1136,6 +1247,7 @@ def parse_resume(text: str) -> Dict[str, object]:
         years_experience = int(sum(years)) if years else 0
 
     education = _parse_education(line_list)
+    education_entries = _parse_education_entries(education)
     projects = _parse_projects(line_list)
     certifications = _parse_certifications(line_list)
     clearances_or_work_auth = _parse_clearances(text)
@@ -1145,6 +1257,7 @@ def parse_resume(text: str) -> Dict[str, object]:
     return {
         "years_experience": years_experience,
         "education": education,
+        "education_entries": education_entries,
         "skills": skills,
         "skills_by_category": skill_categories,
         "experience": experience,

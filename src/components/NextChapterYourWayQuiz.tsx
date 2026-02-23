@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/useAuth";
 import { nextChapterSections } from "../data/nextChapterYourWayQuiz";
 import QuizInsightModal from "./QuizInsightModal";
+import { API_BASE } from "../utils/api";
+import { markGuestQuizCompleted, setPendingQuizSave } from "../utils/guestQuiz";
 
 type QuizInsight = {
   title?: string;
@@ -26,7 +28,11 @@ type QuizInsightResponse = {
    ✔ Track selected answers in local state
    ✔ Persist results to profile via AuthContext
    =========================================================== */
-export default function CareerAndJobSearchTab() {
+type CareerAndJobSearchTabProps = {
+  guest?: boolean;
+};
+
+export default function CareerAndJobSearchTab({ guest }: CareerAndJobSearchTabProps) {
   // answers maps questionId → selected option index (0–3)
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [isEditing, setIsEditing] = useState(false);
@@ -42,6 +48,11 @@ export default function CareerAndJobSearchTab() {
   useEffect(() => {
     (async () => {
       try {
+        if (guest) {
+          setIsEditing(true);
+          setHasSaved(false);
+          return;
+        }
         if (!fetchProfileData) {
           setIsEditing(true);
           return;
@@ -76,7 +87,7 @@ export default function CareerAndJobSearchTab() {
         setIsEditing(true);
       }
     })();
-  }, [fetchProfileData]);
+  }, [fetchProfileData, guest]);
 
   useEffect(() => {
     if (!insightLoading) return;
@@ -108,6 +119,61 @@ export default function CareerAndJobSearchTab() {
   const handleSubmit = () => {
     (async () => {
       try {
+        if (guest) {
+          markGuestQuizCompleted();
+          const items = nextChapterSections.flatMap((section) =>
+            section.questions
+              .map((q) => {
+                const selectedIdx = answers?.[q.id];
+                if (typeof selectedIdx !== "number") return null;
+                return { question: q.text, selected: q.options[selectedIdx] };
+              })
+              .filter(Boolean),
+          );
+          const payload = {
+            quizGroup: "careerJobSearch",
+            quizzes: [
+              {
+                key: "careerJobSearch",
+                title: "Career & Job Search",
+                items,
+              },
+            ],
+          };
+          setPendingQuizSave({
+            quizGroup: "careerJobSearch",
+            quizResults: {
+              careerJobSearch: answers,
+              careerJobSearchSubmittedAt: new Date().toISOString(),
+            },
+            quizPayload: payload,
+            createdAt: new Date().toISOString(),
+          });
+          setInsightModalOpen(true);
+          setInsightLoading(true);
+          setInsightError(null);
+          try {
+            const res = await fetch(`${API_BASE}/quiz-insights-guest`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+              throw new Error(data?.error || "Failed to generate insights.");
+            }
+            setInsightResponse({
+              overallSummary: data?.overallSummary || null,
+              insights: data?.insights || [],
+            });
+            setInsightProgress(100);
+          } catch (err) {
+            setInsightError(err instanceof Error ? err.message : "Failed to generate insights.");
+          } finally {
+            setInsightLoading(false);
+          }
+          return;
+        }
         // Fetch current profile data if function exists
         const current = await (fetchProfileData
           ? fetchProfileData()
@@ -186,6 +252,10 @@ export default function CareerAndJobSearchTab() {
   };
 
   const handleViewInsights = () => {
+    if (guest) {
+      navigate("/quiz-preview/insights", { state: { insight: insightResponse } });
+      return;
+    }
     if (insightResponse?.insights?.length) {
       navigate("/quiz-insights?group=careerJobSearch", { state: { insight: insightResponse } });
     } else {
@@ -201,7 +271,7 @@ export default function CareerAndJobSearchTab() {
       {/* Page title */}
       <h2 className="text-xl font-semibold mb-2">Career &amp; Job Search</h2>
 
-      {!isEditing && hasSaved ? (
+      {!guest && !isEditing && hasSaved ? (
         <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/60 p-6">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -296,7 +366,7 @@ export default function CareerAndJobSearchTab() {
             className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25"
             type="button"
           >
-            Save Answers
+            {guest ? "Get Insight" : "Save Answers"}
           </button>
         </>
       )}
@@ -309,7 +379,11 @@ export default function CareerAndJobSearchTab() {
         error={insightError}
         onClose={handleInsightClose}
         onViewInsights={handleViewInsights}
-        onBackToAssessments={() => navigate("/job-seeker/profile?tab=assessments")}
+        onBackToAssessments={() =>
+          navigate(guest ? "/quiz-preview" : "/job-seeker/profile?tab=assessments")
+        }
+        backLabel={guest ? "Back to quizzes" : undefined}
+        viewLabel={guest ? "View insights" : undefined}
       />
     </div>
   );
