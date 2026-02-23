@@ -408,7 +408,7 @@ function PrelaunchLandingPage() {
                   <button
                     type="button"
                     onClick={() => navigate("/quiz-preview")}
-                    className="rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-300/60 hover:text-emerald-100"
+                    className="rounded-full bg-gradient-to-r from-emerald-400/90 via-blue-500/90 to-indigo-500/90 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-blue-500/20 transition hover:shadow-blue-400/30"
                   >
                     Want a feel for what an account unlocks?
                   </button>
