@@ -1,5 +1,6 @@
 import React, { FormEvent, useEffect, useId, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_BASE } from "../utils/api";
 
 type SubmissionStatus = "idle" | "submitting" | "success" | "error";
 
@@ -68,11 +69,6 @@ function PrelaunchLandingPage() {
   const earlyContactId = useId();
   const earlyJourneyId = useId();
 
-  const rawApiUrl = (import.meta.env.VITE_API_URL as string) || "http://localhost:5000/api";
-  const normalizedApiUrl = rawApiUrl.replace(/\/+$/, "");
-  const API_BASE = normalizedApiUrl.endsWith("/api")
-    ? normalizedApiUrl
-    : `${normalizedApiUrl}/api`;
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));

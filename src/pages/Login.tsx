@@ -3,14 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
 import { getPendingQuizSave, clearPendingQuizSave } from "../utils/guestQuiz";
 import { Mail, Lock, Briefcase } from 'lucide-react';
+import { API_BASE as API_URL } from "../utils/api";
 
 function ResendConfirmation({ email }: { email: string }) {
   const [status, setStatus] = useState<'idle'|'sending'|'sent'|'error'>('idle');
   const [msg, setMsg] = useState('');
-
-  const rawApiUrl = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
-  const normalizedApiUrl = rawApiUrl.replace(/\/+$/, '');
-  const API_URL = normalizedApiUrl.endsWith('/api') ? normalizedApiUrl : `${normalizedApiUrl}/api`;
 
   const handleResend = async () => {
     if (!email) {

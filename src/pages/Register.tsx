@@ -30,6 +30,22 @@ function Register() {
       setError('Password must be at least 12 characters');
       return;
     }
+    if (!/[A-Z]/.test(formData.password)) {
+      setError('Password must contain an uppercase letter');
+      return;
+    }
+    if (!/[a-z]/.test(formData.password)) {
+      setError('Password must contain a lowercase letter');
+      return;
+    }
+    if (!/[0-9]/.test(formData.password)) {
+      setError('Password must contain a number');
+      return;
+    }
+    if (!/[^A-Za-z0-9]/.test(formData.password)) {
+      setError('Password must contain a symbol');
+      return;
+    }
 
     setLoading(true);
 

@@ -22,10 +22,10 @@ export interface AuthContextType {
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   fetchWithAuth: <T = any>(endpoint: string, options?: RequestInit) => Promise<T>;
-  fetchProfileData?: () => Promise<{ profileData?: ProfileData } | null>;
-  saveProfileData?: (profileData: ProfileData) => Promise<{ profileData?: ProfileData } | null>;
-  updateProfile?: (updates: Partial<User>) => void;
-  updateProfileData?: (profileData: ProfileData) => void;
+  fetchProfileData: () => Promise<{ profileData?: ProfileData } | null>;
+  saveProfileData: (profileData: ProfileData) => Promise<{ profileData?: ProfileData } | null>;
+  updateProfile: (updates: Partial<User>) => void;
+  updateProfileData: (profileData: ProfileData) => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);

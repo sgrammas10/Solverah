@@ -55,12 +55,8 @@ def _send_via_smtp(to_email: str, subject: str, html_content: str, plain_text: s
         else:
             with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
                 server.ehlo()
-                try:
-                    server.starttls(context=ssl.create_default_context())
-                    server.ehlo()
-                except Exception:
-                    # some providers may not support STARTTLS; continue
-                    pass
+                server.starttls(context=ssl.create_default_context())
+                server.ehlo()
                 server.login(SMTP_USER, SMTP_PASSWORD)
                 server.send_message(msg)
     except Exception as e:
