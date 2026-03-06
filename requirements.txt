@@ -19,3 +19,5 @@ pdfminer.six
 python-docx
 sendgrid
 openai
+pytest
+pytest-cov

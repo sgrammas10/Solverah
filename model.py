@@ -13,7 +13,7 @@ Notes:
 - `created_at` fields default to the database server timestamp via `db.func.now()`.
 """
 
-from sqlalchemy.dialects.sqlite import JSON
+from sqlalchemy import JSON
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()

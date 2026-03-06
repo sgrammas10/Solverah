@@ -145,7 +145,7 @@ CORS(
             "http://127.0.0.1:5173",
             "https://solverah.vercel.app",
             "https://solverah.com",
-            "https://www.solverah.com"
+            "https://www.solverah.com",
             r"^https://.*\.vercel\.app$",
         ],
         # "allow_origin_regex": r"^https://.*\.vercel\.app$",
@@ -184,7 +184,6 @@ app.config["JWT_COOKIE_SAMESITE"] = os.environ.get(
 
 # CSRF protection on state-changing methods
 app.config["JWT_COOKIE_CSRF_PROTECT"] = True
-app.config["JWT_COOKIE_CSRF_PROTECT"] = True  # Set to True to enable CSRF protection when done setting up
 app.config["JWT_CSRF_METHODS"] = ["POST", "PUT", "PATCH", "DELETE"]
 app.config["JWT_CSRF_HEADER_NAME"] = "X-CSRF-TOKEN"
 
@@ -749,7 +748,7 @@ def intake_create_account():
         profile_data=profile_data,
         email_confirmed=False,
         confirmation_token=token,
-        confirmation_sent_at=datetime.datetime.utcnow(),
+        confirmation_sent_at=datetime.datetime.now(datetime.timezone.utc),
     )
     db.session.add(new_user)
 
@@ -803,13 +802,13 @@ def intake_sign_in():
     if not user:
         return jsonify({"error": "Account not found"}), 404
 
-    if user.locked_until and user.locked_until > datetime.datetime.utcnow():
+    if user.locked_until and user.locked_until > datetime.datetime.now(datetime.timezone.utc):
         return jsonify({"error": "Account locked. Try again later."}), 423
 
     if not bcrypt.check_password_hash(user.password, password):
         user.failed_login_attempts += 1
         if user.failed_login_attempts >= MAX_LOGIN_ATTEMPTS:
-            user.locked_until = datetime.datetime.utcnow() + datetime.timedelta(
+            user.locked_until = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
                 minutes=LOGIN_LOCKOUT_MINUTES
             )
             user.failed_login_attempts = 0
@@ -818,6 +817,9 @@ def intake_sign_in():
 
     user.failed_login_attempts = 0
     user.locked_until = None
+
+    if not getattr(user, "email_confirmed", False):
+        return jsonify({"error": "Email not confirmed. Please confirm your email before signing in."}), 403
 
     intake_profile = _build_profile_from_intake(intake)
     existing_profile = user.profile_data or {}
@@ -898,19 +900,19 @@ DEMO_MODE = os.getenv("DEMO_MODE", "0") == "1"
 @limiter.limit("5 per minute")
 @app.route("/api/login", methods=["POST"])
 def login():
-    data = request.get_json()
-    email = data.get("email")
-    password = data.get("password")
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
 
     user = User.query.filter_by(email=email).first()
-    if user and user.locked_until and user.locked_until > datetime.datetime.utcnow():
+    if user and user.locked_until and user.locked_until > datetime.datetime.now(datetime.timezone.utc):
         return jsonify({"error": "Account locked. Try again later."}), 423
 
     if not user or not bcrypt.check_password_hash(user.password, password):
         if user:
             user.failed_login_attempts += 1
             if user.failed_login_attempts >= MAX_LOGIN_ATTEMPTS:
-                user.locked_until = datetime.datetime.utcnow() + datetime.timedelta(
+                user.locked_until = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
                     minutes=LOGIN_LOCKOUT_MINUTES
                 )
                 user.failed_login_attempts = 0
@@ -926,7 +928,7 @@ def login():
     if not getattr(user, "email_confirmed", False):
         token = uuid.uuid4().hex
         user.confirmation_token = token
-        user.confirmation_sent_at = datetime.datetime.utcnow()
+        user.confirmation_sent_at = datetime.datetime.now(datetime.timezone.utc)
         db.session.commit()
         try:
             send_confirmation_email(user.email, token)
@@ -981,7 +983,7 @@ def confirm_email():
 
     # Check expiry
     exp_hours = int(os.environ.get("CONFIRM_TOKEN_EXP_HOURS", "48"))
-    if not user.confirmation_sent_at or user.confirmation_sent_at + datetime.timedelta(hours=exp_hours) < datetime.datetime.utcnow():
+    if not user.confirmation_sent_at or user.confirmation_sent_at + datetime.timedelta(hours=exp_hours) < datetime.datetime.now(datetime.timezone.utc):
         return jsonify({"error": "token expired"}), 400
 
     user.email_confirmed = True
@@ -1009,7 +1011,7 @@ def resend_confirmation():
 
     token = uuid.uuid4().hex
     user.confirmation_token = token
-    user.confirmation_sent_at = datetime.datetime.utcnow()
+    user.confirmation_sent_at = datetime.datetime.now(datetime.timezone.utc)
     db.session.commit()
 
     try:
@@ -1027,9 +1029,9 @@ from email_utils import send_confirmation_email
 @limiter.limit("5 per minute")
 @app.route("/api/register", methods=["POST"])
 def register():
-    data = request.get_json()
-    email = data.get("email")
-    password = data.get("password")
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
     name = data.get("name")
     role = data.get("role", "job-seeker")
 
@@ -1055,7 +1057,7 @@ def register():
         profile_data=profile_data,
         email_confirmed=False,
         confirmation_token=token,
-        confirmation_sent_at=datetime.datetime.utcnow(),
+        confirmation_sent_at=datetime.datetime.now(datetime.timezone.utc),
     )
     db.session.add(new_user)
     db.session.commit()
@@ -1066,6 +1068,7 @@ def register():
     except Exception:
         # Log in audit but don't expose details to user
         log_audit_event(action="email_send_failed", actor_user_id=new_user.id, resource="email", metadata={})
+        db.session.commit()
 
     return jsonify({"message": "registered", "user": {
         "id": new_user.id,
@@ -1247,7 +1250,7 @@ def quiz_insights():
     else:
         quiz_insights = dict(quiz_insights)
 
-    timestamp = datetime.datetime.utcnow().isoformat()
+    timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     if quiz_group == "careerQuizzes":
         group_store = quiz_insights.get("careerQuizzes")
