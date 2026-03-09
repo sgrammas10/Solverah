@@ -17,7 +17,7 @@ psycopg2-binary
 python-dotenv
 pdfminer.six
 python-docx
-sendgrid
+resend
 openai
 pytest
 pytest-cov

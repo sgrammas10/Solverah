@@ -57,7 +57,9 @@ function App() {
               <Route path="/quiz-preview/insights" element={<GuestQuizInsights />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route path="/confirm-email" element={<ConfirmEmail />} />
+              <Route path="/verify-email" element={<ConfirmEmail />} />
+              {/* Legacy routes redirect to new code-entry page */}
+              <Route path="/confirm-email" element={<CheckEmail />} />
               <Route path="/check-email" element={<CheckEmail />} />
 
               {/* Shared feed + search routes */}

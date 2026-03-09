@@ -13,6 +13,7 @@ from flask_talisman import Talisman
 import os
 import json
 import uuid
+import random
 import datetime
 import re
 import importlib
@@ -926,12 +927,12 @@ def login():
 
     # Require email confirmation; resend confirmation on login attempt
     if not getattr(user, "email_confirmed", False):
-        token = uuid.uuid4().hex
-        user.confirmation_token = token
+        code = str(random.randint(100000, 999999))
+        user.confirmation_token = code
         user.confirmation_sent_at = datetime.datetime.now(datetime.timezone.utc)
         db.session.commit()
         try:
-            send_confirmation_email(user.email, token)
+            send_confirmation_email(user.email, code)
         except Exception:
             log_audit_event(
                 action="email_send_failed",
@@ -973,18 +974,23 @@ def logout():
 @app.route("/api/confirm-email", methods=["POST"])
 def confirm_email():
     data = request.get_json() or {}
-    token = (data.get("token") or "").strip()
-    if not token:
-        return jsonify({"error": "token required"}), 400
+    email = (data.get("email") or "").strip().lower()
+    code = (data.get("code") or "").strip()
+    if not email or not code:
+        return jsonify({"error": "email and code are required"}), 400
 
-    user = User.query.filter_by(confirmation_token=token).first()
-    if not user:
-        return jsonify({"error": "invalid token"}), 404
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.confirmation_token:
+        return jsonify({"error": "invalid code"}), 400
 
-    # Check expiry
-    exp_hours = int(os.environ.get("CONFIRM_TOKEN_EXP_HOURS", "48"))
-    if not user.confirmation_sent_at or user.confirmation_sent_at + datetime.timedelta(hours=exp_hours) < datetime.datetime.now(datetime.timezone.utc):
-        return jsonify({"error": "token expired"}), 400
+    # Check expiry (15 minutes for 6-digit codes)
+    exp_minutes = int(os.environ.get("VERIFY_CODE_EXP_MINUTES", "15"))
+    sent_at_utc = user.confirmation_sent_at.replace(tzinfo=datetime.timezone.utc) if user.confirmation_sent_at else None
+    if not sent_at_utc or sent_at_utc + datetime.timedelta(minutes=exp_minutes) < datetime.datetime.now(datetime.timezone.utc):
+        return jsonify({"error": "code expired"}), 400
+
+    if user.confirmation_token != code:
+        return jsonify({"error": "invalid code"}), 400
 
     user.email_confirmed = True
     user.confirmation_token = None
@@ -1009,16 +1015,17 @@ def resend_confirmation():
     if getattr(user, "email_confirmed", False):
         return jsonify({"error": "Email already confirmed"}), 400
 
-    token = uuid.uuid4().hex
-    user.confirmation_token = token
+    code = str(random.randint(100000, 999999))
+    user.confirmation_token = code
     user.confirmation_sent_at = datetime.datetime.now(datetime.timezone.utc)
     db.session.commit()
 
     try:
-        send_confirmation_email(user.email, token)
-    except Exception:
-        log_audit_event(action="email_send_failed", actor_user_id=user.id, resource="email", metadata={})
-        return jsonify({"error": "Failed to send email"}), 500
+        send_confirmation_email(user.email, code)
+    except Exception as e:
+        log_audit_event(action="email_send_failed", actor_user_id=user.id, resource="email", metadata={"error": str(e)})
+        app.logger.error(f"resend_confirmation email failed for {user.email}: {e}")
+        return jsonify({"error": "Failed to send email", "detail": str(e)}), 500
 
     return jsonify({"message": "confirmation_sent"}), 200
 
@@ -1047,8 +1054,8 @@ def register():
     profile_data = default_profile(email=email, name=name, role=role)
 
 
-    # Create user with confirmation token
-    token = uuid.uuid4().hex
+    # Create user with 6-digit verification code
+    code = str(random.randint(100000, 999999))
     new_user = User(
         email=email,
         password=hashed_pw,
@@ -1056,18 +1063,18 @@ def register():
         role=data.get("role"),
         profile_data=profile_data,
         email_confirmed=False,
-        confirmation_token=token,
+        confirmation_token=code,
         confirmation_sent_at=datetime.datetime.now(datetime.timezone.utc),
     )
     db.session.add(new_user)
     db.session.commit()
 
-    # Send confirmation email (best-effort; failures shouldn't break registration)
+    # Send verification code email (best-effort; failures shouldn't break registration)
     try:
-        send_confirmation_email(new_user.email, token)
-    except Exception:
-        # Log in audit but don't expose details to user
-        log_audit_event(action="email_send_failed", actor_user_id=new_user.id, resource="email", metadata={})
+        send_confirmation_email(new_user.email, code)
+    except Exception as e:
+        app.logger.error(f"register email send failed for {new_user.email}: {e}")
+        log_audit_event(action="email_send_failed", actor_user_id=new_user.id, resource="email", metadata={"error": str(e)})
         db.session.commit()
 
     return jsonify({"message": "registered", "user": {

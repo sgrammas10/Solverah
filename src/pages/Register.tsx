@@ -52,7 +52,7 @@ function Register() {
     try {
       await register(formData.email, formData.password, formData.name, formData.role);
       // After registration, prompt user to check their email for confirmation
-      navigate('/check-email', { state: { email: formData.email } });
+      navigate('/verify-email', { state: { email: formData.email } });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       if (message.includes('User already exists') || message.toLowerCase().includes('already exists')) {

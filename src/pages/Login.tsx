@@ -6,7 +6,8 @@ import { Mail, Lock, Briefcase } from 'lucide-react';
 import { API_BASE as API_URL } from "../utils/api";
 
 function ResendConfirmation({ email }: { email: string }) {
-  const [status, setStatus] = useState<'idle'|'sending'|'sent'|'error'>('idle');
+  const navigate = useNavigate();
+  const [status, setStatus] = useState<'idle'|'sending'|'error'>('idle');
   const [msg, setMsg] = useState('');
 
   const handleResend = async () => {
@@ -26,11 +27,11 @@ function ResendConfirmation({ email }: { email: string }) {
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setStatus('error');
-        setMsg(data?.error || 'Failed to resend confirmation');
+        setMsg(data?.error || 'Failed to resend code');
         return;
       }
-      setStatus('sent');
-      setMsg('Confirmation email resent. Check your inbox.');
+      // Navigate to code-entry page with email pre-filled
+      navigate('/verify-email', { state: { email } });
     } catch (err: any) {
       setStatus('error');
       setMsg(err?.message || 'Network error');
@@ -42,11 +43,11 @@ function ResendConfirmation({ email }: { email: string }) {
       <button
         onClick={handleResend}
         className="text-sm underline text-emerald-200"
-        disabled={status === 'sending' || status === 'sent'}
+        disabled={status === 'sending'}
       >
-        {status === 'sending' ? 'Sending...' : status === 'sent' ? 'Sent' : 'Resend confirmation email'}
+        {status === 'sending' ? 'Sending...' : 'Resend verification code'}
       </button>
-      {msg && <div className={`text-sm ${status === 'error' ? 'text-red-300' : 'text-emerald-300'}`}>{msg}</div>}
+      {msg && <div className={`text-sm text-red-300`}>{msg}</div>}
     </div>
   );
 }
