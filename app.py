@@ -701,6 +701,23 @@ def finalize():
     finally:
         conn.close()
 
+    # Send notification email to info@solverah.com
+    try:
+        from email_utils import send_intake_notification
+        send_intake_notification(
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            state=state,
+            phone=phone,
+            linkedin_url=linkedin_url,
+            portfolio_url=portfolio_url,
+            object_key=object_key,
+            mime=mime,
+            size=size,
+        )
+    except Exception as e:
+        app.logger.error(f"Failed to send intake notification to info@solverah.com: {e}")
     return jsonify({"ok": True})
 
 
