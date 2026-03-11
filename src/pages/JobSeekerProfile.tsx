@@ -52,16 +52,45 @@ function JobSeekerProfile() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(true);
+  const [isUploadingResume, setIsUploadingResume] = useState(false);
   const [uploadedResume, setUploadedResume] = useState<File | null>(null);
   const [resumeUploaded, setResumeUploaded] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [pendingResume, setPendingResume] = useState<PendingResumeUpload | null>(null);
 
   const [showQuizResults, setShowQuizResults] = useState(false);
+
+  useEffect(() => {
+    if (!isSaving) return;
+    setSaveProgress(8);
+    const timer = setInterval(() => {
+      setSaveProgress((prev) => (prev < 90 ? Math.min(90, prev + 6 + Math.random() * 6) : prev));
+    }, 450);
+    return () => clearInterval(timer);
+  }, [isSaving]);
+
+  useEffect(() => {
+    if (!isUploadingResume) return;
+    setUploadProgress(8);
+    const timer = setInterval(() => {
+      setUploadProgress((prev) => (prev < 90 ? Math.min(90, prev + 6 + Math.random() * 6) : prev));
+    }, 450);
+    return () => clearInterval(timer);
+  }, [isUploadingResume]);
 
 
   interface UploadedResume {
     name: string;
     size: number;
     type: string;
+  }
+
+  interface PendingResumeUpload {
+    objectKey: string;
+    mime: string;
+    size: number;
+    name: string;
   }
 
   interface PsychometricScore {
@@ -97,6 +126,7 @@ function JobSeekerProfile() {
     };
 
     uploadedResume: UploadedResume | null;
+    resumeKey?: string | null;
     quizResults?: Record<string, unknown>;
     _quizSummary?: Record<string, unknown>;
   }
@@ -122,6 +152,7 @@ function JobSeekerProfile() {
       teamwork: { score: number | null; percentile: number | null; completed: boolean };
     };
     uploadedResume: { name: string; size: number; type: string } | null;
+    resumeKey?: string | null;
     quizResults?: Record<string, unknown>;
     _quizSummary?: Record<string, unknown>;
   }
@@ -150,6 +181,7 @@ function JobSeekerProfile() {
       teamwork: { score: null, percentile: null, completed: false },
     },
     uploadedResume: null,
+    resumeKey: null,
   });
 
 
@@ -232,6 +264,7 @@ function JobSeekerProfile() {
       performanceReviews: incoming.performanceReviews ?? undefined,
       psychometricResults: incoming.psychometricResults ?? undefined,
       uploadedResume: incoming.uploadedResume ?? undefined,
+      resumeKey: incoming.resumeKey ?? undefined,
       quizResults: incoming.quizResults ?? undefined,
       _quizSummary: incoming._quizSummary ?? undefined,
     };
@@ -249,12 +282,46 @@ function JobSeekerProfile() {
     e.preventDefault();
     setIsSaving(true);
     
-    const profileDataToSave = {
+    let profileDataToSave = {
       ...formData,
       uploadedResume: uploadedResume
         ? { name: uploadedResume.name, size: uploadedResume.size, type: uploadedResume.type }
         : formData.uploadedResume ?? null,
     };
+
+    if (pendingResume) {
+      try {
+        const finalized = await fetchWithAuth<{ profileData?: Partial<ProfileFormData> }>(
+          "/profile/resume/finalize",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              object_key: pendingResume.objectKey,
+              mime: pendingResume.mime,
+              size: pendingResume.size,
+              name: pendingResume.name,
+            }),
+          }
+        );
+
+        if (finalized?.profileData) {
+          const normalized = normalizeProfileData(finalized.profileData);
+          profileDataToSave = {
+            ...profileDataToSave,
+            ...normalized,
+            experience: normalized.experience ?? profileDataToSave.experience,
+            education: normalized.education ?? profileDataToSave.education,
+            skills: normalized.skills ?? profileDataToSave.skills,
+            uploadedResume: normalized.uploadedResume ?? profileDataToSave.uploadedResume,
+            resumeKey: normalized.resumeKey ?? profileDataToSave.resumeKey,
+          };
+          setPendingResume(null);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Unable to process resume right now.");
+      }
+    }
 
     // Update the user's name in the auth context
     const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
@@ -287,8 +354,10 @@ function JobSeekerProfile() {
 
     // Update local form data
     setFormData(profileDataToSave);
+    setSaveProgress(100);
     setIsSaving(false);
     setIsSaved(true);
+    setTimeout(() => setSaveProgress(0), 600);
 
   };
 
@@ -513,11 +582,61 @@ function JobSeekerProfile() {
     });
   };
 
-  const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setUploadedResume(file);
-      setIsSaved(false);
+    if (!file) return;
+
+    setUploadedResume(file);
+    setIsSaved(false);
+    setIsUploadingResume(true);
+
+    try {
+      const presign = await fetchWithAuth<{
+        object_key: string;
+        upload_url: string;
+        max_bytes: number;
+      }>("/profile/resume/presign", {
+        method: "POST",
+        body: JSON.stringify({ mime: file.type, size: file.size }),
+      });
+
+      await fetch(presign.upload_url, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      setPendingResume({
+        objectKey: presign.object_key,
+        mime: file.type,
+        size: file.size,
+        name: file.name,
+      });
+
+      setFormData((prev) => ({
+        ...prev,
+        uploadedResume: { name: file.name, size: file.size, type: file.type },
+      }));
+      setResumeUploaded(true);
+    } catch (err) {
+      console.error(err);
+      alert("Unable to process resume right now.");
+    } finally {
+      setUploadedResume(null);
+      setUploadProgress(100);
+      setIsUploadingResume(false);
+      setTimeout(() => setUploadProgress(0), 600);
+    }
+  };
+  const handleViewResume = async () => {
+    try {
+      const data = await fetchWithAuth<{ url: string }>("/profile/resume-url", { method: "GET" });
+      if (data?.url) {
+        window.open(data.url, "_blank", "noopener,noreferrer");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Unable to open resume right now.");
     }
   };
   const MAX_EDUCATIONS = 10;
@@ -820,6 +939,19 @@ function JobSeekerProfile() {
                 <label className="block text-sm font-medium text-slate-200/80 mb-2">
                   Resume
                 </label>
+                {isUploadingResume && (
+                  <div className="mb-4">
+                    <div className="text-xs uppercase tracking-[0.18em] text-emerald-200/80">
+                      Uploading resume
+                    </div>
+                    <div className="mt-2 h-2 w-full rounded-full bg-white/10">
+                      <div
+                        className="h-2 rounded-full bg-emerald-400 transition-all duration-300"
+                        style={{ width: `${Math.min(100, Math.max(4, uploadProgress))}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
                 {(uploadedResume || formData.uploadedResume) && (
                   <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-400/30 rounded-md">
                     <div className="flex items-center justify-between">
@@ -845,7 +977,9 @@ function JobSeekerProfile() {
                         type="button"
                         onClick={() => {
                           setUploadedResume(null);
-                          setFormData((curr) => ({ ...curr, uploadedResume: null }));
+                          setFormData((curr) => ({ ...curr, uploadedResume: null, resumeKey: null }));
+                          setResumeUploaded(false);
+                          setPendingResume(null);
                           setIsSaved(false);
                         }}
                         className="text-emerald-200 hover:text-emerald-100"
@@ -853,6 +987,17 @@ function JobSeekerProfile() {
                         <X className="h-4 w-4" />
                       </button>
                     </div>
+                    {formData.resumeKey && (
+                      <div className="mt-3 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={handleViewResume}
+                          className="rounded-full border border-emerald-300/50 px-3 py-1 text-xs font-semibold text-emerald-100 hover:border-emerald-200"
+                        >
+                          View Resume
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-white/10 border-dashed rounded-md">
@@ -903,6 +1048,17 @@ function JobSeekerProfile() {
               <div className="space-y-6">
                 {formData.experience.map((exp, index) => (
                   <div key={exp.id} className="p-4 border border-white/10 rounded-lg">
+                    {/*
+                      If endDate is "Present"/"Current", treat as currently employed.
+                      Keep the input empty/disabled to avoid invalid value for type="month".
+                    */}
+                    {(() => {
+                      const isCurrent =
+                        (exp.endDate || "").toLowerCase() === "present" ||
+                        (exp.endDate || "").toLowerCase() === "current";
+                      const endDateValue = isCurrent ? "" : exp.endDate;
+                      return (
+                        <>
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-medium text-white">Experience #{index + 1}</h3>
                       <button
@@ -961,11 +1117,27 @@ function JobSeekerProfile() {
                         <input
                           type="month"
                           maxLength={50}
-                          value={exp.endDate}
+                          value={endDateValue}
                           onChange={(e) => updateExperience(exp.id, 'endDate', e.target.value)}
+                          disabled={isCurrent}
                           className="w-full px-3 py-2 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
                           placeholder="Present"
                         />
+                        <label className="mt-2 inline-flex items-center gap-2 text-sm text-slate-200/80">
+                          <input
+                            type="checkbox"
+                            checked={isCurrent}
+                            onChange={(e) =>
+                              updateExperience(
+                                exp.id,
+                                'endDate',
+                                e.target.checked ? 'Present' : ''
+                              )
+                            }
+                            className="h-4 w-4 rounded border-white/20 bg-transparent text-emerald-300 focus:ring-emerald-300/50"
+                          />
+                          I currently work here
+                        </label>
                       </div>
 
                       <div className="md:col-span-2">
@@ -982,6 +1154,9 @@ function JobSeekerProfile() {
                         />
                       </div>
                     </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
@@ -1212,19 +1387,35 @@ function JobSeekerProfile() {
 
               {/* Quiz Cards */}
               <div className="grid md:grid-cols-2 gap-6">
-                {/* Career Quizzes & Archetypes */}
+                {/* Early Career */}
                 <div className="border border-white/10 rounded-lg p-5 bg-slate-900/60 hover:shadow-md transition">
                   <h3 className="text-lg font-semibold text-emerald-200 mb-2">
-                    Career Quizzes & Archetypes
+                    Early Career
                   </h3>
                   <p className="text-sm text-slate-200/80 mb-4">
-                    Learn what drives your success and identify your career archetype across multiple themed quizzes.
+                    Explore your motivations, feedback preferences, and ideal early-career environment.
                   </p>
                   <Link
-                    to="/career-quizzes"
+                    to="/career-quizzes/early-career"
                     className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
                   >
-                    Start Quiz
+                    {(formData.quizResults as any)?.careerQuizzes?.earlyCareer ? "View Answers" : "Start Quiz"}
+                  </Link>
+                </div>
+
+                {/* Career Transition */}
+                <div className="border border-white/10 rounded-lg p-5 bg-slate-900/60 hover:shadow-md transition">
+                  <h3 className="text-lg font-semibold text-emerald-200 mb-2">
+                    Career Transition
+                  </h3>
+                  <p className="text-sm text-slate-200/80 mb-4">
+                    Clarify what you want to leave behind and what success looks like in your next chapter.
+                  </p>
+                  <Link
+                    to="/career-quizzes/career-transition"
+                    className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
+                  >
+                    {(formData.quizResults as any)?.careerQuizzes?.careerTransition ? "View Answers" : "Start Quiz"}
                   </Link>
                 </div>
 
@@ -1240,72 +1431,42 @@ function JobSeekerProfile() {
                     to="/career-job-search"
                     className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
                   >
-                    Start Quiz
+                    {formData.quizResults?.careerJobSearch ? "View Answers" : "Start Quiz"}
                   </Link>
                 </div>
 
-                {/* Your Future, Your Way */}
+                {/* Mid-Career / Strategic */}
+                <div className="border border-white/10 rounded-lg p-5 bg-slate-900/60 hover:shadow-md transition">
+                  <h3 className="text-lg font-semibold text-emerald-200 mb-2">
+                    Mid-Career / Strategic
+                  </h3>
+                  <p className="text-sm text-slate-200/80 mb-4">
+                    Define your leadership legacy, strategic growth areas, and ideal team environment.
+                  </p>
+                  <Link
+                    to="/career-quizzes/mid-career"
+                    className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
+                  >
+                    {(formData.quizResults as any)?.careerQuizzes?.midCareer ? "View Answers" : "Start Quiz"}
+                  </Link>
+                </div>
+
+                {/* Your Future, Your Way (Teen-Focused) */}
                 <div className="border border-white/10 rounded-lg p-5 bg-slate-900/60 hover:shadow-md transition md:col-span-2">
                   <h3 className="text-lg font-semibold text-emerald-200 mb-2">
-                    Your Future, Your Way
+                    Your Future, Your Way (Teen-Focused)
                   </h3>
                   <p className="text-sm text-slate-200/80 mb-4">
                     A fun, teen-focused quiz that helps you explore interests, personality, and future goals in an engaging way.
                   </p>
                   <Link
-                    to="/future-your-way"
+                    to="/career-quizzes/teen-focused"
                     className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 rounded-md hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 text-sm"
                   >
-                    Start Quiz
+                    {(formData.quizResults as any)?.careerQuizzes?.teenFocused ? "View Answers" : "Start Quiz"}
                   </Link>
                 </div>
               </div>
-              {/* View Saved Quiz Results */}
-              {formData.quizResults && (
-                <div className="mt-6 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setShowQuizResults((prev) => !prev)}
-                    className="px-4 py-2 border border-emerald-300/60 text-emerald-200 rounded-md hover:bg-white/10 text-sm font-medium"
-                  >
-                    {showQuizResults ? 'Hide Quiz Results' : 'View Saved Quiz Results'}
-                  </button>
-                </div>
-              )}
-
-              {showQuizResults && formData.quizResults && (
-                <div className="mt-4 space-y-4">
-                  <h3 className="text-sm font-semibold text-slate-100">
-                    Your Saved Quiz Results
-                  </h3>
-
-                  {(() => {
-                    const quizResults = formData.quizResults as any;
-
-                    return (
-                      <>
-                        {quizResults.careerJobSearch && (
-                          <QuizResultsSection
-                            title="Career & Job Search"
-                            questions={careerJobSearchQuestionBank as QuizQuestion[]}
-                            answers={quizResults.careerJobSearch as Record<string, number>}
-                          />
-                        )}
-
-                        {quizResults.yourFutureYourWay && (
-                          <QuizResultsSection
-                            title="Your Future, Your Way"
-                            questions={yourFutureYourWayQuestionBank as QuizQuestion[]}
-                            answers={quizResults.yourFutureYourWay as Record<string, number>}
-                          />
-                        )}
-
-                        {/*  can add more quizzes here*/}
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
 
               {/* Call to Action Banner */}
               <div className="mt-8 p-4 bg-amber-500/10 border border-amber-400/30 rounded-lg flex items-center">
@@ -1329,7 +1490,21 @@ function JobSeekerProfile() {
 
 
         {/* Save Button */}
-        <div className="flex justify-end pt-6">
+        <div className="pt-6">
+          {isSaving && (
+            <div className="mb-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-emerald-200/80">
+                Saving profile
+              </div>
+              <div className="mt-2 h-2 w-full rounded-full bg-white/10">
+                <div
+                  className="h-2 rounded-full bg-emerald-400 transition-all duration-300"
+                  style={{ width: `${Math.min(100, Math.max(4, saveProgress))}%` }}
+                />
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end">
           <button
             type="submit"
             disabled={isSaving}
@@ -1337,6 +1512,7 @@ function JobSeekerProfile() {
           >
             {isSaving ? 'Saving...' : 'Save Profile'}
           </button>
+          </div>
         </div>
       </form>
     </div>

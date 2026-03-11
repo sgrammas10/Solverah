@@ -30,13 +30,29 @@ function Register() {
       setError('Password must be at least 12 characters');
       return;
     }
+    if (!/[A-Z]/.test(formData.password)) {
+      setError('Password must contain an uppercase letter');
+      return;
+    }
+    if (!/[a-z]/.test(formData.password)) {
+      setError('Password must contain a lowercase letter');
+      return;
+    }
+    if (!/[0-9]/.test(formData.password)) {
+      setError('Password must contain a number');
+      return;
+    }
+    if (!/[^A-Za-z0-9]/.test(formData.password)) {
+      setError('Password must contain a symbol');
+      return;
+    }
 
     setLoading(true);
 
     try {
       await register(formData.email, formData.password, formData.name, formData.role);
-      const redirectPath = formData.role === 'job-seeker' ? '/job-seeker/profile' : '/recruiter/profile';
-      navigate(redirectPath);
+      // After registration, prompt user to check their email for confirmation
+      navigate('/verify-email', { state: { email: formData.email } });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       if (message.includes('User already exists') || message.toLowerCase().includes('already exists')) {

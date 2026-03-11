@@ -13,12 +13,42 @@ from flask_talisman import Talisman
 import os
 import json
 import uuid
+import random
 import datetime
 import re
+import importlib
+import importlib.util
+import sys
+import tempfile
+import traceback
+from pathlib import Path
 from urllib.parse import urlparse
 import boto3
 import psycopg2
 from psycopg2.extras import RealDictCursor
+
+from dotenv import load_dotenv
+load_dotenv()
+try:
+    from openai import OpenAI
+except Exception:
+    OpenAI = None
+
+
+JOB_LLM_DIR = Path(__file__).resolve().parent / "job_descr_LLM"
+
+def _load_resume_parser():
+    parser_path = JOB_LLM_DIR / "user_input_pipeline" / "resume_parser.py"
+    if not parser_path.exists():
+        raise FileNotFoundError("resume_parser.py not found in job_descr_LLM/user_input_pipeline")
+    spec = importlib.util.spec_from_file_location("resume_parser", parser_path)
+    if spec is None or spec.loader is None:
+        raise ImportError("Unable to load resume_parser module")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.parse_resume
+
+parse_resume = _load_resume_parser()
 
 ALLOWED_MIME = {
     "application/pdf",
@@ -116,7 +146,7 @@ CORS(
             "http://127.0.0.1:5173",
             "https://solverah.vercel.app",
             "https://solverah.com",
-            "https://www.solverah.com"
+            "https://www.solverah.com",
             r"^https://.*\.vercel\.app$",
         ],
         # "allow_origin_regex": r"^https://.*\.vercel\.app$",
@@ -155,7 +185,6 @@ app.config["JWT_COOKIE_SAMESITE"] = os.environ.get(
 
 # CSRF protection on state-changing methods
 app.config["JWT_COOKIE_CSRF_PROTECT"] = True
-app.config["JWT_COOKIE_CSRF_PROTECT"] = True  # Set to True to enable CSRF protection when done setting up
 app.config["JWT_CSRF_METHODS"] = ["POST", "PUT", "PATCH", "DELETE"]
 app.config["JWT_CSRF_HEADER_NAME"] = "X-CSRF-TOKEN"
 
@@ -187,6 +216,319 @@ def get_s3_client():
         region_name=os.environ.get("S3_REGION", "auto"),
     )
 
+
+def _module_available(module_name: str) -> bool:
+    return importlib.util.find_spec(module_name) is not None
+
+
+def _get_openai_client():
+    if OpenAI is None:
+        raise RuntimeError("OpenAI SDK not installed")
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not set")
+    return OpenAI(api_key=api_key)
+
+
+def _build_quiz_insight_prompt(quiz_group: str, quizzes: list[dict]) -> list[dict]:
+    system = (
+        "You are an expert career insights engine designed to analyze structured quiz responses "
+        "and extract meaningful career-related patterns.\n\n"
+        
+        "PRIMARY OBJECTIVE:\n"
+        "Synthesize answers across quizzes into high-signal insights that help a user better "
+        "understand their work preferences, strengths, and potential career directions.\n\n"
+
+        "STRICT RULES:\n"
+        "- Output VALID JSON only. Do not include markdown, commentary, or extra text.\n"
+        "- Do NOT invent traits, preferences, or experiences not supported by the input.\n"
+        "- Do NOT provide medical, psychological, or legal advice.\n"
+        "- Avoid generic career advice that could apply to anyone.\n"
+        "- Focus on PATTERNS and INTERSECTIONS across answers rather than summarizing individual responses.\n"
+        "- Maintain a professional, supportive, and non-judgmental tone.\n"
+        "- Be concise but information-dense.\n"
+
+        "INSIGHT QUALITY GUIDELINES:\n"
+        "- Each insight should reveal something the user may not have explicitly recognized.\n"
+        "- Prefer specificity over broad statements.\n"
+        "- Recommendations must be practical and immediately actionable.\n"
+    )
+    user_payload = {
+        "quiz_group": quiz_group,
+        "quizzes": quizzes,
+        "output_rules": {
+            "tone": "clear, supportive, non-judgmental",
+            "length": "short but meaningful",
+            "key_takeaways_count": "3-5",
+            "next_steps_count": "2-4",
+        },
+        "output_format": {
+            "overallSummary": "string",
+            "insights": [
+                {
+                    "key": "string",
+                    "title": "string",
+                    "summary": "string",
+                    "keyTakeaways": ["string"],
+                    "combinedMeaning": "string",
+                    "nextSteps": ["string"],
+                }
+            ],
+        },
+    }
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": json.dumps(user_payload)},
+    ]
+
+
+def _coerce_insight_payload(payload: dict, quiz_group: str, fallback_quizzes: list[dict]) -> dict:
+    if not isinstance(payload, dict):
+        return {}
+    insights = payload.get("insights")
+    overall = payload.get("overallSummary") if isinstance(payload.get("overallSummary"), str) else None
+
+    if isinstance(insights, dict):
+        insights = [insights]
+
+    if not isinstance(insights, list):
+        return {}
+
+    normalized = []
+    for idx, item in enumerate(insights):
+        if not isinstance(item, dict):
+            continue
+        key = item.get("key")
+        if not key and fallback_quizzes and idx < len(fallback_quizzes):
+            key = fallback_quizzes[idx].get("key")
+        normalized.append(
+            {
+                "key": key or f"{quiz_group}-{idx+1}",
+                "title": item.get("title"),
+                "summary": item.get("summary"),
+                "keyTakeaways": item.get("keyTakeaways"),
+                "combinedMeaning": item.get("combinedMeaning"),
+                "nextSteps": item.get("nextSteps"),
+            }
+        )
+
+    if not normalized:
+        return {}
+
+    return {"overallSummary": overall, "insights": normalized}
+
+
+def _extract_resume_text(file_path: Path, mime: str) -> str:
+    if mime == "application/pdf":
+        if not _module_available("pdfminer.high_level"):
+            return ""
+        extract_text = importlib.import_module("pdfminer.high_level").extract_text
+        return extract_text(str(file_path)) or ""
+
+    if mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        if not _module_available("docx"):
+            return ""
+        docx = importlib.import_module("docx")
+        doc = docx.Document(str(file_path))
+        return "\n".join(p.text for p in doc.paragraphs if p.text).strip()
+
+    return ""
+
+
+def _build_profile_from_intake(intake: IntakeSubmission) -> dict:
+    resume_text = ""
+    try:
+        s3 = get_s3_client()
+        bucket = os.environ["S3_BUCKET_NAME"]
+        obj = s3.get_object(Bucket=bucket, Key=intake.resume_key)
+        raw_bytes = obj["Body"].read()
+
+        suffix = Path(intake.resume_key).suffix or ".bin"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+            tmp_file.write(raw_bytes)
+            temp_path = Path(tmp_file.name)
+
+        resume_text = _extract_resume_text(temp_path, intake.resume_mime)
+    except Exception:
+        resume_text = ""
+    finally:
+        if "temp_path" in locals() and temp_path.exists():
+            temp_path.unlink()
+
+    parsed = parse_resume(resume_text) if resume_text else {}
+
+    experience_entries = []
+    for idx, exp in enumerate(parsed.get("experience", []) if isinstance(parsed, dict) else []):
+        bullets = exp.get("impact_bullets") or []
+        description = "\n".join(f"- {bullet}" for bullet in bullets) if bullets else ""
+        experience_entries.append(
+            {
+                "id": idx + 1,
+                "company": exp.get("company", ""),
+                "position": exp.get("title", ""),
+                "startDate": "",
+                "endDate": exp.get("duration", ""),
+                "description": description,
+            }
+        )
+
+    education_entries = []
+    education_structured = parsed.get("education_entries") if isinstance(parsed, dict) else None
+    if isinstance(education_structured, list) and education_structured:
+        for idx, entry in enumerate(education_structured):
+            if not isinstance(entry, dict):
+                continue
+            education_entries.append(
+                {
+                    "id": idx + 1,
+                    "institution": entry.get("institution", ""),
+                    "degree": entry.get("degree", ""),
+                    "startDate": entry.get("startDate", ""),
+                    "endDate": entry.get("endDate", ""),
+                    "gpa": entry.get("gpa", ""),
+                    "description": "",
+                }
+            )
+    else:
+        education_raw = parsed.get("education", "") if isinstance(parsed, dict) else ""
+        for idx, line in enumerate([item.strip() for item in str(education_raw).splitlines() if item.strip()]):
+            education_entries.append(
+                {
+                    "id": idx + 1,
+                    "institution": "",
+                    "degree": line,
+                    "startDate": "",
+                    "endDate": "",
+                    "gpa": "",
+                    "description": "",
+                }
+            )
+
+    skills = parsed.get("skills", []) if isinstance(parsed, dict) else []
+    if isinstance(skills, str):
+        skills = [skills]
+    skills = [skill for skill in skills if skill]
+
+    profile = default_profile(
+        email=intake.email,
+        name=f"{intake.first_name} {intake.last_name}".strip(),
+        role="job-seeker",
+    )
+    profile.update(
+        {
+            "firstName": intake.first_name,
+            "lastName": intake.last_name,
+            "email": intake.email,
+            "phone": intake.phone or "",
+            "location": intake.state or "",
+            "primaryLocation": intake.state or "",
+            "experience": experience_entries,
+            "education": education_entries,
+            "skills": skills,
+            "uploadedResume": {
+                "name": Path(intake.resume_key).name,
+                "size": intake.resume_size_bytes,
+                "type": intake.resume_mime,
+            },
+            "resumeKey": intake.resume_key,
+        }
+    )
+
+    return profile
+
+
+def _build_profile_from_resume_key(
+    resume_key: str,
+    resume_mime: str,
+    resume_size_bytes: int,
+    resume_name: str | None = None,
+) -> dict:
+    resume_text = ""
+    try:
+        s3 = get_s3_client()
+        bucket = os.environ["S3_BUCKET_NAME"]
+        obj = s3.get_object(Bucket=bucket, Key=resume_key)
+        raw_bytes = obj["Body"].read()
+
+        suffix = Path(resume_key).suffix or ".bin"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+            tmp_file.write(raw_bytes)
+            temp_path = Path(tmp_file.name)
+
+        resume_text = _extract_resume_text(temp_path, resume_mime)
+    except Exception:
+        resume_text = ""
+    finally:
+        if "temp_path" in locals() and temp_path.exists():
+            temp_path.unlink()
+
+    parsed = parse_resume(resume_text) if resume_text else {}
+
+    experience_entries = []
+    for idx, exp in enumerate(parsed.get("experience", []) if isinstance(parsed, dict) else []):
+        bullets = exp.get("impact_bullets") or []
+        description = "\n".join(f"- {bullet}" for bullet in bullets) if bullets else ""
+        experience_entries.append(
+            {
+                "id": idx + 1,
+                "company": exp.get("company", ""),
+                "position": exp.get("title", ""),
+                "startDate": "",
+                "endDate": exp.get("duration", ""),
+                "description": description,
+            }
+        )
+
+    education_entries = []
+    education_structured = parsed.get("education_entries") if isinstance(parsed, dict) else None
+    if isinstance(education_structured, list) and education_structured:
+        for idx, entry in enumerate(education_structured):
+            if not isinstance(entry, dict):
+                continue
+            education_entries.append(
+                {
+                    "id": idx + 1,
+                    "institution": entry.get("institution", ""),
+                    "degree": entry.get("degree", ""),
+                    "startDate": entry.get("startDate", ""),
+                    "endDate": entry.get("endDate", ""),
+                    "gpa": entry.get("gpa", ""),
+                    "description": "",
+                }
+            )
+    else:
+        education_raw = parsed.get("education", "") if isinstance(parsed, dict) else ""
+        for idx, line in enumerate([item.strip() for item in str(education_raw).splitlines() if item.strip()]):
+            education_entries.append(
+                {
+                    "id": idx + 1,
+                    "institution": "",
+                    "degree": line,
+                    "startDate": "",
+                    "endDate": "",
+                    "gpa": "",
+                    "description": "",
+                }
+            )
+
+    skills = parsed.get("skills", []) if isinstance(parsed, dict) else []
+    if isinstance(skills, str):
+        skills = [skills]
+    skills = [skill for skill in skills if skill]
+
+    filename = resume_name.strip() if resume_name else Path(resume_key).name
+
+    return {
+        "experience": experience_entries,
+        "education": education_entries,
+        "skills": skills,
+        "uploadedResume": {
+            "name": filename,
+            "size": resume_size_bytes,
+            "type": resume_mime,
+        },
+        "resumeKey": resume_key,
+    }
 
 # Helper to log audit events
 def log_audit_event(action, actor_user_id, resource, metadata=None):
@@ -362,6 +704,157 @@ def finalize():
     return jsonify({"ok": True})
 
 
+@limiter.limit("5 per minute")
+@app.post("/api/intake/create-account")
+def intake_create_account():
+    data = request.get_json(silent=True) or {}
+    if not data:
+        return jsonify({"error": "JSON body required"}), 400
+
+    submission_id = (data.get("submission_id") or "").strip()
+    password = data.get("password") or ""
+    role = data.get("role") or "job-seeker"
+
+    try:
+        uuid.UUID(submission_id)
+    except Exception:
+        return jsonify({"error": "Invalid submission_id"}), 400
+
+    if role != "job-seeker":
+        return jsonify({"error": "Only job seeker accounts are supported"}), 400
+
+    is_valid, validation_message = validate_password(password)
+    if not is_valid:
+        return jsonify({"error": validation_message}), 400
+
+    intake = IntakeSubmission.query.filter_by(id=submission_id).first()
+    if not intake:
+        return jsonify({"error": "Submission not found"}), 404
+
+    existing = User.query.filter_by(email=intake.email.lower()).first()
+    if existing:
+        return jsonify({"error": "User already exists"}), 400
+
+    # Create user with confirmation token
+    token = uuid.uuid4().hex
+    hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
+    full_name = f"{intake.first_name} {intake.last_name}".strip()
+    profile_data = _build_profile_from_intake(intake)
+
+    new_user = User(
+        email=intake.email.lower(),
+        password=hashed_pw,
+        name=full_name,
+        role=role,
+        profile_data=profile_data,
+        email_confirmed=False,
+        confirmation_token=token,
+        confirmation_sent_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    db.session.add(new_user)
+
+    intake.status = "account_created"
+    db.session.commit()
+
+    # Send confirmation email (best-effort)
+    try:
+        send_confirmation_email(new_user.email, token)
+    except Exception:
+        log_audit_event(action="email_send_failed", actor_user_id=new_user.id, resource="email", metadata={})
+
+    return jsonify({
+        "message": "registered",
+        "user": {
+            "id": new_user.id,
+            "email": new_user.email,
+            "name": new_user.name,
+            "role": new_user.role,
+        },
+    }), 201
+
+
+@limiter.limit("5 per minute")
+@app.post("/api/intake/sign-in")
+def intake_sign_in():
+    data = request.get_json(silent=True) or {}
+    if not data:
+        return jsonify({"error": "JSON body required"}), 400
+
+    submission_id = (data.get("submission_id") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
+
+    try:
+        uuid.UUID(submission_id)
+    except Exception:
+        return jsonify({"error": "Invalid submission_id"}), 400
+
+    if not email or not _is_valid_email(email):
+        return jsonify({"error": "Valid email is required"}), 400
+
+    intake = IntakeSubmission.query.filter_by(id=submission_id).first()
+    if not intake:
+        return jsonify({"error": "Submission not found"}), 404
+
+    if intake.email.lower() != email:
+        return jsonify({"error": "Email does not match submission"}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"error": "Account not found"}), 404
+
+    if user.locked_until and user.locked_until > datetime.datetime.now(datetime.timezone.utc):
+        return jsonify({"error": "Account locked. Try again later."}), 423
+
+    if not bcrypt.check_password_hash(user.password, password):
+        user.failed_login_attempts += 1
+        if user.failed_login_attempts >= MAX_LOGIN_ATTEMPTS:
+            user.locked_until = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
+                minutes=LOGIN_LOCKOUT_MINUTES
+            )
+            user.failed_login_attempts = 0
+        db.session.commit()
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    user.failed_login_attempts = 0
+    user.locked_until = None
+
+    if not getattr(user, "email_confirmed", False):
+        return jsonify({"error": "Email not confirmed. Please confirm your email before signing in."}), 403
+
+    intake_profile = _build_profile_from_intake(intake)
+    existing_profile = user.profile_data or {}
+    merged_profile = {**existing_profile, **intake_profile}
+    user.profile_data = merged_profile
+
+    full_name = f"{intake.first_name} {intake.last_name}".strip()
+    if full_name:
+        user.name = full_name
+
+    intake.status = "account_linked"
+    log_audit_event(
+        action="intake_attach",
+        actor_user_id=user.id,
+        resource="intake",
+        metadata={"submission_id": intake.id, "user_id": user.id},
+    )
+    db.session.commit()
+
+    access_token = create_access_token(identity=user.email)
+    resp = jsonify({
+        "message": "signed in",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+        },
+    })
+    set_access_cookies(resp, access_token)
+
+    return resp
+
+
 #Helper function for inital setup of profile on registration
 def default_profile(email="", name="", role="job-seeker"):
     first = name.split(" ")[0] if name else ""
@@ -374,6 +867,8 @@ def default_profile(email="", name="", role="job-seeker"):
         "email": email,
         "phone": "",
         "location": "",
+        "primaryLocation": "",
+        "secondaryLocations": [],
         "summary": "",
         "experience": [],
         "education": [],
@@ -406,33 +901,48 @@ DEMO_MODE = os.getenv("DEMO_MODE", "0") == "1"
 @limiter.limit("5 per minute")
 @app.route("/api/login", methods=["POST"])
 def login():
-    data = request.get_json()
-    email = data.get("email")
-    password = data.get("password")
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
 
     user = User.query.filter_by(email=email).first()
-    if user and user.locked_until and user.locked_until > datetime.datetime.utcnow():
+    if user and user.locked_until and user.locked_until > datetime.datetime.now(datetime.timezone.utc):
         return jsonify({"error": "Account locked. Try again later."}), 423
 
     if not user or not bcrypt.check_password_hash(user.password, password):
         if user:
             user.failed_login_attempts += 1
             if user.failed_login_attempts >= MAX_LOGIN_ATTEMPTS:
-                user.locked_until = datetime.datetime.utcnow() + datetime.timedelta(
+                user.locked_until = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
                     minutes=LOGIN_LOCKOUT_MINUTES
                 )
                 user.failed_login_attempts = 0
             db.session.commit()
         return jsonify({"error": "Invalid credentials"}), 401
 
+    # Reset failed attempts and clear lockout
     user.failed_login_attempts = 0
     user.locked_until = None
     db.session.commit()
 
+    # Require email confirmation; resend confirmation on login attempt
+    if not getattr(user, "email_confirmed", False):
+        code = str(random.randint(100000, 999999))
+        user.confirmation_token = code
+        user.confirmation_sent_at = datetime.datetime.now(datetime.timezone.utc)
+        db.session.commit()
+        try:
+            send_confirmation_email(user.email, code)
+        except Exception:
+            log_audit_event(
+                action="email_send_failed",
+                actor_user_id=user.id,
+                resource="email",
+                metadata={"context": "login_resend_confirmation"},
+            )
+            db.session.commit()
+        return jsonify({"error": "Email not confirmed. Confirmation email resent."}), 403
 
-    user.failed_login_attempts = 0
-    user.locked_until = None
-    db.session.commit()
     access_token = create_access_token(identity=user.email)
 
     # Build JSON response
@@ -453,19 +963,82 @@ def login():
     return resp
 
 @app.route("/api/logout", methods=["POST"])
-@jwt_required()  # requires valid cookie
 def logout():
     resp = jsonify({"message": "logout successful"})
     unset_jwt_cookies(resp)
     return resp
 
 
+# Email confirmation endpoints
+@limiter.limit("5 per minute")
+@app.route("/api/confirm-email", methods=["POST"])
+def confirm_email():
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    code = (data.get("code") or "").strip()
+    if not email or not code:
+        return jsonify({"error": "email and code are required"}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.confirmation_token:
+        return jsonify({"error": "invalid code"}), 400
+
+    # Check expiry (15 minutes for 6-digit codes)
+    exp_minutes = int(os.environ.get("VERIFY_CODE_EXP_MINUTES", "15"))
+    sent_at_utc = user.confirmation_sent_at.replace(tzinfo=datetime.timezone.utc) if user.confirmation_sent_at else None
+    if not sent_at_utc or sent_at_utc + datetime.timedelta(minutes=exp_minutes) < datetime.datetime.now(datetime.timezone.utc):
+        return jsonify({"error": "code expired"}), 400
+
+    if user.confirmation_token != code:
+        return jsonify({"error": "invalid code"}), 400
+
+    user.email_confirmed = True
+    user.confirmation_token = None
+    user.confirmation_sent_at = None
+    db.session.commit()
+
+    return jsonify({"message": "email confirmed"}), 200
+
+
+@limiter.limit("5 per minute")
+@app.route("/api/resend-confirmation", methods=["POST"])
+def resend_confirmation():
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    if not email or not _is_valid_email(email):
+        return jsonify({"error": "Valid email is required"}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"error": "Account not found"}), 404
+
+    if getattr(user, "email_confirmed", False):
+        return jsonify({"error": "Email already confirmed"}), 400
+
+    code = str(random.randint(100000, 999999))
+    user.confirmation_token = code
+    user.confirmation_sent_at = datetime.datetime.now(datetime.timezone.utc)
+    db.session.commit()
+
+    try:
+        send_confirmation_email(user.email, code)
+    except Exception as e:
+        log_audit_event(action="email_send_failed", actor_user_id=user.id, resource="email", metadata={"error": str(e)})
+        app.logger.error(f"resend_confirmation email failed for {user.email}: {e}")
+        return jsonify({"error": "Failed to send email", "detail": str(e)}), 500
+
+    return jsonify({"message": "confirmation_sent"}), 200
+
+
 #Registering new user
+from email_utils import send_confirmation_email
+
+@limiter.limit("5 per minute")
 @app.route("/api/register", methods=["POST"])
 def register():
-    data = request.get_json()
-    email = data.get("email")
-    password = data.get("password")
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
     name = data.get("name")
     role = data.get("role", "job-seeker")
 
@@ -481,16 +1054,28 @@ def register():
     profile_data = default_profile(email=email, name=name, role=role)
 
 
+    # Create user with 6-digit verification code
+    code = str(random.randint(100000, 999999))
     new_user = User(
         email=email,
         password=hashed_pw,
         name=data.get("name"),
         role=data.get("role"),
-        profile_data=profile_data
+        profile_data=profile_data,
+        email_confirmed=False,
+        confirmation_token=code,
+        confirmation_sent_at=datetime.datetime.now(datetime.timezone.utc),
     )
-    #adding user to db
     db.session.add(new_user)
     db.session.commit()
+
+    # Send verification code email (best-effort; failures shouldn't break registration)
+    try:
+        send_confirmation_email(new_user.email, code)
+    except Exception as e:
+        app.logger.error(f"register email send failed for {new_user.email}: {e}")
+        log_audit_event(action="email_send_failed", actor_user_id=new_user.id, resource="email", metadata={"error": str(e)})
+        db.session.commit()
 
     return jsonify({"message": "registered", "user": {
         "id": new_user.id,
@@ -598,6 +1183,312 @@ def profile():
         "profileData": user.profile_data
     })
 
+
+@limiter.limit("10 per minute")
+@app.post("/api/quiz-insights")
+@jwt_required()
+def quiz_insights():
+    data = request.get_json(silent=True) or {}
+    quiz_group = (data.get("quizGroup") or "").strip()
+    quizzes = data.get("quizzes") or []
+
+    if not quiz_group or not isinstance(quizzes, list) or not quizzes:
+        return jsonify({"error": "quizGroup and quizzes are required"}), 400
+
+    normalized_quizzes = []
+    for quiz in quizzes:
+        if not isinstance(quiz, dict):
+            continue
+        key = (quiz.get("key") or "").strip()
+        title = (quiz.get("title") or "").strip()
+        items = quiz.get("items") or []
+        if not key or not title or not isinstance(items, list) or not items:
+            continue
+        normalized_items = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            question = (item.get("question") or "").strip()
+            selected = (item.get("selected") or "").strip()
+            if question and selected:
+                normalized_items.append({"question": question, "selected": selected})
+        if normalized_items:
+            normalized_quizzes.append({"key": key, "title": title, "items": normalized_items})
+
+    if not normalized_quizzes:
+        return jsonify({"error": "No valid quiz answers provided"}), 400
+
+    try:
+        client = _get_openai_client()
+        model = os.environ.get("OPENAI_QUIZ_MODEL", "gpt-4o-mini")
+        messages = _build_quiz_insight_prompt(quiz_group, normalized_quizzes)
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            response_format={"type": "json_object"},
+        )
+        content = response.choices[0].message.content or "{}"
+        insight_payload = json.loads(content)
+    except Exception as exc:
+        app.logger.exception("Quiz insight generation failed")
+        if not is_production:
+            return jsonify({"error": f"Unable to generate insight: {exc}"}), 500
+        return jsonify({"error": "Unable to generate insight"}), 500
+
+    normalized_payload = _coerce_insight_payload(insight_payload, quiz_group, normalized_quizzes)
+    insights = normalized_payload.get("insights") if isinstance(normalized_payload, dict) else None
+    overall_summary = (
+        normalized_payload.get("overallSummary") if isinstance(normalized_payload, dict) else None
+    )
+
+    if not isinstance(insights, list):
+        return jsonify({"error": "Malformed insight response"}), 500
+
+    # Persist to user profile
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    profile = dict(user.profile_data or {})
+    quiz_insights = profile.get("quizInsights")
+    if not isinstance(quiz_insights, dict):
+        quiz_insights = {}
+    else:
+        quiz_insights = dict(quiz_insights)
+
+    timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    if quiz_group == "careerQuizzes":
+        group_store = quiz_insights.get("careerQuizzes")
+        if not isinstance(group_store, dict):
+            group_store = {}
+        else:
+            group_store = dict(group_store)
+        if overall_summary:
+            group_store["_overallSummary"] = overall_summary
+        group_store["_generatedAt"] = timestamp
+        group_store["_model"] = model
+        for insight in insights:
+            if not isinstance(insight, dict):
+                continue
+            key = insight.get("key")
+            if not key:
+                continue
+            store = {
+                "title": insight.get("title"),
+                "summary": insight.get("summary"),
+                "keyTakeaways": insight.get("keyTakeaways"),
+                "combinedMeaning": insight.get("combinedMeaning"),
+                "nextSteps": insight.get("nextSteps"),
+                "generatedAt": timestamp,
+                "model": model,
+            }
+            group_store[key] = store
+        quiz_insights["careerQuizzes"] = group_store
+    else:
+        first = insights[0] if insights else {}
+        quiz_insights[quiz_group] = {
+            "title": first.get("title"),
+            "summary": first.get("summary"),
+            "keyTakeaways": first.get("keyTakeaways"),
+            "combinedMeaning": first.get("combinedMeaning"),
+            "nextSteps": first.get("nextSteps"),
+            "overallSummary": overall_summary,
+            "generatedAt": timestamp,
+            "model": model,
+        }
+
+    profile["quizInsights"] = quiz_insights
+    user.profile_data = profile
+    db.session.commit()
+
+    return jsonify({
+        "quizGroup": quiz_group,
+        "overallSummary": overall_summary,
+        "insights": insights,
+    })
+
+
+@limiter.limit("1 per day")
+@app.post("/api/quiz-insights-guest")
+def quiz_insights_guest():
+    data = request.get_json(silent=True) or {}
+    quiz_group = (data.get("quizGroup") or "").strip()
+    quizzes = data.get("quizzes") or []
+
+    if not quiz_group or not isinstance(quizzes, list) or not quizzes:
+        return jsonify({"error": "quizGroup and quizzes are required"}), 400
+
+    normalized_quizzes = []
+    for quiz in quizzes:
+        if not isinstance(quiz, dict):
+            continue
+        key = (quiz.get("key") or "").strip()
+        title = (quiz.get("title") or "").strip()
+        items = quiz.get("items") or []
+        if not key or not title or not isinstance(items, list) or not items:
+            continue
+        normalized_items = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            question = (item.get("question") or "").strip()
+            selected = (item.get("selected") or "").strip()
+            if question and selected:
+                normalized_items.append({"question": question, "selected": selected})
+        if normalized_items:
+            normalized_quizzes.append({"key": key, "title": title, "items": normalized_items})
+
+    if not normalized_quizzes:
+        return jsonify({"error": "No valid quiz answers provided"}), 400
+
+    try:
+        client = _get_openai_client()
+        model = os.environ.get("OPENAI_QUIZ_MODEL", "gpt-4o-mini")
+        messages = _build_quiz_insight_prompt(quiz_group, normalized_quizzes)
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            response_format={"type": "json_object"},
+        )
+        content = response.choices[0].message.content or "{}"
+        insight_payload = json.loads(content)
+    except Exception as exc:
+        app.logger.exception("Quiz insight generation failed")
+        if not is_production:
+            return jsonify({"error": f"Unable to generate insight: {exc}"}), 500
+        return jsonify({"error": "Unable to generate insight"}), 500
+
+    normalized_payload = _coerce_insight_payload(insight_payload, quiz_group, normalized_quizzes)
+    insights = normalized_payload.get("insights") if isinstance(normalized_payload, dict) else None
+    overall_summary = (
+        normalized_payload.get("overallSummary") if isinstance(normalized_payload, dict) else None
+    )
+
+    if not isinstance(insights, list):
+        return jsonify({"error": "Malformed insight response"}), 500
+
+    return jsonify({
+        "quizGroup": quiz_group,
+        "overallSummary": overall_summary,
+        "insights": insights,
+    })
+
+@app.route("/api/profile/resume-url", methods=["GET"])
+@jwt_required()
+def get_profile_resume_url():
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    profile = user.profile_data or {}
+    resume_key = profile.get("resumeKey")
+    if not resume_key:
+        return jsonify({"error": "No resume on file"}), 404
+
+    s3 = get_s3_client()
+    bucket = os.environ["S3_BUCKET_NAME"]
+    try:
+        url = s3.generate_presigned_url(
+            ClientMethod="get_object",
+            Params={
+                "Bucket": bucket,
+                "Key": resume_key,
+            },
+            ExpiresIn=10 * 60,
+        )
+    except Exception:
+        return jsonify({"error": "Unable to generate resume URL"}), 500
+
+    return jsonify({"url": url})
+
+
+
+@app.post("/api/profile/resume/presign")
+@jwt_required()
+def profile_resume_presign():
+    data = request.get_json(silent=True) or {}
+    mime = (data.get("mime") or "").strip()
+    size = int(data.get("size") or 0)
+
+    if mime not in ALLOWED_MIME:
+        return jsonify({"error": "Unsupported file type"}), 400
+    if size <= 0 or size > MAX_BYTES:
+        return jsonify({"error": "File too large (max 10MB)"}), 400
+
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    ext = {
+        "application/pdf": "pdf",
+        "application/msword": "doc",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+    }.get(mime, "bin")
+
+    object_key = f"profile/{user.id}/{uuid.uuid4()}/resume.{ext}"
+
+    s3 = get_s3_client()
+    bucket = os.environ["S3_BUCKET_NAME"]
+    url = s3.generate_presigned_url(
+        ClientMethod="put_object",
+        Params={
+            "Bucket": bucket,
+            "Key": object_key,
+            "ContentType": mime,
+        },
+        ExpiresIn=10 * 60,
+        HttpMethod="PUT",
+    )
+
+    return jsonify({
+        "object_key": object_key,
+        "upload_url": url,
+        "max_bytes": MAX_BYTES,
+    })
+
+
+@app.post("/api/profile/resume/finalize")
+@jwt_required()
+def profile_resume_finalize():
+    data = request.get_json(silent=True) or {}
+    object_key = (data.get("object_key") or "").strip()
+    mime = (data.get("mime") or "").strip()
+    size = int(data.get("size") or 0)
+    name = (data.get("name") or "").strip()
+
+    if mime not in ALLOWED_MIME:
+        return jsonify({"error": "Unsupported file type"}), 400
+    if size <= 0 or size > MAX_BYTES:
+        return jsonify({"error": "Invalid file size"}), 400
+
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    if not object_key.startswith(f"profile/{user.id}/"):
+        return jsonify({"error": "Invalid object_key"}), 400
+
+    profile_updates = _build_profile_from_resume_key(
+        resume_key=object_key,
+        resume_mime=mime,
+        resume_size_bytes=size,
+        resume_name=name or None,
+    )
+
+    existing = user.profile_data or {}
+    merged = {**existing, **profile_updates}
+    user.profile_data = merged
+    db.session.commit()
+
+    return jsonify({
+        "message": "Resume processed",
+        "profileData": user.profile_data,
+    })
 
 
 @app.route("/api/recommendations", methods=["POST"])
@@ -750,7 +1641,6 @@ def get_dashboard_data():
 
     # Simple example recent activity & recommendations
     recent_activity = [
-        {"type": "match", "text": "New job match found", "time": "2 hours ago", "icon": "Briefcase"},
         {"type": "assessment", "text": "Complete your leadership assessment", "time": "1 day ago", "icon": "Brain"}
     ]
 

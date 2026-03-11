@@ -13,7 +13,7 @@ Notes:
 - `created_at` fields default to the database server timestamp via `db.func.now()`.
 """
 
-from sqlalchemy.dialects.sqlite import JSON
+from sqlalchemy import JSON
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
@@ -40,6 +40,12 @@ class User(db.Model):
     name = db.Column(db.String(120))
     role = db.Column(db.String(50))
     profile_data = db.Column(JSON, default=dict)
+
+    # Email confirmation fields
+    email_confirmed = db.Column(db.Boolean, nullable=False, default=False)
+    confirmation_token = db.Column(db.String(64), nullable=True, index=True)
+    confirmation_sent_at = db.Column(db.DateTime, nullable=True)
+
     failed_login_attempts = db.Column(db.Integer, nullable=False, default=0)
     locked_until = db.Column(db.DateTime)
 

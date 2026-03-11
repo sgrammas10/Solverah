@@ -1,4 +1,6 @@
-import React, { FormEvent, useId, useMemo, useState } from "react";
+import React, { FormEvent, useEffect, useId, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { API_BASE } from "../utils/api";
 
 type SubmissionStatus = "idle" | "submitting" | "success" | "error";
 
@@ -18,6 +20,8 @@ function PrelaunchLandingPage() {
     linkedinUrl: "",
     portfolioUrl: "",
   });
+  const [privacyConsent, setPrivacyConsent] = useState(false);
+  const [infoOptIn, setInfoOptIn] = useState(false);
 
   const [isEarlyAccessOpen, setIsEarlyAccessOpen] = useState(false);
   const [earlyAccessData, setEarlyAccessData] = useState({
@@ -34,6 +38,20 @@ function PrelaunchLandingPage() {
   const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [submissionEmail, setSubmissionEmail] = useState("");
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [accountStep, setAccountStep] = useState<"prompt" | "form" | "signin" | "success">("prompt");
+  const [accountAction, setAccountAction] = useState<"create" | "signin">("create");
+  const [signInEmail, setSignInEmail] = useState("");
+  const [signInPassword, setSignInPassword] = useState("");
+  const [accountPassword, setAccountPassword] = useState("");
+  const [accountConfirm, setAccountConfirm] = useState("");
+  const [accountError, setAccountError] = useState("");
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const navigate = useNavigate();
+
   const firstNameId = useId();
   const lastNameId = useId();
   const emailId = useId();
@@ -42,6 +60,8 @@ function PrelaunchLandingPage() {
   const linkedinId = useId();
   const portfolioId = useId();
   const resumeId = useId();
+  const privacyConsentId = useId();
+  const infoOptInId = useId();
   const earlyFirstNameId = useId();
   const earlyLastNameId = useId();
   const earlyEmailId = useId();
@@ -49,7 +69,6 @@ function PrelaunchLandingPage() {
   const earlyContactId = useId();
   const earlyJourneyId = useId();
 
-  const API_BASE = (import.meta as any).env?.VITE_API_URL ?? "";
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -89,6 +108,29 @@ function PrelaunchLandingPage() {
     [],
   );
 
+  useEffect(() => {
+    if (!isEarlyAccessOpen && !accountModalOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      if (isEarlyAccessOpen) {
+        setIsEarlyAccessOpen(false);
+      }
+      if (accountModalOpen) {
+        setAccountModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [accountModalOpen, isEarlyAccessOpen]);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmissionStatus("submitting");
@@ -105,16 +147,15 @@ function PrelaunchLandingPage() {
       if (!firstName || !lastName) throw new Error("Please enter your name.");
       if (!email) throw new Error("Please enter your email.");
       if (!state) throw new Error("Please enter your state / region.");
+      if (!privacyConsent) throw new Error("Please agree to the privacy notice to continue.");
 
-      // NEW: require at least one of LinkedIn or Resume
-      const hasLinkedIn = linkedinUrl.length > 0;
       const hasResume = !!resumeFile;
-      if (!hasLinkedIn && !hasResume) {
-        throw new Error("Please provide either a LinkedIn URL or attach a resume (at least one is required).");
+      if (!hasResume) {
+        throw new Error("Please attach your resume to continue.");
       }
 
       // Optional: if LinkedIn provided, ensure it's a valid URL
-      if (hasLinkedIn) {
+      if (linkedinUrl.length > 0) {
         try {
           new URL(linkedinUrl);
         } catch {
@@ -129,7 +170,7 @@ function PrelaunchLandingPage() {
 
       if (resumeFile) {
         // 1) Presign
-        const presignRes = await fetch(`${API_BASE}/api/intake/presign`, {
+        const presignRes = await fetch(`${API_BASE}/intake/presign`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ mime: resumeFile.type, size: resumeFile.size }),
@@ -139,6 +180,7 @@ function PrelaunchLandingPage() {
         if (!presignRes.ok) throw new Error(presignData?.error || "Unable to start upload.");
 
         ({ submission_id, object_key } = presignData as { submission_id: string; object_key: string });
+        setSubmissionId(submission_id);
         const { upload_url } = presignData as { upload_url: string };
 
         if (!submission_id || !object_key || !upload_url) {
@@ -170,9 +212,11 @@ function PrelaunchLandingPage() {
         phone: formData.phone.trim() || null,
         linkedin_url: linkedinUrl || null,
         portfolio_url: formData.portfolioUrl.trim() || null,
+        privacy_consent: privacyConsent,
+        info_opt_in: infoOptIn,
       };
 
-      const finalizeRes = await fetch(`${API_BASE}/api/intake/finalize`, {
+      const finalizeRes = await fetch(`${API_BASE}/intake/finalize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(finalizePayload),
@@ -184,6 +228,15 @@ function PrelaunchLandingPage() {
       }
 
       setSubmissionStatus("success");
+      setAccountModalOpen(true);
+      setAccountStep("prompt");
+      setAccountAction("create");
+      setAccountError("");
+      setSubmissionEmail(email);
+      setSignInEmail(email);
+      setSignInPassword("");
+      setAccountPassword("");
+      setAccountConfirm("");
       setFormData({
         firstName: "",
         lastName: "",
@@ -193,6 +246,8 @@ function PrelaunchLandingPage() {
         linkedinUrl: "",
         portfolioUrl: "",
       });
+      setPrivacyConsent(false);
+      setInfoOptIn(false);
       setResumeFile(null);
       setSelectedFileName("");
     } catch (error) {
@@ -202,6 +257,95 @@ function PrelaunchLandingPage() {
           ? error.message
           : "Unable to submit right now. Please try again.",
       );
+    }
+  };
+
+  const handleCreateAccount = async () => {
+    if (!submissionId) {
+      setAccountError("We couldn't find your submission ID. Please resubmit the form.");
+      return;
+    }
+    if (!accountPassword || accountPassword.length < 8) {
+      setAccountError("Please choose a password with at least 8 characters.");
+      return;
+    }
+    if (accountPassword !== accountConfirm) {
+      setAccountError("Passwords do not match.");
+      return;
+    }
+
+    setIsCreatingAccount(true);
+    setAccountAction("create");
+    setAccountError("");
+
+    try {
+      const response = await fetch(`${API_BASE}/intake/create-account`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          submission_id: submissionId,
+          password: accountPassword,
+          role: "job-seeker",
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || "Unable to create account right now.");
+      }
+
+      setAccountStep("success");
+    } catch (error) {
+      setAccountError(
+        error instanceof Error ? error.message : "Unable to create account right now.",
+      );
+    } finally {
+      setIsCreatingAccount(false);
+    }
+  };
+
+  const handleSignInExisting = async () => {
+    if (!submissionId) {
+      setAccountError("We couldn't find your submission ID. Please resubmit the form.");
+      return;
+    }
+    if (!signInEmail.trim()) {
+      setAccountError("Please enter the email used on your submission.");
+      return;
+    }
+    if (!signInPassword) {
+      setAccountError("Please enter your password.");
+      return;
+    }
+
+    setIsSigningIn(true);
+    setAccountAction("signin");
+    setAccountError("");
+
+    try {
+      const response = await fetch(`${API_BASE}/intake/sign-in`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          submission_id: submissionId,
+          email: signInEmail.trim(),
+          password: signInPassword,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || "Unable to sign in right now.");
+      }
+
+      setAccountStep("success");
+    } catch (error) {
+      setAccountError(
+        error instanceof Error ? error.message : "Unable to sign in right now.",
+      );
+    } finally {
+      setIsSigningIn(false);
     }
   };
 
@@ -249,20 +393,27 @@ function PrelaunchLandingPage() {
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setIsEarlyAccessOpen(true)}
-                  className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:shadow-emerald-400/25"
-                >
-                  Request early access
-                </button>
-                <a
-                  href="#about"
-                  className="text-sm font-semibold text-emerald-100/90 underline-offset-8 hover:underline"
-                >
-                  Learn more
-                </a>
+                <div className="flex flex-wrap items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsEarlyAccessOpen(true)}
+                    className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:shadow-emerald-400/25"
+                  >
+                    Request early access
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/quiz-preview")}
+                    className="rounded-full bg-gradient-to-r from-emerald-400/90 via-blue-500/90 to-indigo-500/90 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-blue-500/20 transition hover:shadow-blue-400/30"
+                  >
+                    Want a feel for what an account unlocks?
+                  </button>
+                  <a
+                    href="#about"
+                    className="text-sm font-semibold text-emerald-100/90 underline-offset-8 hover:underline"
+                  >
+                    Learn more
+                  </a>
               </div>
             </div>
 
@@ -395,7 +546,7 @@ function PrelaunchLandingPage() {
 
                   <div className="space-y-2">
                     <label htmlFor={resumeId} className="text-sm font-medium text-slate-100">
-                      Resume (PDF or DOCX)
+                      Resume (PDF or DOCX) <span className="text-emerald-200">(required)</span>
                     </label>
                     <div className="rounded-lg border border-dashed border-white/15 bg-white/5 p-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -417,6 +568,7 @@ function PrelaunchLandingPage() {
                             type="file"
                             accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                             className="hidden"
+                            required
                             onChange={(e) => {
                               const f = e.target.files?.[0] ?? null;
                               setResumeFile(f);
@@ -427,6 +579,39 @@ function PrelaunchLandingPage() {
                       </div>
                     </div>
                   </div>
+
+                  <label
+                    htmlFor={privacyConsentId}
+                    className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-200/85"
+                  >
+                    <input
+                      id={privacyConsentId}
+                      type="checkbox"
+                      checked={privacyConsent}
+                      onChange={(e) => setPrivacyConsent(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/10 text-emerald-400 focus:ring-emerald-400/60"
+                    />
+                    <span>
+                      I consent to Solverah securely storing my resume and contact information for early
+                      access review.
+                    </span>
+                  </label>
+
+                  <label
+                    htmlFor={infoOptInId}
+                    className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-200/85"
+                  >
+                    <input
+                      id={infoOptInId}
+                      type="checkbox"
+                      checked={infoOptIn}
+                      onChange={(e) => setInfoOptIn(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/10 text-emerald-400 focus:ring-emerald-400/60"
+                    />
+                    <span>
+                      I want more information about how Solverah can help me.
+                    </span>
+                  </label>
 
                   <button
                     type="submit"
@@ -539,13 +724,13 @@ function PrelaunchLandingPage() {
       <footer className="border-t border-white/10 bg-slate-950/80 py-6 text-center text-xs text-slate-400">
         © {new Date().getFullYear()} Solverah. Soft launch — broader access remains closed.
       </footer>
-      {isEarlyAccessOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-10">
-          <div
-            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
-            onClick={() => setIsEarlyAccessOpen(false)}
-          />
-          <div className="relative w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl shadow-black/50">
+        {isEarlyAccessOpen ? (
+          <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6 sm:py-10">
+            <div
+              className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+              onClick={() => setIsEarlyAccessOpen(false)}
+            />
+            <div className="relative w-full max-w-2xl max-h-[calc(100vh-3rem)] overflow-y-auto rounded-2xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl shadow-black/50">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.14em] text-emerald-200">Request early access</p>
@@ -678,6 +863,187 @@ function PrelaunchLandingPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+        {accountModalOpen ? (
+          <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6 sm:py-10">
+            <div
+              className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+              onClick={() => setAccountModalOpen(false)}
+            />
+            <div className="relative w-full max-w-lg max-h-[calc(100vh-3rem)] overflow-y-auto rounded-2xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl shadow-black/50">
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => setAccountModalOpen(false)}
+              className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-semibold text-slate-200 transition hover:border-emerald-300/60 hover:text-emerald-100"
+            >
+              ×
+            </button>
+            <div className="flex flex-wrap items-start justify-between gap-4 pr-10">
+              <div>
+                <p className="text-xs uppercase tracking-[0.14em] text-emerald-200">Next step</p>
+                <h3 className="text-2xl font-semibold text-white">Save your profile?</h3>
+                <p className="mt-2 text-sm text-slate-200/80">
+                  Create an account and we’ll auto-fill your profile using your resume. You can edit
+                  anything later.
+                </p>
+              </div>
+            </div>
+
+            {accountStep === "prompt" ? (
+              <div className="mt-6 space-y-4">
+                <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-slate-200/80">
+                  We’ll populate your personal info, work experience, skills, and education using the
+                  resume you shared.
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountStep("signin");
+                      setAccountError("");
+                      setSignInEmail(submissionEmail);
+                      setSignInPassword("");
+                    }}
+                    className="rounded-full border border-emerald-300/50 bg-emerald-300/10 px-5 py-2 text-sm font-semibold text-emerald-100 transition hover:border-emerald-200 hover:text-white"
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAccountStep("form")}
+                    className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30"
+                  >
+                    Create account
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {accountStep === "form" ? (
+              <div className="mt-6 space-y-4">
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-100">Create a password</label>
+                    <input
+                      type="password"
+                      value={accountPassword}
+                      onChange={(e) => setAccountPassword(e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-100">Confirm password</label>
+                    <input
+                      type="password"
+                      value={accountConfirm}
+                      onChange={(e) => setAccountConfirm(e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                    />
+                  </div>
+                </div>
+                {accountError ? (
+                  <p className="rounded-md bg-red-500/10 p-2 text-xs text-red-100 ring-1 ring-red-500/30">
+                    {accountError}
+                  </p>
+                ) : null}
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAccountStep("prompt")}
+                    className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-emerald-300/60 hover:text-emerald-100"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isCreatingAccount}
+                    onClick={handleCreateAccount}
+                    className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isCreatingAccount ? "Creating..." : "Create account"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {accountStep === "signin" ? (
+              <div className="mt-6 space-y-4">
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-100">Email</label>
+                    <input
+                      type="email"
+                      value={signInEmail}
+                      onChange={(e) => setSignInEmail(e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-100">Password</label>
+                    <input
+                      type="password"
+                      value={signInPassword}
+                      onChange={(e) => setSignInPassword(e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:border-emerald-300/70 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                    />
+                  </div>
+                </div>
+                {accountError ? (
+                  <p className="rounded-md bg-red-500/10 p-2 text-xs text-red-100 ring-1 ring-red-500/30">
+                    {accountError}
+                  </p>
+                ) : null}
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAccountStep("prompt")}
+                    className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-emerald-300/60 hover:text-emerald-100"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSigningIn}
+                    onClick={handleSignInExisting}
+                    className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isSigningIn ? "Signing in..." : "Sign in"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {accountStep === "success" ? (
+              <div className="mt-6 space-y-4">
+                <div className="rounded-lg border border-emerald-300/30 bg-emerald-400/10 p-4 text-sm text-emerald-50">
+                  {accountAction === "signin"
+                    ? "Signed in! Your profile has been updated from your intake submission."
+                    : "Account created! Your profile has been filled in from your resume."}
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  {accountAction === "signin" ? (
+                    <button
+                      type="button"
+                      onClick={() => setAccountModalOpen(false)}
+                      className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30"
+                    >
+                      Continue
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/login")}
+                      className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30"
+                    >
+                      Continue to login
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

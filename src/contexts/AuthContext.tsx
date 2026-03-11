@@ -1,15 +1,7 @@
-/// <reference types="vite/client" />
-
 import { useState, useEffect, ReactNode } from "react";
 
 import { AuthContext, ProfileData, User } from "./authContext";
-
-// const API_URL = "http://127.0.0.1:5000/api";
-// const API_URL = "http://localhost:5000/api";
-
-const rawApiUrl = (import.meta.env.VITE_API_URL as string) || "http://localhost:5000/api";
-const normalizedApiUrl = rawApiUrl.replace(/\/+$/, "");
-const API_URL = normalizedApiUrl.endsWith("/api") ? normalizedApiUrl : `${normalizedApiUrl}/api`;
+import { API_BASE as API_URL } from "../utils/api";
 
 const getCookie = (name: string): string | null => {
   const match = document.cookie.match(

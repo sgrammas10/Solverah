@@ -1,7 +1,56 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
+import { getPendingQuizSave, clearPendingQuizSave } from "../utils/guestQuiz";
 import { Mail, Lock, Briefcase } from 'lucide-react';
+import { API_BASE as API_URL } from "../utils/api";
+
+function ResendConfirmation({ email }: { email: string }) {
+  const navigate = useNavigate();
+  const [status, setStatus] = useState<'idle'|'sending'|'error'>('idle');
+  const [msg, setMsg] = useState('');
+
+  const handleResend = async () => {
+    if (!email) {
+      setMsg('Please enter your email above before resending.');
+      setStatus('error');
+      return;
+    }
+    setStatus('sending');
+    setMsg('');
+    try {
+      const res = await fetch(`${API_URL}/resend-confirmation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setStatus('error');
+        setMsg(data?.error || 'Failed to resend code');
+        return;
+      }
+      // Navigate to code-entry page with email pre-filled
+      navigate('/verify-email', { state: { email } });
+    } catch (err: any) {
+      setStatus('error');
+      setMsg(err?.message || 'Network error');
+    }
+  };
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={handleResend}
+        className="text-sm underline text-emerald-200"
+        disabled={status === 'sending'}
+      >
+        {status === 'sending' ? 'Sending...' : 'Resend verification code'}
+      </button>
+      {msg && <div className={`text-sm text-red-300`}>{msg}</div>}
+    </div>
+  );
+}
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -9,7 +58,7 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { login } = useAuth();
+  const { login, fetchWithAuth } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,10 +68,41 @@ function Login() {
 
     try {
       const loggedInUser = await login(email, password);
-      const redirectPath = loggedInUser.role === 'job-seeker' ? '/job-seeker/dashboard' : '/recruiter/dashboard';
+      let redirectPath =
+        loggedInUser.role === 'job-seeker' ? '/job-seeker/dashboard' : '/recruiter/dashboard';
+
+      const pending = getPendingQuizSave();
+      if (pending && loggedInUser.role === "job-seeker" && fetchWithAuth) {
+        try {
+          await fetchWithAuth("/profile", {
+            method: "POST",
+            body: JSON.stringify({
+              profileData: {
+                quizResults: pending.quizResults,
+              },
+            }),
+          });
+
+          await fetchWithAuth("/quiz-insights", {
+            method: "POST",
+            body: JSON.stringify(pending.quizPayload),
+          });
+
+          redirectPath = `/quiz-insights?group=${encodeURIComponent(pending.quizGroup)}`;
+          clearPendingQuizSave();
+        } catch (saveErr) {
+          console.error("Failed to save pending quiz:", saveErr);
+        }
+      }
+
       navigate(redirectPath);
     } catch (err) {
-      setError('Failed to sign in. Please check your credentials.');
+      const message = err instanceof Error ? err.message : String(err);
+      if (message && message.toLowerCase().includes('email not confirmed')) {
+        setError('Your email is not confirmed. Please check your inbox.');
+      } else {
+        setError('Failed to sign in. Please check your credentials.');
+      }
     } finally {
       setLoading(false);
     }
@@ -53,6 +133,14 @@ function Login() {
           {error && (
             <div className="rounded-md bg-red-500/10 p-4 text-sm text-red-100 ring-1 ring-red-500/30">
               {error}
+              {/* Resend confirmation when email not confirmed */}
+            </div>
+          )}
+
+          {/* Resend confirmation UI when appropriate */}
+          {error && error.toLowerCase().includes('not confirmed') && (
+            <div className="mt-3 text-center">
+              <ResendConfirmation email={email} />
             </div>
           )}
 

@@ -20,6 +20,8 @@ import SolverahYourFutureYourWayQuiz from './components/SolverahYourFutureYourWa
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import GuestQuizPreview from "./pages/GuestQuizPreview";
+import GuestQuizInsights from "./pages/GuestQuizInsights";
 
 // Job-Seeker protected pages
 import JobSeekerDashboard from './pages/JobSeekerDashboard';
@@ -31,6 +33,7 @@ import RecruiterProfile from './pages/RecruiterProfile';
 
 // Pages accessible to both roles
 import Feed from './pages/Feed';
+import QuizInsights from './pages/QuizInsights';
 
 
 /**
@@ -85,6 +88,8 @@ function App() {
               {/* ============================== */}
 
               <Route path="/" element={<LandingPage />} />
+              <Route path="/quiz-preview" element={<GuestQuizPreview />} />
+              <Route path="/quiz-preview/insights" element={<GuestQuizInsights />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
 
@@ -110,6 +115,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/quiz-preview/career-job-search" element={<NextChapterYourWayQuiz guest />} />
 
               <Route 
                 path="/future-your-way" 
@@ -125,6 +131,50 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['job-seeker', 'recruiter']}>
                     <CareerQuizzes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/quiz-preview/early-career" element={<CareerQuizzes quizKey="earlyCareer" guest />} />
+              <Route path="/quiz-preview/career-transition" element={<CareerQuizzes quizKey="careerTransition" guest />} />
+              <Route path="/quiz-preview/mid-career" element={<CareerQuizzes quizKey="midCareer" guest />} />
+              <Route path="/quiz-preview/teen-focused" element={<CareerQuizzes quizKey="teenFocused" guest />} />
+              <Route
+                path="/career-quizzes/early-career"
+                element={
+                  <ProtectedRoute allowedRoles={['job-seeker', 'recruiter']}>
+                    <CareerQuizzes quizKey="earlyCareer" />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/career-quizzes/career-transition"
+                element={
+                  <ProtectedRoute allowedRoles={['job-seeker', 'recruiter']}>
+                    <CareerQuizzes quizKey="careerTransition" />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/career-quizzes/mid-career"
+                element={
+                  <ProtectedRoute allowedRoles={['job-seeker', 'recruiter']}>
+                    <CareerQuizzes quizKey="midCareer" />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/career-quizzes/teen-focused"
+                element={
+                  <ProtectedRoute allowedRoles={['job-seeker', 'recruiter']}>
+                    <CareerQuizzes quizKey="teenFocused" />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/quiz-insights"
+                element={
+                  <ProtectedRoute allowedRoles={['job-seeker', 'recruiter']}>
+                    <QuizInsights />
                   </ProtectedRoute>
                 }
               />

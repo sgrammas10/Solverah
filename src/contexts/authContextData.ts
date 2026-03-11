@@ -3,6 +3,7 @@ import { createContext } from "react";
 export type ProfileData = Record<string, unknown> & {
   quizResults?: Record<string, unknown>;
   _quizSummary?: Record<string, unknown>;
+  quizInsights?: Record<string, unknown>;
 };
 
 export interface User {
