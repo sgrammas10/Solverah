@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { useAuth } from "./contexts/useAuth";
 import Header from "./components/Header";
@@ -42,14 +42,26 @@ function ProtectedRoute({
   return <>{children}</>;
 }
 
+// Routes where the global Header should be hidden (they have their own nav)
+const ROUTES_WITHOUT_HEADER = new Set(["/"]);
+
+function AppShell({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const hideHeader = ROUTES_WITHOUT_HEADER.has(location.pathname);
+  return (
+    <div className="min-h-screen">
+      {!hideHeader && <Header />}
+      {children}
+    </div>
+  );
+}
+
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen bg-slate-950 text-slate-100">
-          <Header />
-          <main>
-            <Routes>
+        <AppShell>
+          <Routes>
               {/* Public routes */}
               <Route path="/" element={<PrelaunchLandingPage />} />
               <Route path="/landing" element={<LandingPage />} />
@@ -190,8 +202,7 @@ function App() {
               {/* Catch-all fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-          </main>
-        </div>
+        </AppShell>
       </Router>
     </AuthProvider>
   );

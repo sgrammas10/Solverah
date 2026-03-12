@@ -267,60 +267,85 @@ export default function CareerAndJobSearchTab({ guest }: CareerAndJobSearchTabPr
      RENDER
      ======================================================= */
   return (
-    <div className="p-4 max-w-3xl mx-auto text-slate-100">
+    <div className="min-h-screen bg-cream-base font-sans text-ink-primary">
+      <div className="mx-auto max-w-4xl px-6 py-12">
       {/* Page title */}
-      <h2 className="text-xl font-semibold mb-2">Career &amp; Job Search</h2>
+      <h2 className="font-display text-2xl font-bold text-ink-primary mb-6">Career &amp; Job Search</h2>
 
       {!guest && !isEditing && hasSaved ? (
-        <div className="mt-4 rounded-2xl border border-white/10 bg-slate-900/60 p-6">
-          <div className="flex items-center justify-between gap-4">
+        <div className="mb-8 rounded-xl border border-cream-muted bg-white p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div>
-              <h3 className="text-lg font-semibold text-white">Your Results</h3>
-              <p className="text-sm text-slate-200/80">
+              <h3 className="font-display text-lg font-semibold text-ink-primary">Your Results</h3>
+              <p className="text-sm text-ink-secondary mt-1">
                 Review your saved responses. You can update them anytime.
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={handleViewInsights}
-                className="rounded-full border border-emerald-300/60 px-4 py-2 text-sm font-semibold text-emerald-100 hover:border-emerald-200"
+                className="border border-forest-light bg-forest-light text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-forest-mid transition-colors"
               >
                 View Insight
               </button>
               <button
                 type="button"
                 onClick={() => navigate("/job-seeker/profile?tab=assessments")}
-                className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-emerald-300/60"
+                className="border border-cream-muted bg-white text-ink-secondary text-sm font-semibold px-5 py-2.5 rounded-full hover:border-forest-pale hover:text-forest-mid transition-colors"
               >
                 Back to Assessments
               </button>
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-emerald-300/60"
+                className="border border-cream-muted bg-white text-ink-secondary text-sm font-semibold px-5 py-2.5 rounded-full hover:border-forest-pale hover:text-forest-mid transition-colors"
               >
                 Change Answers
               </button>
             </div>
           </div>
-          <div className="mt-6 space-y-6">
+          <div className="space-y-8">
             {nextChapterSections.map((sec) => (
               <section key={sec.title}>
-                <h4 className="text-base font-semibold text-white">{sec.title}</h4>
-                <ul className="mt-3 space-y-3">
+                <h4 className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-4">{sec.title}</h4>
+                <div className="space-y-4">
                   {sec.questions.map((q) => {
                     const selected = answers?.[q.id];
-                    const answerText =
-                      typeof selected === "number" ? q.options[selected] : "No answer selected";
                     return (
-                      <li key={q.id} className="rounded-lg border border-white/10 bg-white/5 p-3">
-                        <p className="text-sm text-slate-100">{q.text}</p>
-                        <p className="mt-1 text-sm text-emerald-200">{answerText}</p>
-                      </li>
+                      <div key={q.id} className="rounded-xl border border-cream-muted bg-white p-5">
+                        <p className="text-sm font-semibold text-ink-primary mb-3">
+                          {q.id}. {q.text}
+                        </p>
+                        <div className="space-y-2">
+                          {q.options.map((opt, idx) => (
+                            <div
+                              key={idx}
+                              className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-sm ${
+                                selected === idx
+                                  ? "border-forest-light bg-forest-pale text-forest-dark font-medium"
+                                  : "border-cream-muted bg-cream-base text-ink-tertiary"
+                              }`}
+                            >
+                              <span
+                                className={`h-3.5 w-3.5 shrink-0 rounded-full border-2 flex items-center justify-center ${
+                                  selected === idx
+                                    ? "border-forest-mid bg-forest-mid"
+                                    : "border-cream-muted bg-white"
+                                }`}
+                              >
+                                {selected === idx && (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                                )}
+                              </span>
+                              {opt}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     );
                   })}
-                </ul>
+                </div>
               </section>
             ))}
           </div>
@@ -329,41 +354,47 @@ export default function CareerAndJobSearchTab({ guest }: CareerAndJobSearchTabPr
         <>
           {/* Render each section with its questions */}
           {nextChapterSections.map((sec) => (
-            <div key={sec.title} className="mb-6">
-              {/* Section header */}
-              <h3 className="text-lg font-medium mb-2">{sec.title}</h3>
-
-              {/* Ordered list with correct starting index for numbering */}
-              <ol start={sec.startId} className="space-y-4 pl-5">
+            <section key={sec.title} className="mb-8">
+              <h3 className="font-display text-lg font-semibold text-ink-primary mb-4">{sec.title}</h3>
+              <div className="space-y-5">
                 {sec.questions.map((q) => (
-                  <li key={q.id}>
+                  <div key={q.id} className="rounded-xl border border-cream-muted bg-white p-5">
                     <fieldset>
-                      {/* Question text */}
-                      <legend className="mb-1">{q.text}</legend>
-
-                      {/* Options as grouped radio buttons */}
-                      {q.options.map((opt, idx) => (
-                        <label key={idx} className="block">
-                          <input
-                            type="radio"
-                            name={`q${q.id}`}              // group by question id
-                            checked={answers[q.id] === idx}
-                            onChange={() => handleChange(q.id, idx)}
-                          />{" "}
-                          {opt}
-                        </label>
-                      ))}
+                      <legend className="text-sm font-semibold text-ink-primary mb-3">
+                        {q.id}. {q.text}
+                      </legend>
+                      <div className="space-y-2">
+                        {q.options.map((opt, idx) => (
+                          <label
+                            key={idx}
+                            className={`flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
+                              answers[q.id] === idx
+                                ? "border-forest-light bg-forest-pale text-forest-dark"
+                                : "border-cream-muted bg-cream-base text-ink-secondary hover:border-forest-light hover:text-ink-primary"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name={`q${q.id}`}
+                              checked={answers[q.id] === idx}
+                              onChange={() => handleChange(q.id, idx)}
+                              className="accent-forest-mid"
+                            />
+                            <span className="text-sm">{opt}</span>
+                          </label>
+                        ))}
+                      </div>
                     </fieldset>
-                  </li>
+                  </div>
                 ))}
-              </ol>
-            </div>
+              </div>
+            </section>
           ))}
 
           {/* Submit button */}
           <button
             onClick={handleSubmit}
-            className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25"
+            className="rounded-full bg-gradient-to-r from-forest-light via-forest-mid to-forest-dark px-6 py-3 text-sm font-semibold text-white shadow-md hover:opacity-90 transition-opacity"
             type="button"
           >
             {guest ? "Get Insight" : "Save Answers"}
@@ -385,6 +416,7 @@ export default function CareerAndJobSearchTab({ guest }: CareerAndJobSearchTabPr
         backLabel={guest ? "Back to quizzes" : undefined}
         viewLabel={guest ? "View insights" : undefined}
       />
+      </div>
     </div>
   );
 }
