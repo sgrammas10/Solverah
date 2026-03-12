@@ -846,7 +846,7 @@ function PrelaunchLandingPage() {
                   {[
                     { color: "bg-forest-light", text: "Soft-launch intake only. No production accounts or feeds are available." },
                     { color: "bg-forest-mid", text: "Manual review of submissions while we tune Authentic Intelligence with real context." },
-                    { color: "bg-forest-pale border border-forest-light", text: "Clear copy over glossy UI. You should feel informed, not pushed." },
+                    { color: "bg-forest-pale border border-forest-light", text: "Clear Insights. You should feel informed, not pushed." },
                   ].map(({ color, text }, i) => (
                     <div key={i} className="flex items-start gap-3">
                       <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${color}`} />

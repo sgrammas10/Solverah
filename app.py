@@ -89,7 +89,7 @@ def _is_valid_linkedin_url(value: str) -> bool:
 
 from flask_migrate import Migrate
 
-from model import AuditLog, IntakeSubmission, JobRecommendation, User, db
+from model import AuditLog, IntakeSubmission, JobRecommendation, ResumeParseCorrection, User, db
 from datetime import timedelta
 import pandas as pd
 
@@ -701,6 +701,23 @@ def finalize():
     finally:
         conn.close()
 
+    # Send notification email to info@solverah.com
+    try:
+        from email_utils import send_intake_notification
+        send_intake_notification(
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            state=state,
+            phone=phone,
+            linkedin_url=linkedin_url,
+            portfolio_url=portfolio_url,
+            object_key=object_key,
+            mime=mime,
+            size=size,
+        )
+    except Exception as e:
+        app.logger.error(f"Failed to send intake notification to info@solverah.com: {e}")
     return jsonify({"ok": True})
 
 
@@ -1169,6 +1186,38 @@ def profile():
 
         merged["_quizSummary"] = summary
 
+    # Diff against the parser snapshot for experience/education/skills.
+    # Any field the user changed from what the parser produced is recorded in
+    # resume_parse_correction for training-data analysis.
+    _TRACKED_RESUME_FIELDS = ("experience", "education", "skills")
+    snapshot = existing.get("_parsedResumeSnapshot")
+    if snapshot and isinstance(snapshot, dict):
+        resume_key = snapshot.get("resumeKey")
+        if resume_key:
+            for field in _TRACKED_RESUME_FIELDS:
+                if field not in profile_data:
+                    continue
+                new_val = profile_data[field]
+                parsed_val = snapshot.get(field)
+                if new_val != parsed_val:
+                    correction = ResumeParseCorrection.query.filter_by(
+                        user_id=user.id,
+                        resume_key=resume_key,
+                        field=field,
+                    ).first()
+                    if correction:
+                        correction.corrected_value = new_val
+                        correction.updated_at = datetime.datetime.utcnow()
+                    else:
+                        correction = ResumeParseCorrection(
+                            user_id=user.id,
+                            resume_key=resume_key,
+                            field=field,
+                            parsed_value=parsed_val,
+                            corrected_value=new_val,
+                        )
+                        db.session.add(correction)
+
     user.profile_data = merged
     log_audit_event(
         action="update",
@@ -1482,6 +1531,17 @@ def profile_resume_finalize():
 
     existing = user.profile_data or {}
     merged = {**existing, **profile_updates}
+
+    # Store a snapshot of what the parser produced so we can later diff against
+    # any edits the user makes — used to build parser improvement training data.
+    merged["_parsedResumeSnapshot"] = {
+        "resumeKey": object_key,
+        "parsedAt": datetime.datetime.utcnow().isoformat(),
+        "experience": profile_updates.get("experience", []),
+        "education": profile_updates.get("education", []),
+        "skills": profile_updates.get("skills", []),
+    }
+
     user.profile_data = merged
     db.session.commit()
 
