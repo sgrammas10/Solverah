@@ -1,0 +1,74 @@
+About the job
+Why choose between doing meaningful work and having a fulfilling life? At MITRE, you can have both. That's because MITRE people are committed to tackling our nation's toughest challenges—and we're committed to the long-term well-being of our employees. MITRE is different from most technology companies. We are a not-for-profit corporation chartered to work for the public interest, with no commercial conflicts to influence what we do. The R&D centers we operate for the government create lasting impact in fields as diverse as cybersecurity, healthcare, aviation, defense, and enterprise transformation. We're making a difference every day—working for a safer, healthier, and more secure nation and world. Our workplace reflects our values. We offer competitive benefits, exceptional professional development opportunities for career growth, and a culture of innovation that embraces adaptability, collaboration, technical excellence, and people in partnership. If this sounds like the choice you want to make, then choose MITRE - and make a difference with us.
+
+Do you want to contribute to solving our nation’s most critical challenges by advancing systems engineering practices? Are you passionate about applying innovative techniques like Digital Engineering, Artificial Intelligence, and Model-Based Systems Engineering to complex problems? Do you want to be mentored by experts in systems engineering, while working on projects that make a difference?
+
+Come and lay the foundation for your career at MITRE. You’ll work on diverse projects that support our Government sponsors and benefit from numerous learning and growth opportunities. You’ll receive mentorship from experienced staff, gain exposure to MITRE work across all our domains, and continue your growth and learning through various educational and training programs.
+
+Our workplace reflects our values. We want you to start and grow your career at MITRE so that you can experience the rewarding work, competitive benefits, exceptional professional development opportunities, and a culture of innovation that embraces diversity, inclusion, flexibility, collaboration, and career growth.
+
+Roles & Responsibilities:
+
+As an Early Career Systems Engineer at MITRE, you will have the opportunity to leverage and grow your systems engineering expertise as you contribute to real challenges across a variety of domains.
+
+As part of the Systems Engineering Innovation Center or MITRE's National Security Sector, you will develop your skills while delivering impactful solutions to address the challenges of our sponsors.
+
+In this role, you will:
+
+Apply systems engineering principles and practices to support the development, deployment, and lifecycle management of complex systems.
+Contribute to requirements engineering, system architecture and design, trade space analysis, and test and evaluation activities.
+Leverage Digital Engineering and Model-Based Systems Engineering (MBSE) techniques, tools, and frameworks to enhance engineering efficiency and effectiveness.
+Support the integration of Artificial Intelligence (AI) and Machine Learning (ML) into systems engineering processes and solutions.
+Collaborate with multidisciplinary teams to solve problems across the system lifecycle, from concept development to system sustainment.
+Participate in the development of innovative methodologies to address emerging challenges in systems security, resilience, and adaptability.
+Engage in human-centered design approaches to ensure solutions deliver meaningful value to end users.
+
+You will gain experience with one or more of the following:
+
+Digital Engineering and Model-Based Systems Engineering (MBSE) tools and frameworks (e.g., SysML, Cameo, DOORS).
+Artificial Intelligence (AI) and Machine Learning (ML) techniques and their application to systems engineering.
+Advanced test and evaluation methodologies, including test automation and model-based testing.
+Agile and DevSecOps practices for systems development and delivery.
+Systems analysis and trade studies to support decision-making under uncertainty.
+Systems security engineering to deliver trustworthy and resilient solutions.
+
+Basic Qualifications:
+
+Bachelor's Degree in Engineering, Computer Science, Physics, Mathematics, Systems Engineering, related field, or equivalent combination of related education and work experience
+Practical knowledge of or more of the following Systems Engineering lifecycle areas: requirements management and analysis, systems architecture and design, system or mission-level trade studies, system test and evaluation, and system security engineering
+Ingenuity in applying and tailoring systems engineering best practices and analysis skills with an ability to adapt and learn new subject matter domains
+Must be a U.S. citizen with ability to obtain and maintain DoD clearance
+This position requires a minimum of 50% hybrid on-site presence.
+
+Preferred Qualifications: 
+
+Excellent written and verbal communication skills, adapted to a variety of audiences
+Proficiency in one or more of the programming languages for systems innovation, quantitative analysis and prototyping (ex. Python, MATLAB, R, Java, C++)
+Proficiency with one or more modern system engineering design methods (e.g. OOSEM, ME), languages and frameworks (e.g. SysMLV1, SysMLV2, UAF) as well as tools (e.g. Cameo, DOORS) that are used across the systems lifecycle
+Proficiency with multi-disciplinary digital engineering, digital twin, and modeling and simulation techniques at the physics-level, engineering-level and/or socio-technical-level)
+Knowledge and experience with Artificial Intelligence (AI) and Machine Learning (ML) techniques and algorithms
+Active DoD Clearance
+
+This requisition requires the candidate to have a minimum of the following clearance(s):
+
+This requisition requires the hired candidate to have or obtain, within one year from the date of hire, the following clearance(s):
+
+Salary compensation range and midpoint:
+
+$77,600 - $97,000 - $116,400 Annual
+
+Work Location Type:
+
+Hybrid
+
+It is unlawful in Massachusetts to require or administer a lie detector test as a condition of employment or continued employment. An employer who violates this law shall be subject to criminal penalties and civil liability.
+
+Commitment to Non-Discrimination
+
+All qualified applicants will receive consideration for employment without regard to disability, status as a protected veteran or any other status protected by applicable federal, state, local or international law.
+
+MITRE intends to maintain a website that is fully accessible to all individuals. If you are unable to search or apply for jobs and would like to request a reasonable accommodation for any part of MITRE’s employment process, please email recruitinghelp@mitre.org for general support and collegerecruiting@mitre.org for intern positions. This service is for individuals requiring reasonable accommodation requests. Please note that vendor solicitations will not receive a reply.
+
+Benefits information may be found here.
+
+Copyright © 1997-2026, The MITRE Corporation. All rights reserved. MITRE is a registered trademark of The MITRE Corporation. Material on this site may be copied and distributed with permission only.

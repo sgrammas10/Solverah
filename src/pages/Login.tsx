@@ -1,16 +1,62 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { Mail, Lock, Users, Briefcase } from 'lucide-react';
+import { useAuth } from '../contexts/useAuth';
+import { getPendingQuizSave, clearPendingQuizSave } from "../utils/guestQuiz";
+import { API_BASE as API_URL } from "../utils/api";
+
+function ResendConfirmation({ email }: { email: string }) {
+  const navigate = useNavigate();
+  const [status, setStatus] = useState<'idle' | 'sending' | 'error'>('idle');
+  const [msg, setMsg] = useState('');
+
+  const handleResend = async () => {
+    if (!email) {
+      setMsg('Please enter your email above before resending.');
+      setStatus('error');
+      return;
+    }
+    setStatus('sending');
+    setMsg('');
+    try {
+      const res = await fetch(`${API_URL}/resend-confirmation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setStatus('error');
+        setMsg(data?.error || 'Failed to resend code');
+        return;
+      }
+      navigate('/verify-email', { state: { email } });
+    } catch (err: any) {
+      setStatus('error');
+      setMsg(err?.message || 'Network error');
+    }
+  };
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={handleResend}
+        className="text-sm font-medium text-forest-mid underline underline-offset-4 hover:text-forest-dark transition-colors"
+        disabled={status === 'sending'}
+      >
+        {status === 'sending' ? 'Sending…' : 'Resend verification code'}
+      </button>
+      {msg && <p className="mt-1 text-sm text-red-600">{msg}</p>}
+    </div>
+  );
+}
 
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'job-seeker' | 'recruiter'>('job-seeker');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { login } = useAuth();
+  const { login, fetchWithAuth } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,133 +65,123 @@ function Login() {
     setLoading(true);
 
     try {
-      await login(email, password, role);
-      const redirectPath = role === 'job-seeker' ? '/job-seeker/dashboard' : '/recruiter/dashboard';
+      const loggedInUser = await login(email, password);
+      let redirectPath =
+        loggedInUser.role === 'job-seeker' ? '/job-seeker/dashboard' : '/recruiter/dashboard';
+
+      const pending = getPendingQuizSave();
+      if (pending && loggedInUser.role === 'job-seeker' && fetchWithAuth) {
+        try {
+          await fetchWithAuth('/profile', {
+            method: 'POST',
+            body: JSON.stringify({ profileData: { quizResults: pending.quizResults } }),
+          });
+          await fetchWithAuth('/quiz-insights', {
+            method: 'POST',
+            body: JSON.stringify(pending.quizPayload),
+          });
+          redirectPath = `/quiz-insights?group=${encodeURIComponent(pending.quizGroup)}`;
+          clearPendingQuizSave();
+        } catch (saveErr) {
+          console.error('Failed to save pending quiz:', saveErr);
+        }
+      }
+
       navigate(redirectPath);
     } catch (err) {
-      setError('Failed to sign in. Please check your credentials.');
+      const message = err instanceof Error ? err.message : String(err);
+      if (message && message.toLowerCase().includes('email not confirmed')) {
+        setError('Your email is not confirmed. Please check your inbox.');
+      } else {
+        setError('Failed to sign in. Please check your credentials.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const inputCls =
+    'w-full rounded border border-cream-muted bg-cream-base px-4 py-3 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors';
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-blue-100">
-            <Briefcase className="h-6 w-6 text-blue-600" />
-          </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Or{' '}
-            <Link
-              to="/register"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              create a new account
-            </Link>
-          </p>
-        </div>
+    <div className="min-h-screen bg-cream-base font-sans flex items-center justify-center py-16 px-4">
+      <div className="w-full max-w-md">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 text-sm text-ink-tertiary hover:text-forest-mid transition-colors mb-8"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Back to Solverah
+        </Link>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="text-sm text-red-700">{error}</div>
-            </div>
-          )}
-
-          {/* Role Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              I am a:
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setRole('job-seeker')}
-                className={`p-3 rounded-lg border-2 transition-all ${
-                  role === 'job-seeker'
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <Users className="h-5 w-5 mx-auto mb-1" />
-                <div className="text-sm font-medium">Job Seeker</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('recruiter')}
-                className={`p-3 rounded-lg border-2 transition-all ${
-                  role === 'recruiter'
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <Briefcase className="h-5 w-5 mx-auto mb-1" />
-                <div className="text-sm font-medium">Recruiter</div>
-              </button>
-            </div>
+        <div className="border border-cream-muted rounded-xl bg-white p-8">
+          <div className="mb-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-2">Welcome back</p>
+            <h1 className="font-display text-3xl font-bold text-ink-primary">Sign in to your account</h1>
+            <p className="mt-2 text-sm text-ink-secondary">
+              Don't have an account?{' '}
+              <Link to="/register" className="font-semibold text-forest-mid hover:text-forest-dark transition-colors">
+                Create one here
+              </Link>
+            </p>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="email" className="sr-only">
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            {error && (
+              <div className="rounded bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
+            {error && error.toLowerCase().includes('not confirmed') && (
+              <ResendConfirmation email={email} />
+            )}
+
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="text-sm font-medium text-ink-primary">
                 Email address
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none relative block w-full px-3 py-2 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                  placeholder="Email address"
-                />
-              </div>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={inputCls}
+                placeholder="you@example.com"
+              />
             </div>
 
-            <div>
-              <label htmlFor="password" className="sr-only">
+            <div className="space-y-1.5">
+              <label htmlFor="password" className="text-sm font-medium text-ink-primary">
                 Password
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none relative block w-full px-3 py-2 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                  placeholder="Password"
-                />
-              </div>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inputCls}
+                placeholder="Your password"
+              />
             </div>
-          </div>
 
-          <div>
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-forest-dark text-white font-semibold py-3 rounded hover:bg-forest-mid transition-colors disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Signing in…' : 'Sign in'}
             </button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );

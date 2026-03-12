@@ -1,0 +1,432 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/useAuth';
+import {
+  Briefcase,
+  MessageCircle,
+  Bell,
+  Search,
+  Filter,
+  Building,
+  TrendingUp
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+// import the CSV as a raw string using Vite's ?raw
+// @ts-ignore
+//import jobCsv from '../../zensearchData/job_postings.csv?raw';
+
+// simple CSV parser that handles quoted fields and escaped quotes
+// function parseCSV(raw: string) {
+//   const rows: string[][] = [];
+//   let cur = '';
+//   let row: string[] = [];
+//   let inQuotes = false;
+//   for (let i = 0; i < raw.length; i++) {
+//     const ch = raw[i];
+//     if (ch === '"') {
+//       if (inQuotes && raw[i + 1] === '"') {
+//         cur += '"';
+//         i++; // skip escaped quote
+//       } else {
+//         inQuotes = !inQuotes;
+//       }
+//     } else if (ch === ',' && !inQuotes) {
+//       row.push(cur);
+//       cur = '';
+//     } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+//       // handle CRLF or LF
+//       if (ch === '\r' && raw[i + 1] === '\n') {
+//         // skip, let the \n handle pushing
+//       }
+//       if (cur !== '' || row.length > 0) {
+//         row.push(cur);
+//         rows.push(row);
+//         row = [];
+//         cur = '';
+//       }
+//     } else {
+//       cur += ch;
+//     }
+//   }
+//   if (cur !== '' || row.length > 0) {
+//     row.push(cur);
+//     rows.push(row);
+//   }
+//   return rows;
+// }
+
+function truncate(text: string, n = 220) {
+  if (!text) return '';
+  return text.length > n ? text.slice(0, n) + '...' : text;
+}
+
+function formatDateUS(dateStr?: string) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '';
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${mm}/${dd}/${yyyy}`;
+}
+
+// function JobRecommendations() {
+//   const [jobs, setJobs] = React.useState<any[]>([]);
+//
+//   useEffect(() => {
+//     try {
+//       const rows = parseCSV(String(jobCsv || ''));
+//       if (!rows || rows.length < 2) return;
+//       const headers = rows[0].map((h) => h.replace(/^"|"$/g, '').trim());
+//       const data = rows.slice(1).map((r) => {
+//         const obj: any = {};
+//         headers.forEach((h, i) => (obj[h] = (r[i] ?? '').replace(/^"|"$/g, '').trim()));
+//         return obj;
+//       });
+//       setJobs(data.slice(0, 25));
+//     } catch (err) {
+//       // fallback: empty
+//       setJobs([]);
+//     }
+//   }, []);
+//
+//   if (!jobs.length) {
+//     return (
+//       <div className="text-center py-12">
+//         <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+//         <h3 className="text-lg font-medium text-gray-900 mb-2">Job recommendations coming soon</h3>
+//         <p className="text-gray-600">Complete your profile to start receiving personalized job recommendations.</p>
+//       </div>
+//     );
+//   }
+//
+//   return (
+//     <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+//       {jobs.map((job, idx) => (
+//         <div key={job.ID || idx} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm">
+//           <div className="flex items-start justify-between">
+//             <div>
+//               <a
+//                 className="text-md font-semibold text-blue-600 hover:underline"
+//                 href={job.Link || '#'}
+//                 target="_blank"
+//                 rel="noreferrer"
+//               >
+//                 {job.Title || 'Untitled Role'}
+//               </a>
+//               <div className="text-sm text-gray-600 mt-1">
+//                 {job.Company ? <span>{job.Company}</span> : null}
+//                 {job.Location ? <span className="mx-2">•</span> : null}
+//                 {job.Location ? <span>{job.Location}</span> : null}
+//                 {job.EmploymentType ? <span className="mx-2">•</span> : null}
+//                 {job.EmploymentType ? <span>{job.EmploymentType}</span> : null}
+//               </div>
+//             </div>
+//             <div className="text-right text-sm text-gray-500">
+//               {job.DatePosted ? <div>Posted {formatDateUS(job.DatePosted)}</div> : null}
+//               {job.Remote ? <div className="mt-1">{job.Remote === 'Yes' ? 'Remote' : 'Onsite'}</div> : null}
+//             </div>
+//           </div>
+//
+//           {job.RoleDescription ? (
+//             <p className="text-sm text-gray-700 mt-3 whitespace-pre-line">{truncate(job.RoleDescription, 300)}</p>
+//           ) : null}
+//
+//           <div className="mt-3 flex items-center justify-between">
+//             <div className="text-sm text-gray-500">Experience: {job.Experience || 'N/A'} Years</div>
+//             <div className="flex items-center gap-2">
+//               <a
+//                 href={job.Link || '#'}
+//                 target="_blank"
+//                 rel="noreferrer"
+//                 className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+//               >
+//                 View
+//               </a>
+//             </div>
+//           </div>
+//         </div>
+//       ))}
+//     </div>
+//   );
+// }
+
+function JobRecommendations() {
+  const [jobs, setJobs] = useState<any[]>([]);
+  const { fetchWithAuth } = useAuth(); // get from AuthContext
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetchWithAuth<{ recommendations: any[] }>("/recommendations", {
+          method: "GET",
+        });
+        setJobs(res.recommendations ?? []);
+      } catch (err) {
+        console.error("Failed to load recommendations", err);
+        setJobs([]);
+      }
+    };
+
+    load();
+  }, [fetchWithAuth]);
+
+  const toggleExpanded = (key: string | number) => {
+    const k = String(key);
+    setExpanded((prev) => ({ ...prev, [k]: !prev[k] }));
+  };
+
+  function formatExperience(exp?: string | number) {
+    if (exp === undefined || exp === null || exp === '') return 'N/A';
+    const num = Number(exp);
+    if (!Number.isNaN(num)) return `${num} Years`;
+    return String(exp);
+  }
+
+  if (!jobs.length) {
+    return (
+      <div className="text-center py-12">
+        <Briefcase className="h-12 w-12 text-slate-500 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-white mb-2">Job recommendations coming soon</h3>
+        <p className="text-slate-200/80">
+          Complete your profile and generate recommendations to start seeing personalized jobs.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+      {jobs.map((job, idx) => {
+        const idKey = job.ID ?? idx;
+        const isExpanded = !!expanded[String(idKey)];
+        return (
+          <div key={idKey} className="border border-white/10 rounded-lg bg-slate-900/50 p-4 shadow-lg shadow-black/20">
+            <div className="flex items-start justify-between">
+              <div>
+                <a
+                  className="text-md font-semibold text-emerald-200 hover:underline"
+                  href={job.Link || '#'}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {job.Title || 'Untitled Role'}
+                </a>
+                <div className="text-sm text-slate-200/80 mt-1">
+                  {job.Company ? <span>{job.Company}</span> : null}
+                  {job.Location ? <span className="mx-2">•</span> : null}
+                  {job.Location ? <span>{job.Location}</span> : null}
+                  {job.EmploymentType ? <span className="mx-2">•</span> : null}
+                  {job.EmploymentType ? <span>{job.EmploymentType}</span> : null}
+                </div>
+              </div>
+              <div className="text-right text-sm text-slate-300">
+                {job.DatePosted ? <div>Posted {formatDateUS(job.DatePosted)}</div> : null}
+                {job.Remote ? (
+                  <div className="mt-1">{job.Remote === 'Yes' ? 'Remote' : 'Onsite'}</div>
+                ) : null}
+                {typeof job.score === 'number' ? (
+                  <div className="mt-1 text-xs text-slate-400">
+                    Match score: {(job.score * 100).toFixed(0)}%
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            {job.RoleDescription ? (
+              <p
+                role="button"
+                aria-expanded={isExpanded}
+                onClick={() => toggleExpanded(idKey)}
+                className="text-sm text-slate-200/80 mt-3 whitespace-pre-line cursor-pointer"
+              >
+                {isExpanded ? job.RoleDescription : truncate(job.RoleDescription, 300)}
+                {!isExpanded && String(job.RoleDescription).length > 300 ? (
+                  <span className="text-emerald-200">  (click to expand)</span>
+                ) : null}
+              </p>
+            ) : null}
+
+            <div className="mt-3 flex items-center justify-between">
+              <div className="text-sm text-slate-300">Experience: {formatExperience(job.Experience)}</div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={job.Link || '#'}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1 text-sm rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 font-semibold shadow-lg shadow-emerald-500/25"
+                >
+                  View
+                </a>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Feed() {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('jobs');
+
+  //Search bar functionality
+  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+  };
+
+  const tabs = [
+    { id: 'jobs', label: 'Job Feed', icon: Briefcase },
+    { id: 'messages', label: 'Messages', icon: MessageCircle },
+    { id: 'notifications', label: 'Notifications', icon: Bell }
+  ];
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-slate-100">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-semibold text-white">
+          Welcome to your feed, {user?.name?.split(' ')[0] || user?.name}!
+        </h1>
+        <p className="text-slate-200/80 mt-2">
+          Stay updated with the latest opportunities and connections.
+        </p>
+      </div>
+
+      {/* Search and Filter Bar */}
+      <div className="mb-6 flex flex-col sm:flex-row gap-4">
+        <form onSubmit={handleSearch} className="flex-1 relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-slate-400" />
+          </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search jobs, companies, or people..."
+            className="w-full pl-10 pr-4 py-2 rounded-lg border border-white/10 bg-white/5 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-300/50 focus:border-emerald-300/70"
+          />
+        </form>
+        <button className="flex items-center px-4 py-2 rounded-full border border-white/10 bg-white/5 text-sm text-slate-200 hover:border-emerald-300/60">
+          <Filter className="h-4 w-4 mr-2" />
+          Filters
+        </button>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="border-b border-white/10 mb-8">
+        <nav className="-mb-px flex space-x-8">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === tab.id
+                    ? 'border-emerald-300 text-emerald-200'
+                    : 'border-transparent text-slate-300 hover:text-white hover:border-white/20'
+                }`}
+              >
+                <Icon className="h-5 w-5 mr-2" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Content based on active tab */}
+      {activeTab === 'jobs' && (
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Main Feed */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Job Recommendations */}
+            <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-6 shadow-2xl shadow-black/30">
+              <h2 className="text-lg font-semibold text-white mb-4">Recommended for You</h2>
+              <JobRecommendations />
+            </div>
+
+            {/* Recent Activity */}
+            <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-6 shadow-2xl shadow-black/30">
+              <h2 className="text-lg font-semibold text-white mb-4">Recent Activity</h2>
+              <div className="text-center py-8">
+                <TrendingUp className="h-8 w-8 text-slate-500 mx-auto mb-3" />
+                <p className="text-slate-200/80">No recent activity to show</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Quick Stats */}
+            <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-6 shadow-2xl shadow-black/30">
+              <h3 className="font-semibold text-white mb-4">Your Stats</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-slate-200/80">Profile Views</span>
+                  <span className="font-medium text-white">--</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-200/80">Job Matches</span>
+                  <span className="font-medium text-white">--</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-200/80">Applications</span>
+                  <span className="font-medium text-white">--</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Trending Companies */}
+            <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-6 shadow-2xl shadow-black/30">
+              <h3 className="font-semibold text-white mb-4">Trending Companies</h3>
+              <div className="text-center py-6">
+                <Building className="h-8 w-8 text-slate-500 mx-auto mb-3" />
+                <p className="text-slate-200/80 text-sm">Company trends coming soon</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'messages' && (
+        <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-8 shadow-2xl shadow-black/30">
+          <div className="text-center">
+            <MessageCircle className="h-16 w-16 text-slate-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-white mb-2">Messages</h2>
+            <p className="text-slate-200/80 mb-6">
+              Connect with recruiters and other professionals. Your conversations will appear here.
+            </p>
+            <button className="px-4 py-2 rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 font-semibold shadow-lg shadow-emerald-500/25">
+              Start a Conversation
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'notifications' && (
+        <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-8 shadow-2xl shadow-black/30">
+          <div className="text-center">
+            <Bell className="h-16 w-16 text-slate-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-white mb-2">Notifications</h2>
+            <p className="text-slate-200/80 mb-6">
+              Stay updated with job matches, profile views, and important updates.
+            </p>
+            <div className="text-sm text-slate-300">
+              No notifications yet
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default Feed;

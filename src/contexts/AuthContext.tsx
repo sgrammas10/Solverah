@@ -1,111 +1,183 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode } from "react";
 
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: 'job-seeker' | 'recruiter';
-  profileComplete: boolean;
-  profileData?: any;
-}
+import { AuthContext, ProfileData, User } from "./authContext";
+import { API_BASE as API_URL } from "../utils/api";
 
-interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string, role: 'job-seeker' | 'recruiter') => Promise<void>;
-  register: (email: string, password: string, name: string, role: 'job-seeker' | 'recruiter') => Promise<void>;
-  logout: () => void;
-  updateProfile: (updates: Partial<User>) => void;
-  updateProfileData: (profileData: any) => void;
-}
+const getCookie = (name: string): string | null => {
+  const match = document.cookie.match(
+    new RegExp('(^|;\\s*)' + name + '=([^;]*)')
+  );
+  return match ? decodeURIComponent(match[2]) : null;
+};
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [csrfToken, setCsrfToken] = useState<string | null>(null);
 
+  // Restore session automatically using secure cookies
   useEffect(() => {
-    // Check for saved user in localStorage
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/profile`, {
+          method: "GET",
+          credentials: "include",
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data as User);
+        } else {
+          setUser(null);
+        }
+      } catch {
+        setUser(null);
+      }
+      const csrf = getCookie("csrf_access_token");
+      if (csrf) {
+        setCsrfToken(csrf);
+      }
+      setLoading(false);
+    })();
   }, []);
 
-  const login = async (email: string, password: string, role: 'job-seeker' | 'recruiter') => {
-    // Mock authentication - in real app, this would call an API
-    const mockUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      email,
-      name: email.split('@')[0],
-      role,
-      profileComplete: false
+  
+  const fetchWithAuth = async <T = any>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> => {
+    const method = (options.method || "GET").toUpperCase();
+
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
     };
-    
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
+
+    // attach CSRF token for state-changing requests
+    if (csrfToken && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+      (headers as any)["X-CSRF-TOKEN"] = csrfToken;
+    }
+
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers,
+      credentials: "include",
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      throw new Error(data?.error || data?.message || "Request failed");
+    }
+
+    return data as T;
   };
 
-  const register = async (email: string, password: string, name: string, role: 'job-seeker' | 'recruiter') => {
-    // Mock registration - in real app, this would call an API
-    const mockUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      email,
-      name,
-      role,
-      profileComplete: false
-    };
-    
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
+
+  // LOGIN — backend sets an HttpOnly JWT cookie
+  const login = async (email: string, password: string) => {
+    const res = await fetch(`${API_URL}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Login failed");
+    }
+
+    // The backend sets a secure cookie — we only store the user object
+    const userData = data.user as User;
+    setUser(userData);
+
+    const csrf = getCookie("csrf_access_token");
+    if (csrf) {
+      setCsrfToken(csrf);
+    }
+
+    return userData;
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
+  // REGISTER — then user logs in normally
+  const register = async (
+    email: string,
+    password: string,
+    name: string,
+    role: "job-seeker" | "recruiter"
+  ) => {
+    const res = await fetch(`${API_URL}/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ email, password, name, role }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Registration failed");
   };
 
+  // LOGOUT — clears cookie on backend
+  const logout = async () => {
+    try {
+      await fetchWithAuth("/logout", { method: "POST" });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setUser(null);
+    }
+  };
+
+
+  const fetchProfile = async () => {
+    const data = await fetchWithAuth<User>("/profile", { method: "GET" });
+    setUser(data);
+  };
+
+  const fetchProfileData = async () => {
+    const data = await fetchWithAuth<{ profileData?: ProfileData }>("/profile", { method: "GET" });
+    return { profileData: data.profileData };
+  };
+
+  const saveProfileData = async (profileData: ProfileData) => {
+    return await fetchWithAuth<{ profileData?: ProfileData }>("/profile", {
+      method: "POST",
+      body: JSON.stringify({ profileData }),
+    });
+  };
   const updateProfile = (updates: Partial<User>) => {
-    if (user) {
-      const updatedUser = { ...user, ...updates };
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-    }
+    setUser((prev) => (prev ? { ...prev, ...updates } : prev));
   };
 
-  const updateProfileData = (profileData: any) => {
-    if (user) {
-      const updatedUser = { ...user, profileData, profileComplete: true };
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-    }
+  const updateProfileData = (profileData: ProfileData) => {
+    setUser((prev) =>
+      prev ? { ...prev, profileData: { ...(prev.profileData || {}), ...profileData } } : prev
+    );
   };
+
 
   const value = {
     user,
     login,
     register,
     logout,
+    fetchProfile,
+    fetchWithAuth,
+    fetchProfileData,
+    saveProfileData,
     updateProfile,
-    updateProfileData
+    updateProfileData,
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-400"></div>
       </div>
     );
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 }

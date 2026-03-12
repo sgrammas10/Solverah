@@ -1,0 +1,45 @@
+/* ----------------------------------------- */
+/* Tailwind Base Layer                       */
+/* Injects Tailwind's base styles (CSS reset) */
+/* ----------------------------------------- */
+@tailwind base;
+
+/* ----------------------------------------- */
+/* Tailwind Components Layer                 */
+/* Loads prebuilt Tailwind component classes */
+/* ----------------------------------------- */
+@tailwind components;
+
+/* ----------------------------------------- */
+/* Tailwind Utilities Layer                  */
+/* Loads utility classes (e.g., p-4, flex)   */
+/* ----------------------------------------- */
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100;
+  }
+
+  input,
+  textarea,
+  select {
+    @apply bg-white/5 text-slate-100 placeholder:text-slate-400 border-white/10;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    @apply outline-none ring-2 ring-emerald-300/50 border-emerald-300/70;
+  }
+}
+
+/* ------------------------------------------------------------- */
+/* Global Height Fix                                             */
+/* Sets html, body, and #root to full height                     */
+/* This is required for layouts that rely on 100% viewport height */
+/* such as flex layouts, sticky footers, and full-screen pages   */
+/* ------------------------------------------------------------- */
+html, body, #root {
+  height: 100%;
+}

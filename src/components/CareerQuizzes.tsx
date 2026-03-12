@@ -1,0 +1,734 @@
+import { useEffect, useMemo, useState } from "react";
+import { useAuth } from '../contexts/useAuth';
+import { useNavigate } from "react-router-dom";
+import QuizInsightModal from "./QuizInsightModal";
+import { API_BASE } from "../utils/api";
+import { markGuestQuizCompleted, setPendingQuizSave } from "../utils/guestQuiz";
+
+
+// Single quiz question type: numeric id, question text, and list of options
+type Question = { id: number; text: string; options: string[] };
+
+// Quiz type: a unique key, display title, and a list of questions
+type Quiz = { key: string; title: string; questions: Question[] };
+
+type QuizInsight = {
+  key?: string;
+  title?: string;
+  summary?: string;
+  keyTakeaways?: string[];
+  combinedMeaning?: string;
+  nextSteps?: string[];
+};
+
+type QuizInsightResponse = {
+  overallSummary?: string | null;
+  insights: QuizInsight[];
+};
+
+// Static configuration for all quizzes shown in this tab
+const quizzes: Quiz[] = [
+  {
+    key: "earlyCareer",
+    title: "Quiz 1: Early Career",
+    questions: [
+      {
+        id: 1,
+        text: "What is one thing you would change about your current position?",
+        options: [
+          "More growth opportunities",
+          "Better manager support",
+          "Higher pay",
+          "Different team or culture",
+        ],
+      },
+      {
+        id: 2,
+        text: "What motivates you most at work?",
+        options: [
+          "Recognition and feedback",
+          "Achieving results",
+          "Helping others",
+          "Learning new skills",
+        ],
+      },
+      {
+        id: 3,
+        text: "How do you prefer to receive feedback?",
+        options: [
+          "In the moment, directly",
+          "In private, with explanation",
+          "Written feedback I can review",
+          "Through regular check-ins",
+        ],
+      },
+      {
+        id: 4,
+        text: "What type of projects excite you most?",
+        options: [
+          "Creative and innovative projects",
+          "Problem-solving challenges",
+          "Clear, structured tasks",
+          "Collaborative team efforts",
+        ],
+      },
+      {
+        id: 5,
+        text: "Do you prefer structured tasks or open-ended challenges?",
+        options: [
+          "Structured tasks with clear direction",
+          "Open-ended challenges where I can decide",
+          "A mix of both",
+          "Depends on the situation",
+        ],
+      },
+    ],
+  },
+  {
+    key: "careerTransition",
+    title: "Quiz 2: Career Transition",
+    questions: [
+      {
+        id: 1,
+        text: "Why are you considering a career change?",
+        options: [
+          "Burnout in current role",
+          "Desire for new challenge",
+          "Better pay and benefits",
+          "Personal passion or interest",
+        ],
+      },
+      {
+        id: 2,
+        text: "What skills from your past roles do you want to leverage most?",
+        options: [
+          "Leadership",
+          "Technical expertise",
+          "Creativity and innovation",
+          "Problem-solving",
+        ],
+      },
+      {
+        id: 3,
+        text: "What are you hoping to leave behind in your current/previous role?",
+        options: [
+          "Toxic work culture",
+          "Lack of growth",
+          "Work-life imbalance",
+          "Repetitive tasks",
+        ],
+      },
+      {
+        id: 4,
+        text: "What type of culture do you want in your next role?",
+        options: [
+          "Collaborative and team-focused",
+          "Innovative and fast-paced",
+          "Stable and predictable",
+          "Supportive and developmental",
+        ],
+      },
+      {
+        id: 5,
+        text: "What would success look like for you in a new career path?",
+        options: [
+          "Financial stability",
+          "Work-life balance",
+          "Recognition and growth",
+          "Meaningful contribution",
+        ],
+      },
+    ],
+  },
+  {
+    key: "midCareer",
+    title: "Quiz 3: Mid-Career / Strategic",
+    questions: [
+      {
+        id: 1,
+        text: "What do you want your leadership legacy to be?",
+        options: [
+          "Building strong teams",
+          "Driving innovation",
+          "Delivering results",
+          "Developing future leaders",
+        ],
+      },
+      {
+        id: 2,
+        text: "How do you balance strategic vision with day-to-day execution?",
+        options: [
+          "Delegate operational tasks",
+          "Focus on strategy first",
+          "Alternate between both",
+          "Struggle with balance",
+        ],
+      },
+      {
+        id: 3,
+        text: "Where do you want to grow in the next 3–5 years?",
+        options: [
+          "People leadership",
+          "Technical expertise",
+          "Strategic influence",
+          "Entrepreneurial ventures",
+        ],
+      },
+      {
+        id: 4,
+        text: "What type of team environment allows you to thrive?",
+        options: [
+          "High accountability",
+          "Creative and open-minded",
+          "Structured and organized",
+          "Supportive and collaborative",
+        ],
+      },
+      {
+        id: 5,
+        text: "How do you want to be remembered by your peers and reports?",
+        options: [
+          "As a trusted advisor",
+          "As an innovator",
+          "As a dependable operator",
+          "As a mentor and coach",
+        ],
+      },
+    ],
+  },
+  {
+    key: "teenFocused",
+    title: "Quiz 4: Your Future, Your Way (Teen-Focused)",
+    questions: [
+      {
+        id: 1,
+        text: "What is your least favorite subject and why?",
+        options: [
+          "Math – too many rules",
+          "English – too much writing",
+          "Science – too complicated",
+          "History – too boring",
+        ],
+      },
+      {
+        id: 2,
+        text:
+          "What did your favorite teacher or coach do that made them stand out?",
+        options: [
+          "Made learning fun",
+          "Believed in me",
+          "Pushed me to do better",
+          "Listened and cared",
+        ],
+      },
+      {
+        id: 3,
+        text: "Do you like to stay busy all the time or chill out more?",
+        options: [
+          "Always busy – I like action",
+          "Chill out – I need downtime",
+          "A balance of both",
+          "Depends on my mood",
+        ],
+      },
+      {
+        id: 4,
+        text: "What do you want life to look like after high school?",
+        options: [
+          "Go to college",
+          "Start working right away",
+          "Travel and explore",
+          "Not sure yet",
+        ],
+      },
+      {
+        id: 5,
+        text: "How do you usually handle school projects?",
+        options: [
+          "Do it right away",
+          "Wait until the last minute",
+          "Bribe a sibling or friend to help",
+          "Work with a group",
+        ],
+      },
+    ],
+  },
+];
+
+// Static copy that explains different "archetypes" the user might align with
+const archetypes = [
+  "The Builder – thrives on creating new systems, projects, and opportunities.",
+  "The Strategist – excels in long-term planning and pattern recognition.",
+  "The Operator – delivers reliable execution and stability.",
+  "The Visionary – inspires others with big-picture thinking and innovation.",
+  "The Connector – builds relationships and drives collaboration.",
+];
+
+type CareerQuizzesProps = {
+  quizKey?: string;
+  guest?: boolean;
+};
+
+export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQuizzesProps) {
+  // answers state structure:
+  // answers[quizKey][questionId] = optionIndex (0-based index into options array)
+  const [answers, setAnswers] = useState<Record<string, Record<number, number>>>({});
+  const [isEditing, setIsEditing] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false);
+  const [insightModalOpen, setInsightModalOpen] = useState(false);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insightProgress, setInsightProgress] = useState(0);
+  const [insightError, setInsightError] = useState<string | null>(null);
+  const [insightResponse, setInsightResponse] = useState<QuizInsightResponse | null>(null);
+
+  // Get profile-related actions from AuthContext
+  const { fetchProfileData, saveProfileData, fetchWithAuth } = useAuth();
+  const navigate = useNavigate();
+
+  const visibleQuizzes = useMemo(() => {
+    if (!quizKey) return quizzes;
+    return quizzes.filter((quiz) => quiz.key === quizKey);
+  }, [quizKey]);
+
+  const headerTitle = useMemo(() => {
+    if (!quizKey) return "Career Quizzes & Archetypes";
+    return visibleQuizzes[0]?.title ?? "Career Quiz";
+  }, [quizKey, visibleQuizzes]);
+
+  const showArchetypes = !quizKey;
+
+  if (quizKey && visibleQuizzes.length === 0) {
+    return (
+      <div className="p-4 max-w-3xl mx-auto text-ink-primary">
+        <h2 className="font-display text-xl font-semibold mb-2">Career Quiz</h2>
+        <p className="text-sm text-ink-secondary mb-4">
+          That quiz could not be found. Please return to assessments to choose a quiz.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate("/job-seeker/profile?tab=assessments")}
+          className="border border-cream-muted bg-white text-ink-secondary text-sm font-semibold px-5 py-2.5 rounded hover:border-forest-pale hover:text-forest-mid transition-colors"
+        >
+          Back to Assessments
+        </button>
+      </div>
+    );
+  }
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (guest) {
+          setIsEditing(true);
+          setHasSaved(false);
+          return;
+        }
+        if (!fetchProfileData) {
+          setIsEditing(true);
+          return;
+        }
+        const current = await fetchProfileData();
+        const profileData = current?.profileData || current || {};
+        const saved = (profileData as any)?.quizResults?.careerQuizzes;
+        if (saved && typeof saved === "object") {
+          setAnswers(saved);
+          if (quizKey) {
+            const hasQuiz = typeof (saved as Record<string, unknown>)[quizKey] === "object";
+            setHasSaved(hasQuiz);
+            setIsEditing(!hasQuiz);
+          } else {
+            setHasSaved(true);
+            setIsEditing(false);
+          }
+        } else {
+          setIsEditing(true);
+        }
+        const storedInsights = (profileData as any)?.quizInsights?.careerQuizzes;
+        if (storedInsights && typeof storedInsights === "object") {
+          const insightList = visibleQuizzes
+            .map((quiz) => {
+              const entry = storedInsights[quiz.key];
+              if (!entry) return null;
+              return {
+                key: quiz.key,
+                title: entry.title || quiz.title,
+                summary: entry.summary,
+                keyTakeaways: entry.keyTakeaways,
+                combinedMeaning: entry.combinedMeaning,
+                nextSteps: entry.nextSteps,
+              };
+            })
+            .filter(Boolean) as QuizInsight[];
+          if (insightList.length > 0) {
+            setInsightResponse({
+              overallSummary: storedInsights._overallSummary || null,
+              insights: insightList,
+            });
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        setIsEditing(true);
+      }
+    })();
+  }, [fetchProfileData, guest, quizKey, visibleQuizzes]);
+
+  useEffect(() => {
+    if (!insightLoading) return;
+    setInsightProgress(8);
+    const id = setInterval(() => {
+      setInsightProgress((prev) => (prev < 90 ? Math.min(90, prev + 6 + Math.random() * 6) : prev));
+    }, 350);
+    return () => clearInterval(id);
+  }, [insightLoading]);
+
+
+  /**
+   * Handle change for an individual question's selected option.
+   * - quizKey: which quiz this question belongs to
+   * - qid: question ID
+   * - idx: selected option index
+   */
+  const onChange = (quizKey: string, qid: number, idx: number) => {
+    setAnswers((prev) => ({
+      // keep existing quizzes' answers
+      ...prev,
+      // for this quiz, merge existing question answers with this new one
+      [quizKey]: { ...(prev[quizKey] || {}), [qid]: idx },
+    }));
+  };
+
+  /**
+   * Submit all quiz answers at once:
+   * - Fetch existing profile data (if available)
+   * - Merge quiz results into profileData
+   * - Save via saveProfileData from AuthContext
+   */
+  const onSubmitAll = () => {
+    (async () => {
+      try {
+        if (guest) {
+          markGuestQuizCompleted();
+          const quizResults = {
+            careerQuizzes: visibleQuizzes.reduce<Record<string, Record<number, number>>>((acc, quiz) => {
+              const quizAnswers = answers?.[quiz.key];
+              if (quizAnswers && typeof quizAnswers === "object") {
+                acc[quiz.key] = quizAnswers;
+              }
+              return acc;
+            }, {}),
+            careerQuizzesSubmittedAt: new Date().toISOString(),
+          };
+          const payload = {
+            quizGroup: "careerQuizzes",
+            quizzes: visibleQuizzes.map((quiz) => ({
+              key: quiz.key,
+              title: quiz.title,
+              items: quiz.questions
+                .map((q) => {
+                  const selectedIdx = answers?.[quiz.key]?.[q.id];
+                  if (typeof selectedIdx !== "number") return null;
+                  return { question: q.text, selected: q.options[selectedIdx] };
+                })
+                .filter(Boolean),
+            })),
+          };
+          setPendingQuizSave({
+            quizGroup: "careerQuizzes",
+            quizResults,
+            quizPayload: payload,
+            createdAt: new Date().toISOString(),
+          });
+          setInsightModalOpen(true);
+          setInsightLoading(true);
+          setInsightError(null);
+          try {
+            const res = await fetch(`${API_BASE}/quiz-insights-guest`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok) {
+              throw new Error(data?.error || "Failed to generate insights.");
+            }
+            setInsightResponse({
+              overallSummary: data?.overallSummary || null,
+              insights: data?.insights || [],
+            });
+            setInsightProgress(100);
+          } catch (err) {
+            setInsightError(err instanceof Error ? err.message : "Failed to generate insights.");
+          } finally {
+            setInsightLoading(false);
+          }
+          return;
+        }
+        // Fetch current profile data so we don't overwrite other fields
+        const current = await (fetchProfileData ? fetchProfileData() : Promise.resolve(null));
+        // Some backends may nest data under profileData, so handle both shapes
+        const profileData = current?.profileData || current || {};
+
+        // New profile object with quiz results merged in
+        const existingQuizResults = (profileData as any)?.quizResults || {};
+        const existingCareerQuizzes = (existingQuizResults as any)?.careerQuizzes || {};
+        const updatedCareerQuizzes = {
+          ...existingCareerQuizzes,
+          ...visibleQuizzes.reduce<Record<string, Record<number, number>>>((acc, quiz) => {
+            const quizAnswers = answers?.[quiz.key];
+            if (quizAnswers && typeof quizAnswers === "object") {
+              acc[quiz.key] = quizAnswers;
+            }
+            return acc;
+          }, {}),
+        };
+        const newProfileData = {
+          ...profileData,
+          quizResults: {
+            ...existingQuizResults,
+            careerQuizzes: updatedCareerQuizzes,
+            careerQuizzesSubmittedAt: new Date().toISOString(),
+          },
+        };
+
+        // If saveProfileData is available, persist the updated profile
+        if (saveProfileData) {
+          await saveProfileData(newProfileData);
+          setHasSaved(true);
+          setIsEditing(false);
+          if (fetchWithAuth) {
+            const payload = {
+              quizGroup: "careerQuizzes",
+              quizzes: visibleQuizzes.map((quiz) => ({
+                key: quiz.key,
+                title: quiz.title,
+                items: quiz.questions
+                  .map((q) => {
+                    const selectedIdx = answers?.[quiz.key]?.[q.id];
+                    if (typeof selectedIdx !== "number") return null;
+                    return { question: q.text, selected: q.options[selectedIdx] };
+                  })
+                  .filter(Boolean),
+              })),
+            };
+            setInsightModalOpen(true);
+            setInsightLoading(true);
+            setInsightError(null);
+            try {
+              const res = await fetchWithAuth<QuizInsightResponse>("/quiz-insights", {
+                method: "POST",
+                body: JSON.stringify(payload),
+              });
+              setInsightResponse({
+                overallSummary: res.overallSummary || null,
+                insights: res.insights || [],
+              });
+              setInsightProgress(100);
+            } catch (err) {
+              setInsightError(err instanceof Error ? err.message : "Failed to generate insights.");
+            } finally {
+              setInsightLoading(false);
+            }
+          }
+        } else {
+          // If AuthContext doesn't expose saveProfileData, log and show a fallback message
+          console.warn("saveProfileData not available on AuthContext");
+          alert("Unable to save responses (not authenticated).");
+        }
+      } catch (err) {
+        // On any error, log details and show user-friendly message
+        console.error(err);
+        alert("Failed to save responses. Check console for details.");
+      }
+    })();
+  };
+
+  const handleInsightClose = () => {
+    setInsightModalOpen(false);
+    setInsightError(null);
+    setInsightProgress(0);
+  };
+
+  const handleViewInsights = () => {
+    if (guest) {
+      navigate("/quiz-preview/insights", { state: { insight: insightResponse } });
+      return;
+    }
+    if (insightResponse?.insights?.length) {
+      navigate("/quiz-insights?group=careerQuizzes", { state: { insight: insightResponse } });
+    } else {
+      navigate("/quiz-insights?group=careerQuizzes");
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-cream-base font-sans text-ink-primary">
+      <div className="mx-auto max-w-4xl px-6 py-12">
+      {/* Title for the overall tab */}
+      <h2 className="font-display text-2xl font-bold text-ink-primary mb-6">{headerTitle}</h2>
+
+      {!guest && !isEditing && hasSaved ? (
+        <div className="mb-8 rounded-xl border border-cream-muted bg-white p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div>
+              <h3 className="font-display text-lg font-semibold text-ink-primary">Your Results</h3>
+              <p className="text-sm text-ink-secondary mt-1">
+                Review your saved responses. You can update them anytime.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleViewInsights}
+                className="border border-forest-light bg-forest-light text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-forest-mid transition-colors"
+              >
+                View Insight
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/job-seeker/profile?tab=assessments")}
+                className="border border-cream-muted bg-white text-ink-secondary text-sm font-semibold px-5 py-2.5 rounded-full hover:border-forest-pale hover:text-forest-mid transition-colors"
+              >
+                Back to Assessments
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="border border-cream-muted bg-white text-ink-secondary text-sm font-semibold px-5 py-2.5 rounded-full hover:border-forest-pale hover:text-forest-mid transition-colors"
+              >
+                Change Answers
+              </button>
+            </div>
+          </div>
+          <div className="space-y-8">
+            {visibleQuizzes.map((quiz) => (
+              <section key={quiz.key}>
+                <h4 className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-4">{quiz.title}</h4>
+                <div className="space-y-4">
+                  {quiz.questions.map((q) => {
+                    const selected = answers?.[quiz.key]?.[q.id];
+                    return (
+                      <div key={q.id} className="rounded-xl border border-cream-muted bg-white p-5">
+                        <p className="text-sm font-semibold text-ink-primary mb-3">
+                          {q.id}. {q.text}
+                        </p>
+                        <div className="space-y-2">
+                          {q.options.map((opt, idx) => (
+                            <div
+                              key={idx}
+                              className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-sm ${
+                                selected === idx
+                                  ? "border-forest-light bg-forest-pale text-forest-dark font-medium"
+                                  : "border-cream-muted bg-cream-base text-ink-tertiary"
+                              }`}
+                            >
+                              <span
+                                className={`h-3.5 w-3.5 shrink-0 rounded-full border-2 flex items-center justify-center ${
+                                  selected === idx
+                                    ? "border-forest-mid bg-forest-mid"
+                                    : "border-cream-muted bg-white"
+                                }`}
+                              >
+                                {selected === idx && (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                                )}
+                              </span>
+                              {opt}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Render each quiz section */}
+          {visibleQuizzes.map((quiz) => (
+            <section key={quiz.key} className="mb-8">
+              <h3 className="font-display text-lg font-semibold text-ink-primary mb-4">{quiz.title}</h3>
+              <div className="space-y-5">
+                {quiz.questions.map((q) => (
+                  <div key={q.id} className="rounded-xl border border-cream-muted bg-white p-5">
+                    <fieldset>
+                      <legend className="text-sm font-semibold text-ink-primary mb-3">
+                        {q.id}. {q.text}
+                      </legend>
+                      <div className="space-y-2">
+                        {q.options.map((opt, idx) => (
+                          <label
+                            key={idx}
+                            className={`flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
+                              (answers[quiz.key]?.[q.id] ?? -1) === idx
+                                ? "border-forest-light bg-forest-pale text-forest-dark"
+                                : "border-cream-muted bg-cream-base text-ink-secondary hover:border-forest-light hover:text-ink-primary"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name={`${quiz.key}-q${q.id}`}
+                              checked={(answers[quiz.key]?.[q.id] ?? -1) === idx}
+                              onChange={() => onChange(quiz.key, q.id, idx)}
+                              className="accent-forest-mid"
+                            />
+                            <span className="text-sm">{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+        </>
+      )}
+
+      {/* Static list of archetypes for the user to read */}
+      {showArchetypes ? (
+        <section className="mb-6 rounded-xl border border-cream-muted bg-white p-5">
+          <h3 className="font-display text-lg font-semibold text-ink-primary mb-3">Archetypes</h3>
+          <ul className="space-y-2">
+            {archetypes.map((a, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-ink-secondary">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-forest-light" />
+                {a}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* Button that triggers saving all responses to the profile */}
+      {isEditing && (
+        <button
+          type="button"
+          onClick={onSubmitAll}
+          className="rounded-full bg-gradient-to-r from-forest-light via-forest-mid to-forest-dark px-6 py-3 text-sm font-semibold text-white shadow-md hover:opacity-90 transition-opacity"
+        >
+          {guest ? "Get Insight" : "Save Answers"}
+        </button>
+      )}
+
+      <QuizInsightModal
+        open={insightModalOpen}
+        loading={insightLoading}
+        progress={insightProgress}
+        title="Career Quizzes Insight"
+        error={insightError}
+        onClose={handleInsightClose}
+        onViewInsights={handleViewInsights}
+        onBackToAssessments={() =>
+          navigate(guest ? "/quiz-preview" : "/job-seeker/profile?tab=assessments")
+        }
+        backLabel={guest ? "Back to quizzes" : undefined}
+        viewLabel={guest ? "View insights" : undefined}
+      />
+      </div>
+    </div>
+  );
+}
