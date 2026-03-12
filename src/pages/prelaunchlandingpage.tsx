@@ -360,13 +360,12 @@ function PrelaunchLandingPage() {
             >
               Sign In
             </a>
-            <button
-              type="button"
-              onClick={() => setIsEarlyAccessOpen(true)}
+            <a
+              href="/register"
               className="bg-forest-dark text-white font-semibold text-[15px] px-6 py-2.5 rounded hover:bg-forest-mid transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
             >
               Get Started
-            </button>
+            </a>
           </div>
 
           {/* Mobile hamburger */}
@@ -405,13 +404,13 @@ function PrelaunchLandingPage() {
             >
               Sign In
             </a>
-            <button
-              type="button"
-              onClick={() => { setMobileMenuOpen(false); setIsEarlyAccessOpen(true); }}
-              className="w-full bg-forest-dark text-white font-semibold text-sm px-6 py-3 rounded hover:bg-forest-mid transition-colors"
+            <a
+              href="/register"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block w-full bg-forest-dark text-white font-semibold text-sm px-6 py-3 rounded hover:bg-forest-mid transition-colors text-center"
             >
               Get Started
-            </button>
+            </a>
           </div>
         )}
       </header>
