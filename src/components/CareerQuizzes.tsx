@@ -299,15 +299,15 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
 
   if (quizKey && visibleQuizzes.length === 0) {
     return (
-      <div className="p-4 max-w-3xl mx-auto text-slate-100">
-        <h2 className="text-xl font-semibold mb-2">Career Quiz</h2>
-        <p className="text-sm text-slate-200/80 mb-4">
+      <div className="p-4 max-w-3xl mx-auto text-ink-primary">
+        <h2 className="font-display text-xl font-semibold mb-2">Career Quiz</h2>
+        <p className="text-sm text-ink-secondary mb-4">
           That quiz could not be found. Please return to assessments to choose a quiz.
         </p>
         <button
           type="button"
           onClick={() => navigate("/job-seeker/profile?tab=assessments")}
-          className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-emerald-300/60"
+          className="border border-cream-muted bg-white text-ink-secondary text-sm font-semibold px-5 py-2.5 rounded hover:border-forest-pale hover:text-forest-mid transition-colors"
         >
           Back to Assessments
         </button>
@@ -562,60 +562,85 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
   };
 
   return (
-    <div className="p-4 max-w-4xl mx-auto text-slate-100">
+    <div className="min-h-screen bg-cream-base font-sans text-ink-primary">
+      <div className="mx-auto max-w-4xl px-6 py-12">
       {/* Title for the overall tab */}
-      <h2 className="text-xl font-semibold mb-2">{headerTitle}</h2>
+      <h2 className="font-display text-2xl font-bold text-ink-primary mb-6">{headerTitle}</h2>
 
       {!guest && !isEditing && hasSaved ? (
-        <div className="mb-8 rounded-2xl border border-white/10 bg-slate-900/60 p-6">
-          <div className="flex items-center justify-between gap-4">
+        <div className="mb-8 rounded-xl border border-cream-muted bg-white p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div>
-              <h3 className="text-lg font-semibold text-white">Your Results</h3>
-              <p className="text-sm text-slate-200/80">
+              <h3 className="font-display text-lg font-semibold text-ink-primary">Your Results</h3>
+              <p className="text-sm text-ink-secondary mt-1">
                 Review your saved responses. You can update them anytime.
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={handleViewInsights}
-                className="rounded-full border border-emerald-300/60 px-4 py-2 text-sm font-semibold text-emerald-100 hover:border-emerald-200"
+                className="border border-forest-light bg-forest-light text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-forest-mid transition-colors"
               >
                 View Insight
               </button>
               <button
                 type="button"
                 onClick={() => navigate("/job-seeker/profile?tab=assessments")}
-                className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-emerald-300/60"
+                className="border border-cream-muted bg-white text-ink-secondary text-sm font-semibold px-5 py-2.5 rounded-full hover:border-forest-pale hover:text-forest-mid transition-colors"
               >
                 Back to Assessments
               </button>
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-emerald-300/60"
+                className="border border-cream-muted bg-white text-ink-secondary text-sm font-semibold px-5 py-2.5 rounded-full hover:border-forest-pale hover:text-forest-mid transition-colors"
               >
                 Change Answers
               </button>
             </div>
           </div>
-          <div className="mt-6 space-y-6">
+          <div className="space-y-8">
             {visibleQuizzes.map((quiz) => (
               <section key={quiz.key}>
-                <h4 className="text-base font-semibold text-white">{quiz.title}</h4>
-                <ul className="mt-3 space-y-3">
+                <h4 className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-4">{quiz.title}</h4>
+                <div className="space-y-4">
                   {quiz.questions.map((q) => {
                     const selected = answers?.[quiz.key]?.[q.id];
-                    const answerText =
-                      typeof selected === "number" ? q.options[selected] : "No answer selected";
                     return (
-                      <li key={q.id} className="rounded-lg border border-white/10 bg-white/5 p-3">
-                        <p className="text-sm text-slate-100">{q.text}</p>
-                        <p className="mt-1 text-sm text-emerald-200">{answerText}</p>
-                      </li>
+                      <div key={q.id} className="rounded-xl border border-cream-muted bg-white p-5">
+                        <p className="text-sm font-semibold text-ink-primary mb-3">
+                          {q.id}. {q.text}
+                        </p>
+                        <div className="space-y-2">
+                          {q.options.map((opt, idx) => (
+                            <div
+                              key={idx}
+                              className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-sm ${
+                                selected === idx
+                                  ? "border-forest-light bg-forest-pale text-forest-dark font-medium"
+                                  : "border-cream-muted bg-cream-base text-ink-tertiary"
+                              }`}
+                            >
+                              <span
+                                className={`h-3.5 w-3.5 shrink-0 rounded-full border-2 flex items-center justify-center ${
+                                  selected === idx
+                                    ? "border-forest-mid bg-forest-mid"
+                                    : "border-cream-muted bg-white"
+                                }`}
+                              >
+                                {selected === idx && (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                                )}
+                              </span>
+                              {opt}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     );
                   })}
-                </ul>
+                </div>
               </section>
             ))}
           </div>
@@ -625,33 +650,39 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
           {/* Render each quiz section */}
           {visibleQuizzes.map((quiz) => (
             <section key={quiz.key} className="mb-8">
-              <h3 className="text-lg font-medium mb-2">{quiz.title}</h3>
-              <ol start={1} className="space-y-4 pl-5">
+              <h3 className="font-display text-lg font-semibold text-ink-primary mb-4">{quiz.title}</h3>
+              <div className="space-y-5">
                 {quiz.questions.map((q) => (
-                  <li key={q.id}>
+                  <div key={q.id} className="rounded-xl border border-cream-muted bg-white p-5">
                     <fieldset>
-                      <legend className="mb-1">
+                      <legend className="text-sm font-semibold text-ink-primary mb-3">
                         {q.id}. {q.text}
                       </legend>
-                      {/* Render options as radio buttons for each question */}
-                      {q.options.map((opt, idx) => (
-                        <label key={idx} className="block">
-                          <input
-                            type="radio"
-                            // Use a unique name per question so radios are grouped correctly
-                            name={`${quiz.key}-q${q.id}`}
-                            // Check if this option is the selected index for this question
-                            checked={(answers[quiz.key]?.[q.id] ?? -1) === idx}
-                            // Update state when user selects this option
-                            onChange={() => onChange(quiz.key, q.id, idx)}
-                          />{" "}
-                          {opt}
-                        </label>
-                      ))}
+                      <div className="space-y-2">
+                        {q.options.map((opt, idx) => (
+                          <label
+                            key={idx}
+                            className={`flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
+                              (answers[quiz.key]?.[q.id] ?? -1) === idx
+                                ? "border-forest-light bg-forest-pale text-forest-dark"
+                                : "border-cream-muted bg-cream-base text-ink-secondary hover:border-forest-light hover:text-ink-primary"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name={`${quiz.key}-q${q.id}`}
+                              checked={(answers[quiz.key]?.[q.id] ?? -1) === idx}
+                              onChange={() => onChange(quiz.key, q.id, idx)}
+                              className="accent-forest-mid"
+                            />
+                            <span className="text-sm">{opt}</span>
+                          </label>
+                        ))}
+                      </div>
                     </fieldset>
-                  </li>
+                  </div>
                 ))}
-              </ol>
+              </div>
             </section>
           ))}
         </>
@@ -659,11 +690,14 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
 
       {/* Static list of archetypes for the user to read */}
       {showArchetypes ? (
-        <section className="mb-6">
-          <h3 className="text-lg font-medium mb-2">Archetypes</h3>
-          <ul className="list-disc pl-6 space-y-1">
+        <section className="mb-6 rounded-xl border border-cream-muted bg-white p-5">
+          <h3 className="font-display text-lg font-semibold text-ink-primary mb-3">Archetypes</h3>
+          <ul className="space-y-2">
             {archetypes.map((a, i) => (
-              <li key={i}>{a}</li>
+              <li key={i} className="flex items-start gap-2 text-sm text-ink-secondary">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-forest-light" />
+                {a}
+              </li>
             ))}
           </ul>
         </section>
@@ -671,7 +705,11 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
 
       {/* Button that triggers saving all responses to the profile */}
       {isEditing && (
-        <button type="button" onClick={onSubmitAll} className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25">
+        <button
+          type="button"
+          onClick={onSubmitAll}
+          className="rounded-full bg-gradient-to-r from-forest-light via-forest-mid to-forest-dark px-6 py-3 text-sm font-semibold text-white shadow-md hover:opacity-90 transition-opacity"
+        >
           {guest ? "Get Insight" : "Save Answers"}
         </button>
       )}
@@ -690,6 +728,7 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
         backLabel={guest ? "Back to quizzes" : undefined}
         viewLabel={guest ? "View insights" : undefined}
       />
+      </div>
     </div>
   );
 }
