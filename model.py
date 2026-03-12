@@ -65,6 +65,35 @@ class AuditLog(db.Model):
     actor = db.relationship("User", backref="audit_logs")
 
 
+class ResumeParseCorrection(db.Model):
+    """Tracks user corrections to parser-extracted resume fields for training data improvement.
+
+    One record per (user, resume, field). When the user edits experience/education/skills after
+    a resume upload and saves, the delta between what the parser produced and what the user
+    actually wanted is captured here so the parser can be improved over time.
+    """
+
+    __tablename__ = "resume_parse_correction"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    resume_key = db.Column(db.String(500), nullable=False)
+    field = db.Column(db.String(50), nullable=False)  # "experience", "education", or "skills"
+    parsed_value = db.Column(JSON, nullable=True)   # what the parser originally produced
+    corrected_value = db.Column(JSON, nullable=True)  # what the user ultimately saved
+    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+
+    user = db.relationship("User", backref="resume_corrections")
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "user_id", "resume_key", "field",
+            name="uq_correction_user_resume_field",
+        ),
+    )
+
+
 class IntakeSubmission(db.Model):
     """Stores pre-launch intake submissions and associated resume upload metadata."""
 
