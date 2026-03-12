@@ -4,44 +4,28 @@ import { useAuth } from '../contexts/useAuth';
 import { User, LogOut, Briefcase } from 'lucide-react';
 
 function Header() {
-  // Retrieve the currently logged-in user and the logout method from AuthContext
   const { user, logout } = useAuth();
   const [feedPopupOpen, setFeedPopupOpen] = useState(false);
 
-  // Hooks for navigation and getting the current URL path
   const navigate = useNavigate();
   const location = useLocation();
 
-  /**
-   * Log out the user and redirect to the home page.
-   */
   const handleLogout = () => {
-    logout(); // clears authentication
-    navigate('/'); // redirect to landing page
+    logout();
+    navigate('/');
   };
+
   const handleFeedClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     setFeedPopupOpen(true);
   };
 
-  /**
-   * Compute dashboard link based on user role.
-   * - job-seeker → /job-seeker/dashboard
-   * - recruiter → /recruiter/dashboard
-   * - no user → /
-   */
   const getDashboardPath = () => {
     if (user?.role === 'job-seeker') return '/job-seeker/dashboard';
     if (user?.role === 'recruiter') return '/recruiter/dashboard';
     return '/';
   };
 
-  /**
-   * Compute profile link based on user role.
-   * - job-seeker → /job-seeker/profile
-   * - recruiter → /recruiter/profile
-   * - no user → /
-   */
   const getProfilePath = () => {
     if (user?.role === 'job-seeker') return '/job-seeker/profile';
     if (user?.role === 'recruiter') return '/recruiter/profile';
@@ -52,71 +36,53 @@ function Header() {
   const isProfile = location.pathname.includes('profile');
   const isFeed = location.pathname === '/feed';
 
+  const navLinkCls = (active: boolean) =>
+    `px-3 py-2 text-sm font-medium transition-colors rounded ${
+      active
+        ? 'text-forest-mid bg-forest-pale'
+        : 'text-ink-secondary hover:text-forest-mid hover:bg-cream-subtle'
+    }`;
+
   return (
-    <header className="border-b border-white/10 bg-slate-950/80 backdrop-blur supports-[backdrop-filter]:bg-slate-950/60">
-      {/* Centered container */}
+    <header className="sticky top-0 z-50 border-b border-cream-muted bg-cream-base/95 backdrop-blur font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header content wrapper */}
         <div className="flex justify-between items-center h-16">
-          {/* Logo + Home link */}
-          <Link to="/" className="flex items-center space-x-2">
-            <Briefcase className="h-8 w-8 text-emerald-300" />
-            <span className="text-2xl font-bold text-white">Solverah</span>
+          {/* Logo */}
+          <Link to={user ? getDashboardPath() : "/"} className="font-display text-2xl font-bold text-forest-dark tracking-tight">
+            Solverah
           </Link>
 
-          {/* Navigation links */}
-          <nav className="flex items-center space-x-6">
+          {/* Nav */}
+          <nav className="flex items-center gap-1">
             {user ? (
-              // If user IS logged in, show dashboard, feed, profile, logout, etc.
               <>
-                {/* Feed Link (highlight if on /feed) */}
                 <Link
                   to="/feed"
                   onClick={handleFeedClick}
-                  className={`px-3 py-2 rounded-full text-sm font-medium transition-colors ${
-                    isFeed
-                      ? 'text-emerald-200 bg-white/10'
-                      : 'text-slate-200 hover:text-emerald-200 hover:bg-white/5'
-                  }`}
+                  className={navLinkCls(isFeed)}
                 >
                   Feed
                 </Link>
-
-                {/* Dashboard Link (highlight if pathname includes "dashboard") */}
                 <Link
                   to={getDashboardPath()}
-                  className={`px-3 py-2 rounded-full text-sm font-medium transition-colors ${
-                    isDashboard
-                      ? 'text-emerald-200 bg-white/10'
-                      : 'text-slate-200 hover:text-emerald-200 hover:bg-white/5'
-                  }`}
+                  className={navLinkCls(isDashboard)}
                 >
                   Dashboard
                 </Link>
-
-                {/* Profile Link (highlight if pathname includes "profile") */}
                 <Link
                   to={getProfilePath()}
-                  className={`px-3 py-2 rounded-full text-sm font-medium transition-colors ${
-                    isProfile
-                      ? 'text-emerald-200 bg-white/10'
-                      : 'text-slate-200 hover:text-emerald-200 hover:bg-white/5'
-                  }`}
+                  className={navLinkCls(isProfile)}
                 >
-                  <User className="h-4 w-4 inline mr-1" />
+                  <User className="h-4 w-4 inline mr-1 -mt-0.5" />
                   Profile
                 </Link>
-
-                {/* User info + logout button */}
-                <div className="flex items-center space-x-3">
-                  <span className="text-sm text-slate-200/80">
-                    {user.name} ({user.role === 'job-seeker' ? 'Job Seeker' : 'Recruiter'})
+                <div className="flex items-center gap-3 ml-4 pl-4 border-l border-cream-muted">
+                  <span className="text-sm text-ink-tertiary">
+                    {user.name}
                   </span>
-
-                  {/* Logout icon button */}
                   <button
                     onClick={handleLogout}
-                    className="p-2 text-slate-300 hover:text-red-300 transition-colors"
+                    className="p-2 text-ink-tertiary hover:text-red-600 transition-colors rounded hover:bg-red-50"
                     title="Logout"
                   >
                     <LogOut className="h-4 w-4" />
@@ -124,18 +90,16 @@ function Header() {
                 </div>
               </>
             ) : (
-              // If NO user logged in → show Sign In / Register buttons
               <>
                 <Link
                   to="/login"
-                  className="text-slate-200 hover:text-white px-3 py-2 rounded-full text-sm font-medium transition-colors"
+                  className="text-sm font-medium text-ink-secondary px-4 py-2 rounded hover:text-forest-mid transition-colors"
                 >
                   Sign In
                 </Link>
-
                 <Link
                   to="/register"
-                  className="bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 text-slate-950 hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400 px-4 py-2 rounded-full text-sm font-semibold transition-colors"
+                  className="bg-forest-dark text-white text-sm font-semibold px-5 py-2 rounded hover:bg-forest-mid transition-colors"
                 >
                   Get Started
                 </Link>
@@ -144,29 +108,26 @@ function Header() {
           </nav>
         </div>
       </div>
+
+      {/* Feed coming-soon modal */}
       {feedPopupOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/80 px-4 pt-24"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-ink-primary/50 backdrop-blur-sm px-4 pt-24"
           role="dialog"
           aria-modal="true"
           aria-labelledby="feed-popup-title"
         >
-          <div className="w-full max-w-xl rounded-3xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl">
-            <div>
-              <p
-                id="feed-popup-title"
-                className="text-xl font-semibold text-white"
-              >
-                Feature coming soon
-              </p>
-              <p className="mt-2 text-sm text-slate-200/80">
-                This feature will be available soon.
-              </p>
-            </div>
+          <div className="w-full max-w-xl rounded-xl border border-cream-muted bg-cream-base p-8 shadow-2xl">
+            <p id="feed-popup-title" className="font-display text-xl font-semibold text-ink-primary">
+              Feature coming soon
+            </p>
+            <p className="mt-2 text-sm text-ink-secondary leading-relaxed">
+              The feed will be available soon. Check back after launch.
+            </p>
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() => setFeedPopupOpen(false)}
-                className="rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-slate-950 hover:from-emerald-300 hover:via-blue-400 hover:to-indigo-400"
+                className="bg-forest-dark text-white text-sm font-semibold px-6 py-2.5 rounded hover:bg-forest-mid transition-colors"
               >
                 Got it
               </button>

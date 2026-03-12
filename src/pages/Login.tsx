@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
 import { getPendingQuizSave, clearPendingQuizSave } from "../utils/guestQuiz";
-import { Mail, Lock, Briefcase } from 'lucide-react';
 import { API_BASE as API_URL } from "../utils/api";
 
 function ResendConfirmation({ email }: { email: string }) {
   const navigate = useNavigate();
-  const [status, setStatus] = useState<'idle'|'sending'|'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'sending' | 'error'>('idle');
   const [msg, setMsg] = useState('');
 
   const handleResend = async () => {
@@ -30,7 +29,6 @@ function ResendConfirmation({ email }: { email: string }) {
         setMsg(data?.error || 'Failed to resend code');
         return;
       }
-      // Navigate to code-entry page with email pre-filled
       navigate('/verify-email', { state: { email } });
     } catch (err: any) {
       setStatus('error');
@@ -42,12 +40,12 @@ function ResendConfirmation({ email }: { email: string }) {
     <div className="mt-2">
       <button
         onClick={handleResend}
-        className="text-sm underline text-emerald-200"
+        className="text-sm font-medium text-forest-mid underline underline-offset-4 hover:text-forest-dark transition-colors"
         disabled={status === 'sending'}
       >
-        {status === 'sending' ? 'Sending...' : 'Resend verification code'}
+        {status === 'sending' ? 'Sending…' : 'Resend verification code'}
       </button>
-      {msg && <div className={`text-sm text-red-300`}>{msg}</div>}
+      {msg && <p className="mt-1 text-sm text-red-600">{msg}</p>}
     </div>
   );
 }
@@ -72,26 +70,20 @@ function Login() {
         loggedInUser.role === 'job-seeker' ? '/job-seeker/dashboard' : '/recruiter/dashboard';
 
       const pending = getPendingQuizSave();
-      if (pending && loggedInUser.role === "job-seeker" && fetchWithAuth) {
+      if (pending && loggedInUser.role === 'job-seeker' && fetchWithAuth) {
         try {
-          await fetchWithAuth("/profile", {
-            method: "POST",
-            body: JSON.stringify({
-              profileData: {
-                quizResults: pending.quizResults,
-              },
-            }),
+          await fetchWithAuth('/profile', {
+            method: 'POST',
+            body: JSON.stringify({ profileData: { quizResults: pending.quizResults } }),
           });
-
-          await fetchWithAuth("/quiz-insights", {
-            method: "POST",
+          await fetchWithAuth('/quiz-insights', {
+            method: 'POST',
             body: JSON.stringify(pending.quizPayload),
           });
-
           redirectPath = `/quiz-insights?group=${encodeURIComponent(pending.quizGroup)}`;
           clearPendingQuizSave();
         } catch (saveErr) {
-          console.error("Failed to save pending quiz:", saveErr);
+          console.error('Failed to save pending quiz:', saveErr);
         }
       }
 
@@ -108,98 +100,88 @@ function Login() {
     }
   };
 
+  const inputCls =
+    'w-full rounded border border-cream-muted bg-cream-base px-4 py-3 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors';
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 py-12 px-4 sm:px-6 lg:px-8 text-slate-100">
-      <div className="max-w-md w-full space-y-8 rounded-2xl border border-white/10 bg-slate-900/70 p-8 shadow-2xl shadow-black/40">
-        <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-emerald-400/10">
-            <Briefcase className="h-6 w-6 text-emerald-200" />
+    <div className="min-h-screen bg-cream-base font-sans flex items-center justify-center py-16 px-4">
+      <div className="w-full max-w-md">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 text-sm text-ink-tertiary hover:text-forest-mid transition-colors mb-8"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Back to Solverah
+        </Link>
+
+        <div className="border border-cream-muted rounded-xl bg-white p-8">
+          <div className="mb-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-2">Welcome back</p>
+            <h1 className="font-display text-3xl font-bold text-ink-primary">Sign in to your account</h1>
+            <p className="mt-2 text-sm text-ink-secondary">
+              Don't have an account?{' '}
+              <Link to="/register" className="font-semibold text-forest-mid hover:text-forest-dark transition-colors">
+                Create one here
+              </Link>
+            </p>
           </div>
-          <h2 className="mt-6 text-center text-3xl font-semibold text-white">
-            Sign in to your account
-          </h2>
-          <p className="mt-2 text-center text-sm text-slate-200/80">
-            Or{' '}
-            <Link
-              to="/register"
-              className="font-semibold text-emerald-200 hover:text-emerald-100"
-            >
-              create a new account
-            </Link>
-          </p>
-        </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="rounded-md bg-red-500/10 p-4 text-sm text-red-100 ring-1 ring-red-500/30">
-              {error}
-              {/* Resend confirmation when email not confirmed */}
-            </div>
-          )}
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            {error && (
+              <div className="rounded bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
 
-          {/* Resend confirmation UI when appropriate */}
-          {error && error.toLowerCase().includes('not confirmed') && (
-            <div className="mt-3 text-center">
+            {error && error.toLowerCase().includes('not confirmed') && (
               <ResendConfirmation email={email} />
-            </div>
-          )}
+            )}
 
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="email" className="sr-only">
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="text-sm font-medium text-ink-primary">
                 Email address
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-slate-400" />
-                </div>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none relative block w-full px-3 py-2 pl-10 rounded-md border border-white/10 bg-white/5 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-300/50 focus:border-emerald-300/70"
-                  placeholder="Email address"
-                />
-              </div>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={inputCls}
+                placeholder="you@example.com"
+              />
             </div>
 
-            <div>
-              <label htmlFor="password" className="sr-only">
+            <div className="space-y-1.5">
+              <label htmlFor="password" className="text-sm font-medium text-ink-primary">
                 Password
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-slate-400" />
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none relative block w-full px-3 py-2 pl-10 rounded-md border border-white/10 bg-white/5 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-300/50 focus:border-emerald-300/70"
-                  placeholder="Password"
-                />
-              </div>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inputCls}
+                placeholder="Your password"
+              />
             </div>
-          </div>
 
-          <div>
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 rounded-full text-sm font-semibold text-slate-950 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-400/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-forest-dark text-white font-semibold py-3 rounded hover:bg-forest-mid transition-colors disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Signing in…' : 'Sign in'}
             </button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );
