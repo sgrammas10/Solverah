@@ -5,8 +5,10 @@ from flask_jwt_extended import (
     create_access_token,
     jwt_required,
     get_jwt_identity,
+    get_jwt,
     set_access_cookies,
     unset_jwt_cookies,
+    get_csrf_token,
 )
 from flask_talisman import Talisman
 
@@ -860,6 +862,7 @@ def intake_sign_in():
     access_token = create_access_token(identity=user.email)
     resp = jsonify({
         "message": "signed in",
+        "csrfToken": get_csrf_token(access_token),
         "user": {
             "id": user.id,
             "email": user.email,
@@ -965,13 +968,13 @@ def login():
     # Build JSON response
     resp = jsonify({
         "message": "login successful",
+        "csrfToken": get_csrf_token(access_token),
         "user": {
             "id": user.id,
             "email": user.email,
             "name": user.name,
             "role": user.role,
         }
-        # can omit "token" now, since it's in the cookie
     })
 
     # Attach JWT as HttpOnly cookie
@@ -1127,7 +1130,8 @@ def profile():
             "email": user.email,
             "name": user.name,
             "role": user.role,
-            "profileData": user.profile_data or {}
+            "profileData": user.profile_data or {},
+            "csrfToken": get_jwt().get("csrf"),
         })
 
     # Handle profile update (POST)
