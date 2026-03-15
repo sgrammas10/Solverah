@@ -54,9 +54,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ...(options.headers || {}),
     };
 
-    // attach CSRF token for state-changing requests
-    if (csrfToken && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
-      (headers as any)["X-CSRF-TOKEN"] = csrfToken;
+    // attach CSRF token for state-changing requests — read fresh from cookie each time
+    const currentCsrfToken = getCookie("csrf_access_token") || csrfToken;
+    if (currentCsrfToken && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+      (headers as any)["X-CSRF-TOKEN"] = currentCsrfToken;
     }
 
     const res = await fetch(`${API_URL}${endpoint}`, {
