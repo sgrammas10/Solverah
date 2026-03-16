@@ -10,8 +10,14 @@ type InsightEntry = {
   nextSteps?: string[];
 };
 
+type OverallInsight = {
+  summary?: string;
+  keyTakeaways?: string[];
+  nextSteps?: string[];
+};
+
 type InsightGroup = {
-  _overallSummary?: string;
+  _overallInsight?: OverallInsight;
   _generatedAt?: string;
   _model?: string;
   [key: string]: any;
@@ -140,24 +146,63 @@ export default function QuizInsights() {
     if (group === "careerQuizzes") {
       const groupData = insightsData.careerQuizzes as InsightGroup | undefined;
       if (!groupData) return null;
-      const cards = Object.keys(groupData)
-        .filter((key) => !key.startsWith("_"))
+      const CAREER_QUIZ_ORDER = ["earlyCareer", "careerTransition", "midCareer", "teenFocused", "careerJobSearch", "yourFutureYourWay"];
+      const allKeys = Object.keys(groupData).filter((key) => !key.startsWith("_"));
+      const sortedKeys = [
+        ...CAREER_QUIZ_ORDER.filter((k) => allKeys.includes(k)),
+        ...allKeys.filter((k) => !CAREER_QUIZ_ORDER.includes(k)),
+      ];
+      const cards = sortedKeys
         .map((key) => {
           const entry = groupData[key] as InsightEntry;
           return renderInsightCard(entry?.title || key, entry);
         })
         .filter(Boolean);
+      const overall = groupData._overallInsight;
       return (
         <>
-          {groupData._overallSummary ? (
-            <div className="rounded-xl border border-forest-pale bg-forest-pale px-5 py-4 text-sm text-forest-dark">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-mid mb-2">
-                Overall summary
+          <div className="mt-4 grid gap-4">{cards}</div>
+          {overall?.summary ? (
+            <div className="mt-6 rounded-2xl border-2 border-forest-mid bg-forest-dark p-6 text-cream-base">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-forest-pale mb-1">
+                Combined Insight
               </p>
-              <p className="leading-relaxed">{groupData._overallSummary}</p>
+              <h3 className="font-display text-lg font-bold text-white mb-3">
+                Across All Your Quizzes
+              </h3>
+              <p className="text-sm leading-relaxed text-cream-subtle mb-4">{overall.summary}</p>
+              {overall.keyTakeaways?.length ? (
+                <div className="mb-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-pale mb-2">
+                    Key takeaways
+                  </p>
+                  <ul className="space-y-1.5">
+                    {overall.keyTakeaways.map((item, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm text-cream-subtle">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-forest-pale" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {overall.nextSteps?.length ? (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-pale mb-2">
+                    Next steps
+                  </p>
+                  <ul className="space-y-1.5">
+                    {overall.nextSteps.map((item, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm text-cream-subtle">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-forest-light" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
           ) : null}
-          <div className="mt-4 grid gap-4">{cards}</div>
         </>
       );
     }
