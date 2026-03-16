@@ -1284,9 +1284,7 @@ def quiz_insights():
         insight_payload = json.loads(content)
     except Exception as exc:
         app.logger.exception("Quiz insight generation failed")
-        if not is_production:
-            return jsonify({"error": f"Unable to generate insight: {exc}"}), 500
-        return jsonify({"error": "Unable to generate insight"}), 500
+        return jsonify({"error": f"Unable to generate insight: {type(exc).__name__}: {exc}"}), 500
 
     normalized_payload = _coerce_insight_payload(insight_payload, quiz_group, normalized_quizzes)
     insights = normalized_payload.get("insights") if isinstance(normalized_payload, dict) else None
@@ -1409,9 +1407,7 @@ def quiz_insights_guest():
         insight_payload = json.loads(content)
     except Exception as exc:
         app.logger.exception("Quiz insight generation failed")
-        if not is_production:
-            return jsonify({"error": f"Unable to generate insight: {exc}"}), 500
-        return jsonify({"error": "Unable to generate insight"}), 500
+        return jsonify({"error": f"Unable to generate insight: {type(exc).__name__}: {exc}"}), 500
 
     normalized_payload = _coerce_insight_payload(insight_payload, quiz_group, normalized_quizzes)
     insights = normalized_payload.get("insights") if isinstance(normalized_payload, dict) else None
