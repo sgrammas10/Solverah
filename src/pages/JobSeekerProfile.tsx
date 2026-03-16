@@ -108,6 +108,7 @@ function JobSeekerProfile() {
     location: string;
     primaryLocation?: string;
     secondaryLocations?: string[];
+    linkedinUrl?: string;
     summary: string;
 
     // Experience / Education / Skills
@@ -139,6 +140,7 @@ function JobSeekerProfile() {
     location: string;
     primaryLocation: string;
     secondaryLocations: string[];
+    linkedinUrl: string;
     summary: string;
     experience: any[];
     education: any[];
@@ -168,6 +170,7 @@ function JobSeekerProfile() {
     location: '',
     primaryLocation: '',
     secondaryLocations: [],
+    linkedinUrl: '',
     summary: '',
     experience: [],
     education: [],
@@ -257,6 +260,7 @@ function JobSeekerProfile() {
       location: legacyLocation ?? undefined,
       primaryLocation: incoming.primaryLocation ?? legacyLocation ?? undefined,
       secondaryLocations: incoming.secondaryLocations ?? [],
+      linkedinUrl: incoming.linkedinUrl ?? undefined,
       summary: incoming.summary ?? undefined,
       experience: incoming.experience ?? undefined,
       education: incoming.education ?? undefined,
@@ -841,6 +845,21 @@ function JobSeekerProfile() {
                     value={formData.phone}
                     onChange={(e) => handleChange("phone", e.target.value)}
                     className="w-full border border-cream-muted bg-cream-base px-3 py-2.5 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors rounded-md"
+                  />
+                </div>
+
+                {/* LinkedIn URL */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-ink-secondary mb-2">
+                    LinkedIn Profile URL
+                  </label>
+                  <input
+                    type="url"
+                    maxLength={400}
+                    value={formData.linkedinUrl}
+                    onChange={(e) => handleChange("linkedinUrl", e.target.value)}
+                    className="w-full border border-cream-muted bg-cream-base px-3 py-2.5 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors rounded-md"
+                    placeholder="https://www.linkedin.com/in/your-profile"
                   />
                 </div>
 
