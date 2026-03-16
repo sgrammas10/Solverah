@@ -34,6 +34,7 @@ export default function QuizInsights() {
   const [insightsData, setInsightsData] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<string>("all");
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = location.state as {
@@ -152,17 +153,52 @@ export default function QuizInsights() {
         ...CAREER_QUIZ_ORDER.filter((k) => allKeys.includes(k)),
         ...allKeys.filter((k) => !CAREER_QUIZ_ORDER.includes(k)),
       ];
-      const cards = sortedKeys
+      const overall = groupData._overallInsight;
+
+      const filterOptions = [
+        { value: "all", label: "All" },
+        ...sortedKeys.map((key) => ({
+          value: key,
+          label: (groupData[key] as InsightEntry)?.title || key,
+        })),
+        ...(overall?.summary ? [{ value: "overall", label: "Overall Summary" }] : []),
+      ];
+
+      const showOverall = activeFilter === "all" || activeFilter === "overall";
+      const visibleKeys = activeFilter === "all" || activeFilter === "overall"
+        ? (activeFilter === "overall" ? [] : sortedKeys)
+        : sortedKeys.filter((k) => k === activeFilter);
+
+      const cards = visibleKeys
         .map((key) => {
           const entry = groupData[key] as InsightEntry;
           return renderInsightCard(entry?.title || key, entry);
         })
         .filter(Boolean);
-      const overall = groupData._overallInsight;
+
       return (
         <>
-          <div className="mt-4 grid gap-4">{cards}</div>
-          {overall?.summary ? (
+          {/* Filter pills */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {filterOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setActiveFilter(opt.value)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors border ${
+                  activeFilter === opt.value
+                    ? "bg-forest-dark text-white border-forest-dark"
+                    : "bg-white text-ink-secondary border-cream-muted hover:border-forest-pale hover:text-forest-mid"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {cards.length > 0 && <div className="mt-4 grid gap-4">{cards}</div>}
+
+          {showOverall && overall?.summary ? (
             <div className="mt-6 rounded-2xl border-2 border-forest-mid bg-forest-dark p-6 text-cream-base">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-forest-pale mb-1">
                 Combined Insight
