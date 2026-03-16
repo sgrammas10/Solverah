@@ -19,6 +19,7 @@ ALLOWED_PROFILE_FIELDS = {
     "applications",
     "uploadedResume",
     "resumeKey",
+    "linkedinUrl",
 }
 
 # Basic password rules for registration
