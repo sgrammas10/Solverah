@@ -229,7 +229,7 @@ def _get_openai_client():
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not set")
-    return OpenAI(api_key=api_key)
+    return OpenAI(api_key=api_key, timeout=60.0, max_retries=2)
 
 
 def _build_quiz_insight_prompt(quiz_group: str, quizzes: list[dict]) -> list[dict]:
