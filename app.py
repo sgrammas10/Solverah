@@ -5,8 +5,10 @@ from flask_jwt_extended import (
     create_access_token,
     jwt_required,
     get_jwt_identity,
+    get_jwt,
     set_access_cookies,
     unset_jwt_cookies,
+    get_csrf_token,
 )
 from flask_talisman import Talisman
 
@@ -224,34 +226,38 @@ def _module_available(module_name: str) -> bool:
 def _get_openai_client():
     if OpenAI is None:
         raise RuntimeError("OpenAI SDK not installed")
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not set")
-    return OpenAI(api_key=api_key)
+    return OpenAI(api_key=api_key, timeout=60.0, max_retries=2)
 
 
 def _build_quiz_insight_prompt(quiz_group: str, quizzes: list[dict]) -> list[dict]:
+    quiz_keys = [q.get("key", f"quiz_{i}") for i, q in enumerate(quizzes)]
     system = (
         "You are an expert career insights engine designed to analyze structured quiz responses "
         "and extract meaningful career-related patterns.\n\n"
-        
+
         "PRIMARY OBJECTIVE:\n"
-        "Synthesize answers across quizzes into high-signal insights that help a user better "
-        "understand their work preferences, strengths, and potential career directions.\n\n"
+        "Generate one distinct, personalized insight for EACH quiz provided. "
+        "Each insight must be specific to that quiz's answers — do not merge or combine quizzes.\n\n"
 
         "STRICT RULES:\n"
         "- Output VALID JSON only. Do not include markdown, commentary, or extra text.\n"
+        "- The 'insights' array MUST contain exactly one entry per quiz, in the same order as the input.\n"
+        "- Each insight's 'key' MUST exactly match the corresponding quiz's 'key' field.\n"
         "- Do NOT invent traits, preferences, or experiences not supported by the input.\n"
         "- Do NOT provide medical, psychological, or legal advice.\n"
         "- Avoid generic career advice that could apply to anyone.\n"
-        "- Focus on PATTERNS and INTERSECTIONS across answers rather than summarizing individual responses.\n"
         "- Maintain a professional, supportive, and non-judgmental tone.\n"
         "- Be concise but information-dense.\n"
 
         "INSIGHT QUALITY GUIDELINES:\n"
-        "- Each insight should reveal something the user may not have explicitly recognized.\n"
+        "- Each insight should reveal something specific to that quiz's answers.\n"
         "- Prefer specificity over broad statements.\n"
         "- Recommendations must be practical and immediately actionable.\n"
+        f"- You will receive {len(quizzes)} quiz(zes). Return exactly {len(quizzes)} insight(s).\n"
+        f"- Expected keys in order: {quiz_keys}\n"
     )
     user_payload = {
         "quiz_group": quiz_group,
@@ -261,18 +267,31 @@ def _build_quiz_insight_prompt(quiz_group: str, quizzes: list[dict]) -> list[dic
             "length": "short but meaningful",
             "key_takeaways_count": "3-5",
             "next_steps_count": "2-4",
+            "insights_count": len(quizzes),
         },
         "output_format": {
-            "overallSummary": "string",
+            "overallInsight": {
+                "summary": "string — synthesis across ALL quizzes combined",
+                "keyTakeaways": ["string — cross-quiz pattern or theme"],
+                "nextSteps": ["string — actionable step informed by all quizzes"],
+            },
             "insights": [
                 {
-                    "key": "string",
+                    "key": "must match the quiz key exactly",
+                    "title": "string — name of this specific quiz",
+                    "summary": "string — insight specific to this quiz only",
+                    "keyTakeaways": ["string"],
+                    "combinedMeaning": "string",
+                    "nextSteps": ["string"],
+                },
+                {
+                    "key": "next quiz key",
                     "title": "string",
                     "summary": "string",
                     "keyTakeaways": ["string"],
                     "combinedMeaning": "string",
                     "nextSteps": ["string"],
-                }
+                },
             ],
         },
     }
@@ -286,7 +305,8 @@ def _coerce_insight_payload(payload: dict, quiz_group: str, fallback_quizzes: li
     if not isinstance(payload, dict):
         return {}
     insights = payload.get("insights")
-    overall = payload.get("overallSummary") if isinstance(payload.get("overallSummary"), str) else None
+    raw_overall = payload.get("overallInsight")
+    overall_insight = raw_overall if isinstance(raw_overall, dict) else None
 
     if isinstance(insights, dict):
         insights = [insights]
@@ -315,7 +335,7 @@ def _coerce_insight_payload(payload: dict, quiz_group: str, fallback_quizzes: li
     if not normalized:
         return {}
 
-    return {"overallSummary": overall, "insights": normalized}
+    return {"overallInsight": overall_insight, "insights": normalized}
 
 
 def _extract_resume_text(file_path: Path, mime: str) -> str:
@@ -422,6 +442,7 @@ def _build_profile_from_intake(intake: IntakeSubmission) -> dict:
             "phone": intake.phone or "",
             "location": intake.state or "",
             "primaryLocation": intake.state or "",
+            "linkedinUrl": intake.linkedin_url or "",
             "experience": experience_entries,
             "education": education_entries,
             "skills": skills,
@@ -860,6 +881,7 @@ def intake_sign_in():
     access_token = create_access_token(identity=user.email)
     resp = jsonify({
         "message": "signed in",
+        "csrfToken": get_csrf_token(access_token),
         "user": {
             "id": user.id,
             "email": user.email,
@@ -886,6 +908,7 @@ def default_profile(email="", name="", role="job-seeker"):
         "location": "",
         "primaryLocation": "",
         "secondaryLocations": [],
+        "linkedinUrl": "",
         "summary": "",
         "experience": [],
         "education": [],
@@ -965,13 +988,13 @@ def login():
     # Build JSON response
     resp = jsonify({
         "message": "login successful",
+        "csrfToken": get_csrf_token(access_token),
         "user": {
             "id": user.id,
             "email": user.email,
             "name": user.name,
             "role": user.role,
         }
-        # can omit "token" now, since it's in the cookie
     })
 
     # Attach JWT as HttpOnly cookie
@@ -1127,7 +1150,8 @@ def profile():
             "email": user.email,
             "name": user.name,
             "role": user.role,
-            "profileData": user.profile_data or {}
+            "profileData": user.profile_data or {},
+            "csrfToken": get_jwt().get("csrf"),
         })
 
     # Handle profile update (POST)
@@ -1280,14 +1304,12 @@ def quiz_insights():
         insight_payload = json.loads(content)
     except Exception as exc:
         app.logger.exception("Quiz insight generation failed")
-        if not is_production:
-            return jsonify({"error": f"Unable to generate insight: {exc}"}), 500
-        return jsonify({"error": "Unable to generate insight"}), 500
+        return jsonify({"error": f"Unable to generate insight: {type(exc).__name__}: {exc}"}), 500
 
     normalized_payload = _coerce_insight_payload(insight_payload, quiz_group, normalized_quizzes)
     insights = normalized_payload.get("insights") if isinstance(normalized_payload, dict) else None
-    overall_summary = (
-        normalized_payload.get("overallSummary") if isinstance(normalized_payload, dict) else None
+    overall_insight = (
+        normalized_payload.get("overallInsight") if isinstance(normalized_payload, dict) else None
     )
 
     if not isinstance(insights, list):
@@ -1314,8 +1336,8 @@ def quiz_insights():
             group_store = {}
         else:
             group_store = dict(group_store)
-        if overall_summary:
-            group_store["_overallSummary"] = overall_summary
+        if overall_insight and isinstance(overall_insight, dict):
+            group_store["_overallInsight"] = overall_insight
         group_store["_generatedAt"] = timestamp
         group_store["_model"] = model
         for insight in insights:
@@ -1343,7 +1365,7 @@ def quiz_insights():
             "keyTakeaways": first.get("keyTakeaways"),
             "combinedMeaning": first.get("combinedMeaning"),
             "nextSteps": first.get("nextSteps"),
-            "overallSummary": overall_summary,
+            "overallInsight": overall_insight,
             "generatedAt": timestamp,
             "model": model,
         }
@@ -1354,7 +1376,7 @@ def quiz_insights():
 
     return jsonify({
         "quizGroup": quiz_group,
-        "overallSummary": overall_summary,
+        "overallInsight": overall_insight,
         "insights": insights,
     })
 
@@ -1405,9 +1427,7 @@ def quiz_insights_guest():
         insight_payload = json.loads(content)
     except Exception as exc:
         app.logger.exception("Quiz insight generation failed")
-        if not is_production:
-            return jsonify({"error": f"Unable to generate insight: {exc}"}), 500
-        return jsonify({"error": "Unable to generate insight"}), 500
+        return jsonify({"error": f"Unable to generate insight: {type(exc).__name__}: {exc}"}), 500
 
     normalized_payload = _coerce_insight_payload(insight_payload, quiz_group, normalized_quizzes)
     insights = normalized_payload.get("insights") if isinstance(normalized_payload, dict) else None

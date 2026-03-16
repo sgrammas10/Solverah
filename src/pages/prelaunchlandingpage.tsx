@@ -360,13 +360,12 @@ function PrelaunchLandingPage() {
             >
               Sign In
             </a>
-            <button
-              type="button"
-              onClick={() => setIsEarlyAccessOpen(true)}
+            <a
+              href="/register"
               className="bg-forest-dark text-white font-semibold text-[15px] px-6 py-2.5 rounded hover:bg-forest-mid transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
             >
               Get Started
-            </button>
+            </a>
           </div>
 
           {/* Mobile hamburger */}
@@ -405,13 +404,13 @@ function PrelaunchLandingPage() {
             >
               Sign In
             </a>
-            <button
-              type="button"
-              onClick={() => { setMobileMenuOpen(false); setIsEarlyAccessOpen(true); }}
-              className="w-full bg-forest-dark text-white font-semibold text-sm px-6 py-3 rounded hover:bg-forest-mid transition-colors"
+            <a
+              href="/register"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block w-full bg-forest-dark text-white font-semibold text-sm px-6 py-3 rounded hover:bg-forest-mid transition-colors text-center"
             >
               Get Started
-            </button>
+            </a>
           </div>
         )}
       </header>
@@ -607,9 +606,22 @@ function PrelaunchLandingPage() {
                               We read for context, not to score you. Your file stays private.
                             </p>
                             {selectedFileName && (
-                              <p className="mt-1.5 text-xs text-forest-mid font-medium">
-                                {selectedFileName}
-                              </p>
+                              <div className="mt-1.5 flex items-center gap-2">
+                                <p className="text-xs text-forest-mid font-medium">
+                                  {selectedFileName}
+                                </p>
+                                <button
+                                  type="button"
+                                  aria-label="Remove file"
+                                  className="ml-1 rounded-full bg-red-100 hover:bg-red-200 text-red-600 px-2 py-0.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-red-400"
+                                  onClick={() => {
+                                    setResumeFile(null);
+                                    setSelectedFileName("");
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              </div>
                             )}
                           </div>
                           <label className="inline-flex cursor-pointer items-center justify-center gap-2 bg-forest-dark text-white text-sm font-semibold px-4 py-2 rounded hover:bg-forest-mid transition-colors shrink-0">
