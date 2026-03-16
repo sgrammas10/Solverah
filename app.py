@@ -226,7 +226,7 @@ def _module_available(module_name: str) -> bool:
 def _get_openai_client():
     if OpenAI is None:
         raise RuntimeError("OpenAI SDK not installed")
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not set")
     return OpenAI(api_key=api_key, timeout=60.0, max_retries=2)
