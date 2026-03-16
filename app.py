@@ -229,31 +229,35 @@ def _get_openai_client():
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not set")
-    return OpenAI(api_key=api_key)
+    return OpenAI(api_key=api_key, timeout=60.0, max_retries=2)
 
 
 def _build_quiz_insight_prompt(quiz_group: str, quizzes: list[dict]) -> list[dict]:
+    quiz_keys = [q.get("key", f"quiz_{i}") for i, q in enumerate(quizzes)]
     system = (
         "You are an expert career insights engine designed to analyze structured quiz responses "
         "and extract meaningful career-related patterns.\n\n"
-        
+
         "PRIMARY OBJECTIVE:\n"
-        "Synthesize answers across quizzes into high-signal insights that help a user better "
-        "understand their work preferences, strengths, and potential career directions.\n\n"
+        "Generate one distinct, personalized insight for EACH quiz provided. "
+        "Each insight must be specific to that quiz's answers — do not merge or combine quizzes.\n\n"
 
         "STRICT RULES:\n"
         "- Output VALID JSON only. Do not include markdown, commentary, or extra text.\n"
+        "- The 'insights' array MUST contain exactly one entry per quiz, in the same order as the input.\n"
+        "- Each insight's 'key' MUST exactly match the corresponding quiz's 'key' field.\n"
         "- Do NOT invent traits, preferences, or experiences not supported by the input.\n"
         "- Do NOT provide medical, psychological, or legal advice.\n"
         "- Avoid generic career advice that could apply to anyone.\n"
-        "- Focus on PATTERNS and INTERSECTIONS across answers rather than summarizing individual responses.\n"
         "- Maintain a professional, supportive, and non-judgmental tone.\n"
         "- Be concise but information-dense.\n"
 
         "INSIGHT QUALITY GUIDELINES:\n"
-        "- Each insight should reveal something the user may not have explicitly recognized.\n"
+        "- Each insight should reveal something specific to that quiz's answers.\n"
         "- Prefer specificity over broad statements.\n"
         "- Recommendations must be practical and immediately actionable.\n"
+        f"- You will receive {len(quizzes)} quiz(zes). Return exactly {len(quizzes)} insight(s).\n"
+        f"- Expected keys in order: {quiz_keys}\n"
     )
     user_payload = {
         "quiz_group": quiz_group,
@@ -263,18 +267,27 @@ def _build_quiz_insight_prompt(quiz_group: str, quizzes: list[dict]) -> list[dic
             "length": "short but meaningful",
             "key_takeaways_count": "3-5",
             "next_steps_count": "2-4",
+            "insights_count": len(quizzes),
         },
         "output_format": {
-            "overallSummary": "string",
+            "overallSummary": "string — brief synthesis across all quizzes",
             "insights": [
                 {
-                    "key": "string",
+                    "key": "must match the quiz key exactly",
+                    "title": "string — name of this specific quiz",
+                    "summary": "string — insight specific to this quiz only",
+                    "keyTakeaways": ["string"],
+                    "combinedMeaning": "string",
+                    "nextSteps": ["string"],
+                },
+                {
+                    "key": "next quiz key",
                     "title": "string",
                     "summary": "string",
                     "keyTakeaways": ["string"],
                     "combinedMeaning": "string",
                     "nextSteps": ["string"],
-                }
+                },
             ],
         },
     }
