@@ -21,8 +21,14 @@ type QuizInsight = {
   nextSteps?: string[];
 };
 
+type OverallInsight = {
+  summary?: string;
+  keyTakeaways?: string[];
+  nextSteps?: string[];
+};
+
 type QuizInsightResponse = {
-  overallSummary?: string | null;
+  overallInsight?: OverallInsight | null;
   insights: QuizInsight[];
 };
 
@@ -361,7 +367,7 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
             .filter(Boolean) as QuizInsight[];
           if (insightList.length > 0) {
             setInsightResponse({
-              overallSummary: storedInsights._overallSummary || null,
+              overallInsight: storedInsights._overallInsight || null,
               insights: insightList,
             });
           }
@@ -497,19 +503,23 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
           setHasSaved(true);
           setIsEditing(false);
           if (fetchWithAuth) {
-            const payload = {
-              quizGroup: "careerQuizzes",
-              quizzes: visibleQuizzes.map((quiz) => ({
+            // Build payload from ALL answered quizzes so combined insight reflects everything
+            const allAnsweredQuizzes = quizzes
+              .map((quiz) => ({
                 key: quiz.key,
                 title: quiz.title,
                 items: quiz.questions
                   .map((q) => {
-                    const selectedIdx = answers?.[quiz.key]?.[q.id];
+                    const selectedIdx = updatedCareerQuizzes[quiz.key]?.[q.id];
                     if (typeof selectedIdx !== "number") return null;
                     return { question: q.text, selected: q.options[selectedIdx] };
                   })
                   .filter(Boolean),
-              })),
+              }))
+              .filter((q) => q.items.length > 0);
+            const payload = {
+              quizGroup: "careerQuizzes",
+              quizzes: allAnsweredQuizzes,
             };
             setInsightModalOpen(true);
             setInsightLoading(true);
@@ -520,7 +530,7 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
                 body: JSON.stringify(payload),
               });
               setInsightResponse({
-                overallSummary: res.overallSummary || null,
+                overallInsight: res.overallInsight || null,
                 insights: res.insights || [],
               });
               setInsightProgress(100);

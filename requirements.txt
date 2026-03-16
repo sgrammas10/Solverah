@@ -10,8 +10,6 @@ gunicorn
 pandas
 numpy
 scikit-learn
-sentence-transformers
-torch
 boto3
 psycopg2-binary
 python-dotenv

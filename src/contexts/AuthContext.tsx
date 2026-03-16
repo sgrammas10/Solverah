@@ -3,13 +3,6 @@ import { useState, useEffect, ReactNode } from "react";
 import { AuthContext, ProfileData, User } from "./authContext";
 import { API_BASE as API_URL } from "../utils/api";
 
-const getCookie = (name: string): string | null => {
-  const match = document.cookie.match(
-    new RegExp('(^|;\\s*)' + name + '=([^;]*)')
-  );
-  return match ? decodeURIComponent(match[2]) : null;
-};
-
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -28,21 +21,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (res.ok) {
           const data = await res.json();
           setUser(data as User);
+          // Read CSRF token from response body (cookie is inaccessible cross-origin)
+          if (data.csrfToken) {
+            setCsrfToken(data.csrfToken);
+          }
         } else {
           setUser(null);
         }
       } catch {
         setUser(null);
       }
-      const csrf = getCookie("csrf_access_token");
-      if (csrf) {
-        setCsrfToken(csrf);
-      }
       setLoading(false);
     })();
   }, []);
 
-  
+
   const fetchWithAuth = async <T = any>(
     endpoint: string,
     options: RequestInit = {}
@@ -89,13 +82,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(data.error || "Login failed");
     }
 
-    // The backend sets a secure cookie — we only store the user object
     const userData = data.user as User;
     setUser(userData);
 
-    const csrf = getCookie("csrf_access_token");
-    if (csrf) {
-      setCsrfToken(csrf);
+    // Read CSRF token from response body (cookie is inaccessible cross-origin)
+    if (data.csrfToken) {
+      setCsrfToken(data.csrfToken);
     }
 
     return userData;
@@ -127,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error(e);
     } finally {
       setUser(null);
+      setCsrfToken(null);
     }
   };
 

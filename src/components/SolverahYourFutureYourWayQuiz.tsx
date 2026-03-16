@@ -199,7 +199,7 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
           setIsEditing(false);
           if (fetchWithAuth) {
             const payload = {
-              quizGroup: "yourFutureYourWay",
+              quizGroup: "careerQuizzes",
               quizzes: [
                 {
                   key: "yourFutureYourWay",
@@ -255,9 +255,9 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
       return;
     }
     if (insightResponse?.insights?.length) {
-      navigate("/quiz-insights?group=yourFutureYourWay", { state: { insight: insightResponse } });
+      navigate("/quiz-insights?group=careerQuizzes", { state: { insight: insightResponse } });
     } else {
-      navigate("/quiz-insights?group=yourFutureYourWay");
+      navigate("/quiz-insights?group=careerQuizzes");
     }
   };
 
