@@ -1395,12 +1395,22 @@ function JobSeekerProfile() {
                   <p className="text-sm text-ink-secondary mb-4">
                     Explore your motivations, feedback preferences, and ideal early-career environment.
                   </p>
-                  <Link
-                    to="/career-quizzes/early-career"
-                    className="inline-block px-4 py-2 bg-forest-dark text-white rounded-md hover:bg-forest-mid text-sm"
-                  >
-                    {(formData.quizResults as any)?.careerQuizzes?.earlyCareer ? "View Answers" : "Start Quiz"}
-                  </Link>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      to="/career-quizzes/early-career"
+                      className="inline-block px-4 py-2 bg-forest-dark text-white rounded-md hover:bg-forest-mid text-sm"
+                    >
+                      {(formData.quizResults as any)?.careerQuizzes?.earlyCareer ? "View Answers" : "Start Quiz"}
+                    </Link>
+                    {(formData.quizResults as any)?.careerQuizzes?.earlyCareer && (
+                      <Link
+                        to="/quiz-insights?group=careerQuizzes"
+                        className="inline-block px-4 py-2 border border-forest-pale text-forest-mid rounded-md hover:bg-forest-pale text-sm"
+                      >
+                        View Insights
+                      </Link>
+                    )}
+                  </div>
                 </div>
 
                 {/* Career Transition */}
@@ -1411,12 +1421,22 @@ function JobSeekerProfile() {
                   <p className="text-sm text-ink-secondary mb-4">
                     Clarify what you want to leave behind and what success looks like in your next chapter.
                   </p>
-                  <Link
-                    to="/career-quizzes/career-transition"
-                    className="inline-block px-4 py-2 bg-forest-dark text-white rounded-md hover:bg-forest-mid text-sm"
-                  >
-                    {(formData.quizResults as any)?.careerQuizzes?.careerTransition ? "View Answers" : "Start Quiz"}
-                  </Link>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      to="/career-quizzes/career-transition"
+                      className="inline-block px-4 py-2 bg-forest-dark text-white rounded-md hover:bg-forest-mid text-sm"
+                    >
+                      {(formData.quizResults as any)?.careerQuizzes?.careerTransition ? "View Answers" : "Start Quiz"}
+                    </Link>
+                    {(formData.quizResults as any)?.careerQuizzes?.careerTransition && (
+                      <Link
+                        to="/quiz-insights?group=careerQuizzes"
+                        className="inline-block px-4 py-2 border border-forest-pale text-forest-mid rounded-md hover:bg-forest-pale text-sm"
+                      >
+                        View Insights
+                      </Link>
+                    )}
+                  </div>
                 </div>
 
                 {/* Career & Job Search */}
@@ -1427,12 +1447,22 @@ function JobSeekerProfile() {
                   <p className="text-sm text-ink-secondary mb-4">
                     A reflection-based quiz for graduates and early-career professionals navigating their next chapter.
                   </p>
-                  <Link
-                    to="/career-job-search"
-                    className="inline-block px-4 py-2 bg-forest-dark text-white rounded-md hover:bg-forest-mid text-sm"
-                  >
-                    {formData.quizResults?.careerJobSearch ? "View Answers" : "Start Quiz"}
-                  </Link>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      to="/career-job-search"
+                      className="inline-block px-4 py-2 bg-forest-dark text-white rounded-md hover:bg-forest-mid text-sm"
+                    >
+                      {formData.quizResults?.careerJobSearch ? "View Answers" : "Start Quiz"}
+                    </Link>
+                    {formData.quizResults?.careerJobSearch && (
+                      <Link
+                        to="/quiz-insights?group=careerQuizzes"
+                        className="inline-block px-4 py-2 border border-forest-pale text-forest-mid rounded-md hover:bg-forest-pale text-sm"
+                      >
+                        View Insights
+                      </Link>
+                    )}
+                  </div>
                 </div>
 
                 {/* Mid-Career / Strategic */}
@@ -1443,12 +1473,22 @@ function JobSeekerProfile() {
                   <p className="text-sm text-ink-secondary mb-4">
                     Define your leadership legacy, strategic growth areas, and ideal team environment.
                   </p>
-                  <Link
-                    to="/career-quizzes/mid-career"
-                    className="inline-block px-4 py-2 bg-forest-dark text-white rounded-md hover:bg-forest-mid text-sm"
-                  >
-                    {(formData.quizResults as any)?.careerQuizzes?.midCareer ? "View Answers" : "Start Quiz"}
-                  </Link>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      to="/career-quizzes/mid-career"
+                      className="inline-block px-4 py-2 bg-forest-dark text-white rounded-md hover:bg-forest-mid text-sm"
+                    >
+                      {(formData.quizResults as any)?.careerQuizzes?.midCareer ? "View Answers" : "Start Quiz"}
+                    </Link>
+                    {(formData.quizResults as any)?.careerQuizzes?.midCareer && (
+                      <Link
+                        to="/quiz-insights?group=careerQuizzes"
+                        className="inline-block px-4 py-2 border border-forest-pale text-forest-mid rounded-md hover:bg-forest-pale text-sm"
+                      >
+                        View Insights
+                      </Link>
+                    )}
+                  </div>
                 </div>
 
                 {/* Your Future, Your Way (Teen-Focused) */}
@@ -1459,12 +1499,22 @@ function JobSeekerProfile() {
                   <p className="text-sm text-ink-secondary mb-4">
                     A fun, teen-focused quiz that helps you explore interests, personality, and future goals in an engaging way.
                   </p>
-                  <Link
-                    to="/career-quizzes/teen-focused"
-                    className="inline-block px-4 py-2 bg-forest-dark text-white rounded-md hover:bg-forest-mid text-sm"
-                  >
-                    {(formData.quizResults as any)?.careerQuizzes?.teenFocused ? "View Answers" : "Start Quiz"}
-                  </Link>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      to="/career-quizzes/teen-focused"
+                      className="inline-block px-4 py-2 bg-forest-dark text-white rounded-md hover:bg-forest-mid text-sm"
+                    >
+                      {(formData.quizResults as any)?.careerQuizzes?.teenFocused ? "View Answers" : "Start Quiz"}
+                    </Link>
+                    {(formData.quizResults as any)?.careerQuizzes?.teenFocused && (
+                      <Link
+                        to="/quiz-insights?group=careerQuizzes"
+                        className="inline-block px-4 py-2 border border-forest-pale text-forest-mid rounded-md hover:bg-forest-pale text-sm"
+                      >
+                        View Insights
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </div>
 

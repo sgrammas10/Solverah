@@ -226,7 +226,7 @@ def _module_available(module_name: str) -> bool:
 def _get_openai_client():
     if OpenAI is None:
         raise RuntimeError("OpenAI SDK not installed")
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not set")
     return OpenAI(api_key=api_key, timeout=60.0, max_retries=2)
@@ -270,7 +270,11 @@ def _build_quiz_insight_prompt(quiz_group: str, quizzes: list[dict]) -> list[dic
             "insights_count": len(quizzes),
         },
         "output_format": {
-            "overallSummary": "string — brief synthesis across all quizzes",
+            "overallInsight": {
+                "summary": "string — synthesis across ALL quizzes combined",
+                "keyTakeaways": ["string — cross-quiz pattern or theme"],
+                "nextSteps": ["string — actionable step informed by all quizzes"],
+            },
             "insights": [
                 {
                     "key": "must match the quiz key exactly",
@@ -301,7 +305,8 @@ def _coerce_insight_payload(payload: dict, quiz_group: str, fallback_quizzes: li
     if not isinstance(payload, dict):
         return {}
     insights = payload.get("insights")
-    overall = payload.get("overallSummary") if isinstance(payload.get("overallSummary"), str) else None
+    raw_overall = payload.get("overallInsight")
+    overall_insight = raw_overall if isinstance(raw_overall, dict) else None
 
     if isinstance(insights, dict):
         insights = [insights]
@@ -330,7 +335,7 @@ def _coerce_insight_payload(payload: dict, quiz_group: str, fallback_quizzes: li
     if not normalized:
         return {}
 
-    return {"overallSummary": overall, "insights": normalized}
+    return {"overallInsight": overall_insight, "insights": normalized}
 
 
 def _extract_resume_text(file_path: Path, mime: str) -> str:
@@ -1301,8 +1306,8 @@ def quiz_insights():
 
     normalized_payload = _coerce_insight_payload(insight_payload, quiz_group, normalized_quizzes)
     insights = normalized_payload.get("insights") if isinstance(normalized_payload, dict) else None
-    overall_summary = (
-        normalized_payload.get("overallSummary") if isinstance(normalized_payload, dict) else None
+    overall_insight = (
+        normalized_payload.get("overallInsight") if isinstance(normalized_payload, dict) else None
     )
 
     if not isinstance(insights, list):
@@ -1329,8 +1334,8 @@ def quiz_insights():
             group_store = {}
         else:
             group_store = dict(group_store)
-        if overall_summary:
-            group_store["_overallSummary"] = overall_summary
+        if overall_insight and isinstance(overall_insight, dict):
+            group_store["_overallInsight"] = overall_insight
         group_store["_generatedAt"] = timestamp
         group_store["_model"] = model
         for insight in insights:
@@ -1358,7 +1363,7 @@ def quiz_insights():
             "keyTakeaways": first.get("keyTakeaways"),
             "combinedMeaning": first.get("combinedMeaning"),
             "nextSteps": first.get("nextSteps"),
-            "overallSummary": overall_summary,
+            "overallInsight": overall_insight,
             "generatedAt": timestamp,
             "model": model,
         }
@@ -1369,7 +1374,7 @@ def quiz_insights():
 
     return jsonify({
         "quizGroup": quiz_group,
-        "overallSummary": overall_summary,
+        "overallInsight": overall_insight,
         "insights": insights,
     })
 

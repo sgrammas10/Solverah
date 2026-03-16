@@ -10,8 +10,14 @@ type InsightEntry = {
   nextSteps?: string[];
 };
 
+type OverallInsight = {
+  summary?: string;
+  keyTakeaways?: string[];
+  nextSteps?: string[];
+};
+
 type InsightGroup = {
-  _overallSummary?: string;
+  _overallInsight?: OverallInsight;
   _generatedAt?: string;
   _model?: string;
   [key: string]: any;
@@ -28,6 +34,7 @@ export default function QuizInsights() {
   const [insightsData, setInsightsData] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<string>("all");
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = location.state as {
@@ -140,24 +147,98 @@ export default function QuizInsights() {
     if (group === "careerQuizzes") {
       const groupData = insightsData.careerQuizzes as InsightGroup | undefined;
       if (!groupData) return null;
-      const cards = Object.keys(groupData)
-        .filter((key) => !key.startsWith("_"))
+      const CAREER_QUIZ_ORDER = ["earlyCareer", "careerTransition", "midCareer", "teenFocused", "careerJobSearch", "yourFutureYourWay"];
+      const allKeys = Object.keys(groupData).filter((key) => !key.startsWith("_"));
+      const sortedKeys = [
+        ...CAREER_QUIZ_ORDER.filter((k) => allKeys.includes(k)),
+        ...allKeys.filter((k) => !CAREER_QUIZ_ORDER.includes(k)),
+      ];
+      const overall = groupData._overallInsight;
+
+      const filterOptions = [
+        { value: "all", label: "All" },
+        ...sortedKeys.map((key) => ({
+          value: key,
+          label: (groupData[key] as InsightEntry)?.title || key,
+        })),
+        ...(overall?.summary ? [{ value: "overall", label: "Overall Summary" }] : []),
+      ];
+
+      const showOverall = activeFilter === "all" || activeFilter === "overall";
+      const visibleKeys = activeFilter === "all" || activeFilter === "overall"
+        ? (activeFilter === "overall" ? [] : sortedKeys)
+        : sortedKeys.filter((k) => k === activeFilter);
+
+      const cards = visibleKeys
         .map((key) => {
           const entry = groupData[key] as InsightEntry;
           return renderInsightCard(entry?.title || key, entry);
         })
         .filter(Boolean);
+
       return (
         <>
-          {groupData._overallSummary ? (
-            <div className="rounded-xl border border-forest-pale bg-forest-pale px-5 py-4 text-sm text-forest-dark">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-mid mb-2">
-                Overall summary
+          {/* Filter pills */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {filterOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setActiveFilter(opt.value)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors border ${
+                  activeFilter === opt.value
+                    ? "bg-forest-dark text-white border-forest-dark"
+                    : "bg-white text-ink-secondary border-cream-muted hover:border-forest-pale hover:text-forest-mid"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {cards.length > 0 && <div className="mt-4 grid gap-4">{cards}</div>}
+
+          {showOverall && overall?.summary ? (
+            <div className="mt-6 rounded-2xl border-2 border-forest-mid bg-forest-dark p-6 text-cream-base">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-forest-pale mb-1">
+                Combined Insight
               </p>
-              <p className="leading-relaxed">{groupData._overallSummary}</p>
+              <h3 className="font-display text-lg font-bold text-white mb-3">
+                Across All Your Quizzes
+              </h3>
+              <p className="text-sm leading-relaxed text-cream-subtle mb-4">{overall.summary}</p>
+              {overall.keyTakeaways?.length ? (
+                <div className="mb-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-pale mb-2">
+                    Key takeaways
+                  </p>
+                  <ul className="space-y-1.5">
+                    {overall.keyTakeaways.map((item, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm text-cream-subtle">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-forest-pale" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {overall.nextSteps?.length ? (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-pale mb-2">
+                    Next steps
+                  </p>
+                  <ul className="space-y-1.5">
+                    {overall.nextSteps.map((item, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm text-cream-subtle">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-forest-light" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
           ) : null}
-          <div className="mt-4 grid gap-4">{cards}</div>
         </>
       );
     }

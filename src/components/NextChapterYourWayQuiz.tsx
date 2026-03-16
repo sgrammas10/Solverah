@@ -207,7 +207,7 @@ export default function CareerAndJobSearchTab({ guest }: CareerAndJobSearchTabPr
                 .filter(Boolean),
             );
             const payload = {
-              quizGroup: "careerJobSearch",
+              quizGroup: "careerQuizzes",
               quizzes: [
                 {
                   key: "careerJobSearch",
@@ -257,9 +257,9 @@ export default function CareerAndJobSearchTab({ guest }: CareerAndJobSearchTabPr
       return;
     }
     if (insightResponse?.insights?.length) {
-      navigate("/quiz-insights?group=careerJobSearch", { state: { insight: insightResponse } });
+      navigate("/quiz-insights?group=careerQuizzes", { state: { insight: insightResponse } });
     } else {
-      navigate("/quiz-insights?group=careerJobSearch");
+      navigate("/quiz-insights?group=careerQuizzes");
     }
   };
 
