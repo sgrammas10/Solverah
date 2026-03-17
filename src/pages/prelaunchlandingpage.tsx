@@ -1,6 +1,7 @@
 import React, { FormEvent, useEffect, useId, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../utils/api";
+import HeroNetworkAnimation from "../components/HeroNetworkAnimation";
 
 type SubmissionStatus = "idle" | "submitting" | "success" | "error";
 
@@ -725,8 +726,9 @@ function PrelaunchLandingPage() {
         </section>
 
         {/* ─── FEATURES (BENTO) ─── */}
-        <section id="features" className="bg-cream-base py-24 px-6">
-          <div className="mx-auto max-w-7xl">
+        <section id="features" className="relative overflow-hidden bg-cream-base py-24 px-6">
+          <HeroNetworkAnimation theme="light" />
+          <div className="relative z-10 mx-auto max-w-7xl">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-3">
               What We Offer
             </p>
@@ -872,8 +874,9 @@ function PrelaunchLandingPage() {
         </section>
 
         {/* ─── FAQ ─── */}
-        <section id="faq" className="bg-cream-base py-24 px-6">
-          <div className="mx-auto max-w-7xl">
+        <section id="faq" className="relative overflow-hidden bg-cream-base py-24 px-6">
+          <HeroNetworkAnimation theme="light" />
+          <div className="relative z-10 mx-auto max-w-7xl">
             <div className="grid gap-12 lg:grid-cols-[1fr_2fr] lg:gap-20 items-start">
               <div className="space-y-4 lg:sticky lg:top-24">
                 <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light">

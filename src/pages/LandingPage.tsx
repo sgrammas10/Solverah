@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
 import { Users, Target, BarChart3, Shield, ArrowRight } from 'lucide-react';
+import HeroNetworkAnimation from '../components/HeroNetworkAnimation';
 
 function LandingPage() {
   const { user } = useAuth();
@@ -15,9 +16,10 @@ function LandingPage() {
     <div className="bg-slate-950 text-slate-100">
       {/* Hero Section */}
       <div className="relative overflow-hidden">
+        <HeroNetworkAnimation />
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/30 via-blue-700/20 to-indigo-800/30" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.18),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.18),_transparent_45%)]" />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
           <div className="text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-200">Solverah</p>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold text-white mb-6">
