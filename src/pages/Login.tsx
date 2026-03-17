@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
 import { getPendingQuizSave, clearPendingQuizSave } from "../utils/guestQuiz";
 import { API_BASE as API_URL } from "../utils/api";
+import HeroNetworkAnimation from '../components/HeroNetworkAnimation';
 
 function ResendConfirmation({ email }: { email: string }) {
   const navigate = useNavigate();
@@ -104,8 +105,9 @@ function Login() {
     'w-full rounded border border-cream-muted bg-cream-base px-4 py-3 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors';
 
   return (
-    <div className="min-h-screen bg-cream-base font-sans flex items-center justify-center py-16 px-4">
-      <div className="w-full max-w-md">
+    <div className="relative overflow-hidden min-h-screen bg-cream-base font-sans flex items-center justify-center py-16 px-4">
+      <HeroNetworkAnimation theme="light" />
+      <div className="relative z-10 w-full max-w-md">
         <Link
           to="/"
           className="inline-flex items-center gap-1.5 text-sm text-ink-tertiary hover:text-forest-mid transition-colors mb-8"
