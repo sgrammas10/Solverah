@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { API_BASE as API_URL } from '../utils/api';
+import HeroNetworkAnimation from '../components/HeroNetworkAnimation';
 
 export default function ConfirmEmail() {
   const location = useLocation();
@@ -77,8 +78,9 @@ export default function ConfirmEmail() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 py-12 px-4 sm:px-6 lg:px-8 text-slate-100">
-      <div className="max-w-md w-full space-y-8 rounded-2xl border border-white/10 bg-slate-900/70 p-8 shadow-2xl shadow-black/40 text-center">
+    <div className="relative overflow-hidden min-h-screen flex items-center justify-center bg-slate-950 py-12 px-4 sm:px-6 lg:px-8 text-slate-100">
+      <HeroNetworkAnimation />
+      <div className="relative z-10 max-w-md w-full space-y-8 rounded-2xl border border-white/10 bg-slate-900/70 p-8 shadow-2xl shadow-black/40 text-center">
         <h2 className="text-2xl font-semibold">Check your email</h2>
         <p className="text-sm text-slate-300">
           We sent a 6-digit verification code to{' '}
