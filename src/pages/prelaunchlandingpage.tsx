@@ -754,12 +754,7 @@ function PrelaunchLandingPage() {
                     Solverah reads beyond job titles and buzzwords to understand your work style, values, and the environments where you genuinely thrive. Your story has more signal than your keyword count.
                   </p>
                 </div>
-                <div className="mt-8 flex items-center gap-2 text-sm font-semibold text-forest-mid">
-                  <span>Learn how it works</span>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="transition-transform group-hover:translate-x-1" aria-hidden="true">
-                    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
+
               </div>
 
               {/* Card B — medium top-right */}
