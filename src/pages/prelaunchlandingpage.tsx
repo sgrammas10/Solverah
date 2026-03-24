@@ -754,12 +754,13 @@ function PrelaunchLandingPage() {
                     Solverah reads beyond job titles and buzzwords to understand your work style, values, and the environments where you genuinely thrive. Your story has more signal than your keyword count.
                   </p>
                 </div>
-                <div className="mt-8 flex items-center gap-2 text-sm font-semibold text-forest-mid">
+                 <a href="#how-it-works" className="mt-8 flex items-center gap-2 text-sm font-semibold text-forest-mid hover:underline underline-offset-4">
                   <span>Learn how it works</span>
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="transition-transform group-hover:translate-x-1" aria-hidden="true">
                     <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                </div>
+                </a>
+
               </div>
 
               {/* Card B — medium top-right */}
@@ -813,6 +814,86 @@ function PrelaunchLandingPage() {
                   Environments shape outcomes. We look at fit, context, and conditions — not just your last job title.
                 </p>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── HOW IT WORKS ─── */}
+        <section id="how-it-works" className="bg-cream-subtle border-t border-cream-muted py-24 px-6">
+          <div className="mx-auto max-w-7xl">
+            <div className="text-center max-w-[600px] mx-auto mb-16 space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light">
+                The Process
+              </p>
+              <h2 className="font-display text-[clamp(2rem,4vw,2.75rem)] font-bold text-ink-primary leading-snug">
+                From your story to actionable insight.
+              </h2>
+              <p className="text-base text-ink-secondary leading-relaxed">
+                Solverah doesn't score you against a template. It reads the full picture of how you work — and surfaces what that actually means for where you'll thrive.
+              </p>
+            </div>
+
+            {/* Steps */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-16">
+              {[
+                {
+                  step: "01",
+                  title: "You share your context",
+                  body: "Your resume, background, and optionally your LinkedIn or portfolio. We ask only for what's useful — nothing extraneous.",
+                  accent: "bg-forest-pale",
+                },
+                {
+                  step: "02",
+                  title: "Structured frameworks map your signal",
+                  body: "Our system applies a layered set of frameworks to translate unstructured career history into meaningful, comparable dimensions. The logic is rules-based and reproducible.",
+                  accent: "bg-forest-pale",
+                },
+                {
+                  step: "03",
+                  title: "Patterns are identified, not invented",
+                  body: "We surface what the information already suggests — about your work style, environment preferences, and the conditions where your contributions tend to compound.",
+                  accent: "bg-forest-pale",
+                },
+                {
+                  step: "04",
+                  title: "A human reviews before anything reaches you",
+                  body: "Every insight set is reviewed by a person before delivery. Automated analysis is a starting point — editorial judgment is the finish line.",
+                  accent: "bg-forest-dark",
+                },
+              ].map(({ step, title, body, accent }) => (
+                <div key={step} className="relative rounded-xl border border-cream-muted bg-white p-6 hover:border-forest-light transition-colors flex flex-col gap-4">
+                  <span className={`inline-flex items-center justify-center w-9 h-9 rounded-full ${accent} font-display text-sm font-bold ${accent === "bg-forest-dark" ? "text-white" : "text-forest-mid"} shrink-0`}>
+                    {step}
+                  </span>
+                  <div>
+                    <h3 className="font-display text-[1.05rem] font-semibold text-ink-primary leading-snug mb-2">{title}</h3>
+                    <p className="text-sm text-ink-secondary leading-relaxed">{body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Principle callouts */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {[
+                {
+                  label: "What we look at",
+                  content: "Work history, scope of responsibility, environment signals, and the conditions that appear when people do their best work — not personality labels or trait scores.",
+                },
+                {
+                  label: "What we don't do",
+                  content: "We don't assign you a type, a tier, or a numeric score. We don't compare you to a benchmark or rank you against other candidates. Insights describe — they don't decide.",
+                },
+                {
+                  label: "Why this matters",
+                  content: "Most career tools optimize for searchability. Solverah optimizes for understanding. The difference is whether the system works for you — or for whoever is searching a database.",
+                },
+              ].map(({ label, content }) => (
+                <div key={label} className="rounded-xl border border-cream-muted bg-white p-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-3">{label}</p>
+                  <p className="text-sm text-ink-secondary leading-relaxed">{content}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
