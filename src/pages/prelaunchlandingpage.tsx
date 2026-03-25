@@ -680,7 +680,7 @@ function PrelaunchLandingPage() {
                       disabled={submissionStatus === "submitting"}
                       className="w-full bg-forest-dark text-white font-semibold text-base py-3.5 rounded hover:bg-forest-mid transition-colors disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
                     >
-                      {submissionStatus === "submitting" ? "Submitting…" : "Request early access"}
+                      {submissionStatus === "submitting" ? "Submitting…" : "Begin setting up my account"}
                     </button>
 
 
