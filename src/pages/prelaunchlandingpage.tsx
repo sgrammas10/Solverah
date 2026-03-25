@@ -819,16 +819,16 @@ function PrelaunchLandingPage() {
         </section>
 
         {/* ─── HOW IT WORKS ─── */}
-        <section id="how-it-works" className="bg-cream-subtle border-t border-cream-muted py-24 px-6">
+        <section id="how-it-works" className="bg-forest-mid border-t border-forest-light/30 py-24 px-6">
           <div className="mx-auto max-w-7xl">
             <div className="text-center max-w-[600px] mx-auto mb-16 space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-pale">
                 The Process
               </p>
-              <h2 className="font-display text-[clamp(2rem,4vw,2.75rem)] font-bold text-ink-primary leading-snug">
+              <h2 className="font-display text-[clamp(2rem,4vw,2.75rem)] font-bold text-cream-base leading-snug">
                 From your story to actionable insight.
               </h2>
-              <p className="text-base text-ink-secondary leading-relaxed">
+              <p className="text-base text-cream-subtle leading-relaxed">
                 Solverah doesn't score you against a template. It reads the full picture of how you work — and surfaces what that actually means for where you'll thrive.
               </p>
             </div>
@@ -861,7 +861,7 @@ function PrelaunchLandingPage() {
                   accent: "bg-forest-dark",
                 },
               ].map(({ step, title, body, accent }) => (
-                <div key={step} className="relative rounded-xl border border-cream-muted bg-white p-6 hover:border-forest-light transition-colors flex flex-col gap-4">
+                <div key={step} className="relative rounded-xl border border-forest-light/40 bg-white p-6 hover:border-forest-light transition-colors flex flex-col gap-4">
                   <span className={`inline-flex items-center justify-center w-9 h-9 rounded-full ${accent} font-display text-sm font-bold ${accent === "bg-forest-dark" ? "text-white" : "text-forest-mid"} shrink-0`}>
                     {step}
                   </span>
@@ -889,7 +889,7 @@ function PrelaunchLandingPage() {
                   content: "Most career tools optimize for searchability. Solverah optimizes for understanding. The difference is whether the system works for you — or for whoever is searching a database.",
                 },
               ].map(({ label, content }) => (
-                <div key={label} className="rounded-xl border border-cream-muted bg-white p-6">
+                <div key={label} className="rounded-xl border border-forest-light/40 bg-white p-6">
                   <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-3">{label}</p>
                   <p className="text-sm text-ink-secondary leading-relaxed">{content}</p>
                 </div>
