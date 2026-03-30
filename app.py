@@ -1,3 +1,33 @@
+# Early access modal endpoint (no resume upload)
+@app.post("/api/early-access-request")
+def early_access_request():
+    data = request.get_json(silent=True) or {}
+    first_name = (data.get("firstName") or "").strip()
+    last_name = (data.get("lastName") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    phone = (data.get("phone") or "").strip()
+    preferred_contact = (data.get("preferredContact") or "").strip()
+    career_journey = (data.get("careerJourney") or "").strip()
+
+    # Basic validation
+    if not first_name or not last_name or not email:
+        return jsonify({"error": "First name, last name, and email are required."}), 400
+
+    # Send notification email to info@solverah.com
+    try:
+        from email_utils import send_early_access_modal_notification
+        send_early_access_modal_notification(
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            phone=phone,
+            preferred_contact=preferred_contact,
+            career_journey=career_journey,
+        )
+    except Exception as e:
+        app.logger.error(f"Failed to send early access modal notification: {e}")
+        return jsonify({"error": "Failed to send notification."}), 500
+    return jsonify({"ok": True})
 from flask import Flask, jsonify, request
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (

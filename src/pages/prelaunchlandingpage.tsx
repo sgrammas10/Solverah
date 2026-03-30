@@ -1217,8 +1217,52 @@ function PrelaunchLandingPage() {
                 <button
                   type="button"
                   className="bg-forest-dark text-white font-semibold text-sm px-6 py-2.5 rounded hover:bg-forest-mid transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
+                  onClick={async () => {
+                    setSubmissionStatus("submitting");
+                    setErrorMessage("");
+                    try {
+                      const { firstName, lastName, email, phone, preferredContact, careerJourney } = earlyAccessData;
+                      if (!firstName.trim() || !lastName.trim() || !email.trim()) {
+                        setErrorMessage("Please fill out all required fields.");
+                        setSubmissionStatus("error");
+                        return;
+                      }
+                      const res = await fetch("/api/early-access-request", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          firstName: firstName.trim(),
+                          lastName: lastName.trim(),
+                          email: email.trim(),
+                          phone: phone.trim(),
+                          preferredContact,
+                          careerJourney,
+                        }),
+                      });
+                      if (!res.ok) {
+                        const data = await res.json().catch(() => ({}));
+                        setErrorMessage(data?.error || "Could not send request. Please try again.");
+                        setSubmissionStatus("error");
+                        return;
+                      }
+                      setSubmissionStatus("success");
+                      setIsEarlyAccessOpen(false);
+                      setEarlyAccessData({
+                        firstName: "",
+                        lastName: "",
+                        email: "",
+                        phone: "",
+                        preferredContact: "email",
+                        careerJourney: "",
+                      });
+                    } catch (err) {
+                      setErrorMessage("Could not send request. Please try again.");
+                      setSubmissionStatus("error");
+                    }
+                  }}
+                  disabled={submissionStatus === "submitting"}
                 >
-                  Send request
+                  {submissionStatus === "submitting" ? "Sending..." : "Send request"}
                 </button>
               </div>
             </form>
