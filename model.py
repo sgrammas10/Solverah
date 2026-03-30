@@ -94,6 +94,37 @@ class ResumeParseCorrection(db.Model):
     )
 
 
+class Company(db.Model):
+    """Stores a company profile with culture dimensions for scoring against user preferences.
+
+    The full CompanyProfile is serialized into `profile_json`. The 8 culture
+    dimensions are also promoted to indexed columns so the scoring query can
+    filter/rank companies without deserializing the blob.
+    """
+
+    __tablename__ = "company"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False, unique=True)
+    slug = db.Column(db.String(200), nullable=False, unique=True, index=True)
+    profile_json = db.Column(JSON, nullable=False)  # full CompanyProfile dict
+
+    # Culture dimensions — categorical
+    work_environment = db.Column(db.String(200))
+    pace = db.Column(db.String(100))
+
+    # Culture dimensions — numeric (0.0–1.0)
+    empathy = db.Column(db.Float)
+    creative_drive = db.Column(db.Float)
+    adaptability = db.Column(db.Float)
+    futuristic = db.Column(db.Float)
+    harmony = db.Column(db.Float)
+    data_orientation = db.Column(db.Float)
+
+    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+
+
 class IntakeSubmission(db.Model):
     """Stores pre-launch intake submissions and associated resume upload metadata."""
 
