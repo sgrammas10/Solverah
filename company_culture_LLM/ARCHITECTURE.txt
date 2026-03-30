@@ -1,0 +1,196 @@
+================================================================================
+COMPANY CULTURE LLM — ARCHITECTURE OVERVIEW
+Solverah | company_culture_LLM module
+================================================================================
+
+
+--------------------------------------------------------------------------------
+GOAL
+--------------------------------------------------------------------------------
+
+Instead of blindly comparing a user's profile against every job in the database,
+we use company culture scoring as a pre-filter. The system first finds the best
+matching companies for a user, then only compares jobs from those companies
+against the user's skills and experience.
+
+
+--------------------------------------------------------------------------------
+TWO-STAGE PIPELINE
+--------------------------------------------------------------------------------
+
+Stage 1 — Culture Filter
+  culture_fit_score(user, company) run against all Company rows
+  → ranked shortlist of top-N companies
+
+Stage 2 — Skill Match (within shortlist only)  [FUTURE — depends on job scraper]
+  compare_profiles(user, job) but only for jobs
+  that belong to a company that passed Stage 1
+  → ranked job recommendations
+
+
+--------------------------------------------------------------------------------
+THE 8 CULTURE DIMENSIONS
+--------------------------------------------------------------------------------
+
+Categorical (label-based):
+  work_environment    e.g. "collaborative, high-autonomy"
+  pace                e.g. "fast" | "moderate" | "slow"
+
+Numeric (0.0 – 1.0 scale):
+  empathy             degree of interpersonal care and psychological safety
+  creative_drive      appetite for novel ideas and creative risk
+  adaptability        comfort with change, ambiguity, and pivots
+  futuristic          orientation toward long-term vision and innovation
+  harmony             tolerance for conflict vs. preference for consensus
+  data_orientation    degree to which decisions are driven by data/metrics
+
+
+--------------------------------------------------------------------------------
+THE TRAINING DATA FLYWHEEL
+--------------------------------------------------------------------------------
+
+Step 1 — Quiz Design
+  Write a set of questions for each of the 8 dimensions.
+  Questions should feel conversational, not like a survey.
+  Each dimension should have primary questions and follow-up branches
+  for when the user gives a vague or ambiguous answer.
+
+Step 2 — Data Collection
+  Users take the quiz repeatedly (target: tens of sessions per question set).
+  Raw conversational answers are captured and stored per session.
+
+Step 3 — Professional Scoring
+  A trained professional reviews each session and assigns scores
+  across all 8 dimensions based on how the user answered.
+  Scorer notes are attached to explain non-obvious interpretations.
+
+Step 4 — Labeled Dataset
+  Each session becomes one training record:
+
+    {
+      "session_id": "uuid",
+      "conversation": [
+        { "role": "interviewer", "content": "..." },
+        { "role": "user",        "content": "..." },
+        ...
+      ],
+      "professional_scores": {
+        "work_environment": "high-autonomy",
+        "pace": "fast",
+        "empathy": 0.5,
+        "creative_drive": 0.8,
+        "adaptability": 0.85,
+        "futuristic": 0.7,
+        "harmony": 0.45,
+        "data_orientation": 0.4
+      },
+      "scorer_notes": "User shows low harmony tolerance, dismissive of process"
+    }
+
+Step 5 — Fine-Tune Ollama Model
+  The labeled dataset is used to fine-tune a local Ollama model.
+  The model learns two things simultaneously:
+    (a) How to conduct the interview — when to probe deeper, what follow-ups
+        are worth asking for each type of answer
+    (b) How to score — map the full conversation to 8 dimension values
+
+Step 6 — Deployed Interview Agent
+  The fine-tuned model is served locally via Ollama.
+  It conducts the interview with real users, asks follow-up questions
+  dynamically based on answers, and at the end outputs a structured
+  culture_preferences dict that is saved to the user's profile.
+
+
+--------------------------------------------------------------------------------
+WHY PROFESSIONAL SCORING MATTERS
+--------------------------------------------------------------------------------
+
+The professional scorer is not just recording what the user selected on a slider.
+They are interpreting HOW the user answered — word choice, hesitation, emphasis.
+
+Example:
+  "I like moving fast but want things done right"
+  vs.
+  "I hate sitting in planning meetings"
+
+Both users might get a similar pace score, but very different data_orientation
+and harmony scores. That nuance is what the fine-tuned model learns to detect.
+A slider-based quiz could never capture this.
+
+
+--------------------------------------------------------------------------------
+WHAT THE OLLAMA MODEL DOES IN ONE SESSION
+--------------------------------------------------------------------------------
+
+  1. Interviewer role — asks quiz questions, decides when to probe deeper
+  2. Scorer role — at end of conversation, emits structured culture_preferences
+
+  Output written to: User.profile_data["culture_preferences"]
+  This dict is then used as input to Stage 1 of the pipeline.
+
+
+--------------------------------------------------------------------------------
+WHAT IS ALREADY BUILT
+--------------------------------------------------------------------------------
+
+  company_culture_LLM/
+    company.py          Pydantic models for CompanyProfile and CultureValues
+    seed_company.py     Static company data (Google — first example)
+    score.py            Deterministic culture fit scoring (company vs user prefs)
+    store.py            DB helpers — upsert and retrieve CompanyProfile from DB
+
+  model.py              Company SQLAlchemy ORM model (8 culture dimension columns
+                        + full profile_json blob for retrieval)
+
+  migrations/
+    20260330_add_company.py   Alembic migration for the company table
+
+
+--------------------------------------------------------------------------------
+BUILD ORDER — WHAT COMES NEXT
+--------------------------------------------------------------------------------
+
+  Phase 1   Quiz question design (per dimension, with follow-up branches)
+            This is the foundation. Everything downstream depends on it.
+
+  Phase 2   Data collection interface
+            Simple chat UI or form to capture raw quiz sessions.
+
+  Phase 3   Scorer interface
+            Tool for the professional to review a session and attach labels.
+
+  Phase 4   Training data storage
+            JSONL file or DB table to hold labeled sessions.
+
+  Phase 5   Fine-tuning pipeline
+            Ollama + labeled dataset → fine-tuned interview model.
+
+  Phase 6   Interview agent wrapper
+            company_culture_LLM/interview.py — wraps the Ollama model,
+            manages conversation state, emits culture_preferences on completion.
+
+  Phase 7   Flask endpoint
+            POST /api/agent/interview — streams agent turns to the frontend.
+
+  Phase 8   Profile write-back
+            update_culture_preferences saves the output to profile_data,
+            making it available for Stage 1 scoring.
+
+  Future    Job scraper + Stage 2 skill matching
+            Once jobs are in the DB and linked to companies, Stage 2 can run.
+
+
+--------------------------------------------------------------------------------
+THE LOGICAL FIRST STEP
+--------------------------------------------------------------------------------
+
+Design the quiz questions.
+
+The question set is the single dependency that blocks all data collection,
+professional scoring, fine-tuning, and agent development. It needs to be
+done before any other phase can begin.
+
+Questions should be designed per dimension, feel conversational rather than
+clinical, and include defined follow-up branches for vague answers.
+
+================================================================================
