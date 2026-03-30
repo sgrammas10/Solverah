@@ -1,3 +1,45 @@
+# Send early access modal notification (no resume)
+def send_early_access_modal_notification(
+    first_name: str,
+    last_name: str,
+    email: str,
+    phone: str,
+    preferred_contact: str,
+    career_journey: str,
+) -> None:
+    """Send an email to info@solverah.com with early access modal submission details."""
+    if not RESEND_API_KEY:
+        raise EmailConfigError("RESEND_API_KEY is not set")
+    if not EMAIL_FROM:
+        raise EmailConfigError("EMAIL_FROM is not set")
+
+    html_content = f"""
+    <div style='font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #0f172a; color: #e2e8f0; border-radius: 12px;'>
+      <h2 style='color: #6ee7b7; margin-top: 0;'>New Early Access Modal Submission</h2>
+      <ul style='color: #e2e8f0; font-size: 15px;'>
+        <li><b>First Name:</b> {first_name}</li>
+        <li><b>Last Name:</b> {last_name}</li>
+        <li><b>Email:</b> {email}</li>
+        <li><b>Phone:</b> {phone or 'N/A'}</li>
+        <li><b>Preferred Contact:</b> {preferred_contact or 'N/A'}</li>
+        <li><b>Career Journey:</b> {career_journey or 'N/A'}</li>
+      </ul>
+    </div>
+    """
+
+    try:
+        import resend as resend_lib
+    except ImportError:
+        raise EmailConfigError("resend package is not installed. Run: pip install resend")
+
+    resend_lib.api_key = RESEND_API_KEY
+    params = {
+        "from": EMAIL_FROM,
+        "to": ["info@solverah.com"],
+        "subject": "New Early Access Modal Submission",
+        "html": html_content,
+    }
+    resend_lib.Emails.send(params)
 # Send early access intake notification to info@solverah.com
 def send_intake_notification(
     first_name: str,
