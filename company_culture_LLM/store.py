@@ -58,7 +58,7 @@ def upsert_company(profile: CompanyProfile) -> Company:
     row = Company.query.filter_by(slug=slug).first()
 
     culture_cols = _culture_columns(profile)
-    profile_dict = profile.model_dump()
+    profile_dict = profile.dict()
 
     if row is None:
         row = Company(
@@ -86,7 +86,7 @@ def get_company(slug_or_name: str) -> CompanyProfile | None:
     ).first()
     if row is None:
         return None
-    return CompanyProfile.model_validate(row.profile_json)
+    return CompanyProfile.parse_obj(row.profile_json)
 
 
 def all_companies() -> list[Company]:
