@@ -1227,7 +1227,7 @@ function PrelaunchLandingPage() {
                         setSubmissionStatus("error");
                         return;
                       }
-                      const res = await fetch("/api/early-access-request", {
+                      const res = await fetch(`${API_BASE}/early-access-request`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
