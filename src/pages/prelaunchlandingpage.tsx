@@ -25,6 +25,7 @@ function PrelaunchLandingPage() {
   const [infoOptIn, setInfoOptIn] = useState(false);
 
   const [isEarlyAccessOpen, setIsEarlyAccessOpen] = useState(false);
+  const [earlyAccessSuccess, setEarlyAccessSuccess] = useState(false);
   const [earlyAccessData, setEarlyAccessData] = useState({
     firstName: "",
     lastName: "",
@@ -1245,8 +1246,8 @@ function PrelaunchLandingPage() {
                         setSubmissionStatus("error");
                         return;
                       }
-                      setSubmissionStatus("success");
                       setIsEarlyAccessOpen(false);
+                      setEarlyAccessSuccess(true);
                       setEarlyAccessData({
                         firstName: "",
                         lastName: "",
@@ -1266,6 +1267,36 @@ function PrelaunchLandingPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── EARLY ACCESS SUCCESS OVERLAY ─── */}
+      {earlyAccessSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-ink-primary/60 backdrop-blur-sm"
+            onClick={() => setEarlyAccessSuccess(false)}
+            aria-hidden="true"
+          />
+          <div className="relative z-10 w-full max-w-md rounded-2xl bg-white p-10 text-center shadow-2xl">
+            <div className="mb-4 flex items-center justify-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-forest-pale">
+                <svg className="h-8 w-8 text-forest-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
+            <h2 className="mb-2 text-2xl font-bold text-ink-primary">Request received!</h2>
+            <p className="mb-6 text-ink-secondary">
+              Thanks for your interest in Solverah. We'll be in touch soon.
+            </p>
+            <button
+              onClick={() => setEarlyAccessSuccess(false)}
+              className="rounded-lg bg-forest-dark px-8 py-3 font-semibold text-white hover:bg-forest-mid transition-colors"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
