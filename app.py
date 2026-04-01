@@ -1748,14 +1748,137 @@ def get_dashboard_data():
         {"title": "Add Recent Experience", "description": "Update your experience section", "action": "Update Profile", "priority": "medium", "href": "/job-seeker/profile#experience"},
     ]
 
+    has_intake = IntakeSubmission.query.filter_by(email=current_email).first() is not None
+
     return jsonify({
         "profileCompletion": f"{profile_completion}%",
         "jobMatches": job_matches,
         "applications": applications,
         "recentActivity": recent_activity,
-        "recommendations": recommendations
+        "recommendations": recommendations,
+        "hasIntakeSubmission": has_intake,
     })
 
+
+
+@limiter.limit("5 per minute")
+@app.post("/api/intake/link-account")
+@jwt_required()
+def intake_link_account():
+    """Submit the intake form for an already-authenticated user and merge into their profile."""
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first_or_404()
+
+    data = request.get_json(silent=True) or {}
+    if not data:
+        return jsonify({"error": "JSON body required"}), 400
+
+    submission_id = (data.get("submission_id") or "").strip()
+    first_name = _normalize_whitespace((data.get("first_name") or "").strip())
+    last_name = _normalize_whitespace((data.get("last_name") or "").strip())
+    state = _normalize_whitespace((data.get("state") or "").strip())
+    phone = _normalize_whitespace((data.get("phone") or "").strip())
+    linkedin_url = (data.get("linkedin_url") or "").strip()
+    portfolio_url = (data.get("portfolio_url") or "").strip()
+    privacy_consent = data.get("privacy_consent") is True
+    info_opt_in = data.get("info_opt_in") is True
+
+    object_key = (data.get("object_key") or "").strip()
+    mime = (data.get("mime") or "").strip()
+    size = int(data.get("size") or 0)
+
+    try:
+        uuid.UUID(submission_id)
+    except Exception:
+        return jsonify({"error": "Invalid submission_id"}), 400
+
+    if not object_key.startswith(f"intake/{submission_id}/"):
+        return jsonify({"error": "Invalid object_key"}), 400
+    if mime not in ALLOWED_MIME:
+        return jsonify({"error": "Unsupported file type"}), 400
+    if size <= 0 or size > MAX_BYTES:
+        return jsonify({"error": "Invalid file size"}), 400
+    if not state or len(state) > 50:
+        return jsonify({"error": "State is required"}), 400
+    if not privacy_consent:
+        return jsonify({"error": "Privacy consent is required"}), 400
+    if not first_name or not last_name:
+        return jsonify({"error": "First and last name are required"}), 400
+    if len(first_name) > 120 or len(last_name) > 120:
+        return jsonify({"error": "Name is too long"}), 400
+    if phone and not _is_valid_phone(phone):
+        return jsonify({"error": "Invalid phone format"}), 400
+    if linkedin_url and not _is_valid_linkedin_url(linkedin_url):
+        return jsonify({"error": "LinkedIn URL must be https://linkedin.com"}), 400
+    if portfolio_url and not _is_valid_https_url(portfolio_url):
+        return jsonify({"error": "Portfolio URL must be https://"}), 400
+    if len(phone) > 50 or len(linkedin_url) > 400 or len(portfolio_url) > 400:
+        return jsonify({"error": "One or more fields are too long"}), 400
+
+    # Confirm resume was uploaded to S3
+    s3 = get_s3_client()
+    bucket = os.environ["S3_BUCKET_NAME"]
+    try:
+        head = s3.head_object(Bucket=bucket, Key=object_key)
+        actual_size = int(head.get("ContentLength", 0))
+        actual_mime = head.get("ContentType", "")
+        if actual_size != size:
+            return jsonify({"error": "Uploaded file size mismatch"}), 400
+        if actual_mime != mime:
+            return jsonify({"error": "Uploaded file type mismatch"}), 400
+    except Exception:
+        return jsonify({"error": "Upload not found in storage"}), 400
+
+    # Insert intake record linked to the user's email with account_linked status
+    conn = get_db_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO intake_submissions
+                    (id, first_name, last_name, email, state, phone, linkedin_url, portfolio_url,
+                    resume_key, resume_mime, resume_size_bytes, status)
+                    VALUES
+                    (%s, %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, 'account_linked')
+                    """,
+                    (
+                        submission_id,
+                        first_name,
+                        last_name,
+                        current_email,
+                        state,
+                        phone or None,
+                        linkedin_url or None,
+                        portfolio_url or None,
+                        object_key,
+                        mime,
+                        size,
+                    ),
+                )
+    finally:
+        conn.close()
+
+    # Build and merge profile data
+    intake = IntakeSubmission.query.filter_by(id=submission_id).first()
+    if intake:
+        intake_profile = _build_profile_from_intake(intake)
+        existing_profile = user.profile_data or {}
+        user.profile_data = {**existing_profile, **intake_profile}
+        full_name = f"{first_name} {last_name}".strip()
+        if full_name:
+            user.name = full_name
+        db.session.commit()
+
+    log_audit_event(
+        action="intake_link_account",
+        actor_email=current_email,
+        target_email=current_email,
+        detail=f"submission_id={submission_id}",
+    )
+
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":

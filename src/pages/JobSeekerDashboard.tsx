@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/useAuth';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, FileText, Brain, Briefcase, TrendingUp } from 'lucide-react';
+import IntakePromptModal from '../components/IntakePromptModal';
 
 const iconMap: Record<string, any> = { User, FileText, Brain, Briefcase, TrendingUp };
 
@@ -20,6 +21,7 @@ function JobSeekerDashboard() {
 
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [jobsPopupOpen, setJobsPopupOpen] = useState(false);
+  const [intakeModalOpen, setIntakeModalOpen] = useState(false);
   const { user, fetchWithAuth } = useAuth();
 
   useEffect(() => {
@@ -27,6 +29,10 @@ function JobSeekerDashboard() {
       try {
         const data = await fetchWithAuth('/dashboard-data');
         setDashboardData(data);
+        const completionPct = parseInt(data.profileCompletion ?? '0', 10);
+        if (completionPct < 50) {
+          setIntakeModalOpen(true);
+        }
       } catch (err) {
         console.error('Error loading dashboard data:', err);
       }
@@ -39,6 +45,12 @@ function JobSeekerDashboard() {
 
   return (
     <div className="min-h-screen bg-cream-base font-sans text-ink-primary">
+      <IntakePromptModal
+        open={intakeModalOpen}
+        hasIntakeSubmission={dashboardData?.hasIntakeSubmission ?? false}
+        onClose={() => setIntakeModalOpen(false)}
+        onSuccess={() => { setIntakeModalOpen(false); navigate('/job-seeker/profile'); }}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
         {/* Page header */}
