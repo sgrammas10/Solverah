@@ -78,69 +78,80 @@ export default function ConfirmEmail() {
   };
 
   return (
-    <div className="relative overflow-hidden min-h-screen flex items-center justify-center bg-slate-950 py-12 px-4 sm:px-6 lg:px-8 text-slate-100">
-      <HeroNetworkAnimation />
-      <div className="relative z-10 max-w-md w-full space-y-8 rounded-2xl border border-white/10 bg-slate-900/70 p-8 shadow-2xl shadow-black/40 text-center">
-        <h2 className="text-2xl font-semibold">Check your email</h2>
-        <p className="text-sm text-slate-300">
-          We sent a 6-digit verification code to{' '}
-          <strong className="text-emerald-200">{email || 'your email'}</strong>.{' '}
-          Enter it below to activate your account.
-        </p>
+    <div className="relative overflow-hidden min-h-screen bg-cream-base font-sans flex items-center justify-center py-16 px-4">
+      <HeroNetworkAnimation theme="light" />
+      <div className="relative z-10 w-full max-w-md">
+        <Link
+          to="/login"
+          className="inline-flex items-center gap-1.5 text-sm text-ink-tertiary hover:text-forest-mid transition-colors mb-8"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Back to sign in
+        </Link>
 
-        {status !== 'success' && (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={code}
-              onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="000000"
-              className="w-full text-center text-3xl tracking-[0.5em] rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
-              autoFocus
-            />
-
-            {status === 'error' && (
-              <p className="text-sm text-red-300">{message}</p>
-            )}
-
-            <button
-              type="submit"
-              disabled={status === 'submitting' || code.length !== 6}
-              className="w-full py-2 px-4 rounded-full text-sm font-semibold text-slate-950 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {status === 'submitting' ? 'Verifying...' : 'Verify email'}
-            </button>
-          </form>
-        )}
-
-        {status === 'success' && (
-          <p className="text-sm text-emerald-300">{message}</p>
-        )}
-
-        {status !== 'success' && (
-          <div className="space-y-2 pt-2">
-            <p className="text-xs text-slate-400">Didn't receive a code?</p>
-            <button
-              onClick={handleResend}
-              disabled={resendStatus === 'sending' || resendStatus === 'sent'}
-              className="text-sm text-emerald-200 underline disabled:opacity-50"
-            >
-              {resendStatus === 'sending' ? 'Sending...' : resendStatus === 'sent' ? 'Sent!' : 'Resend code'}
-            </button>
-            {resendMsg && (
-              <p className={`text-xs ${resendStatus === 'error' ? 'text-red-300' : 'text-emerald-300'}`}>
-                {resendMsg}
-              </p>
-            )}
+        <div className="border border-cream-muted rounded-xl bg-white p-8 text-center">
+          <div className="mb-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-2">Verify your email</p>
+            <h1 className="font-display text-3xl font-bold text-ink-primary">Check your inbox</h1>
+            <p className="mt-2 text-sm text-ink-secondary">
+              We sent a 6-digit code to{' '}
+              <strong className="text-forest-mid">{email || 'your email'}</strong>.{' '}
+              Enter it below to activate your account.
+            </p>
           </div>
-        )}
 
-        <div className="pt-2">
-          <Link to="/login" className="underline text-slate-400 text-sm">
-            Back to sign in
-          </Link>
+          {status !== 'success' && (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                className="w-full text-center text-3xl tracking-[0.5em] rounded border border-cream-muted bg-cream-base px-4 py-3 text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors"
+                autoFocus
+              />
+
+              {status === 'error' && (
+                <div className="rounded bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                  {message}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={status === 'submitting' || code.length !== 6}
+                className="w-full bg-forest-dark text-white font-semibold py-3 rounded hover:bg-forest-mid transition-colors disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
+              >
+                {status === 'submitting' ? 'Verifying…' : 'Verify email'}
+              </button>
+            </form>
+          )}
+
+          {status === 'success' && (
+            <p className="text-sm text-forest-mid font-medium">{message}</p>
+          )}
+
+          {status !== 'success' && (
+            <div className="space-y-2 pt-4">
+              <p className="text-xs text-ink-tertiary">Didn't receive a code?</p>
+              <button
+                onClick={handleResend}
+                disabled={resendStatus === 'sending' || resendStatus === 'sent'}
+                className="text-sm font-medium text-forest-mid underline underline-offset-4 hover:text-forest-dark transition-colors disabled:opacity-50"
+              >
+                {resendStatus === 'sending' ? 'Sending…' : resendStatus === 'sent' ? 'Sent!' : 'Resend code'}
+              </button>
+              {resendMsg && (
+                <p className={`text-xs ${resendStatus === 'error' ? 'text-red-600' : 'text-forest-mid'}`}>
+                  {resendMsg}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
