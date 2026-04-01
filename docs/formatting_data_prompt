@@ -1,208 +1,197 @@
-You are a data formatter. You have just completed a company research report (Step 1). Your job now is to extract and format that research into a strict field-by-field structure that will be entered into a company profile database.
+Step 2 — Schema-Locked Formatter Prompt
+You are a data formatter. You have just completed a company research report (Step 1). Your job is to extract that research into structured output that maps exactly to the CompanyProfile Pydantic schema defined in company.py.
 
-Output ONLY the structured fields below — no prose, no extra commentary, no section intros. Every field must be on its own labeled line in the format:
+Output ONLY the fields below using their exact snake_case names as keys, in the format:
+  field_name: value
 
-FIELD NAME: [value]
+Every field must appear in the output in the exact order listed, even if empty.
+If a field cannot be filled from Step 1 research, output:
+  field_name: None
 
-If a field cannot be filled from the research, write:
-FIELD NAME: [leave blank]
-
-Do not guess or invent values. Do not pull from training data — only use what was established in Step 1 research.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-COMPANY OVERVIEW
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Name: [full legal company name]
-Founded: [year only, e.g. 1998]
-Website: [URL]
-Industry: [sector + sub-sectors, e.g. "Banking / Retail, Corporate, IB, Wealth Management"]
-Size: [one of: startup / mid-size / enterprise]
-Headquarters: [city, state/country — include secondary hub if major, e.g. "Charlotte, NC (HQ); New York, NY (IB hub)"]
-Ownership: [e.g. "Public (NYSE: BAC)" or "Private" or "Public (NASDAQ: GOOGL)"]
-Revenue (est.): [most recent FY figure with year, e.g. "~$102B net revenue (FY2024)"]
-Headcount (est.): [number + date + trend, e.g. "~213,000 (early 2025; declining from 218K peak)"]
+Do NOT guess, invent, or pull from training data. Only use what was established in Step 1.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EXECUTIVE LEADERSHIP
-(Fill as many as are known. Leave remaining slots blank.)
+# CompanyOverview
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Executive 1 — Name: 
-Executive 1 — Title: 
-Executive 1 — LinkedIn URL: [URL or leave blank]
-
-Executive 2 — Name: 
-Executive 2 — Title: 
-Executive 2 — LinkedIn URL: [URL or leave blank]
-
-Executive 3 — Name: 
-Executive 3 — Title: 
-Executive 3 — LinkedIn URL: [URL or leave blank]
-
-Executive 4 — Name: 
-Executive 4 — Title: 
-Executive 4 — LinkedIn URL: [URL or leave blank]
-
-Executive 5 — Name: 
-Executive 5 — Title: 
-Executive 5 — LinkedIn URL: [URL or leave blank]
+overview.name: [full legal company name — str, required]
+overview.founded: [4-digit year only, e.g. 1998 — int or None]
+overview.website: [URL — str or None]
+overview.industry: [sector + sub-sectors — str or None]
+overview.size: [one of: "startup" / "mid-size" / "enterprise" — str or None]
+overview.headquarters: [city, state/country; include major secondary hub if relevant — str or None]
+overview.ownership: [e.g. "Public (NYSE: BAC)" or "Private" — str or None]
+overview.revenue_est: [most recent FY figure + year, e.g. "~$102B net revenue (FY2024)" — str or None]
+overview.headcount_est: [number + date + trend, e.g. "~213,000 (early 2025; declining)" — str or None]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CULTURE & VALUES
+# executives (list[Executive], up to 5)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Culture Narrative: [2–4 sentences. This is the COMPANY'S official framing only — what they say about themselves through careers pages, CEO statements, and employer branding. Do NOT include employee sentiment here.]
+executives[0].name: [str — required if known]
+executives[0].title: [str — required if known]
+executives[0].linkedin_url: [URL — str or None]
 
-Core Values: [comma-separated list of official named values, e.g. "Responsible Growth, Deliver Together, Act Responsibly"]
+executives[1].name: [str or None]
+executives[1].title: [str or None]
+executives[1].linkedin_url: [str or None]
 
-Work Environment: [hybrid / remote / in-office + enforcement level + key locations, 1–2 sentences]
+executives[2].name: [str or None]
+executives[2].title: [str or None]
+executives[2].linkedin_url: [str or None]
 
-Pace: [one word or short phrase: e.g. "fast", "moderate", "slow / stable", "varies by division"]
+executives[3].name: [str or None]
+executives[3].title: [str or None]
+executives[3].linkedin_url: [str or None]
 
-Empathy (0.0–1.0): [score only, e.g. 0.65]
-Creative Drive (0.0–1.0): [score only]
-Adaptability (0.0–1.0): [score only]
-Futuristic (0.0–1.0): [score only]
-Harmony (0.0–1.0): [score only]
-Data Orientation (0.0–1.0): [score only]
-
-Scoring rules for dimension scores:
-- Base each score on specific evidence from Step 1 research, not general impression
-- Empathy: benefits quality, parental leave, DEI programs, manager support culture
-- Creative Drive: innovation culture, R&D investment, moonshot thinking, creative autonomy
-- Adaptability: internal mobility, org flexibility, speed of change, remote policy flexibility
-- Futuristic: AI/tech investment, patent activity, product innovation pipeline
-- Harmony: cross-team collaboration quality, trust signals, RTO friction, internal conflict patterns
-- Data Orientation: analytics infrastructure, data-driven decision making, quant culture
+executives[4].name: [str or None]
+executives[4].title: [str or None]
+executives[4].linkedin_url: [str or None]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-COMPENSATION
+# CultureValues
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Note: Use the role type most relevant to this company's primary hiring profile.
-For tech/FAANG companies, use SWE levels.
-For financial services, use analyst/associate/VP levels.
-For mixed companies, use whichever is most represented in Step 1 data.
-
-New Grad SWE Total: [total comp range for entry-level, e.g. "$120K–$145K" or leave blank if not a tech company]
-Mid-Level Total: [total comp range for mid-level role]
-Senior Total: [total comp range for senior role]
-Base Range: [base salary range across primary roles covered, e.g. "$95K–$165K"]
-Equity Notes: [vesting schedule, RSU structure, eligibility thresholds — 1–2 sentences]
-Bonus: [target % or range + whether truly discretionary or formula-based]
-Levels: [level naming convention, e.g. "Band 7 → Band 6 → Band 5 → Band 4" or "L3 → L4 → L5 → L6"]
-Notes: [1–2 sentences on any known comp pain points, below-market comparisons, or notable perks]
+culture.culture_narrative: [COMPANY SAYS only — official framing from careers pages, CEO statements, employer branding. 2–4 sentences. Do NOT include employee sentiment. — str or None]
+culture.core_values: [comma-separated list of official named values, e.g. "Responsible Growth, Deliver Together, Act Responsibly" — list[str] serialized as comma-separated string]
+culture.work_environment: [hybrid/remote/in-office + enforcement level + key locations, 1–2 sentences — str or None]
+culture.pace: [e.g. "fast" / "moderate" / "slow / stable" / "varies by division" — str or None]
+culture.empathy: [float 0.0–1.0 only, no text — based on: benefits quality, DEI programs, parental leave, manager support signals]
+culture.creative_drive: [float 0.0–1.0 only — based on: R&D investment, innovation culture, creative autonomy, moonshot thinking]
+culture.adaptability: [float 0.0–1.0 only — based on: internal mobility, org flexibility, remote policy flexibility, speed of change]
+culture.futuristic: [float 0.0–1.0 only — based on: AI/tech investment, patent activity, product innovation pipeline]
+culture.harmony: [float 0.0–1.0 only — based on: cross-team collaboration quality, trust signals, RTO friction, internal conflict patterns]
+culture.data_orientation: [float 0.0–1.0 only — based on: analytics infrastructure, data-driven decision making, quant culture depth]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-INTERVIEW PROCESS
+# Compensation
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Difficulty: [one of: Very Low / Low / Moderate / High / Very High — add qualifier if varies by track, e.g. "Moderate (tech); High (IB)"]
-Process Overview: [1–2 sentences describing the end-to-end flow at a high level, covering all major hiring tracks]
-Coding Focus: [describe technical coding expectations — language, difficulty level, format. Write "N/A" if not a tech company]
-System Design (Yes/No): [Yes or No — add "Senior only" if applicable]
-Behavioral: [format used (STAR/SOAR/etc.), weight given vs. technical, key themes assessed]
-Avg Rounds: [number — use most common track; note if varies]
-Timeline: [e.g. "2–4 weeks" or "6–12 weeks for IB campus"]
-Notes: [1–2 sentences of the single most important tactical insight for candidates — e.g. HireVue tips, referral impact, what interviewers actually weight]
+Use the role type most relevant to this company's primary hiring profile.
+For tech companies use SWE levels. For financial services use analyst/associate/VP.
+For non-tech, non-finance companies, map best available compensation data to these fields.
+
+compensation.new_grad_swe_total: [total comp range for entry-level role, e.g. "$120K–$145K" — str or None if not applicable]
+compensation.mid_level_total: [total comp for mid-level — str or None]
+compensation.senior_total: [total comp for senior role — str or None]
+compensation.base_range: [base salary range across primary roles, e.g. "$95K–$165K" — str or None]
+compensation.equity_notes: [vesting schedule, RSU structure, eligibility thresholds — str or None]
+compensation.bonus: [target % or range + discretionary vs. formula-based — str or None]
+compensation.levels: [level naming convention, e.g. "Band 7 → Band 6 → Band 5" or "L3 → L4 → L5 → L6" — str or None]
+compensation.notes: [known comp pain points, below-market comparisons, or notable perks — str or None]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-REMOTE / HYBRID POLICY
+# InterviewProcess
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Policy: [e.g. "Hybrid (3 days in office)" or "Fully Remote" or "In-office 5 days"]
-Remote Friendly: [one of: Yes / Limited / No]
-Details: [1–3 sentences — enforcement level, any disciplinary actions reported, key office locations required, exceptions process]
+interview.difficulty: [one of: "Very Low" / "Low" / "Moderate" / "High" / "Very High" — add qualifier if varies by track — str or None]
+interview.process_overview: [1–2 sentences covering the end-to-end flow across all major hiring tracks — str or None]
+interview.coding_focus: [technical coding expectations: language, difficulty, format. Write "N/A" if not a tech company — str or None]
+interview.system_design: [True or False — use True if system design is part of the process; add "Senior only" in interview.notes if applicable — bool or None]
+interview.behavioral: [framework used (STAR/SOAR/etc.), weight vs. technical, key themes assessed — str or None]
+interview.avg_rounds: [integer, most common track — int or None]
+interview.timeline: [e.g. "2–4 weeks" or "6–12 weeks for IB campus" — str or None]
+interview.notes: [single most important tactical insight for candidates — str or None]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-GLASSDOOR / EMPLOYEE RATINGS
+# RemotePolicy
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Overall Rating (/ 5.0): [e.g. 3.9]
-CEO Approval: [e.g. "87%" or leave blank]
-Recommend to Friend: [e.g. "75%"]
-Work-Life Balance: [score out of 5.0]
-Compensation Score: [score out of 5.0]
-Culture Score: [score out of 5.0]
-Key Positives: [comma-separated, 3–5 recurring themes from reviews]
-Key Negatives: [comma-separated, 3–5 recurring themes from reviews]
-Source: [e.g. "Glassdoor aggregate, 47,000+ reviews, 2024–2025"]
+remote_policy.policy: [e.g. "Hybrid (3 days in office)" / "Fully Remote" / "In-office 5 days" — str or None]
+remote_policy.remote_friendly: [one of: "Yes" / "Limited" / "No" — str or None]
+remote_policy.details: [enforcement level, disciplinary actions reported, required office locations, exceptions — str or None]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RECENT NEWS & CONTROVERSIES
+# GlassdoorRatings
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Controversy Level: [one of: Low / Medium / High]
-Key Topics: [comma-separated, e.g. "RTO enforcement, targeted layoffs, antitrust, AI ethics"]
-Recent News: [3–5 bullet points of specific dated events, each 1 sentence. Format: "YYYY Mon: [what happened]."]
+glassdoor.overall_rating: [float out of 5.0, e.g. 3.9 — float or None]
+glassdoor.ceo_approval: [e.g. "87%" — str or None]
+glassdoor.recommend_to_friend: [e.g. "75%" — str or None]
+glassdoor.work_life_balance: [float out of 5.0 — float or None]
+glassdoor.compensation_score: [float out of 5.0 — float or None]
+glassdoor.culture_score: [float out of 5.0 — float or None]
+glassdoor.key_positives: [comma-separated, 3–5 recurring themes from reviews — str or None]
+glassdoor.key_negatives: [comma-separated, 3–5 recurring themes from reviews — str or None]
+glassdoor.source: [e.g. "Glassdoor aggregate, 47,000+ reviews, 2024–2025" — str or None]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RECRUITING & CONTACTS
+# NewsControversies
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Key Programs: [named recruiting programs, comma-separated, e.g. "FMAP, Global Technology Summer Analyst, STEP"]
-University Recruiting URL: [direct URL]
-General Jobs URL: [direct URL]
-LinkedIn Search Tip: [1 sentence on how to find the right recruiter on LinkedIn]
-Recruiter Tip: [2–3 sentences of the most actionable tactical advice for candidates]
+news.controversy_level: [one of: "Low" / "Medium" / "High" — str or None]
+news.key_topics: [comma-separated, e.g. "RTO enforcement, layoffs, antitrust" — str or None]
+news.recent_news: [3–5 dated bullet points, format: "YYYY Mon: [what happened]." each separated by " | " — str or None]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-TECH STACK
-⚠️  THIS SECTION IS OPTIONAL.
-Fill it only if the company is primarily a technology company, has a significant software engineering hiring track, or tech stack is a meaningful differentiator for candidates.
-Skip entirely (write "Tech Stack: N/A") for companies where technology is purely internal/operational (e.g. traditional retail, law firms, consumer banks without a major tech division).
+# RecruitingContacts
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Tech Stack: [N/A — or delete this line and fill the fields below]
-
-Frontend: [frameworks and languages used]
-Backend: [languages, frameworks, major services]
-Infrastructure: [cloud providers, container orchestration, on-prem notes]
-Data / ML: [data platforms, ML frameworks, AI tooling]
-DevTools / CI/CD: [build tools, version control, deployment pipeline]
-Notable OSS: [open source projects the company has created or heavily contributes to]
-Primary Languages: [top 3–4 languages by usage]
-Notes: [1–2 sentences on legacy systems, offshoring trends, or anything that affects the day-to-day engineering experience]
+recruiting.key_programs: [named programs comma-separated, e.g. "FMAP, Global Technology Summer Analyst, STEP" — str or None]
+recruiting.university_recruiting_url: [direct URL — str or None]
+recruiting.general_jobs_url: [direct URL — str or None]
+recruiting.linkedin_search_tip: [1 sentence on how to find the right recruiter on LinkedIn — str or None]
+recruiting.recruiter_tip: [2–3 sentences of most actionable tactical advice for candidates — str or None]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-INTERNSHIP PROGRAM
+# TechStack — OPTIONAL
+# Only fill if the company is primarily a technology company, has a significant
+# software engineering hiring track, or tech stack is a meaningful differentiator
+# for candidates. For traditional finance, retail, law, healthcare operations,
+# or any company where technology is purely internal/back-office, set all
+# tech_stack fields to None.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Program Exists (Yes/No): [Yes or No]
-Program Name: [official name(s), comma-separated if multiple]
-Duration (weeks): [e.g. "10" or "10–12"]
-Roles Available: [comma-separated list of intern role types]
-Weekly Comp (USD): [verified range from Step 1 research only — do NOT use training data. Break out by division if materially different, e.g. "~$1,600–$1,800/wk (corporate); ~$1,900–$2,200/wk (front office)". Flag if unverified.]
-Return Offer Rate: [e.g. "~85%" or "Strong — majority convert" or leave blank if unknown]
-Pipeline to Full-Time: [1 sentence on how central the intern program is to full-time hiring]
-Application Timeline: [month range when apps open, by program type if different]
-Intern Headcount Est.: [annual intern count if known, e.g. "~4,000–6,000 / year"]
-Notes: [1–2 sentences on anything operationally important — housing stipends, one-application limits, GPA cutoffs, diversity programs]
+tech_stack.frontend: [frameworks and languages — str or None]
+tech_stack.backend: [languages, frameworks, major services — str or None]
+tech_stack.infrastructure: [cloud providers, orchestration, on-prem notes — str or None]
+tech_stack.data_ml: [data platforms, ML frameworks, AI tooling — str or None]
+tech_stack.devtools_cicd: [build tools, version control, deployment pipeline — str or None]
+tech_stack.notable_oss: [open source projects created or heavily contributed to — str or None]
+tech_stack.primary_languages: [top 3–4 languages by usage, comma-separated — str or None]
+tech_stack.notes: [legacy system burden, offshoring trends, or day-to-day engineering experience notes — str or None]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-WORKFORCE SIGNALS
+# InternshipProgram
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-WARN Activity: [describe any WARN filings or note absence of them + the strategy behind it]
-WARN Risk Level: [one of: Low / Medium / High]
-WARN Analyst Note: [1–2 sentences interpreting what the WARN pattern means for candidates]
-Reddit / Glassdoor Themes: [2–3 sentences on the most recurring themes across community platforms — be specific, not generic]
-LinkedIn Signals: [1–2 sentences on hiring velocity, headcount direction, notable departures or growth areas]
-News / Press Signals: [1–2 sentences summarizing press coverage of workforce changes in the past 12 months]
-Overall Workforce Risk: [one of: Low / Medium / High]
-Signal Confidence: [one of: High / Pattern-based / Limited data]
-Analyst Summary: [3–4 sentences synthesizing the full workforce picture — financial health, structural vs. distress-driven risk, which roles are safe vs. at risk, internship/entry-level outlook]
+internship.program_exists: [True or False — bool or None]
+internship.program_name: [official name(s), comma-separated if multiple — str or None]
+internship.duration_weeks: [e.g. "10" or "10–12" — str or None]
+internship.roles_available: [comma-separated role types — str or None]
+internship.weekly_comp_usd: [VERIFIED from Step 1 research only — do NOT use training data. Break out by division if materially different, e.g. "~$1,600–$1,800/wk (corporate); ~$1,900–$2,200/wk (front office)". Append "(unverified)" if uncertain. — str or None]
+internship.return_offer_rate: [e.g. "~85%" or "Strong" — str or None]
+internship.pipeline_to_fulltime: [1 sentence on how central intern program is to full-time hiring — str or None]
+internship.application_timeline: [month range when apps open, by program type if different — str or None]
+internship.intern_headcount_est: [annual intern count if known — str or None]
+internship.notes: [housing stipends, one-application limits, GPA cutoffs, diversity programs — str or None]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# WorkforceSignals
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+workforce_signals.warn_activity: [WARN filings description or note absence + strategy behind it — str or None]
+workforce_signals.warn_risk_level: [one of: "Low" / "Medium" / "High" — str or None]
+workforce_signals.warn_analyst_note: [1–2 sentences interpreting WARN pattern for candidates — str or None]
+workforce_signals.reddit_glassdoor_themes: [2–3 sentences on most recurring specific themes — not generic — str or None]
+workforce_signals.linkedin_signals: [hiring velocity, headcount direction, notable departures or growth areas — str or None]
+workforce_signals.news_press_signals: [press coverage of workforce changes in past 12 months — str or None]
+workforce_signals.overall_workforce_risk: [one of: "Low" / "Medium" / "High" — str or None]
+workforce_signals.signal_confidence: [one of: "High" / "Pattern-based" / "Limited data" — str or None]
+workforce_signals.analyst_summary: [3–4 sentences: financial health, structural vs. distress-driven risk, which roles are safe vs. at risk, internship/entry-level outlook — str or None]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 OUTPUT RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. Every field must appear in the output, in the exact order above
-2. Use [leave blank] for any field that cannot be filled from Step 1 — never omit the field label
-3. Tech Stack: write "Tech Stack: N/A" and skip all sub-fields if not applicable
-4. Weekly Comp must come from Step 1 verified research only — never training data
-5. Culture Narrative must reflect COMPANY SAYS perspective only — no employee sentiment
-6. Dimension scores must be numbers only (e.g. 0.65) — no text on the score line
-7. Recent News must be dated bullet points — no undated claims
-8. Do not add any fields, sections, or commentary beyond what is listed above
+1. Every field must appear in the output in the exact order listed above
+2. Field keys must match company.py exactly — snake_case, dot-notation for nested fields
+3. Use None (not "N/A", not blank, not "leave blank") for any missing value
+4. internship.weekly_comp_usd must come from Step 1 verified research only — never training data
+5. culture.culture_narrative must reflect company's official voice only — no employee sentiment
+6. All float fields (ratings, dimension scores) must be numbers only — no units or text on the value line
+7. interview.system_design must be True, False, or None — no other values
+8. internship.program_exists must be True, False, or None — no other values
+9. news.recent_news must be dated — no undated claims
+10. Do not add any fields, commentary, or sections beyond what is listed above
+11. The output of this prompt must be directly parseable into the CompanyProfile Pydantic model defined in company.py

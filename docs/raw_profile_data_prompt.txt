@@ -187,3 +187,7 @@ OUTPUT FORMAT RULES
 - Reddit/Substack section must include specific themes, not generic summaries
 - Intern compensation must be broken out by division type (front-office vs. corporate vs. retail)
 - When uncertain about a figure, state the uncertainty explicitly rather than inventing confidence
+- Output as plain text only — do NOT generate HTML, artifacts, 
+  code files, or any visual output. This is a research dump 
+  for internal use only. Raw text in the chat window is the 
+  correct and only output format.
