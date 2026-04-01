@@ -1,0 +1,162 @@
+Using the structured field output from Step 2 above, write and execute a Python script using openpyxl that generates a filled .xlsx company profile. Do not create a separate file — write and run the script inline. Save the output as /mnt/user-data/outputs/[CompanyName]_Profile.xlsx where [CompanyName] is overview.name with spaces replaced by underscores.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FORMATTING RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Sheet name: "Company Profile"
+Freeze panes at: A2
+Column A width: 28
+Column B width: 72
+Merge A+B for: title row and all section header rows
+
+COLORS:
+  DARK_NAVY  = "1F3864"
+  LIGHT_GRAY = "F2F2F2"
+  WHITE      = "FFFFFF"
+  LABEL_GRAY = "595959"
+
+ROW TYPES:
+  Title row:       height 24 | Arial 13 bold WHITE centered | fill DARK_NAVY
+  Section headers: height 18 | Arial 10 bold WHITE indent 1 | fill DARK_NAVY
+  Field label (col A): height 15 | Arial 9 bold LABEL_GRAY wrap top indent 1 | fill LIGHT_GRAY | thin border CCCCCC all sides
+  Value cell (col B):  height 15 | Arial 9 black wrap top indent 1 | fill WHITE | thin border CCCCCC all sides
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION + FIELD MAP
+(exact label text → Step 2 field key)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Title bar: "COMPANY PROFILE"
+
+Section: "COMPANY OVERVIEW"
+  "Name"                       → overview.name
+  "Founded"                    → overview.founded
+  "Website"                    → overview.website
+  "Industry"                   → overview.industry
+  "Size"                       → overview.size
+  "Headquarters"               → overview.headquarters
+  "Ownership"                  → overview.ownership
+  "Revenue (est.)"             → overview.revenue_est
+  "Headcount (est.)"           → overview.headcount_est
+
+Section: "EXECUTIVE LEADERSHIP"
+  "Executive 1 — Name"         → executives[0].name
+  "Executive 1 — Title"        → executives[0].title
+  "Executive 1 — LinkedIn URL" → executives[0].linkedin_url
+  "Executive 2 — Name"         → executives[1].name
+  "Executive 2 — Title"        → executives[1].title
+  "Executive 2 — LinkedIn URL" → executives[1].linkedin_url
+  "Executive 3 — Name"         → executives[2].name
+  "Executive 3 — Title"        → executives[2].title
+  "Executive 3 — LinkedIn URL" → executives[2].linkedin_url
+  "Executive 4 — Name"         → executives[3].name
+  "Executive 4 — Title"        → executives[3].title
+  "Executive 4 — LinkedIn URL" → executives[3].linkedin_url
+  "Executive 5 — Name"         → executives[4].name
+  "Executive 5 — Title"        → executives[4].title
+  "Executive 5 — LinkedIn URL" → executives[4].linkedin_url
+
+Section: "CULTURE & VALUES"
+  "Culture Narrative"          → culture.culture_narrative
+  "Core Values"                → culture.core_values
+  "Work Environment"           → culture.work_environment
+  "Pace"                       → culture.pace
+  "Empathy (0.0–1.0)"          → culture.empathy
+  "Creative Drive (0.0–1.0)"   → culture.creative_drive
+  "Adaptability (0.0–1.0)"     → culture.adaptability
+  "Futuristic (0.0–1.0)"       → culture.futuristic
+  "Harmony (0.0–1.0)"          → culture.harmony
+  "Data Orientation (0.0–1.0)" → culture.data_orientation
+
+Section: "COMPENSATION"
+  "New Grad SWE Total"         → compensation.new_grad_swe_total
+  "Mid-Level Total"            → compensation.mid_level_total
+  "Senior Total"               → compensation.senior_total
+  "Base Range"                 → compensation.base_range
+  "Equity Notes"               → compensation.equity_notes
+  "Bonus"                      → compensation.bonus
+  "Levels"                     → compensation.levels
+  "Notes"                      → compensation.notes
+
+Section: "INTERVIEW PROCESS"
+  "Difficulty"                 → interview.difficulty
+  "Process Overview"           → interview.process_overview
+  "Coding Focus"               → interview.coding_focus
+  "System Design (Yes/No)"     → interview.system_design
+  "Behavioral"                 → interview.behavioral
+  "Avg Rounds"                 → interview.avg_rounds
+  "Timeline"                   → interview.timeline
+  "Notes"                      → interview.notes
+
+Section: "REMOTE / HYBRID POLICY"
+  "Policy"                     → remote_policy.policy
+  "Remote Friendly"            → remote_policy.remote_friendly
+  "Details"                    → remote_policy.details
+
+Section: "GLASSDOOR / EMPLOYEE RATINGS"
+  "Overall Rating (/ 5.0)"     → glassdoor.overall_rating
+  "CEO Approval"               → glassdoor.ceo_approval
+  "Recommend to Friend"        → glassdoor.recommend_to_friend
+  "Work-Life Balance"          → glassdoor.work_life_balance
+  "Compensation Score"         → glassdoor.compensation_score
+  "Culture Score"              → glassdoor.culture_score
+  "Key Positives"              → glassdoor.key_positives
+  "Key Negatives"              → glassdoor.key_negatives
+  "Source"                     → glassdoor.source
+
+Section: "RECENT NEWS & CONTROVERSIES"
+  "Controversy Level"          → news.controversy_level
+  "Key Topics"                 → news.key_topics
+  "Recent News"                → news.recent_news
+
+Section: "RECRUITING & CONTACTS"
+  "Key Programs"               → recruiting.key_programs
+  "University Recruiting URL"  → recruiting.university_recruiting_url
+  "General Jobs URL"           → recruiting.general_jobs_url
+  "LinkedIn Search Tip"        → recruiting.linkedin_search_tip
+  "Recruiter Tip"              → recruiting.recruiter_tip
+
+Section: "TECH STACK"
+  "Frontend"                   → tech_stack.frontend
+  "Backend"                    → tech_stack.backend
+  "Infrastructure"             → tech_stack.infrastructure
+  "Data / ML"                  → tech_stack.data_ml
+  "DevTools / CI/CD"           → tech_stack.devtools_cicd
+  "Notable OSS"                → tech_stack.notable_oss
+  "Primary Languages"          → tech_stack.primary_languages
+  "Notes"                      → tech_stack.notes
+
+Section: "INTERNSHIP PROGRAM"
+  "Program Exists (Yes/No)"    → internship.program_exists
+  "Program Name"               → internship.program_name
+  "Duration (weeks)"           → internship.duration_weeks
+  "Roles Available"            → internship.roles_available
+  "Weekly Comp (USD)"          → internship.weekly_comp_usd
+  "Return Offer Rate"          → internship.return_offer_rate
+  "Pipeline to Full-Time"      → internship.pipeline_to_fulltime
+  "Application Timeline"       → internship.application_timeline
+  "Intern Headcount Est."      → internship.intern_headcount_est
+  "Notes"                      → internship.notes
+
+Section: "WORKFORCE SIGNALS"
+  "WARN Activity"              → workforce_signals.warn_activity
+  "WARN Risk Level"            → workforce_signals.warn_risk_level
+  "WARN Analyst Note"          → workforce_signals.warn_analyst_note
+  "Reddit / Glassdoor Themes"  → workforce_signals.reddit_glassdoor_themes
+  "LinkedIn Signals"           → workforce_signals.linkedin_signals
+  "News / Press Signals"       → workforce_signals.news_press_signals
+  "Overall Workforce Risk"     → workforce_signals.overall_workforce_risk
+  "Signal Confidence"          → workforce_signals.signal_confidence
+  "Analyst Summary"            → workforce_signals.analyst_summary
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VALUE RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. If a field value is None — write an empty string "" in the cell, do not write "None"
+2. If interview.system_design is True → write "Yes" | False → write "No" | None → ""
+3. If internship.program_exists is True → write "Yes" | False → write "No" | None → ""
+4. All other values: write exactly as they appear in Step 2 output, no reformatting
+5. Do not skip any field — every label must appear even if the value is blank
+6. For fields where the Step 2 value spans multiple lines (e.g. culture_narrative, analyst_summary) — write the full value as a single string in the cell; wrap_text is already enabled
