@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
-import { Users, Briefcase } from 'lucide-react';
+import { Users, Briefcase, Eye, EyeOff } from 'lucide-react';
 import HeroNetworkAnimation from '../components/HeroNetworkAnimation';
 
 function Register() {
@@ -12,6 +12,8 @@ function Register() {
     confirmPassword: '',
     role: 'job-seeker' as 'job-seeker' | 'recruiter',
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -71,6 +73,8 @@ function Register() {
 
   const inputCls =
     'w-full rounded border border-cream-muted bg-cream-base px-4 py-3 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors';
+  const inputWithToggleCls =
+    'w-full rounded border border-cream-muted bg-cream-base pl-4 pr-11 py-3 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors';
 
   return (
     <div className="relative overflow-hidden min-h-screen bg-cream-base font-sans flex items-center justify-center py-16 px-4">
@@ -167,30 +171,50 @@ function Register() {
 
             <div className="space-y-1.5">
               <label htmlFor="password" className="text-sm font-medium text-ink-primary">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                value={formData.password}
-                onChange={handleInputChange}
-                className={inputCls}
-                placeholder="Min. 12 characters"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className={inputWithToggleCls}
+                  placeholder="Min. 12 characters"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-0 right-3 flex items-center text-ink-tertiary hover:text-ink-secondary transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             <div className="space-y-1.5">
               <label htmlFor="confirmPassword" className="text-sm font-medium text-ink-primary">Confirm password</label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                className={inputCls}
-                placeholder="Repeat your password"
-              />
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  required
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  className={inputWithToggleCls}
+                  placeholder="Repeat your password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  className="absolute inset-y-0 right-3 flex items-center text-ink-tertiary hover:text-ink-secondary transition-colors"
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             <button
