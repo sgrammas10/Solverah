@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/useAuth';
 import { getPendingQuizSave, clearPendingQuizSave } from "../utils/guestQuiz";
 import { API_BASE as API_URL } from "../utils/api";
 import HeroNetworkAnimation from '../components/HeroNetworkAnimation';
+import { Eye, EyeOff } from 'lucide-react';
 
 function ResendConfirmation({ email }: { email: string }) {
   const navigate = useNavigate();
@@ -54,6 +55,7 @@ function ResendConfirmation({ email }: { email: string }) {
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -103,6 +105,8 @@ function Login() {
 
   const inputCls =
     'w-full rounded border border-cream-muted bg-cream-base px-4 py-3 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors';
+  const inputWithToggleCls =
+    'w-full rounded border border-cream-muted bg-cream-base pl-4 pr-11 py-3 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors';
 
   return (
     <div className="relative overflow-hidden min-h-screen bg-cream-base font-sans flex items-center justify-center py-16 px-4">
@@ -162,17 +166,27 @@ function Login() {
               <label htmlFor="password" className="text-sm font-medium text-ink-primary">
                 Password
               </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={inputCls}
-                placeholder="Your password"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={inputWithToggleCls}
+                  placeholder="Your password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-0 right-3 flex items-center text-ink-tertiary hover:text-ink-secondary transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             <button
