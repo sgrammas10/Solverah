@@ -168,7 +168,7 @@ function PrelaunchLandingPage() {
           body: JSON.stringify({ mime: resumeFile.type, size: resumeFile.size }),
         });
 
-        const presignData = await presignRes.json().catch(() => ({}));
+        const presignData = await presignRes.json().catch((e) => { console.error("Failed to parse presign response:", e); return {}; });
         if (!presignRes.ok) throw new Error(presignData?.error || "Unable to start upload.");
 
         ({ submission_id, object_key } = presignData as { submission_id: string; object_key: string });
@@ -212,7 +212,7 @@ function PrelaunchLandingPage() {
         body: JSON.stringify(finalizePayload),
       });
 
-      const finalizeData = await finalizeRes.json().catch(() => ({}));
+      const finalizeData = await finalizeRes.json().catch((e) => { console.error("Failed to parse finalize response:", e); return {}; });
       if (!finalizeRes.ok) throw new Error(finalizeData?.error || "Unable to submit right now.");
 
       setSubmissionStatus("success");
@@ -261,7 +261,7 @@ function PrelaunchLandingPage() {
         body: JSON.stringify({ submission_id: submissionId, password: accountPassword, role: "job-seeker" }),
       });
 
-      const data = await response.json().catch(() => ({}));
+      const data = await response.json().catch((e) => { console.error("Failed to parse create-account response:", e); return {}; });
       if (!response.ok) throw new Error(data?.error || "Unable to create account right now.");
       setAccountStep("success");
     } catch (error) {
@@ -297,7 +297,7 @@ function PrelaunchLandingPage() {
         body: JSON.stringify({ submission_id: submissionId, email: signInEmail.trim(), password: signInPassword }),
       });
 
-      const data = await response.json().catch(() => ({}));
+      const data = await response.json().catch((e) => { console.error("Failed to parse sign-in response:", e); return {}; });
       if (!response.ok) throw new Error(data?.error || "Unable to sign in right now.");
       setAccountStep("success");
     } catch (error) {
