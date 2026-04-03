@@ -82,13 +82,17 @@ export function useIntakeForm() {
       });
       if (!presignRes.ok) throw new Error(presignData?.error || "Unable to start upload.");
 
-      ({ submission_id, object_key } = presignData as { submission_id: string; object_key: string });
-      setSubmissionId(submission_id);
-      const { upload_url } = presignData as { upload_url: string };
+      const { submission_id, object_key, upload_url } = presignData as {
+        submission_id?: string;
+        object_key?: string;
+        upload_url?: string;
+      };
 
       if (!submission_id || !object_key || !upload_url) {
         throw new Error("Upload initialization failed. Please try again.");
       }
+
+      setSubmissionId(submission_id);
 
       const putRes = await fetch(upload_url, {
         method: "PUT",
