@@ -2,6 +2,7 @@
 // JobSeekerProfile.tsx
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/useAuth';
+import type { AuthContextType } from '../contexts/authContext';
 import {
   User,
   Mail,
@@ -79,7 +80,7 @@ interface FormData {
 
 // ============================  Component  ============================
 const JobSeekerProfile: React.FC = () => {
-  const { user, fetchWithAuth, updateProfileData } = useAuth() as any; // keep loose if your context isn't typed yet
+  const { user, fetchWithAuth, updateProfileData } = useAuth() as AuthContextType;
 
   const getInitialFormData = (): FormData => ({
     firstName: user?.name?.split(' ')[0] || '',
@@ -310,17 +311,18 @@ const JobSeekerProfile: React.FC = () => {
         );
 
         if (finalized?.profileData) {
+          const profileData = finalized.profileData;
           setFormData((prev) => ({
             ...prev,
-            ...finalized.profileData,
-            experience: finalized.profileData.experience ?? prev.experience,
-            education: finalized.profileData.education ?? prev.education,
-            skills: finalized.profileData.skills ?? prev.skills,
-            uploadedResume: finalized.profileData.uploadedResume ?? prev.uploadedResume,
+            ...profileData,
+            experience: profileData.experience ?? prev.experience,
+            education: profileData.education ?? prev.education,
+            skills: profileData.skills ?? prev.skills,
+            uploadedResume: profileData.uploadedResume ?? prev.uploadedResume,
             psychometricResults:
-              finalized.profileData.psychometricResults ?? prev.psychometricResults,
+              profileData.psychometricResults ?? prev.psychometricResults,
           }));
-          updateProfileData?.(finalized.profileData as any);
+          updateProfileData?.(profileData as any);
           setPendingResume(null);
         }
       }
