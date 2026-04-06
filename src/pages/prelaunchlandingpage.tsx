@@ -53,7 +53,7 @@ function PrelaunchLandingPage() {
   }, [earlyAccess.isOpen, intake.accountModalOpen]);
 
   return (
-    <div className="min-h-screen bg-cream-base font-sans text-ink-primary">
+    <div className="min-h-screen bg-cream-base font-sans text-ink-primary" style={{ zoom: 0.8 }}>
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:bg-forest-dark focus:text-white focus:px-4 focus:py-2 focus:rounded"

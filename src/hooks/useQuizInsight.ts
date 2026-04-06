@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+const PROGRESS_TICK_MS = 350;
+
 export type QuizInsight = {
   key?: string;
   title?: string;
@@ -27,7 +29,7 @@ export function useQuizInsight() {
     setInsightProgress(8);
     const id = setInterval(() => {
       setInsightProgress((prev) => (prev < 90 ? Math.min(90, prev + 6 + Math.random() * 6) : prev));
-    }, 350);
+    }, PROGRESS_TICK_MS);
     return () => clearInterval(id);
   }, [insightLoading]);
 
