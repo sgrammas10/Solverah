@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import QuizInsightModal from "./QuizInsightModal";
 import { API_BASE } from "../utils/api";
 import { markGuestQuizCompleted, setPendingQuizSave } from "../utils/guestQuiz";
+import { useQuizInsight, type QuizInsight } from "../hooks/useQuizInsight";
 
 
 // Single quiz question type: numeric id, question text, and list of options
@@ -11,26 +12,6 @@ type Question = { id: number; text: string; options: string[] };
 
 // Quiz type: a unique key, display title, and a list of questions
 type Quiz = { key: string; title: string; questions: Question[] };
-
-type QuizInsight = {
-  key?: string;
-  title?: string;
-  summary?: string;
-  keyTakeaways?: string[];
-  combinedMeaning?: string;
-  nextSteps?: string[];
-};
-
-type OverallInsight = {
-  summary?: string;
-  keyTakeaways?: string[];
-  nextSteps?: string[];
-};
-
-type QuizInsightResponse = {
-  overallInsight?: OverallInsight | null;
-  insights: QuizInsight[];
-};
 
 // Static configuration for all quizzes shown in this tab
 const quizzes: Quiz[] = [
@@ -281,11 +262,20 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
   const [answers, setAnswers] = useState<Record<string, Record<number, number>>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
-  const [insightModalOpen, setInsightModalOpen] = useState(false);
-  const [insightLoading, setInsightLoading] = useState(false);
-  const [insightProgress, setInsightProgress] = useState(0);
-  const [insightError, setInsightError] = useState<string | null>(null);
-  const [insightResponse, setInsightResponse] = useState<QuizInsightResponse | null>(null);
+
+  const {
+    insightModalOpen,
+    insightLoading,
+    setInsightLoading,
+    insightProgress,
+    setInsightProgress,
+    insightError,
+    setInsightError,
+    insightResponse,
+    setInsightResponse,
+    openInsight,
+    handleInsightClose,
+  } = useQuizInsight();
 
   // Get profile-related actions from AuthContext
   const { fetchProfileData, saveProfileData, fetchWithAuth } = useAuth();
@@ -379,16 +369,6 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
     })();
   }, [fetchProfileData, guest, quizKey, visibleQuizzes]);
 
-  useEffect(() => {
-    if (!insightLoading) return;
-    setInsightProgress(8);
-    const id = setInterval(() => {
-      setInsightProgress((prev) => (prev < 90 ? Math.min(90, prev + 6 + Math.random() * 6) : prev));
-    }, 350);
-    return () => clearInterval(id);
-  }, [insightLoading]);
-
-
   /**
    * Handle change for an individual question's selected option.
    * - quizKey: which quiz this question belongs to
@@ -445,9 +425,7 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
             quizPayload: payload,
             createdAt: new Date().toISOString(),
           });
-          setInsightModalOpen(true);
-          setInsightLoading(true);
-          setInsightError(null);
+          openInsight();
           try {
             const res = await fetch(`${API_BASE}/quiz-insights-guest`, {
               method: "POST",
@@ -521,11 +499,9 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
               quizGroup: "careerQuizzes",
               quizzes: allAnsweredQuizzes,
             };
-            setInsightModalOpen(true);
-            setInsightLoading(true);
-            setInsightError(null);
+            openInsight();
             try {
-              const res = await fetchWithAuth<QuizInsightResponse>("/quiz-insights", {
+              const res = await fetchWithAuth("/quiz-insights", {
                 method: "POST",
                 body: JSON.stringify(payload),
               });
@@ -551,12 +527,6 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
         alert("Failed to save responses. Check console for details.");
       }
     })();
-  };
-
-  const handleInsightClose = () => {
-    setInsightModalOpen(false);
-    setInsightError(null);
-    setInsightProgress(0);
   };
 
   const handleViewInsights = () => {

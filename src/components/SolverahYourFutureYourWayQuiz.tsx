@@ -9,19 +9,7 @@ import {
 import QuizInsightModal from "./QuizInsightModal";
 import { API_BASE } from "../utils/api";
 import { markGuestQuizCompleted, setPendingQuizSave } from "../utils/guestQuiz";
-
-type QuizInsight = {
-  title?: string;
-  summary?: string;
-  keyTakeaways?: string[];
-  combinedMeaning?: string;
-  nextSteps?: string[];
-};
-
-type QuizInsightResponse = {
-  overallSummary?: string | null;
-  insights: QuizInsight[];
-};
+import { useQuizInsight } from "../hooks/useQuizInsight";
 
 
 /* ===========================================================
@@ -41,11 +29,20 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
-  const [insightModalOpen, setInsightModalOpen] = useState(false);
-  const [insightLoading, setInsightLoading] = useState(false);
-  const [insightProgress, setInsightProgress] = useState(0);
-  const [insightError, setInsightError] = useState<string | null>(null);
-  const [insightResponse, setInsightResponse] = useState<QuizInsightResponse | null>(null);
+
+  const {
+    insightModalOpen,
+    insightLoading,
+    setInsightLoading,
+    insightProgress,
+    setInsightProgress,
+    insightError,
+    setInsightError,
+    insightResponse,
+    setInsightResponse,
+    openInsight,
+    handleInsightClose,
+  } = useQuizInsight();
 
   const { fetchProfileData, saveProfileData, fetchWithAuth } = useAuth();
   const navigate = useNavigate();
@@ -92,16 +89,6 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
       }
     })();
   }, [fetchProfileData, guest]);
-
-  useEffect(() => {
-    if (!insightLoading) return;
-    setInsightProgress(8);
-    const id = setInterval(() => {
-      setInsightProgress((prev) => (prev < 90 ? Math.min(90, prev + 6 + Math.random() * 6) : prev));
-    }, 350);
-    return () => clearInterval(id);
-  }, [insightLoading]);
-
 
   /* ---------------------------------------------------------
      onChange
@@ -150,9 +137,7 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
             quizPayload: payload,
             createdAt: new Date().toISOString(),
           });
-          setInsightModalOpen(true);
-          setInsightLoading(true);
-          setInsightError(null);
+          openInsight();
           try {
             const res = await fetch(`${API_BASE}/quiz-insights-guest`, {
               method: "POST",
@@ -214,11 +199,9 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
                 },
               ],
             };
-            setInsightModalOpen(true);
-            setInsightLoading(true);
-            setInsightError(null);
+            openInsight();
             try {
-              const res = await fetchWithAuth<QuizInsightResponse>("/quiz-insights", {
+              const res = await fetchWithAuth("/quiz-insights", {
                 method: "POST",
                 body: JSON.stringify(payload),
               });
@@ -241,12 +224,6 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
         alert("Failed to save responses. Check console for details.");
       }
     })();
-  };
-
-  const handleInsightClose = () => {
-    setInsightModalOpen(false);
-    setInsightError(null);
-    setInsightProgress(0);
   };
 
   const handleViewInsights = () => {
