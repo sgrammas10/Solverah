@@ -66,8 +66,7 @@ export function useIntakeForm() {
         }
       }
 
-      let submission_id: string | null = null;
-      let object_key: string | null = null;
+
       let mime: string | null = null;
       let size: number | null = null;
 
