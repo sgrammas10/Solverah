@@ -1,5 +1,22 @@
-from pydantic import BaseModel
+from enum import Enum
 from typing import Optional
+
+from pydantic import BaseModel
+
+
+class Pace(Enum):
+    SLOW = "slow"
+    MODERATE = "moderate"
+    FAST = "fast"
+    VERY_FAST = "very-fast"
+
+
+PACE_TO_FLOAT: dict["Pace", float] = {
+    Pace.SLOW: 0.0,
+    Pace.MODERATE: 0.33,
+    Pace.FAST: 0.66,
+    Pace.VERY_FAST: 1.0,
+}
 
 
 class CompanyOverview(BaseModel):
@@ -24,13 +41,20 @@ class CultureValues(BaseModel):
     culture_narrative: Optional[str] = None
     core_values: list[str] = []
     work_environment: Optional[str] = None
-    pace: Optional[str] = None
-    empathy: Optional[float] = None             # 0.0 – 1.0
-    creative_drive: Optional[float] = None
-    adaptability: Optional[float] = None
-    futuristic: Optional[float] = None
-    harmony: Optional[float] = None
-    data_orientation: Optional[float] = None
+    pace: str
+    empathy: float                              # 0.0 – 1.0
+    creative_drive: float
+    adaptability: float
+    futuristic: float
+    harmony: float
+    data_orientation: float
+
+    @property
+    def pace_float(self) -> Optional[float]:
+        try:
+            return PACE_TO_FLOAT[Pace(self.pace)]
+        except (ValueError, KeyError):
+            return None
 
 
 class Compensation(BaseModel):

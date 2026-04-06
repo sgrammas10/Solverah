@@ -33,7 +33,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
-from company import CultureValues
+from company import CultureValues, Pace, PACE_TO_FLOAT
 
 # ---------------------------------------------------------------------------
 # Defaults
@@ -59,8 +59,6 @@ DEFAULT_WEIGHTS: dict[str, float] = {
     "pace": 1.5,
 }
 
-# Canonical pace ordering for proximity scoring
-_PACE_ORDER = ["slow", "moderate", "fast", "very fast"]
 
 
 # ---------------------------------------------------------------------------
@@ -107,21 +105,15 @@ def _score_work_environment(company_val: str | None, user_val) -> Optional[float
 
 
 def _score_pace(company_val: str | None, user_val: str | None) -> Optional[float]:
-    """Proximity score on the ordered pace scale."""
+    """Numeric proximity score using PACE_TO_FLOAT (0.0–1.0 scale)."""
     if not company_val or not user_val:
         return None
-    c = company_val.strip().lower()
-    u = user_val.strip().lower()
-    if c == u:
-        return 1.0
     try:
-        ci = _PACE_ORDER.index(c)
-        ui = _PACE_ORDER.index(u)
-        max_dist = len(_PACE_ORDER) - 1
-        return 1.0 - abs(ci - ui) / max_dist
-    except ValueError:
-        # Unknown pace label — treat as binary match
-        return 1.0 if c == u else 0.0
+        c_float = PACE_TO_FLOAT[Pace(company_val.strip().lower())]
+        u_float = PACE_TO_FLOAT[Pace(user_val.strip().lower())]
+        return _score_numeric(c_float, u_float)
+    except (ValueError, KeyError):
+        return 1.0 if company_val.strip().lower() == user_val.strip().lower() else 0.0
 
 
 def _score_numeric(company_val: float | None, user_val: float | None) -> Optional[float]:
