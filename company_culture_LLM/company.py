@@ -24,13 +24,13 @@ class CultureValues(BaseModel):
     culture_narrative: Optional[str] = None
     core_values: list[str] = []
     work_environment: Optional[str] = None
-    pace: Optional[str] = None
-    empathy: Optional[float] = None             # 0.0 – 1.0
-    creative_drive: Optional[float] = None
-    adaptability: Optional[float] = None
-    futuristic: Optional[float] = None
-    harmony: Optional[float] = None
-    data_orientation: Optional[float] = None
+    pace: str
+    empathy: float                              # 0.0 – 1.0
+    creative_drive: float
+    adaptability: float
+    futuristic: float
+    harmony: float
+    data_orientation: float
 
 
 class Compensation(BaseModel):
