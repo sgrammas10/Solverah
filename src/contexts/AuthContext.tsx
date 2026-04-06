@@ -28,7 +28,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setUser(null);
         }
-      } catch {
+      } catch (e) {
+        console.error("Session restore failed:", e);
         setUser(null);
       }
       setLoading(false);
@@ -58,10 +59,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       credentials: "include",
     });
 
-    const data = await res.json().catch(() => null);
+    const data = await res.json().catch((e) => {
+      console.error("fetchWithAuth: failed to parse JSON response:", e);
+      return null;
+    });
 
     if (!res.ok) {
       throw new Error(data?.error || data?.message || "Request failed");
+    }
+
+    if (data === null) {
+      throw new Error("Unexpected response from server (no JSON body).");
     }
 
     return data as T;
