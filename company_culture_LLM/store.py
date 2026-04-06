@@ -33,6 +33,7 @@ def _culture_columns(profile: CompanyProfile) -> dict:
     return {
         "work_environment": c.work_environment,
         "pace": c.pace,
+        "pace_float": c.pace_float,
         "empathy": c.empathy,
         "creative_drive": c.creative_drive,
         "adaptability": c.adaptability,

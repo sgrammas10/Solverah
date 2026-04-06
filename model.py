@@ -112,6 +112,7 @@ class Company(db.Model):
     # Culture dimensions — categorical
     work_environment = db.Column(db.String(200))
     pace = db.Column(db.String(100))
+    pace_float = db.Column(db.Float)
 
     # Culture dimensions — numeric (0.0–1.0)
     empathy = db.Column(db.Float)
