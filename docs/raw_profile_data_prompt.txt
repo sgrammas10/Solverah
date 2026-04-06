@@ -1,4 +1,6 @@
-You are a company intelligence analyst producing structured recruiting profiles for a proprietary talent database. Generate a complete, research-backed profile for [COMPANY NAME] using the exact sections and structure below. Every claim must be sourced from verifiable data: SEC filings, Glassdoor, Levels.fyi, Indeed, Wall Street Oasis, Blind, TheLayoff.com, Reddit (r/cscareerquestions, r/FinancialCareers, r/investing, role-specific subs), LinkedIn hiring signals, and official company pages. Do not rely on training data for compensation figures — search for current data.
+You are a company intelligence analyst producing structured recruiting profiles for a proprietary talent database. Generate a complete, research-backed profile for [COMPANY NAME] using the exact sections and structure below. Every claim must be sourced from verifiable data: SEC filings, the company's most recent annual report, the most recent investor relations press releases, Glassdoor, Indeed, Levels.fyi, Wall Street Oasis, Blind, TheLayoff.com, Reddit (r/cscareerquestions, r/FinancialCareers, r/investing, role-specific subs), LinkedIn hiring signals, and official company pages. Do not rely on training data for compensation figures — search for current data.
+
+RECENCY RULE: All financial data, headcount figures, and analyst summaries MUST be sourced from the company's most recent annual report and most recent investor relations press releases. Do not use data older than 12 months for financial metrics. For the "Recent News" field, only include events from the last 12 months unless an older event is directly causing or explaining a current business situation — in that case, explicitly state why the older event is still relevant.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SECTION 1 — COMPANY OVERVIEW
@@ -13,8 +15,8 @@ Website | official URL
 Careers Page | direct URL
 Campus Portal | URL if separate from main careers page (e.g. campus.bankofamerica.com)
 Industry | sector + sub-sectors served (e.g. Banking / Retail, Corporate, IB, Wealth Mgmt)
-Revenue (latest FY) | net revenue figure + source + net income if notable
-Headcount | current estimate + date + directional trend (growing / shrinking / stable)
+Revenue (latest FY) | net revenue figure + source (must be from most recent annual report or 10-K) + net income if notable
+Headcount | current estimate + date + directional trend (growing / shrinking / stable); source from most recent IR press release or earnings call
 Global Presence | countries + key US office locations
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -29,8 +31,8 @@ CULTURE NARRATIVE (EMPLOYEES SAY):
 Write 5–8 sentences synthesizing real employee sentiment from Glassdoor, Indeed, Blind, TheLayoff.com, Wall Street Oasis, and Reddit. Separate positives from negatives clearly. Include direct paraphrased quotes or commonly repeated phrases from reviews. Note if sentiment varies significantly by division, role type, or manager quality.
 
 Then provide the following as a key-value table:
-Glassdoor Overall | score / 5.0 (# reviews) — % recommend — sub-scores for WLB, Culture, Career Opps
-Indeed Overall | score + any notable patterns
+Glassdoor Overall | score / 5.0 (# reviews) — % recommend — sub-scores for WLB, Culture, Career Opps, Compensation, Senior Mgmt
+Indeed Overall | score / 5.0 (# reviews) — sub-scores for WLB, Compensation, Job Security, Management — note any patterns that differ from Glassdoor
 Blind Tier | tier or sentiment summary for this company on Blind
 Competencies (from Job Postings) | list 6–10 competencies drawn from real job postings across multiple divisions
 Core Values | official named values as stated by company
@@ -48,46 +50,57 @@ Data Orientation | [score] | [rationale]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SECTION 3 — INTERNSHIP PROGRAMS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This section covers ONLY internship and early-career pipeline programs. Do not include permanent hiring process details here — those belong in Section 4.
+
 Provide a table with one row per named internship program:
 Columns: Program Name | Division | Duration | Open To | Location | Comp/hr (VERIFIED) | GPA Pref | Key Skills Required | Notes
 
 COMPENSATION VERIFICATION RULE: Do NOT cite intern pay from training data. Search Glassdoor, Levels.fyi, LinkedIn salary data, and company job postings for current, division-specific compensation. Present separate ranges for:
 - Front-office roles (IB, Markets, Research): typically higher
 - Corporate functions (Finance, Risk, Ops, Compliance): mid-range
+- Technology / Engineering programs: specify separately
 - Non-technical / retail programs: lower range
 Note housing stipend availability separately. If data is uncertain, say so explicitly.
 
 Also include as key-value pairs below the table:
 Conversion Rate | % or qualitative (strong/moderate/weak pipeline to full-time)
-Application Opens | by program type with specific months
+Application Opens | by program type with specific months; note if any programs fill early (e.g. Spring Recruiting models where IB rosters close by August)
+Application Timeline Tips | any early-deadline warnings, rolling admission notes, or strategic timing advice
 Max Applications | any per-cycle limits
-Visa Sponsorship | policy
+Visa Sponsorship | policy; note any STEM OPT or H-1B limitations by program type
 GPA Requirement | by program if differentiated
+Intern Interview Process | step-by-step process specifically for intern candidates (HireVue, Pymetrics, Superday, etc.); include format, number of rounds, and what each round assesses
+Intern Behavioral Framework | which framework (STAR, SOAR, etc.) works best for intern interviews and why
+
+SOAR FRAMEWORK NOTE: SOAR stands for Situation, Obstacle, Action, Result. It differs from STAR by replacing "Task" with "Obstacle," which forces the candidate to articulate the specific challenge or friction point they faced rather than just describing their assignment. This produces more compelling narratives, especially for companies undergoing transformation or change, because it demonstrates resilience and problem-solving under pressure.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SECTION 4 — INTERVIEW & HIRING PROCESS
+SECTION 4 — INTERVIEW & HIRING PROCESS (PERMANENT ROLES)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Cover ALL THREE hiring tracks. Do not limit this section to tech or one function.
+This section covers ONLY permanent (non-intern) hiring. Intern interview details belong in Section 3.
+
+Cover ALL THREE permanent hiring tracks. Do not limit this section to tech or one function.
 
 Overall Difficulty | by track: [retail/branch] | [corporate programs] | [IB/markets] | [quant/specialized]
 Avg. Time to Hire | by track with specific day ranges (source: Glassdoor or verified)
 Background Check | what it includes; any role-specific requirements (fingerprinting, credit check)
 Referrals | how much they matter; how to activate
 
-TRACK 1 — CAMPUS / INTERNSHIP / NEW GRADUATE
-Who it's for, portal URL, application timeline by program type, then step-by-step:
+TRACK 1 — NEW GRADUATE / FULL-TIME ANALYST & ASSOCIATE PROGRAMS
+Who it's for (graduating seniors, MBA/PhD), portal URL, application timeline, then step-by-step:
 Step 1: Online Application — what's required, any filtering logic, tips
 Step 2: HireVue / Online Assessment — format, # questions, prep time, evaluation criteria, tips
 Step 3: Phone/Video Screen — format, who conducts it, what's assessed
 Step 4: Superday / Final Rounds — format, # interviews, technical vs. behavioral split by program, tips
 Behavioral Framework: which framework works best (STAR, SOAR, etc.) and why; what stories to prepare
 Technical Prep by Track: specific topics for IB, Finance, Risk, Wealth Mgmt, Tech, etc.
+System Design (Tech Roles): whether system design interviews are used, at what level, and what topics to expect. System design interviews assess a candidate's ability to architect large-scale distributed systems (e.g. design a payment processing pipeline, a real-time notification service). This field helps candidates know whether to prep system design vs. pure algorithms.
 "Why [Company]?" — what interviewers actually want to hear; what fails
 
 TRACK 2 — EXPERIENCED / LATERAL HIRES (2+ years)
 Who it's for, which portal, recruiter vs. direct apply dynamics
 Step-by-step process through offer
-What experienced interviews assess differently from campus
+What experienced interviews assess differently from new grad
 Common questions for experienced candidates
 Realistic timelines by division
 
@@ -98,9 +111,16 @@ Who it's for, full process, what they look for, reality check on the job itself
 SECTION 5 — COMPENSATION BY LEVEL / DIVISION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Provide a table:
-Columns: Role / Level | Base Salary | Bonus | Equity (RSU/Options) | Total Comp Est. | Notes
+Columns: Role / Level | Internal Level Code | Base Salary | Bonus | Equity (RSU/Options) | Total Comp Est. | Notes
 
 Cover all major tracks: entry-level/teller (if applicable), analyst, associate, VP, director/MD, internships (front-office vs. corporate), wealth management, research, tech roles.
+
+LEVEL STRUCTURE: Include the company's internal level/band codes (e.g. C10–C15 at Citi, L3–L7 at Google, Analyst/Associate/VP/Director/MD at banks). Search Reddit (r/cscareerquestions, r/FinancialCareers), Blind, Wall Street Oasis, Levels.fyi, and career-focused Substacks for real employee-reported level details including:
+- What each level means in terms of scope and responsibility
+- Typical time-in-level before promotion
+- Any known promotion bottlenecks (e.g. "VP to Director is a 3–5 year grind")
+- How levels map across divisions (e.g. tech C13 ≈ banking VP)
+If level structure intel is sparse, say so explicitly rather than guessing.
 
 Source compensation from Levels.fyi, Wall Street Oasis, Glassdoor, and LinkedIn where possible. Flag where data is sparse or uncertain. Note:
 - Bonus structure and whether it is truly discretionary vs. formula-based
@@ -135,6 +155,7 @@ Report on:
 3. Salary/offer negotiation intel shared by recent candidates
 4. Reputation relative to direct competitors (e.g. "go to JPM instead" or "better WLB than Goldman")
 5. Any recent viral threads, controversies, or notable discussions
+6. Level structure and promotion intel — what employees and candidates share about internal levels, bands, promotion timelines, and cross-division level mapping
 
 Do NOT summarize generically — cite specific themes with paraphrased examples.
 
@@ -161,9 +182,21 @@ Columns: Period | Headcount Change | What Happened | Method Used | Risk Signal f
 
 Then provide:
 - Pattern Summary: how this company typically manages headcount reductions (WARN filings, attrition management, performance exits, offshoring, etc.)
-- Current Risk Level: Low / Medium / High with 2–3 sentence rationale
+- Current Risk Level: Low / Medium / High with 2–3 sentence rationale sourced from the most recent annual report and IR press releases
 - Which roles / divisions are most at risk right now
-- WARN Activity: any recent filings
+
+WARN ACTIVITY (DETAILED): Search for any WARN filings from the last 12 months. If active WARN filings exist, provide ALL available details for each filing:
+- Filing date
+- State filed in
+- Facility / office address affected
+- Number of employees affected
+- Job titles or departments affected (if disclosed)
+- Effective layoff date(s)
+- Whether the layoff is permanent or temporary
+- Any company statements about the filing
+This is high-value market intelligence — be thorough. If no WARN filings are found, state that explicitly.
+
+RECENT NEWS & CONTROVERSIES: Only include events from the last 12 months. If an older event (e.g. a restructuring announced 2+ years ago) is still directly driving current layoffs or business changes, include it with an explicit note: "Included because: [reason it's still relevant to current situation]." Do not pad this section with historical context that isn't actively shaping the present.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SECTION 10 — RECRUITING CONTACTS & RESOURCES
@@ -182,10 +215,16 @@ OUTPUT FORMAT RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 - Use the exact section headers and structures above
 - All compensation data must be sourced from live search, not training data — flag any figures that could not be verified
+- All financial data and analyst summaries must be sourced from the most recent annual report and IR press releases — flag if only older data is available
 - Dual culture narratives are mandatory — never merge "company says" and "employees say"
-- Interview section must cover all 3 hiring tracks — never limit to one function
-- Reddit/Substack section must include specific themes, not generic summaries
-- Intern compensation must be broken out by division type (front-office vs. corporate vs. retail)
+- Employee ratings must include BOTH Glassdoor AND Indeed scores with sub-dimensions
+- Interview section (Section 4) covers ONLY permanent roles — intern interviews belong in Section 3
+- Section 3 must include the full intern interview process, not just program descriptions
+- Reddit/Substack section must include specific themes, not generic summaries, including level/promotion intel
+- Intern compensation must be broken out by division type (front-office vs. corporate vs. tech vs. retail)
+- Compensation table must include internal level codes with promotion context
+- WARN filings must include full details (date, state, address, headcount, effective dates) when available
+- Recent news must be from the last 12 months unless explicitly justified as still relevant
 - When uncertain about a figure, state the uncertainty explicitly rather than inventing confidence
 - Output as plain text only — do NOT generate HTML, artifacts, 
   code files, or any visual output. This is a research dump 
