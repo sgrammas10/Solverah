@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
 import { getPendingQuizSave, clearPendingQuizSave } from "../utils/guestQuiz";
-import { API_BASE as API_URL } from "../utils/api";
+import { API_BASE } from "../utils/api";
 import HeroNetworkAnimation from '../components/HeroNetworkAnimation';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -20,7 +20,7 @@ function ResendConfirmation({ email }: { email: string }) {
     setStatus('sending');
     setMsg('');
     try {
-      const res = await fetch(`${API_URL}/resend-confirmation`, {
+      const res = await fetch(`${API_BASE}/resend-confirmation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

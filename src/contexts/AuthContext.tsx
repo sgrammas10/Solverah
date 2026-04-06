@@ -1,7 +1,7 @@
 import { useState, useEffect, ReactNode } from "react";
 
 import { AuthContext, ProfileData, User } from "./authContext";
-import { API_BASE as API_URL } from "../utils/api";
+import { API_BASE } from "../utils/api";
 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -13,7 +13,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${API_URL}/profile`, {
+        const res = await fetch(`${API_BASE}/profile`, {
           method: "GET",
           credentials: "include",
         });
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (headers as any)["X-CSRF-TOKEN"] = csrfToken;
     }
 
-    const res = await fetch(`${API_URL}${endpoint}`, {
+    const res = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
       headers,
       credentials: "include",
@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // LOGIN — backend sets an HttpOnly JWT cookie
   const login = async (email: string, password: string) => {
-    const res = await fetch(`${API_URL}/login`, {
+    const res = await fetch(`${API_BASE}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     name: string,
     role: "job-seeker" | "recruiter"
   ) => {
-    const res = await fetch(`${API_URL}/register`, {
+    const res = await fetch(`${API_BASE}/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",

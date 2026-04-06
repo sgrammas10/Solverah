@@ -3,6 +3,8 @@ import { useAuth } from "../contexts/useAuth";
 import { ProfileFormData, PendingResumeUpload } from "../types/profile";
 
 const MAX_EXPERIENCES = 20;
+const PROGRESS_TICK_MS = 450;
+const PROGRESS_RESET_DELAY_MS = 600;
 const MAX_EDUCATIONS = 10;
 const MAX_SKILLS = 50;
 const MAX_SECONDARY_LOCATIONS = 20;
@@ -95,7 +97,7 @@ export function useProfileForm() {
     setSaveProgress(8);
     const timer = setInterval(() => {
       setSaveProgress((prev) => (prev < 90 ? Math.min(90, prev + 6 + Math.random() * 6) : prev));
-    }, 450);
+    }, PROGRESS_TICK_MS);
     return () => clearInterval(timer);
   }, [isSaving]);
 
@@ -105,7 +107,7 @@ export function useProfileForm() {
     setUploadProgress(8);
     const timer = setInterval(() => {
       setUploadProgress((prev) => (prev < 90 ? Math.min(90, prev + 6 + Math.random() * 6) : prev));
-    }, 450);
+    }, PROGRESS_TICK_MS);
     return () => clearInterval(timer);
   }, [isUploadingResume]);
 
@@ -276,7 +278,7 @@ export function useProfileForm() {
     setSaveProgress(100);
     setIsSaving(false);
     setIsSaved(true);
-    setTimeout(() => setSaveProgress(0), 600);
+    setTimeout(() => setSaveProgress(0), PROGRESS_RESET_DELAY_MS);
   };
 
   const handleChange = (field: string, value: any) => {
@@ -416,7 +418,7 @@ export function useProfileForm() {
       setUploadedResume(null);
       setUploadProgress(100);
       setIsUploadingResume(false);
-      setTimeout(() => setUploadProgress(0), 600);
+      setTimeout(() => setUploadProgress(0), PROGRESS_RESET_DELAY_MS);
     }
   };
 

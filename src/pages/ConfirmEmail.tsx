@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { API_BASE as API_URL } from '../utils/api';
+import { API_BASE } from '../utils/api';
+
+const REDIRECT_DELAY_MS = 2000;
 import HeroNetworkAnimation from '../components/HeroNetworkAnimation';
 
 export default function ConfirmEmail() {
@@ -28,7 +30,7 @@ export default function ConfirmEmail() {
     setStatus('submitting');
     setMessage('');
     try {
-      const res = await fetch(`${API_URL}/confirm-email`, {
+      const res = await fetch(`${API_BASE}/confirm-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code: trimmed }),
@@ -42,7 +44,7 @@ export default function ConfirmEmail() {
       }
       setStatus('success');
       setMessage('Email verified! Redirecting to sign in...');
-      setTimeout(() => navigate('/login'), 2000);
+      setTimeout(() => navigate('/login'), REDIRECT_DELAY_MS);
     } catch (err: any) {
       setStatus('error');
       setMessage(err?.message || 'Network error. Please try again.');
@@ -58,7 +60,7 @@ export default function ConfirmEmail() {
     setResendStatus('sending');
     setResendMsg('');
     try {
-      const res = await fetch(`${API_URL}/resend-confirmation`, {
+      const res = await fetch(`${API_BASE}/resend-confirmation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
