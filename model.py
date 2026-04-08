@@ -109,6 +109,10 @@ class Company(db.Model):
     slug = db.Column(db.String(200), nullable=False, unique=True, index=True)
     profile_json = db.Column(JSON, nullable=False)  # full CompanyProfile dict
 
+    # Culture narratives
+    culture_narrative_company = db.Column(db.Text)
+    culture_narrative_employees = db.Column(db.Text)
+
     # Culture dimensions — categorical
     work_environment = db.Column(db.String(200))
     pace = db.Column(db.String(100))
