@@ -52,7 +52,8 @@ executives[4].linkedin_url: [str or None]
 # CultureValues
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-culture.culture_narrative: [COMPANY SAYS only — official framing from careers pages, CEO statements, employer branding. 2–4 sentences. Do NOT include employee sentiment. — str or None]
+culture.culture_narrative_company: [COMPANY SAYS only — official framing from careers pages, CEO statements, employer branding. 2–4 sentences. Do NOT include employee sentiment. — str or None]
+culture.culture_narrative_employees: [EMPLOYEES SAY only — synthesized from Glassdoor, Indeed, Blind, TheLayoff.com, Wall Street Oasis, Reddit. Separate positives from negatives. Include paraphrased recurring themes or quotes. Note if sentiment varies by division, role, or manager quality. 4–7 sentences. — str or None]
 culture.core_values: [comma-separated list of official named values, e.g. "Responsible Growth, Deliver Together, Act Responsibly" — list[str] serialized as comma-separated string]
 culture.work_environment: [hybrid/remote/in-office + enforcement level + key locations, 1–2 sentences — str or None]
 culture.pace: [e.g. "fast" / "moderate" / "slow / stable" / "varies by division" — str or None]
@@ -188,7 +189,7 @@ OUTPUT RULES
 2. Field keys must match company.py exactly — snake_case, dot-notation for nested fields
 3. Use None (not "N/A", not blank, not "leave blank") for any missing value
 4. internship.weekly_comp_usd must come from Step 1 verified research only — never training data
-5. culture.culture_narrative must reflect company's official voice only — no employee sentiment
+5. culture.culture_narrative_company must reflect the company's official voice only — no employee sentiment. culture.culture_narrative_employees must reflect real employee sentiment only — no company branding language
 6. All float fields (ratings, dimension scores) must be numbers only — no units or text on the value line
 7. interview.system_design must be True, False, or None — no other values
 8. internship.program_exists must be True, False, or None — no other values

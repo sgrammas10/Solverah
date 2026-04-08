@@ -58,7 +58,8 @@ Section: "EXECUTIVE LEADERSHIP"
   "Executive 5 — LinkedIn URL" → executives[4].linkedin_url
 
 Section: "CULTURE & VALUES"
-  "Culture Narrative"          → culture.culture_narrative
+  "Culture Narrative (Company Says)"  → culture.culture_narrative_company
+  "Culture Narrative (Employees Say)"  → culture.culture_narrative_employees
   "Core Values"                → culture.core_values
   "Work Environment"           → culture.work_environment
   "Pace"                       → culture.pace
