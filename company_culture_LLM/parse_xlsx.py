@@ -184,8 +184,16 @@ def _parse_executives(rows: list[tuple]) -> list[Executive]:
 
 def _parse_culture(rows: list[tuple]) -> CultureValues:
     kv = _kv(rows)
+    # Support both the new split fields and the legacy single field as fallback
+    narrative_company = (
+        kv.get("Culture Narrative (Company Says)")
+        or kv.get("Culture Narrative")
+        or None
+    )
+    narrative_employees = kv.get("Culture Narrative (Employees Say)") or None
     return CultureValues(
-        culture_narrative=kv.get("Culture Narrative") or None,
+        culture_narrative_company=narrative_company,
+        culture_narrative_employees=narrative_employees,
         core_values=_core_values(kv.get("Core Values")),
         work_environment=kv.get("Work Environment") or None,
         pace=kv.get("Pace") or None,
