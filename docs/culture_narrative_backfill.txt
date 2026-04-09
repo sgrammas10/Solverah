@@ -1,0 +1,4 @@
+culture.culture_narrative_company: [COMPANY SAYS only — official framing from careers pages, CEO statements, employer branding. 2–4 sentences. No employee sentiment.]
+
+culture.culture_narrative_employees: [EMPLOYEES SAY only — synthesized from Glassdoor, Indeed, Blind, TheLayoff.com, Wall Street Oasis, Reddit. Separate positives from negatives. Include paraphrased recurring themes or quotes. Note if sentiment varies by division, role, or manager quality. 4–7 sentences.]
+DO NOT CHANGE ANY OTHER FIELD

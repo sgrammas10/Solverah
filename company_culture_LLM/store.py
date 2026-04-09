@@ -31,6 +31,8 @@ def _culture_columns(profile: CompanyProfile) -> dict:
     if c is None:
         return {}
     return {
+        "culture_narrative_company": c.culture_narrative_company,
+        "culture_narrative_employees": c.culture_narrative_employees,
         "work_environment": c.work_environment,
         "pace": c.pace,
         "pace_float": c.pace_float,

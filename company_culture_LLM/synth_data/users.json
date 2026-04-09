@@ -1,0 +1,801 @@
+[
+  {
+    "empathy": 0.89,
+    "creative_drive": 0.64,
+    "adaptability": 0.7,
+    "futuristic": 0.96,
+    "harmony": 0.5,
+    "data_orientation": 0.54,
+    "pace": "very-fast",
+    "pace_float": 1.0,
+    "work_environment": [
+      "flat-hierarchy",
+      "high-autonomy"
+    ],
+    "_archetype": "mission-driven builder",
+    "_id": "user_0000"
+  },
+  {
+    "empathy": 0.17,
+    "creative_drive": 0.34,
+    "adaptability": 0.48,
+    "futuristic": 0.7,
+    "harmony": 0.56,
+    "data_orientation": 0.74,
+    "pace": "moderate",
+    "pace_float": 0.33,
+    "work_environment": [
+      "structured",
+      "fast-feedback",
+      "results-oriented"
+    ],
+    "_archetype": "data-first analyst",
+    "_id": "user_0001"
+  },
+  {
+    "empathy": 0.86,
+    "creative_drive": 0.33,
+    "adaptability": 0.63,
+    "futuristic": 0.39,
+    "harmony": 0.98,
+    "data_orientation": 0.54,
+    "pace": "fast",
+    "pace_float": 0.66,
+    "work_environment": [
+      "mission-driven"
+    ],
+    "_archetype": "collaborative people-person",
+    "_id": "user_0002"
+  },
+  {
+    "empathy": 0.38,
+    "creative_drive": 0.46,
+    "adaptability": 0.76,
+    "futuristic": 0.63,
+    "harmony": 0.76,
+    "data_orientation": 0.72,
+    "pace": "fast",
+    "pace_float": 0.66,
+    "work_environment": [
+      "structured",
+      "results-oriented",
+      "process-heavy"
+    ],
+    "_archetype": "structured operator",
+    "_id": "user_0003"
+  },
+  {
+    "empathy": 0.66,
+    "creative_drive": 0.83,
+    "adaptability": 0.82,
+    "futuristic": 0.65,
+    "harmony": 0.91,
+    "data_orientation": 0.53,
+    "pace": "fast",
+    "pace_float": 0.66,
+    "work_environment": [
+      "mission-driven"
+    ],
+    "_archetype": "creative innovator",
+    "_id": "user_0004"
+  },
+  {
+    "empathy": 1.0,
+    "creative_drive": 0.91,
+    "adaptability": 1.0,
+    "futuristic": 0.28,
+    "harmony": 0.52,
+    "data_orientation": 0.66,
+    "pace": "moderate",
+    "pace_float": 0.33,
+    "work_environment": [
+      "high-autonomy"
+    ],
+    "_archetype": "balanced generalist",
+    "_id": "user_0005"
+  },
+  {
+    "empathy": 0.82,
+    "creative_drive": 0.68,
+    "adaptability": 1.0,
+    "futuristic": 0.85,
+    "harmony": 0.51,
+    "data_orientation": 0.46,
+    "pace": "fast",
+    "pace_float": 0.66,
+    "work_environment": [
+      "collaborative",
+      "flat-hierarchy"
+    ],
+    "_archetype": "mission-driven builder",
+    "_id": "user_0006"
+  },
+  {
+    "empathy": 0.45,
+    "creative_drive": 0.6,
+    "adaptability": 0.62,
+    "futuristic": 0.67,
+    "harmony": 0.67,
+    "data_orientation": 0.94,
+    "pace": "slow",
+    "pace_float": 0.0,
+    "work_environment": [
+      "structured",
+      "results-oriented",
+      "meritocratic"
+    ],
+    "_archetype": "data-first analyst",
+    "_id": "user_0007"
+  },
+  {
+    "empathy": 1.0,
+    "creative_drive": 0.38,
+    "adaptability": 0.87,
+    "futuristic": 0.46,
+    "harmony": 0.67,
+    "data_orientation": 0.6,
+    "pace": "moderate",
+    "pace_float": 0.33,
+    "work_environment": [
+      "inclusive"
+    ],
+    "_archetype": "collaborative people-person",
+    "_id": "user_0008"
+  },
+  {
+    "empathy": 0.71,
+    "creative_drive": 0.28,
+    "adaptability": 0.64,
+    "futuristic": 0.44,
+    "harmony": 0.49,
+    "data_orientation": 0.82,
+    "pace": "very-fast",
+    "pace_float": 1.0,
+    "work_environment": [
+      "structured",
+      "process-heavy"
+    ],
+    "_archetype": "structured operator",
+    "_id": "user_0009"
+  },
+  {
+    "empathy": 0.47,
+    "creative_drive": 0.84,
+    "adaptability": 0.65,
+    "futuristic": 0.67,
+    "harmony": 0.61,
+    "data_orientation": 0.64,
+    "pace": "moderate",
+    "pace_float": 0.33,
+    "work_environment": [
+      "fast-feedback"
+    ],
+    "_archetype": "creative innovator",
+    "_id": "user_0010"
+  },
+  {
+    "empathy": 0.69,
+    "creative_drive": 0.52,
+    "adaptability": 0.68,
+    "futuristic": 0.59,
+    "harmony": 0.79,
+    "data_orientation": 0.83,
+    "pace": "slow",
+    "pace_float": 0.0,
+    "work_environment": [
+      "collaborative",
+      "inclusive",
+      "high-autonomy"
+    ],
+    "_archetype": "balanced generalist",
+    "_id": "user_0011"
+  },
+  {
+    "empathy": 0.61,
+    "creative_drive": 0.7,
+    "adaptability": 0.67,
+    "futuristic": 0.83,
+    "harmony": 0.36,
+    "data_orientation": 0.86,
+    "pace": "slow",
+    "pace_float": 0.0,
+    "work_environment": [
+      "high-autonomy"
+    ],
+    "_archetype": "mission-driven builder",
+    "_id": "user_0012"
+  },
+  {
+    "empathy": 0.54,
+    "creative_drive": 0.48,
+    "adaptability": 0.67,
+    "futuristic": 0.77,
+    "harmony": 0.66,
+    "data_orientation": 0.62,
+    "pace": "slow",
+    "pace_float": 0.0,
+    "work_environment": [
+      "results-oriented",
+      "structured"
+    ],
+    "_archetype": "data-first analyst",
+    "_id": "user_0013"
+  },
+  {
+    "empathy": 0.95,
+    "creative_drive": 0.67,
+    "adaptability": 0.65,
+    "futuristic": 0.7,
+    "harmony": 1.0,
+    "data_orientation": 0.51,
+    "pace": "moderate",
+    "pace_float": 0.33,
+    "work_environment": [
+      "mission-driven",
+      "collaborative",
+      "inclusive"
+    ],
+    "_archetype": "collaborative people-person",
+    "_id": "user_0014"
+  },
+  {
+    "empathy": 0.4,
+    "creative_drive": 0.59,
+    "adaptability": 0.63,
+    "futuristic": 0.21,
+    "harmony": 0.81,
+    "data_orientation": 0.95,
+    "pace": "very-fast",
+    "pace_float": 1.0,
+    "work_environment": [
+      "process-heavy"
+    ],
+    "_archetype": "structured operator",
+    "_id": "user_0015"
+  },
+  {
+    "empathy": 0.68,
+    "creative_drive": 0.84,
+    "adaptability": 0.85,
+    "futuristic": 1.0,
+    "harmony": 0.51,
+    "data_orientation": 0.43,
+    "pace": "fast",
+    "pace_float": 0.66,
+    "work_environment": [
+      "fast-feedback",
+      "mission-driven"
+    ],
+    "_archetype": "creative innovator",
+    "_id": "user_0016"
+  },
+  {
+    "empathy": 0.47,
+    "creative_drive": 0.87,
+    "adaptability": 0.65,
+    "futuristic": 0.84,
+    "harmony": 0.9,
+    "data_orientation": 0.67,
+    "pace": "moderate",
+    "pace_float": 0.33,
+    "work_environment": [
+      "high-autonomy"
+    ],
+    "_archetype": "balanced generalist",
+    "_id": "user_0017"
+  },
+  {
+    "empathy": 0.92,
+    "creative_drive": 1.0,
+    "adaptability": 0.6,
+    "futuristic": 0.92,
+    "harmony": 0.56,
+    "data_orientation": 0.37,
+    "pace": "very-fast",
+    "pace_float": 1.0,
+    "work_environment": [
+      "high-autonomy",
+      "collaborative",
+      "flat-hierarchy"
+    ],
+    "_archetype": "mission-driven builder",
+    "_id": "user_0018"
+  },
+  {
+    "empathy": 0.33,
+    "creative_drive": 0.6,
+    "adaptability": 0.6,
+    "futuristic": 0.69,
+    "harmony": 0.6,
+    "data_orientation": 1.0,
+    "pace": "moderate",
+    "pace_float": 0.33,
+    "work_environment": [
+      "fast-feedback",
+      "structured",
+      "meritocratic"
+    ],
+    "_archetype": "data-first analyst",
+    "_id": "user_0019"
+  },
+  {
+    "empathy": 1.0,
+    "creative_drive": 0.71,
+    "adaptability": 0.46,
+    "futuristic": 0.44,
+    "harmony": 0.83,
+    "data_orientation": 0.36,
+    "pace": "slow",
+    "pace_float": 0.0,
+    "work_environment": [
+      "inclusive",
+      "mission-driven",
+      "flat-hierarchy"
+    ],
+    "_archetype": "collaborative people-person",
+    "_id": "user_0020"
+  },
+  {
+    "empathy": 0.72,
+    "creative_drive": 0.29,
+    "adaptability": 0.49,
+    "futuristic": 0.5,
+    "harmony": 0.57,
+    "data_orientation": 1.0,
+    "pace": "slow",
+    "pace_float": 0.0,
+    "work_environment": [
+      "process-heavy",
+      "results-oriented"
+    ],
+    "_archetype": "structured operator",
+    "_id": "user_0021"
+  },
+  {
+    "empathy": 0.81,
+    "creative_drive": 0.95,
+    "adaptability": 1.0,
+    "futuristic": 1.0,
+    "harmony": 0.75,
+    "data_orientation": 0.39,
+    "pace": "very-fast",
+    "pace_float": 1.0,
+    "work_environment": [
+      "high-autonomy",
+      "mission-driven"
+    ],
+    "_archetype": "creative innovator",
+    "_id": "user_0022"
+  },
+  {
+    "empathy": 0.9,
+    "creative_drive": 0.67,
+    "adaptability": 0.87,
+    "futuristic": 0.62,
+    "harmony": 0.58,
+    "data_orientation": 0.59,
+    "pace": "fast",
+    "pace_float": 0.66,
+    "work_environment": [
+      "high-autonomy"
+    ],
+    "_archetype": "balanced generalist",
+    "_id": "user_0023"
+  },
+  {
+    "empathy": 0.67,
+    "creative_drive": 1.0,
+    "adaptability": 1.0,
+    "futuristic": 1.0,
+    "harmony": 0.6,
+    "data_orientation": 0.59,
+    "pace": "fast",
+    "pace_float": 0.66,
+    "work_environment": [
+      "mission-driven",
+      "high-autonomy"
+    ],
+    "_archetype": "mission-driven builder",
+    "_id": "user_0024"
+  },
+  {
+    "empathy": 0.57,
+    "creative_drive": 0.64,
+    "adaptability": 0.52,
+    "futuristic": 0.59,
+    "harmony": 0.63,
+    "data_orientation": 0.86,
+    "pace": "slow",
+    "pace_float": 0.0,
+    "work_environment": [
+      "structured"
+    ],
+    "_archetype": "data-first analyst",
+    "_id": "user_0025"
+  },
+  {
+    "empathy": 0.82,
+    "creative_drive": 0.48,
+    "adaptability": 1.0,
+    "futuristic": 0.43,
+    "harmony": 0.89,
+    "data_orientation": 0.43,
+    "pace": "fast",
+    "pace_float": 0.66,
+    "work_environment": [
+      "mission-driven",
+      "flat-hierarchy",
+      "inclusive"
+    ],
+    "_archetype": "collaborative people-person",
+    "_id": "user_0026"
+  },
+  {
+    "empathy": 0.46,
+    "creative_drive": 0.29,
+    "adaptability": 0.35,
+    "futuristic": 0.48,
+    "harmony": 0.68,
+    "data_orientation": 0.74,
+    "pace": "slow",
+    "pace_float": 0.0,
+    "work_environment": [
+      "results-oriented",
+      "process-heavy"
+    ],
+    "_archetype": "structured operator",
+    "_id": "user_0027"
+  },
+  {
+    "empathy": 0.57,
+    "creative_drive": 0.82,
+    "adaptability": 0.82,
+    "futuristic": 0.85,
+    "harmony": 0.82,
+    "data_orientation": 0.76,
+    "pace": "fast",
+    "pace_float": 0.66,
+    "work_environment": [
+      "flat-hierarchy",
+      "mission-driven"
+    ],
+    "_archetype": "creative innovator",
+    "_id": "user_0028"
+  },
+  {
+    "empathy": 0.83,
+    "creative_drive": 0.81,
+    "adaptability": 0.77,
+    "futuristic": 0.6,
+    "harmony": 0.8,
+    "data_orientation": 0.46,
+    "pace": "moderate",
+    "pace_float": 0.33,
+    "work_environment": [
+      "high-autonomy",
+      "results-oriented"
+    ],
+    "_archetype": "balanced generalist",
+    "_id": "user_0029"
+  },
+  {
+    "empathy": 0.9,
+    "creative_drive": 0.97,
+    "adaptability": 0.66,
+    "futuristic": 0.92,
+    "harmony": 0.73,
+    "data_orientation": 0.29,
+    "pace": "moderate",
+    "pace_float": 0.33,
+    "work_environment": [
+      "flat-hierarchy"
+    ],
+    "_archetype": "mission-driven builder",
+    "_id": "user_0030"
+  },
+  {
+    "empathy": 0.34,
+    "creative_drive": 0.56,
+    "adaptability": 0.57,
+    "futuristic": 0.38,
+    "harmony": 0.73,
+    "data_orientation": 0.85,
+    "pace": "moderate",
+    "pace_float": 0.33,
+    "work_environment": [
+      "results-oriented",
+      "fast-feedback",
+      "meritocratic"
+    ],
+    "_archetype": "data-first analyst",
+    "_id": "user_0031"
+  },
+  {
+    "empathy": 0.93,
+    "creative_drive": 0.75,
+    "adaptability": 0.65,
+    "futuristic": 0.6,
+    "harmony": 0.73,
+    "data_orientation": 0.41,
+    "pace": "very-fast",
+    "pace_float": 1.0,
+    "work_environment": [
+      "inclusive",
+      "mission-driven",
+      "collaborative"
+    ],
+    "_archetype": "collaborative people-person",
+    "_id": "user_0032"
+  },
+  {
+    "empathy": 0.25,
+    "creative_drive": 0.73,
+    "adaptability": 0.43,
+    "futuristic": 0.76,
+    "harmony": 0.57,
+    "data_orientation": 0.81,
+    "pace": "slow",
+    "pace_float": 0.0,
+    "work_environment": [
+      "structured",
+      "results-oriented",
+      "process-heavy"
+    ],
+    "_archetype": "structured operator",
+    "_id": "user_0033"
+  },
+  {
+    "empathy": 0.6,
+    "creative_drive": 0.85,
+    "adaptability": 0.73,
+    "futuristic": 0.88,
+    "harmony": 0.28,
+    "data_orientation": 0.0,
+    "pace": "very-fast",
+    "pace_float": 1.0,
+    "work_environment": [
+      "flat-hierarchy",
+      "high-autonomy",
+      "fast-feedback"
+    ],
+    "_archetype": "creative innovator",
+    "_id": "user_0034"
+  },
+  {
+    "empathy": 0.51,
+    "creative_drive": 0.69,
+    "adaptability": 0.68,
+    "futuristic": 0.59,
+    "harmony": 0.51,
+    "data_orientation": 0.55,
+    "pace": "fast",
+    "pace_float": 0.66,
+    "work_environment": [
+      "inclusive",
+      "high-autonomy",
+      "results-oriented"
+    ],
+    "_archetype": "balanced generalist",
+    "_id": "user_0035"
+  },
+  {
+    "empathy": 0.62,
+    "creative_drive": 0.57,
+    "adaptability": 1.0,
+    "futuristic": 0.44,
+    "harmony": 0.45,
+    "data_orientation": 0.32,
+    "pace": "fast",
+    "pace_float": 0.66,
+    "work_environment": [
+      "mission-driven"
+    ],
+    "_archetype": "mission-driven builder",
+    "_id": "user_0036"
+  },
+  {
+    "empathy": 0.24,
+    "creative_drive": 0.82,
+    "adaptability": 0.82,
+    "futuristic": 0.54,
+    "harmony": 0.63,
+    "data_orientation": 0.97,
+    "pace": "moderate",
+    "pace_float": 0.33,
+    "work_environment": [
+      "fast-feedback"
+    ],
+    "_archetype": "data-first analyst",
+    "_id": "user_0037"
+  },
+  {
+    "empathy": 0.69,
+    "creative_drive": 0.53,
+    "adaptability": 0.72,
+    "futuristic": 0.5,
+    "harmony": 1.0,
+    "data_orientation": 0.6,
+    "pace": "slow",
+    "pace_float": 0.0,
+    "work_environment": [
+      "inclusive"
+    ],
+    "_archetype": "collaborative people-person",
+    "_id": "user_0038"
+  },
+  {
+    "empathy": 0.58,
+    "creative_drive": 0.41,
+    "adaptability": 0.52,
+    "futuristic": 0.39,
+    "harmony": 0.75,
+    "data_orientation": 0.82,
+    "pace": "moderate",
+    "pace_float": 0.33,
+    "work_environment": [
+      "meritocratic",
+      "results-oriented"
+    ],
+    "_archetype": "structured operator",
+    "_id": "user_0039"
+  },
+  {
+    "empathy": 0.4,
+    "creative_drive": 0.95,
+    "adaptability": 0.73,
+    "futuristic": 0.64,
+    "harmony": 0.62,
+    "data_orientation": 0.0,
+    "pace": "very-fast",
+    "pace_float": 1.0,
+    "work_environment": [
+      "fast-feedback"
+    ],
+    "_archetype": "creative innovator",
+    "_id": "user_0040"
+  },
+  {
+    "empathy": 0.45,
+    "creative_drive": 0.61,
+    "adaptability": 0.73,
+    "futuristic": 0.5,
+    "harmony": 0.69,
+    "data_orientation": 0.51,
+    "pace": "fast",
+    "pace_float": 0.66,
+    "work_environment": [
+      "collaborative"
+    ],
+    "_archetype": "balanced generalist",
+    "_id": "user_0041"
+  },
+  {
+    "empathy": 0.74,
+    "creative_drive": 0.72,
+    "adaptability": 0.68,
+    "futuristic": 0.84,
+    "harmony": 0.53,
+    "data_orientation": 0.55,
+    "pace": "very-fast",
+    "pace_float": 1.0,
+    "work_environment": [
+      "flat-hierarchy",
+      "high-autonomy"
+    ],
+    "_archetype": "mission-driven builder",
+    "_id": "user_0042"
+  },
+  {
+    "empathy": 0.65,
+    "creative_drive": 0.58,
+    "adaptability": 0.69,
+    "futuristic": 0.79,
+    "harmony": 0.57,
+    "data_orientation": 0.91,
+    "pace": "slow",
+    "pace_float": 0.0,
+    "work_environment": [
+      "structured",
+      "fast-feedback"
+    ],
+    "_archetype": "data-first analyst",
+    "_id": "user_0043"
+  },
+  {
+    "empathy": 1.0,
+    "creative_drive": 0.52,
+    "adaptability": 0.9,
+    "futuristic": 0.66,
+    "harmony": 0.9,
+    "data_orientation": 0.32,
+    "pace": "slow",
+    "pace_float": 0.0,
+    "work_environment": [
+      "mission-driven",
+      "inclusive"
+    ],
+    "_archetype": "collaborative people-person",
+    "_id": "user_0044"
+  },
+  {
+    "empathy": 0.71,
+    "creative_drive": 0.45,
+    "adaptability": 0.47,
+    "futuristic": 0.53,
+    "harmony": 0.54,
+    "data_orientation": 0.61,
+    "pace": "slow",
+    "pace_float": 0.0,
+    "work_environment": [
+      "results-oriented",
+      "structured",
+      "process-heavy"
+    ],
+    "_archetype": "structured operator",
+    "_id": "user_0045"
+  },
+  {
+    "empathy": 0.65,
+    "creative_drive": 0.7,
+    "adaptability": 0.89,
+    "futuristic": 0.91,
+    "harmony": 0.54,
+    "data_orientation": 0.2,
+    "pace": "very-fast",
+    "pace_float": 1.0,
+    "work_environment": [
+      "high-autonomy",
+      "fast-feedback",
+      "flat-hierarchy"
+    ],
+    "_archetype": "creative innovator",
+    "_id": "user_0046"
+  },
+  {
+    "empathy": 0.67,
+    "creative_drive": 0.57,
+    "adaptability": 0.88,
+    "futuristic": 0.51,
+    "harmony": 0.91,
+    "data_orientation": 0.5,
+    "pace": "fast",
+    "pace_float": 0.66,
+    "work_environment": [
+      "results-oriented"
+    ],
+    "_archetype": "balanced generalist",
+    "_id": "user_0047"
+  },
+  {
+    "empathy": 0.9,
+    "creative_drive": 0.89,
+    "adaptability": 0.73,
+    "futuristic": 0.97,
+    "harmony": 0.52,
+    "data_orientation": 0.72,
+    "pace": "very-fast",
+    "pace_float": 1.0,
+    "work_environment": [
+      "flat-hierarchy"
+    ],
+    "_archetype": "mission-driven builder",
+    "_id": "user_0048"
+  },
+  {
+    "empathy": 0.45,
+    "creative_drive": 0.53,
+    "adaptability": 0.41,
+    "futuristic": 0.68,
+    "harmony": 0.63,
+    "data_orientation": 0.87,
+    "pace": "fast",
+    "pace_float": 0.66,
+    "work_environment": [
+      "fast-feedback",
+      "meritocratic",
+      "structured"
+    ],
+    "_archetype": "data-first analyst",
+    "_id": "user_0049"
+  }
+]

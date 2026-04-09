@@ -38,7 +38,8 @@ class Executive(BaseModel):
 
 
 class CultureValues(BaseModel):
-    culture_narrative: Optional[str] = None
+    culture_narrative_company: Optional[str] = None
+    culture_narrative_employees: Optional[str] = None
     core_values: list[str] = []
     work_environment: Optional[str] = None
     pace: str
