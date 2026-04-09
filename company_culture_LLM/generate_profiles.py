@@ -31,6 +31,7 @@ COMPANY_PROFILES = ROOT / "company_profiles"
 COMPANY_LIST = ROOT / "company_culture_LLM" / "list_of_companies_to_seed.txt"
 
 MODEL = "claude-opus-4-6"
+FORMAT_MODEL = "claude-haiku-4-5-20251001"
 
 # ─────────────────────────────────────────────
 # XLSX style constants
@@ -86,7 +87,12 @@ def step1_research(client: anthropic.Anthropic, company: str, prompt_template: s
 
 
 def step2_format(client: anthropic.Anthropic, research: str, format_prompt: str) -> str:
-    """Pass the research as prior context, then ask Claude to format it."""
+    """Pass the research as prior context, then ask Claude to format it.
+
+    Uses Haiku (cheaper, no quality loss — Step 2 is pure copy/formatting).
+    The format_prompt is marked with cache_control so it's only billed once
+    per 5-minute cache window across multiple company calls.
+    """
     # We present the research as the assistant's prior turn so the formatter
     # can reference "what was established in Step 1" exactly as the prompt expects.
     messages = [
@@ -103,11 +109,17 @@ def step2_format(client: anthropic.Anthropic, research: str, format_prompt: str)
         },
         {
             "role": "user",
-            "content": format_prompt,
+            "content": [
+                {
+                    "type": "text",
+                    "text": format_prompt,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
         },
     ]
     msg = client.messages.create(
-        model=MODEL,
+        model=FORMAT_MODEL,
         max_tokens=4000,
         messages=messages,
     )
