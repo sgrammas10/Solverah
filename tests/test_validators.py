@@ -10,19 +10,19 @@ def test_validate_password_rules():
     assert ok is False
     assert msg == "Password must be at least 12 characters."
 
-    ok, msg = validate_password("lowercase1!")
+    ok, msg = validate_password("lowercase12!")
     assert ok is False
     assert msg == "Password must contain an uppercase letter."
 
-    ok, msg = validate_password("UPPERCASE1!")
+    ok, msg = validate_password("UPPERCASE12!")
     assert ok is False
     assert msg == "Password must contain a lowercase letter."
 
-    ok, msg = validate_password("NoNumbers!")
+    ok, msg = validate_password("NoNumbersXY!")
     assert ok is False
     assert msg == "Password must contain a number."
 
-    ok, msg = validate_password("NoSymbol123")
+    ok, msg = validate_password("NoSymbol1234A")
     assert ok is False
     assert msg == "Password must contain a symbol."
 
