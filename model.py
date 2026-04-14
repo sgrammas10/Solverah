@@ -114,7 +114,7 @@ class Company(db.Model):
     culture_narrative_employees = db.Column(db.Text)
 
     # Culture dimensions — categorical
-    work_environment = db.Column(db.String(200))
+    work_environment = db.Column(db.Text)
     pace = db.Column(db.String(100))
     pace_float = db.Column(db.Float)
 
