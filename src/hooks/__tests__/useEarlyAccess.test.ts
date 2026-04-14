@@ -2,7 +2,7 @@ import { renderHook, act } from "@testing-library/react";
 import { useEarlyAccess } from "../useEarlyAccess";
 
 const mockFetch = vi.fn();
-global.fetch = mockFetch;
+globalThis.fetch = mockFetch as any;
 
 beforeEach(() => {
   mockFetch.mockReset();
