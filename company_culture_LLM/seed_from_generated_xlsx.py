@@ -95,6 +95,7 @@ def _read_sections(path: Path) -> dict[str, list[tuple[str, str]]]:
 
 
 def _kv(rows: list[tuple[str, str]]) -> dict[str, str]:
+    """Convert a list of (label, value) pairs to a flat label → value dict."""
     return {label: value for label, value in rows}
 
 
@@ -103,6 +104,7 @@ def _kv(rows: list[tuple[str, str]]) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 def _safe_float(val: str) -> float | None:
+    """Parse a string to float, returning None on empty or invalid input."""
     if not val:
         return None
     try:
@@ -112,6 +114,7 @@ def _safe_float(val: str) -> float | None:
 
 
 def _safe_int(val: str) -> int | None:
+    """Extract the first integer from a string (e.g. '~250' → 250), or None."""
     if not val:
         return None
     m = re.search(r"\d+", val)
@@ -119,12 +122,14 @@ def _safe_int(val: str) -> int | None:
 
 
 def _safe_bool(val: str) -> bool | None:
+    """Parse a Yes/No cell value to bool.  Returns None for empty strings."""
     if not val:
         return None
     return val.strip().lower().startswith("y")
 
 
 def _glassdoor_rating(val: str) -> float | None:
+    """Extract a decimal rating like '4.2 / 5.0' from a Glassdoor cell, or None."""
     if not val:
         return None
     m = re.search(r"\d+\.\d+", val)
@@ -356,6 +361,15 @@ def create_app() -> Flask:
 
 
 def run_seed(verbose: bool = True) -> None:
+    """Discover all .xlsx files in company_profiles/ and upsert them into the DB.
+
+    Reports per-file insert/update/error status to stdout.  Rolls back and
+    continues on per-file errors so one bad file doesn't abort the entire run.
+
+    Args:
+        verbose: Print per-file status lines (default True).  Set to False for
+                 quieter CI/cron execution.
+    """
     xlsx_files = sorted(COMPANY_PROFILES.glob("*.xlsx"))
     if not xlsx_files:
         print(f"No .xlsx files found in {COMPANY_PROFILES}")

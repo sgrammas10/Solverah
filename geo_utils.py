@@ -1,3 +1,18 @@
+"""Geographic utility helpers (currently stubbed).
+
+These functions were used for geocoding city strings to (lat, lon) coordinates
+and computing straight-line distances via the Haversine formula.  They are
+commented out pending a decision on which geocoder provider to use in production
+(Nominatim has rate-limit / ToS constraints for commercial services; alternatives
+include the Google Maps Geocoding API or Mapbox).
+
+To re-enable:
+  1. Install geopy: ``pip install geopy``
+  2. Choose a production-safe geocoder backend.
+  3. Uncomment the implementations below.
+  4. Import and call from app.py where location-based filtering is needed.
+"""
+
 # from geopy.geocoders import Nominatim
 
 # _geolocator = Nominatim(user_agent="solverah-app")
