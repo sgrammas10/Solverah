@@ -1,14 +1,39 @@
+/**
+ * useProfileForm — Stateful form hook for the job-seeker profile editor.
+ *
+ * Responsibilities:
+ *   - Fetches the user's current profile from the server on mount and populates
+ *     form state.
+ *   - Exposes helpers for adding, updating, and removing experience / education /
+ *     skill / location entries with per-collection caps.
+ *   - Manages resume upload state (pending file, upload progress, parsed data
+ *     returned by the backend after finalization).
+ *   - Saves the entire form to POST /api/profile on submit.
+ *
+ * Exported helpers:
+ *   buildDefaultProfile(user?)     — Build a blank ProfileFormData from a User.
+ *   normalizeProfileData(incoming) — Coerce a raw server payload to ProfileFormData shape.
+ *   useProfileForm()               — The hook itself; returns form state + mutators.
+ */
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/useAuth";
 import { ProfileFormData, PendingResumeUpload } from "../types/profile";
 
+// Per-collection limits enforced in the UI to prevent unreasonably large profiles.
 const MAX_EXPERIENCES = 20;
-const PROGRESS_TICK_MS = 450;
-const PROGRESS_RESET_DELAY_MS = 600;
 const MAX_EDUCATIONS = 10;
 const MAX_SKILLS = 50;
 const MAX_SECONDARY_LOCATIONS = 20;
 
+// Upload progress simulation timing constants.
+const PROGRESS_TICK_MS = 450;        // interval between each progress step
+const PROGRESS_RESET_DELAY_MS = 600; // delay before resetting progress bar to 0 after completion
+
+/**
+ * Build a blank ProfileFormData, optionally pre-seeded with the user's name and email.
+ * Used when profile_data is null/empty on the server (new accounts) or as a
+ * safe fallback if the API returns unexpected data.
+ */
 export function buildDefaultProfile(
   user?: { name?: string; email?: string } | null
 ): ProfileFormData {
@@ -38,6 +63,13 @@ export function buildDefaultProfile(
   };
 }
 
+/**
+ * Coerce a raw server profile payload to the ProfileFormData shape.
+ *
+ * Handles the legacy ``location`` → ``primaryLocation`` rename and ensures all
+ * optional arrays default to empty arrays rather than undefined so the UI
+ * doesn't have to null-check every array field.
+ */
 export function normalizeProfileData(
   incoming?: Partial<ProfileFormData> | null
 ): Partial<ProfileFormData> {

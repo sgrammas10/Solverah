@@ -1,3 +1,44 @@
+"""Solverah Flask application — main API server.
+
+This module is the single entry-point for the backend API.  It wires together:
+
+  * Authentication: JWT (HttpOnly cookies) + CSRF protection, bcrypt password
+    hashing, email confirmation (6-digit OTP via Resend), and account lockout
+    after repeated failed logins.
+  * User profiles: CRUD over a flexible JSON column (``User.profile_data``) with
+    server-side field whitelisting.  Resume uploads flow through a two-step
+    presigned-PUT / finalize pattern against Cloudflare R2 (S3-compatible).
+  * Resume parsing: Deterministic, offline rule-based parser
+    (``job_descr_LLM/user_input_pipeline/resume_parser.py``) runs on finalization
+    to pre-populate experience / education / skills.  User edits are tracked in
+    ``ResumeParseCorrection`` for future parser improvement.
+  * Quiz insights: OpenAI GPT-4o-mini generates personalized career insights from
+    structured quiz answers.  Results are persisted in ``profile_data.quizInsights``.
+  * Early-access intake: Two-step flow (presign → finalize) stores pre-launch
+    submissions with uploaded resumes.  Optionally converts to a registered
+    account via ``/api/intake/create-account`` or ``/api/intake/sign-in``.
+  * Job recommendations: SentenceTransformer-based ML pipeline (gated behind
+    ``ML_ENABLED`` env flag; disabled in demo mode).
+
+Key environment variables (required unless otherwise noted):
+    DATABASE_URL        — PostgreSQL connection string.
+    JWT_SECRET_KEY      — Secret key for signing JWTs.
+    S3_ENDPOINT_URL     — Cloudflare R2 (or any S3-compatible) endpoint.
+    S3_ACCESS_KEY_ID    — R2 access key.
+    S3_SECRET_ACCESS_KEY — R2 secret key.
+    S3_BUCKET_NAME      — Target bucket for resume uploads.
+    OPENAI_API_KEY      — Required for quiz-insight generation.
+    RESEND_API_KEY      — Required for transactional emails.
+    EMAIL_FROM          — Sender address (defaults to no-reply@solverah.com).
+    FLASK_ENV / APP_ENV / ENV — Set to "production" to enable HTTPS-only cookies
+                                and HSTS headers.
+    ML_ENABLED          — "1" to enable the SentenceTransformer recommendation
+                          pipeline (requires LLM module).
+    DEMO_MODE           — "1" to return empty recommendations without hitting ML.
+    MAX_LOGIN_ATTEMPTS  — Failed attempts before lockout (default 5).
+    LOGIN_LOCKOUT_MINUTES — Lockout duration in minutes (default 15).
+"""
+
 from flask import Flask, jsonify, request
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (
@@ -40,6 +81,20 @@ except Exception:
 JOB_LLM_DIR = Path(__file__).resolve().parent / "job_descr_LLM"
 
 def _load_resume_parser():
+    """Dynamically load ``parse_resume`` from the job_descr_LLM sub-package.
+
+    The resume parser lives in a sibling directory that is not on sys.path, so
+    we use importlib to load it at startup rather than a top-level import.  This
+    avoids circular-import issues and keeps the ML/parsing module decoupled from
+    the Flask layer.
+
+    Returns:
+        The ``parse_resume(text: str) -> dict`` callable.
+
+    Raises:
+        FileNotFoundError: If resume_parser.py is missing from the expected path.
+        ImportError: If the module spec cannot be constructed.
+    """
     parser_path = JOB_LLM_DIR / "user_input_pipeline" / "resume_parser.py"
     if not parser_path.exists():
         raise FileNotFoundError("resume_parser.py not found in job_descr_LLM/user_input_pipeline")
@@ -67,23 +122,28 @@ LINKEDIN_ALLOWED_HOSTS = {
 }
 
 def _normalize_whitespace(value: str) -> str:
+    """Collapse runs of whitespace in *value* to a single space and strip ends."""
     return " ".join(value.split())
 
 
 def _is_valid_email(email: str) -> bool:
+    """Return True if *email* matches a basic ``local@domain.tld`` pattern."""
     return bool(EMAIL_PATTERN.match(email))
 
 
 def _is_valid_phone(phone: str) -> bool:
+    """Return True if *phone* contains 7–25 digit/punctuation characters."""
     return bool(PHONE_PATTERN.match(phone))
 
 
 def _is_valid_https_url(value: str) -> bool:
+    """Return True if *value* is an HTTPS URL with a non-empty host."""
     parsed = urlparse(value)
     return parsed.scheme == "https" and bool(parsed.netloc)
 
 
 def _is_valid_linkedin_url(value: str) -> bool:
+    """Return True if *value* is an HTTPS LinkedIn URL (linkedin.com or www.linkedin.com)."""
     parsed = urlparse(value)
     return parsed.scheme == "https" and parsed.netloc in LINKEDIN_ALLOWED_HOSTS
 
@@ -107,7 +167,12 @@ from validators import validate_password, clean_profile_data
 from flask_cors import CORS
 
 
-def _is_production():
+def _is_production() -> bool:
+    """Return True if any of the standard environment indicators say 'production'.
+
+    Checks FLASK_ENV, APP_ENV, and ENV in that order.  Used to gate HTTPS-only
+    cookies, HSTS headers, and Talisman's ``force_https`` flag.
+    """
     env_name = (
         os.environ.get("FLASK_ENV")
         or os.environ.get("APP_ENV")
@@ -117,7 +182,17 @@ def _is_production():
     return env_name.lower() in {"production", "prod"}
 
 
-def _parse_bool_env(value, default):
+def _parse_bool_env(value, default: bool) -> bool:
+    """Coerce an environment-variable string to bool.
+
+    Args:
+        value:   Raw string from ``os.environ.get(...)`` (may be None).
+        default: Fallback value when *value* is None.
+
+    Returns:
+        True for '1', 'true', 'yes', 'y', 'on' (case-insensitive); False
+        for everything else; *default* if *value* is None.
+    """
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "y", "on"}
@@ -201,9 +276,22 @@ jwt = JWTManager(app)
 limiter = init_rate_limiter(app)
 
 
-# Early access modal endpoint (no resume upload)
 @app.post("/api/early-access-request")
 def early_access_request():
+    """POST /api/early-access-request — Early-access interest form (no resume).
+
+    Accepts a lightweight JSON body from the landing-page modal and forwards the
+    details to info@solverah.com via Resend.  Does not persist to the database.
+
+    Body (JSON):
+        firstName, lastName, email (required)
+        phone, preferredContact, careerJourney (optional)
+
+    Returns:
+        200 {"ok": true}
+        400 if required fields are missing
+        500 if the notification email fails to send
+    """
     data = request.get_json(silent=True) or {}
     first_name = (data.get("firstName") or "").strip()
     last_name = (data.get("lastName") or "").strip()
@@ -236,13 +324,23 @@ def early_access_request():
 MAX_LOGIN_ATTEMPTS = int(os.environ.get("MAX_LOGIN_ATTEMPTS", "5"))
 LOGIN_LOCKOUT_MINUTES = int(os.environ.get("LOGIN_LOCKOUT_MINUTES", "15"))
 
-# Helper function to get a new DB connection
 def get_db_conn():
+    """Open a raw psycopg2 connection returning rows as dicts.
+
+    Used in endpoints that bypass SQLAlchemy for bulk INSERT performance or
+    direct SQL control.  Callers are responsible for calling ``conn.close()``.
+    """
     return psycopg2.connect(os.environ["DATABASE_URL"], cursor_factory=RealDictCursor)
 
-# Helper function to get S3 client
+
 def get_s3_client():
-    # Cloudflare R2 is S3-compatible
+    """Return a boto3 S3 client configured for Cloudflare R2.
+
+    R2 is S3-compatible, so the same boto3 API works with a custom endpoint URL.
+    Credentials and endpoint are sourced from environment variables:
+        S3_ENDPOINT_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_REGION.
+    """
+    # Cloudflare R2 is S3-compatible; endpoint_url overrides the default AWS endpoint
     return boto3.client(
         "s3",
         endpoint_url=os.environ["S3_ENDPOINT_URL"],
@@ -253,10 +351,20 @@ def get_s3_client():
 
 
 def _module_available(module_name: str) -> bool:
+    """Return True if *module_name* can be imported in the current environment."""
     return importlib.util.find_spec(module_name) is not None
 
 
 def _get_openai_client():
+    """Build and return an OpenAI client with standard retry/timeout settings.
+
+    Uses a 60-second timeout and 2 automatic retries to handle transient
+    API errors without hanging the request indefinitely.
+
+    Raises:
+        RuntimeError: If the ``openai`` package is not installed or
+                      OPENAI_API_KEY is missing from the environment.
+    """
     if OpenAI is None:
         raise RuntimeError("OpenAI SDK not installed")
     api_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
@@ -266,6 +374,22 @@ def _get_openai_client():
 
 
 def _build_quiz_insight_prompt(quiz_group: str, quizzes: list[dict]) -> list[dict]:
+    """Construct the system + user messages for the quiz-insight OpenAI call.
+
+    The prompt instructs the model to:
+      - Return strictly valid JSON (no markdown or extra text).
+      - Produce exactly one insight per quiz in input order.
+      - Use each quiz's ``key`` field verbatim in its response.
+
+    Args:
+        quiz_group: Logical group label (e.g. ``"careerQuizzes"``).
+        quizzes:    List of normalized quiz dicts, each with ``key``, ``title``,
+                    and ``items`` (list of ``{question, selected}``).
+
+    Returns:
+        A two-element list of OpenAI chat message dicts:
+        ``[{"role": "system", ...}, {"role": "user", ...}]``.
+    """
     quiz_keys = [q.get("key", f"quiz_{i}") for i, q in enumerate(quizzes)]
     system = (
         "You are an expert career insights engine designed to analyze structured quiz responses "
@@ -335,6 +459,23 @@ def _build_quiz_insight_prompt(quiz_group: str, quizzes: list[dict]) -> list[dic
 
 
 def _coerce_insight_payload(payload: dict, quiz_group: str, fallback_quizzes: list[dict]) -> dict:
+    """Normalise the raw JSON returned by the OpenAI insight call.
+
+    The model occasionally returns a single insight dict instead of a list, or
+    omits the ``key`` field.  This function defensively coerces the payload to a
+    canonical structure so the rest of the endpoint doesn't need to handle every
+    malformed variant.
+
+    Args:
+        payload:          Parsed JSON dict from the OpenAI response.
+        quiz_group:       Used to generate a fallback key if none is present.
+        fallback_quizzes: The original quiz list — used to recover ``key`` values
+                          when the model forgets to echo them back.
+
+    Returns:
+        Dict with ``{"overallInsight": ..., "insights": [...]}``, or ``{}`` if
+        the payload cannot be salvaged.
+    """
     if not isinstance(payload, dict):
         return {}
     insights = payload.get("insights")
@@ -372,6 +513,19 @@ def _coerce_insight_payload(payload: dict, quiz_group: str, fallback_quizzes: li
 
 
 def _extract_resume_text(file_path: Path, mime: str) -> str:
+    """Extract plain text from a local resume file.
+
+    Supports PDF (via pdfminer.six) and DOCX (via python-docx).  Returns an
+    empty string if the required library is not installed or the MIME type is
+    unsupported, allowing callers to degrade gracefully.
+
+    Args:
+        file_path: Path to the locally written temp file.
+        mime:      MIME type string (e.g. ``"application/pdf"``).
+
+    Returns:
+        Extracted text as a single string, or ``""`` on failure.
+    """
     if mime == "application/pdf":
         if not _module_available("pdfminer.high_level"):
             return ""
@@ -389,6 +543,20 @@ def _extract_resume_text(file_path: Path, mime: str) -> str:
 
 
 def _build_profile_from_intake(intake: IntakeSubmission) -> dict:
+    """Build a full ``profile_data`` dict from an ``IntakeSubmission`` record.
+
+    Downloads the resume from S3, extracts text, runs the rule-based parser,
+    then maps the parsed output to the profile schema expected by the frontend.
+    Any step can fail silently — the user still gets a profile seeded with their
+    intake contact details even if the resume parse yields nothing.
+
+    Args:
+        intake: An ``IntakeSubmission`` ORM instance (must have ``resume_key``
+                and ``resume_mime`` populated).
+
+    Returns:
+        Dict matching the ``ProfileFormData`` shape used by the frontend.
+    """
     resume_text = ""
     try:
         s3 = get_s3_client()
@@ -497,6 +665,24 @@ def _build_profile_from_resume_key(
     resume_size_bytes: int,
     resume_name: str | None = None,
 ) -> dict:
+    """Parse a resume stored in S3 and return profile field updates.
+
+    Used by the authenticated resume-upload flow (``/api/profile/resume/finalize``)
+    where the user is already registered.  Returns only the fields that can be
+    derived from the resume (experience, education, skills, uploadedResume,
+    resumeKey); callers merge this into the existing ``profile_data``.
+
+    Args:
+        resume_key:        S3/R2 object key for the uploaded resume.
+        resume_mime:       MIME type of the file.
+        resume_size_bytes: File size in bytes (stored in the profile metadata).
+        resume_name:       Original filename shown in the UI; falls back to the
+                           key's basename if not provided.
+
+    Returns:
+        Partial profile dict with keys:
+        ``experience``, ``education``, ``skills``, ``uploadedResume``, ``resumeKey``.
+    """
     resume_text = ""
     try:
         s3 = get_s3_client()
@@ -584,8 +770,21 @@ def _build_profile_from_resume_key(
         "resumeKey": resume_key,
     }
 
-# Helper to log audit events
-def log_audit_event(action, actor_user_id, resource, metadata=None):
+def log_audit_event(action: str, actor_user_id, resource: str, metadata=None) -> None:
+    """Append an ``AuditLog`` row to the current SQLAlchemy session.
+
+    Does NOT commit — the caller must ``db.session.commit()`` to persist.
+    This function is intentionally low-level; the caller owns the transaction
+    so that audit rows are committed atomically with the surrounding changes.
+
+    Args:
+        action:        Short verb describing the operation (e.g. ``"read"``,
+                       ``"update"``, ``"email_send_failed"``).
+        actor_user_id: ``User.id`` of the acting user, or None for anonymous
+                       events.
+        resource:      Resource type affected (e.g. ``"profile"``, ``"email"``).
+        metadata:      Optional dict of additional context (serialized to JSON).
+    """
     audit = AuditLog(
         actor_user_id=actor_user_id,
         action=action,
@@ -596,10 +795,23 @@ def log_audit_event(action, actor_user_id, resource, metadata=None):
     )
     db.session.add(audit)
 
-# Endpoint to get presigned upload URL
 @limiter.limit("10 per minute")
 @app.post("/api/intake/presign")
 def presign():
+    """POST /api/intake/presign — Generate a presigned S3 PUT URL for resume upload.
+
+    Step 1 of 2 in the intake flow.  The client sends the file's MIME type and
+    size; the server validates both, generates a UUID-based object key, and
+    returns a short-lived presigned PUT URL for direct browser-to-R2 upload.
+
+    Body (JSON):
+        mime (str): MIME type of the resume (must be in ALLOWED_MIME).
+        size (int): File size in bytes (must be 0 < size <= 10 MB).
+
+    Returns:
+        200 {"submission_id", "object_key", "upload_url", "max_bytes"}
+        400 on invalid mime or size
+    """
     data = request.get_json(silent=True) or {}
     if not data:
         return jsonify({"error": "JSON body required"}), 400
@@ -645,10 +857,26 @@ def presign():
         "max_bytes": MAX_BYTES,
     })
 
-# Endpoint to finalize intake submission
 @limiter.limit("20 per minute")
 @app.post("/api/intake/finalize")
 def finalize():
+    """POST /api/intake/finalize — Commit an intake submission after resume upload.
+
+    Step 2 of 2 in the intake flow.  The client provides personal details and
+    the object key from the presign step.  The server:
+      1. Validates all fields and verifies the uploaded object exists in R2.
+      2. Inserts the row into ``intake_submissions``.
+      3. Sends an internal notification email to info@solverah.com.
+
+    Body (JSON):
+        submission_id, object_key, mime, size (from presign response)
+        first_name, last_name, email, state (required)
+        phone, linkedin_url, portfolio_url, privacy_consent (optional/conditional)
+
+    Returns:
+        200 {"ok": true}
+        400 on validation failure or S3 mismatch
+    """
     data = request.get_json(silent=True) or {}
     if not data:
         return jsonify({"error": "JSON body required"}), 400
@@ -778,6 +1006,23 @@ def finalize():
 @limiter.limit("5 per minute")
 @app.post("/api/intake/create-account")
 def intake_create_account():
+    """POST /api/intake/create-account — Register a new account from an intake submission.
+
+    Looks up the intake record by submission_id, validates the chosen password,
+    creates a ``User`` row with ``email_confirmed=False``, and sends a 6-digit
+    OTP verification email.  The intake record's status is updated to
+    ``"account_created"``.
+
+    Body (JSON):
+        submission_id (str): UUID from the intake finalize step.
+        password      (str): Desired account password (must pass strength policy).
+        role          (str): Must be ``"job-seeker"`` (only role supported here).
+
+    Returns:
+        201 {"message": "registered", "user": {...}}
+        400 on validation failure or duplicate email
+        404 if submission_id is not found
+    """
     data = request.get_json(silent=True) or {}
     if not data:
         return jsonify({"error": "JSON body required"}), 400
@@ -847,6 +1092,24 @@ def intake_create_account():
 @limiter.limit("5 per minute")
 @app.post("/api/intake/sign-in")
 def intake_sign_in():
+    """POST /api/intake/sign-in — Sign in and attach an intake submission to an existing account.
+
+    Used when the user already has an account and returns through the intake
+    flow.  After successful authentication, the intake's parsed profile data is
+    merged (intake values win on conflict) into the user's existing profile.
+    The intake status is updated to ``"account_linked"``.
+
+    Body (JSON):
+        submission_id, email, password
+
+    Returns:
+        200 {"message": "signed in", "csrfToken", "user": {...}} + JWT cookie
+        400 if email doesn't match the submission
+        401 on wrong password
+        403 if email is not yet confirmed
+        404 if submission or user not found
+        423 if account is locked
+    """
     data = request.get_json(silent=True) or {}
     if not data:
         return jsonify({"error": "JSON body required"}), 400
@@ -927,8 +1190,20 @@ def intake_sign_in():
     return resp
 
 
-#Helper function for inital setup of profile on registration
-def default_profile(email="", name="", role="job-seeker"):
+def default_profile(email: str = "", name: str = "", role: str = "job-seeker") -> dict:
+    """Return a blank ``profile_data`` dict pre-populated with identity fields.
+
+    Used when registering a new user or creating an account from an intake
+    submission.  The recruiter role gets extra company-facing fields appended.
+
+    Args:
+        email: User's email address — pre-fills the ``email`` field.
+        name:  Full name (``"First Last"``); split into firstName/lastName.
+        role:  ``"job-seeker"`` or ``"recruiter"``.
+
+    Returns:
+        Profile dict ready to be stored in ``User.profile_data``.
+    """
     first = name.split(" ")[0] if name else ""
     last = " ".join(name.split(" ")[1:]) if name else ""
 
@@ -974,6 +1249,24 @@ DEMO_MODE = os.getenv("DEMO_MODE", "0") == "1"
 @limiter.limit("5 per minute")
 @app.route("/api/login", methods=["POST"])
 def login():
+    """POST /api/login — Authenticate a user and issue a JWT cookie.
+
+    Validates credentials, enforces account lockout after ``MAX_LOGIN_ATTEMPTS``
+    consecutive failures, and requires email confirmation before granting access.
+    On success, sets an HttpOnly JWT cookie and returns the CSRF token in the
+    response body (so the frontend can attach it as ``X-CSRF-TOKEN`` on mutating
+    requests).
+
+    Body (JSON):
+        email    (str): User's email address.
+        password (str): Plaintext password.
+
+    Returns:
+        200 {"message", "csrfToken", "user": {...}} + JWT cookie
+        401 on invalid credentials
+        403 if email not confirmed
+        423 if account is locked
+    """
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
@@ -1023,15 +1316,35 @@ def login():
 
 @app.route("/api/logout", methods=["POST"])
 def logout():
+    """POST /api/logout — Clear the JWT cookie server-side.
+
+    Flask-JWT-Extended's ``unset_jwt_cookies`` removes the access-token cookie
+    from the response, effectively ending the session.
+
+    Returns:
+        200 {"message": "logout successful"}
+    """
     resp = jsonify({"message": "logout successful"})
     unset_jwt_cookies(resp)
     return resp
 
 
-# Email confirmation endpoints
 @limiter.limit("5 per minute")
 @app.route("/api/confirm-email", methods=["POST"])
 def confirm_email():
+    """POST /api/confirm-email — Verify the 6-digit OTP sent at registration.
+
+    Checks that the code matches, hasn't expired (default 15 min window), and
+    clears the token fields on success so the code cannot be reused.
+
+    Body (JSON):
+        email (str): User's email address.
+        code  (str): 6-digit OTP received by email.
+
+    Returns:
+        200 {"message": "email confirmed"}
+        400 on missing fields, invalid code, or expired code
+    """
     data = request.get_json() or {}
     email = (data.get("email") or "").strip().lower()
     code = (data.get("code") or "").strip()
@@ -1062,6 +1375,21 @@ def confirm_email():
 @limiter.limit("5 per minute")
 @app.route("/api/resend-confirmation", methods=["POST"])
 def resend_confirmation():
+    """POST /api/resend-confirmation — Issue a fresh OTP for unconfirmed accounts.
+
+    Regenerates and re-sends the 6-digit verification code.  Rate-limited to
+    5 per minute to prevent abuse.  Fails silently if the email is already
+    confirmed to avoid leaking account existence.
+
+    Body (JSON):
+        email (str): Email address of the unconfirmed account.
+
+    Returns:
+        200 {"message": "confirmation_sent"}
+        400 if already confirmed or invalid email
+        404 if no account found
+        500 on email delivery failure
+    """
     data = request.get_json() or {}
     email = (data.get("email") or "").strip().lower()
     if not email or not _is_valid_email(email):
@@ -1089,12 +1417,28 @@ def resend_confirmation():
     return jsonify({"message": "confirmation_sent"}), 200
 
 
-#Registering new user
 from email_utils import send_confirmation_email
+
 
 @limiter.limit("5 per minute")
 @app.route("/api/register", methods=["POST"])
 def register():
+    """POST /api/register — Create a new user account.
+
+    Creates the user with ``email_confirmed=False`` and sends a 6-digit OTP.
+    The user must confirm their email before they can log in.  Profile data is
+    pre-seeded with a blank default profile appropriate for the given role.
+
+    Body (JSON):
+        email    (str): Must be unique.
+        password (str): Must pass the strength policy in validators.py.
+        name     (str): Full name (optional but recommended).
+        role     (str): ``"job-seeker"`` or ``"recruiter"``.
+
+    Returns:
+        201 {"message": "registered", "user": {...}}
+        400 on invalid password or duplicate email
+    """
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
@@ -1147,10 +1491,29 @@ def register():
 
 
 
-#For viewing profile info, requires JWT auth
 @app.route("/api/profile", methods=["GET", "POST"])
 @jwt_required()
 def profile():
+    """GET|POST /api/profile — Read or update the authenticated user's profile.
+
+    GET:
+        Returns the full profile including ``profileData`` and the current CSRF
+        token.  Also writes a ``read`` audit log entry.
+
+    POST:
+        Merges incoming ``profileData`` keys into the existing profile (unknown
+        keys are stripped by ``clean_profile_data``).  Quiz results are merged
+        at the sub-key level so existing quiz entries are preserved.  Diffs
+        against the stored parser snapshot to record ``ResumeParseCorrection``
+        rows for any experience/education/skills the user edits after a resume
+        upload.
+
+    Returns (GET):
+        200 {"id", "email", "name", "role", "profileData", "csrfToken"}
+    Returns (POST):
+        200 {"message", "profileData"}
+        404 if the JWT identity no longer maps to a user
+    """
     current_email = get_jwt_identity()
     user = User.query.filter_by(email=current_email).first()
     if not user:
@@ -1280,6 +1643,21 @@ def profile():
 @app.post("/api/quiz-insights")
 @jwt_required()
 def quiz_insights():
+    """POST /api/quiz-insights — Generate and persist AI career insights (authenticated).
+
+    Validates and normalizes the quiz answers, calls OpenAI (gpt-4o-mini by
+    default) with a structured prompt, coerces the response to a canonical
+    schema, and persists the insights into ``profile_data.quizInsights``.
+
+    Body (JSON):
+        quizGroup (str):  Logical group key (e.g. ``"careerQuizzes"``).
+        quizzes   (list): Each entry: ``{key, title, items: [{question, selected}]}``.
+
+    Returns:
+        200 {"quizGroup", "overallInsight", "insights": [...]}
+        400 on missing/invalid input
+        500 on OpenAI failure or malformed model response
+    """
     data = request.get_json(silent=True) or {}
     quiz_group = (data.get("quizGroup") or "").strip()
     quizzes = data.get("quizzes") or []
@@ -1403,6 +1781,18 @@ def quiz_insights():
 @limiter.limit("1 per day")
 @app.post("/api/quiz-insights-guest")
 def quiz_insights_guest():
+    """POST /api/quiz-insights-guest — Generate AI insights for unauthenticated preview.
+
+    Same logic as ``/api/quiz-insights`` but requires no JWT.  Hard-limited to
+    1 request per day per IP to reduce OpenAI spend.  Insights are NOT persisted
+    to any user profile.
+
+    Body (JSON): Same schema as quiz_insights.
+
+    Returns:
+        200 {"quizGroup", "overallSummary", "insights": [...]}
+        400/500 as per quiz_insights
+    """
     data = request.get_json(silent=True) or {}
     quiz_group = (data.get("quizGroup") or "").strip()
     quizzes = data.get("quizzes") or []
@@ -1466,6 +1856,18 @@ def quiz_insights_guest():
 @app.route("/api/profile/resume-url", methods=["GET"])
 @jwt_required()
 def get_profile_resume_url():
+    """GET /api/profile/resume-url — Get a presigned download URL for the user's resume.
+
+    Generates a short-lived (10-minute) presigned GET URL for the resume stored
+    at the ``resumeKey`` in the user's profile.  The URL is returned to the
+    frontend so the browser can download or display the file without exposing
+    permanent storage credentials.
+
+    Returns:
+        200 {"url": "<presigned URL>"}
+        404 if user not found or no resume on file
+        500 if the presigned URL cannot be generated
+    """
     current_email = get_jwt_identity()
     user = User.query.filter_by(email=current_email).first()
     if not user:
@@ -1497,6 +1899,20 @@ def get_profile_resume_url():
 @app.post("/api/profile/resume/presign")
 @jwt_required()
 def profile_resume_presign():
+    """POST /api/profile/resume/presign — Presign a PUT URL for authenticated resume upload.
+
+    Scopes the S3 object key to ``profile/{user_id}/{uuid}/resume.{ext}``
+    so that one user cannot overwrite another's file.  Step 1 of 2.
+
+    Body (JSON):
+        mime (str): Resume MIME type.
+        size (int): File size in bytes.
+
+    Returns:
+        200 {"object_key", "upload_url", "max_bytes"}
+        400 on invalid mime or size
+        404 if user not found
+    """
     data = request.get_json(silent=True) or {}
     mime = (data.get("mime") or "").strip()
     size = int(data.get("size") or 0)
@@ -1542,6 +1958,25 @@ def profile_resume_presign():
 @app.post("/api/profile/resume/finalize")
 @jwt_required()
 def profile_resume_finalize():
+    """POST /api/profile/resume/finalize — Parse the uploaded resume and update profile.
+
+    Verifies the object key belongs to the requesting user, downloads the
+    resume from R2, runs the rule-based parser, and merges the parsed fields
+    (experience, education, skills) into the user's profile.  Also stores a
+    ``_parsedResumeSnapshot`` so subsequent edits can be diffed against the
+    parser's original output (see ``ResumeParseCorrection``).
+
+    Body (JSON):
+        object_key (str): S3 key from the presign step.
+        mime       (str): MIME type.
+        size       (int): File size in bytes.
+        name       (str): Original filename for display (optional).
+
+    Returns:
+        200 {"message": "Resume processed", "profileData": {...}}
+        400 on invalid inputs or key ownership mismatch
+        404 if user not found
+    """
     data = request.get_json(silent=True) or {}
     object_key = (data.get("object_key") or "").strip()
     mime = (data.get("mime") or "").strip()
@@ -1593,6 +2028,25 @@ def profile_resume_finalize():
 @app.route("/api/recommendations", methods=["POST"])
 @jwt_required()
 def generate_recommendations():
+    """POST /api/recommendations — Run the ML pipeline and persist new job recommendations.
+
+    Accepts a ``profilePipeline`` payload (array of {section, content}), collapses
+    it into a single text blob, runs the SentenceTransformer similarity scorer
+    against the jobs dataset, and stores the top-20 scored results in
+    ``JobRecommendation``.
+
+    Gated by:
+        DEMO_MODE  — Returns empty list immediately if set.
+        ML_ENABLED — Returns 503 if the ML module is not loaded.
+
+    Body (JSON):
+        profilePipeline (str): JSON-encoded list of {section, content} dicts.
+
+    Returns:
+        200 {"recommendations": [{job_id, score}]}
+        400 if profilePipeline is missing or malformed
+        503 if ML pipeline is disabled
+    """
     if DEMO_MODE:
         return jsonify({"recommendations": []}), 200
 
@@ -1659,7 +2113,15 @@ def generate_recommendations():
 @app.route("/api/recommendations", methods=["GET"])
 @jwt_required()
 def get_recommendations():
+    """GET /api/recommendations — Fetch persisted job recommendations for the user.
 
+    Loads the user's ``JobRecommendation`` rows, joins them with the jobs CSV,
+    and returns full job objects ordered by score descending.
+
+    Returns:
+        200 {"recommendations": [{ID, Title, Company, score, ...}]}
+        200 {"recommendations": []} in DEMO_MODE
+    """
     if DEMO_MODE:
         return jsonify({"recommendations": []}), 200
 
@@ -1721,6 +2183,16 @@ def get_recommendations():
 @app.route("/api/dashboard-data", methods=["GET"])
 @jwt_required()
 def get_dashboard_data():
+    """GET /api/dashboard-data — Return summary stats for the job-seeker dashboard.
+
+    Computes profile completion percentage, job-match count, and application
+    count from live data.  Also returns static placeholder recommendations and
+    recent activity until those features are fully wired up.
+
+    Returns:
+        200 {"profileCompletion", "jobMatches", "applications",
+             "recentActivity", "recommendations", "hasIntakeSubmission"}
+    """
     current_email = get_jwt_identity()
     user = User.query.filter_by(email=current_email).first_or_404()
 
