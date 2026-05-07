@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Login from "../Login";
 import { useAuth } from "../../contexts/useAuth";
@@ -196,12 +196,12 @@ describe("Login - loading state", () => {
 
     renderLogin();
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: "a@b.com" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "pass" } });
-    fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /signing in/i })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: "pass" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
     });
+
+    expect(screen.getByRole("button", { name: /signing in/i })).toBeDisabled();
 
     // Clean up
     await act(async () => { resolve({ role: "job-seeker", id: "1", email: "a@b.com", name: "A", profileComplete: false }); });
