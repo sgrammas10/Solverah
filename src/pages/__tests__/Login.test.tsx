@@ -47,7 +47,7 @@ function renderLogin() {
 
 async function submitForm(email = "ada@example.com", password = "pass") {
   fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: email } });
-  fireEvent.change(screen.getByLabelText(/password/i), { target: { value: password } });
+  fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: password } });
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
   });
