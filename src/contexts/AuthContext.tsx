@@ -1,3 +1,22 @@
+/**
+ * AuthContext.tsx — AuthProvider and all stateful authentication logic.
+ *
+ * Session lifecycle:
+ *   1. On mount, attempt to restore an existing session by calling GET /api/profile
+ *      (the JWT lives in an HttpOnly cookie, so no token management needed here).
+ *   2. On successful restore, store the User object and the CSRF token in state.
+ *   3. login() / register() / logout() mutate state and the HttpOnly cookie via
+ *      the Flask API.
+ *
+ * CSRF protection:
+ *   The backend issues a CSRF token inside the JSON response body (not in a
+ *   readable cookie) on login/profile-read.  fetchWithAuth() attaches it as the
+ *   X-CSRF-TOKEN header on all state-changing requests (POST/PUT/PATCH/DELETE).
+ *
+ * Loading state:
+ *   While the initial profile fetch is in-flight, a spinner is rendered instead
+ *   of children to prevent flicker on protected routes.
+ */
 import { useState, useEffect, ReactNode } from "react";
 
 import { AuthContext, ProfileData, User } from "./authContext";
@@ -132,26 +151,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
 
+  /** Refetch the full User object from the server and sync local state. */
   const fetchProfile = async () => {
     const data = await fetchWithAuth<User>("/profile", { method: "GET" });
     setUser(data);
   };
 
+  /** Fetch only the profileData portion of the user's profile. */
   const fetchProfileData = async () => {
     const data = await fetchWithAuth<{ profileData?: ProfileData }>("/profile", { method: "GET" });
     return { profileData: data.profileData };
   };
 
+  /** Persist updated profileData to the server (POST /api/profile). */
   const saveProfileData = async (profileData: ProfileData) => {
     return await fetchWithAuth<{ profileData?: ProfileData }>("/profile", {
       method: "POST",
       body: JSON.stringify({ profileData }),
     });
   };
+
+  /**
+   * Optimistically patch the in-memory User without a server round-trip.
+   * Use after local mutations that don't require immediate server confirmation.
+   */
   const updateProfile = (updates: Partial<User>) => {
     setUser((prev) => (prev ? { ...prev, ...updates } : prev));
   };
 
+  /**
+   * Shallow-merge partial profileData into the in-memory User.
+   * Useful for updating quiz results or other profile fields after a save
+   * without re-fetching the entire profile.
+   */
   const updateProfileData = (profileData: ProfileData) => {
     setUser((prev) =>
       prev ? { ...prev, profileData: { ...(prev.profileData || {}), ...profileData } } : prev

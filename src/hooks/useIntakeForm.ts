@@ -1,8 +1,31 @@
+/**
+ * useIntakeForm — State and submission logic for the pre-launch intake form.
+ *
+ * Two-step submission flow:
+ *   1. presign  — POST /api/intake/presign to get a presigned S3 PUT URL.
+ *   2. upload   — PUT the resume file directly to S3/R2 from the browser.
+ *   3. finalize — POST /api/intake/finalize with personal details + S3 metadata.
+ *
+ * After a successful submission, a post-submission account modal guides the
+ * user through either creating a new account or signing into an existing one,
+ * tying the intake submission to their profile.
+ *
+ * State groups exposed:
+ *   formData / setters       — Personal info fields.
+ *   privacyConsent           — Required consent checkbox.
+ *   resumeFile               — Selected File object to be uploaded.
+ *   submissionStatus         — "idle" | "submitting" | "success" | "error".
+ *   submissionId             — UUID returned by the finalize endpoint.
+ *   accountModal*            — State for the post-submission account creation/sign-in modal.
+ */
 import { FormEvent, useState } from "react";
 import { API_BASE } from "../utils/api";
 
+/** Overall submission lifecycle state. */
 export type SubmissionStatus = "idle" | "submitting" | "success" | "error";
+/** Step within the post-submission account modal. */
 export type AccountStep = "prompt" | "form" | "signin" | "success";
+/** Whether the user is creating a new account or signing into an existing one. */
 export type AccountAction = "create" | "signin";
 
 export function useIntakeForm() {

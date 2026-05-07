@@ -1,3 +1,27 @@
+/**
+ * App.tsx — Root React component and client-side routing configuration.
+ *
+ * Route structure:
+ *   /                         PrelaunchLandingPage (public, has its own nav)
+ *   /landing                  LandingPage (public)
+ *   /login, /register         Auth pages (public)
+ *   /verify-email             OTP confirmation page (public)
+ *   /quiz-preview/*           Guest quiz previews (public, rate-limited on backend)
+ *   /feed, /search            Shared authenticated routes (job-seeker + recruiter)
+ *   /job-seeker/*             Job-seeker-only routes
+ *   /recruiter/*              Recruiter-only routes
+ *   /career-quizzes/*         Authenticated quiz routes (both roles)
+ *   /quiz-insights            Authenticated quiz insights
+ *   *                         Catch-all → redirect to /
+ *
+ * Access control:
+ *   ProtectedRoute checks user presence (redirect to /login if null) and role
+ *   membership (redirect to / if the user's role is not in allowedRoles).
+ *
+ * Header visibility:
+ *   The global Header is hidden on the "/" route because PrelaunchLandingPage
+ *   renders its own navigation (LandingNav).  All other routes show the Header.
+ */
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
@@ -26,7 +50,14 @@ import QuizInsights from "./pages/QuizInsights";
 import GuestQuizPreview from "./pages/GuestQuizPreview";
 import GuestQuizInsights from "./pages/GuestQuizInsights";
 
-// Role-based route protection
+/**
+ * ProtectedRoute — Wraps a route element with authentication and role checks.
+ *
+ * Unauthenticated users are redirected to /login.
+ * Authenticated users whose role is not in allowedRoles are redirected to /.
+ * This relies on AuthProvider completing the session-restore fetch before
+ * rendering (AuthProvider shows a spinner while loading=true).
+ */
 function ProtectedRoute({
   children,
   allowedRoles,
@@ -42,9 +73,15 @@ function ProtectedRoute({
   return <>{children}</>;
 }
 
-// Routes where the global Header should be hidden (they have their own nav)
+// Routes that render their own full navigation bar (hide the global Header).
 const ROUTES_WITHOUT_HEADER = new Set(["/"]);
 
+/**
+ * AppShell — Layout wrapper that conditionally renders the global Header.
+ *
+ * The Header is suppressed on the pre-launch landing page ("/") because
+ * that page has its own LandingNav component.
+ */
 function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const hideHeader = ROUTES_WITHOUT_HEADER.has(location.pathname);

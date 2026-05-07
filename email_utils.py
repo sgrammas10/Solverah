@@ -1,3 +1,28 @@
+"""Transactional email utilities powered by the Resend API.
+
+All functions in this module are thin wrappers around ``resend.Emails.send``.
+They raise ``EmailConfigError`` (a ``RuntimeError`` subclass) if the required
+environment variables are absent so that callers can distinguish a configuration
+failure from a network failure.
+
+Required environment variables:
+    RESEND_API_KEY  — Resend API key (``re_*``).
+    EMAIL_FROM      — Sender address shown to recipients; defaults to
+                      ``no-reply@solverah.com``.
+
+NOTE: ``os``, ``RESEND_API_KEY``, ``EMAIL_FROM``, and ``EmailConfigError`` are
+defined lower in this file (lines ~93–100).  Python evaluates function bodies
+at *call time*, not at definition time, so the two functions defined before
+those symbols still work correctly at runtime.  A future refactor should move
+the imports and constants to the top of the file.
+
+Functions:
+    send_early_access_modal_notification — Notify ops of a landing-page early-access signup.
+    send_intake_notification             — Notify ops of a full intake form submission.
+    send_verification_email              — Send a 6-digit OTP to a new registrant.
+    send_confirmation_email              — Backward-compatible alias for send_verification_email.
+"""
+
 # Send early access modal notification (no resume)
 def send_early_access_modal_notification(
     first_name: str,
@@ -40,7 +65,6 @@ def send_early_access_modal_notification(
         "html": html_content,
     }
     resend_lib.Emails.send(params)
-# Send early access intake notification to info@solverah.com
 def send_intake_notification(
     first_name: str,
     last_name: str,
@@ -53,7 +77,27 @@ def send_intake_notification(
     mime: str,
     size: int,
 ) -> None:
-    """Send an email to info@solverah.com with early access submission details."""
+    """Notify info@solverah.com of a completed early-access intake submission.
+
+    Sent after the intake form is finalized (resume uploaded + personal details
+    confirmed).  Includes resume S3 key, MIME type, and size so the team can
+    locate the file in storage.
+
+    Args:
+        first_name:    Submitter's first name.
+        last_name:     Submitter's last name.
+        email:         Submitter's email address.
+        state:         US state / region provided by the submitter.
+        phone:         Optional phone number (empty string if not provided).
+        linkedin_url:  Optional LinkedIn profile URL.
+        portfolio_url: Optional portfolio/personal site URL.
+        object_key:    S3/R2 object key of the uploaded resume.
+        mime:          MIME type of the resume file (e.g. ``application/pdf``).
+        size:          Resume file size in bytes.
+
+    Raises:
+        EmailConfigError: If RESEND_API_KEY or EMAIL_FROM are not configured.
+    """
     if not RESEND_API_KEY:
         raise EmailConfigError("RESEND_API_KEY is not set")
     if not EMAIL_FROM:

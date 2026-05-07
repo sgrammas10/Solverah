@@ -1,0 +1,397 @@
+SOLVERAH — TECHNICAL IMPLEMENTATION SUMMARY
+============================================
+Generated: 2026-04-20
+
+
+OVERALL ARCHITECTURE & TECH STACK
+----------------------------------
+
+Frontend:
+- React 18.3.1 with TypeScript 5.5.3
+- Client-side routing with React Router v7.8.1
+- State management via React Context API (AuthContext for user auth and session management)
+- Vite 7.1.7 as build tool and dev server
+- Tailwind CSS 3.4.1 for styling with custom design tokens (cream, forest, ink color palettes)
+- Lucide React 0.344.0 for icons
+- Testing: Vitest 4.1.4 with @testing-library/react 16.3.2, Jest compatibility layer
+
+Backend:
+- Flask web framework with gunicorn for production serving
+- PostgreSQL database via Flask-SQLAlchemy ORM
+- SQLAlchemy with Alembic for database migrations
+- Python 3.11+
+
+Authentication & Security:
+- JWT (JSON Web Tokens) stored in HttpOnly cookies with CSRF protection
+- Bcrypt for password hashing
+- 6-digit OTP email verification for account confirmation (15-minute expiry)
+- Rate limiting via Flask-Limiter (200 requests/day, 50/hour default)
+- Flask-Talisman for security headers and CSP (Content Security Policy)
+- CORS configuration for localhost dev and production domains
+- Login lockout mechanism after 5 failed attempts (lockout: 15 minutes)
+
+Cloud Infrastructure:
+- Cloudflare R2 (S3-compatible object storage) for file uploads
+- Resend API for transactional email
+- OpenAI GPT-4o-mini for quiz insights generation
+- PostgreSQL hosted on Render/Railway
+- Vercel for frontend deployment
+
+Build & Deployment:
+- Vite for frontend builds (output: dist/)
+- Flask backend served via gunicorn in production
+- GitHub Actions CI/CD with dual test jobs (frontend + backend)
+- Vercel rewrite rules for SPA (index.html fallback)
+
+
+MAIN MODULES & FEATURES
+-------------------------
+
+1. Authentication & Account Management
+   - Email-based registration with password strength validation (12+ chars, uppercase, lowercase, digit, symbol)
+   - Email confirmation flow — 6-digit OTP sent via Resend, 15-minute expiry
+   - JWT session management — automatic session restore on app load via GET /api/profile
+   - Login with account lockout — prevents credential stuffing via rate limiting and lockout tracking
+   - User profiles — flexible JSON profile_data column with whitelist-based sanitization (ALLOWED_PROFILE_FIELDS)
+   - Role-based access control — "job-seeker" and "recruiter" roles, protected routes enforce membership
+
+2. Resume Management & Parsing
+   - Two-step presigned upload flow — presign + finalize pattern for S3/R2 uploads
+   - File validation — MIME type checking (PDF, DOCX), max 10MB
+   - Deterministic rule-based resume parser (offline, no LLM):
+     * Extracts experience, education, and skills from resume text
+     * Section-scoped parsing (skills only from Skills section, etc.)
+     * Date-range anchoring for experience entries
+     * Handles PDF/DOCX text extraction with artifact normalization
+   - Parser feedback loop — ResumeParseCorrection table tracks user edits for future improvement
+
+3. Career Quizzes & Insights
+   - Two structured quiz implementations: NextChapterYourWayQuiz, SolverahYourFutureYourWayQuiz
+   - Quiz insights generation via OpenAI GPT-4o-mini with JSON structured output
+   - Guest quiz preview — public quiz previews (no authentication required), rate-limited
+   - Quiz data persistence — results stored in profile_data.quizInsights
+   - Insight prompt engineering — custom system message instructs model to return JSON with exactly one insight per quiz
+
+4. Job Recommendations (ML Pipeline - Gated)
+   - Two-stage matching pipeline (company culture filter → skill match):
+     * Stage 1: Culture-based company filtering (8 culture dimensions)
+     * Stage 2: Job description vs. resume skill matching
+   - Deterministic skill matcher (job_descr_LLM/matching/compare.py):
+     * Dimensions: skills (0.5 weight), years_experience (0.2), certifications (0.1), education (0.1), clearance (0.1)
+     * Jaccard-like overlap for skills, substring matching for education/clearance
+   - Company culture dimensions (8 numeric/categorical):
+     * Categorical: work_environment, pace
+     * Numeric (0.0–1.0): empathy, creative_drive, adaptability, futuristic, harmony, data_orientation
+   - Gated behind ML_ENABLED flag — disabled in demo mode to avoid external ML calls
+
+5. Early-Access Intake Flow (Pre-Launch)
+   - Lightweight early-access modal — first-name, last-name, email, optional phone/career journey
+   - Full intake form submission — resume upload, personal details (state, phone, LinkedIn, portfolio)
+   - Two-step submission — presign resume → finalize with personal data
+   - Email notifications — sends to info@solverah.com on completion
+   - Convert-to-account flow — /api/intake/create-account and /api/intake/sign-in endpoints
+   - Link-to-account flow — /api/intake/link-account for existing users
+   - IntakeSubmission table — persists submissions with status (uploaded, account_linked)
+
+6. Data Seeding & Company Profiles
+   - Company culture LLM module — generates/seeds company profiles with culture dimensions
+   - Synthetic company data — generate_profiles.py builds CompanyProfile dicts, seeded via XLSX parsing
+   - Culture narrative backfilling — backfill_culture_narratives.py populates narrative fields
+   - Company archetype pipeline — company_archetype_pipeline/ for future pipeline expansion
+   - Company model — stores name, slug, profile_json (full blob), narrative fields, 8 culture dimension columns
+
+7. Audit Logging & Security Monitoring
+   - AuditLog table — tracks action, resource, IP address, user agent, event metadata
+   - Comprehensive event coverage — registration, login, profile updates, resume uploads, intake submissions
+   - Metadata field — JSON column for contextual event data
+
+
+KEY LIBRARIES & DEPENDENCIES
+------------------------------
+
+Backend (Python):
+  Flask, Flask-Bcrypt, Flask-JWT-Extended, Flask-CORS, Flask-Limiter,
+  Flask-SQLAlchemy, Flask-Migrate, flask-talisman
+  boto3                  — S3/R2 API (Cloudflare R2 compatible)
+  psycopg2-binary        — PostgreSQL driver
+  openai                 — GPT-4o-mini integration
+  resend                 — Transactional email API
+  pdfminer.six           — PDF text extraction
+  python-docx            — DOCX text extraction
+  pandas, numpy          — Data processing utilities
+  scikit-learn           — ML utilities
+  pytest, pytest-cov     — Testing framework
+
+Frontend (JavaScript/TypeScript):
+  React, React-DOM, React-Router-DOM
+  @vitejs/plugin-react   — Vite React plugin
+  tailwindcss, autoprefixer, postcss
+  lucide-react           — Icon library
+  @testing-library/react, @testing-library/jest-dom, @testing-library/user-event
+  typescript, typescript-eslint
+  jsdom                  — DOM implementation for tests
+  eslint with react-hooks and react-refresh plugins
+
+
+FOLDER STRUCTURE & ORGANIZATION
+---------------------------------
+
+/Solverah (root)
+├── src/                          # Frontend React application
+│   ├── App.tsx                   # Root component with routing
+│   ├── main.tsx                  # Vite entry point
+│   ├── config.ts                 # Feature flags (PRELAUNCH_MODE)
+│   ├── components/               # Reusable React components
+│   │   ├── CareerQuizzes.tsx, NextChapterYourWayQuiz.tsx, SolverahYourFutureYourWayQuiz.tsx
+│   │   ├── QuizInsightModal.tsx, IntakePromptModal.tsx
+│   │   ├── Header.tsx, HeroNetworkAnimation.tsx
+│   │   ├── landing/              # Landing page components
+│   │   │   ├── LandingNav.tsx, AccountModal.tsx, EarlyAccessModal.tsx
+│   │   │   ├── IntakeForm.tsx
+│   │   │   └── __tests__/
+│   │   └── profile/              # Profile editing tabs
+│   │       ├── PersonalInfoTab.tsx, ExperienceTab.tsx, EducationTab.tsx
+│   │       ├── AssessmentsTab.tsx, PerformanceTab.tsx
+│   ├── pages/                    # Page-level components
+│   │   ├── prelaunchlandingpage.tsx, LandingPage.tsx
+│   │   ├── Login.tsx, Register.tsx, ConfirmEmail.tsx, CheckEmail.tsx
+│   │   ├── JobSeekerDashboard.tsx, JobSeekerProfile.tsx
+│   │   ├── RecruiterDashboard.tsx, RecruiterProfile.tsx
+│   │   ├── Feed.tsx, SearchResults.tsx
+│   │   ├── QuizInsights.tsx, GuestQuizInsights.tsx, GuestQuizPreview.tsx
+│   │   └── __tests__/
+│   ├── contexts/                 # React Context for state
+│   │   ├── AuthContext.tsx       # Main auth provider
+│   │   ├── authContext.ts        # Type definitions
+│   │   └── useAuth.ts            # Auth hook
+│   ├── hooks/                    # Custom React hooks
+│   │   ├── useEarlyAccess.ts     # Early-access form logic
+│   │   ├── useIntakeForm.ts      # Intake form with S3 upload
+│   │   ├── useProfileForm.ts     # Profile editing with resumeKey extraction
+│   │   └── useQuizInsight.ts     # Quiz insight fetching
+│   ├── utils/                    # Utility functions
+│   │   ├── api.ts                # API_BASE URL resolution
+│   │   └── guestQuiz.ts          # Guest quiz helpers
+│   ├── data/                     # Static quiz question data
+│   │   ├── nextChapterYourWayQuiz.ts
+│   │   └── solverahYourFutureYourWayQuiz.ts
+│   └── types/                    # TypeScript type definitions
+│       └── profile.ts
+│
+├── app.py                        # Flask main application
+│   └── API Routes:
+│       POST /api/early-access-request
+│       POST /api/intake/presign
+│       POST /api/intake/finalize
+│       POST /api/intake/create-account
+│       POST /api/intake/sign-in
+│       POST /api/intake/link-account
+│       POST /api/login
+│       POST /api/logout
+│       POST /api/register
+│       POST /api/confirm-email
+│       POST /api/resend-confirmation
+│       GET  /api/profile          (session restore)
+│       POST /api/profile          (profile CRUD)
+│       POST /api/quiz-insights
+│       POST /api/quiz-insights-guest
+│       GET  /api/profile/resume-url
+│       POST /api/profile/resume/presign
+│       POST /api/profile/resume/finalize
+│       GET  /api/recommendations
+│       POST /api/recommendations
+│       GET  /api/dashboard-data
+│
+├── model.py                      # SQLAlchemy ORM models
+│   ├── User                      # Email, password, name, role, profile_data (JSON)
+│   ├── JobRecommendation         # user_id, job_id, score, created_at
+│   ├── AuditLog                  # action, resource, ip_address, metadata
+│   ├── ResumeParseCorrection     # Tracks user edits to parser output
+│   └── Company                   # Company profiles with 8 culture dimensions
+│
+├── job_descr_LLM/                # Resume parsing & job matching ML pipeline
+│   ├── user_input_pipeline/      # Resume-to-profile extraction
+│   │   ├── resume_parser.py      # Main rule-based parser (deterministic, offline)
+│   │   ├── extract_text.py       # PDF/DOCX text extraction
+│   │   ├── build_model_inputs.py # Prepare data for matching
+│   │   └── clean_text.py         # Text normalization
+│   ├── jd_input_pipeline/        # Job description parsing
+│   │   ├── extract_requirements.py
+│   │   ├── normalize.py
+│   │   ├── sectionize.py
+│   │   └── schema.py             # JobDescriptionOutput Pydantic model
+│   └── matching/
+│       └── compare.py            # Skill-match scoring (5 dimensions, weighted)
+│
+├── company_culture_LLM/          # Company culture profiling & ML
+│   ├── company.py                # Pydantic models (CompanyProfile, CultureValues)
+│   ├── generate_profiles.py      # Generate synthetic company profiles
+│   ├── seed_from_generated_xlsx.py
+│   ├── score.py                  # Deterministic culture fit scoring
+│   ├── store.py                  # DB helpers (upsert Company)
+│   └── company_archetype_pipeline/
+│
+├── security.py                   # Rate limiter configuration
+├── validators.py                 # Input validation (password strength, profile sanitization)
+├── email_utils.py                # Resend API email functions
+├── geo_utils.py                  # Geographic utilities (stubbed, awaiting geopy)
+│
+├── migrations/                   # Alembic database migrations
+│   └── versions/                 # 9 migration files from initial to 2026-04-08
+│
+├── tests/                        # Backend pytest tests
+│   ├── conftest.py               # Pytest fixtures (Flask test client, in-memory SQLite)
+│   ├── test_register_api.py
+│   └── test_validators.py
+│
+├── .github/workflows/
+│   └── tests.yml                 # CI: npm test + pytest on all branches
+│
+├── vite.config.ts                # Vite build configuration
+├── tailwind.config.js            # Custom fonts (Playfair Display, DM Sans) and colors
+├── tsconfig.json / tsconfig.app.json
+├── vercel.json                   # Vercel SPA rewrite rules
+├── requirements.txt              # Python dependencies (22 packages)
+└── package.json                  # Node/npm dependencies and scripts
+
+
+API INTEGRATIONS (THIRD-PARTY SERVICES)
+-----------------------------------------
+
+1. Cloudflare R2
+   - S3-compatible object storage for resume uploads
+   - Presigned PUT URLs for frontend direct upload (10MB limit)
+   - Presigned GET URLs for downloads (10-minute expiry)
+
+2. OpenAI GPT-4o-mini
+   - Quiz insight generation
+   - Configurable via OPENAI_QUIZ_MODEL env var
+   - Structured JSON response format
+   - Timeout: 60 seconds, max 2 retries
+
+3. Resend
+   - Transactional email (verification codes, operational notifications)
+   - Verification emails with 6-digit OTP
+   - Notification emails to info@solverah.com
+   - HTML-templated emails
+
+4. PostgreSQL
+   - Primary relational database hosted on Render/Railway
+   - SQLAlchemy ORM with Alembic migrations
+   - JSON columns for flexible profile data
+
+5. Google Maps Geocoding
+   - Stubbed in geo_utils.py — awaiting geopy implementation
+
+6. Google Translate API
+   - Listed in package.json but currently unused
+
+
+TESTING SETUP
+--------------
+
+Frontend Testing (Vitest):
+- Test environment: jsdom
+- Globals enabled (describe, it, expect without imports)
+- Setup file: src/test/setup.ts (mocks window.matchMedia)
+- Test files organized in __tests__/ directories alongside components/hooks/pages
+- Libraries: @testing-library/react, @testing-library/jest-dom, @testing-library/user-event
+
+Backend Testing (pytest):
+- Test environment: SQLite in-memory DB (testing mode)
+- Fixtures: Flask test client, mocked dependencies
+- Email functions mocked (no actual Resend calls in tests)
+- Test files: tests/conftest.py, test_register_api.py, test_validators.py
+
+CI/CD (GitHub Actions):
+- Workflow: .github/workflows/tests.yml
+- Triggers: push to any branch, pull requests
+- Frontend job: Node 20, npm test --run
+- Backend job: Python 3.11, pytest --tb=short
+- Environment: Testing flags, SQLite DATABASE_URL, test JWT secret
+
+
+BUILD & DEPLOYMENT CONFIGURATION
+----------------------------------
+
+Frontend Build (Vite):
+- Entry: index.html → Output: dist/
+- React JSX transformation
+- ESLint: TypeScript strict, no unused variables/parameters
+- Tailwind CSS JIT compilation
+- Production: tree-shaking, minification
+
+Backend Deployment:
+- WSGI server: gunicorn (production)
+- Database: PostgreSQL via psycopg2
+- Migrations: Alembic (flask-migrate)
+- Development: JWT_COOKIE_SECURE=false, force_https=false, localhost CORS
+- Production: JWT_COOKIE_SECURE=true, HSTS headers, domain CORS
+- Security headers via Flask-Talisman (CSP: 'self' + Google Fonts)
+
+Frontend Deployment (Vercel):
+- SPA rewrite: all routes → /index.html
+- Environment variables: VITE_API_URL points to backend
+- Build: npm run build → dist/
+
+Database Migrations (Alembic):
+- 9 versioned migrations from initial schema to 2026-04-08
+- Production: flask db upgrade
+
+
+KEY ARCHITECTURAL DECISIONS
+-----------------------------
+
+1. Two-Tier Authentication
+   JWT in HttpOnly cookies (secure, automatic on each request) + CSRF token in response
+   body for state-changing operations.
+
+2. Decoupled ML
+   ML modules (resume parser, skill matcher, company culture) are offline and deterministic
+   by design — no external service dependencies. OpenAI is only used for quiz insights
+   (optional, gated behind ML_ENABLED).
+
+3. Presigned Upload Pattern
+   Two-step S3 flow prevents server resource waste and allows the frontend to upload large
+   files directly to Cloudflare R2 without proxying through the Flask server.
+
+4. Profile Sanitization
+   Whitelist-based cleaning of profile_data (ALLOWED_PROFILE_FIELDS) prevents over-posting
+   attacks and keeps the JSON schema consistent.
+
+5. Audit Trail
+   Comprehensive logging of sensitive actions (registration, login, uploads, profile changes)
+   for compliance, debugging, and security monitoring.
+
+6. Flexible Company Data
+   Company profiles stored as both full JSON blobs and indexed culture dimension columns
+   to support both full retrieval and efficient filtering queries.
+
+7. Feature Flags
+   PRELAUNCH_MODE gates the landing page experience; ML_ENABLED + DEMO_MODE gate
+   recommendation features to allow safe demo deployments.
+
+8. Framework Composition
+   React Context for auth state (simple, no Redux); custom hooks for form logic;
+   Tailwind for styling (utility-first, no external component library).
+
+9. Type Safety
+   Full TypeScript on frontend; Pydantic models in ML pipelines for data validation.
+
+10. Rate Limiting & Account Lockout
+    Flask-Limiter + per-user lockout tracking protects against credential stuffing
+    and brute force attacks while maintaining usability for legitimate users.
+
+
+ENVIRONMENT VARIABLES (Required)
+----------------------------------
+  DATABASE_URL             PostgreSQL connection string
+  JWT_SECRET_KEY           JWT signing key
+  S3_ACCESS_KEY_ID         Cloudflare R2 access key
+  S3_SECRET_ACCESS_KEY     Cloudflare R2 secret key
+  S3_ENDPOINT_URL          Cloudflare R2 endpoint
+  OPENAI_API_KEY           OpenAI API key
+  RESEND_API_KEY           Resend email API key
+  VITE_API_URL             Frontend → backend API base URL
+  ML_ENABLED               Toggle ML recommendation features
+  DEMO_MODE                Toggle demo/safe mode
