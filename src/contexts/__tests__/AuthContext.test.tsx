@@ -33,7 +33,11 @@ async function mountAuth(sessionResponse: { ok: boolean; data?: any }) {
   );
 
   await waitFor(() => screen.getByTestId("ready"));
-  return ctxRef.current!;
+  return new Proxy({} as AuthContextType, {
+    get(_, prop: string | symbol) {
+      return (ctxRef.current as any)[prop as string];
+    },
+  });
 }
 
 // ─── Session restore ──────────────────────────────────────────────────────────
