@@ -356,10 +356,11 @@ export function useProfileForm() {
       setSkillLimitMsg(`You have reached the maximum of ${MAX_SKILLS} skills.`);
       return;
     }
-    if (!formData.skills.includes(skill)) {
+    setFormData((prev) => {
+      if (prev.skills.includes(skill)) return prev;
       if (skillLimitMsg) setSkillLimitMsg("");
-      setFormData((prev) => ({ ...prev, skills: [...prev.skills, skill] }));
-    }
+      return { ...prev, skills: [...prev.skills, skill] };
+    });
   };
 
   const removeSkill = (skill: string) => {
@@ -401,11 +402,12 @@ export function useProfileForm() {
       setLocationLimitMsg(`You have reached the maximum of ${MAX_SECONDARY_LOCATIONS} locations.`);
       return;
     }
-    if (!formData.secondaryLocations.includes(trimmed)) {
+    setFormData((prev) => {
+      if (prev.secondaryLocations.includes(trimmed)) return prev;
       if (locationLimitMsg) setLocationLimitMsg("");
-      setFormData((prev) => ({ ...prev, secondaryLocations: [...prev.secondaryLocations, trimmed] }));
-      setIsSaved(false);
-    }
+      return { ...prev, secondaryLocations: [...prev.secondaryLocations, trimmed] };
+    });
+    setIsSaved(false);
   };
 
   const removeSecondaryLocation = (loc: string) => {
