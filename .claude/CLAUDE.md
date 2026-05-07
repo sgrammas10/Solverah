@@ -22,50 +22,75 @@ frontend/         # React + TypeScript
 
 **Python backend:**
 - Use type hints: `def get_user(user_id: int) -> User:`
-- Keep functions under 50 lines
-- Follow PEP 8
-- Descriptive variable names
+- Keep functions brief if too complicated probably should be refactored into multiple functions
 
 **React/TypeScript frontend:**
 - Always type props: `interface MyComponentProps { ... }`
-- Functional components with hooks
-- One responsibility per component
 - Component + test file side-by-side
 
 ## Before Finishing Work
 
 **Backend:**
-- backend can be run from root repo using flask run locally
+- Run from repo root: `flask run`
 - `pytest tests/` — run tests
 - `mypy .` — type check (if set up)
 - Test endpoint manually
 
 **Frontend:**
-- frontend can be run from root repo using npm run dev or whatever npm command is best for the specific feature u r testing locally
+- Run from repo root: `npm run dev` (or the appropriate npm command for the feature)
 - `npm test` — run tests
 - `npm run type-check` — TypeScript check
-- Verify in browser
-- Check console for errors
+- Verify in browser, check console for errors
 
 **Both:**
-- Clear, descriptive commit message
+- Ask before committing to git
 - Ask before pushing to main
 
 ## Workflow
 
 - Ask before big changes
-- Keep code simple — no over-engineering
-- Early returns over nested conditionals
-- Minimal/clear comments (why, not what)
-- Small, focused functions
-- Ask before committing to git
-- Prefer editing existing files over new ones
 - If stuck: stop, re-plan, reach out early
 
 ## Testing
 
-New code needs tests.
 - Backend: at least one pytest per endpoint
 - Frontend: Jest/React Testing Library for components
 - Test: happy path, errors, edge cases
-- Don't test: external library behavior
+- Prefer real dependencies over mocks — only mock external services (APIs, databases)
+- Every bug fix must include a regression test that fails without the fix
+- Run the full test suite before marking any task complete
+
+## Agent Behavior
+
+**Plan mode default:**
+- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
+- If something goes sideways, STOP and re-plan immediately — don't keep pushing
+- Write detailed specs upfront to reduce ambiguity
+
+**Subagent strategy:**
+- Use subagents liberally to keep main context window clean
+- Offload research, exploration, and parallel analysis to subagents
+- One task per subagent for focused execution
+
+**Self-improvement loop:**
+- After ANY correction from the user: update CLAUDE.md with a rule to prevent the same mistake
+
+**Verification before done:**
+- Never mark a task complete without proving it works
+- Ask yourself: "Would a staff engineer approve this?"
+
+**Autonomous bug fixing:**
+- When given a bug report: just fix it — point at logs, errors, failing tests, then resolve them
+
+## Task Management
+
+- Plan first: write plan with checkable items before coding
+- Verify plan: check in with the user before starting implementation
+- Track progress: mark items complete as you go
+- Capture lessons: update CLAUDE.md after corrections
+
+## Core Principles
+
+- Simplicity first: minimal code impact
+- No laziness: find root causes, no temporary fixes
+- Minimal impact: only touch what's necessary
