@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($paths = @\\(\"C:\\\\Program Files\\\\nodejs\\\\npm.cmd\", \"C:\\\\nvm\\\\nodejs\\\\npm.cmd\", \"$env:LOCALAPPDATA\\\\nvm\\\\npm.cmd\"\\); foreach \\($p in $paths\\) { if \\(Test-Path $p\\) { Write-Output \"Found: $p\" } }; Get-ChildItem \"C:\\\\\" -Filter \"nvm\" -ErrorAction SilentlyContinue -Depth 1)",
+      "PowerShell(cmd /c \"where npm 2>nul\")",
+      "PowerShell(cmd /c \"where node 2>nul\")",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Sebastian Grammas\\\\AppData\\\\Local\\\\\" -Depth 1 | Where-Object { $_.Name -match \"node|nvm\" })",
+      "PowerShell($userPath = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); $userPath -split \";\" | Where-Object { $_ -ne \"\" })"
+    ]
+  }
+}

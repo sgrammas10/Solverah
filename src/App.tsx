@@ -7,6 +7,7 @@
  *   /login, /register         Auth pages (public)
  *   /verify-email             OTP confirmation page (public)
  *   /quiz-preview/*           Guest quiz previews (public, rate-limited on backend)
+ *   /agent                    AI agent chat (job-seeker + recruiter)
  *   /feed, /search            Shared authenticated routes (job-seeker + recruiter)
  *   /job-seeker/*             Job-seeker-only routes
  *   /recruiter/*              Recruiter-only routes
@@ -49,6 +50,7 @@ import SearchResults from "./pages/SearchResults"; // from your quiz-aware versi
 import QuizInsights from "./pages/QuizInsights";
 import GuestQuizPreview from "./pages/GuestQuizPreview";
 import GuestQuizInsights from "./pages/GuestQuizInsights";
+import AgentChat from "./pages/AgentChat";
 
 /**
  * ProtectedRoute — Wraps a route element with authentication and role checks.
@@ -110,6 +112,16 @@ function App() {
               {/* Legacy routes redirect to new code-entry page */}
               <Route path="/confirm-email" element={<CheckEmail />} />
               <Route path="/check-email" element={<CheckEmail />} />
+
+              {/* Agent chat route */}
+              <Route
+                path="/agent"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                    <AgentChat />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Shared feed + search routes */}
               <Route
