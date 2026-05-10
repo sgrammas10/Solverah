@@ -30,3 +30,9 @@ users.db
 
 .env*
 # datasets/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
