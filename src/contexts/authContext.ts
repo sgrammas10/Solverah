@@ -55,6 +55,7 @@ export interface AuthContextType {
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   fetchWithAuth: <T = any>(endpoint: string, options?: RequestInit) => Promise<T>;
+  streamFetch: (endpoint: string, options?: RequestInit) => Promise<globalThis.Response>;
   fetchProfileData: () => Promise<{ profileData?: ProfileData } | null>;
   saveProfileData: (profileData: ProfileData) => Promise<{ profileData?: ProfileData } | null>;
   /** Optimistically update the in-memory user object without a server round-trip. */

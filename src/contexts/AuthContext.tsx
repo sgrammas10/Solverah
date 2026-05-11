@@ -95,6 +95,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
 
+  const streamFetch = async (
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<globalThis.Response> => {
+    const method = (options.method || "GET").toUpperCase();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...((options.headers as Record<string, string>) || {}),
+    };
+    if (csrfToken && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+      headers["X-CSRF-TOKEN"] = csrfToken;
+    }
+    return fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+      credentials: "include",
+    });
+  };
+
   // LOGIN — backend sets an HttpOnly JWT cookie
   const login = async (email: string, password: string) => {
     const res = await fetch(`${API_BASE}/login`, {
@@ -198,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     fetchProfile,
     fetchWithAuth,
+    streamFetch,
     fetchProfileData,
     saveProfileData,
     updateProfile,
