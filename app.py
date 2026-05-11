@@ -2274,6 +2274,30 @@ def intake_link_account():
 
 
 @limiter.limit("30 per minute")
+@app.route("/api/recommendations", methods=["GET"])
+@jwt_required()
+def get_recommendations():
+    """GET /api/recommendations — Return persisted job recommendations for the user.
+
+    The ML pipeline that generated these has been replaced by the AI agent.
+    Returns an empty list until a Groq-based recommendation flow is wired up.
+    """
+    return jsonify({"recommendations": []})
+
+
+@limiter.limit("10 per minute")
+@app.route("/api/recommendations", methods=["POST"])
+@jwt_required()
+def generate_recommendations():
+    """POST /api/recommendations — Trigger job recommendation generation.
+
+    Accepts a profilePipeline payload but is currently a no-op stub while the
+    Groq-based recommendation flow is being built.
+    """
+    return jsonify({"recommendations": []})
+
+
+@limiter.limit("30 per minute")
 @app.route("/api/agent/chat", methods=["POST"])
 @jwt_required()
 def agent_chat():
