@@ -5,12 +5,13 @@ import { useAuth } from "../../contexts/useAuth";
 
 vi.mock("../../contexts/useAuth");
 
-const mockFetchWithAuth = vi.fn();
+const mockStreamFetch = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(useAuth).mockReturnValue({
-    fetchWithAuth: mockFetchWithAuth,
+    streamFetch: mockStreamFetch,
+    fetchWithAuth: vi.fn(),
     user: { id: 1, email: "test@example.com", name: "Test User", role: "job-seeker" },
     login: vi.fn(),
     register: vi.fn(),
@@ -22,6 +23,28 @@ beforeEach(() => {
     updateProfileData: vi.fn(),
   } as any);
 });
+
+/** Build a mock Response that streams SSE chunks then a done event. */
+function makeSseResponse(chunks: string[], model = "llama3"): Response {
+  const parts = chunks.map((c) => `data: ${JSON.stringify({ chunk: c })}\n\n`);
+  parts.push(`data: ${JSON.stringify({ done: true, model })}\n\n`);
+  const sseText = parts.join("");
+  const bytes = new TextEncoder().encode(sseText);
+
+  const mockReader = {
+    read: vi.fn()
+      .mockResolvedValueOnce({ done: false, value: bytes })
+      .mockResolvedValue({ done: true, value: undefined }),
+    releaseLock: vi.fn(),
+  };
+
+  return {
+    ok: true,
+    status: 200,
+    body: { getReader: () => mockReader },
+    json: vi.fn(),
+  } as unknown as Response;
+}
 
 function renderChat() {
   return render(
@@ -45,8 +68,8 @@ describe("AgentChat — empty state", () => {
 });
 
 describe("AgentChat — sending a message", () => {
-  it("shows user message and assistant reply on success", async () => {
-    mockFetchWithAuth.mockResolvedValueOnce({ reply: "Great question!", model: "llama3.2" });
+  it("shows user message and streamed assistant reply on success", async () => {
+    mockStreamFetch.mockResolvedValueOnce(makeSseResponse(["Great ", "question!"]));
 
     renderChat();
     const textarea = screen.getByPlaceholderText(/message solverah ai/i);
@@ -66,7 +89,7 @@ describe("AgentChat — sending a message", () => {
   });
 
   it("clears the input after submitting", async () => {
-    mockFetchWithAuth.mockResolvedValueOnce({ reply: "Sure!", model: "llama3.2" });
+    mockStreamFetch.mockResolvedValueOnce(makeSseResponse(["Sure!"]));
 
     renderChat();
     const textarea = screen.getByPlaceholderText(/message solverah ai/i);
@@ -82,7 +105,7 @@ describe("AgentChat — sending a message", () => {
   });
 
   it("sends on Enter key (not Shift+Enter)", async () => {
-    mockFetchWithAuth.mockResolvedValueOnce({ reply: "Got it!", model: "llama3.2" });
+    mockStreamFetch.mockResolvedValueOnce(makeSseResponse(["Got it!"]));
 
     renderChat();
     const textarea = screen.getByPlaceholderText(/message solverah ai/i);
@@ -93,7 +116,7 @@ describe("AgentChat — sending a message", () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchWithAuth).toHaveBeenCalledTimes(1);
+      expect(mockStreamFetch).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -106,14 +129,14 @@ describe("AgentChat — sending a message", () => {
       fireEvent.keyDown(textarea, { key: "Enter", shiftKey: true });
     });
 
-    expect(mockFetchWithAuth).not.toHaveBeenCalled();
+    expect(mockStreamFetch).not.toHaveBeenCalled();
   });
 });
 
 describe("AgentChat — loading state", () => {
   it("disables the send button while loading", async () => {
-    let resolve: (v: unknown) => void;
-    mockFetchWithAuth.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+    let resolveStream!: (v: Response) => void;
+    mockStreamFetch.mockReturnValueOnce(new Promise<Response>((r) => { resolveStream = r; }));
 
     renderChat();
     const textarea = screen.getByPlaceholderText(/message solverah ai/i);
@@ -125,13 +148,17 @@ describe("AgentChat — loading state", () => {
 
     expect(screen.getByRole("button", { name: /send message/i })).toBeDisabled();
 
-    await act(async () => { resolve!({ reply: "Done", model: "llama3.2" }); });
+    await act(async () => { resolveStream(makeSseResponse(["Done"])); });
   });
 });
 
 describe("AgentChat — error state", () => {
   it("shows an error banner when the request fails", async () => {
-    mockFetchWithAuth.mockRejectedValueOnce(new Error("AI service unavailable"));
+    mockStreamFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      json: vi.fn().mockResolvedValue({ error: "AI service unavailable" }),
+    } as any);
 
     renderChat();
     const textarea = screen.getByPlaceholderText(/message solverah ai/i);
@@ -147,7 +174,11 @@ describe("AgentChat — error state", () => {
   });
 
   it("dismisses the error banner on click", async () => {
-    mockFetchWithAuth.mockRejectedValueOnce(new Error("Oops"));
+    mockStreamFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      json: vi.fn().mockResolvedValue({ error: "Oops" }),
+    } as any);
 
     renderChat();
     const textarea = screen.getByPlaceholderText(/message solverah ai/i);

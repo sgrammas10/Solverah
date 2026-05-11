@@ -28,6 +28,7 @@ Key environment variables (required unless otherwise noted):
     S3_SECRET_ACCESS_KEY — R2 secret key.
     S3_BUCKET_NAME      — Target bucket for resume uploads.
     OPENAI_API_KEY      — Required for quiz-insight generation.
+    GROQ_API_KEY        — Optional. If set, the AI agent uses Groq instead of local Ollama.
     RESEND_API_KEY      — Required for transactional emails.
     EMAIL_FROM          — Sender address (defaults to no-reply@solverah.com).
     FLASK_ENV / APP_ENV / ENV — Set to "production" to enable HTTPS-only cookies
@@ -36,7 +37,7 @@ Key environment variables (required unless otherwise noted):
     LOGIN_LOCKOUT_MINUTES — Lockout duration in minutes (default 15).
 """
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response, stream_with_context
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (
     JWTManager,
@@ -365,11 +366,30 @@ def _get_openai_client():
     return OpenAI(api_key=api_key, timeout=60.0, max_retries=2)
 
 
-def _get_ollama_client():
-    """Return an OpenAI-compatible client pointed at the local Ollama server."""
+_GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
+
+
+def _get_agent_client():
+    """Return an OpenAI-compatible chat client.
+
+    Uses Groq (fast hosted inference) when GROQ_API_KEY is set in the environment,
+    otherwise falls back to a local Ollama server for development.
+    """
     if OpenAI is None:
         raise RuntimeError("OpenAI SDK not installed")
+    if _GROQ_API_KEY:
+        return OpenAI(
+            base_url="https://api.groq.com/openai/v1",
+            api_key=_GROQ_API_KEY,
+            timeout=30.0,
+            max_retries=1,
+        )
     return OpenAI(base_url="http://localhost:11434/v1", api_key="ollama", timeout=120.0, max_retries=1)
+
+
+def _default_agent_model() -> str:
+    """Return the default model name for the active provider."""
+    return "llama-3.1-8b-instant" if _GROQ_API_KEY else "llama3"
 
 
 def _build_agent_context(user: User) -> str:
@@ -2255,11 +2275,11 @@ def intake_link_account():
 @app.route("/api/agent/chat", methods=["POST"])
 @jwt_required()
 def agent_chat():
-    """POST /api/agent/chat — Forward a chat turn to the local Ollama LLM with RAG context.
+    """POST /api/agent/chat — Stream a chat turn from the local Ollama LLM with RAG context.
 
     Assembles a system prompt from the authenticated user's profile and company
-    data, prepends it to the supplied message history, and forwards the full
-    conversation to Ollama's OpenAI-compatible API.
+    data, prepends it to the supplied message history, and streams the response
+    as Server-Sent Events so the UI can render tokens as they arrive.
 
     Body (JSON):
         messages (list): Full conversation history as [{role, content}, ...].
@@ -2267,8 +2287,9 @@ def agent_chat():
         model (str, optional): Ollama model name. Defaults to "llama3".
 
     Returns:
-        200 {"reply": str, "model": str}
+        200 text/event-stream  data: {"chunk": str} per token, then data: {"done": true, "model": str}
         400 if messages is missing or empty
+        422 if requested model is not pulled in Ollama
         503 if Ollama is unreachable
     """
     current_email = get_jwt_identity()
@@ -2279,29 +2300,44 @@ def agent_chat():
     if not messages or not isinstance(messages, list) or len(messages) == 0:
         return jsonify({"error": "messages must be a non-empty list"}), 400
 
-    model = (data.get("model") or "llama3").strip()
-
+    model = (data.get("model") or _default_agent_model()).strip()
     system_prompt = _build_agent_context(user)
     full_messages = [{"role": "system", "content": system_prompt}] + messages
 
     try:
-        client = _get_ollama_client()
-        response = client.chat.completions.create(model=model, messages=full_messages)
-        reply = response.choices[0].message.content or ""
+        client = _get_agent_client()
+        stream = client.chat.completions.create(model=model, messages=full_messages, stream=True)
     except Exception as exc:
         app.logger.error("agent_chat error: %s: %s", type(exc).__name__, exc)
         exc_type = type(exc).__name__.lower()
         exc_str = str(exc).lower()
         if "not found" in exc_str or "notfounderror" in exc_type:
-            return jsonify({"error": f"Model '{model}' not found in Ollama. Run: ollama pull {model}"}), 422
+            provider = "Groq" if _GROQ_API_KEY else "Ollama"
+            return jsonify({"error": f"Model '{model}' not found on {provider}."}), 422
         is_connection_err = any(kw in exc_str or kw in exc_type for kw in (
             "connection", "refused", "timeout", "unreachable", "apiconnection",
         ))
         if is_connection_err:
-            return jsonify({"error": "AI service unavailable — is Ollama running?"}), 503
+            service = "Groq" if _GROQ_API_KEY else "Ollama (is it running?)"
+            return jsonify({"error": f"AI service unavailable — {service}"}), 503
         return jsonify({"error": "Failed to generate response"}), 500
 
-    return jsonify({"reply": reply, "model": model})
+    def generate():
+        try:
+            for chunk in stream:
+                delta = chunk.choices[0].delta.content
+                if delta:
+                    yield f"data: {json.dumps({'chunk': delta})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'model': model})}\n\n"
+        except Exception as exc:
+            app.logger.error("agent_chat stream error: %s: %s", type(exc).__name__, exc)
+            yield f"data: {json.dumps({'error': 'Stream interrupted'})}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        content_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 if __name__ == "__main__":

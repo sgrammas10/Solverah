@@ -8,7 +8,7 @@ interface Message {
 }
 
 function AgentChat() {
-  const { fetchWithAuth } = useAuth();
+  const { streamFetch } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -32,11 +32,53 @@ function AgentChat() {
     setError(null);
 
     try {
-      const data = await fetchWithAuth('/agent/chat', {
+      const response = await streamFetch('/agent/chat', {
         method: 'POST',
         body: JSON.stringify({ messages: nextMessages }),
       });
-      setMessages([...nextMessages, { role: 'assistant', content: data.reply }]);
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error((errData as any).error || 'Request failed');
+      }
+
+      if (!response.body) throw new Error('No response body');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let assistantContent = '';
+      let started = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() ?? '';
+        for (const part of parts) {
+          if (!part.startsWith('data: ')) continue;
+          const payload = part.slice(6).trim();
+          if (!payload) continue;
+          let event: any;
+          try { event = JSON.parse(payload); } catch { continue; }
+          if (event.error) throw new Error(event.error);
+          if (event.chunk) {
+            assistantContent += event.chunk;
+            if (!started) {
+              setMessages([...nextMessages, { role: 'assistant', content: assistantContent }]);
+              started = true;
+            } else {
+              setMessages(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1] = { role: 'assistant', content: assistantContent };
+                return updated;
+              });
+            }
+            await new Promise(resolve => setTimeout(resolve, 40));
+          }
+        }
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
       setError(message);
@@ -51,6 +93,8 @@ function AgentChat() {
       handleSubmit(e as unknown as React.FormEvent);
     }
   };
+
+  const showDots = isLoading && (messages.length === 0 || messages[messages.length - 1]?.role !== 'assistant');
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col h-[calc(100vh-4rem)]">
@@ -85,7 +129,7 @@ function AgentChat() {
           </div>
         ))}
 
-        {isLoading && (
+        {showDots && (
           <div className="flex justify-start">
             <div className="bg-cream-subtle border border-cream-muted rounded-xl px-4 py-3">
               <span className="flex gap-1">

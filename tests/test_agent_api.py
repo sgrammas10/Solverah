@@ -1,3 +1,4 @@
+import json
 import pytest
 from unittest.mock import MagicMock
 
@@ -37,21 +38,34 @@ def _register_and_login(client, monkeypatch):
     return csrf
 
 
-def _mock_ollama(monkeypatch, reply_text="I can help with that."):
-    """Patch _get_ollama_client to return a mock that produces reply_text."""
+def _mock_ollama_streaming(monkeypatch, reply_text="I can help with that."):
+    """Patch _get_agent_client to return a mock that streams reply_text word by word."""
     import app as app_module
 
-    mock_choice = MagicMock()
-    mock_choice.message.content = reply_text
-
-    mock_response = MagicMock()
-    mock_response.choices = [mock_choice]
+    words = reply_text.split()
+    chunks = []
+    for i, word in enumerate(words):
+        chunk = MagicMock()
+        chunk.choices = [MagicMock()]
+        chunk.choices[0].delta.content = word + (" " if i < len(words) - 1 else "")
+        chunks.append(chunk)
 
     mock_client = MagicMock()
-    mock_client.chat.completions.create.return_value = mock_response
-
-    monkeypatch.setattr(app_module, "_get_ollama_client", lambda: mock_client)
+    mock_client.chat.completions.create.return_value = iter(chunks)
+    monkeypatch.setattr(app_module, "_get_agent_client", lambda: mock_client)
     return mock_client
+
+
+def _parse_sse(data: bytes) -> list[dict]:
+    """Parse SSE response body into a list of event dicts."""
+    events = []
+    for line in data.decode().split("\n\n"):
+        line = line.strip()
+        if line.startswith("data: "):
+            payload = line[6:].strip()
+            if payload:
+                events.append(json.loads(payload))
+    return events
 
 
 def test_agent_chat_unauthenticated(client):
@@ -61,7 +75,7 @@ def test_agent_chat_unauthenticated(client):
 
 def test_agent_chat_missing_messages(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch)
-    _mock_ollama(monkeypatch)
+    _mock_ollama_streaming(monkeypatch)
 
     resp = client.post(
         "/api/agent/chat",
@@ -74,7 +88,7 @@ def test_agent_chat_missing_messages(client, monkeypatch):
 
 def test_agent_chat_empty_messages(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch)
-    _mock_ollama(monkeypatch)
+    _mock_ollama_streaming(monkeypatch)
 
     resp = client.post(
         "/api/agent/chat",
@@ -86,28 +100,34 @@ def test_agent_chat_empty_messages(client, monkeypatch):
 
 def test_agent_chat_success(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch)
-    mock_client = _mock_ollama(monkeypatch, reply_text="Here are some career tips.")
+    mock_client = _mock_ollama_streaming(monkeypatch, reply_text="Here are some career tips.")
 
     resp = client.post(
         "/api/agent/chat",
-        json={"messages": [{"role": "user", "content": "What should I focus on?"}]},
+        json={"messages": [{"role": "user", "content": "What should I focus on?"}], "model": "test-model"},
         headers={"X-CSRF-TOKEN": csrf},
     )
     assert resp.status_code == 200
-    payload = resp.get_json()
-    assert payload["reply"] == "Here are some career tips."
-    assert payload["model"] == "llama3"
+    assert "text/event-stream" in resp.content_type
+
+    events = _parse_sse(resp.data)
+    done_event = next((e for e in events if e.get("done")), None)
+    assert done_event is not None
+    assert done_event["model"] == "test-model"
+
+    full_reply = "".join(e.get("chunk", "") for e in events)
+    assert "career tips" in full_reply
 
     # Ensure Ollama was called with a system message prepended
     call_args = mock_client.chat.completions.create.call_args
-    messages_sent = call_args.kwargs.get("messages") or call_args.args[0] if call_args.args else call_args.kwargs["messages"]
+    messages_sent = call_args.kwargs.get("messages") or call_args.kwargs["messages"]
     assert messages_sent[0]["role"] == "system"
     assert "Solverah AI" in messages_sent[0]["content"]
 
 
 def test_agent_chat_custom_model(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch)
-    _mock_ollama(monkeypatch)
+    _mock_ollama_streaming(monkeypatch)
 
     resp = client.post(
         "/api/agent/chat",
@@ -115,7 +135,10 @@ def test_agent_chat_custom_model(client, monkeypatch):
         headers={"X-CSRF-TOKEN": csrf},
     )
     assert resp.status_code == 200
-    assert resp.get_json()["model"] == "mistral"
+    events = _parse_sse(resp.data)
+    done_event = next((e for e in events if e.get("done")), None)
+    assert done_event is not None
+    assert done_event["model"] == "mistral"
 
 
 def test_agent_chat_ollama_unavailable(client, monkeypatch):
@@ -128,7 +151,7 @@ def test_agent_chat_ollama_unavailable(client, monkeypatch):
 
     mock_client = MagicMock()
     mock_client.chat.completions.create.side_effect = _raise_connection
-    monkeypatch.setattr(app_module, "_get_ollama_client", lambda: mock_client)
+    monkeypatch.setattr(app_module, "_get_agent_client", lambda: mock_client)
 
     resp = client.post(
         "/api/agent/chat",
