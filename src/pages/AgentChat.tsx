@@ -14,6 +14,7 @@ function AgentChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -31,10 +32,14 @@ function AgentChat() {
     setIsLoading(true);
     setError(null);
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const response = await streamFetch('/agent/chat', {
         method: 'POST',
         body: JSON.stringify({ messages: nextMessages }),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -80,6 +85,7 @@ function AgentChat() {
         }
       }
     } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
       setError(message);
     } finally {
@@ -105,7 +111,7 @@ function AgentChat() {
         </div>
         {messages.length > 0 && (
           <button
-            onClick={() => { setMessages([]); setError(null); }}
+            onClick={() => { abortControllerRef.current?.abort(); setMessages([]); setError(null); }}
             className="text-sm text-ink-tertiary hover:text-ink-secondary transition-colors"
           >
             Clear chat

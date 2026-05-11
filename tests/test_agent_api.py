@@ -159,3 +159,21 @@ def test_agent_chat_groq_unavailable(client, monkeypatch):
         headers={"X-CSRF-TOKEN": csrf},
     )
     assert resp.status_code == 503
+
+
+def test_agent_chat_includes_resume_in_context(client, monkeypatch):
+    import app as app_module
+
+    csrf = _register_and_login(client, monkeypatch)
+    mock_client = _mock_llm_streaming(monkeypatch)
+    monkeypatch.setattr(app_module, "_fetch_resume_text", lambda _: "Worked at Acme Corp as engineer.")
+
+    client.post(
+        "/api/agent/chat",
+        json={"messages": [{"role": "user", "content": "Review my resume"}]},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+
+    call_args = mock_client.chat.completions.create.call_args
+    system_msg = call_args.kwargs["messages"][0]["content"]
+    assert "Acme Corp" in system_msg

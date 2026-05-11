@@ -388,7 +388,7 @@ def _default_agent_model() -> str:
     return "llama-3.1-8b-instant"
 
 
-def _build_agent_context(user: User) -> str:
+def _build_agent_context(user: User, resume_text: str = "") -> str:
     """Assemble a RAG system prompt from the user's profile and company data."""
     parts = [
         "You are Solverah AI, a career assistant. Use the context below to give "
@@ -445,6 +445,9 @@ def _build_agent_context(user: User) -> str:
 
     # TODO: inject quiz results here once scoring is built
     parts.append("## Quiz Results\n[Not yet available — coming soon]")
+
+    if resume_text:
+        parts.append(f"## Resume\n{resume_text}")
 
     return "\n\n".join(parts)
 
@@ -616,6 +619,37 @@ def _extract_resume_text(file_path: Path, mime: str) -> str:
         return "\n".join(p.text for p in doc.paragraphs if p.text).strip()
 
     return ""
+
+
+def _fetch_resume_text(profile_data: dict) -> str:
+    """Fetch and extract resume text from S3 for use in agent context.
+
+    Returns "" on any failure so callers always get a safe string.
+    """
+    resume_key = profile_data.get("resumeKey")
+    mime = (profile_data.get("uploadedResume") or {}).get("type", "")
+    if not resume_key or not mime:
+        return ""
+
+    temp_path = None
+    try:
+        s3 = get_s3_client()
+        bucket = os.environ["S3_BUCKET_NAME"]
+        obj = s3.get_object(Bucket=bucket, Key=resume_key)
+        raw_bytes = obj["Body"].read()
+
+        suffix = Path(resume_key).suffix or ".bin"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+            tmp_file.write(raw_bytes)
+            temp_path = Path(tmp_file.name)
+
+        text = _extract_resume_text(temp_path, mime)
+        return text[:6000]
+    except Exception:
+        return ""
+    finally:
+        if temp_path and temp_path.exists():
+            temp_path.unlink()
 
 
 def _build_profile_from_intake(intake: IntakeSubmission) -> dict:
@@ -2327,7 +2361,8 @@ def agent_chat():
         return jsonify({"error": "messages must be a non-empty list"}), 400
 
     model = (data.get("model") or _default_agent_model()).strip()
-    system_prompt = _build_agent_context(user)
+    resume_text = _fetch_resume_text(user.profile_data or {})
+    system_prompt = _build_agent_context(user, resume_text=resume_text)
     full_messages = [{"role": "system", "content": system_prompt}] + messages
 
     try:
