@@ -61,8 +61,10 @@ import importlib
 import importlib.util
 import sys
 import tempfile
+import time
 import traceback
 from pathlib import Path
+from threading import Lock
 from urllib.parse import urlparse
 import boto3
 import psycopg2
@@ -77,6 +79,10 @@ except Exception:
 
 
 JOB_LLM_DIR = Path(__file__).resolve().parent / "job_descr_LLM"
+
+_resume_cache: dict = {}          # resumeKey -> (text, expires_at)
+_resume_cache_lock = Lock()
+_RESUME_CACHE_TTL = 600           # 10 minutes — covers a full chat session
 
 def _load_resume_parser():
     """Dynamically load ``parse_resume`` from the job_descr_LLM sub-package.
@@ -624,12 +630,22 @@ def _extract_resume_text(file_path: Path, mime: str) -> str:
 def _fetch_resume_text(profile_data: dict) -> str:
     """Fetch and extract resume text from S3 for use in agent context.
 
+    Result is cached in-process for _RESUME_CACHE_TTL seconds so repeated
+    calls within a chat session hit memory instead of S3. Cache key is the
+    resumeKey (unique per upload), so a new upload automatically bypasses
+    the old entry.
+
     Returns "" on any failure so callers always get a safe string.
     """
     resume_key = profile_data.get("resumeKey")
     mime = (profile_data.get("uploadedResume") or {}).get("type", "")
     if not resume_key or not mime:
         return ""
+
+    with _resume_cache_lock:
+        cached = _resume_cache.get(resume_key)
+        if cached and time.monotonic() < cached[1]:
+            return cached[0]
 
     temp_path = None
     try:
@@ -643,8 +659,10 @@ def _fetch_resume_text(profile_data: dict) -> str:
             tmp_file.write(raw_bytes)
             temp_path = Path(tmp_file.name)
 
-        text = _extract_resume_text(temp_path, mime)
-        return text[:6000]
+        text = _extract_resume_text(temp_path, mime)[:6000]
+        with _resume_cache_lock:
+            _resume_cache[resume_key] = (text, time.monotonic() + _RESUME_CACHE_TTL)
+        return text
     except Exception:
         return ""
     finally:

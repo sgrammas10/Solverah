@@ -161,6 +161,31 @@ def test_agent_chat_groq_unavailable(client, monkeypatch):
     assert resp.status_code == 503
 
 
+def test_fetch_resume_text_caches_s3_result(monkeypatch):
+    import app as app_module
+
+    # Isolate cache state for this test
+    monkeypatch.setattr(app_module, "_resume_cache", {})
+    monkeypatch.setenv("S3_BUCKET_NAME", "test-bucket")
+
+    mock_s3 = MagicMock()
+    mock_s3.get_object.return_value = {"Body": MagicMock(read=lambda: b"resume bytes")}
+    monkeypatch.setattr(app_module, "get_s3_client", lambda: mock_s3)
+    monkeypatch.setattr(app_module, "_extract_resume_text", lambda _path, _mime: "Extracted resume text")
+
+    profile = {
+        "resumeKey": "users/1/resume.pdf",
+        "uploadedResume": {"type": "application/pdf"},
+    }
+
+    first = app_module._fetch_resume_text(profile)
+    second = app_module._fetch_resume_text(profile)
+
+    assert first == "Extracted resume text"
+    assert second == "Extracted resume text"
+    assert mock_s3.get_object.call_count == 1  # S3 hit only on first call
+
+
 def test_agent_chat_includes_resume_in_context(client, monkeypatch):
     import app as app_module
 
