@@ -17,6 +17,8 @@ export interface PsychometricScore {
   completed: boolean;
 }
 
+export type SkillLevel = 'beginner' | 'intermediate' | 'advanced';
+
 export interface ProfileFormData {
   firstName: string;
   lastName: string;
@@ -30,6 +32,7 @@ export interface ProfileFormData {
   experience: any[];
   education: any[];
   skills: string[];
+  skill_levels?: Record<string, SkillLevel>;
   performanceReviews: any[];
   psychometricResults: {
     leadership: PsychometricScore;

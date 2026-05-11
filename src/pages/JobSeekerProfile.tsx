@@ -111,6 +111,7 @@ function JobSeekerProfile() {
             experienceLimitMsg={profile.experienceLimitMsg}
             addSkill={profile.addSkill}
             removeSkill={profile.removeSkill}
+            updateSkillLevel={profile.updateSkillLevel}
             skillLimitMsg={profile.skillLimitMsg}
           />
         )}

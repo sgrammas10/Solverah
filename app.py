@@ -410,7 +410,12 @@ def _build_agent_context(user: User) -> str:
         parts.append(f"Summary: {summary}")
 
     if skills := profile.get("skills"):
-        parts.append(f"Skills: {', '.join(str(s) for s in skills[:20])}")
+        levels = profile.get("skill_levels") or {}
+        formatted_skills = [
+            f"{s} ({levels[s]})" if s in levels else str(s)
+            for s in skills[:20]
+        ]
+        parts.append(f"Skills: {', '.join(formatted_skills)}")
 
     if experience := profile.get("experience"):
         exp_lines = [
@@ -1296,6 +1301,7 @@ def default_profile(email: str = "", name: str = "", role: str = "job-seeker") -
         "experience": [],
         "education": [],
         "skills": [],
+        "skill_levels": {},
         "performanceReviews": [],
         "psychometricResults": {
             "leadership": {"score": None, "percentile": None, "completed": False},

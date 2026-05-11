@@ -1,8 +1,27 @@
 import { Plus, X } from "lucide-react";
-import { ProfileFormData } from "../../types/profile";
+import { ProfileFormData, SkillLevel } from "../../types/profile";
 
 const fieldCls =
   "w-full border border-cream-muted bg-cream-base px-3 py-2.5 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors rounded-md";
+
+const LEVEL_CYCLE: (SkillLevel | undefined)[] = [undefined, "beginner", "intermediate", "advanced"];
+
+const LEVEL_STYLES: Record<string, string> = {
+  beginner: "bg-[#b7e4c7] text-forest-dark",
+  intermediate: "bg-forest-light text-white",
+  advanced: "bg-forest-dark text-white",
+};
+
+const LEVEL_DELETE_STYLES: Record<string, string> = {
+  beginner: "text-forest-mid hover:text-forest-dark",
+  intermediate: "text-white/70 hover:text-white",
+  advanced: "text-white/70 hover:text-white",
+};
+
+function cycleLevel(current: SkillLevel | undefined): SkillLevel | undefined {
+  const idx = LEVEL_CYCLE.indexOf(current);
+  return LEVEL_CYCLE[(idx + 1) % LEVEL_CYCLE.length];
+}
 
 type Props = {
   formData: ProfileFormData;
@@ -12,6 +31,7 @@ type Props = {
   experienceLimitMsg: string;
   addSkill: (skill: string) => void;
   removeSkill: (skill: string) => void;
+  updateSkillLevel: (name: string, level: SkillLevel | undefined) => void;
   skillLimitMsg: string;
 };
 
@@ -23,6 +43,7 @@ export default function ExperienceTab({
   experienceLimitMsg,
   addSkill,
   removeSkill,
+  updateSkillLevel,
   skillLimitMsg,
 }: Props) {
   return (
@@ -141,23 +162,32 @@ export default function ExperienceTab({
 
         {/* Skills Section */}
         <div className="mt-8 pt-6 border-t border-cream-muted">
-          <h3 className="text-lg font-medium text-ink-primary font-display mb-4">Skills</h3>
+          <h3 className="text-lg font-medium text-ink-primary font-display mb-1">Skills</h3>
+          <p className="text-xs text-ink-tertiary mb-4">Click a skill tag to set your expertise level.</p>
           <div className="flex flex-wrap gap-2 mb-4">
-            {formData.skills.map((skill) => (
-              <span
-                key={skill}
-                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-forest-pale text-forest-dark"
-              >
-                {skill}
-                <button
-                  type="button"
-                  onClick={() => removeSkill(skill)}
-                  className="ml-2 text-forest-light hover:text-forest-mid"
+            {formData.skills.map((skill) => {
+              const level = (formData.skill_levels ?? {})[skill] as SkillLevel | undefined;
+              const colorCls = level ? LEVEL_STYLES[level] : "bg-forest-pale text-forest-dark";
+              const deleteCls = level ? LEVEL_DELETE_STYLES[level] : "text-forest-light hover:text-forest-mid";
+              return (
+                <span
+                  key={skill}
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium cursor-pointer select-none transition-colors ${colorCls}`}
+                  onClick={() => updateSkillLevel(skill, cycleLevel(level))}
+                  title="Click to set expertise level"
                 >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            ))}
+                  {skill}
+                  {level && <span className="ml-1 opacity-80">· {level.charAt(0).toUpperCase() + level.slice(1)}</span>}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); removeSkill(skill); }}
+                    className={`ml-2 ${deleteCls}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              );
+            })}
           </div>
           <div className="flex">
             <input

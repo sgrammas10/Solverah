@@ -17,7 +17,7 @@
  */
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/useAuth";
-import { ProfileFormData, PendingResumeUpload } from "../types/profile";
+import { ProfileFormData, PendingResumeUpload, SkillLevel } from "../types/profile";
 
 // Per-collection limits enforced in the UI to prevent unreasonably large profiles.
 const MAX_EXPERIENCES = 20;
@@ -50,6 +50,7 @@ export function buildDefaultProfile(
     experience: [],
     education: [],
     skills: [],
+    skill_levels: {},
     performanceReviews: [],
     psychometricResults: {
       leadership: { score: null, percentile: null, completed: false },
@@ -88,6 +89,7 @@ export function normalizeProfileData(
     experience: incoming.experience ?? undefined,
     education: incoming.education ?? undefined,
     skills: incoming.skills ?? undefined,
+    skill_levels: incoming.skill_levels ?? undefined,
     performanceReviews: incoming.performanceReviews ?? undefined,
     psychometricResults: incoming.psychometricResults ?? undefined,
     uploadedResume: incoming.uploadedResume ?? undefined,
@@ -213,7 +215,11 @@ export function useProfileForm() {
       sections.push({ section: "Experience", content: experienceEntries.join("\n\n") });
     }
     if (formData.skills?.length > 0) {
-      sections.push({ section: "Skills", content: formData.skills.join(", ") });
+      const levels = formData.skill_levels ?? {};
+      const skillsContent = formData.skills
+        .map((s) => (levels[s] ? `${s} (${levels[s]})` : s))
+        .join(", ");
+      sections.push({ section: "Skills", content: skillsContent });
     }
     const educationEntries =
       formData.education?.map((edu: any) => {
@@ -364,7 +370,23 @@ export function useProfileForm() {
   };
 
   const removeSkill = (skill: string) => {
-    setFormData((prev) => ({ ...prev, skills: prev.skills.filter((s) => s !== skill) }));
+    setFormData((prev) => {
+      const { [skill]: _removed, ...remainingLevels } = prev.skill_levels ?? {};
+      return { ...prev, skills: prev.skills.filter((s) => s !== skill), skill_levels: remainingLevels };
+    });
+    setIsSaved(false);
+  };
+
+  const updateSkillLevel = (name: string, level: SkillLevel | undefined) => {
+    setFormData((prev) => {
+      const current = prev.skill_levels ?? {};
+      if (level === undefined) {
+        const { [name]: _removed, ...rest } = current;
+        return { ...prev, skill_levels: rest };
+      }
+      return { ...prev, skill_levels: { ...current, [name]: level } };
+    });
+    setIsSaved(false);
   };
 
   // ── Education ───────────────────────────────────────────────────────────────
@@ -497,6 +519,7 @@ export function useProfileForm() {
     updateExperience,
     addSkill,
     removeSkill,
+    updateSkillLevel,
     addEducation,
     removeEducation,
     updateEducation,
