@@ -9,6 +9,7 @@ const mockStreamFetch = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.HTMLElement.prototype.scrollIntoView = vi.fn();
   vi.mocked(useAuth).mockReturnValue({
     streamFetch: mockStreamFetch,
     fetchWithAuth: vi.fn(),
