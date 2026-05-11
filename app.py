@@ -61,8 +61,10 @@ import importlib
 import importlib.util
 import sys
 import tempfile
+import time
 import traceback
 from pathlib import Path
+from threading import Lock
 from urllib.parse import urlparse
 import boto3
 import psycopg2
@@ -77,6 +79,10 @@ except Exception:
 
 
 JOB_LLM_DIR = Path(__file__).resolve().parent / "job_descr_LLM"
+
+_resume_cache: dict = {}          # resumeKey -> (text, expires_at)
+_resume_cache_lock = Lock()
+_RESUME_CACHE_TTL = 600           # 10 minutes — covers a full chat session
 
 def _load_resume_parser():
     """Dynamically load ``parse_resume`` from the job_descr_LLM sub-package.
@@ -388,7 +394,7 @@ def _default_agent_model() -> str:
     return "llama-3.1-8b-instant"
 
 
-def _build_agent_context(user: User) -> str:
+def _build_agent_context(user: User, resume_text: str = "") -> str:
     """Assemble a RAG system prompt from the user's profile and company data."""
     parts = [
         "You are Solverah AI, a career assistant. Use the context below to give "
@@ -445,6 +451,9 @@ def _build_agent_context(user: User) -> str:
 
     # TODO: inject quiz results here once scoring is built
     parts.append("## Quiz Results\n[Not yet available — coming soon]")
+
+    if resume_text:
+        parts.append(f"## Resume\n{resume_text}")
 
     return "\n\n".join(parts)
 
@@ -616,6 +625,49 @@ def _extract_resume_text(file_path: Path, mime: str) -> str:
         return "\n".join(p.text for p in doc.paragraphs if p.text).strip()
 
     return ""
+
+
+def _fetch_resume_text(profile_data: dict) -> str:
+    """Fetch and extract resume text from S3 for use in agent context.
+
+    Result is cached in-process for _RESUME_CACHE_TTL seconds so repeated
+    calls within a chat session hit memory instead of S3. Cache key is the
+    resumeKey (unique per upload), so a new upload automatically bypasses
+    the old entry.
+
+    Returns "" on any failure so callers always get a safe string.
+    """
+    resume_key = profile_data.get("resumeKey")
+    mime = (profile_data.get("uploadedResume") or {}).get("type", "")
+    if not resume_key or not mime:
+        return ""
+
+    with _resume_cache_lock:
+        cached = _resume_cache.get(resume_key)
+        if cached and time.monotonic() < cached[1]:
+            return cached[0]
+
+    temp_path = None
+    try:
+        s3 = get_s3_client()
+        bucket = os.environ["S3_BUCKET_NAME"]
+        obj = s3.get_object(Bucket=bucket, Key=resume_key)
+        raw_bytes = obj["Body"].read()
+
+        suffix = Path(resume_key).suffix or ".bin"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+            tmp_file.write(raw_bytes)
+            temp_path = Path(tmp_file.name)
+
+        text = _extract_resume_text(temp_path, mime)[:6000]
+        with _resume_cache_lock:
+            _resume_cache[resume_key] = (text, time.monotonic() + _RESUME_CACHE_TTL)
+        return text
+    except Exception:
+        return ""
+    finally:
+        if temp_path and temp_path.exists():
+            temp_path.unlink()
 
 
 def _build_profile_from_intake(intake: IntakeSubmission) -> dict:
@@ -2327,7 +2379,8 @@ def agent_chat():
         return jsonify({"error": "messages must be a non-empty list"}), 400
 
     model = (data.get("model") or _default_agent_model()).strip()
-    system_prompt = _build_agent_context(user)
+    resume_text = _fetch_resume_text(user.profile_data or {})
+    system_prompt = _build_agent_context(user, resume_text=resume_text)
     full_messages = [{"role": "system", "content": system_prompt}] + messages
 
     try:

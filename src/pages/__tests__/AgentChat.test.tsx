@@ -151,6 +151,44 @@ describe("AgentChat — loading state", () => {
 
     await act(async () => { resolveStream(makeSseResponse(["Done"])); });
   });
+
+  it("hides loading dots and shows no error when clear chat is clicked mid-stream", async () => {
+    let rejectRead!: (err: Error) => void;
+    const mockReader = {
+      read: vi.fn().mockReturnValue(new Promise<{ done: boolean; value: undefined }>((_res, rej) => { rejectRead = rej; })),
+      releaseLock: vi.fn(),
+    };
+    mockStreamFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      body: { getReader: () => mockReader },
+      json: vi.fn(),
+    } as any);
+
+    renderChat();
+    const textarea = screen.getByPlaceholderText(/message solverah ai/i);
+
+    await act(async () => {
+      fireEvent.change(textarea, { target: { value: "Tell me a long story" } });
+      fireEvent.click(screen.getByRole("button", { name: /send message/i }));
+    });
+
+    // Streaming is in flight — clear chat
+    await act(async () => {
+      fireEvent.click(screen.getByText("Clear chat"));
+      // Simulate the stream being aborted (AbortController calls abort internally)
+      const abortErr = new Error("The user aborted a request.");
+      abortErr.name = "AbortError";
+      rejectRead(abortErr);
+    });
+
+    await waitFor(() => {
+      // Empty state is restored, no error shown
+      expect(screen.getByText(/ask me anything/i)).toBeInTheDocument();
+      expect(screen.queryByText(/aborted/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/something went wrong/i)).not.toBeInTheDocument();
+    });
+  });
 });
 
 describe("AgentChat — error state", () => {

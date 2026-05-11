@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Send, MessageSquare } from 'lucide-react';
 import { useAuth } from '../contexts/useAuth';
 
@@ -14,6 +15,7 @@ function AgentChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -31,10 +33,14 @@ function AgentChat() {
     setIsLoading(true);
     setError(null);
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const response = await streamFetch('/agent/chat', {
         method: 'POST',
         body: JSON.stringify({ messages: nextMessages }),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -80,6 +86,7 @@ function AgentChat() {
         }
       }
     } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
       setError(message);
     } finally {
@@ -105,7 +112,7 @@ function AgentChat() {
         </div>
         {messages.length > 0 && (
           <button
-            onClick={() => { setMessages([]); setError(null); }}
+            onClick={() => { abortControllerRef.current?.abort(); setMessages([]); setError(null); }}
             className="text-sm text-ink-tertiary hover:text-ink-secondary transition-colors"
           >
             Clear chat
@@ -128,13 +135,25 @@ function AgentChat() {
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[80%] rounded-xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+              className={`max-w-[80%] rounded-xl px-4 py-3 text-sm leading-relaxed ${
                 msg.role === 'user'
-                  ? 'bg-forest-dark text-white'
+                  ? 'bg-forest-dark text-white whitespace-pre-wrap'
                   : 'bg-cream-subtle border border-cream-muted text-ink-primary'
               }`}
             >
-              {msg.content}
+              {msg.role === 'user' ? msg.content : (
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                    strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                    ol: ({ children }) => <ol className="list-decimal list-outside ml-4 space-y-1 mb-2">{children}</ol>,
+                    ul: ({ children }) => <ul className="list-disc list-outside ml-4 space-y-1 mb-2">{children}</ul>,
+                    li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                  }}
+                >
+                  {msg.content}
+                </ReactMarkdown>
+              )}
             </div>
           </div>
         ))}
