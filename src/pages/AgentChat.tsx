@@ -98,9 +98,19 @@ function AgentChat() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col h-[calc(100vh-4rem)]">
-      <div className="mb-4">
-        <h1 className="font-display text-2xl font-bold text-ink-primary">Solverah AI</h1>
-        <p className="text-sm text-ink-secondary mt-1">Your personal career assistant</p>
+      <div className="mb-4 flex items-start justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-ink-primary">Solverah AI</h1>
+          <p className="text-sm text-ink-secondary mt-1">Your personal career assistant</p>
+        </div>
+        {messages.length > 0 && (
+          <button
+            onClick={() => { setMessages([]); setError(null); }}
+            className="text-sm text-ink-tertiary hover:text-ink-secondary transition-colors"
+          >
+            Clear chat
+          </button>
+        )}
       </div>
 
       {/* Message list */}
