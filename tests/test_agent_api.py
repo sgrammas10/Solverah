@@ -38,7 +38,7 @@ def _register_and_login(client, monkeypatch):
     return csrf
 
 
-def _mock_ollama_streaming(monkeypatch, reply_text="I can help with that."):
+def _mock_llm_streaming(monkeypatch, reply_text="I can help with that."):
     """Patch _get_agent_client to return a mock that streams reply_text word by word."""
     import app as app_module
 
@@ -75,7 +75,7 @@ def test_agent_chat_unauthenticated(client):
 
 def test_agent_chat_missing_messages(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch)
-    _mock_ollama_streaming(monkeypatch)
+    _mock_llm_streaming(monkeypatch)
 
     resp = client.post(
         "/api/agent/chat",
@@ -88,7 +88,7 @@ def test_agent_chat_missing_messages(client, monkeypatch):
 
 def test_agent_chat_empty_messages(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch)
-    _mock_ollama_streaming(monkeypatch)
+    _mock_llm_streaming(monkeypatch)
 
     resp = client.post(
         "/api/agent/chat",
@@ -100,7 +100,7 @@ def test_agent_chat_empty_messages(client, monkeypatch):
 
 def test_agent_chat_success(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch)
-    mock_client = _mock_ollama_streaming(monkeypatch, reply_text="Here are some career tips.")
+    mock_client = _mock_llm_streaming(monkeypatch, reply_text="Here are some career tips.")
 
     resp = client.post(
         "/api/agent/chat",
@@ -118,7 +118,7 @@ def test_agent_chat_success(client, monkeypatch):
     full_reply = "".join(e.get("chunk", "") for e in events)
     assert "career tips" in full_reply
 
-    # Ensure Ollama was called with a system message prepended
+    # Ensure Groq was called with a system message prepended
     call_args = mock_client.chat.completions.create.call_args
     messages_sent = call_args.kwargs.get("messages") or call_args.kwargs["messages"]
     assert messages_sent[0]["role"] == "system"
@@ -127,7 +127,7 @@ def test_agent_chat_success(client, monkeypatch):
 
 def test_agent_chat_custom_model(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch)
-    _mock_ollama_streaming(monkeypatch)
+    _mock_llm_streaming(monkeypatch)
 
     resp = client.post(
         "/api/agent/chat",
@@ -141,7 +141,7 @@ def test_agent_chat_custom_model(client, monkeypatch):
     assert done_event["model"] == "mistral"
 
 
-def test_agent_chat_ollama_unavailable(client, monkeypatch):
+def test_agent_chat_groq_unavailable(client, monkeypatch):
     import app as app_module
 
     csrf = _register_and_login(client, monkeypatch)

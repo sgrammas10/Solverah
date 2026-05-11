@@ -17,7 +17,7 @@ This module is the single entry-point for the backend API.  It wires together:
   * Early-access intake: Two-step flow (presign → finalize) stores pre-launch
     submissions with uploaded resumes.  Optionally converts to a registered
     account via ``/api/intake/create-account`` or ``/api/intake/sign-in``.
-  * AI Agent: Ollama-backed chat endpoint (``/api/agent/chat``) with RAG
+  * AI Agent: Groq-backed chat endpoint (``/api/agent/chat``) with RAG
     context assembled from the user's profile and company profiles.
 
 Key environment variables (required unless otherwise noted):
@@ -28,7 +28,7 @@ Key environment variables (required unless otherwise noted):
     S3_SECRET_ACCESS_KEY — R2 secret key.
     S3_BUCKET_NAME      — Target bucket for resume uploads.
     OPENAI_API_KEY      — Required for quiz-insight generation.
-    GROQ_API_KEY        — Optional. If set, the AI agent uses Groq instead of local Ollama.
+    GROQ_API_KEY        — Required for AI agent chat (``/api/agent/chat``).
     RESEND_API_KEY      — Required for transactional emails.
     EMAIL_FROM          — Sender address (defaults to no-reply@solverah.com).
     FLASK_ENV / APP_ENV / ENV — Set to "production" to enable HTTPS-only cookies
@@ -370,26 +370,22 @@ _GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
 
 
 def _get_agent_client():
-    """Return an OpenAI-compatible chat client.
-
-    Uses Groq (fast hosted inference) when GROQ_API_KEY is set in the environment,
-    otherwise falls back to a local Ollama server for development.
-    """
+    """Return an OpenAI-compatible Groq client."""
     if OpenAI is None:
         raise RuntimeError("OpenAI SDK not installed")
-    if _GROQ_API_KEY:
-        return OpenAI(
-            base_url="https://api.groq.com/openai/v1",
-            api_key=_GROQ_API_KEY,
-            timeout=30.0,
-            max_retries=1,
-        )
-    return OpenAI(base_url="http://localhost:11434/v1", api_key="ollama", timeout=120.0, max_retries=1)
+    if not _GROQ_API_KEY:
+        raise RuntimeError("GROQ_API_KEY is not configured")
+    return OpenAI(
+        base_url="https://api.groq.com/openai/v1",
+        api_key=_GROQ_API_KEY,
+        timeout=30.0,
+        max_retries=1,
+    )
 
 
 def _default_agent_model() -> str:
-    """Return the default model name for the active provider."""
-    return "llama-3.1-8b-instant" if _GROQ_API_KEY else "llama3"
+    """Return the default Groq model name."""
+    return "llama-3.1-8b-instant"
 
 
 def _build_agent_context(user: User) -> str:
@@ -2281,7 +2277,7 @@ def intake_link_account():
 @app.route("/api/agent/chat", methods=["POST"])
 @jwt_required()
 def agent_chat():
-    """POST /api/agent/chat — Stream a chat turn from the local Ollama LLM with RAG context.
+    """POST /api/agent/chat — Stream a chat turn from Groq with RAG context.
 
     Assembles a system prompt from the authenticated user's profile and company
     data, prepends it to the supplied message history, and streams the response
@@ -2290,13 +2286,13 @@ def agent_chat():
     Body (JSON):
         messages (list): Full conversation history as [{role, content}, ...].
             Must contain at least one entry.
-        model (str, optional): Ollama model name. Defaults to "llama3".
+        model (str, optional): Groq model name. Defaults to "llama-3.1-8b-instant".
 
     Returns:
         200 text/event-stream  data: {"chunk": str} per token, then data: {"done": true, "model": str}
         400 if messages is missing or empty
-        422 if requested model is not pulled in Ollama
-        503 if Ollama is unreachable
+        422 if requested model is not available on Groq
+        503 if Groq is unreachable
     """
     current_email = get_jwt_identity()
     user = User.query.filter_by(email=current_email).first_or_404()
@@ -2318,14 +2314,12 @@ def agent_chat():
         exc_type = type(exc).__name__.lower()
         exc_str = str(exc).lower()
         if "not found" in exc_str or "notfounderror" in exc_type:
-            provider = "Groq" if _GROQ_API_KEY else "Ollama"
-            return jsonify({"error": f"Model '{model}' not found on {provider}."}), 422
+            return jsonify({"error": f"Model '{model}' not found on Groq."}), 422
         is_connection_err = any(kw in exc_str or kw in exc_type for kw in (
             "connection", "refused", "timeout", "unreachable", "apiconnection",
         ))
         if is_connection_err:
-            service = "Groq" if _GROQ_API_KEY else "Ollama (is it running?)"
-            return jsonify({"error": f"AI service unavailable — {service}"}), 503
+            return jsonify({"error": "AI service unavailable — Groq"}), 503
         return jsonify({"error": "Failed to generate response"}), 500
 
     def generate():
