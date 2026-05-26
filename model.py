@@ -46,6 +46,10 @@ class User(db.Model):
     confirmation_token = db.Column(db.String(64), nullable=True, index=True)
     confirmation_sent_at = db.Column(db.DateTime, nullable=True)
 
+    # Password reset via OTP
+    reset_token = db.Column(db.String(64), nullable=True)
+    reset_sent_at = db.Column(db.DateTime, nullable=True)
+
     failed_login_attempts = db.Column(db.Integer, nullable=False, default=0)
     locked_until = db.Column(db.DateTime)
 
