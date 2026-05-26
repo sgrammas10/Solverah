@@ -144,13 +144,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string,
     name: string,
-    role: "job-seeker" | "recruiter"
   ) => {
     const res = await fetch(`${API_BASE}/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ email, password, name, role }),
+      body: JSON.stringify({ email, password, name, role: "job-seeker" }),
     });
 
     const data = await res.json();

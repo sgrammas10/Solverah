@@ -69,8 +69,7 @@ function Login() {
 
     try {
       const loggedInUser = await login(email, password);
-      let redirectPath =
-        loggedInUser.role === 'job-seeker' ? '/job-seeker/dashboard' : '/recruiter/dashboard';
+      let redirectPath = '/job-seeker/dashboard';
 
       const pending = getPendingQuizSave();
       if (pending && loggedInUser.role === 'job-seeker' && fetchWithAuth) {

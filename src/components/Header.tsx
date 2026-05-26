@@ -21,14 +21,12 @@ function Header() {
   };
 
   const getDashboardPath = () => {
-    if (user?.role === 'job-seeker') return '/job-seeker/dashboard';
-    if (user?.role === 'recruiter') return '/recruiter/dashboard';
+    if (user) return '/job-seeker/dashboard';
     return '/';
   };
 
   const getProfilePath = () => {
-    if (user?.role === 'job-seeker') return '/job-seeker/profile';
-    if (user?.role === 'recruiter') return '/recruiter/profile';
+    if (user) return '/job-seeker/profile';
     return '/';
   };
 
