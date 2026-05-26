@@ -1347,6 +1347,7 @@ def default_profile(email: str = "", name: str = "") -> dict:
         "summary": "",
         "experience": [],
         "education": [],
+        "certifications": [],
         "skills": [],
         "skill_levels": {},
         "performanceReviews": [],
@@ -1532,7 +1533,94 @@ def resend_confirmation():
     return jsonify({"message": "confirmation_sent"}), 200
 
 
-from email_utils import send_confirmation_email
+from email_utils import send_confirmation_email, send_password_reset_email
+
+
+@limiter.limit("3 per minute")
+@app.route("/api/request-password-reset", methods=["POST"])
+def request_password_reset():
+    """POST /api/request-password-reset — Send a 6-digit OTP for passwordless login.
+
+    Body (JSON):
+        email (str): The user's email address.
+
+    Returns:
+        200 {"message": "reset_sent"} on success
+        404 if no confirmed account found for that email
+    """
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+
+    user = User.query.filter_by(email=email).first()
+    if not user or not getattr(user, "email_confirmed", False):
+        return jsonify({"error": "No account found with that email address."}), 404
+
+    code = str(random.randint(100000, 999999))
+    user.reset_token = code
+    user.reset_sent_at = datetime.datetime.now(datetime.timezone.utc)
+    db.session.commit()
+    try:
+        send_password_reset_email(user.email, code)
+    except Exception as e:
+        log_audit_event(action="email_send_failed", actor_user_id=user.id, resource="email", metadata={"error": str(e)})
+        app.logger.error(f"request_password_reset email failed for {user.email}: {e}")
+        return jsonify({"error": "Failed to send email. Please try again."}), 500
+
+    return jsonify({"message": "reset_sent"}), 200
+
+
+@limiter.limit("5 per minute")
+@app.route("/api/verify-password-reset", methods=["POST"])
+def verify_password_reset():
+    """POST /api/verify-password-reset — Validate OTP and issue a JWT (passwordless login).
+
+    Validates the 6-digit OTP, clears it on success, and issues a JWT cookie
+    plus CSRF token so the user is fully logged in without a password.
+
+    Body (JSON):
+        email (str): User's email address.
+        code  (str): 6-digit OTP from the reset email.
+
+    Returns:
+        200 {"message", "csrfToken", "user": {...}} + JWT cookie
+        400 on missing fields, invalid code, or expired code
+    """
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    code = (data.get("code") or "").strip()
+
+    if not email or not code:
+        return jsonify({"error": "email and code are required"}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.reset_token:
+        return jsonify({"error": "invalid_or_expired_code"}), 400
+
+    exp_minutes = int(os.environ.get("VERIFY_CODE_EXP_MINUTES", "15"))
+    sent_at_utc = user.reset_sent_at.replace(tzinfo=datetime.timezone.utc) if user.reset_sent_at else None
+    if not sent_at_utc or sent_at_utc + datetime.timedelta(minutes=exp_minutes) < datetime.datetime.now(datetime.timezone.utc):
+        return jsonify({"error": "invalid_or_expired_code"}), 400
+
+    if user.reset_token != code:
+        return jsonify({"error": "invalid_or_expired_code"}), 400
+
+    user.reset_token = None
+    user.reset_sent_at = None
+    db.session.commit()
+
+    access_token = create_access_token(identity=user.email)
+    resp = jsonify({
+        "message": "login successful",
+        "csrfToken": get_csrf_token(access_token),
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+        }
+    })
+    set_access_cookies(resp, access_token)
+    return resp
 
 
 @limiter.limit("5 per minute")

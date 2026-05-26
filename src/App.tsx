@@ -40,6 +40,8 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ConfirmEmail from "./pages/ConfirmEmail";
 import CheckEmail from "./pages/CheckEmail";
+import ForgotPassword from "./pages/ForgotPassword";
+import ForgotPasswordVerify from "./pages/ForgotPasswordVerify";
 import JobSeekerDashboard from "./pages/JobSeekerDashboard";
 import JobSeekerProfile from "./pages/JobSeekerProfile";
 import Feed from "./pages/Feed";
@@ -106,6 +108,8 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/verify-email" element={<ConfirmEmail />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/forgot-password/verify" element={<ForgotPasswordVerify />} />
               {/* Legacy routes redirect to new code-entry page */}
               <Route path="/confirm-email" element={<CheckEmail />} />
               <Route path="/check-email" element={<CheckEmail />} />

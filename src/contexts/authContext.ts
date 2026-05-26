@@ -51,6 +51,8 @@ export interface User {
 export interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<User>;
+  /** Set auth state directly from a login response (e.g. OTP-based login). */
+  loginWithData: (user: User, csrfToken: string) => void;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;

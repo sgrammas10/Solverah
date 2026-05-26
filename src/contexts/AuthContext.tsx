@@ -114,6 +114,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const loginWithData = (userData: User, token: string) => {
+    setUser(userData);
+    setCsrfToken(token);
+  };
+
   // LOGIN — backend sets an HttpOnly JWT cookie
   const login = async (email: string, password: string) => {
     const res = await fetch(`${API_BASE}/login`, {
@@ -212,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = {
     user,
     login,
+    loginWithData,
     register,
     logout,
     fetchProfile,

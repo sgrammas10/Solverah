@@ -181,3 +181,37 @@ def send_verification_email(to_email: str, code: str) -> None:
 # Backward-compatible alias used by existing app.py imports
 def send_confirmation_email(to_email: str, token: str) -> None:
     send_verification_email(to_email, token)
+
+
+def send_password_reset_email(to_email: str, code: str) -> None:
+    """Send a 6-digit password-reset OTP via Resend."""
+    if not RESEND_API_KEY:
+        raise EmailConfigError("RESEND_API_KEY is not set")
+    if not EMAIL_FROM:
+        raise EmailConfigError("EMAIL_FROM is not set")
+
+    html_content = f"""
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #faf8f5; color: #1a1a18; border-radius: 12px; border: 1px solid #e8e4dd;">
+      <p style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6a8f72; margin: 0 0 8px 0;">Sign in code</p>
+      <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1a1a18;">Your Solverah sign-in code</h2>
+      <p style="color: #4a4a44; font-size: 15px; margin: 0 0 24px 0;">Enter this code to sign in to your account:</p>
+      <div style="font-size: 40px; font-weight: 700; letter-spacing: 10px; color: #1a3d25; background: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e8e4dd; text-align: center; margin: 0 0 24px 0;">
+        {code}
+      </div>
+      <p style="color: #7a7a72; font-size: 13px; margin: 0;">This code expires in 15 minutes. If you didn't request this, you can safely ignore this email — your password has not changed.</p>
+    </div>
+    """
+
+    try:
+        import resend as resend_lib
+    except ImportError:
+        raise EmailConfigError("resend package is not installed. Run: pip install resend")
+
+    resend_lib.api_key = RESEND_API_KEY
+    params: resend_lib.Emails.SendParams = {
+        "from": EMAIL_FROM,
+        "to": [to_email],
+        "subject": "Your Solverah sign-in code",
+        "html": html_content,
+    }
+    resend_lib.Emails.send(params)

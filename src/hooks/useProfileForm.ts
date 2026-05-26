@@ -17,11 +17,12 @@
  */
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/useAuth";
-import { ProfileFormData, PendingResumeUpload, SkillLevel } from "../types/profile";
+import { ProfileFormData, PendingResumeUpload, SkillLevel, Certification } from "../types/profile";
 
 // Per-collection limits enforced in the UI to prevent unreasonably large profiles.
 const MAX_EXPERIENCES = 20;
 const MAX_EDUCATIONS = 10;
+const MAX_CERTIFICATIONS = 20;
 const MAX_SKILLS = 50;
 const MAX_SECONDARY_LOCATIONS = 20;
 
@@ -49,6 +50,7 @@ export function buildDefaultProfile(
     summary: "",
     experience: [],
     education: [],
+    certifications: [],
     skills: [],
     skill_levels: {},
     performanceReviews: [],
@@ -88,6 +90,7 @@ export function normalizeProfileData(
     summary: incoming.summary ?? undefined,
     experience: incoming.experience ?? undefined,
     education: incoming.education ?? undefined,
+    certifications: incoming.certifications ?? [],
     skills: incoming.skills ?? undefined,
     skill_levels: incoming.skill_levels ?? undefined,
     performanceReviews: incoming.performanceReviews ?? undefined,
@@ -123,6 +126,7 @@ export function useProfileForm() {
   const [experienceLimitMsg, setExperienceLimitMsg] = useState("");
   const [skillLimitMsg, setSkillLimitMsg] = useState("");
   const [educationLimitMsg, setEducationLimitMsg] = useState("");
+  const [certificationLimitMsg, setCertificationLimitMsg] = useState("");
   const [locationLimitMsg, setLocationLimitMsg] = useState("");
 
   // Progress bar simulation for saving
@@ -416,6 +420,41 @@ export function useProfileForm() {
     }));
   };
 
+  // ── Certifications ──────────────────────────────────────────────────────────
+  const addCertification = () => {
+    if ((formData.certifications ?? []).length >= MAX_CERTIFICATIONS) {
+      setCertificationLimitMsg(`You have reached the maximum of ${MAX_CERTIFICATIONS} certifications.`);
+      return;
+    }
+    if (certificationLimitMsg) setCertificationLimitMsg("");
+    setFormData((prev) => ({
+      ...prev,
+      certifications: [
+        ...(prev.certifications ?? []),
+        { id: Date.now(), name: "", issuer: "", issueDate: "", expiryDate: "" } as Certification,
+      ],
+    }));
+    setIsSaved(false);
+  };
+
+  const removeCertification = (id: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      certifications: (prev.certifications ?? []).filter((c) => c.id !== id),
+    }));
+    setIsSaved(false);
+  };
+
+  const updateCertification = (id: number, field: keyof Omit<Certification, "id">, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      certifications: (prev.certifications ?? []).map((c) =>
+        c.id === id ? { ...c, [field]: value } : c
+      ),
+    }));
+    setIsSaved(false);
+  };
+
   // ── Secondary Locations ─────────────────────────────────────────────────────
   const addSecondaryLocation = (loc: string) => {
     const trimmed = loc.trim();
@@ -511,6 +550,7 @@ export function useProfileForm() {
     experienceLimitMsg,
     skillLimitMsg,
     educationLimitMsg,
+    certificationLimitMsg,
     locationLimitMsg,
     handleSubmit,
     handleChange,
@@ -523,6 +563,9 @@ export function useProfileForm() {
     addEducation,
     removeEducation,
     updateEducation,
+    addCertification,
+    removeCertification,
+    updateCertification,
     addSecondaryLocation,
     removeSecondaryLocation,
     handleResumeUpload,
