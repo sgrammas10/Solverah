@@ -21,6 +21,7 @@ ALLOWED_PROFILE_FIELDS = {
     "summary",
     "experience",
     "education",
+    "certifications",
     "skills",
     "performanceReviews",
     "psychometricResults",

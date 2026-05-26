@@ -1347,6 +1347,7 @@ def default_profile(email: str = "", name: str = "") -> dict:
         "summary": "",
         "experience": [],
         "education": [],
+        "certifications": [],
         "skills": [],
         "skill_levels": {},
         "performanceReviews": [],

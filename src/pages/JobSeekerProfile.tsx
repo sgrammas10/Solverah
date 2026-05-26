@@ -123,6 +123,10 @@ function JobSeekerProfile() {
             removeEducation={profile.removeEducation}
             updateEducation={profile.updateEducation}
             educationLimitMsg={profile.educationLimitMsg}
+            addCertification={profile.addCertification}
+            removeCertification={profile.removeCertification}
+            updateCertification={profile.updateCertification}
+            certificationLimitMsg={profile.certificationLimitMsg}
           />
         )}
 
