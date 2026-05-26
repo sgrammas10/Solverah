@@ -1318,16 +1318,15 @@ def intake_sign_in():
     return resp
 
 
-def default_profile(email: str = "", name: str = "", role: str = "job-seeker") -> dict:
+def default_profile(email: str = "", name: str = "") -> dict:
     """Return a blank ``profile_data`` dict pre-populated with identity fields.
 
     Used when registering a new user or creating an account from an intake
-    submission.  The recruiter role gets extra company-facing fields appended.
+    submission.
 
     Args:
         email: User's email address — pre-fills the ``email`` field.
         name:  Full name (``"First Last"``); split into firstName/lastName.
-        role:  ``"job-seeker"`` or ``"recruiter"``.
 
     Returns:
         Profile dict ready to be stored in ``User.profile_data``.
@@ -1359,14 +1358,6 @@ def default_profile(email: str = "", name: str = "", role: str = "job-seeker") -
             "teamwork": {"score": None, "percentile": None, "completed": False},
         },
     }
-
-    if role == "recruiter":
-        profile.update({
-            "company": "",
-            "position": "",
-            "hiringGoals": "",
-            "openRoles": [],
-        })
 
     return profile
   
@@ -1557,8 +1548,6 @@ def register():
         email    (str): Must be unique.
         password (str): Must pass the strength policy in validators.py.
         name     (str): Full name (optional but recommended).
-        role     (str): ``"job-seeker"`` or ``"recruiter"``.
-
     Returns:
         201 {"message": "registered", "user": {...}}
         400 on invalid password or duplicate email
@@ -1567,7 +1556,7 @@ def register():
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
     name = data.get("name")
-    role = data.get("role", "job-seeker")
+    role = "job-seeker"
 
     is_valid, validation_message = validate_password(password)
     if not is_valid:
@@ -1578,7 +1567,7 @@ def register():
         return jsonify({"error": "User already exists"}), 400
 
     hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
-    profile_data = default_profile(email=email, name=name, role=role)
+    profile_data = default_profile(email=email, name=name)
 
 
     # Create user with 6-digit verification code
@@ -1587,7 +1576,7 @@ def register():
         email=email,
         password=hashed_pw,
         name=data.get("name"),
-        role=data.get("role"),
+        role=role,
         profile_data=profile_data,
         email_confirmed=False,
         confirmation_token=code,

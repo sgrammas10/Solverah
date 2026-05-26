@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
-import { Users, Briefcase, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import HeroNetworkAnimation from '../components/HeroNetworkAnimation';
 
 function Register() {
@@ -10,7 +10,6 @@ function Register() {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'job-seeker' as 'job-seeker' | 'recruiter',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -51,7 +50,7 @@ function Register() {
 
     setLoading(true);
     try {
-      await register(formData.email, formData.password, formData.name, formData.role);
+      await register(formData.email, formData.password, formData.name);
       navigate('/verify-email', { state: { email: formData.email } });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
@@ -108,37 +107,6 @@ function Register() {
                 {error}
               </div>
             )}
-
-            {/* Role selection */}
-            <div className="space-y-1.5">
-              <p className="text-sm font-medium text-ink-primary">I am a:</p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: 'job-seeker' })}
-                  className={`flex flex-col items-center gap-1.5 p-4 rounded border transition-colors ${
-                    formData.role === 'job-seeker'
-                      ? 'border-forest-light bg-forest-pale text-forest-dark'
-                      : 'border-cream-muted bg-cream-base text-ink-secondary hover:border-forest-pale'
-                  }`}
-                >
-                  <Users className="h-5 w-5" />
-                  <span className="text-sm font-medium">Job Seeker</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: 'recruiter' })}
-                  className={`flex flex-col items-center gap-1.5 p-4 rounded border transition-colors ${
-                    formData.role === 'recruiter'
-                      ? 'border-forest-light bg-forest-pale text-forest-dark'
-                      : 'border-cream-muted bg-cream-base text-ink-secondary hover:border-forest-pale'
-                  }`}
-                >
-                  <Briefcase className="h-5 w-5" />
-                  <span className="text-sm font-medium">Recruiter</span>
-                </button>
-              </div>
-            </div>
 
             <div className="space-y-1.5">
               <label htmlFor="name" className="text-sm font-medium text-ink-primary">Full name</label>

@@ -7,11 +7,10 @@
  *   /login, /register         Auth pages (public)
  *   /verify-email             OTP confirmation page (public)
  *   /quiz-preview/*           Guest quiz previews (public, rate-limited on backend)
- *   /agent                    AI agent chat (job-seeker + recruiter)
- *   /feed, /search            Shared authenticated routes (job-seeker + recruiter)
+ *   /agent                    AI agent chat (job-seeker)
+ *   /feed, /search            Shared authenticated routes (job-seeker)
  *   /job-seeker/*             Job-seeker-only routes
- *   /recruiter/*              Recruiter-only routes
- *   /career-quizzes/*         Authenticated quiz routes (both roles)
+ *   /career-quizzes/*         Authenticated quiz routes
  *   /quiz-insights            Authenticated quiz insights
  *   *                         Catch-all → redirect to /
  *
@@ -42,9 +41,7 @@ import Register from "./pages/Register";
 import ConfirmEmail from "./pages/ConfirmEmail";
 import CheckEmail from "./pages/CheckEmail";
 import JobSeekerDashboard from "./pages/JobSeekerDashboard";
-import RecruiterDashboard from "./pages/RecruiterDashboard";
 import JobSeekerProfile from "./pages/JobSeekerProfile";
-import RecruiterProfile from "./pages/RecruiterProfile";
 import Feed from "./pages/Feed";
 import SearchResults from "./pages/SearchResults"; // from your quiz-aware version
 import QuizInsights from "./pages/QuizInsights";
@@ -117,7 +114,7 @@ function App() {
               <Route
                 path="/agent"
                 element={
-                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <AgentChat />
                   </ProtectedRoute>
                 }
@@ -127,7 +124,7 @@ function App() {
               <Route
                 path="/feed"
                 element={
-                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <Feed />
                   </ProtectedRoute>
                 }
@@ -135,7 +132,7 @@ function App() {
               <Route
                 path="/search"
                 element={
-                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <SearchResults />
                   </ProtectedRoute>
                 }
@@ -159,29 +156,11 @@ function App() {
                 }
               />
 
-              {/* Recruiter routes */}
-              <Route
-                path="/recruiter/dashboard"
-                element={
-                  <ProtectedRoute allowedRoles={["recruiter"]}>
-                    <RecruiterDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/recruiter/profile"
-                element={
-                  <ProtectedRoute allowedRoles={["recruiter"]}>
-                    <RecruiterProfile />
-                  </ProtectedRoute>
-                }
-              />
-
               {/* Quiz routes */}
               <Route
                 path="/career-quizzes"
                 element={
-                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <CareerQuizzes />
                   </ProtectedRoute>
                 }
@@ -193,7 +172,7 @@ function App() {
               <Route
                 path="/career-quizzes/early-career"
                 element={
-                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <CareerQuizzes quizKey="earlyCareer" />
                   </ProtectedRoute>
                 }
@@ -201,7 +180,7 @@ function App() {
               <Route
                 path="/career-quizzes/career-transition"
                 element={
-                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <CareerQuizzes quizKey="careerTransition" />
                   </ProtectedRoute>
                 }
@@ -209,7 +188,7 @@ function App() {
               <Route
                 path="/career-quizzes/mid-career"
                 element={
-                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <CareerQuizzes quizKey="midCareer" />
                   </ProtectedRoute>
                 }
@@ -217,7 +196,7 @@ function App() {
               <Route
                 path="/career-quizzes/teen-focused"
                 element={
-                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <CareerQuizzes quizKey="teenFocused" />
                   </ProtectedRoute>
                 }
@@ -225,7 +204,7 @@ function App() {
               <Route
                 path="/career-job-search"
                 element={
-                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <NextChapterYourWayQuiz />
                   </ProtectedRoute>
                 }
@@ -234,7 +213,7 @@ function App() {
               <Route
                 path="/future-your-way"
                 element={
-                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <SolverahYourFutureYourWayQuiz />
                   </ProtectedRoute>
                 }
@@ -242,7 +221,7 @@ function App() {
               <Route
                 path="/quiz-insights"
                 element={
-                  <ProtectedRoute allowedRoles={["job-seeker", "recruiter"]}>
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <QuizInsights />
                   </ProtectedRoute>
                 }

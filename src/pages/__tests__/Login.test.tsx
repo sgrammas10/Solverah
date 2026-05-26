@@ -95,12 +95,6 @@ describe("Login - role-based redirect", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/job-seeker/dashboard");
   });
 
-  it("navigates recruiter to /recruiter/dashboard", async () => {
-    mockLogin.mockResolvedValueOnce({ role: "recruiter", id: "2", email: "r@b.com", name: "R", profileComplete: false });
-    renderLogin();
-    await submitForm();
-    expect(mockNavigate).toHaveBeenCalledWith("/recruiter/dashboard");
-  });
 });
 
 // ─── pending quiz save ────────────────────────────────────────────────────────

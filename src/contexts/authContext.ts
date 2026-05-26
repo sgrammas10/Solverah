@@ -33,7 +33,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: "job-seeker" | "recruiter";
+  role: "job-seeker";
   profileComplete: boolean;
   profileData?: ProfileData;
 }
@@ -51,7 +51,7 @@ export interface User {
 export interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<User>;
-  register: (email: string, password: string, name: string, role: "job-seeker" | "recruiter") => Promise<void>;
+  register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   fetchWithAuth: <T = any>(endpoint: string, options?: RequestInit) => Promise<T>;
