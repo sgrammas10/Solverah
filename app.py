@@ -17,8 +17,8 @@ This module is the single entry-point for the backend API.  It wires together:
   * Early-access intake: Two-step flow (presign → finalize) stores pre-launch
     submissions with uploaded resumes.  Optionally converts to a registered
     account via ``/api/intake/create-account`` or ``/api/intake/sign-in``.
-  * Job recommendations: SentenceTransformer-based ML pipeline (gated behind
-    ``ML_ENABLED`` env flag; disabled in demo mode).
+  * AI Agent: Groq-backed chat endpoint (``/api/agent/chat``) with RAG
+    context assembled from the user's profile and company profiles.
 
 Key environment variables (required unless otherwise noted):
     DATABASE_URL        — PostgreSQL connection string.
@@ -28,18 +28,16 @@ Key environment variables (required unless otherwise noted):
     S3_SECRET_ACCESS_KEY — R2 secret key.
     S3_BUCKET_NAME      — Target bucket for resume uploads.
     OPENAI_API_KEY      — Required for quiz-insight generation.
+    GROQ_API_KEY        — Required for AI agent chat (``/api/agent/chat``).
     RESEND_API_KEY      — Required for transactional emails.
     EMAIL_FROM          — Sender address (defaults to no-reply@solverah.com).
     FLASK_ENV / APP_ENV / ENV — Set to "production" to enable HTTPS-only cookies
                                 and HSTS headers.
-    ML_ENABLED          — "1" to enable the SentenceTransformer recommendation
-                          pipeline (requires LLM module).
-    DEMO_MODE           — "1" to return empty recommendations without hitting ML.
     MAX_LOGIN_ATTEMPTS  — Failed attempts before lockout (default 5).
     LOGIN_LOCKOUT_MINUTES — Lockout duration in minutes (default 15).
 """
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response, stream_with_context
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (
     JWTManager,
@@ -63,8 +61,10 @@ import importlib
 import importlib.util
 import sys
 import tempfile
+import time
 import traceback
 from pathlib import Path
+from threading import Lock
 from urllib.parse import urlparse
 import boto3
 import psycopg2
@@ -79,6 +79,10 @@ except Exception:
 
 
 JOB_LLM_DIR = Path(__file__).resolve().parent / "job_descr_LLM"
+
+_resume_cache: dict = {}          # resumeKey -> (text, expires_at)
+_resume_cache_lock = Lock()
+_RESUME_CACHE_TTL = 600           # 10 minutes — covers a full chat session
 
 def _load_resume_parser():
     """Dynamically load ``parse_resume`` from the job_descr_LLM sub-package.
@@ -147,15 +151,10 @@ def _is_valid_linkedin_url(value: str) -> bool:
     parsed = urlparse(value)
     return parsed.scheme == "https" and parsed.netloc in LINKEDIN_ALLOWED_HOSTS
 
-#from LLM.profile2model import sorted_mlscores
-
 from flask_migrate import Migrate
 
-from model import AuditLog, IntakeSubmission, JobRecommendation, ResumeParseCorrection, User, db
+from model import AuditLog, Company, IntakeSubmission, JobRecommendation, ResumeParseCorrection, User, db
 from datetime import timedelta
-import pandas as pd
-
-#from LLM.profile2model import jobs_path
 
 # from geo_utils import geocode_city, haversine_miles
 
@@ -373,6 +372,92 @@ def _get_openai_client():
     return OpenAI(api_key=api_key, timeout=60.0, max_retries=2)
 
 
+_GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
+
+
+def _get_agent_client():
+    """Return an OpenAI-compatible Groq client."""
+    if OpenAI is None:
+        raise RuntimeError("OpenAI SDK not installed")
+    if not _GROQ_API_KEY:
+        raise RuntimeError("GROQ_API_KEY is not configured")
+    return OpenAI(
+        base_url="https://api.groq.com/openai/v1",
+        api_key=_GROQ_API_KEY,
+        timeout=30.0,
+        max_retries=1,
+    )
+
+
+def _default_agent_model() -> str:
+    """Return the default Groq model name."""
+    return "llama-3.1-8b-instant"
+
+
+def _build_agent_context(user: User, resume_text: str = "") -> str:
+    """Assemble a RAG system prompt from the user's profile and company data."""
+    parts = [
+        "You are Solverah AI, a career assistant. Use the context below to give "
+        "personalized advice. Do not reveal raw context data verbatim."
+    ]
+
+    profile = user.profile_data or {}
+    name = f"{profile.get('firstName', '')} {profile.get('lastName', '')}".strip()
+    if name:
+        parts.append(f"## User Profile\nName: {name}")
+    else:
+        parts.append("## User Profile")
+
+    if summary := profile.get("summary"):
+        parts.append(f"Summary: {summary}")
+
+    if skills := profile.get("skills"):
+        levels = profile.get("skill_levels") or {}
+        formatted_skills = [
+            f"{s} ({levels[s]})" if s in levels else str(s)
+            for s in skills[:20]
+        ]
+        parts.append(f"Skills: {', '.join(formatted_skills)}")
+
+    if experience := profile.get("experience"):
+        exp_lines = [
+            f"- {e.get('position', '')} at {e.get('company', '')}"
+            for e in experience[:5]
+            if e.get("position") or e.get("company")
+        ]
+        if exp_lines:
+            parts.append("Experience:\n" + "\n".join(exp_lines))
+
+    if education := profile.get("education"):
+        edu_lines = [
+            f"- {e.get('degree', '')} from {e.get('institution', '')}"
+            for e in education[:3]
+            if e.get("degree") or e.get("institution")
+        ]
+        if edu_lines:
+            parts.append("Education:\n" + "\n".join(edu_lines))
+
+    companies = Company.query.limit(10).all()
+    if companies:
+        company_lines = []
+        for c in companies:
+            line = c.name
+            if c.work_environment:
+                line += f": {c.work_environment}"
+            if c.pace:
+                line += f", pace={c.pace}"
+            company_lines.append(f"- {line}")
+        parts.append("## Companies in Network\n" + "\n".join(company_lines))
+
+    # TODO: inject quiz results here once scoring is built
+    parts.append("## Quiz Results\n[Not yet available — coming soon]")
+
+    if resume_text:
+        parts.append(f"## Resume\n{resume_text}")
+
+    return "\n\n".join(parts)
+
+
 def _build_quiz_insight_prompt(quiz_group: str, quizzes: list[dict]) -> list[dict]:
     """Construct the system + user messages for the quiz-insight OpenAI call.
 
@@ -540,6 +625,49 @@ def _extract_resume_text(file_path: Path, mime: str) -> str:
         return "\n".join(p.text for p in doc.paragraphs if p.text).strip()
 
     return ""
+
+
+def _fetch_resume_text(profile_data: dict) -> str:
+    """Fetch and extract resume text from S3 for use in agent context.
+
+    Result is cached in-process for _RESUME_CACHE_TTL seconds so repeated
+    calls within a chat session hit memory instead of S3. Cache key is the
+    resumeKey (unique per upload), so a new upload automatically bypasses
+    the old entry.
+
+    Returns "" on any failure so callers always get a safe string.
+    """
+    resume_key = profile_data.get("resumeKey")
+    mime = (profile_data.get("uploadedResume") or {}).get("type", "")
+    if not resume_key or not mime:
+        return ""
+
+    with _resume_cache_lock:
+        cached = _resume_cache.get(resume_key)
+        if cached and time.monotonic() < cached[1]:
+            return cached[0]
+
+    temp_path = None
+    try:
+        s3 = get_s3_client()
+        bucket = os.environ["S3_BUCKET_NAME"]
+        obj = s3.get_object(Bucket=bucket, Key=resume_key)
+        raw_bytes = obj["Body"].read()
+
+        suffix = Path(resume_key).suffix or ".bin"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+            tmp_file.write(raw_bytes)
+            temp_path = Path(tmp_file.name)
+
+        text = _extract_resume_text(temp_path, mime)[:6000]
+        with _resume_cache_lock:
+            _resume_cache[resume_key] = (text, time.monotonic() + _RESUME_CACHE_TTL)
+        return text
+    except Exception:
+        return ""
+    finally:
+        if temp_path and temp_path.exists():
+            temp_path.unlink()
 
 
 def _build_profile_from_intake(intake: IntakeSubmission) -> dict:
@@ -1221,6 +1349,7 @@ def default_profile(email: str = "", name: str = "", role: str = "job-seeker") -
         "experience": [],
         "education": [],
         "skills": [],
+        "skill_levels": {},
         "performanceReviews": [],
         "psychometricResults": {
             "leadership": {"score": None, "percentile": None, "completed": False},
@@ -1241,11 +1370,6 @@ def default_profile(email: str = "", name: str = "", role: str = "job-seeker") -
 
     return profile
   
-ML_ENABLED = os.getenv("ML_ENABLED", "0") == "1"
-DEMO_MODE = os.getenv("DEMO_MODE", "0") == "1"
-
-
-
 @limiter.limit("5 per minute")
 @app.route("/api/login", methods=["POST"])
 def login():
@@ -2025,158 +2149,6 @@ def profile_resume_finalize():
     })
 
 
-@app.route("/api/recommendations", methods=["POST"])
-@jwt_required()
-def generate_recommendations():
-    """POST /api/recommendations — Run the ML pipeline and persist new job recommendations.
-
-    Accepts a ``profilePipeline`` payload (array of {section, content}), collapses
-    it into a single text blob, runs the SentenceTransformer similarity scorer
-    against the jobs dataset, and stores the top-20 scored results in
-    ``JobRecommendation``.
-
-    Gated by:
-        DEMO_MODE  — Returns empty list immediately if set.
-        ML_ENABLED — Returns 503 if the ML module is not loaded.
-
-    Body (JSON):
-        profilePipeline (str): JSON-encoded list of {section, content} dicts.
-
-    Returns:
-        200 {"recommendations": [{job_id, score}]}
-        400 if profilePipeline is missing or malformed
-        503 if ML pipeline is disabled
-    """
-    if DEMO_MODE:
-        return jsonify({"recommendations": []}), 200
-
-
-    current_email = get_jwt_identity()
-    user = User.query.filter_by(email=current_email).first_or_404()
-
-    data = request.get_json() or {}
-    profile_pipeline_str = data.get("profilePipeline")
-    if not profile_pipeline_str:
-        return jsonify({"error": "profilePipeline is required"}), 400
-
-    try:
-        # pipeline is an array of {section, content}
-        pipeline = json.loads(profile_pipeline_str)
-    except json.JSONDecodeError:
-        return jsonify({"error": "Invalid JSON in profilePipeline"}), 400
-
-    # Collapse sections into one text blob for the model
-    # (You can tweak this format as you like.)
-    if isinstance(pipeline, list):
-        profile_text = "\n\n".join(
-            f"{sec.get('section', '')}:\n{sec.get('content', '')}"
-            for sec in pipeline
-        )
-    else:
-        # fallback: treat the whole thing as raw text
-        profile_text = str(pipeline)
-
-    # Use your SentenceTransformer pipeline
-
-    #remove lines in between when demo is done
-    if not ML_ENABLED:
-        return jsonify({"error": "Recommendations disabled for demo"}), 503
-    
-    from LLM.profile2model import sorted_mlscores
-    #till here
-    
-    scores = sorted_mlscores(profile_text)  # returns list of (job_id, score, job_text)
-
-    # Keep only the top N
-    TOP_N = 20
-    top_scores = scores[:TOP_N]
-
-    # Optionally clear old recommendations for this user
-    JobRecommendation.query.filter_by(user_id=user.id).delete()
-
-    # Insert new ones
-    for job_id, score, _job_text in top_scores:
-        rec = JobRecommendation(user_id=user.id, job_id=job_id, score=score)
-        db.session.add(rec)
-
-    db.session.commit()
-
-    # Also return them for immediate use on the frontend
-    return jsonify({
-        "recommendations": [
-            {"job_id": job_id, "score": score}
-            for job_id, score, _ in top_scores
-        ]
-    })
-
-
-@app.route("/api/recommendations", methods=["GET"])
-@jwt_required()
-def get_recommendations():
-    """GET /api/recommendations — Fetch persisted job recommendations for the user.
-
-    Loads the user's ``JobRecommendation`` rows, joins them with the jobs CSV,
-    and returns full job objects ordered by score descending.
-
-    Returns:
-        200 {"recommendations": [{ID, Title, Company, score, ...}]}
-        200 {"recommendations": []} in DEMO_MODE
-    """
-    if DEMO_MODE:
-        return jsonify({"recommendations": []}), 200
-
-
-    current_email = get_jwt_identity()
-    user = User.query.filter_by(email=current_email).first_or_404()
-
-    # Get this user's recommendations ordered by score
-    recs = (
-        JobRecommendation.query
-        .filter_by(user_id=user.id)
-        .order_by(JobRecommendation.score.desc())
-        .all()
-    )
-
-    if not recs:
-        return jsonify({"recommendations": []})
-
-    # Load the jobs CSV and index by ID
-    
-    #removes these lines when demo is done
-    from LLM.profile2model import jobs_path
-    jobs_df = pd.read_csv(jobs_path)
-    #till here
-
-    jobs_df = pd.read_csv(jobs_path)
-    jobs_by_id = {
-        int(row["ID"]): row
-        for _, row in jobs_df.iterrows()
-        if "ID" in row
-    }
-
-    results = []
-    for rec in recs:
-        row = jobs_by_id.get(rec.job_id)
-        if row is None:
-            continue
-
-        # Build a job object matching what Feed.tsx currently uses :contentReference[oaicite:7]{index=7}
-        job_obj = {
-            "ID": rec.job_id,
-            "Title": row.get("Title", ""),
-            "Company": row.get("Company", ""),
-            "Location": row.get("Location", ""),
-            "EmploymentType": row.get("EmploymentType", ""),
-            "DatePosted": row.get("DatePosted", ""),
-            "Remote": row.get("Remote", ""),
-            "RoleDescription": row.get("RoleDescription", ""),
-            "Experience": row.get("Experience", ""),
-            "Link": row.get("Link", ""),
-            "score": rec.score,
-        }
-        results.append(job_obj)
-
-    return jsonify({"recommendations": results})
 
 
 
@@ -2345,12 +2317,104 @@ def intake_link_account():
 
     log_audit_event(
         action="intake_link_account",
-        actor_email=current_email,
-        target_email=current_email,
-        detail=f"submission_id={submission_id}",
+        actor_user_id=user.id,
+        resource="intake",
+        metadata={"submission_id": submission_id, "email": current_email},
     )
 
     return jsonify({"ok": True})
+
+
+@limiter.limit("30 per minute")
+@app.route("/api/recommendations", methods=["GET"])
+@jwt_required()
+def get_recommendations():
+    """GET /api/recommendations — Return persisted job recommendations for the user.
+
+    The ML pipeline that generated these has been replaced by the AI agent.
+    Returns an empty list until a Groq-based recommendation flow is wired up.
+    """
+    return jsonify({"recommendations": []})
+
+
+@limiter.limit("10 per minute")
+@app.route("/api/recommendations", methods=["POST"])
+@jwt_required()
+def generate_recommendations():
+    """POST /api/recommendations — Trigger job recommendation generation.
+
+    Accepts a profilePipeline payload but is currently a no-op stub while the
+    Groq-based recommendation flow is being built.
+    """
+    return jsonify({"recommendations": []})
+
+
+@limiter.limit("30 per minute")
+@app.route("/api/agent/chat", methods=["POST"])
+@jwt_required()
+def agent_chat():
+    """POST /api/agent/chat — Stream a chat turn from Groq with RAG context.
+
+    Assembles a system prompt from the authenticated user's profile and company
+    data, prepends it to the supplied message history, and streams the response
+    as Server-Sent Events so the UI can render tokens as they arrive.
+
+    Body (JSON):
+        messages (list): Full conversation history as [{role, content}, ...].
+            Must contain at least one entry.
+        model (str, optional): Groq model name. Defaults to "llama-3.1-8b-instant".
+
+    Returns:
+        200 text/event-stream  data: {"chunk": str} per token, then data: {"done": true, "model": str}
+        400 if messages is missing or empty
+        422 if requested model is not available on Groq
+        503 if Groq is unreachable
+    """
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first_or_404()
+
+    data = request.get_json(silent=True) or {}
+    messages = data.get("messages")
+    if not messages or not isinstance(messages, list) or len(messages) == 0:
+        return jsonify({"error": "messages must be a non-empty list"}), 400
+
+    model = (data.get("model") or _default_agent_model()).strip()
+    resume_text = _fetch_resume_text(user.profile_data or {})
+    system_prompt = _build_agent_context(user, resume_text=resume_text)
+    full_messages = [{"role": "system", "content": system_prompt}] + messages
+
+    try:
+        client = _get_agent_client()
+        stream = client.chat.completions.create(model=model, messages=full_messages, stream=True)
+    except Exception as exc:
+        app.logger.error("agent_chat error: %s: %s", type(exc).__name__, exc)
+        exc_type = type(exc).__name__.lower()
+        exc_str = str(exc).lower()
+        if "not found" in exc_str or "notfounderror" in exc_type:
+            return jsonify({"error": f"Model '{model}' not found on Groq."}), 422
+        is_connection_err = any(kw in exc_str or kw in exc_type for kw in (
+            "connection", "refused", "timeout", "unreachable", "apiconnection",
+        ))
+        if is_connection_err:
+            return jsonify({"error": "AI service unavailable — Groq"}), 503
+        return jsonify({"error": "Failed to generate response"}), 500
+
+    def generate():
+        try:
+            for chunk in stream:
+                delta = chunk.choices[0].delta.content
+                if delta:
+                    yield f"data: {json.dumps({'chunk': delta})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'model': model})}\n\n"
+        except Exception as exc:
+            app.logger.error("agent_chat stream error: %s: %s", type(exc).__name__, exc)
+            yield f"data: {json.dumps({'error': 'Stream interrupted'})}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        content_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 if __name__ == "__main__":

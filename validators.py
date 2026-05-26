@@ -29,7 +29,11 @@ ALLOWED_PROFILE_FIELDS = {
     "uploadedResume",
     "resumeKey",
     "linkedinUrl",
+    "skill_levels",
 }
+
+ALLOWED_SKILL_LEVELS = {"beginner", "intermediate", "advanced"}
+
 
 def validate_password(p: str) -> tuple[bool, str | None]:
     """Validate a plaintext password against Solverah's strength policy.
@@ -74,4 +78,16 @@ def clean_profile_data(profile_data: dict) -> dict:
     for k, v in profile_data.items():
         if k in ALLOWED_PROFILE_FIELDS:
             cleaned[k] = v
+
+    if "skill_levels" in cleaned:
+        raw = cleaned["skill_levels"]
+        if not isinstance(raw, dict):
+            del cleaned["skill_levels"]
+        else:
+            cleaned["skill_levels"] = {
+                name: level
+                for name, level in raw.items()
+                if isinstance(name, str) and name.strip() and level in ALLOWED_SKILL_LEVELS
+            }
+
     return cleaned

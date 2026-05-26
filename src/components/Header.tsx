@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
-import { User, LogOut, Briefcase } from 'lucide-react';
+import { User, LogOut, MessageSquare } from 'lucide-react';
 
 function Header() {
   const { user, logout } = useAuth();
@@ -35,6 +35,7 @@ function Header() {
   const isDashboard = location.pathname.includes('dashboard');
   const isProfile = location.pathname.includes('profile');
   const isFeed = location.pathname === '/feed';
+  const isAgent = location.pathname.startsWith('/agent');
 
   const navLinkCls = (active: boolean) =>
     `px-3 py-2 text-sm font-medium transition-colors rounded ${
@@ -75,6 +76,13 @@ function Header() {
                 >
                   <User className="h-4 w-4 inline mr-1 -mt-0.5" />
                   Profile
+                </Link>
+                <Link
+                  to="/agent"
+                  className={navLinkCls(isAgent)}
+                >
+                  <MessageSquare className="h-4 w-4 inline mr-1 -mt-0.5" />
+                  Agent
                 </Link>
                 <div className="flex items-center gap-3 ml-4 pl-4 border-l border-cream-muted">
                   <span className="text-sm text-ink-tertiary">

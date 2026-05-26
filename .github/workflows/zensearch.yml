@@ -10,17 +10,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           persist-credentials: true
           token: ${{ secrets.GITHUB_TOKEN }}
-        
 
-
-      - name: Use Node.js 
-        uses: actions/setup-node@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4.4.0
         with:
-          node-version: 20
+          node-version: 24
 
 
       - name: Install Dependencies
