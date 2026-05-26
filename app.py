@@ -2317,9 +2317,9 @@ def intake_link_account():
 
     log_audit_event(
         action="intake_link_account",
-        actor_email=current_email,
-        target_email=current_email,
-        detail=f"submission_id={submission_id}",
+        actor_user_id=user.id,
+        resource="intake",
+        metadata={"submission_id": submission_id, "email": current_email},
     )
 
     return jsonify({"ok": True})
