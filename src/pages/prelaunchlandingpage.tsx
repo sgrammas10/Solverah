@@ -61,7 +61,7 @@ function PrelaunchLandingPage() {
         Skip to main content
       </a>
 
-      <LandingNav onRequestEarlyAccess={() => earlyAccess.setIsOpen(true)} />
+      <LandingNav onRequestEarlyAccess={() => navigate("/start")} />
 
       <main id="main">
         {/* ─── HERO ─── */}
@@ -90,7 +90,7 @@ function PrelaunchLandingPage() {
                 <div className="flex flex-wrap items-center gap-4 animate-fade-up-slower opacity-0">
                   <button
                     type="button"
-                    onClick={() => earlyAccess.setIsOpen(true)}
+                    onClick={() => navigate("/start")}
                     className="bg-forest-dark text-white font-semibold text-base px-7 py-3.5 rounded hover:bg-forest-mid transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
                   >
                     Request early access
@@ -327,7 +327,7 @@ function PrelaunchLandingPage() {
             <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
               <button
                 type="button"
-                onClick={() => earlyAccess.setIsOpen(true)}
+                onClick={() => navigate("/start")}
                 className="bg-white text-forest-dark font-semibold text-base px-8 py-4 rounded hover:bg-cream-subtle transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-forest-dark"
               >
                 Request early access
@@ -369,7 +369,7 @@ function PrelaunchLandingPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#888]">Join</p>
               <button
                 type="button"
-                onClick={() => earlyAccess.setIsOpen(true)}
+                onClick={() => navigate("/start")}
                 className="block text-sm text-[#AAA] hover:text-white transition-colors leading-relaxed text-left"
               >
                 Request early access
