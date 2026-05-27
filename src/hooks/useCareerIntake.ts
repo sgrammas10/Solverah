@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 export type CareerIntakeState = {
   step: 1 | 2 | 3 | 4;
   selectedStatementIds: string[];
-  wplAnswers: { questionId: string; optionId: string }[];
+  wpllAnswers: { questionId: string; optionId: string }[];
+  wpllInsightText: string;
 };
 
 const STORAGE_KEY = "solverah_intake";
@@ -11,7 +12,8 @@ const STORAGE_KEY = "solverah_intake";
 const DEFAULT_STATE: CareerIntakeState = {
   step: 1,
   selectedStatementIds: [],
-  wplAnswers: [],
+  wpllAnswers: [],
+  wpllInsightText: "",
 };
 
 function readFromStorage(): CareerIntakeState {
@@ -44,16 +46,20 @@ export function useCareerIntake() {
     }));
   }
 
-  function setWplAnswer(questionId: string, optionId: string) {
+  function setWpllAnswer(questionId: string, optionId: string) {
     setState((s) => {
-      const rest = s.wplAnswers.filter((a) => a.questionId !== questionId);
-      return { ...s, wplAnswers: [...rest, { questionId, optionId }] };
+      const rest = s.wpllAnswers.filter((a) => a.questionId !== questionId);
+      return { ...s, wpllAnswers: [...rest, { questionId, optionId }] };
     });
+  }
+
+  function setWpllInsightText(text: string) {
+    setState((s) => ({ ...s, wpllInsightText: text }));
   }
 
   function resetIntake() {
     setState(DEFAULT_STATE);
   }
 
-  return { state, setStep, toggleStatement, setWplAnswer, resetIntake };
+  return { state, setStep, toggleStatement, setWpllAnswer, setWpllInsightText, resetIntake };
 }

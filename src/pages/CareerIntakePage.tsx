@@ -1,5 +1,6 @@
 import { useCareerIntake } from "../hooks/useCareerIntake";
 import StatementSelector from "../components/intake/StatementSelector";
+import WPLLStepper from "../components/intake/WPLLStepper";
 
 const STEP_LABELS: Record<1 | 2 | 3 | 4, string> = {
   1: "Your situation",
@@ -11,7 +12,7 @@ const STEP_LABELS: Record<1 | 2 | 3 | 4, string> = {
 const STEPS = [1, 2, 3, 4] as const;
 
 export default function CareerIntakePage() {
-  const { state, setStep, toggleStatement } = useCareerIntake();
+  const { state, setStep, toggleStatement, setWpllAnswer } = useCareerIntake();
   const { step, selectedStatementIds } = state;
 
   return (
@@ -92,9 +93,11 @@ export default function CareerIntakePage() {
         )}
 
         {step === 2 && (
-          <div className="flex flex-col items-center justify-center min-h-[300px] text-ink-secondary">
-            Screen 2 — coming soon
-          </div>
+          <WPLLStepper
+            wpllAnswers={state.wpllAnswers}
+            onAnswer={setWpllAnswer}
+            onComplete={() => setStep(3)}
+          />
         )}
 
         {step === 3 && (

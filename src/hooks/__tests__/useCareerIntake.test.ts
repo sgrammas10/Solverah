@@ -39,11 +39,65 @@ describe("useCareerIntake", () => {
     });
   });
 
+  describe("setWpllAnswer", () => {
+    it("adds a new answer", () => {
+      const { result } = renderHook(() => useCareerIntake());
+      act(() => {
+        result.current.setWpllAnswer("wpll-q1", "wpll-q1-a");
+      });
+      expect(result.current.state.wpllAnswers).toContainEqual({
+        questionId: "wpll-q1",
+        optionId: "wpll-q1-a",
+      });
+    });
+
+    it("replaces an existing answer for the same question", () => {
+      const { result } = renderHook(() => useCareerIntake());
+      act(() => {
+        result.current.setWpllAnswer("wpll-q1", "wpll-q1-a");
+      });
+      act(() => {
+        result.current.setWpllAnswer("wpll-q1", "wpll-q1-c");
+      });
+      const answers = result.current.state.wpllAnswers.filter(
+        (a) => a.questionId === "wpll-q1"
+      );
+      expect(answers).toHaveLength(1);
+      expect(answers[0].optionId).toBe("wpll-q1-c");
+    });
+  });
+
+  describe("setWpllInsightText", () => {
+    it("sets state.wpllInsightText", () => {
+      const { result } = renderHook(() => useCareerIntake());
+      act(() => {
+        result.current.setWpllInsightText("You thrive in focused environments.");
+      });
+      expect(result.current.state.wpllInsightText).toBe(
+        "You thrive in focused environments."
+      );
+    });
+
+    it("persists wpllInsightText to sessionStorage", () => {
+      const { result } = renderHook(() => useCareerIntake());
+      act(() => {
+        result.current.setWpllInsightText("Test insight");
+      });
+      const stored = JSON.parse(sessionStorage.getItem(STORAGE_KEY)!);
+      expect(stored.wpllInsightText).toBe("Test insight");
+    });
+  });
+
   describe("sessionStorage restoration", () => {
     it("restores state from sessionStorage on re-initialization", () => {
       sessionStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ step: 2, selectedStatementIds: ["sus-1"], wplAnswers: [] })
+        JSON.stringify({
+          step: 2,
+          selectedStatementIds: ["sus-1"],
+          wpllAnswers: [],
+          wpllInsightText: "",
+        })
       );
       const { result } = renderHook(() => useCareerIntake());
       expect(result.current.state.step).toBe(2);
