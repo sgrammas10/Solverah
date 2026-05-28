@@ -18,7 +18,7 @@ def _noop(*_args, **_kwargs):
     return None
 
 
-def register_and_login(client, monkeypatch, email="test@example.com", password="TestPass1!@"):
+def register_and_login(client, monkeypatch, email="test@example.com", password="Strongpass1!"):
     """Register a user via HTTP (with email send stubbed), confirm, log in, return csrf token."""
     import app as app_module
     monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
