@@ -15,15 +15,19 @@ STATEMENT_IDS = ["stmt-1", "stmt-2", "stmt-3"]
 
 
 def register_and_login(client, email="test@example.com", password="TestPass1!@"):
-    client.post(
-        "/api/register",
-        json={"email": email, "password": password, "name": "Test", "role": "job-seeker"},
-    )
     from model import db, User
-    from app import app
+    from app import app, bcrypt
     with app.app_context():
-        user = User.query.filter_by(email=email).first()
-        user.email_confirmed = True
+        hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
+        user = User(
+            email=email,
+            password=hashed_pw,
+            name="Test",
+            role="job-seeker",
+            profile_data={},
+            email_confirmed=True,
+        )
+        db.session.add(user)
         db.session.commit()
     return client.post("/api/login", json={"email": email, "password": password})
 
