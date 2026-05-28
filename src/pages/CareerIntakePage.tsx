@@ -1,4 +1,5 @@
 import { useCareerIntake } from "../hooks/useCareerIntake";
+import LandingNav from "../components/landing/LandingNav";
 import StatementSelector from "../components/intake/StatementSelector";
 import WPLLStepper from "../components/intake/WPLLStepper";
 import TeaserResult from "../components/intake/TeaserResult";
@@ -19,6 +20,8 @@ export default function CareerIntakePage() {
 
   return (
     <div className="min-h-screen bg-cream-base">
+      <LandingNav onRequestEarlyAccess={() => {}} />
+
       {/* Progress bar */}
       <div className="mx-auto max-w-2xl px-6 pt-10 pb-6">
         <div className="flex items-center">
