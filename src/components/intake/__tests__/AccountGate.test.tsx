@@ -19,7 +19,7 @@ describe("AccountGate", () => {
   it("renders all 4 unlock list items", () => {
     renderAccountGate();
     expect(
-      screen.getByText("Your full 12-question Work Pulse Lite assessment")
+      screen.getByText("Your full 12-question Work Pulse assessment")
     ).toBeInTheDocument();
     expect(
       screen.getByText("A complete snapshot narrative of how you work")

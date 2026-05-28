@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
 const UNLOCK_ITEMS = [
-  "Your full 12-question Work Pulse Lite assessment",
+  "Your full 12-question Work Pulse assessment",
   "A complete snapshot narrative of how you work",
   "Emerging signals about your friction and flow",
   "A partial Solverah profile you can build over time",
@@ -11,7 +11,7 @@ export default function AccountGate() {
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-2">
-        Your Work Pulse Lite report is ready
+        Your Work Pulse report is ready
       </p>
       <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
         Unlock your full results
