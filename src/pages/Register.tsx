@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
 import { Eye, EyeOff } from 'lucide-react';
 import HeroNetworkAnimation from '../components/HeroNetworkAnimation';
@@ -18,6 +18,8 @@ function Register() {
 
   const { register } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromWpll = new URLSearchParams(location.search).get('from') === 'wpll';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +53,9 @@ function Register() {
     setLoading(true);
     try {
       await register(formData.email, formData.password, formData.name);
-      navigate('/verify-email', { state: { email: formData.email } });
+      navigate('/verify-email', {
+        state: { email: formData.email, from: fromWpll ? 'wpll' : undefined },
+      });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       if (message.includes('User already exists') || message.toLowerCase().includes('already exists')) {

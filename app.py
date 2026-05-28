@@ -1735,6 +1735,8 @@ def profile():
             "role": user.role,
             "profileData": user.profile_data or {},
             "csrfToken": get_jwt().get("csrf"),
+            "wpl_completed": bool(user.intake and user.intake.wpl_completed_at),
+            "wpll_completed": bool(user.intake and user.intake.wpll_completed_at),
         })
 
     # Handle profile update (POST)
@@ -2282,6 +2284,85 @@ def get_dashboard_data():
 
 
 
+@limiter.limit("10 per minute")
+@app.route("/api/intake/save-to-account", methods=["POST"])
+@jwt_required()
+def intake_save_to_account():
+    """POST /api/intake/save-to-account — Persist anonymous WPLL session data to
+    the authenticated user's account.
+
+    Called by the frontend immediately after login when sessionStorage contains
+    intake data from the /start flow. Creates the user_intake row on first call;
+    upserts on subsequent calls (preserves wpl_* fields if already set).
+
+    Body (JSON):
+        selected_statement_ids (list[str])
+        wpll_answers           (list[{question_id: str, option_id: str}])
+        wpll_insight_text      (str, optional)
+
+    Returns:
+        200 {"message": "Intake saved", "wpll_completed": bool}
+        400 on validation failure
+        404 if user not found
+    """
+    from model import UserIntake
+
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    selected_ids = data.get("selected_statement_ids", [])
+    wpll_answers = data.get("wpll_answers", [])
+    wpll_insight_text = data.get("wpll_insight_text", "") or ""
+
+    if not isinstance(selected_ids, list):
+        return jsonify({"error": "selected_statement_ids must be a list"}), 400
+    if not isinstance(wpll_answers, list):
+        return jsonify({"error": "wpll_answers must be a list"}), 400
+    if len(wpll_answers) > 5:
+        return jsonify({"error": "wpll_answers must contain at most 5 items"}), 400
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    intake = UserIntake.query.filter_by(user_id=user.id).first()
+
+    if intake is None:
+        intake = UserIntake(
+            user_id=user.id,
+            selected_statement_ids=selected_ids,
+            wpll_answers=wpll_answers,
+            wpll_insight_text=wpll_insight_text or None,
+            wpll_completed_at=now if wpll_answers else None,
+        )
+        db.session.add(intake)
+    else:
+        intake.selected_statement_ids = selected_ids
+        intake.wpll_answers = wpll_answers
+        intake.wpll_insight_text = wpll_insight_text or None
+        # Only set wpll_completed_at on first save; preserve if already set.
+        if wpll_answers and intake.wpll_completed_at is None:
+            intake.wpll_completed_at = now
+        # Never overwrite wpl_answers / wpl_narrative / wpl_completed_at here —
+        # those are set by the Sprint 2 WPL submit endpoint.
+
+    log_audit_event(
+        action="create",
+        actor_user_id=user.id,
+        resource="user_intake",
+        metadata={
+            "statement_count": len(selected_ids),
+            "answer_count": len(wpll_answers),
+        },
+    )
+    db.session.commit()
+
+    return jsonify({
+        "message": "Intake saved",
+        "wpll_completed": intake.wpll_completed_at is not None,
+    }), 200
+
+
 @limiter.limit("5 per minute")
 @app.post("/api/intake/link-account")
 @jwt_required()
@@ -2492,6 +2573,35 @@ def agent_chat():
         content_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@app.route("/api/work-pulse/lite-lite/result", methods=["POST"])
+def work_pulse_lite_lite_result():
+    """POST /api/work-pulse/lite-lite/result — Rules-based insight for the WPLL teaser.
+
+    Anonymous endpoint — no auth required. Scores the 5 WPLL answers against
+    pre-defined dimension weights and returns the best-matching insight template
+    plus the fixed set of locked section titles shown on Screen 3.
+
+    Body (JSON):
+        answers (list): Up to 5 objects with ``question_id`` and ``option_id``.
+
+    Returns:
+        200 {"insight_text": str, "locked_sections": [str, str, str]}
+        400 if answers is not a list or contains more than 5 items
+    """
+    data = request.get_json(silent=True) or {}
+    answers = data.get("answers", [])
+
+    if not isinstance(answers, list):
+        return jsonify({"error": "answers must be a list"}), 400
+
+    if len(answers) > 5:
+        return jsonify({"error": "Too many answers"}), 400
+
+    from work_pulse.insight_engine import generate_result
+    result = generate_result(answers)
+    return jsonify(result), 200
 
 
 if __name__ == "__main__":

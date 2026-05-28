@@ -1,8 +1,22 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
 import { getPendingQuizSave, clearPendingQuizSave } from "../utils/guestQuiz";
 import { API_BASE } from "../utils/api";
+
+const INTAKE_STORAGE_KEY = 'solverah_intake';
+
+function getPendingIntakeSave() {
+  try {
+    const raw = sessionStorage.getItem(INTAKE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.wpllAnswers?.length) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
 import HeroNetworkAnimation from '../components/HeroNetworkAnimation';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -61,6 +75,7 @@ function Login() {
 
   const { login, fetchWithAuth } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +85,28 @@ function Login() {
     try {
       const loggedInUser = await login(email, password);
       let redirectPath = '/job-seeker/dashboard';
+
+      const pendingIntake = getPendingIntakeSave();
+      if (pendingIntake && loggedInUser.role === 'job-seeker' && fetchWithAuth) {
+        try {
+          await fetchWithAuth('/intake/save-to-account', {
+            method: 'POST',
+            body: JSON.stringify({
+              selected_statement_ids: pendingIntake.selectedStatementIds,
+              wpll_answers: pendingIntake.wpllAnswers.map(
+                (a: { questionId: string; optionId: string }) => ({
+                  question_id: a.questionId,
+                  option_id: a.optionId,
+                })
+              ),
+              wpll_insight_text: pendingIntake.wpllInsightText ?? '',
+            }),
+          });
+          sessionStorage.removeItem(INTAKE_STORAGE_KEY);
+        } catch (intakeErr) {
+          console.error('Failed to save intake data:', intakeErr);
+        }
+      }
 
       const pending = getPendingQuizSave();
       if (pending && loggedInUser.role === 'job-seeker' && fetchWithAuth) {

@@ -50,6 +50,7 @@ import QuizInsights from "./pages/QuizInsights";
 import GuestQuizPreview from "./pages/GuestQuizPreview";
 import GuestQuizInsights from "./pages/GuestQuizInsights";
 import AgentChat from "./pages/AgentChat";
+import CareerIntakePage from "./pages/CareerIntakePage";
 
 /**
  * ProtectedRoute — Wraps a route element with authentication and role checks.
@@ -75,7 +76,7 @@ function ProtectedRoute({
 }
 
 // Routes that render their own full navigation bar (hide the global Header).
-const ROUTES_WITHOUT_HEADER = new Set(["/"]);
+const ROUTES_WITHOUT_HEADER = new Set(["/", "/start"]);
 
 /**
  * AppShell — Layout wrapper that conditionally renders the global Header.
@@ -105,6 +106,7 @@ function App() {
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/quiz-preview" element={<GuestQuizPreview />} />
               <Route path="/quiz-preview/insights" element={<GuestQuizInsights />} />
+              <Route path="/start" element={<CareerIntakePage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/verify-email" element={<ConfirmEmail />} />

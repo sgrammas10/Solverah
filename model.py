@@ -54,6 +54,39 @@ class User(db.Model):
     locked_until = db.Column(db.DateTime)
 
 
+class UserIntake(db.Model):
+    """Stores a user's career intake responses: statement selections, WPLL answers,
+    and Work Pulse Lite answers. One row per user, upserted on each intake event.
+    wpl_completed_at drives the post-login WPL prompt suppression logic."""
+
+    __tablename__ = "user_intake"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True
+    )
+    # Screen 1: statement selections
+    selected_statement_ids = db.Column(JSON, nullable=False, default=list)
+    # Screen 2: WPLL answers [{question_id, option_id}]
+    wpll_answers = db.Column(JSON, nullable=False, default=list)
+    wpll_insight_text = db.Column(db.Text, nullable=True)
+    wpll_completed_at = db.Column(db.DateTime, nullable=True)
+    # Sprint 2: WPL (12Q) — null until Work Pulse Lite is completed
+    wpl_answers = db.Column(JSON, nullable=True)
+    wpl_narrative = db.Column(db.Text, nullable=True)
+    wpl_completed_at = db.Column(db.DateTime, nullable=True)
+
+    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        server_default=db.func.now(),
+        onupdate=db.func.now(),
+        nullable=False,
+    )
+
+    user = db.relationship("User", backref=db.backref("intake", uselist=False))
+
+
 class AuditLog(db.Model):
     """Tracks user/system actions for auditing, security monitoring, and debugging."""
 
