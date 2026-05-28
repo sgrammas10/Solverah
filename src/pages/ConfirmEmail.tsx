@@ -12,6 +12,7 @@ export default function ConfirmEmail() {
     (location.state as any)?.email ||
     new URLSearchParams(location.search).get('email') ||
     '';
+  const fromParam: string | undefined = (location.state as any)?.from;
 
   const [code, setCode] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
@@ -43,8 +44,15 @@ export default function ConfirmEmail() {
         return;
       }
       setStatus('success');
-      setMessage('Email verified! Redirecting to sign in...');
-      setTimeout(() => navigate('/login'), REDIRECT_DELAY_MS);
+      setMessage(
+        fromParam === 'wpll'
+          ? 'Email verified! Signing you in to unlock your results…'
+          : 'Email verified! Redirecting to sign in…'
+      );
+      setTimeout(
+        () => navigate(fromParam === 'wpll' ? '/login?from=wpll' : '/login'),
+        REDIRECT_DELAY_MS
+      );
     } catch (err: any) {
       setStatus('error');
       setMessage(err?.message || 'Network error. Please try again.');

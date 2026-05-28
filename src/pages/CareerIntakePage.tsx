@@ -2,6 +2,7 @@ import { useCareerIntake } from "../hooks/useCareerIntake";
 import StatementSelector from "../components/intake/StatementSelector";
 import WPLLStepper from "../components/intake/WPLLStepper";
 import TeaserResult from "../components/intake/TeaserResult";
+import AccountGate from "../components/intake/AccountGate";
 
 const STEP_LABELS: Record<1 | 2 | 3 | 4, string> = {
   1: "Your situation",
@@ -110,11 +111,7 @@ export default function CareerIntakePage() {
           />
         )}
 
-        {step === 4 && (
-          <div className="flex flex-col items-center justify-center min-h-[300px] text-ink-secondary">
-            Screen 4 — coming soon
-          </div>
-        )}
+        {step === 4 && <AccountGate />}
       </div>
     </div>
   );
