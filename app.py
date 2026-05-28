@@ -2494,5 +2494,34 @@ def agent_chat():
     )
 
 
+@app.route("/api/work-pulse/lite-lite/result", methods=["POST"])
+def work_pulse_lite_lite_result():
+    """POST /api/work-pulse/lite-lite/result — Rules-based insight for the WPLL teaser.
+
+    Anonymous endpoint — no auth required. Scores the 5 WPLL answers against
+    pre-defined dimension weights and returns the best-matching insight template
+    plus the fixed set of locked section titles shown on Screen 3.
+
+    Body (JSON):
+        answers (list): Up to 5 objects with ``question_id`` and ``option_id``.
+
+    Returns:
+        200 {"insight_text": str, "locked_sections": [str, str, str]}
+        400 if answers is not a list or contains more than 5 items
+    """
+    data = request.get_json(silent=True) or {}
+    answers = data.get("answers", [])
+
+    if not isinstance(answers, list):
+        return jsonify({"error": "answers must be a list"}), 400
+
+    if len(answers) > 5:
+        return jsonify({"error": "Too many answers"}), 400
+
+    from work_pulse.insight_engine import generate_result
+    result = generate_result(answers)
+    return jsonify(result), 200
+
+
 if __name__ == "__main__":
     app.run(debug=True)
