@@ -4,9 +4,9 @@ interface TierSegment {
 }
 
 const TIERS: TierSegment[] = [
-  { label: "Lite Lite", state: "completed" },
-  { label: "Work Pulse Lite", state: "next" },
-  { label: "Work Pulse", state: "future" },
+  { label: "Work Pulse Lite", state: "completed" },
+  { label: "Work Pulse", state: "next" },
+  { label: "Work Pulse Pro", state: "future" },
 ];
 
 export default function TierBar() {
