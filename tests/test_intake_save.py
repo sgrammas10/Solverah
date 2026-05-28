@@ -1,6 +1,6 @@
 """Tests for POST /api/intake/save-to-account and the updated GET /api/profile flags."""
 
-import json
+import datetime
 import pytest
 
 WPLL_ANSWERS = [
@@ -14,26 +14,36 @@ WPLL_ANSWERS = [
 STATEMENT_IDS = ["stmt-1", "stmt-2", "stmt-3"]
 
 
-def register_and_login(client, email="test@example.com", password="TestPass1!@"):
+def _noop(*_args, **_kwargs):
+    return None
+
+
+def register_and_login(client, monkeypatch, email="test@example.com", password="TestPass1!@"):
+    """Register a user via HTTP (with email send stubbed), confirm, log in, return csrf token."""
+    import app as app_module
+    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
+    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+
+    client.post(
+        "/api/register",
+        json={"email": email, "password": password, "name": "Test", "role": "job-seeker"},
+    )
+
+    from app import app
     from model import db, User
-    from app import app, bcrypt
     with app.app_context():
-        hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
-        user = User(
-            email=email,
-            password=hashed_pw,
-            name="Test",
-            role="job-seeker",
-            profile_data={},
-            email_confirmed=True,
-        )
-        db.session.add(user)
+        user = User.query.filter_by(email=email).first()
+        user.email_confirmed = True
+        user.confirmation_token = None
         db.session.commit()
-    return client.post("/api/login", json={"email": email, "password": password})
+
+    resp = client.post("/api/login", json={"email": email, "password": password})
+    assert resp.status_code == 200
+    return resp.get_json()["csrfToken"]
 
 
-def test_save_to_account_creates_intake_row(client):
-    register_and_login(client)
+def test_save_to_account_creates_intake_row(client, monkeypatch):
+    csrf = register_and_login(client, monkeypatch)
     res = client.post(
         "/api/intake/save-to-account",
         json={
@@ -41,6 +51,7 @@ def test_save_to_account_creates_intake_row(client):
             "wpll_answers": WPLL_ANSWERS,
             "wpll_insight_text": "Some insight text.",
         },
+        headers={"X-CSRF-TOKEN": csrf},
     )
     assert res.status_code == 200
     body = res.get_json()
@@ -48,8 +59,9 @@ def test_save_to_account_creates_intake_row(client):
     assert body["wpll_completed"] is True
 
 
-def test_save_to_account_upserts_on_second_call(client):
-    register_and_login(client)
+def test_save_to_account_upserts_on_second_call(client, monkeypatch):
+    csrf = register_and_login(client, monkeypatch)
+
     client.post(
         "/api/intake/save-to-account",
         json={
@@ -57,6 +69,7 @@ def test_save_to_account_upserts_on_second_call(client):
             "wpll_answers": WPLL_ANSWERS,
             "wpll_insight_text": "First insight.",
         },
+        headers={"X-CSRF-TOKEN": csrf},
     )
     res = client.post(
         "/api/intake/save-to-account",
@@ -65,10 +78,11 @@ def test_save_to_account_upserts_on_second_call(client):
             "wpll_answers": WPLL_ANSWERS[:3],
             "wpll_insight_text": "Updated insight.",
         },
+        headers={"X-CSRF-TOKEN": csrf},
     )
     assert res.status_code == 200
 
-    from model import UserIntake, User, db
+    from model import UserIntake, User
     from app import app
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
@@ -77,20 +91,21 @@ def test_save_to_account_upserts_on_second_call(client):
         assert rows[0].selected_statement_ids == ["stmt-2", "stmt-3"]
 
 
-def test_save_to_account_preserves_wpl_completed_at_on_upsert(client):
-    import datetime
-    register_and_login(client)
+def test_save_to_account_preserves_wpl_completed_at_on_upsert(client, monkeypatch):
+    csrf = register_and_login(client, monkeypatch)
+
     client.post(
         "/api/intake/save-to-account",
         json={
             "selected_statement_ids": STATEMENT_IDS,
             "wpll_answers": WPLL_ANSWERS,
         },
+        headers={"X-CSRF-TOKEN": csrf},
     )
 
+    sentinel = datetime.datetime(2025, 1, 1, 0, 0, 0)
     from model import UserIntake, User, db
     from app import app
-    sentinel = datetime.datetime(2025, 1, 1, 0, 0, 0)
     with app.app_context():
         user = User.query.filter_by(email="test@example.com").first()
         intake = UserIntake.query.filter_by(user_id=user.id).first()
@@ -103,6 +118,7 @@ def test_save_to_account_preserves_wpl_completed_at_on_upsert(client):
             "selected_statement_ids": STATEMENT_IDS,
             "wpll_answers": WPLL_ANSWERS,
         },
+        headers={"X-CSRF-TOKEN": csrf},
     )
 
     with app.app_context():
@@ -122,8 +138,8 @@ def test_save_to_account_requires_auth(client):
     assert res.status_code == 401
 
 
-def test_save_to_account_rejects_too_many_answers(client):
-    register_and_login(client)
+def test_save_to_account_rejects_too_many_answers(client, monkeypatch):
+    csrf = register_and_login(client, monkeypatch)
     too_many = WPLL_ANSWERS + [{"question_id": "wpll-q1", "option_id": "wpll-q1-a"}]
     res = client.post(
         "/api/intake/save-to-account",
@@ -131,30 +147,29 @@ def test_save_to_account_rejects_too_many_answers(client):
             "selected_statement_ids": STATEMENT_IDS,
             "wpll_answers": too_many,
         },
+        headers={"X-CSRF-TOKEN": csrf},
     )
     assert res.status_code == 400
 
 
-def test_save_to_account_accepts_empty_answers(client):
-    register_and_login(client)
+def test_save_to_account_accepts_empty_answers(client, monkeypatch):
+    csrf = register_and_login(client, monkeypatch)
     res = client.post(
         "/api/intake/save-to-account",
         json={
             "selected_statement_ids": [],
             "wpll_answers": [],
         },
+        headers={"X-CSRF-TOKEN": csrf},
     )
     assert res.status_code == 200
-    body = res.get_json()
-    assert body["wpll_completed"] is False
+    assert res.get_json()["wpll_completed"] is False
 
 
-def test_profile_response_includes_wpl_flags(client):
-    register_and_login(client)
+def test_profile_response_includes_wpl_flags(client, monkeypatch):
+    csrf = register_and_login(client, monkeypatch)
 
-    profile_before = client.get("/api/profile")
-    assert profile_before.status_code == 200
-    before = profile_before.get_json()
+    before = client.get("/api/profile").get_json()
     assert before["wpll_completed"] is False
     assert before["wpl_completed"] is False
 
@@ -164,10 +179,9 @@ def test_profile_response_includes_wpl_flags(client):
             "selected_statement_ids": STATEMENT_IDS,
             "wpll_answers": WPLL_ANSWERS,
         },
+        headers={"X-CSRF-TOKEN": csrf},
     )
 
-    profile_after = client.get("/api/profile")
-    assert profile_after.status_code == 200
-    after = profile_after.get_json()
+    after = client.get("/api/profile").get_json()
     assert after["wpll_completed"] is True
     assert after["wpl_completed"] is False
