@@ -51,6 +51,8 @@ import GuestQuizPreview from "./pages/GuestQuizPreview";
 import GuestQuizInsights from "./pages/GuestQuizInsights";
 import AgentChat from "./pages/AgentChat";
 import CareerIntakePage from "./pages/CareerIntakePage";
+import WorkPulsePage from "./pages/WorkPulsePage";
+import WorkPulseResultsPage from "./pages/WorkPulseResultsPage";
 
 /**
  * ProtectedRoute — Wraps a route element with authentication and role checks.
@@ -229,6 +231,24 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <QuizInsights />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Work Pulse routes */}
+              <Route
+                path="/work-pulse"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
+                    <WorkPulsePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/work-pulse/results"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
+                    <WorkPulseResultsPage />
                   </ProtectedRoute>
                 }
               />
