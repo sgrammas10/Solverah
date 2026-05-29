@@ -1,22 +1,24 @@
-interface TierSegment {
-  label: string;
-  state: "completed" | "next" | "future";
+const TIER_LABELS = ["Work Pulse Lite", "Work Pulse", "Work Pulse Pro"] as const;
+
+type TierState = "completed" | "next" | "future";
+
+interface TierBarProps {
+  nextTierIndex?: 0 | 1 | 2;
 }
 
-const TIERS: TierSegment[] = [
-  { label: "Work Pulse Lite", state: "completed" },
-  { label: "Work Pulse", state: "next" },
-  { label: "Work Pulse Pro", state: "future" },
-];
+export default function TierBar({ nextTierIndex = 1 }: TierBarProps) {
+  const tiers: { label: string; state: TierState }[] = TIER_LABELS.map((label, i) => ({
+    label,
+    state: i < nextTierIndex ? "completed" : i === nextTierIndex ? "next" : "future",
+  }));
 
-export default function TierBar() {
   return (
     <div>
       <p className="text-xs text-ink-tertiary uppercase tracking-widest mb-3">
         Your Solverah journey
       </p>
       <div className="flex items-center">
-        {TIERS.map((tier, i) => (
+        {tiers.map((tier, i) => (
           <div key={tier.label} className="flex items-center flex-1 last:flex-none">
             <div className="flex flex-col items-center">
               {tier.state === "completed" && (
@@ -39,11 +41,11 @@ export default function TierBar() {
                 {tier.label}
               </span>
             </div>
-            {i < TIERS.length - 1 && (
+            {i < tiers.length - 1 && (
               <div
                 className={[
                   "flex-1 h-px mx-2 mb-4",
-                  i === 0 ? "bg-forest-dark" : "bg-cream-muted",
+                  i < nextTierIndex ? "bg-forest-dark" : "bg-cream-muted",
                 ].join(" ")}
               />
             )}

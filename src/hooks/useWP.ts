@@ -6,21 +6,33 @@ export type WpAnswer = {
   optionId: string;
 };
 
+export type WpApiResponse = {
+  narrative: string;
+  emerging_signals: { title: string; description: string }[];
+  archetype: string;
+};
+
 export type WpState = {
   answers: WpAnswer[];
+  cachedResult: WpApiResponse | null;
 };
 
 const STORAGE_KEY = "solverah_wp";
 
 const DEFAULT_STATE: WpState = {
   answers: [],
+  cachedResult: null,
 };
 
 function readFromStorage(): WpState {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_STATE;
-    return JSON.parse(raw) as WpState;
+    const parsed = JSON.parse(raw) as Partial<WpState>;
+    return {
+      answers: parsed.answers ?? [],
+      cachedResult: parsed.cachedResult ?? null,
+    };
   } catch {
     return DEFAULT_STATE;
   }
@@ -42,9 +54,13 @@ export function useWP() {
     });
   }
 
+  function setCachedResult(result: WpApiResponse) {
+    setState((s) => ({ ...s, cachedResult: result }));
+  }
+
   function resetWP() {
     setState(DEFAULT_STATE);
   }
 
-  return { state, isComplete, setAnswer, resetWP };
+  return { state, isComplete, setAnswer, setCachedResult, resetWP };
 }

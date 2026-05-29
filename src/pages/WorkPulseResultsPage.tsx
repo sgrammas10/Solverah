@@ -1,11 +1,153 @@
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useWP } from "../hooks/useWP";
+import type { WpApiResponse } from "../hooks/useWP";
+import { useAuth } from "../contexts/useAuth";
+import { WP_QUESTIONS } from "../data/wpQuestions";
+import TierBar from "../components/intake/TierBar";
+
+type FetchState = "loading" | "error" | "success";
+
 export default function WorkPulseResultsPage() {
+  const navigate = useNavigate();
+  const { fetchWithAuth } = useAuth();
+  const { state, setCachedResult } = useWP();
+
+  const hasCached = state.cachedResult !== null;
+  const [fetchState, setFetchState] = useState<FetchState>(hasCached ? "success" : "loading");
+  const [result, setResult] = useState<WpApiResponse | null>(state.cachedResult);
+
+  const submitAnswers = useCallback(async () => {
+    setFetchState("loading");
+    try {
+      const data = await fetchWithAuth<WpApiResponse>("/work-pulse/submit", {
+        method: "POST",
+        body: JSON.stringify({
+          answers: state.answers.map((a) => ({
+            question_id: a.questionId,
+            option_id: a.optionId,
+          })),
+        }),
+      });
+      setResult(data);
+      setCachedResult(data);
+      setFetchState("success");
+    } catch {
+      setFetchState("error");
+    }
+  }, [state.answers, fetchWithAuth, setCachedResult]);
+
+  useEffect(() => {
+    if (state.answers.length < WP_QUESTIONS.length) {
+      navigate("/work-pulse", { replace: true });
+      return;
+    }
+    if (!hasCached) {
+      submitAnswers();
+    }
+  }, []);  // intentionally runs once on mount
+
+  if (fetchState === "loading") {
+    return (
+      <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
+        <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
+        <p className="text-sm text-ink-secondary">Analysing your responses…</p>
+      </div>
+    );
+  }
+
+  if (fetchState === "error") {
+    return (
+      <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
+        <div className="max-w-sm w-full rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+          <p className="font-medium mb-1">We couldn't generate your results right now.</p>
+          <p className="text-xs">Please try again in a moment.</p>
+          <button
+            type="button"
+            onClick={submitAnswers}
+            className="mt-3 text-xs font-semibold text-red-700 underline"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!result) return null;
+
+  const paragraphs = result.narrative
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
   return (
     <div className="min-h-screen bg-cream-base">
-      <div className="mx-auto max-w-2xl px-6 pt-12 pb-16">
-        <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
-          Your Work Pulse results
-        </h1>
-        <p className="text-sm text-ink-secondary mt-2">Coming soon.</p>
+      <div className="mx-auto max-w-2xl px-6 pt-12 pb-20 space-y-8">
+
+        {/* Header */}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
+            Your Work Pulse
+          </p>
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
+            Here's how you work
+          </h1>
+        </div>
+
+        {/* Narrative */}
+        <div className="rounded-xl border border-cream-muted bg-white p-6 space-y-4">
+          {paragraphs.map((para, i) => (
+            <p key={i} className="text-base text-ink-primary leading-relaxed">
+              {para}
+            </p>
+          ))}
+        </div>
+
+        {/* Emerging signals */}
+        {result.emerging_signals.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-forest-light">
+              Emerging signals
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {result.emerging_signals.map((signal) => (
+                <div
+                  key={signal.title}
+                  className="rounded-lg border border-cream-muted bg-white px-5 py-4"
+                >
+                  <p className="text-sm font-semibold text-ink-primary mb-1">{signal.title}</p>
+                  <p className="text-xs text-ink-secondary leading-relaxed">{signal.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Archetype callout */}
+        <div className="rounded-xl border border-forest-light bg-forest-pale px-6 py-5">
+          <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-1">
+            Your primary work archetype
+          </p>
+          <p className="font-display text-xl font-semibold text-forest-dark">{result.archetype}</p>
+        </div>
+
+        {/* Tier progression */}
+        <TierBar nextTierIndex={2} />
+
+        {/* Upgrade CTA */}
+        <div className="pt-2">
+          <button
+            type="button"
+            className="w-full border-2 border-forest-dark text-forest-dark font-semibold py-3.5 rounded hover:bg-forest-pale transition-colors"
+          >
+            Unlock Work Pulse Pro
+          </button>
+          <p className="text-xs text-ink-tertiary text-center mt-2">
+            Deeper analysis, personalised recommendations, and more.
+          </p>
+        </div>
+
       </div>
     </div>
   );
