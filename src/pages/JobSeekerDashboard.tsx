@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/useAuth';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, FileText, Brain, Briefcase, TrendingUp } from 'lucide-react';
 import IntakePromptModal from '../components/IntakePromptModal';
+import WorkPulseBanner from '../components/dashboard/WorkPulseBanner';
 
 const iconMap: Record<string, any> = { User, FileText, Brain, Briefcase, TrendingUp };
 
@@ -22,6 +23,7 @@ function JobSeekerDashboard() {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [jobsPopupOpen, setJobsPopupOpen] = useState(false);
   const [intakeModalOpen, setIntakeModalOpen] = useState(false);
+  const [wplBannerDismissed, setWplBannerDismissed] = useState(false);
   const { user, fetchWithAuth } = useAuth();
 
   useEffect(() => {
@@ -65,6 +67,13 @@ function JobSeekerDashboard() {
             Here's your job search overview and recommendations.
           </p>
         </div>
+
+        {/* Work Pulse banner */}
+        {user && !user.wpl_completed && !wplBannerDismissed && (
+          <div className="mb-6">
+            <WorkPulseBanner onDismiss={() => setWplBannerDismissed(true)} />
+          </div>
+        )}
 
         {/* Profile completion alert */}
         {!user?.profileComplete && (
