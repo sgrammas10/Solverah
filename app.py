@@ -745,6 +745,57 @@ def _build_wp_narrative_prompt(
     ]
 
 
+def _build_wpll_insight_prompt(answers: list[dict]) -> tuple[str, str]:
+    """Construct system + user messages for the Work Pulse Lite Lite insight call.
+
+    Resolves each answer's question_id / option_id to human-readable text so the
+    model receives meaningful context rather than opaque identifiers.
+
+    Args:
+        answers: Up to 5 WPLL answers, each {question_id, option_id}.
+
+    Returns:
+        (system_message, user_message) tuple of strings.
+    """
+    from work_pulse.insight_engine import WP_QUESTIONS
+
+    formatted = []
+    for ans in answers:
+        q_id = ans.get("question_id", "")
+        o_id = ans.get("option_id", "")
+        q_data = WP_QUESTIONS.get(q_id)
+        if not q_data:
+            continue
+        suffix = o_id.split("-")[-1]  # "wpll-q1-c" → "c"
+        option_text = q_data["options"].get(suffix, o_id)
+        formatted.append({
+            "dimension": q_data["dimension"],
+            "question": q_data["text"],
+            "selected": option_text,
+        })
+
+    system = (
+        "You are a work psychology analyst. A person just completed a 5-question "
+        "assessment about how they work. Generate a brief, personal insight based on "
+        "their responses.\n\n"
+        "STRICT OUTPUT RULES:\n"
+        "- Return VALID JSON only. No markdown, no commentary, no extra text.\n"
+        "- The response must contain exactly one key: insight_text.\n"
+        "- insight_text: 2–3 sentences, written in second person ('you'). "
+        "Tone: warm, direct, and specific — no generic filler, no bullet points. "
+        "Name the specific patterns visible in their answers.\n\n"
+        "QUALITY GUIDELINES:\n"
+        "- Do not invent traits not supported by the answers.\n"
+        "- Avoid hollow phrases like 'you thrive in dynamic environments'.\n"
+        "- The insight should feel like it was written by someone who actually read "
+        "every answer — not a template.\n"
+        "- Do not provide medical, psychological, or legal advice.\n"
+    )
+
+    user = json.dumps({"answers": formatted})
+    return system, user
+
+
 def _extract_resume_text(file_path: Path, mime: str) -> str:
     """Extract plain text from a local resume file.
 
@@ -2724,31 +2775,64 @@ def agent_chat():
 
 @app.route("/api/work-pulse/lite-lite/result", methods=["POST"])
 def work_pulse_lite_lite_result():
-    """POST /api/work-pulse/lite-lite/result — Rules-based insight for the WPLL teaser.
+    """POST /api/work-pulse/lite-lite/result — LLM-powered insight for the WPLL teaser.
 
-    Anonymous endpoint — no auth required. Scores the 5 WPLL answers against
-    pre-defined dimension weights and returns the best-matching insight template
-    plus the fixed set of locked section titles shown on Screen 3.
+    Anonymous endpoint — no auth required. Calls OpenAI to generate a personalised
+    2–3 sentence insight from the 5 WPLL answers, then returns it alongside the
+    fixed set of locked section titles shown on the result screen.  Falls back
+    silently to the rules-based engine if the LLM call fails or returns a
+    malformed response.
 
     Body (JSON):
-        answers (list): Up to 5 objects with ``question_id`` and ``option_id``.
+        answers (list): 1–5 objects with ``question_id`` and ``option_id``.
 
     Returns:
         200 {"insight_text": str, "locked_sections": [str, str, str]}
-        400 if answers is not a list or contains more than 5 items
+        400 if answers is missing, empty, not a list, or contains more than 5 items
     """
+    from work_pulse.insight_engine import generate_result, LOCKED_SECTION_TITLES
+
     data = request.get_json(silent=True) or {}
     answers = data.get("answers", [])
 
     if not isinstance(answers, list):
         return jsonify({"error": "answers must be a list"}), 400
 
+    if len(answers) == 0:
+        return jsonify({"error": "answers is required"}), 400
+
     if len(answers) > 5:
         return jsonify({"error": "Too many answers"}), 400
 
-    from work_pulse.insight_engine import generate_result
-    result = generate_result(answers)
-    return jsonify(result), 200
+    insight_text = None
+    try:
+        system_msg, user_msg = _build_wpll_insight_prompt(answers)
+        client = _get_openai_client()
+        model = os.environ.get("OPENAI_WPLL_MODEL", "gpt-4o-mini")
+        completion = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg},
+            ],
+            response_format={"type": "json_object"},
+        )
+        content = completion.choices[0].message.content or ""
+        parsed = json.loads(content)
+        candidate = parsed.get("insight_text")
+        if isinstance(candidate, str) and candidate.strip():
+            insight_text = candidate
+    except Exception:
+        pass
+
+    if insight_text is None:
+        fallback = generate_result(answers)
+        return jsonify(fallback), 200
+
+    return jsonify({
+        "insight_text": insight_text,
+        "locked_sections": LOCKED_SECTION_TITLES,
+    }), 200
 
 
 @limiter.limit("5 per minute")
