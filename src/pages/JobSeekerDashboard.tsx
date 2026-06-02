@@ -3,6 +3,9 @@ import { useAuth } from '../contexts/useAuth';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, FileText, Brain, Briefcase, TrendingUp } from 'lucide-react';
 import IntakePromptModal from '../components/IntakePromptModal';
+import WorkPulseBanner from '../components/dashboard/WorkPulseBanner';
+import WorkPulseUnlock from '../components/profile/WorkPulseUnlock';
+import { useWP } from '../hooks/useWP';
 
 const iconMap: Record<string, any> = { User, FileText, Brain, Briefcase, TrendingUp };
 
@@ -19,9 +22,11 @@ function JobSeekerDashboard() {
     );
   };
 
+  const { state: wpState } = useWP();
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [jobsPopupOpen, setJobsPopupOpen] = useState(false);
   const [intakeModalOpen, setIntakeModalOpen] = useState(false);
+  const [wplBannerDismissed, setWplBannerDismissed] = useState(false);
   const { user, fetchWithAuth } = useAuth();
 
   useEffect(() => {
@@ -65,6 +70,26 @@ function JobSeekerDashboard() {
             Here's your job search overview and recommendations.
           </p>
         </div>
+
+        {/* Work Pulse — unlock card or prompt banner */}
+        {user?.wpl_completed ? (
+          <div className="mb-6">
+            <WorkPulseUnlock
+              archetype={wpState.cachedResult?.archetype}
+              narrativePreview={
+                wpState.cachedResult
+                  ? wpState.cachedResult.narrative.split(/\n\n+/).find((p) => p.trim())?.trim()
+                  : undefined
+              }
+            />
+          </div>
+        ) : (
+          user && !wplBannerDismissed && (
+            <div className="mb-6">
+              <WorkPulseBanner onDismiss={() => setWplBannerDismissed(true)} />
+            </div>
+          )
+        )}
 
         {/* Profile completion alert */}
         {!user?.profileComplete && (

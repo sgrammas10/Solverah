@@ -127,6 +127,59 @@ INSIGHT_TEMPLATES: dict[str, str] = {
     ),
 }
 
+WP_QUESTIONS: dict[str, dict] = {
+    "wpll-q1": {
+        "dimension": "Fragmentation",
+        "text": "How often do you find yourself switching between unrelated tasks throughout a typical workday?",
+        "options": {
+            "a": "Rarely — I can usually stay focused on one thing",
+            "b": "Sometimes — a few times a day",
+            "c": "Often — it feels constant",
+            "d": "Almost always — I rarely finish anything in one sitting",
+        },
+    },
+    "wpll-q2": {
+        "dimension": "Sustainability",
+        "text": "How would you describe your energy level at the end of a typical workday?",
+        "options": {
+            "a": "Strong — I often have energy left over",
+            "b": "Okay — a little tired but fine",
+            "c": "Drained — I need significant recovery time",
+            "d": "Depleted — running on empty by the end",
+        },
+    },
+    "wpll-q3": {
+        "dimension": "Environmental Friction",
+        "text": "When your environment is noisy or disorganized around you, how does it affect your output?",
+        "options": {
+            "a": "Barely at all — I can tune it out",
+            "b": "Somewhat — it slows me down a little",
+            "c": "Noticeably — it takes real effort to push through",
+            "d": "Significantly — I can't do my best work in chaos",
+        },
+    },
+    "wpll-q4": {
+        "dimension": "Recognition Friction",
+        "text": "How often do you feel your best work goes unnoticed or isn't fully understood by the people around you?",
+        "options": {
+            "a": "Rarely — I usually feel seen and recognized",
+            "b": "Sometimes — it happens but doesn't bother me much",
+            "c": "Often — it's a real source of frustration",
+            "d": "Almost always — it feels like a persistent gap",
+        },
+    },
+    "wpll-q5": {
+        "dimension": "Work Pace",
+        "text": "When you think about the overall pace of your current work, it feels…",
+        "options": {
+            "a": "Just right — energizing without being overwhelming",
+            "b": "A bit slow — I could handle more",
+            "c": "Too fast — I'm struggling to keep up",
+            "d": "Unsustainable — I'm burning through my reserves",
+        },
+    },
+}
+
 LOCKED_SECTION_TITLES: list[str] = [
     "Environmental Friction Score",
     "Work Rhythm Pattern",

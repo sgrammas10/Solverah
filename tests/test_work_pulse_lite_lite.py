@@ -46,15 +46,13 @@ def test_lite_lite_result_accepts_partial_answers(client):
     assert isinstance(body["insight_text"], str) and len(body["insight_text"]) > 0
 
 
-def test_lite_lite_result_empty_answers_returns_all_low_template(client):
+def test_lite_lite_result_empty_answers_returns_400(client):
     res = client.post(
         "/api/work-pulse/lite-lite/result",
         data=json.dumps({"answers": []}),
         content_type="application/json",
     )
-    assert res.status_code == 200
-    body = res.get_json()
-    assert body["insight_text"] == INSIGHT_TEMPLATES["all_low"]
+    assert res.status_code == 400
 
 
 def test_lite_lite_result_rejects_too_many_answers(client):

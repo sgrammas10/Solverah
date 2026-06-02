@@ -36,6 +36,8 @@ export interface User {
   role: "job-seeker";
   profileComplete: boolean;
   profileData?: ProfileData;
+  wpl_completed: boolean;
+  wpll_completed: boolean;
 }
 
 /**
