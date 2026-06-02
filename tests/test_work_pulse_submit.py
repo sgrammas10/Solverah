@@ -217,3 +217,34 @@ def test_profile_shows_wpl_completed_after_submit(client, monkeypatch):
 
     after = client.get("/api/profile").get_json()
     assert after["wpl_completed"] is True
+
+
+def test_submit_creates_intake_row_when_none_exists(client, monkeypatch):
+    """Submitting WP answers should create a fresh UserIntake row when save-to-account
+    was never called — no prior intake row should exist for this user."""
+    csrf = _register_and_login(client, monkeypatch, email="fresh@example.com")
+    _mock_openai(monkeypatch)
+
+    from app import app
+    from model import UserIntake, User
+    with app.app_context():
+        user = User.query.filter_by(email="fresh@example.com").first()
+        assert UserIntake.query.filter_by(user_id=user.id).first() is None, \
+            "Expected no intake row before submission"
+
+    res = client.post(
+        "/api/work-pulse/submit",
+        json={"answers": WP_ANSWERS},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert res.status_code == 200
+
+    with app.app_context():
+        user = User.query.filter_by(email="fresh@example.com").first()
+        intake = UserIntake.query.filter_by(user_id=user.id).first()
+        assert intake is not None, "Intake row should have been created by submit"
+        assert intake.wpl_answers == WP_ANSWERS
+        assert intake.wpl_completed_at is not None
+        # wpll fields must stay unset — save-to-account was never called
+        assert intake.wpll_completed_at is None
+        assert not intake.wpll_answers  # None or [] — never populated
