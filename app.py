@@ -2869,10 +2869,18 @@ def work_pulse_submit():
         return jsonify({"error": "User not found"}), 404
 
     # Load or create the intake row — same upsert pattern as intake_save_to_account.
+    # Flush immediately after the INSERT so a concurrent duplicate request raises
+    # IntegrityError here rather than at commit (after the expensive LLM call).
+    from sqlalchemy.exc import IntegrityError
     intake = UserIntake.query.filter_by(user_id=user.id).first()
     if intake is None:
         intake = UserIntake(user_id=user.id)
         db.session.add(intake)
+        try:
+            db.session.flush()
+        except IntegrityError:
+            db.session.rollback()
+            intake = UserIntake.query.filter_by(user_id=user.id).first()
 
     wpll_answers = intake.wpll_answers or None
     selected_statement_ids = intake.selected_statement_ids or None

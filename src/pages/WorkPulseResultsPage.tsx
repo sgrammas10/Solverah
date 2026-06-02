@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWP } from "../hooks/useWP";
 import type { WpApiResponse } from "../hooks/useWP";
@@ -16,6 +16,7 @@ export default function WorkPulseResultsPage() {
   const hasCached = state.cachedResult !== null;
   const [fetchState, setFetchState] = useState<FetchState>(hasCached ? "success" : "loading");
   const [result, setResult] = useState<WpApiResponse | null>(state.cachedResult);
+  const hasFiredRef = useRef(false);
 
   const submitAnswers = useCallback(async () => {
     setFetchState("loading");
@@ -42,10 +43,11 @@ export default function WorkPulseResultsPage() {
       navigate("/work-pulse", { replace: true });
       return;
     }
-    if (!hasCached) {
+    if (!hasCached && !hasFiredRef.current) {
+      hasFiredRef.current = true;
       submitAnswers();
     }
-  }, []);  // intentionally runs once on mount
+  }, []);  // intentionally runs once on mount; hasFiredRef guards against Strict Mode double-fire
 
   if (fetchState === "loading") {
     return (
