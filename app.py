@@ -909,7 +909,6 @@ def _build_profile_from_intake(intake: IntakeSubmission) -> dict:
     profile = default_profile(
         email=intake.email,
         name=f"{intake.first_name} {intake.last_name}".strip(),
-        role="job-seeker",
     )
     profile.update(
         {
