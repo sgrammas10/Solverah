@@ -132,6 +132,17 @@ export default function WorkPulseResultsPage() {
           <p className="font-display text-xl font-semibold text-forest-dark">{result.archetype}</p>
         </div>
 
+        {/* What this unlocks */}
+        <div className="rounded-xl border border-cream-muted bg-white px-6 py-5">
+          <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-2">
+            What completing Work Pulse unlocks
+          </p>
+          <p className="text-sm text-ink-secondary leading-relaxed">
+            Your archetype and narrative are now visible on your Solverah profile,
+            giving employers a window into how you actually work — not just what you've done.
+          </p>
+        </div>
+
         {/* Tier progression */}
         <TierBar nextTierIndex={2} />
 
