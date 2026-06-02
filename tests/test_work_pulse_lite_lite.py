@@ -4,6 +4,7 @@ import json
 import pytest
 
 from work_pulse.insight_engine import (
+    INSIGHT_TEMPLATES,
     score_answers,
     select_template,
 )
