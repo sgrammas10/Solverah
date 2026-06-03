@@ -10,13 +10,25 @@ type FetchState = "loading" | "error" | "success";
 
 export default function WorkPulseResultsPage() {
   const navigate = useNavigate();
-  const { fetchWithAuth } = useAuth();
+  const { fetchWithAuth, user, updateProfile } = useAuth();
   const { state, setCachedResult } = useWP();
 
   const hasCached = state.cachedResult !== null;
   const [fetchState, setFetchState] = useState<FetchState>(hasCached ? "success" : "loading");
   const [result, setResult] = useState<WpApiResponse | null>(state.cachedResult);
   const hasFiredRef = useRef(false);
+
+  const fetchFromServer = useCallback(async () => {
+    setFetchState("loading");
+    try {
+      const data = await fetchWithAuth<WpApiResponse>("/work-pulse/results");
+      setResult(data);
+      setCachedResult(data);
+      setFetchState("success");
+    } catch {
+      setFetchState("error");
+    }
+  }, [fetchWithAuth, setCachedResult]);
 
   const submitAnswers = useCallback(async () => {
     setFetchState("loading");
@@ -32,22 +44,37 @@ export default function WorkPulseResultsPage() {
       });
       setResult(data);
       setCachedResult(data);
+      updateProfile({ wpl_completed: true });
       setFetchState("success");
     } catch {
       setFetchState("error");
     }
-  }, [state.answers, fetchWithAuth, setCachedResult]);
+  }, [state.answers, fetchWithAuth, setCachedResult, updateProfile]);
 
   useEffect(() => {
+    if (hasCached) return;
+    // Fresh session: user already completed WP but sessionStorage was cleared — refetch from server.
+    if (user?.wpl_completed) {
+      fetchFromServer();
+      return;
+    }
     if (state.answers.length < WP_QUESTIONS.length) {
       navigate("/work-pulse", { replace: true });
       return;
     }
-    if (!hasCached && !hasFiredRef.current) {
+    if (!hasFiredRef.current) {
       hasFiredRef.current = true;
       submitAnswers();
     }
   }, []);  // intentionally runs once on mount; hasFiredRef guards against Strict Mode double-fire
+
+  const handleRetry = useCallback(() => {
+    if (user?.wpl_completed) {
+      fetchFromServer();
+    } else {
+      submitAnswers();
+    }
+  }, [user?.wpl_completed, fetchFromServer, submitAnswers]);
 
   if (fetchState === "loading") {
     return (
@@ -66,7 +93,7 @@ export default function WorkPulseResultsPage() {
           <p className="text-xs">Please try again in a moment.</p>
           <button
             type="button"
-            onClick={submitAnswers}
+            onClick={handleRetry}
             className="mt-3 text-xs font-semibold text-red-700 underline"
           >
             Try again

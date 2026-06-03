@@ -2909,10 +2909,39 @@ def work_pulse_submit():
 
     intake.wpl_answers = answers
     intake.wpl_narrative = result["narrative"]
+    intake.wpl_result = result
     intake.wpl_completed_at = datetime.datetime.now(datetime.timezone.utc)
     db.session.commit()
 
     return jsonify(result)
+
+
+@app.get("/api/work-pulse/results")
+@jwt_required()
+def work_pulse_results_get():
+    """GET /api/work-pulse/results — Retrieve persisted Work Pulse results for the current user.
+
+    Returns the stored narrative, emerging signals, and archetype from the user's
+    most recent Work Pulse submission. Used by the results page to rehydrate
+    state in fresh browser sessions where sessionStorage has been cleared.
+
+    Returns:
+        200 {"narrative": str, "emerging_signals": [...], "archetype": str}
+        404 if no completed WP results are available
+        401 if unauthenticated
+    """
+    from model import UserIntake
+
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    intake = UserIntake.query.filter_by(user_id=user.id).first()
+    if not intake or not intake.wpl_result:
+        return jsonify({"error": "No Work Pulse results found"}), 404
+
+    return jsonify(intake.wpl_result)
 
 
 if __name__ == "__main__":
