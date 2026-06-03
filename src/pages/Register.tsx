@@ -196,6 +196,13 @@ function Register() {
             >
               {loading ? 'Creating account…' : 'Create account'}
             </button>
+
+            <p className="text-center text-sm text-ink-tertiary">
+              Already have an account?{' '}
+              <Link to="/login" className="font-semibold text-forest-mid hover:text-forest-dark transition-colors">
+                Sign in
+              </Link>
+            </p>
           </form>
         </div>
       </div>
