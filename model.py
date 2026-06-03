@@ -74,6 +74,7 @@ class UserIntake(db.Model):
     # Sprint 2: WPL (12Q) — null until Work Pulse Lite is completed
     wpl_answers = db.Column(JSON, nullable=True)
     wpl_narrative = db.Column(db.Text, nullable=True)
+    wpl_result = db.Column(JSON, nullable=True)
     wpl_completed_at = db.Column(db.DateTime, nullable=True)
 
     created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
