@@ -8,7 +8,9 @@ import type { WpApiResponse } from "../hooks/useWP";
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   fetchWithAuth: vi.fn(),
+  updateProfile: vi.fn(),
   setCachedResult: vi.fn(),
+  user: null as { wpl_completed: boolean } | null,
   wpState: {
     answers: [] as { questionId: string; optionId: string }[],
     cachedResult: null as WpApiResponse | null,
@@ -20,7 +22,11 @@ vi.mock("react-router-dom", () => ({
 }));
 
 vi.mock("../contexts/useAuth", () => ({
-  useAuth: () => ({ fetchWithAuth: mocks.fetchWithAuth }),
+  useAuth: () => ({
+    fetchWithAuth: mocks.fetchWithAuth,
+    updateProfile: mocks.updateProfile,
+    user: mocks.user,
+  }),
 }));
 
 vi.mock("../hooks/useWP", () => ({
@@ -48,9 +54,10 @@ const MOCK_RESULT: WpApiResponse = {
 describe("WorkPulseResultsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: all 12 answers present (avoids navigation redirect), no cached result.
+    // Default: all 12 answers present (avoids navigation redirect), no cached result, not yet completed.
     mocks.wpState.answers = ALL_ANSWERS;
     mocks.wpState.cachedResult = null;
+    mocks.user = null;
   });
 
   // ── Loading state ──────────────────────────────────────────────────────────
@@ -132,10 +139,26 @@ describe("WorkPulseResultsPage", () => {
 
   // ── Navigation guard ───────────────────────────────────────────────────────
 
-  it("redirects to /work-pulse when no answers are present", () => {
-    mocks.wpState.answers = []; // fewer than 12 → guard fires
+  it("redirects to /work-pulse when no answers are present and user has not completed WP", () => {
+    mocks.wpState.answers = [];
+    mocks.user = null;
     mocks.fetchWithAuth.mockReturnValue(new Promise(() => {}));
     render(<WorkPulseResultsPage />);
     expect(mocks.navigate).toHaveBeenCalledWith("/work-pulse", { replace: true });
+  });
+
+  // ── Fresh-session server fetch ─────────────────────────────────────────────
+
+  it("fetches from server when wpl_completed but no cached result or answers", async () => {
+    mocks.wpState.answers = [];
+    mocks.user = { wpl_completed: true };
+    mocks.fetchWithAuth.mockResolvedValueOnce(MOCK_RESULT);
+    render(<WorkPulseResultsPage />);
+
+    await waitFor(() =>
+      expect(screen.getByText("Structured Deep Thinker")).toBeInTheDocument()
+    );
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/work-pulse/results");
   });
 });
