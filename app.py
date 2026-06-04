@@ -2962,6 +2962,27 @@ def work_pulse_results_get():
     return jsonify(intake.wpl_result)
 
 
+@app.get("/api/companies/<int:company_id>")
+@jwt_required()
+def company_detail(company_id: int):
+    """GET /api/companies/<company_id> — Return a company's full profile.
+
+    Returns:
+        200 {"id", "name", "slug", "profile": {...full CompanyProfile dict...}}
+        404 if the company does not exist
+        401 if unauthenticated
+    """
+    company = Company.query.get(company_id)
+    if company is None:
+        return jsonify({"error": "Company not found"}), 404
+    return jsonify({
+        "id": company.id,
+        "name": company.name,
+        "slug": company.slug,
+        "profile": company.profile_json,
+    })
+
+
 _DIM_LABELS: dict[str, str] = {
     "empathy": "empathy",
     "creative_drive": "creative drive",

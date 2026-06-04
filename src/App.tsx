@@ -54,6 +54,7 @@ import CareerIntakePage from "./pages/CareerIntakePage";
 import WorkPulsePage from "./pages/WorkPulsePage";
 import WorkPulseResultsPage from "./pages/WorkPulseResultsPage";
 import SolverahProfilePage from "./pages/SolverahProfilePage";
+import CompanyDetailPage from "./pages/CompanyDetailPage";
 
 /**
  * ProtectedRoute — Wraps a route element with authentication and role checks.
@@ -258,6 +259,16 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <SolverahProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Company detail */}
+              <Route
+                path="/companies/:id"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
+                    <CompanyDetailPage />
                   </ProtectedRoute>
                 }
               />
