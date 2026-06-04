@@ -2911,6 +2911,13 @@ def work_pulse_submit():
     intake.wpl_narrative = result["narrative"]
     intake.wpl_result = result
     intake.wpl_completed_at = datetime.datetime.now(datetime.timezone.utc)
+
+    from work_pulse.derive_preferences import derive_culture_preferences
+    culture_prefs = derive_culture_preferences(answers)
+    profile = dict(user.profile_data or {})
+    profile["culture_preferences"] = culture_prefs
+    user.profile_data = profile
+
     db.session.commit()
 
     return jsonify(result)
