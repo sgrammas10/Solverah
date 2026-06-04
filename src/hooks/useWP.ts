@@ -10,6 +10,7 @@ export type WpApiResponse = {
   narrative: string;
   emerging_signals: { title: string; description: string }[];
   archetype: string;
+  archetype_description: string;
 };
 
 export type WpState = {

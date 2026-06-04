@@ -196,6 +196,104 @@ function PrelaunchLandingPage() {
           </div>
         </section>
 
+        {/* ─── WORK PULSE ─── */}
+        <section id="work-pulse" className="bg-cream-subtle border-t border-cream-muted py-24 px-6">
+          <div className="mx-auto max-w-7xl">
+            <div className="mb-12">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-3">Work Pulse™</p>
+              <h2 className="font-display text-[clamp(2rem,4vw,2.75rem)] font-bold text-ink-primary leading-snug mb-4 max-w-[580px]">
+                Understand how you work — before your next move
+              </h2>
+              <p className="text-base text-ink-secondary leading-relaxed max-w-[560px]">
+                Work Pulse™ maps your sustainability signals, work rhythm, and environment needs so you can make smarter career decisions.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Work Pulse Lite */}
+              <div className="rounded-xl border border-cream-muted bg-white p-8 flex flex-col">
+                <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.08em] bg-forest-pale text-forest-mid px-2.5 py-1 rounded mb-5 self-start">
+                  Free · No account needed
+                </span>
+                <h3 className="font-display text-xl font-semibold text-ink-primary mb-3">Work Pulse Lite™</h3>
+                <p className="text-sm text-ink-secondary leading-relaxed mb-6">
+                  5 questions. Get an instant read on your primary work friction signal — no sign-up required. Takes under 2 minutes.
+                </p>
+                <ul className="space-y-2.5 mb-8 flex-1">
+                  {["Instant friction signal", "Rules-based insight", "No account needed", "Takes under 2 minutes"].map((item) => (
+                    <li key={item} className="flex items-start gap-2.5 text-sm text-ink-secondary">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-forest-light" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  onClick={() => navigate("/start")}
+                  className="border-2 border-forest-dark text-forest-dark font-semibold px-5 py-2.5 rounded hover:bg-forest-pale transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
+                >
+                  Try it free
+                </button>
+              </div>
+
+              {/* Work Pulse (highlighted) */}
+              <div className="relative rounded-xl border border-forest-light bg-white p-8 flex flex-col">
+                <span className="absolute top-4 right-4 text-[10px] font-semibold uppercase tracking-[0.08em] bg-forest-dark text-white px-2 py-0.5 rounded">
+                  Most popular
+                </span>
+                <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.08em] bg-forest-pale text-forest-mid px-2.5 py-1 rounded mb-5 self-start">
+                  Free · Account required
+                </span>
+                <h3 className="font-display text-xl font-semibold text-ink-primary mb-3">Work Pulse™</h3>
+                <p className="text-sm text-ink-secondary leading-relaxed mb-6">
+                  12 questions. Receive a full narrative insight, your primary work archetype, and the emerging signals shaping how you experience work.
+                </p>
+                <ul className="space-y-2.5 mb-8 flex-1">
+                  {["Full narrative insight", "Work archetype", "Emerging signals", "Partial Solverah profile", "Personalized career intelligence"].map((item) => (
+                    <li key={item} className="flex items-start gap-2.5 text-sm text-ink-secondary">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-forest-mid" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  onClick={() => navigate("/register")}
+                  className="bg-forest-dark text-white font-semibold px-5 py-2.5 rounded hover:bg-forest-mid transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
+                >
+                  Get started
+                </button>
+              </div>
+
+              {/* Work Pulse Pro (muted / coming soon) */}
+              <div className="rounded-xl border border-cream-muted bg-cream-subtle p-8 flex flex-col">
+                <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-tertiary px-2.5 py-1 rounded border border-cream-muted mb-5 self-start">
+                  Coming soon
+                </span>
+                <h3 className="font-display text-xl font-semibold text-ink-primary mb-3">Work Pulse Pro™</h3>
+                <p className="text-sm text-ink-secondary leading-relaxed mb-6">
+                  Deeper pattern analysis, company environment matching via CompanyLens™, and long-term career alignment intelligence.
+                </p>
+                <ul className="space-y-2.5 mb-8 flex-1 opacity-60">
+                  {["Full archetype integration", "CompanyLens™ company matching", "Leadership fit analysis", "Sustainability and career direction", "Layered pattern interpretation"].map((item) => (
+                    <li key={item} className="flex items-start gap-2.5 text-sm text-ink-secondary">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-tertiary" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  disabled
+                  className="border-2 border-cream-muted text-ink-tertiary font-semibold px-5 py-2.5 rounded cursor-not-allowed opacity-50"
+                >
+                  Coming soon
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ─── HOW IT WORKS ─── */}
         <section id="how-it-works" className="bg-forest-mid border-t border-forest-light/30 py-24 px-6">
           <div className="mx-auto max-w-7xl">
