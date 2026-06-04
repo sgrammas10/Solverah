@@ -159,6 +159,11 @@ export default function WorkPulseResultsPage() {
             Your primary work archetype
           </p>
           <p className="font-display text-xl font-semibold text-forest-dark">{result.archetype}</p>
+          {result.archetype_description && (
+            <p className="text-sm text-forest-dark leading-relaxed mt-3">
+              {result.archetype_description}
+            </p>
+          )}
         </div>
 
         {/* What this unlocks */}
@@ -171,6 +176,46 @@ export default function WorkPulseResultsPage() {
             giving employers a window into how you actually work — not just what you've done.
           </p>
         </div>
+
+        {/* CompanyLens teaser */}
+        {(() => {
+          const topSignalTitle =
+            result.emerging_signals.length > 0
+              ? result.emerging_signals[0].title
+              : result.archetype;
+          return (
+            <div className="rounded-xl border border-cream-muted bg-white px-6 py-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-2">
+                Based on your results
+              </p>
+              <h2 className="font-display text-lg font-semibold text-ink-primary">
+                Your {topSignalTitle} signals may reveal something about company fit.
+              </h2>
+              <p className="text-sm text-ink-secondary leading-relaxed mt-2">
+                Work Pulse Pro maps your work patterns against real company environments.
+                Some companies consistently amplify the friction you described. Others
+                are built in ways that reduce it. CompanyLens shows you which is which.
+              </p>
+              <div className="grid grid-cols-2 gap-3 mt-4">
+                <div className="rounded-lg border border-cream-muted bg-cream-subtle px-4 py-3">
+                  <div className="h-3 w-24 rounded bg-gray-200 blur-sm mb-2" />
+                  <span className="text-xs text-ink-tertiary">Fit score: --</span>
+                </div>
+                <div className="rounded-lg border border-cream-muted bg-cream-subtle px-4 py-3">
+                  <div className="h-3 w-20 rounded bg-gray-200 blur-sm mb-2" />
+                  <span className="text-xs text-ink-tertiary">Fit score: --</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled
+                className="w-full mt-4 bg-forest-dark text-white font-semibold py-3.5 rounded cursor-not-allowed opacity-80"
+              >
+                Unlock CompanyLens™
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Tier progression */}
         <TierBar nextTierIndex={2} />

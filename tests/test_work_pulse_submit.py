@@ -31,6 +31,12 @@ VALID_LLM_RESPONSE = {
         {"title": "Autonomy Driven", "description": "You prefer to own the how, not just the what."},
     ],
     "archetype": "Structured Deep Thinker",
+    "archetype_description": (
+        "You build momentum through sustained, self-directed effort — your best work emerges "
+        "when you control the pace and the process. Environments with clear expectations and "
+        "minimal interruption tend to bring out your strongest output. Friction often surfaces "
+        "when direction is imposed without explanation or when context-switching is constant."
+    ),
 }
 
 
@@ -94,6 +100,21 @@ def test_submit_returns_narrative_signals_and_archetype(client, monkeypatch):
     assert isinstance(body["emerging_signals"], list) and len(body["emerging_signals"]) >= 1
     assert all("title" in s and "description" in s for s in body["emerging_signals"])
     assert isinstance(body["archetype"], str) and len(body["archetype"]) > 0
+
+
+def test_submit_returns_archetype_description(client, monkeypatch):
+    csrf = _register_and_login(client, monkeypatch, email="desc@example.com")
+    _mock_openai(monkeypatch)
+
+    res = client.post(
+        "/api/work-pulse/submit",
+        json={"answers": WP_ANSWERS},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert res.status_code == 200
+    body = res.get_json()
+    assert "archetype_description" in body, "archetype_description must be present in submit response"
+    assert isinstance(body["archetype_description"], str) and len(body["archetype_description"]) > 0
 
 
 def test_submit_persists_answers_and_narrative(client, monkeypatch):

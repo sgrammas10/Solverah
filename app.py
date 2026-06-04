@@ -713,7 +713,7 @@ def _build_wp_narrative_prompt(
 
         "STRICT OUTPUT RULES:\n"
         "- Return VALID JSON only. No markdown, no commentary, no extra keys.\n"
-        "- The response MUST contain exactly these three keys: narrative, emerging_signals, archetype.\n"
+        "- The response MUST contain exactly these four keys: narrative, emerging_signals, archetype, archetype_description.\n"
         "- narrative: A multi-paragraph string (3–4 paragraphs). Write in second person ('you'). "
         "Tone: warm, direct, and specific — never generic. Each paragraph should illuminate a "
         "different aspect of how this person works. Separate paragraphs with \\n\\n.\n"
@@ -721,7 +721,11 @@ def _build_wp_narrative_prompt(
         "3–6 words) and 'description' (1–2 sentences explaining what the signal means for this "
         "person). Ground each signal in specific answer patterns.\n"
         "- archetype: A 2–5 word label capturing this person's dominant work style, e.g. "
-        "'Structured Deep Thinker' or 'Collaborative Momentum Builder'. Be specific, not generic.\n\n"
+        "'Structured Deep Thinker' or 'Collaborative Momentum Builder'. Be specific, not generic.\n"
+        "- archetype_description: A 2–3 sentence explanation of what this archetype means in "
+        "practice — how this person naturally creates momentum, what environments tend to suit "
+        "them, and where friction commonly emerges for someone with this pattern. Write in second "
+        "person. Do not repeat the archetype label verbatim.\n\n"
 
         "QUALITY GUIDELINES:\n"
         "- Do not invent traits not supported by the answers.\n"
@@ -2904,7 +2908,7 @@ def work_pulse_submit():
         app.logger.exception("Work Pulse narrative generation failed")
         return jsonify({"error": "Unable to generate Work Pulse results"}), 500
 
-    if not all(k in result for k in ("narrative", "emerging_signals", "archetype")):
+    if not all(k in result for k in ("narrative", "emerging_signals", "archetype", "archetype_description")):
         return jsonify({"error": "Malformed response from model"}), 500
 
     intake.wpl_answers = answers
