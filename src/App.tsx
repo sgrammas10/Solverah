@@ -53,6 +53,7 @@ import AgentChat from "./pages/AgentChat";
 import CareerIntakePage from "./pages/CareerIntakePage";
 import WorkPulsePage from "./pages/WorkPulsePage";
 import WorkPulseResultsPage from "./pages/WorkPulseResultsPage";
+import SolverahProfilePage from "./pages/SolverahProfilePage";
 
 /**
  * ProtectedRoute — Wraps a route element with authentication and role checks.
@@ -249,6 +250,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <WorkPulseResultsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/solverah-profile"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
+                    <SolverahProfilePage />
                   </ProtectedRoute>
                 }
               />

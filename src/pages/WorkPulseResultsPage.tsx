@@ -175,6 +175,13 @@ export default function WorkPulseResultsPage() {
             Your archetype and narrative are now visible on your Solverah profile,
             giving employers a window into how you actually work — not just what you've done.
           </p>
+          <button
+            type="button"
+            onClick={() => navigate("/solverah-profile")}
+            className="mt-3 text-sm font-semibold text-forest-dark hover:underline"
+          >
+            View your Solverah profile →
+          </button>
         </div>
 
         {/* CompanyLens teaser */}
