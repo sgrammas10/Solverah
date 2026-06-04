@@ -38,6 +38,10 @@ _WP_LLM_PAYLOAD = {
         {"title": "Focus-Driven", "description": "You work best in sustained, uninterrupted blocks."},
     ],
     "archetype": "Deep Work Specialist",
+    "archetype_description": (
+        "You build momentum through sustained, self-directed effort. "
+        "Environments with clear expectations and minimal interruption bring out your strongest output."
+    ),
 }
 
 
