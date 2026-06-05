@@ -80,6 +80,10 @@ except Exception:
 
 JOB_LLM_DIR = Path(__file__).resolve().parent / "job_descr_LLM"
 
+_COMPANY_CULTURE_DIR = str(Path(__file__).resolve().parent / "company_culture_LLM")
+if _COMPANY_CULTURE_DIR not in sys.path:
+    sys.path.insert(0, _COMPANY_CULTURE_DIR)
+
 _resume_cache: dict = {}          # resumeKey -> (text, expires_at)
 _resume_cache_lock = Lock()
 _RESUME_CACHE_TTL = 600           # 10 minutes — covers a full chat session
@@ -155,6 +159,9 @@ from flask_migrate import Migrate
 
 from model import AuditLog, Company, IntakeSubmission, JobRecommendation, ResumeParseCorrection, User, db
 from datetime import timedelta
+from score import culture_fit_score
+from company import CultureValues
+from store import all_companies
 
 # from geo_utils import geocode_city, haversine_miles
 
@@ -2953,6 +2960,135 @@ def work_pulse_results_get():
         return jsonify({"error": "No Work Pulse results found"}), 404
 
     return jsonify(intake.wpl_result)
+
+
+@app.get("/api/companies/<int:company_id>")
+@jwt_required()
+def company_detail(company_id: int):
+    """GET /api/companies/<company_id> — Return a company's full profile.
+
+    Returns:
+        200 {"id", "name", "slug", "profile": {...full CompanyProfile dict...}}
+        404 if the company does not exist
+        401 if unauthenticated
+    """
+    company = Company.query.get(company_id)
+    if company is None:
+        return jsonify({"error": "Company not found"}), 404
+    return jsonify({
+        "id": company.id,
+        "name": company.name,
+        "slug": company.slug,
+        "profile": company.profile_json,
+    })
+
+
+_DIM_LABELS: dict[str, str] = {
+    "empathy": "empathy",
+    "creative_drive": "creative drive",
+    "adaptability": "adaptability",
+    "futuristic": "future orientation",
+    "harmony": "harmony",
+    "data_orientation": "data orientation",
+    "pace": "work pace",
+    "work_environment": "work environment",
+}
+
+
+def _build_fit_summary(matching: list[str], mismatching: list[str]) -> str:
+    match_str = " and ".join(_DIM_LABELS.get(d, d) for d in matching)
+    mismatch_str = " and ".join(_DIM_LABELS.get(d, d) for d in mismatching)
+    if mismatching:
+        return f"Strong alignment on {match_str}; potential friction around {mismatch_str}."
+    return f"Strong alignment on {match_str}."
+
+
+@app.get("/api/company-lens/matches")
+@jwt_required()
+def company_lens_matches():
+    """GET /api/company-lens/matches — Score all companies against the user's culture preferences.
+
+    Query params:
+        limit (int, default 5, min 1, max 50): Number of best/worst matches to return.
+
+    Returns:
+        200 {"best_fits": [...], "worst_fits": [...], "total_companies_scored": int, "limit": int}
+        400 if culture_preferences have not been set (Work Pulse not completed)
+        401 if unauthenticated
+    """
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    profile = user.profile_data or {}
+    user_prefs = profile.get("culture_preferences")
+    if not user_prefs:
+        return jsonify({"error": "Work Pulse not completed — culture preferences not found"}), 400
+
+    try:
+        limit = int(request.args.get("limit", 5))
+    except (TypeError, ValueError):
+        return jsonify({"error": "limit must be an integer"}), 400
+    limit = max(1, min(50, limit))
+
+    companies = all_companies()
+
+    scored = []
+    for company in companies:
+        if company.pace is None:
+            continue
+        try:
+            culture_values = CultureValues(
+                work_environment=company.work_environment,
+                pace=company.pace,
+                empathy=company.empathy,
+                creative_drive=company.creative_drive,
+                adaptability=company.adaptability,
+                futuristic=company.futuristic,
+                harmony=company.harmony,
+                data_orientation=company.data_orientation,
+            )
+            fit = culture_fit_score(culture_values, user_prefs)
+        except Exception:
+            app.logger.warning("Skipping company %s — invalid culture data", company.id)
+            continue
+        scored.append((company, fit))
+
+    scored.sort(key=lambda x: x[1].total_score, reverse=True)
+    total = len(scored)
+
+    if total <= 2 * limit:
+        mid = (total + 1) // 2
+        best_rows = scored[:mid]
+        worst_rows = scored[mid:]
+    else:
+        best_rows = scored[:limit]
+        worst_rows = scored[-limit:]
+
+    def _format_entry(company, fit):
+        dim_scores = fit.dimension_scores
+        sorted_dims = sorted(dim_scores.items(), key=lambda kv: kv[1], reverse=True)
+        matching = [d for d, _ in sorted_dims[:2]]
+        mismatching = [d for d, _ in sorted_dims[-2:]] if len(sorted_dims) >= 2 else []
+        overview = (company.profile_json or {}).get("overview") or {}
+        return {
+            "id": company.id,
+            "name": company.name,
+            "slug": company.slug,
+            "industry": overview.get("industry"),
+            "fit_score": fit.total_score,
+            "top_matching_dimensions": matching,
+            "top_mismatching_dimensions": mismatching,
+            "fit_summary": _build_fit_summary(matching, mismatching),
+        }
+
+    return jsonify({
+        "best_fits": [_format_entry(c, r) for c, r in best_rows],
+        "worst_fits": [_format_entry(c, r) for c, r in worst_rows],
+        "total_companies_scored": total,
+        "limit": limit,
+    })
 
 
 if __name__ == "__main__":

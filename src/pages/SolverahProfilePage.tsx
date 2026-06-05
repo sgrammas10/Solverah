@@ -208,26 +208,43 @@ export default function SolverahProfilePage() {
 
         {/* Locked ecosystem cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {LOCKED_CARDS.map((card) => (
-            <div
-              key={card.title}
-              className="rounded-xl border border-cream-muted bg-white px-5 py-5 opacity-60 relative"
-            >
-              <Lock className="absolute top-4 right-4 w-4 h-4 text-ink-tertiary" />
-              <p className="text-sm font-semibold text-ink-primary pr-6">{card.title}</p>
-              <p className="text-xs text-ink-secondary mt-0.5 mb-2">{card.subtitle}</p>
-              <p className="text-xs text-ink-secondary leading-relaxed mb-4">
-                {card.description}
-              </p>
-              <button
-                type="button"
-                disabled
-                className="border border-cream-muted text-ink-tertiary text-xs font-semibold px-3 py-1.5 rounded cursor-not-allowed"
+          {LOCKED_CARDS.map((card) => {
+            const isCompanyLens = card.title === "CompanyLens™";
+            return (
+              <div
+                key={card.title}
+                className={`rounded-xl border border-cream-muted bg-white px-5 py-5 relative ${
+                  isCompanyLens ? "" : "opacity-60"
+                }`}
               >
-                Unlocks with Work Pulse Pro
-              </button>
-            </div>
-          ))}
+                {!isCompanyLens && (
+                  <Lock className="absolute top-4 right-4 w-4 h-4 text-ink-tertiary" />
+                )}
+                <p className="text-sm font-semibold text-ink-primary pr-6">{card.title}</p>
+                <p className="text-xs text-ink-secondary mt-0.5 mb-2">{card.subtitle}</p>
+                <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+                  {card.description}
+                </p>
+                {isCompanyLens ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/company-lens")}
+                    className="bg-forest-dark text-white font-semibold px-3 py-1.5 rounded text-xs hover:bg-forest-mid"
+                  >
+                    Open CompanyLens™
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="border border-cream-muted text-ink-tertiary text-xs font-semibold px-3 py-1.5 rounded cursor-not-allowed"
+                  >
+                    Unlocks with Work Pulse Pro
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
 
       </div>
