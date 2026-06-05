@@ -3064,7 +3064,7 @@ def company_lens_matches():
         worst_rows = scored[mid:]
     else:
         best_rows = scored[:limit]
-        worst_rows = scored[-limit:]
+        worst_rows = scored[-limit:][::-1]
 
     def _format_entry(company, fit):
         dim_scores = fit.dimension_scores
