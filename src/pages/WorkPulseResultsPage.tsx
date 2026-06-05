@@ -18,26 +18,6 @@ export default function WorkPulseResultsPage() {
   const [result, setResult] = useState<WpApiResponse | null>(state.cachedResult);
   const hasFiredRef = useRef(false);
 
-  const fetchFromServer = useCallback(async () => {
-    setFetchState("loading");
-    try {
-      const data = await fetchWithAuth<WpApiResponse>("/work-pulse/results");
-      setResult(data);
-      setCachedResult(data);
-      setFetchState("success");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "";
-      // Backend returns 422 when wpl_completed_at is set but wpl_result is missing
-      // (e.g. second commit failed due to a pending migration). If the user still has
-      // their answers in sessionStorage, resubmit so the narrative is regenerated.
-      if (msg.includes("resubmit") && state.answers.length === WP_QUESTIONS.length) {
-        submitAnswers();
-        return;
-      }
-      setFetchState("error");
-    }
-  }, [fetchWithAuth, setCachedResult, state.answers, submitAnswers]);
-
   const submitAnswers = useCallback(async () => {
     setFetchState("loading");
     try {
@@ -58,6 +38,26 @@ export default function WorkPulseResultsPage() {
       setFetchState("error");
     }
   }, [state.answers, fetchWithAuth, setCachedResult, updateProfile]);
+
+  const fetchFromServer = useCallback(async () => {
+    setFetchState("loading");
+    try {
+      const data = await fetchWithAuth<WpApiResponse>("/work-pulse/results");
+      setResult(data);
+      setCachedResult(data);
+      setFetchState("success");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      // Backend returns 422 when wpl_completed_at is set but wpl_result is missing
+      // (e.g. pending migration). Resubmit to regenerate the narrative if answers
+      // are still in sessionStorage.
+      if (msg.includes("resubmit") && state.answers.length === WP_QUESTIONS.length) {
+        submitAnswers();
+        return;
+      }
+      setFetchState("error");
+    }
+  }, [fetchWithAuth, setCachedResult, state.answers, submitAnswers]);
 
   useEffect(() => {
     if (hasCached) return;

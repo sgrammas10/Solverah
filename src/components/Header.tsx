@@ -31,10 +31,12 @@ function Header() {
   };
 
   const isDashboard = location.pathname.includes('dashboard');
-  const isProfile = location.pathname.includes('profile');
+  const isProfile = location.pathname.startsWith('/job-seeker/profile');
   const isFeed = location.pathname === '/feed';
   const isAgent = location.pathname.startsWith('/agent');
-  const isIntelligence = location.pathname.startsWith('/intelligence');
+  const isIntelligence =
+    location.pathname.startsWith('/intelligence') ||
+    location.pathname === '/solverah-profile';
 
   const navLinkCls = (active: boolean) =>
     `px-3 py-2 text-sm font-medium transition-colors rounded ${

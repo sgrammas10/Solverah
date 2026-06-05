@@ -248,6 +248,15 @@ export default function CompanyLensPage() {
     <div className="min-h-screen bg-cream-base">
       <div className="mx-auto max-w-3xl px-6 pt-12 pb-20 space-y-10">
 
+        {/* Back link */}
+        <button
+          type="button"
+          onClick={() => navigate("/intelligence")}
+          className="text-sm font-semibold text-forest-mid hover:underline"
+        >
+          ← Back to Intelligence
+        </button>
+
         {/* Header */}
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">

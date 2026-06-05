@@ -1,5 +1,5 @@
 import { useState, useEffect, type ReactNode } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/useAuth";
 
 type FetchState = "loading" | "error" | "success";
@@ -177,6 +177,7 @@ function warnBadgeClass(level?: string): string {
 export default function CompanyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const { fetchWithAuth } = useAuth();
 
   const fitState = (location.state as FitState | null) ?? null;
@@ -302,6 +303,15 @@ export default function CompanyDetailPage() {
   return (
     <div className="min-h-screen bg-cream-base">
       <div className="mx-auto max-w-3xl px-6 pt-12 pb-20 space-y-6">
+
+        {/* Back link */}
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="text-sm font-semibold text-forest-mid hover:underline"
+        >
+          ← Back to companies
+        </button>
 
         {/* 1. Page header */}
         <div className="space-y-1">
