@@ -53,7 +53,7 @@ import AgentChat from "./pages/AgentChat";
 import CareerIntakePage from "./pages/CareerIntakePage";
 import WorkPulsePage from "./pages/WorkPulsePage";
 import WorkPulseResultsPage from "./pages/WorkPulseResultsPage";
-import SolverahProfilePage from "./pages/SolverahProfilePage";
+import IntelligencePage from "./pages/IntelligencePage";
 import CompanyDetailPage from "./pages/CompanyDetailPage";
 import CompanyLensPage from "./pages/CompanyLensPage";
 
@@ -259,7 +259,15 @@ function App() {
                 path="/solverah-profile"
                 element={
                   <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <SolverahProfilePage />
+                    <IntelligencePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/intelligence"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
+                    <IntelligencePage />
                   </ProtectedRoute>
                 }
               />

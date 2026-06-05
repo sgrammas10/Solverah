@@ -18,18 +18,6 @@ export default function WorkPulseResultsPage() {
   const [result, setResult] = useState<WpApiResponse | null>(state.cachedResult);
   const hasFiredRef = useRef(false);
 
-  const fetchFromServer = useCallback(async () => {
-    setFetchState("loading");
-    try {
-      const data = await fetchWithAuth<WpApiResponse>("/work-pulse/results");
-      setResult(data);
-      setCachedResult(data);
-      setFetchState("success");
-    } catch {
-      setFetchState("error");
-    }
-  }, [fetchWithAuth, setCachedResult]);
-
   const submitAnswers = useCallback(async () => {
     setFetchState("loading");
     try {
@@ -51,6 +39,26 @@ export default function WorkPulseResultsPage() {
     }
   }, [state.answers, fetchWithAuth, setCachedResult, updateProfile]);
 
+  const fetchFromServer = useCallback(async () => {
+    setFetchState("loading");
+    try {
+      const data = await fetchWithAuth<WpApiResponse>("/work-pulse/results");
+      setResult(data);
+      setCachedResult(data);
+      setFetchState("success");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      // Backend returns 422 when wpl_completed_at is set but wpl_result is missing
+      // (e.g. pending migration). Resubmit to regenerate the narrative if answers
+      // are still in sessionStorage.
+      if (msg.includes("resubmit") && state.answers.length === WP_QUESTIONS.length) {
+        submitAnswers();
+        return;
+      }
+      setFetchState("error");
+    }
+  }, [fetchWithAuth, setCachedResult, state.answers, submitAnswers]);
+
   useEffect(() => {
     if (hasCached) return;
     // Fresh session: user already completed WP but sessionStorage was cleared — refetch from server.
@@ -69,12 +77,14 @@ export default function WorkPulseResultsPage() {
   }, []);  // intentionally runs once on mount; hasFiredRef guards against Strict Mode double-fire
 
   const handleRetry = useCallback(() => {
-    if (user?.wpl_completed) {
-      fetchFromServer();
-    } else {
+    if (state.answers.length === WP_QUESTIONS.length) {
+      // Prefer resubmitting when answers are available — covers both first-time
+      // and the case where the narrative blob failed to persist.
       submitAnswers();
+    } else {
+      fetchFromServer();
     }
-  }, [user?.wpl_completed, fetchFromServer, submitAnswers]);
+  }, [state.answers.length, fetchFromServer, submitAnswers]);
 
   if (fetchState === "loading") {
     return (

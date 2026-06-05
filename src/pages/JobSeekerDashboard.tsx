@@ -204,7 +204,7 @@ function JobSeekerDashboard() {
             </Link>
 
             <button
-              onClick={() => navigate('/job-seeker/profile#assessments')}
+              onClick={() => navigate('/intelligence')}
               className="flex items-center gap-4 p-5 rounded-xl border border-cream-muted bg-white hover:border-forest-pale transition-colors text-left"
             >
               <div className="p-2 bg-forest-pale rounded-lg shrink-0">

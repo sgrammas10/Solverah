@@ -2918,10 +2918,15 @@ def work_pulse_submit():
     if not all(k in result for k in ("narrative", "emerging_signals", "archetype", "archetype_description")):
         return jsonify({"error": "Malformed response from model"}), 500
 
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    # Commit 1: persist answers and mark the user as WP-complete.
+    # This must succeed before we attempt to store the narrative so that
+    # wpl_completed_at is always written even if the wpl_result column is
+    # missing (e.g. a pending migration) or the second commit fails for any
+    # other reason.
     intake.wpl_answers = answers
-    intake.wpl_narrative = result["narrative"]
-    intake.wpl_result = result
-    intake.wpl_completed_at = datetime.datetime.now(datetime.timezone.utc)
+    intake.wpl_completed_at = now
 
     from work_pulse.derive_preferences import derive_culture_preferences
     culture_prefs = derive_culture_preferences(answers)
@@ -2930,6 +2935,18 @@ def work_pulse_submit():
     user.profile_data = profile
 
     db.session.commit()
+
+    # Commit 2: store the full narrative/result blob (best-effort).
+    # If this fails (e.g. wpl_result column not yet migrated) the user is
+    # still marked complete; they will see an error on the results page and
+    # can retry narrative generation after running flask db upgrade.
+    try:
+        intake.wpl_narrative = result["narrative"]
+        intake.wpl_result = result
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Work Pulse: failed to persist narrative/result blob")
 
     return jsonify(result)
 
@@ -2956,8 +2973,12 @@ def work_pulse_results_get():
         return jsonify({"error": "User not found"}), 404
 
     intake = UserIntake.query.filter_by(user_id=user.id).first()
-    if not intake or not intake.wpl_result:
+    if not intake or not intake.wpl_completed_at:
         return jsonify({"error": "No Work Pulse results found"}), 404
+    if not intake.wpl_result:
+        # Answers saved but narrative blob missing (e.g. wpl_result column not yet
+        # migrated). Tell the client to resubmit so narrative can be regenerated.
+        return jsonify({"error": "Work Pulse results pending — please resubmit"}), 422
 
     return jsonify(intake.wpl_result)
 
@@ -3064,7 +3085,7 @@ def company_lens_matches():
         worst_rows = scored[mid:]
     else:
         best_rows = scored[:limit]
-        worst_rows = scored[-limit:]
+        worst_rows = scored[-limit:][::-1]
 
     def _format_entry(company, fit):
         dim_scores = fit.dimension_scores
