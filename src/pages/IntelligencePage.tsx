@@ -4,6 +4,8 @@ import { Lock } from "lucide-react";
 import { useWP } from "../hooks/useWP";
 import type { WpApiResponse } from "../hooks/useWP";
 import { useAuth } from "../contexts/useAuth";
+import { useProfileForm } from "../hooks/useProfileForm";
+import AssessmentsTab from "../components/profile/AssessmentsTab";
 
 const ECOSYSTEM_STEPS = [
   { label: "Work Pulse Lite" },
@@ -43,10 +45,11 @@ const LOCKED_CARDS = [
 
 type FetchState = "loading" | "error" | "success";
 
-export default function SolverahProfilePage() {
+export default function IntelligencePage() {
   const navigate = useNavigate();
   const { fetchWithAuth, user } = useAuth();
   const { state, setCachedResult } = useWP();
+  const { formData } = useProfileForm();
 
   const hasCached = state.cachedResult !== null;
   const [fetchState, setFetchState] = useState<FetchState>(
@@ -136,10 +139,10 @@ export default function SolverahProfilePage() {
         {/* Header */}
         <div className="space-y-1">
           <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
-            Your Solverah Profile
+            Your Intelligence Hub
           </p>
           <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
-            Here's what we know about you so far.
+            Everything we know about how you work.
           </h1>
           <p className="text-sm text-ink-secondary pt-1">
             Your profile grows as you complete more of the Solverah ecosystem.
@@ -246,6 +249,9 @@ export default function SolverahProfilePage() {
             );
           })}
         </div>
+
+        {/* Assessments section */}
+        <AssessmentsTab formData={formData} />
 
       </div>
     </div>
