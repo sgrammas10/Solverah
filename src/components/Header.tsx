@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
-import { User, LogOut, MessageSquare } from 'lucide-react';
+import { User, LogOut, MessageSquare, Brain } from 'lucide-react';
 
 function Header() {
   const { user, logout } = useAuth();
@@ -34,6 +34,7 @@ function Header() {
   const isProfile = location.pathname.includes('profile');
   const isFeed = location.pathname === '/feed';
   const isAgent = location.pathname.startsWith('/agent');
+  const isIntelligence = location.pathname.startsWith('/intelligence');
 
   const navLinkCls = (active: boolean) =>
     `px-3 py-2 text-sm font-medium transition-colors rounded ${
@@ -67,6 +68,13 @@ function Header() {
                   className={navLinkCls(isDashboard)}
                 >
                   Dashboard
+                </Link>
+                <Link
+                  to="/intelligence"
+                  className={navLinkCls(isIntelligence)}
+                >
+                  <Brain className="h-4 w-4 inline mr-1 -mt-0.5" />
+                  Intelligence
                 </Link>
                 <Link
                   to={getProfilePath()}
