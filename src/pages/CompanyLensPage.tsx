@@ -38,6 +38,47 @@ interface MatchCardProps {
   accent: "forest" | "amber";
 }
 
+interface MatchRowProps {
+  match: CompanyMatch;
+  accent: "forest" | "amber";
+}
+
+function MatchRow({ match, accent }: MatchRowProps) {
+  const navigate = useNavigate();
+
+  return (
+    <div
+      className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-cream-muted bg-white hover:border-forest-light transition-colors cursor-pointer"
+      onClick={() =>
+        navigate(`/companies/${match.id}`, {
+          state: {
+            fit_score: match.fit_score,
+            top_matching_dimensions: match.top_matching_dimensions,
+            top_mismatching_dimensions: match.top_mismatching_dimensions,
+          },
+        })
+      }
+    >
+      <span className="font-semibold text-sm text-ink-primary min-w-0 truncate flex-1">
+        {match.name}
+      </span>
+      {match.industry && (
+        <span className="text-xs text-ink-secondary hidden sm:block shrink-0">
+          {match.industry}
+        </span>
+      )}
+      <span
+        className={`text-sm font-semibold shrink-0 ${
+          accent === "forest" ? "text-forest-dark" : "text-amber-600"
+        }`}
+      >
+        {Math.round(match.fit_score * 100)}%
+      </span>
+      <span className="text-xs font-semibold text-forest-mid shrink-0">→</span>
+    </div>
+  );
+}
+
 function MatchCard({ match, accent }: MatchCardProps) {
   const navigate = useNavigate();
 
@@ -115,6 +156,7 @@ export default function CompanyLensPage() {
   const [fetchState, setFetchState] = useState<FetchState>("loading");
   const [data, setData] = useState<MatchesResponse | null>(null);
   const [limit, setLimit] = useState(5);
+  const [viewMode, setViewMode] = useState<"card" | "list">("card");
 
   const fetchMatches = useCallback(
     async (lim: number) => {
@@ -216,9 +258,49 @@ export default function CompanyLensPage() {
           <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
             CompanyLens™
           </p>
-          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
-            Companies ranked by how well they match how you work.
-          </h1>
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
+              Companies ranked by how well they match how you work.
+            </h1>
+            {/* View toggle */}
+            <div className="flex shrink-0 items-center gap-1 border border-cream-muted rounded-lg p-1 bg-white mt-1">
+              <button
+                type="button"
+                onClick={() => setViewMode("card")}
+                title="Card view"
+                className={`p-1.5 rounded transition-colors ${
+                  viewMode === "card"
+                    ? "bg-forest-dark text-white"
+                    : "text-ink-secondary hover:text-ink-primary"
+                }`}
+              >
+                {/* Grid icon */}
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" />
+                  <rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" />
+                  <rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" />
+                  <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                title="List view"
+                className={`p-1.5 rounded transition-colors ${
+                  viewMode === "list"
+                    ? "bg-forest-dark text-white"
+                    : "text-ink-secondary hover:text-ink-primary"
+                }`}
+              >
+                {/* List icon */}
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <rect x="1" y="2" width="14" height="2.5" rx="1" fill="currentColor" />
+                  <rect x="1" y="6.75" width="14" height="2.5" rx="1" fill="currentColor" />
+                  <rect x="1" y="11.5" width="14" height="2.5" rx="1" fill="currentColor" />
+                </svg>
+              </button>
+            </div>
+          </div>
           <p className="text-sm text-ink-secondary">
             Based on your Work Pulse results. Scores reflect culture and environment
             fit — not job availability.
@@ -230,10 +312,14 @@ export default function CompanyLensPage() {
           <h2 className="font-display text-lg font-semibold text-ink-primary">
             Companies that match how you work
           </h2>
-          <div className="space-y-3">
-            {data.best_fits.map((match) => (
-              <MatchCard key={match.id} match={match} accent="forest" />
-            ))}
+          <div className={viewMode === "card" ? "space-y-3" : "space-y-1.5"}>
+            {data.best_fits.map((match) =>
+              viewMode === "card" ? (
+                <MatchCard key={match.id} match={match} accent="forest" />
+              ) : (
+                <MatchRow key={match.id} match={match} accent="forest" />
+              )
+            )}
           </div>
           {showMoreVisible && (
             <div className="flex justify-center pt-2">
@@ -253,10 +339,14 @@ export default function CompanyLensPage() {
           <h2 className="font-display text-lg font-semibold text-ink-primary">
             Companies worth understanding before committing
           </h2>
-          <div className="space-y-3">
-            {data.worst_fits.map((match) => (
-              <MatchCard key={match.id} match={match} accent="amber" />
-            ))}
+          <div className={viewMode === "card" ? "space-y-3" : "space-y-1.5"}>
+            {data.worst_fits.map((match) =>
+              viewMode === "card" ? (
+                <MatchCard key={match.id} match={match} accent="amber" />
+              ) : (
+                <MatchRow key={match.id} match={match} accent="amber" />
+              )
+            )}
           </div>
           {showMoreVisible && (
             <div className="flex justify-center pt-2">
