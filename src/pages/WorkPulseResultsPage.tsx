@@ -25,10 +25,18 @@ export default function WorkPulseResultsPage() {
       setResult(data);
       setCachedResult(data);
       setFetchState("success");
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      // Backend returns 422 when wpl_completed_at is set but wpl_result is missing
+      // (e.g. second commit failed due to a pending migration). If the user still has
+      // their answers in sessionStorage, resubmit so the narrative is regenerated.
+      if (msg.includes("resubmit") && state.answers.length === WP_QUESTIONS.length) {
+        submitAnswers();
+        return;
+      }
       setFetchState("error");
     }
-  }, [fetchWithAuth, setCachedResult]);
+  }, [fetchWithAuth, setCachedResult, state.answers, submitAnswers]);
 
   const submitAnswers = useCallback(async () => {
     setFetchState("loading");
@@ -69,12 +77,14 @@ export default function WorkPulseResultsPage() {
   }, []);  // intentionally runs once on mount; hasFiredRef guards against Strict Mode double-fire
 
   const handleRetry = useCallback(() => {
-    if (user?.wpl_completed) {
-      fetchFromServer();
-    } else {
+    if (state.answers.length === WP_QUESTIONS.length) {
+      // Prefer resubmitting when answers are available — covers both first-time
+      // and the case where the narrative blob failed to persist.
       submitAnswers();
+    } else {
+      fetchFromServer();
     }
-  }, [user?.wpl_completed, fetchFromServer, submitAnswers]);
+  }, [state.answers.length, fetchFromServer, submitAnswers]);
 
   if (fetchState === "loading") {
     return (
