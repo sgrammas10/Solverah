@@ -1,19 +1,17 @@
 import { useState, useEffect } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
-import { User, Briefcase, GraduationCap, Star, Brain } from "lucide-react";
+import { User, Briefcase, GraduationCap, Star } from "lucide-react";
 import { useProfileForm } from "../hooks/useProfileForm";
 import PersonalInfoTab from "../components/profile/PersonalInfoTab";
 import ExperienceTab from "../components/profile/ExperienceTab";
 import EducationTab from "../components/profile/EducationTab";
 import PerformanceTab from "../components/profile/PerformanceTab";
-import AssessmentsTab from "../components/profile/AssessmentsTab";
 
 const tabs = [
   { id: "personal", label: "Personal Info", icon: User },
   { id: "experience", label: "Experience", icon: Briefcase },
   { id: "education", label: "Education", icon: GraduationCap },
   { id: "performance", label: "Performance", icon: Star },
-  { id: "assessments", label: "Assessments", icon: Brain },
 ];
 
 function JobSeekerProfile() {
@@ -131,8 +129,6 @@ function JobSeekerProfile() {
         )}
 
         {activeTab === "performance" && <PerformanceTab formData={profile.formData} />}
-
-        {activeTab === "assessments" && <AssessmentsTab formData={profile.formData} />}
 
         {/* Save Button */}
         <div className="pt-6">

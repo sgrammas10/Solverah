@@ -302,7 +302,7 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
         </p>
         <button
           type="button"
-          onClick={() => navigate("/job-seeker/profile?tab=assessments")}
+          onClick={() => navigate("/intelligence")}
           className="border border-cream-muted bg-white text-ink-secondary text-sm font-semibold px-5 py-2.5 rounded hover:border-forest-pale hover:text-forest-mid transition-colors"
         >
           Back to Assessments
@@ -566,7 +566,7 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
               </button>
               <button
                 type="button"
-                onClick={() => navigate("/job-seeker/profile?tab=assessments")}
+                onClick={() => navigate("/intelligence")}
                 className="border border-cream-muted bg-white text-ink-secondary text-sm font-semibold px-5 py-2.5 rounded-full hover:border-forest-pale hover:text-forest-mid transition-colors"
               >
                 Back to Assessments
@@ -703,7 +703,7 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
         onClose={handleInsightClose}
         onViewInsights={handleViewInsights}
         onBackToAssessments={() =>
-          navigate(guest ? "/quiz-preview" : "/job-seeker/profile?tab=assessments")
+          navigate(guest ? "/quiz-preview" : "/intelligence")
         }
         backLabel={guest ? "Back to quizzes" : undefined}
         viewLabel={guest ? "View insights" : undefined}
