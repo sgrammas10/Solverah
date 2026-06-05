@@ -263,6 +263,14 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/intelligence"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
+                    <IntelligencePage />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* CompanyLens */}
               <Route
