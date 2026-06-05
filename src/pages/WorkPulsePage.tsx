@@ -1,10 +1,19 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWP } from "../hooks/useWP";
+import { useAuth } from "../contexts/useAuth";
 import WPStepper from "../components/wp/WPStepper";
 
 export default function WorkPulsePage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { state, setAnswer } = useWP();
+
+  useEffect(() => {
+    if (user?.wpl_completed) {
+      navigate("/work-pulse/results", { replace: true });
+    }
+  }, [user?.wpl_completed, navigate]);
 
   function handleComplete() {
     navigate("/work-pulse/results");
