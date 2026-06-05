@@ -62,11 +62,6 @@ function MatchRow({ match, accent }: MatchRowProps) {
       <span className="font-semibold text-sm text-ink-primary min-w-0 truncate flex-1">
         {match.name}
       </span>
-      {match.industry && (
-        <span className="text-xs text-ink-secondary hidden sm:block shrink-0">
-          {match.industry}
-        </span>
-      )}
       <span
         className={`text-sm font-semibold shrink-0 ${
           accent === "forest" ? "text-forest-dark" : "text-amber-600"
