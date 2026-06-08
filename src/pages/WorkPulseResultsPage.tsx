@@ -124,6 +124,15 @@ export default function WorkPulseResultsPage() {
     <div className="min-h-screen bg-cream-base">
       <div className="mx-auto max-w-2xl px-6 pt-12 pb-20 space-y-8">
 
+        {/* Back nav */}
+        <button
+          type="button"
+          onClick={() => navigate("/intelligence")}
+          className="flex items-center gap-1.5 text-sm font-semibold text-forest-dark hover:underline"
+        >
+          <span aria-hidden>←</span> Intelligence Hub
+        </button>
+
         {/* Header */}
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
@@ -187,10 +196,10 @@ export default function WorkPulseResultsPage() {
           </p>
           <button
             type="button"
-            onClick={() => navigate("/solverah-profile")}
-            className="mt-3 text-sm font-semibold text-forest-dark hover:underline"
+            onClick={() => navigate("/intelligence")}
+            className="mt-4 w-full bg-forest-dark text-white font-semibold py-3.5 rounded hover:bg-forest-mid transition-colors"
           >
-            View your Solverah profile →
+            Go to Intelligence Hub →
           </button>
         </div>
 
