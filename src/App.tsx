@@ -53,6 +53,8 @@ import AgentChat from "./pages/AgentChat";
 import CareerIntakePage from "./pages/CareerIntakePage";
 import WorkPulsePage from "./pages/WorkPulsePage";
 import WorkPulseResultsPage from "./pages/WorkPulseResultsPage";
+import FocusTypePage from "./pages/FocusTypePage";
+import FocusTypeResultsPage from "./pages/FocusTypeResultsPage";
 import IntelligencePage from "./pages/IntelligencePage";
 import CompanyDetailPage from "./pages/CompanyDetailPage";
 import CompanyLensPage from "./pages/CompanyLensPage";
@@ -268,6 +270,24 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <IntelligencePage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* FocusType routes */}
+              <Route
+                path="/focus-type"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
+                    <FocusTypePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/focus-type/results"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
+                    <FocusTypeResultsPage />
                   </ProtectedRoute>
                 }
               />
