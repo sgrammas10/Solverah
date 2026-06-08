@@ -7,13 +7,13 @@ import WPStepper from "../components/wp/WPStepper";
 export default function WorkPulsePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { state, setAnswer } = useWP();
+  const { state, isComplete, setAnswer } = useWP();
 
   useEffect(() => {
-    if (user?.wpl_completed) {
+    if (user?.wpl_completed || isComplete) {
       navigate("/work-pulse/results", { replace: true });
     }
-  }, [user?.wpl_completed, navigate]);
+  }, [user?.wpl_completed, isComplete, navigate]);
 
   function handleComplete() {
     navigate("/work-pulse/results");
