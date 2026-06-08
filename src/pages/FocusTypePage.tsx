@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/useAuth";
 import Scene1 from "../components/focustype/Scene1";
 import Scene2 from "../components/focustype/Scene2";
+import Scene3 from "../components/focustype/Scene3";
+import Scene4 from "../components/focustype/Scene4";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -41,57 +43,14 @@ export interface FocusTypeResult {
 type Phase = "intro" | "scenes" | "submitting" | "error";
 
 // ---------------------------------------------------------------------------
-// Placeholder props for scenes still pending implementation (SOL-28/29)
+// Placeholder props for scene still pending implementation (SOL-29)
 // ---------------------------------------------------------------------------
 
-interface Scene3Props { onComplete: (payload: Scene3Payload) => void }
-interface Scene4Props { onComplete: (payload: Scene4Payload) => void }
 interface Scene5Props { onComplete: (payload: Scene5Payload) => void }
 
 // ---------------------------------------------------------------------------
-// Scene placeholders — Scene 1 & 2 now live in components/focustype/
+// Scene placeholder — Scene 1–4 now live in components/focustype/
 // ---------------------------------------------------------------------------
-
-function Scene3({ onComplete }: Scene3Props) {
-  return (
-    <ScenePlaceholder
-      title="The Free Day"
-      description="Allocate 4 hours across five activities using sliders."
-      onComplete={() =>
-        onComplete({
-          deep_solo: 2.0,
-          planning: 0.5,
-          social: 0.5,
-          breaks: 0.5,
-          exploring: 0.5,
-        })
-      }
-    />
-  );
-}
-
-function Scene4({ onComplete }: Scene4Props) {
-  return (
-    <ScenePlaceholder
-      title="The 2:30 Crash"
-      description="Decide NOW or TOMORROW for each task — 3 seconds per card."
-      onComplete={() =>
-        onComplete({
-          now: ["reply_teammate", "sketch_tomorrow_plan"],
-          tomorrow: [
-            "write_report_draft",
-            "update_task_tracker",
-            "quick_call_unblock",
-            "deep_research",
-            "send_followup_email",
-            "review_others_work",
-          ],
-          avg_decision_time_ms: 1200,
-        })
-      }
-    />
-  );
-}
 
 function Scene5({ onComplete }: Scene5Props) {
   return (
