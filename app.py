@@ -2951,6 +2951,57 @@ def work_pulse_submit():
     return jsonify(result)
 
 
+@limiter.limit("5 per minute")
+@app.post("/api/focus-type/submit")
+@jwt_required()
+def focus_type_submit():
+    """POST /api/focus-type/submit — Score and persist a FocusType result (authenticated).
+
+    Accepts the 5 scene payloads, runs deterministic scoring, and persists the
+    archetype result to ``user.profile_data["focus_type_result"]``.
+
+    Body (JSON):
+        scene_1 (list): Card IDs in priority order.
+        scene_2 (dict): {"now": [...], "later": [...], "ignore": [...]}.
+        scene_3 (dict): {"deep_solo": float, "planning": float, "social": float,
+                         "breaks": float, "exploring": float}.
+        scene_4 (dict): {"now": [...], "tomorrow": [...], "avg_decision_time_ms": int}.
+        scene_5 (list): Block IDs in timeline order.
+
+    Returns:
+        200 {"archetype": str, "dimension_scores": {...}, "recommendations": [...]}
+        400 if any scene payload is missing
+        401 if unauthenticated
+        404 if user not found
+    """
+    from focus_type.score import score_focus_type
+
+    data = request.get_json(silent=True) or {}
+    missing = [f"scene_{i}" for i in range(1, 6) if f"scene_{i}" not in data]
+    if missing:
+        return jsonify({"error": f"Missing scene payloads: {', '.join(missing)}"}), 400
+
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    result = score_focus_type(
+        data["scene_1"],
+        data["scene_2"],
+        data["scene_3"],
+        data["scene_4"],
+        data["scene_5"],
+    )
+
+    profile = dict(user.profile_data or {})
+    profile["focus_type_result"] = result
+    user.profile_data = profile
+    db.session.commit()
+
+    return jsonify(result)
+
+
 @app.get("/api/work-pulse/results")
 @jwt_required()
 def work_pulse_results_get():
