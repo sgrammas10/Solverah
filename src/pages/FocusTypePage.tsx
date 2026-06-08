@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/useAuth";
+import Scene1 from "../components/focustype/Scene1";
+import Scene2 from "../components/focustype/Scene2";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,60 +41,16 @@ export interface FocusTypeResult {
 type Phase = "intro" | "scenes" | "submitting" | "error";
 
 // ---------------------------------------------------------------------------
-// Scene placeholder props interfaces (actual components come in SOL-27–29)
+// Placeholder props for scenes still pending implementation (SOL-28/29)
 // ---------------------------------------------------------------------------
 
-interface Scene1Props { onComplete: (payload: Scene1Payload) => void }
-interface Scene2Props { onComplete: (payload: Scene2Payload) => void }
 interface Scene3Props { onComplete: (payload: Scene3Payload) => void }
 interface Scene4Props { onComplete: (payload: Scene4Payload) => void }
 interface Scene5Props { onComplete: (payload: Scene5Payload) => void }
 
 // ---------------------------------------------------------------------------
-// Scene placeholders — replaced by real implementations in SOL-27 through SOL-29
+// Scene placeholders — Scene 1 & 2 now live in components/focustype/
 // ---------------------------------------------------------------------------
-
-function Scene1({ onComplete }: Scene1Props) {
-  return (
-    <ScenePlaceholder
-      title="The Morning Stack"
-      description="Drag six tasks into the order you'd actually tackle them."
-      onComplete={() =>
-        onComplete([
-          "big_project",
-          "planning_doc",
-          "urgent_client",
-          "teammate_feedback",
-          "emails",
-          "admin_tasks",
-        ])
-      }
-    />
-  );
-}
-
-function Scene2({ onComplete }: Scene2Props) {
-  return (
-    <ScenePlaceholder
-      title="The Inbox Flood"
-      description="Drag each notification into NOW, LATER, or IGNORE."
-      onComplete={() =>
-        onComplete({
-          now: ["email_client_important", "slack_mentioned"],
-          later: ["calendar_meeting_invite", "task_new_ticket"],
-          ignore: [
-            "email_newsletter",
-            "task_planning_doc",
-            "slack_team_channel",
-            "email_system_report",
-            "calendar_team_lunch",
-            "slack_teammate_question",
-          ],
-        })
-      }
-    />
-  );
-}
 
 function Scene3({ onComplete }: Scene3Props) {
   return (
