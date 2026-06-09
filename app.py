@@ -206,6 +206,24 @@ def _parse_bool_env(value, default: bool) -> bool:
 
 is_production = _is_production()
 
+
+# Flask-CORS 5.x: pass resources as a path pattern and all options at the top level.
+# Nesting options inside the resources dict (4.x style) silently produces no headers in 5.x.
+CORS(
+    app,
+    resources=r"/api/*",
+    origins=[
+        r"http://localhost:\d+",
+        r"http://127\.0\.0\.1:\d+",
+        "https://solverah.vercel.app",
+        "https://solverah.com",
+        "https://www.solverah.com",
+        "https://api.solverah.com",
+    ],
+    supports_credentials=True,
+    allow_headers=["Content-Type", "X-CSRF-TOKEN"],
+)
+
 # Security headers with Talisman for CSP
 Talisman(
     app,
@@ -217,25 +235,6 @@ Talisman(
     strict_transport_security_max_age=31536000 if is_production else None,
     strict_transport_security_include_subdomains=is_production,
     strict_transport_security_preload=is_production,
-)
-
-
-# update to the one above when domain is ready
-CORS(
-    app,
-    resources={r"/api/*": {
-        "origins": [
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "https://solverah.vercel.app",
-            "https://solverah.com",
-            "https://www.solverah.com",
-            r"^https://.*\.vercel\.app$",
-        ],
-        # "allow_origin_regex": r"^https://.*\.vercel\.app$",
-    }},
-    supports_credentials=True,
-    allow_headers=["Content-Type", "X-CSRF-TOKEN"],
 )
 
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ["DATABASE_URL"]
@@ -1631,6 +1630,9 @@ def login():
             "email": user.email,
             "name": user.name,
             "role": user.role,
+            "profileData": user.profile_data or {},
+            "wpl_completed": bool(user.intake and user.intake.wpl_completed_at),
+            "wpll_completed": bool(user.intake and user.intake.wpll_completed_at),
         }
     })
 
@@ -2947,6 +2949,57 @@ def work_pulse_submit():
     except Exception:
         db.session.rollback()
         app.logger.exception("Work Pulse: failed to persist narrative/result blob")
+
+    return jsonify(result)
+
+
+@limiter.limit("5 per minute")
+@app.post("/api/focus-type/submit")
+@jwt_required()
+def focus_type_submit():
+    """POST /api/focus-type/submit — Score and persist a FocusType result (authenticated).
+
+    Accepts the 5 scene payloads, runs deterministic scoring, and persists the
+    archetype result to ``user.profile_data["focus_type_result"]``.
+
+    Body (JSON):
+        scene_1 (list): Card IDs in priority order.
+        scene_2 (dict): {"now": [...], "later": [...], "ignore": [...]}.
+        scene_3 (dict): {"deep_solo": float, "planning": float, "social": float,
+                         "breaks": float, "exploring": float}.
+        scene_4 (dict): {"now": [...], "tomorrow": [...], "avg_decision_time_ms": int}.
+        scene_5 (list): Block IDs in timeline order.
+
+    Returns:
+        200 {"archetype": str, "dimension_scores": {...}, "recommendations": [...]}
+        400 if any scene payload is missing
+        401 if unauthenticated
+        404 if user not found
+    """
+    from focus_type.score import score_focus_type
+
+    data = request.get_json(silent=True) or {}
+    missing = [f"scene_{i}" for i in range(1, 6) if f"scene_{i}" not in data]
+    if missing:
+        return jsonify({"error": f"Missing scene payloads: {', '.join(missing)}"}), 400
+
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    result = score_focus_type(
+        data["scene_1"],
+        data["scene_2"],
+        data["scene_3"],
+        data["scene_4"],
+        data["scene_5"],
+    )
+
+    profile = dict(user.profile_data or {})
+    profile["focus_type_result"] = result
+    user.profile_data = profile
+    db.session.commit()
 
     return jsonify(result)
 

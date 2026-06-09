@@ -6,6 +6,7 @@ import type { WpApiResponse } from "../hooks/useWP";
 import { useAuth } from "../contexts/useAuth";
 import { useProfileForm } from "../hooks/useProfileForm";
 import AssessmentsTab from "../components/profile/AssessmentsTab";
+import type { FocusTypeResult } from "./FocusTypePage";
 
 const ECOSYSTEM_STEPS = [
   { label: "Work Pulse Lite" },
@@ -57,6 +58,8 @@ export default function IntelligencePage() {
   );
   const [result, setResult] = useState<WpApiResponse | null>(state.cachedResult);
   const hasFiredRef = useRef(false);
+
+  const focusTypeResult = user?.profileData?.focus_type_result as FocusTypeResult | undefined;
 
   const fetchFromServer = useCallback(async () => {
     setFetchState("loading");
@@ -152,7 +155,7 @@ export default function IntelligencePage() {
         {/* Progress indicator */}
         <div className="flex items-start gap-2 sm:gap-4 overflow-x-auto pb-1">
           {ECOSYSTEM_STEPS.map((step, i) => {
-            const complete = i < 2;
+            const complete = i < 2 || (i === 2 && !!focusTypeResult);
             return (
               <div key={step.label} className="flex flex-col items-center gap-1.5 min-w-[56px]">
                 <div
@@ -209,10 +212,73 @@ export default function IntelligencePage() {
           </button>
         </div>
 
-        {/* Locked ecosystem cards */}
+        {/* Ecosystem cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {LOCKED_CARDS.map((card) => {
             const isCompanyLens = card.title === "CompanyLens™";
+            const isFocusType = card.title === "FocusType™";
+
+            // FocusType — completed state
+            if (isFocusType && focusTypeResult) {
+              return (
+                <div
+                  key={card.title}
+                  className="rounded-xl border border-forest-light bg-forest-pale px-5 py-5"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-1">
+                    ✦ Unlocked · FocusType™
+                  </p>
+                  <p className="font-display text-lg font-semibold text-forest-dark mb-3">
+                    {focusTypeResult.archetype}
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate("/focus-type/results", {
+                          state: { result: focusTypeResult },
+                        })
+                      }
+                      className="text-sm font-semibold text-forest-dark hover:underline"
+                    >
+                      View results →
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate("/focus-type")}
+                      className="text-xs text-ink-tertiary hover:underline"
+                    >
+                      Retake
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            // FocusType — not yet completed
+            if (isFocusType) {
+              return (
+                <div
+                  key={card.title}
+                  className="rounded-xl border border-cream-muted bg-white px-5 py-5"
+                >
+                  <p className="text-sm font-semibold text-ink-primary">{card.title}</p>
+                  <p className="text-xs text-ink-secondary mt-0.5 mb-2">{card.subtitle}</p>
+                  <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+                    {card.description}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/focus-type")}
+                    className="bg-forest-dark text-white font-semibold px-3 py-1.5 rounded text-xs hover:bg-forest-mid"
+                  >
+                    Start FocusType™ →
+                  </button>
+                </div>
+              );
+            }
+
+            // All other cards
             return (
               <div
                 key={card.title}
