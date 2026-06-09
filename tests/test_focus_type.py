@@ -274,7 +274,7 @@ class TestScene5:
 
     def test_plan_organize_first_scores_structure_need(self):
         from focus_type.score import _score_scene_5
-        s = _score_scene_5(["plan_organize", "sprint", "break"])
+        s = _score_scene_5(["planning", "focused_sprint", "break"])
         assert s["structure_need"] == 2
 
     def test_teammate_checkin_scores_social_fuel(self):
@@ -284,9 +284,9 @@ class TestScene5:
 
     def test_sprint_break_second_sprint_order_scores_burst_energy(self):
         from focus_type.score import _score_scene_5
-        # Leading with sprint also fires the +1 "leads with sprint" rule,
+        # Leading with focused_sprint also fires the +1 "leads with sprint" rule,
         # so total burst_energy = +2 (ordered sprints) + +1 (leads) = 3.
-        s = _score_scene_5(["sprint", "break", "second_sprint"])
+        s = _score_scene_5(["focused_sprint", "break", "second_sprint"])
         assert s["burst_energy"] == 3
 
     def test_no_break_scores_urgency_and_deep(self):
@@ -297,7 +297,7 @@ class TestScene5:
 
     def test_leads_with_sprint_not_deep_work_scores_burst_energy_plus_1(self):
         from focus_type.score import _score_scene_5
-        s = _score_scene_5(["sprint", "wind_down"])
+        s = _score_scene_5(["focused_sprint", "wind_down"])
         assert s["burst_energy"] == 1
 
 
