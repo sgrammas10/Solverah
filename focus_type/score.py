@@ -159,14 +159,14 @@ def _score_scene_5(scene_5: list[str]) -> dict[str, int]:
         scores["deep_focus"] += 2
 
     # Two sprint blocks with a break between them (positional order)
-    if "sprint" in scene_5 and "second_sprint" in scene_5 and "break" in scene_5:
-        sprint_idx        = scene_5.index("sprint")
+    if "focused_sprint" in scene_5 and "second_sprint" in scene_5 and "break" in scene_5:
+        sprint_idx        = scene_5.index("focused_sprint")
         second_sprint_idx = scene_5.index("second_sprint")
         break_idx         = scene_5.index("break")
         if sprint_idx < break_idx < second_sprint_idx:
             scores["burst_energy"] += 2
 
-    if leads_with == "plan_organize":
+    if leads_with == "planning":
         scores["structure_need"] += 2
 
     if "teammate_checkin" in scene_5:
@@ -176,7 +176,7 @@ def _score_scene_5(scene_5: list[str]) -> dict[str, int]:
         scores["urgency_drive"] += 1
         scores["deep_focus"] += 1
 
-    if leads_with == "sprint":
+    if leads_with == "focused_sprint":
         scores["burst_energy"] += 1
 
     return scores
