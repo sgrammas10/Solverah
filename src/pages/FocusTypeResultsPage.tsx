@@ -1,4 +1,5 @@
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
+import { useAuth } from "../contexts/useAuth";
 import type { FocusTypeResult } from "./FocusTypePage";
 
 const ARCHETYPE_DESCRIPTIONS: Record<string, string> = {
@@ -22,7 +23,10 @@ const DIMENSION_LABELS: Record<string, string> = {
 export default function FocusTypeResultsPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const result = (location.state as { result?: FocusTypeResult } | null)?.result;
+  const { user } = useAuth();
+  const result =
+    (location.state as { result?: FocusTypeResult } | null)?.result ??
+    (user?.profileData?.focus_type_result as FocusTypeResult | undefined);
 
   if (!result) {
     return <Navigate to="/focus-type" replace />;

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/useAuth";
 import Scene1 from "../components/focustype/Scene1";
@@ -73,12 +73,19 @@ function SceneIndicator({ current, total }: { current: number; total: number }) 
 
 export default function FocusTypePage() {
   const navigate = useNavigate();
-  const { fetchWithAuth, updateProfileData } = useAuth();
+  const { fetchWithAuth, updateProfileData, user } = useAuth();
 
   const [phase, setPhase] = useState<Phase>("intro");
   const [currentScene, setCurrentScene] = useState(1);
   const [scenePayloads, setScenePayloads] = useState<ScenePayloads>({});
   const hasFiredRef = useRef(false);
+
+  const savedResult = user?.profileData?.focus_type_result as FocusTypeResult | undefined;
+  useEffect(() => {
+    if (savedResult) {
+      navigate("/focus-type/results", { replace: true, state: { result: savedResult } });
+    }
+  }, [savedResult, navigate]);
 
   const submit = useCallback(
     async (payloads: ScenePayloads) => {
