@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/useAuth";
 import Scene1 from "../components/focustype/Scene1";
 import Scene2 from "../components/focustype/Scene2";
@@ -73,6 +73,8 @@ function SceneIndicator({ current, total }: { current: number; total: number }) 
 
 export default function FocusTypePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isRetake = (location.state as { retake?: boolean } | null)?.retake === true;
   const { fetchWithAuth, updateProfileData, user } = useAuth();
 
   const [phase, setPhase] = useState<Phase>("intro");
@@ -82,10 +84,10 @@ export default function FocusTypePage() {
 
   const savedResult = user?.profileData?.focus_type_result as FocusTypeResult | undefined;
   useEffect(() => {
-    if (savedResult) {
+    if (savedResult && !isRetake) {
       navigate("/focus-type/results", { replace: true, state: { result: savedResult } });
     }
-  }, [savedResult, navigate]);
+  }, [savedResult, isRetake, navigate]);
 
   const submit = useCallback(
     async (payloads: ScenePayloads) => {

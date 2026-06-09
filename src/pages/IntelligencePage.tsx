@@ -245,7 +245,7 @@ export default function IntelligencePage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => navigate("/focus-type")}
+                      onClick={() => navigate("/focus-type", { state: { retake: true } })}
                       className="text-xs text-ink-tertiary hover:underline"
                     >
                       Retake
