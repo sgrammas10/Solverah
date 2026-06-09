@@ -206,6 +206,24 @@ def _parse_bool_env(value, default: bool) -> bool:
 
 is_production = _is_production()
 
+
+# Flask-CORS 5.x: pass resources as a path pattern and all options at the top level.
+# Nesting options inside the resources dict (4.x style) silently produces no headers in 5.x.
+CORS(
+    app,
+    resources=r"/api/*",
+    origins=[
+        r"http://localhost:\d+",
+        r"http://127\.0\.0\.1:\d+",
+        "https://solverah.vercel.app",
+        "https://solverah.com",
+        "https://www.solverah.com",
+        "https://api.solverah.com",
+    ],
+    supports_credentials=True,
+    allow_headers=["Content-Type", "X-CSRF-TOKEN"],
+)
+
 # Security headers with Talisman for CSP
 Talisman(
     app,
@@ -217,25 +235,6 @@ Talisman(
     strict_transport_security_max_age=31536000 if is_production else None,
     strict_transport_security_include_subdomains=is_production,
     strict_transport_security_preload=is_production,
-)
-
-
-# update to the one above when domain is ready
-CORS(
-    app,
-    resources={r"/api/*": {
-        "origins": [
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "https://solverah.vercel.app",
-            "https://solverah.com",
-            "https://www.solverah.com",
-            r"^https://.*\.vercel\.app$",
-        ],
-        # "allow_origin_regex": r"^https://.*\.vercel\.app$",
-    }},
-    supports_credentials=True,
-    allow_headers=["Content-Type", "X-CSRF-TOKEN"],
 )
 
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ["DATABASE_URL"]
