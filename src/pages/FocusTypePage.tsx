@@ -5,6 +5,7 @@ import Scene1 from "../components/focustype/Scene1";
 import Scene2 from "../components/focustype/Scene2";
 import Scene3 from "../components/focustype/Scene3";
 import Scene4 from "../components/focustype/Scene4";
+import Scene5 from "../components/focustype/Scene5";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -41,58 +42,6 @@ export interface FocusTypeResult {
 }
 
 type Phase = "intro" | "scenes" | "submitting" | "error";
-
-// ---------------------------------------------------------------------------
-// Placeholder props for scene still pending implementation (SOL-29)
-// ---------------------------------------------------------------------------
-
-interface Scene5Props { onComplete: (payload: Scene5Payload) => void }
-
-// ---------------------------------------------------------------------------
-// Scene placeholder — Scene 1–4 now live in components/focustype/
-// ---------------------------------------------------------------------------
-
-function Scene5({ onComplete }: Scene5Props) {
-  return (
-    <ScenePlaceholder
-      title="The Evening Build"
-      description="Drag task blocks onto the timeline to plan your evening."
-      onComplete={() => onComplete(["deep_work", "break", "second_sprint", "wind_down"])}
-    />
-  );
-}
-
-// Shared placeholder shell used by all scene stubs above
-function ScenePlaceholder({
-  title,
-  description,
-  onComplete,
-}: {
-  title: string;
-  description: string;
-  onComplete: () => void;
-}) {
-  return (
-    <div className="rounded-xl border border-cream-muted bg-white px-6 py-10 flex flex-col items-center text-center gap-6">
-      <div className="space-y-2">
-        <p className="font-display text-xl font-semibold text-ink-primary">{title}</p>
-        <p className="text-sm text-ink-secondary leading-relaxed max-w-xs">{description}</p>
-      </div>
-      <div className="rounded-lg border border-dashed border-cream-muted bg-cream-subtle px-8 py-6 w-full">
-        <p className="text-xs text-ink-tertiary italic">
-          Scene component coming in SOL-27 / SOL-28 / SOL-29
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={onComplete}
-        className="bg-forest-dark text-white font-semibold px-8 py-3 rounded hover:bg-forest-mid transition-colors text-sm"
-      >
-        Complete scene →
-      </button>
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Progress indicator
