@@ -1630,6 +1630,8 @@ def login():
             "email": user.email,
             "name": user.name,
             "role": user.role,
+            "wpl_completed": bool(user.intake and user.intake.wpl_completed_at),
+            "wpll_completed": bool(user.intake and user.intake.wpll_completed_at),
         }
     })
 
