@@ -73,7 +73,7 @@ function SceneIndicator({ current, total }: { current: number; total: number }) 
 
 export default function FocusTypePage() {
   const navigate = useNavigate();
-  const { fetchWithAuth } = useAuth();
+  const { fetchWithAuth, updateProfileData } = useAuth();
 
   const [phase, setPhase] = useState<Phase>("intro");
   const [currentScene, setCurrentScene] = useState(1);
@@ -91,6 +91,7 @@ export default function FocusTypePage() {
           method: "POST",
           body: JSON.stringify(payloads),
         });
+        updateProfileData({ focus_type_result: result });
         navigate("/focus-type/results", { state: { result } });
       } catch {
         hasFiredRef.current = false;
