@@ -1,5 +1,6 @@
 Flask
 Flask-Bcrypt
+requests
 Flask-JWT-Extended
 Flask-Cors
 Flask-Limiter
