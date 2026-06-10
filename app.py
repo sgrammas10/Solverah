@@ -755,6 +755,69 @@ def _build_wp_narrative_prompt(
     ]
 
 
+def _build_mm_narrative_prompt(
+    answers: list[dict],
+    archetype: str,
+    dimension_scores: dict[str, float],
+) -> list[dict]:
+    """Construct system + user messages for the ManagerMatch narrative OpenAI call.
+
+    Maps each answer's question_id to human-readable option text so the model
+    sees real sentences rather than IDs.
+
+    Args:
+        answers:          15 ManagerMatch answers, each {question_id, choice}.
+        archetype:        The classified archetype string.
+        dimension_scores: Four dimension floats from score_manager_match.
+
+    Returns:
+        Two-element list of OpenAI chat message dicts (system, user).
+    """
+    from manager_match.questions import QUESTIONS
+
+    q_lookup = {q["question_id"]: q for q in QUESTIONS}
+
+    formatted_answers = []
+    for ans in answers:
+        q_id = ans.get("question_id", "")
+        choice = ans.get("choice", "")
+        q = q_lookup.get(q_id)
+        if not q:
+            continue
+        option_text = q["option_a_text"] if choice == "a" else q["option_b_text"]
+        formatted_answers.append({
+            "question_id": q_id,
+            "dimension": q["dimension"],
+            "selected": option_text,
+        })
+
+    system = (
+        "You are Solverah's ManagerMatch engine. Based on a user's forced-choice "
+        "assessment responses, generate a personalised management style analysis. "
+        "Write in second person (\"you\"). Be specific — never generic. Reference "
+        "patterns from their actual answers. Return a JSON object with exactly these "
+        "four keys: narrative (2–3 paragraphs describing the user's management "
+        "preferences and why they work that way — do not open with the archetype "
+        "name), what_to_look_for (list of 3–4 concrete strings the user can probe "
+        "for in interviews), red_flags (list of 2–3 management behaviours that will "
+        "create friction for this person), archetype_description (2 sentences — what "
+        "this archetype means in practice for this user)."
+    )
+
+    user_payload = {
+        "archetype": archetype,
+        "dimension_scores": {
+            f"{k} (0.0–1.0)": round(v, 3) for k, v in dimension_scores.items()
+        },
+        "answers": formatted_answers,
+    }
+
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": json.dumps(user_payload)},
+    ]
+
+
 def _build_wpll_insight_prompt(answers: list[dict]) -> tuple[str, str]:
     """Construct system + user messages for the Work Pulse Lite Lite insight call.
 
@@ -3034,6 +3097,98 @@ def work_pulse_results_get():
         return jsonify({"error": "Work Pulse results pending — please resubmit"}), 422
 
     return jsonify(intake.wpl_result)
+
+
+@limiter.limit("5 per minute")
+@app.post("/api/manager-match/submit")
+@jwt_required()
+def manager_match_submit():
+    """POST /api/manager-match/submit — Score and persist a ManagerMatch result (authenticated).
+
+    Validates 15 forced-choice answers, runs deterministic scoring, calls OpenAI
+    to generate a personalised narrative, then persists the full result to
+    ``user.profile_data["manager_match_result"]``.
+
+    Body (JSON):
+        answers (list): Exactly 15 objects with ``question_id`` and ``choice`` ("a"|"b").
+
+    Returns:
+        200 {"archetype": str, "dimension_scores": {...}, "narrative": str,
+             "what_to_look_for": [...], "red_flags": [...], "archetype_description": str}
+        400 on missing, wrong-length, or invalid answers
+        401 if unauthenticated
+        404 if user not found
+        500 on OpenAI failure or malformed model response
+    """
+    from manager_match.score import score_manager_match
+
+    data = request.get_json(silent=True) or {}
+    answers = data.get("answers")
+
+    if not isinstance(answers, list) or len(answers) != 15:
+        return jsonify({"error": "answers must be a list of exactly 15 items"}), 400
+
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    try:
+        scoring = score_manager_match(answers)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    try:
+        client = _get_openai_client()
+        model = os.environ.get("OPENAI_WP_MODEL", "gpt-4o-mini")
+        messages = _build_mm_narrative_prompt(
+            answers, scoring["archetype"], scoring["dimension_scores"]
+        )
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            response_format={"type": "json_object"},
+        )
+        content = response.choices[0].message.content or "{}"
+        llm_result = json.loads(content)
+    except Exception:
+        app.logger.exception("ManagerMatch narrative generation failed")
+        return jsonify({"error": "Unable to generate ManagerMatch results"}), 500
+
+    required_keys = ("narrative", "what_to_look_for", "red_flags", "archetype_description")
+    if not all(k in llm_result for k in required_keys):
+        return jsonify({"error": "Malformed response from model"}), 500
+
+    result = {**scoring, **llm_result}
+
+    profile = dict(user.profile_data or {})
+    profile["manager_match_result"] = result
+    user.profile_data = profile
+    db.session.commit()
+
+    return jsonify(result), 200
+
+
+@app.get("/api/manager-match/results")
+@jwt_required()
+def manager_match_results_get():
+    """GET /api/manager-match/results — Retrieve persisted ManagerMatch result for the current user.
+
+    Returns:
+        200 with the stored result dict
+        404 if no result has been saved yet
+        401 if unauthenticated
+    """
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    result = (user.profile_data or {}).get("manager_match_result")
+    if result is None:
+        return jsonify({"error": "No ManagerMatch result found"}), 404
+
+    return jsonify(result)
 
 
 @app.get("/api/companies/<int:company_id>")
