@@ -58,6 +58,8 @@ import FocusTypeResultsPage from "./pages/FocusTypeResultsPage";
 import IntelligencePage from "./pages/IntelligencePage";
 import CompanyDetailPage from "./pages/CompanyDetailPage";
 import CompanyLensPage from "./pages/CompanyLensPage";
+import ManagerMatchPage from "./pages/ManagerMatchPage";
+import ManagerMatchResultsPage from "./pages/ManagerMatchResultsPage";
 
 /**
  * ProtectedRoute — Wraps a route element with authentication and role checks.
@@ -288,6 +290,24 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <FocusTypeResultsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* ManagerMatch routes */}
+              <Route
+                path="/manager-match"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
+                    <ManagerMatchPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/manager-match/results"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
+                    <ManagerMatchResultsPage />
                   </ProtectedRoute>
                 }
               />
