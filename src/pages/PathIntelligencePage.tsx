@@ -1,24 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/useAuth";
+import type { PathSuggestionsResponse } from "../types/pathIntelligence";
+import PathSuggestionList from "../components/PathIntelligence/PathSuggestionList";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-export interface PathSuggestion {
-  onet_code: string;
-  title: string;
-  why_text: string;
-  profile_dimensions: string[];
-  match_score: number;
-}
-
-export interface PathSuggestionsResponse {
-  suggestions: PathSuggestion[];
-  career_status: string;
-  generated_at: string;
-}
 
 type FetchState = "loading" | "error" | "career_status_not_set" | "success";
 
@@ -67,29 +55,15 @@ function CareerStatusOnboardingPrompt() {
   );
 }
 
-// Placeholder — will be replaced by the full component in SOL-37.
-function PathSuggestionCards({ suggestions }: { suggestions: PathSuggestion[] }) {
-  return (
-    <div className="space-y-4">
-      {suggestions.map((s) => (
-        <div
-          key={s.onet_code}
-          className="rounded-xl border border-cream-muted bg-white px-5 py-5"
-        >
-          <p className="font-semibold text-ink-primary">{s.title}</p>
-          <p className="text-xs text-ink-secondary mt-1">{s.why_text}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
 export default function PathIntelligencePage() {
-  const { fetchWithAuth } = useAuth();
+  const { fetchWithAuth, user } = useAuth();
+  const experience =
+    (user?.profileData?.experience as Array<{ position?: string }> | undefined) ?? [];
+  const currentTitle = experience[0]?.position ?? null;
   const [fetchState, setFetchState] = useState<FetchState>("loading");
   const [data, setData] = useState<PathSuggestionsResponse | null>(null);
   const hasFiredRef = useRef(false);
@@ -166,7 +140,11 @@ export default function PathIntelligencePage() {
 
         {/* Success */}
         {fetchState === "success" && data && (
-          <PathSuggestionCards suggestions={data.suggestions} />
+          <PathSuggestionList
+            suggestions={data.suggestions}
+            currentTitle={currentTitle}
+            careerStatus={data.career_status}
+          />
         )}
 
       </div>
