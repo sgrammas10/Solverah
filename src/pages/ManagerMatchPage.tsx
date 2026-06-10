@@ -4,12 +4,13 @@ import { useAuth } from "../contexts/useAuth";
 import { useMM } from "../hooks/useMM";
 import type { MMAnswer, MMResult } from "../hooks/useMM";
 import { MM_QUESTIONS } from "../data/mmQuestions";
+import HeroNetworkAnimation from "../components/HeroNetworkAnimation";
 
 type Phase = 'intro' | 'questions' | 'submitting' | 'error';
 
 function QuestionIndicator({ current, total }: { current: number; total: number }) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center justify-center gap-3">
       <p className="text-xs font-semibold uppercase tracking-widest text-ink-tertiary">
         Question {current} of {total}
       </p>
@@ -174,22 +175,27 @@ export default function ManagerMatchPage() {
   const question = MM_QUESTIONS[questionIndex];
 
   return (
-    <div className="min-h-screen bg-cream-base">
-      <div className="mx-auto max-w-2xl px-6 pt-10 pb-20 space-y-8">
+    <div className="relative min-h-screen bg-cream-base overflow-hidden flex flex-col justify-start px-6 pt-[26vh] pb-16">
+      <HeroNetworkAnimation theme="light" />
+      <div className="relative z-10 mx-auto w-full max-w-3xl space-y-10">
         <QuestionIndicator current={questionIndex + 1} total={MM_QUESTIONS.length} />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <p className="text-xs font-semibold uppercase tracking-widest text-ink-tertiary text-center">
+          Which feels more like you?
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <button
             type="button"
             onClick={() => handleAnswer('a')}
-            className="rounded-lg border border-cream-muted bg-white px-6 py-6 text-sm text-ink-primary text-center leading-relaxed hover:border-forest-light transition-colors"
+            className="rounded-xl border-2 border-cream-muted bg-white/80 backdrop-blur-sm px-8 py-10 text-base text-ink-primary text-center leading-relaxed hover:border-forest-light hover:bg-forest-pale/90 transition-all duration-150 min-h-[180px] flex items-center justify-center"
           >
             {question.optionA}
           </button>
           <button
             type="button"
             onClick={() => handleAnswer('b')}
-            className="rounded-lg border border-cream-muted bg-white px-6 py-6 text-sm text-ink-primary text-center leading-relaxed hover:border-forest-light transition-colors"
+            className="rounded-xl border-2 border-cream-muted bg-white/80 backdrop-blur-sm px-8 py-10 text-base text-ink-primary text-center leading-relaxed hover:border-forest-light hover:bg-forest-pale/90 transition-all duration-150 min-h-[180px] flex items-center justify-center"
           >
             {question.optionB}
           </button>
