@@ -60,8 +60,8 @@ export default function WPStepper({ answers, onAnswer, onComplete }: WPStepperPr
               className={[
                 "w-full text-left px-5 py-3.5 rounded transition-colors text-sm flex items-center justify-between",
                 isSelected
-                  ? "border-2 border-forest-dark bg-forest-pale text-ink-primary font-medium"
-                  : "border border-cream-muted bg-white text-ink-primary hover:border-forest-light",
+                  ? "border-2 border-forest-dark bg-forest-pale/90 text-ink-primary font-medium"
+                  : "border border-cream-muted bg-white/80 backdrop-blur-sm text-ink-primary hover:border-forest-light",
               ].join(" ")}
             >
               <span>{option.text}</span>

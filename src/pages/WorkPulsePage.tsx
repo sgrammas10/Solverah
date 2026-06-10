@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useWP } from "../hooks/useWP";
 import { useAuth } from "../contexts/useAuth";
 import WPStepper from "../components/wp/WPStepper";
+import HeroNetworkAnimation from "../components/HeroNetworkAnimation";
 
 export default function WorkPulsePage() {
   const navigate = useNavigate();
@@ -20,8 +21,9 @@ export default function WorkPulsePage() {
   }
 
   return (
-    <div className="min-h-screen bg-cream-base">
-      <div className="mx-auto max-w-2xl px-6 pt-12 pb-16">
+    <div className="relative min-h-screen bg-cream-base overflow-hidden">
+      <HeroNetworkAnimation theme="light" />
+      <div className="relative z-10 mx-auto max-w-2xl px-6 pt-12 pb-16">
         <div className="mb-8 space-y-2">
           <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
             Work Pulse

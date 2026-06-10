@@ -6,6 +6,7 @@ import Scene2 from "../components/focustype/Scene2";
 import Scene3 from "../components/focustype/Scene3";
 import Scene4 from "../components/focustype/Scene4";
 import Scene5 from "../components/focustype/Scene5";
+import HeroNetworkAnimation from "../components/HeroNetworkAnimation";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -212,8 +213,9 @@ export default function FocusTypePage() {
 
   // ── Scenes ──
   return (
-    <div className="min-h-screen bg-cream-base">
-      <div className="mx-auto max-w-2xl px-6 pt-10 pb-20 space-y-8">
+    <div className="relative min-h-screen bg-cream-base overflow-hidden">
+      <HeroNetworkAnimation theme="light" />
+      <div className="relative z-10 mx-auto max-w-2xl px-6 pt-10 pb-20 space-y-8">
         {/* Progress */}
         <SceneIndicator current={currentScene} total={5} />
 
