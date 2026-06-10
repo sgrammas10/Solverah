@@ -88,6 +88,14 @@ _resume_cache: dict = {}          # resumeKey -> (text, expires_at)
 _resume_cache_lock = Lock()
 _RESUME_CACHE_TTL = 600           # 10 minutes — covers a full chat session
 
+_path_suggestions_cache: dict[int, dict] = {}  # user_id -> response payload
+_path_suggestions_cache_lock = Lock()
+
+
+def _invalidate_path_suggestions_cache(user_id: int) -> None:
+    with _path_suggestions_cache_lock:
+        _path_suggestions_cache.pop(user_id, None)
+
 def _load_resume_parser():
     """Dynamically load ``parse_resume`` from the job_descr_LLM sub-package.
 
@@ -2109,6 +2117,8 @@ def profile():
         metadata={"updated_fields": sorted(profile_data.keys()), "target_user_id": user.id},
     )
     db.session.commit()
+    if "experience" in profile_data:
+        _invalidate_path_suggestions_cache(user.id)
 
     return jsonify({
         "message": "Profile updated successfully",
@@ -3009,6 +3019,7 @@ def work_pulse_submit():
         intake.wpl_narrative = result["narrative"]
         intake.wpl_result = result
         db.session.commit()
+        _invalidate_path_suggestions_cache(user.id)
     except Exception:
         db.session.rollback()
         app.logger.exception("Work Pulse: failed to persist narrative/result blob")
@@ -3165,6 +3176,7 @@ def manager_match_submit():
     profile["manager_match_result"] = result
     user.profile_data = profile
     db.session.commit()
+    _invalidate_path_suggestions_cache(user.id)
 
     return jsonify(result), 200
 
@@ -3318,6 +3330,117 @@ def company_lens_matches():
         "total_companies_scored": total,
         "limit": limit,
     })
+
+
+@app.get("/api/intelligence/path-suggestions")
+@jwt_required()
+def path_suggestions():
+    """GET /api/intelligence/path-suggestions — Score and narrate career path suggestions for the current user.
+
+    Orchestrates path_scoring.score_paths and path_narrative.generate_narratives,
+    caching the result per user.  The cache is invalidated when the user's
+    WorkPulse results, experience entries, or ManagerMatch results are updated.
+
+    Returns:
+        200 {"suggestions": [...], "career_status": str, "generated_at": str}
+        400 {"error": "career_status_not_set"} if career_status has not been saved
+        401 if unauthenticated
+        404 if user not found
+        500 on scoring or narrative generation failure
+    """
+    from backend.services.path_scoring import UserProfile, UserSkill, score_paths
+    from backend.services.path_narrative import (
+        NarrativeGenerationError,
+        UserContext,
+        generate_narratives,
+    )
+    from backend.services.onet_client import OnetClient
+
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    with _path_suggestions_cache_lock:
+        cached = _path_suggestions_cache.get(user.id)
+    if cached is not None:
+        return jsonify(cached)
+
+    profile = user.profile_data or {}
+    career_status = profile.get("career_status")
+    if not career_status:
+        return jsonify({"error": "career_status_not_set"}), 400
+
+    skills_raw: list = profile.get("skills") or []
+    skill_levels: dict = profile.get("skill_levels") or {}
+    user_skills = [
+        UserSkill(name=s, level=skill_levels.get(s, "beginner"))
+        for s in skills_raw
+        if isinstance(s, str)
+    ]
+
+    archetype = ""
+    intake = user.intake
+    if intake and intake.wpl_result and isinstance(intake.wpl_result, dict):
+        archetype = intake.wpl_result.get("archetype", "")
+
+    current_title: str | None = None
+    experience: list = profile.get("experience") or []
+    if experience and career_status != "first_job":
+        first_exp = experience[0] if isinstance(experience[0], dict) else {}
+        current_title = first_exp.get("position") or first_exp.get("title") or None
+
+    user_profile = UserProfile(
+        current_title=current_title,
+        career_status=career_status,
+        skills=user_skills,
+        archetype=archetype,
+    )
+
+    try:
+        onet_client = OnetClient()
+        scored = score_paths(user_profile, onet_client)
+    except Exception:
+        app.logger.exception("Path scoring failed for user %s", user.id)
+        return jsonify({"error": "Unable to score career paths"}), 500
+
+    manager_match_result: dict = profile.get("manager_match_result") or {}
+    top_skills = [s for s in skills_raw[:5] if isinstance(s, str)]
+
+    user_context = UserContext(
+        archetype=archetype,
+        management_preferences=manager_match_result,
+        career_status=career_status,
+        top_skills=top_skills,
+    )
+
+    try:
+        suggestions = generate_narratives(scored, user_context)
+    except NarrativeGenerationError:
+        app.logger.exception("Path narrative generation failed for user %s", user.id)
+        return jsonify({"error": "Unable to generate path narratives"}), 500
+
+    score_map = {sp.onet_code: sp.score for sp in scored}
+
+    payload = {
+        "suggestions": [
+            {
+                "onet_code": s.onet_code,
+                "title": s.title,
+                "why_text": s.why_text,
+                "profile_dimensions": s.profile_dimensions,
+                "match_score": score_map.get(s.onet_code, 0.0),
+            }
+            for s in suggestions
+        ],
+        "career_status": career_status,
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+
+    with _path_suggestions_cache_lock:
+        _path_suggestions_cache[user.id] = payload
+
+    return jsonify(payload)
 
 
 if __name__ == "__main__":
