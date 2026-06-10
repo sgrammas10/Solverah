@@ -26,12 +26,6 @@ const LOCKED_CARDS = [
     description:
       "See which real companies match your work patterns and sustainability signals.",
   },
-  {
-    title: "Future Path Intelligence",
-    subtitle: "Sustainability and long-term direction",
-    description:
-      "Map the career paths most likely to feel sustainable and meaningful over time.",
-  },
 ];
 
 type FetchState = "loading" | "error" | "success";
@@ -308,7 +302,7 @@ export default function IntelligencePage() {
             </div>
           )}
 
-          {/* Remaining locked cards (CompanyLens, Future Path Intelligence) */}
+          {/* Remaining locked cards */}
           {LOCKED_CARDS.map((card) => {
             const isCompanyLens = card.title === "CompanyLens™";
             return (
@@ -346,6 +340,30 @@ export default function IntelligencePage() {
               </div>
             );
           })}
+
+          {/* Path Intelligence */}
+          <div className="rounded-xl border border-cream-muted bg-white px-5 py-5">
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-sm font-semibold text-ink-primary">Path Intelligence</p>
+              <span className="rounded-full bg-forest-pale border border-forest-light px-2 py-0.5 text-xs font-semibold text-forest-mid">
+                Pro
+              </span>
+            </div>
+            <p className="text-xs text-ink-secondary mt-0.5 mb-2">
+              Career path scoring and guidance
+            </p>
+            <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+              See which career paths best match your skills and profile, with plain-language
+              guidance on why each one fits.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/intelligence/paths")}
+              className="bg-forest-dark text-white font-semibold px-3 py-1.5 rounded text-xs hover:bg-forest-mid transition-colors"
+            >
+              View Your Paths →
+            </button>
+          </div>
         </div>
 
         {/* Assessments section */}

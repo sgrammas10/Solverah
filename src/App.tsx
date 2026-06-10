@@ -60,6 +60,7 @@ import CompanyDetailPage from "./pages/CompanyDetailPage";
 import CompanyLensPage from "./pages/CompanyLensPage";
 import ManagerMatchPage from "./pages/ManagerMatchPage";
 import ManagerMatchResultsPage from "./pages/ManagerMatchResultsPage";
+import PathIntelligencePage from "./pages/PathIntelligencePage";
 
 /**
  * ProtectedRoute — Wraps a route element with authentication and role checks.
@@ -318,6 +319,16 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <CompanyLensPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Path Intelligence */}
+              <Route
+                path="/intelligence/paths"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
+                    <PathIntelligencePage />
                   </ProtectedRoute>
                 }
               />
