@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
     cachedResult: null as WpApiResponse | null,
   },
   setCachedResult: vi.fn(),
+  mmCachedResult: null as any,
   formData: {} as any,
 }));
 
@@ -38,6 +39,10 @@ vi.mock("../../hooks/useProfileForm", () => ({
   useProfileForm: () => ({ formData: mocks.formData }),
 }));
 
+vi.mock("../../hooks/useMM", () => ({
+  useMM: () => ({ state: { cachedResult: mocks.mmCachedResult } }),
+}));
+
 vi.mock("../../components/profile/AssessmentsTab", () => ({
   default: () => <div data-testid="assessments-tab">Assessments</div>,
 }));
@@ -46,6 +51,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.user = null;
   mocks.wpState = { answers: [], cachedResult: null };
+  mocks.mmCachedResult = null;
   mocks.formData = {};
 });
 
@@ -255,5 +261,21 @@ describe("IntelligencePage - ManagerMatch card", () => {
     renderIntelligencePage();
     // Only steps 0 and 1 are complete.
     expect(screen.getAllByText("✓")).toHaveLength(2);
+  });
+
+  it("shows completed state when result is in useMM cache (fresh submission path)", () => {
+    mocks.user = { wpl_completed: true, profileData: null };
+    mocks.mmCachedResult = {
+      archetype: "The Collaborator",
+      archetype_description: "...",
+      dimension_scores: {},
+      narrative: "...",
+      what_to_look_for: [],
+      red_flags: [],
+    };
+    mocks.wpState = { answers: [], cachedResult: MOCK_WP_RESULT };
+    renderIntelligencePage();
+    expect(screen.getByText("The Collaborator")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /view results/i })).toBeInTheDocument();
   });
 });

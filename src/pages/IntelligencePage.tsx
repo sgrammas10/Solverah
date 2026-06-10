@@ -7,6 +7,7 @@ import { useAuth } from "../contexts/useAuth";
 import { useProfileForm } from "../hooks/useProfileForm";
 import AssessmentsTab from "../components/profile/AssessmentsTab";
 import type { FocusTypeResult } from "./FocusTypePage";
+import { useMM } from "../hooks/useMM";
 import type { MMResult } from "../hooks/useMM";
 
 const ECOSYSTEM_STEPS = [
@@ -48,8 +49,11 @@ export default function IntelligencePage() {
   const [result, setResult] = useState<WpApiResponse | null>(state.cachedResult);
   const hasFiredRef = useRef(false);
 
+  const { state: mmState } = useMM();
+
   const focusTypeResult = user?.profileData?.focus_type_result as FocusTypeResult | undefined;
-  const managerMatchResult = user?.profileData?.manager_match_result as MMResult | undefined;
+  const managerMatchResult =
+    mmState.cachedResult ?? (user?.profileData?.manager_match_result as MMResult | undefined);
 
   const fetchFromServer = useCallback(async () => {
     setFetchState("loading");
