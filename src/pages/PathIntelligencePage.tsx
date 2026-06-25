@@ -46,7 +46,11 @@ function CareerStatusOnboardingPrompt() {
       </p>
       <button
         type="button"
-        onClick={() => navigate("/job-seeker/profile")}
+        onClick={() =>
+          navigate("/job-seeker/profile?tab=experience", {
+            state: { showCareerStatusModal: true },
+          })
+        }
         className="bg-forest-dark text-white font-semibold px-4 py-2 rounded text-sm hover:bg-forest-mid transition-colors"
       >
         Update Profile

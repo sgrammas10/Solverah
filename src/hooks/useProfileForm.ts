@@ -292,6 +292,17 @@ export function useProfileForm() {
       }
     }
 
+    // If any experience entry is marked as current, the user is employed.
+    // Set career_status automatically so Path Intelligence stops showing the
+    // "set your career status" prompt after the profile is saved.
+    const hasCurrentRole = (profileDataToSave.experience ?? []).some(
+      (exp: any) =>
+        ["present", "current"].includes((exp.endDate ?? "").toLowerCase())
+    );
+    if (hasCurrentRole) {
+      profileDataToSave = { ...profileDataToSave, career_status: "employed" };
+    }
+
     const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
     updateProfile?.({ name: fullName, profileComplete: true });
     updateProfileData?.(profileDataToSave);

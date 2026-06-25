@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { useLocation, useSearchParams } from "react-router-dom";
-import { User, Briefcase, GraduationCap, Star } from "lucide-react";
+import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
+import { User, Briefcase, GraduationCap, Star, X } from "lucide-react";
 import { useProfileForm } from "../hooks/useProfileForm";
+import { useAuth } from "../contexts/useAuth";
 import PersonalInfoTab from "../components/profile/PersonalInfoTab";
 import ExperienceTab from "../components/profile/ExperienceTab";
 import EducationTab from "../components/profile/EducationTab";
@@ -13,6 +14,101 @@ const tabs = [
   { id: "education", label: "Education", icon: GraduationCap },
   { id: "performance", label: "Performance", icon: Star },
 ];
+
+// ---------------------------------------------------------------------------
+// Career Status Modal
+// ---------------------------------------------------------------------------
+
+interface CareerStatusModalProps {
+  onDismiss: () => void;
+}
+
+function CareerStatusModal({ onDismiss }: CareerStatusModalProps) {
+  const { fetchWithAuth } = useAuth();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+
+  const handleSelect = async (status: "between_jobs" | "first_job") => {
+    setLoading(true);
+    try {
+      await fetchWithAuth("/profile/career-status", {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      navigate("/intelligence/paths");
+    } catch {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-ink-primary/50" onClick={onDismiss} />
+
+      {/* Modal card */}
+      <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div className="px-6 py-5 border-b border-cream-muted flex items-start justify-between gap-4">
+          <div>
+            <p className="font-semibold text-ink-primary font-display">
+              Where are you in your career?
+            </p>
+            <p className="text-sm text-ink-secondary mt-0.5">
+              We need this to generate your path suggestions.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onDismiss}
+            aria-label="Close"
+            className="shrink-0 p-1 text-ink-tertiary hover:text-ink-primary transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          <p className="text-sm text-ink-secondary leading-relaxed">
+            If you're currently employed, check{" "}
+            <span className="font-medium text-ink-primary">I currently work here</span> on your
+            most recent role below and save your profile.
+          </p>
+          <p className="text-sm text-ink-secondary">Or select your status now:</p>
+
+          <div className="space-y-2">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleSelect("between_jobs")}
+              className="w-full text-left rounded-lg border border-cream-muted bg-cream-base hover:bg-cream-subtle px-4 py-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <p className="font-medium text-sm text-ink-primary">Currently unemployed</p>
+              <p className="text-xs text-ink-secondary mt-0.5">
+                You're between roles and actively looking
+              </p>
+            </button>
+
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleSelect("first_job")}
+              className="w-full text-left rounded-lg border border-cream-muted bg-cream-base hover:bg-cream-subtle px-4 py-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <p className="font-medium text-sm text-ink-primary">Looking for my first job</p>
+              <p className="text-xs text-ink-secondary mt-0.5">
+                You're early in your career and seeking an entry-level role
+              </p>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 
 function JobSeekerProfile() {
   const location = useLocation();
@@ -29,6 +125,9 @@ function JobSeekerProfile() {
   };
 
   const [activeTab, setActiveTab] = useState<string>(() => getTabFromURL() || "personal");
+  const [showCareerStatusModal, setShowCareerStatusModal] = useState<boolean>(
+    () => !!(location.state as any)?.showCareerStatusModal
+  );
 
   useEffect(() => {
     const incoming = getTabFromURL();
@@ -154,6 +253,11 @@ function JobSeekerProfile() {
           </div>
         </div>
       </form>
+
+      {/* Career Status Modal — shown when navigated here from Path Intelligence */}
+      {showCareerStatusModal && (
+        <CareerStatusModal onDismiss={() => setShowCareerStatusModal(false)} />
+      )}
     </div>
   );
 }

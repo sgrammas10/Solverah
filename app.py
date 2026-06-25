@@ -2340,6 +2340,42 @@ def quiz_insights_guest():
         "insights": insights,
     })
 
+@app.route("/api/profile/career-status", methods=["PATCH"])
+@jwt_required()
+def set_career_status():
+    """PATCH /api/profile/career-status — Directly set the user's career_status.
+
+    Lets the frontend set career status with a single targeted request rather
+    than a full profile save.  Used by the career-status onboarding modal so
+    the user can pick a status without filling in experience entries.
+
+    Request body:
+        { "status": "employed" | "between_jobs" | "first_job" }
+
+    Returns:
+        200 {"career_status": str}
+        400 {"error": "invalid_status"}
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "not_found"}), 404
+
+    data = request.get_json() or {}
+    status = data.get("status")
+
+    valid = {"employed", "between_jobs", "first_job"}
+    if status not in valid:
+        return jsonify({"error": "invalid_status"}), 400
+
+    profile_data = dict(user.profile_data or {})
+    profile_data["career_status"] = status
+    user.profile_data = profile_data
+    db.session.commit()
+
+    return jsonify({"career_status": status}), 200
+
+
 @app.route("/api/profile/resume-url", methods=["GET"])
 @jwt_required()
 def get_profile_resume_url():
