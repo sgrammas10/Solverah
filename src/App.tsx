@@ -88,19 +88,54 @@ function ProtectedRoute({
 // Routes that render their own full navigation bar (hide the global Header).
 const ROUTES_WITHOUT_HEADER = new Set(["/", "/start"]);
 
+// Routes that include their own footer (suppress the global footer to avoid duplication).
+const ROUTES_WITHOUT_FOOTER = new Set(["/"]);
+
+function OnetAttribution() {
+  return (
+    <footer className="border-t border-cream-muted bg-cream-base px-6 py-5">
+      <p className="mx-auto max-w-3xl text-xs text-ink-tertiary leading-relaxed text-center">
+        This page includes information from the{" "}
+        <a
+          href="https://www.onetcenter.org/database.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-ink-secondary transition-colors"
+        >
+          O*NET 30.3 Database
+        </a>{" "}
+        by the U.S. Department of Labor, Employment and Training Administration (USDOL/ETA). Used under the{" "}
+        <a
+          href="https://creativecommons.org/licenses/by/4.0/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-ink-secondary transition-colors"
+        >
+          CC BY 4.0
+        </a>{" "}
+        license. O*NET® is a trademark of USDOL/ETA. Solverah has modified all or some of this information. USDOL/ETA has not approved, endorsed, or tested these modifications.
+      </p>
+    </footer>
+  );
+}
+
 /**
- * AppShell — Layout wrapper that conditionally renders the global Header.
+ * AppShell — Layout wrapper that conditionally renders the global Header and Footer.
  *
  * The Header is suppressed on the pre-launch landing page ("/") because
- * that page has its own LandingNav component.
+ * that page has its own LandingNav component. The global footer is suppressed
+ * on "/" for the same reason — PrelaunchLandingPage renders its own footer
+ * which includes the O*NET attribution inline.
  */
 function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const hideHeader = ROUTES_WITHOUT_HEADER.has(location.pathname);
+  const hideFooter = ROUTES_WITHOUT_FOOTER.has(location.pathname);
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       {!hideHeader && <Header />}
-      {children}
+      <div className="flex-1">{children}</div>
+      {!hideFooter && <OnetAttribution />}
     </div>
   );
 }
