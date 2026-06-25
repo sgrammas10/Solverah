@@ -3405,7 +3405,23 @@ def path_suggestions():
     profile = user.profile_data or {}
     career_status = profile.get("career_status")
     if not career_status:
-        return jsonify({"error": "career_status_not_set"}), 400
+        # Try to derive from experience before giving up.  If any entry has
+        # endDate of "Present" or "Current" the user is employed — set it and
+        # persist so future calls skip this derivation step entirely.
+        experience = profile.get("experience") or []
+        has_current = any(
+            str(exp.get("endDate", "")).strip().lower() in ("present", "current")
+            for exp in experience
+            if isinstance(exp, dict)
+        )
+        if has_current:
+            career_status = "employed"
+            updated = dict(profile)
+            updated["career_status"] = career_status
+            user.profile_data = updated
+            db.session.commit()
+        else:
+            return jsonify({"error": "career_status_not_set"}), 400
 
     skills_raw: list = profile.get("skills") or []
     skill_levels: dict = profile.get("skill_levels") or {}
