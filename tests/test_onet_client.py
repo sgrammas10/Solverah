@@ -137,25 +137,13 @@ class TestSearchOccupations:
 
 
 class TestGetSkillsProfile:
+    # v2 flat format: each element has a top-level "importance" int (0-100).
+    # The "level" (LV) scale is not exposed by this endpoint so it is always 0.0.
     _RESPONSE = {
         "occupation": {"href": "...", "code": "15-1252.00", "title": "Software Developers"},
         "element": [
-            {
-                "id": "2.A.1.a",
-                "name": "Reading Comprehension",
-                "score": {
-                    "importance": {"value": 72.22},
-                    "level": {"value": 4.25},
-                },
-            },
-            {
-                "id": "2.A.1.b",
-                "name": "Active Listening",
-                "score": {
-                    "importance": {"value": 68.0},
-                    "level": {"value": 3.75},
-                },
-            },
+            {"id": "2.A.1.a", "name": "Reading Comprehension", "importance": 72},
+            {"id": "2.A.1.b", "name": "Active Listening", "importance": 68},
         ],
     }
 
@@ -167,8 +155,8 @@ class TestGetSkillsProfile:
         assert skills[0] == Skill(
             element_id="2.A.1.a",
             name="Reading Comprehension",
-            importance=72.22,
-            level=4.25,
+            importance=72.0,
+            level=0.0,
         )
 
     def test_scores_are_floats(self, client: OnetClient) -> None:
@@ -178,12 +166,11 @@ class TestGetSkillsProfile:
         assert isinstance(skills[0].importance, float)
         assert isinstance(skills[0].level, float)
 
-    def test_missing_scores_default_to_zero(self, client: OnetClient) -> None:
-        no_scores = {
-            "occupation": {"code": "15-1252.00", "title": "Software Developers"},
-            "element": [{"id": "2.A.1.a", "name": "Reading Comprehension", "score": {}}],
+    def test_missing_importance_defaults_to_zero(self, client: OnetClient) -> None:
+        no_importance = {
+            "element": [{"id": "2.A.1.a", "name": "Reading Comprehension"}],
         }
-        with patch.object(client._session, "get", return_value=_mock_response(no_scores)):
+        with patch.object(client._session, "get", return_value=_mock_response(no_importance)):
             skills = client.get_skills_profile("15-1252.00")
 
         assert skills[0].importance == 0.0

@@ -200,8 +200,14 @@ class TestTechSkillsOverlapScore:
         assert matched == []
 
     def test_advanced_scores_higher_than_beginner(self):
-        score_b, _ = _tech_skills_overlap_score([user_skill("Python", "beginner")], {"python"})
-        score_a, _ = _tech_skills_overlap_score([user_skill("Python", "advanced")], {"python"})
+        # Two skills, only Python matches — so level weight is divided by total of both,
+        # making the ratio differ between beginner and advanced.
+        score_b, _ = _tech_skills_overlap_score(
+            [user_skill("Python", "beginner"), user_skill("SQL", "beginner")], {"python"}
+        )
+        score_a, _ = _tech_skills_overlap_score(
+            [user_skill("Python", "advanced"), user_skill("SQL", "beginner")], {"python"}
+        )
         assert score_b < score_a
 
     def test_substring_match(self):
