@@ -88,22 +88,25 @@ class ScoredPath:
 
 
 def _zone_delta_score(current_zone: int, candidate_zone: int) -> float:
-    """Map the zone difference to a [-0.5, 1.0] score contribution.
+    """Map the zone difference to a [-0.3, 1.0] score contribution.
 
     Single-step forward (delta = 1) is the sweet spot and scores 1.0.
-    Lateral moves and regressions return negative values; callers clamp the
-    final combined score to [0.0, 1.0] so those candidates rank near zero.
+    Lateral moves (delta = 0) and slight regressions (delta = -1) floor at
+    0.0–0.2 so skill overlap can still produce a meaningful score.
+    Significant regressions (delta <= -2) are penalised but not zeroed out.
     """
     delta = candidate_zone - current_zone
     if delta >= 3:
-        return 0.3   # large leap — possible but uncertain
+        return 0.2   # large leap — possible but uncertain
     if delta == 2:
-        return 0.7   # ambitious stretch
+        return 0.6   # ambitious stretch
     if delta == 1:
         return 1.0   # ideal single-step forward
     if delta == 0:
-        return -0.2  # lateral — low but not impossible
-    return -0.5      # regression
+        return 0.2   # lateral — valid, skills determine final rank
+    if delta == -1:
+        return 0.0   # slight regression — score driven entirely by skill overlap
+    return -0.3      # significant regression — only high skill overlap saves it
 
 
 def _tech_skills_overlap_score(

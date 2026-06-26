@@ -109,7 +109,7 @@ def _build_prompt(
         "CRITICAL RULES — follow exactly:\n"
         "1. You MUST select occupations ONLY from the provided candidate list. "
         "Never introduce an occupation that is not in the list.\n"
-        "2. Select exactly 2 or 3 candidates — no more, no fewer.\n"
+        "2. Select exactly 3 candidates — no more, no fewer.\n"
         "3. Prefer candidates with a higher match_score and a realistic forward progression.\n"
         "4. why_text: 1–2 sentences, plain language, specific to this user, encouraging.\n"
         "5. profile_dimensions: a list of exactly 2 or 3 short tags (5–8 words each) "
@@ -144,7 +144,7 @@ def _build_prompt(
         "Candidate Career Paths (sorted by match_score, highest first)\n"
         "==============================================================\n"
         f"{candidates_json}\n\n"
-        "Select the 2–3 best forward-progression paths from the list above "
+        "Select exactly 3 of the best forward-progression paths from the list above "
         "and return the JSON object."
     )
 
@@ -170,9 +170,9 @@ def _validate_response(data: dict, valid_codes: set[str]) -> list[PathSuggestion
         raise ValueError(
             f"'suggestions' must be a list, got {type(suggestions_raw).__name__}"
         )
-    if not (2 <= len(suggestions_raw) <= 3):
+    if len(suggestions_raw) != 3:
         raise ValueError(
-            f"Expected 2–3 suggestions, got {len(suggestions_raw)}"
+            f"Expected exactly 3 suggestions, got {len(suggestions_raw)}"
         )
 
     results: list[PathSuggestion] = []
@@ -222,7 +222,7 @@ def generate_narratives(
 ) -> list[PathSuggestion]:
     """Generate plain-language career path suggestions from scored candidates.
 
-    Calls OpenAI to select the best 2–3 candidates and write a narrative for
+    Calls OpenAI to select the best 3 candidates and write a narrative for
     each.  The LLM is explicitly constrained to only choose from the provided
     candidate list.  If the response is malformed, one retry is attempted
     before raising NarrativeGenerationError.
@@ -232,7 +232,7 @@ def generate_narratives(
         user_context: User's archetype, preferences, and top skills.
 
     Returns:
-        2–3 PathSuggestion objects.
+        3 PathSuggestion objects.
 
     Raises:
         NarrativeGenerationError: Input is empty, or LLM response is
