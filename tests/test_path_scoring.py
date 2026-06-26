@@ -6,6 +6,7 @@ Call-sequence notes (important for side_effect list ordering):
   score_paths with career_status="employed" and N skill search terms calls:
     search_occupations:  1 (resolve zone) + 1 (title in gather) + N (skills in gather)
     get_job_zone:        1 (current code) + 1 per unique candidate
+    get_tech_skills:     1 per unique candidate
     get_skills_profile:  1 per unique candidate
 """
 from __future__ import annotations
@@ -19,12 +20,14 @@ from backend.services.path_scoring import (
     ScoredPath,
     UserProfile,
     UserSkill,
+    _MIN_MATCH_LEN,
     _SKILL_LEVEL_WEIGHTS,
     _SKILLS_WEIGHT,
     _ZONE_WEIGHT,
     _gather_candidates,
+    _generic_skills_overlap_score,
     _resolve_current_zone,
-    _skills_overlap_score,
+    _tech_skills_overlap_score,
     _zone_delta_score,
     score_paths,
 )
@@ -92,13 +95,13 @@ class TestZoneDeltaScore:
 
 
 # ---------------------------------------------------------------------------
-# _skills_overlap_score
+# _generic_skills_overlap_score
 # ---------------------------------------------------------------------------
 
 
-class TestSkillsOverlapScore:
+class TestGenericSkillsOverlapScore:
     def test_full_match_advanced_scores_1(self):
-        score, matched = _skills_overlap_score(
+        score, matched = _generic_skills_overlap_score(
             [user_skill("Python", "advanced")],
             [onet_skill("Python", importance=100.0)],
         )
@@ -106,7 +109,7 @@ class TestSkillsOverlapScore:
         assert score == pytest.approx(1.0)
 
     def test_no_match_returns_zero_and_empty(self):
-        score, matched = _skills_overlap_score(
+        score, matched = _generic_skills_overlap_score(
             [user_skill("Python")],
             [onet_skill("SQL"), onet_skill("Tableau")],
         )
@@ -115,13 +118,13 @@ class TestSkillsOverlapScore:
 
     def test_advanced_scores_higher_than_beginner(self):
         onet = [onet_skill("Python", importance=100.0)]
-        score_b, _ = _skills_overlap_score([user_skill("Python", "beginner")], onet)
-        score_a, _ = _skills_overlap_score([user_skill("Python", "advanced")], onet)
+        score_b, _ = _generic_skills_overlap_score([user_skill("Python", "beginner")], onet)
+        score_a, _ = _generic_skills_overlap_score([user_skill("Python", "advanced")], onet)
         assert score_b < score_a
 
     def test_beginner_weight_is_correct(self):
         # beginner weight = 0.33; only skill; importance 100 / total 100 → 0.33
-        score, _ = _skills_overlap_score(
+        score, _ = _generic_skills_overlap_score(
             [user_skill("Python", "beginner")],
             [onet_skill("Python", importance=100.0)],
         )
@@ -130,7 +133,7 @@ class TestSkillsOverlapScore:
     def test_partial_match_normalised_correctly(self):
         # user has Python (advanced=1.0); onet has Python (50) + SQL (50)
         # overlap = 1.0 * 50 / 100 = 0.5
-        score, matched = _skills_overlap_score(
+        score, matched = _generic_skills_overlap_score(
             [user_skill("Python", "advanced")],
             [onet_skill("Python", importance=50.0), onet_skill("SQL", importance=50.0)],
         )
@@ -138,31 +141,91 @@ class TestSkillsOverlapScore:
         assert matched == ["Python"]
 
     def test_case_insensitive_matching(self):
-        score, matched = _skills_overlap_score(
-            [user_skill("python")],  # lowercase
+        score, matched = _generic_skills_overlap_score(
+            [user_skill("python")],  # lowercase user input
             [onet_skill("Python")],  # titlecase from O*NET
         )
         assert score > 0.0
-        assert matched == ["Python"]
+        assert matched == ["python"]  # returns the user's skill name as entered
 
     def test_empty_onet_skills_returns_zero(self):
-        score, matched = _skills_overlap_score([user_skill("Python")], [])
+        score, matched = _generic_skills_overlap_score([user_skill("Python")], [])
         assert score == 0.0
         assert matched == []
 
     def test_score_never_exceeds_one(self):
-        # Even if all skills match at advanced, score should be ≤ 1.0
         user = [user_skill("A", "advanced"), user_skill("B", "advanced")]
         onet = [onet_skill("A", importance=100.0), onet_skill("B", importance=100.0)]
-        score, _ = _skills_overlap_score(user, onet)
+        score, _ = _generic_skills_overlap_score(user, onet)
         assert score <= 1.0
 
     def test_zero_total_importance_returns_zero(self):
-        score, _ = _skills_overlap_score(
+        score, _ = _generic_skills_overlap_score(
             [user_skill("Python")],
             [onet_skill("Python", importance=0.0)],
         )
         assert score == 0.0
+
+
+# ---------------------------------------------------------------------------
+# _tech_skills_overlap_score
+# ---------------------------------------------------------------------------
+
+
+class TestTechSkillsOverlapScore:
+    def test_exact_match_advanced_scores_1(self):
+        score, matched = _tech_skills_overlap_score(
+            [user_skill("Python", "advanced")],
+            {"python"},
+        )
+        assert score == pytest.approx(1.0)
+        assert matched == ["Python"]
+
+    def test_no_match_returns_zero_and_empty(self):
+        score, matched = _tech_skills_overlap_score(
+            [user_skill("Python")],
+            {"tableau", "powerbi"},
+        )
+        assert score == 0.0
+        assert matched == []
+
+    def test_empty_tech_names_returns_zero(self):
+        score, matched = _tech_skills_overlap_score([user_skill("Python")], set())
+        assert score == 0.0
+        assert matched == []
+
+    def test_empty_user_skills_returns_zero(self):
+        score, matched = _tech_skills_overlap_score([], {"python"})
+        assert score == 0.0
+        assert matched == []
+
+    def test_advanced_scores_higher_than_beginner(self):
+        score_b, _ = _tech_skills_overlap_score([user_skill("Python", "beginner")], {"python"})
+        score_a, _ = _tech_skills_overlap_score([user_skill("Python", "advanced")], {"python"})
+        assert score_b < score_a
+
+    def test_substring_match(self):
+        score, matched = _tech_skills_overlap_score(
+            [user_skill("React", "advanced")],
+            {"react native"},
+        )
+        assert score > 0.0
+        assert matched == ["React"]
+
+    def test_short_token_skipped(self):
+        score, matched = _tech_skills_overlap_score(
+            [user_skill("R", "advanced")],
+            {"r programming"},
+        )
+        assert score == 0.0
+        assert matched == []
+
+    def test_score_capped_at_one(self):
+        score, _ = _tech_skills_overlap_score(
+            [user_skill("Python", "advanced"), user_skill("SQL", "advanced")],
+            {"python", "sql"},
+        )
+        assert score <= 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -309,6 +372,7 @@ class TestScorePaths:
         ]
         # get_job_zone: current=3, CS Analysts=4, IT Mgrs=5
         mock_client.get_job_zone.side_effect = [3, 4, 5]
+        mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.side_effect = [
             [onet_skill("Python", 80.0)],
             [onet_skill("Leadership", 60.0)],
@@ -327,6 +391,7 @@ class TestScorePaths:
         # first_job: no resolve call → only skill search
         mock_client.search_occupations.return_value = [occ("43-4051.00", "Customer Rep")]
         mock_client.get_job_zone.return_value = 2   # one step above zone 1
+        mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = [onet_skill("Communication", 80.0)]
 
         results = score_paths(
@@ -339,8 +404,6 @@ class TestScorePaths:
         )
 
         assert len(results) == 1
-        # zone delta=+1 → 1.0; skills overlap = 0.67*80/80 = 0.67
-        # score = 0.7*0.67 + 0.3*1.0 ≈ 0.769
         assert results[0].score > 0.5
         mock_client.search_occupations.assert_called_once_with("Communication")
 
@@ -352,6 +415,7 @@ class TestScorePaths:
             [],                               # skill search
         ]
         mock_client.get_job_zone.side_effect = [3, 4]   # current=3, Data Sci=4
+        mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = [onet_skill("Statistics", 70.0)]
 
         results = score_paths(
@@ -369,6 +433,7 @@ class TestScorePaths:
     def test_between_jobs_no_title_uses_skill_search_only(self, mock_client):
         mock_client.search_occupations.return_value = [occ("15-1211.00", "CS Analyst")]
         mock_client.get_job_zone.return_value = 3   # candidate zone
+        mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = []
 
         results = score_paths(
@@ -391,6 +456,7 @@ class TestScorePaths:
             [],                                  # gather skill
         ]
         mock_client.get_job_zone.side_effect = [2, 3]   # current=2, candidate=3 (+1)
+        mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = [onet_skill("COBOL", 100.0)]
 
         results = score_paths(
@@ -399,8 +465,8 @@ class TestScorePaths:
         )
 
         assert results[0].overlapping_skills == []
-        # score = 0.7*0.0 + 0.3*1.0 = 0.3
-        assert results[0].score == pytest.approx(0.3)
+        # score = _SKILLS_WEIGHT*0.0 + _ZONE_WEIGHT*1.0
+        assert results[0].score == pytest.approx(_ZONE_WEIGHT * 1.0)
 
     def test_higher_zone_beats_same_zone_with_equal_skills(self, mock_client):
         mock_client.search_occupations.side_effect = [
@@ -411,6 +477,7 @@ class TestScorePaths:
         ]
         # current=3, same=3, higher=4
         mock_client.get_job_zone.side_effect = [3, 3, 4]
+        mock_client.get_tech_skills.return_value = set()
         # Identical skill overlap for both candidates
         mock_client.get_skills_profile.return_value = [onet_skill("Python", 100.0)]
 
@@ -430,6 +497,7 @@ class TestScorePaths:
             [],
         ]
         mock_client.get_job_zone.side_effect = [4, 2]   # current=4, candidate=2 (-2)
+        mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = []
 
         results = score_paths(profile(skills=[]), mock_client)
@@ -445,6 +513,7 @@ class TestScorePaths:
             [],                    # gather skill
         ]
         mock_client.get_job_zone.side_effect = [3] + [4] * 20
+        mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = []
 
         results = score_paths(profile(skills=[]), mock_client)
@@ -458,6 +527,7 @@ class TestScorePaths:
         ]
         # current=2; both candidates at zone 3 (delta=+1)
         mock_client.get_job_zone.side_effect = [2, 3, 3]
+        mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.side_effect = [
             [],                            # Low: no skills
             [onet_skill("Python", 100.0)], # High: skill match
@@ -488,6 +558,7 @@ class TestScorePaths:
             OnetAPIError("zone fail"), # first candidate fails
             4,                         # second candidate succeeds
         ]
+        mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = []
 
         results = score_paths(profile(skills=[]), mock_client)
@@ -501,6 +572,7 @@ class TestScorePaths:
             [],
         ]
         mock_client.get_job_zone.side_effect = [3, 4, 4]
+        mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.side_effect = [
             OnetAPIError("skills fail"),
             [],
@@ -519,6 +591,7 @@ class TestScorePaths:
             [],  # SQL skill search
         ]
         mock_client.get_job_zone.side_effect = [2, 3]
+        mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = [
             onet_skill("Python", 80.0),
             onet_skill("SQL", 60.0),
@@ -543,6 +616,7 @@ class TestScorePaths:
         ]
         # Candidates at zones 4 (+1) and 1 (regression)
         mock_client.get_job_zone.side_effect = [3, 4, 1]
+        mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = [onet_skill("Python", 100.0)]
 
         results = score_paths(

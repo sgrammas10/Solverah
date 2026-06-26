@@ -238,3 +238,59 @@ class TestGetJobZone:
         with patch.object(client._session, "get", return_value=_mock_response({}, status_code=404)):
             with pytest.raises(OnetAPIError):
                 client.get_job_zone("00-0000.00")
+
+
+# ---------------------------------------------------------------------------
+# get_tech_skills
+# ---------------------------------------------------------------------------
+
+
+class TestGetTechSkills:
+    _RESPONSE = {
+        "occupation": {"href": "...", "code": "15-1252.00", "title": "Software Developers"},
+        "category": [
+            {
+                "title": "Programming Languages",
+                "example": [
+                    {"title": "Python"},
+                    {"title": "JavaScript"},
+                ],
+                "example_more": [],
+            },
+            {
+                "title": "Frameworks",
+                "example": [],
+                "example_more": [
+                    {"title": "React"},
+                ],
+            },
+        ],
+    }
+
+    def test_returns_lowercased_set(self, client: OnetClient) -> None:
+        with patch.object(client._session, "get", return_value=_mock_response(self._RESPONSE)):
+            names = client.get_tech_skills("15-1252.00")
+
+        assert names == {"python", "javascript", "react"}
+
+    def test_returns_set_type(self, client: OnetClient) -> None:
+        with patch.object(client._session, "get", return_value=_mock_response(self._RESPONSE)):
+            names = client.get_tech_skills("15-1252.00")
+
+        assert isinstance(names, set)
+
+    def test_empty_category_returns_empty_set(self, client: OnetClient) -> None:
+        with patch.object(client._session, "get", return_value=_mock_response({"category": []})):
+            assert client.get_tech_skills("15-1252.00") == set()
+
+    def test_missing_category_key_returns_empty_set(self, client: OnetClient) -> None:
+        with patch.object(client._session, "get", return_value=_mock_response({})):
+            assert client.get_tech_skills("15-1252.00") == set()
+
+    def test_raises_on_rate_limit(
+        self, client: OnetClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr("backend.services.onet_client.time.sleep", lambda _: None)
+        with patch.object(client._session, "get", return_value=_mock_response({}, status_code=429)):
+            with pytest.raises(OnetRateLimitError):
+                client.get_tech_skills("15-1252.00")
