@@ -496,6 +496,31 @@ function PrelaunchLandingPage() {
               <a href="#" className="text-xs text-[#888] hover:text-white transition-colors">Terms</a>
             </div>
           </div>
+          <div className="border-t border-white/5">
+            <div className="mx-auto max-w-3xl px-6 py-4">
+              <p className="text-xs text-[#555] leading-relaxed text-center">
+                This page includes information from the{" "}
+                <a
+                  href="https://www.onetcenter.org/database.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-[#888] transition-colors"
+                >
+                  O*NET 30.3 Database
+                </a>{" "}
+                by the U.S. Department of Labor, Employment and Training Administration (USDOL/ETA). Used under the{" "}
+                <a
+                  href="https://creativecommons.org/licenses/by/4.0/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-[#888] transition-colors"
+                >
+                  CC BY 4.0
+                </a>{" "}
+                license. O*NET® is a trademark of USDOL/ETA. Solverah has modified all or some of this information. USDOL/ETA has not approved, endorsed, or tested these modifications.
+              </p>
+            </div>
+          </div>
         </div>
       </footer>
 

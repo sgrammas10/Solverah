@@ -31,6 +31,7 @@ ALLOWED_PROFILE_FIELDS = {
     "resumeKey",
     "linkedinUrl",
     "skill_levels",
+    "career_status",
 }
 
 ALLOWED_SKILL_LEVELS = {"beginner", "intermediate", "advanced"}

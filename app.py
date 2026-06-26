@@ -88,6 +88,14 @@ _resume_cache: dict = {}          # resumeKey -> (text, expires_at)
 _resume_cache_lock = Lock()
 _RESUME_CACHE_TTL = 600           # 10 minutes — covers a full chat session
 
+_path_suggestions_cache: dict[int, dict] = {}  # user_id -> response payload
+_path_suggestions_cache_lock = Lock()
+
+
+def _invalidate_path_suggestions_cache(user_id: int) -> None:
+    with _path_suggestions_cache_lock:
+        _path_suggestions_cache.pop(user_id, None)
+
 def _load_resume_parser():
     """Dynamically load ``parse_resume`` from the job_descr_LLM sub-package.
 
@@ -748,6 +756,69 @@ def _build_wp_narrative_prompt(
 
     if selected_statement_ids:
         user_payload["intake_statements_selected"] = selected_statement_ids
+
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": json.dumps(user_payload)},
+    ]
+
+
+def _build_mm_narrative_prompt(
+    answers: list[dict],
+    archetype: str,
+    dimension_scores: dict[str, float],
+) -> list[dict]:
+    """Construct system + user messages for the ManagerMatch narrative OpenAI call.
+
+    Maps each answer's question_id to human-readable option text so the model
+    sees real sentences rather than IDs.
+
+    Args:
+        answers:          15 ManagerMatch answers, each {question_id, choice}.
+        archetype:        The classified archetype string.
+        dimension_scores: Four dimension floats from score_manager_match.
+
+    Returns:
+        Two-element list of OpenAI chat message dicts (system, user).
+    """
+    from manager_match.questions import QUESTIONS
+
+    q_lookup = {q["question_id"]: q for q in QUESTIONS}
+
+    formatted_answers = []
+    for ans in answers:
+        q_id = ans.get("question_id", "")
+        choice = ans.get("choice", "")
+        q = q_lookup.get(q_id)
+        if not q:
+            continue
+        option_text = q["option_a_text"] if choice == "a" else q["option_b_text"]
+        formatted_answers.append({
+            "question_id": q_id,
+            "dimension": q["dimension"],
+            "selected": option_text,
+        })
+
+    system = (
+        "You are Solverah's ManagerMatch engine. Based on a user's forced-choice "
+        "assessment responses, generate a personalised management style analysis. "
+        "Write in second person (\"you\"). Be specific — never generic. Reference "
+        "patterns from their actual answers. Return a JSON object with exactly these "
+        "four keys: narrative (2–3 paragraphs describing the user's management "
+        "preferences and why they work that way — do not open with the archetype "
+        "name), what_to_look_for (list of 3–4 concrete strings the user can probe "
+        "for in interviews), red_flags (list of 2–3 management behaviours that will "
+        "create friction for this person), archetype_description (2 sentences — what "
+        "this archetype means in practice for this user)."
+    )
+
+    user_payload = {
+        "archetype": archetype,
+        "dimension_scores": {
+            f"{k} (0.0–1.0)": round(v, 3) for k, v in dimension_scores.items()
+        },
+        "answers": formatted_answers,
+    }
 
     return [
         {"role": "system", "content": system},
@@ -2046,6 +2117,8 @@ def profile():
         metadata={"updated_fields": sorted(profile_data.keys()), "target_user_id": user.id},
     )
     db.session.commit()
+    if profile_data.keys() & {"experience", "skills", "skill_levels"}:
+        _invalidate_path_suggestions_cache(user.id)
 
     return jsonify({
         "message": "Profile updated successfully",
@@ -2266,6 +2339,42 @@ def quiz_insights_guest():
         "overallSummary": overall_summary,
         "insights": insights,
     })
+
+@app.route("/api/profile/career-status", methods=["PATCH"])
+@jwt_required()
+def set_career_status():
+    """PATCH /api/profile/career-status — Directly set the user's career_status.
+
+    Lets the frontend set career status with a single targeted request rather
+    than a full profile save.  Used by the career-status onboarding modal so
+    the user can pick a status without filling in experience entries.
+
+    Request body:
+        { "status": "employed" | "between_jobs" | "first_job" }
+
+    Returns:
+        200 {"career_status": str}
+        400 {"error": "invalid_status"}
+    """
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "not_found"}), 404
+
+    data = request.get_json() or {}
+    status = data.get("status")
+
+    valid = {"employed", "between_jobs", "first_job"}
+    if status not in valid:
+        return jsonify({"error": "invalid_status"}), 400
+
+    profile_data = dict(user.profile_data or {})
+    profile_data["career_status"] = status
+    user.profile_data = profile_data
+    db.session.commit()
+
+    return jsonify({"career_status": status}), 200
+
 
 @app.route("/api/profile/resume-url", methods=["GET"])
 @jwt_required()
@@ -2946,6 +3055,7 @@ def work_pulse_submit():
         intake.wpl_narrative = result["narrative"]
         intake.wpl_result = result
         db.session.commit()
+        _invalidate_path_suggestions_cache(user.id)
     except Exception:
         db.session.rollback()
         app.logger.exception("Work Pulse: failed to persist narrative/result blob")
@@ -3034,6 +3144,99 @@ def work_pulse_results_get():
         return jsonify({"error": "Work Pulse results pending — please resubmit"}), 422
 
     return jsonify(intake.wpl_result)
+
+
+@limiter.limit("5 per minute")
+@app.post("/api/manager-match/submit")
+@jwt_required()
+def manager_match_submit():
+    """POST /api/manager-match/submit — Score and persist a ManagerMatch result (authenticated).
+
+    Validates 15 forced-choice answers, runs deterministic scoring, calls OpenAI
+    to generate a personalised narrative, then persists the full result to
+    ``user.profile_data["manager_match_result"]``.
+
+    Body (JSON):
+        answers (list): Exactly 15 objects with ``question_id`` and ``choice`` ("a"|"b").
+
+    Returns:
+        200 {"archetype": str, "dimension_scores": {...}, "narrative": str,
+             "what_to_look_for": [...], "red_flags": [...], "archetype_description": str}
+        400 on missing, wrong-length, or invalid answers
+        401 if unauthenticated
+        404 if user not found
+        500 on OpenAI failure or malformed model response
+    """
+    from manager_match.score import score_manager_match
+
+    data = request.get_json(silent=True) or {}
+    answers = data.get("answers")
+
+    if not isinstance(answers, list) or len(answers) != 15:
+        return jsonify({"error": "answers must be a list of exactly 15 items"}), 400
+
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    try:
+        scoring = score_manager_match(answers)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    try:
+        client = _get_openai_client()
+        model = os.environ.get("OPENAI_WP_MODEL", "gpt-4o-mini")
+        messages = _build_mm_narrative_prompt(
+            answers, scoring["archetype"], scoring["dimension_scores"]
+        )
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            response_format={"type": "json_object"},
+        )
+        content = response.choices[0].message.content or "{}"
+        llm_result = json.loads(content)
+    except Exception:
+        app.logger.exception("ManagerMatch narrative generation failed")
+        return jsonify({"error": "Unable to generate ManagerMatch results"}), 500
+
+    required_keys = ("narrative", "what_to_look_for", "red_flags", "archetype_description")
+    if not all(k in llm_result for k in required_keys):
+        return jsonify({"error": "Malformed response from model"}), 500
+
+    result = {**scoring, **llm_result}
+
+    profile = dict(user.profile_data or {})
+    profile["manager_match_result"] = result
+    user.profile_data = profile
+    db.session.commit()
+    _invalidate_path_suggestions_cache(user.id)
+
+    return jsonify(result), 200
+
+
+@app.get("/api/manager-match/results")
+@jwt_required()
+def manager_match_results_get():
+    """GET /api/manager-match/results — Retrieve persisted ManagerMatch result for the current user.
+
+    Returns:
+        200 with the stored result dict
+        404 if no result has been saved yet
+        401 if unauthenticated
+    """
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    result = (user.profile_data or {}).get("manager_match_result")
+    if result is None:
+        return jsonify({"error": "No ManagerMatch result found"}), 404
+
+    return jsonify(result)
 
 
 @app.get("/api/companies/<int:company_id>")
@@ -3163,6 +3366,139 @@ def company_lens_matches():
         "total_companies_scored": total,
         "limit": limit,
     })
+
+
+@app.get("/api/intelligence/path-suggestions")
+@jwt_required()
+def path_suggestions():
+    """GET /api/intelligence/path-suggestions — Score and narrate career path suggestions for the current user.
+
+    Orchestrates path_scoring.score_paths and path_narrative.generate_narratives,
+    caching the result per user.  The cache is invalidated when the user's
+    WorkPulse results, experience entries, or ManagerMatch results are updated.
+
+    Returns:
+        200 {"suggestions": [...], "career_status": str, "generated_at": str}
+        400 {"error": "career_status_not_set"} if career_status has not been saved
+        401 if unauthenticated
+        404 if user not found
+        500 on scoring or narrative generation failure
+    """
+    from backend.services.path_scoring import UserProfile, UserSkill, score_paths
+    from backend.services.path_narrative import (
+        NarrativeGenerationError,
+        UserContext,
+        generate_narratives,
+    )
+    from backend.services.onet_client import OnetClient
+
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    with _path_suggestions_cache_lock:
+        cached = _path_suggestions_cache.get(user.id)
+    if cached is not None:
+        return jsonify(cached)
+
+    profile = user.profile_data or {}
+    career_status = profile.get("career_status")
+    if not career_status:
+        # Try to derive from experience before giving up.  If any entry has
+        # endDate of "Present" or "Current" the user is employed — set it and
+        # persist so future calls skip this derivation step entirely.
+        experience = profile.get("experience") or []
+        has_current = any(
+            str(exp.get("endDate", "")).strip().lower() in ("present", "current")
+            for exp in experience
+            if isinstance(exp, dict)
+        )
+        if has_current:
+            career_status = "employed"
+            updated = dict(profile)
+            updated["career_status"] = career_status
+            user.profile_data = updated
+            db.session.commit()
+        else:
+            return jsonify({"error": "career_status_not_set"}), 400
+
+    skills_raw: list = profile.get("skills") or []
+    skill_levels: dict = profile.get("skill_levels") or {}
+    user_skills = [
+        UserSkill(name=s, level=skill_levels.get(s, "beginner"))
+        for s in skills_raw
+        if isinstance(s, str)
+    ]
+
+    archetype = ""
+    intake = user.intake
+    if intake and intake.wpl_result and isinstance(intake.wpl_result, dict):
+        archetype = intake.wpl_result.get("archetype", "")
+
+    current_title: str | None = None
+    experience: list = profile.get("experience") or []
+    if experience and career_status != "first_job":
+        first_exp = experience[0] if isinstance(experience[0], dict) else {}
+        current_title = first_exp.get("position") or first_exp.get("title") or None
+
+    user_profile = UserProfile(
+        current_title=current_title,
+        career_status=career_status,
+        skills=user_skills,
+        archetype=archetype,
+    )
+
+    try:
+        onet_client = OnetClient()
+        scored = score_paths(user_profile, onet_client)
+    except Exception:
+        app.logger.exception("Path scoring failed for user %s", user.id)
+        return jsonify({"error": "Unable to score career paths"}), 500
+
+    if not scored:
+        # Profile is complete but O*NET returned nothing — treat as a
+        # transient service issue rather than a profile problem.
+        app.logger.warning("Empty scored list for user %s (title=%r, skills=%d)", user.id, current_title, len(user_skills))
+        return jsonify({"error": "Unable to score career paths"}), 500
+
+    manager_match_result: dict = profile.get("manager_match_result") or {}
+    top_skills = [s for s in skills_raw[:5] if isinstance(s, str)]
+
+    user_context = UserContext(
+        archetype=archetype,
+        management_preferences=manager_match_result,
+        career_status=career_status,
+        top_skills=top_skills,
+    )
+
+    try:
+        suggestions = generate_narratives(scored, user_context)
+    except NarrativeGenerationError:
+        app.logger.exception("Path narrative generation failed for user %s", user.id)
+        return jsonify({"error": "Unable to generate path narratives"}), 500
+
+    score_map = {sp.onet_code: sp.score for sp in scored}
+
+    payload = {
+        "suggestions": [
+            {
+                "onet_code": s.onet_code,
+                "title": s.title,
+                "why_text": s.why_text,
+                "profile_dimensions": s.profile_dimensions,
+                "match_score": score_map.get(s.onet_code, 0.0),
+            }
+            for s in suggestions
+        ],
+        "career_status": career_status,
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+
+    with _path_suggestions_cache_lock:
+        _path_suggestions_cache[user.id] = payload
+
+    return jsonify(payload)
 
 
 if __name__ == "__main__":

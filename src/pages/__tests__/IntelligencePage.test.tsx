@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
     cachedResult: null as WpApiResponse | null,
   },
   setCachedResult: vi.fn(),
+  mmCachedResult: null as any,
   formData: {} as any,
 }));
 
@@ -38,6 +39,10 @@ vi.mock("../../hooks/useProfileForm", () => ({
   useProfileForm: () => ({ formData: mocks.formData }),
 }));
 
+vi.mock("../../hooks/useMM", () => ({
+  useMM: () => ({ state: { cachedResult: mocks.mmCachedResult } }),
+}));
+
 vi.mock("../../components/profile/AssessmentsTab", () => ({
   default: () => <div data-testid="assessments-tab">Assessments</div>,
 }));
@@ -46,6 +51,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.user = null;
   mocks.wpState = { answers: [], cachedResult: null };
+  mocks.mmCachedResult = null;
   mocks.formData = {};
 });
 
@@ -195,5 +201,81 @@ describe("IntelligencePage - FocusType card", () => {
     renderIntelligencePage();
     fireEvent.click(screen.getByRole("button", { name: /open companylens/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/company-lens");
+  });
+});
+
+// ─── ManagerMatch card ─────────────────────────────────────────────────────────
+
+describe("IntelligencePage - ManagerMatch card", () => {
+  it("shows 'Start ManagerMatch™ →' button when manager_match_result is absent", () => {
+    mocks.user = { wpl_completed: true, profileData: null };
+    mocks.wpState = { answers: [], cachedResult: MOCK_WP_RESULT };
+    renderIntelligencePage();
+    expect(screen.getByRole("button", { name: /start managermatch/i })).toBeInTheDocument();
+  });
+
+  it("renders archetype name and 'View results →' when manager_match_result exists", () => {
+    mocks.user = {
+      wpl_completed: true,
+      profileData: {
+        manager_match_result: {
+          archetype: "The Autonomist",
+          archetype_description: "...",
+          dimension_scores: {},
+          narrative: "...",
+          what_to_look_for: [],
+          red_flags: [],
+        },
+      },
+    };
+    mocks.wpState = { answers: [], cachedResult: MOCK_WP_RESULT };
+    renderIntelligencePage();
+    expect(screen.getByText("The Autonomist")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /view results/i })).toBeInTheDocument();
+  });
+
+  it("ManagerMatch ecosystem step dot is complete when result exists", () => {
+    mocks.user = {
+      wpl_completed: true,
+      profileData: {
+        manager_match_result: {
+          archetype: "The Autonomist",
+          archetype_description: "...",
+          dimension_scores: {},
+          narrative: "...",
+          what_to_look_for: [],
+          red_flags: [],
+        },
+      },
+    };
+    mocks.wpState = { answers: [], cachedResult: MOCK_WP_RESULT };
+    renderIntelligencePage();
+    // Steps 0, 1 are always complete (i < 2); step 3 is complete when managerMatchResult exists.
+    // With no focusTypeResult, we get 3 checkmarks total.
+    expect(screen.getAllByText("✓")).toHaveLength(3);
+  });
+
+  it("ManagerMatch ecosystem step dot is incomplete when result is absent", () => {
+    mocks.user = { wpl_completed: true, profileData: null };
+    mocks.wpState = { answers: [], cachedResult: MOCK_WP_RESULT };
+    renderIntelligencePage();
+    // Only steps 0 and 1 are complete.
+    expect(screen.getAllByText("✓")).toHaveLength(2);
+  });
+
+  it("shows completed state when result is in useMM cache (fresh submission path)", () => {
+    mocks.user = { wpl_completed: true, profileData: null };
+    mocks.mmCachedResult = {
+      archetype: "The Collaborator",
+      archetype_description: "...",
+      dimension_scores: {},
+      narrative: "...",
+      what_to_look_for: [],
+      red_flags: [],
+    };
+    mocks.wpState = { answers: [], cachedResult: MOCK_WP_RESULT };
+    renderIntelligencePage();
+    expect(screen.getByText("The Collaborator")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /view results/i })).toBeInTheDocument();
   });
 });

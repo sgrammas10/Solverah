@@ -54,4 +54,5 @@ export interface ProfileFormData {
   resumeKey?: string | null;
   quizResults?: Record<string, unknown>;
   _quizSummary?: Record<string, unknown>;
+  career_status?: string;
 }

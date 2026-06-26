@@ -7,6 +7,8 @@ import { useAuth } from "../contexts/useAuth";
 import { useProfileForm } from "../hooks/useProfileForm";
 import AssessmentsTab from "../components/profile/AssessmentsTab";
 import type { FocusTypeResult } from "./FocusTypePage";
+import { useMM } from "../hooks/useMM";
+import type { MMResult } from "../hooks/useMM";
 
 const ECOSYSTEM_STEPS = [
   { label: "Work Pulse Lite" },
@@ -19,28 +21,10 @@ const ECOSYSTEM_STEPS = [
 
 const LOCKED_CARDS = [
   {
-    title: "FocusType™",
-    subtitle: "Attention, focus, and energy patterns",
-    description:
-      "Understand how your attention works and which environments protect it.",
-  },
-  {
-    title: "ManagerMatch™",
-    subtitle: "Leadership and management alignment",
-    description:
-      "Discover which management styles bring out your best — and which create friction.",
-  },
-  {
     title: "CompanyLens™",
     subtitle: "Company environment and cultural alignment",
     description:
       "See which real companies match your work patterns and sustainability signals.",
-  },
-  {
-    title: "Future Path Intelligence",
-    subtitle: "Sustainability and long-term direction",
-    description:
-      "Map the career paths most likely to feel sustainable and meaningful over time.",
   },
 ];
 
@@ -59,7 +43,11 @@ export default function IntelligencePage() {
   const [result, setResult] = useState<WpApiResponse | null>(state.cachedResult);
   const hasFiredRef = useRef(false);
 
+  const { state: mmState } = useMM();
+
   const focusTypeResult = user?.profileData?.focus_type_result as FocusTypeResult | undefined;
+  const managerMatchResult =
+    mmState.cachedResult ?? (user?.profileData?.manager_match_result as MMResult | undefined);
 
   const fetchFromServer = useCallback(async () => {
     setFetchState("loading");
@@ -155,7 +143,10 @@ export default function IntelligencePage() {
         {/* Progress indicator */}
         <div className="flex items-start gap-2 sm:gap-4 overflow-x-auto pb-1">
           {ECOSYSTEM_STEPS.map((step, i) => {
-            const complete = i < 2 || (i === 2 && !!focusTypeResult);
+            const complete =
+              i < 2 ||
+              (i === 2 && !!focusTypeResult) ||
+              (i === 3 && !!managerMatchResult);
             return (
               <div key={step.label} className="flex flex-col items-center gap-1.5 min-w-[56px]">
                 <div
@@ -214,71 +205,106 @@ export default function IntelligencePage() {
 
         {/* Ecosystem cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+          {/* FocusType — completed */}
+          {focusTypeResult ? (
+            <div className="rounded-xl border border-forest-light bg-forest-pale px-5 py-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-1">
+                ✦ Unlocked · FocusType™
+              </p>
+              <p className="font-display text-lg font-semibold text-forest-dark mb-3">
+                {focusTypeResult.archetype}
+              </p>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate("/focus-type/results", {
+                      state: { result: focusTypeResult },
+                    })
+                  }
+                  className="text-sm font-semibold text-forest-dark hover:underline"
+                >
+                  View results →
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/focus-type", { state: { retake: true } })}
+                  className="text-xs text-ink-tertiary hover:underline"
+                >
+                  Retake
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* FocusType — not started */
+            <div className="rounded-xl border border-cream-muted bg-white px-5 py-5">
+              <p className="text-sm font-semibold text-ink-primary">FocusType™</p>
+              <p className="text-xs text-ink-secondary mt-0.5 mb-2">
+                Attention, focus, and energy patterns
+              </p>
+              <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+                Understand how your attention works and which environments protect it.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/focus-type")}
+                className="bg-forest-dark text-white font-semibold px-3 py-1.5 rounded text-xs hover:bg-forest-mid"
+              >
+                Start FocusType™ →
+              </button>
+            </div>
+          )}
+
+          {/* ManagerMatch — completed */}
+          {managerMatchResult ? (
+            <div className="rounded-xl border border-forest-light bg-forest-pale px-5 py-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-1">
+                ✦ Unlocked · ManagerMatch™
+              </p>
+              <p className="font-display text-lg font-semibold text-forest-dark mb-3">
+                {managerMatchResult.archetype}
+              </p>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => navigate("/manager-match/results")}
+                  className="text-sm font-semibold text-forest-dark hover:underline"
+                >
+                  View results →
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/manager-match", { state: { retake: true } })}
+                  className="text-xs text-ink-tertiary hover:underline"
+                >
+                  Retake
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* ManagerMatch — not started */
+            <div className="rounded-xl border border-cream-muted bg-white px-5 py-5">
+              <p className="text-sm font-semibold text-ink-primary">ManagerMatch™</p>
+              <p className="text-xs text-ink-secondary mt-0.5 mb-2">
+                Leadership and management alignment
+              </p>
+              <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+                Discover which management styles bring out your best — and which create friction.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/manager-match")}
+                className="bg-forest-dark text-white font-semibold px-3 py-1.5 rounded text-xs hover:bg-forest-mid"
+              >
+                Start ManagerMatch™ →
+              </button>
+            </div>
+          )}
+
+          {/* Remaining locked cards */}
           {LOCKED_CARDS.map((card) => {
             const isCompanyLens = card.title === "CompanyLens™";
-            const isFocusType = card.title === "FocusType™";
-
-            // FocusType — completed state
-            if (isFocusType && focusTypeResult) {
-              return (
-                <div
-                  key={card.title}
-                  className="rounded-xl border border-forest-light bg-forest-pale px-5 py-5"
-                >
-                  <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-1">
-                    ✦ Unlocked · FocusType™
-                  </p>
-                  <p className="font-display text-lg font-semibold text-forest-dark mb-3">
-                    {focusTypeResult.archetype}
-                  </p>
-                  <div className="flex items-center gap-4">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        navigate("/focus-type/results", {
-                          state: { result: focusTypeResult },
-                        })
-                      }
-                      className="text-sm font-semibold text-forest-dark hover:underline"
-                    >
-                      View results →
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => navigate("/focus-type", { state: { retake: true } })}
-                      className="text-xs text-ink-tertiary hover:underline"
-                    >
-                      Retake
-                    </button>
-                  </div>
-                </div>
-              );
-            }
-
-            // FocusType — not yet completed
-            if (isFocusType) {
-              return (
-                <div
-                  key={card.title}
-                  className="rounded-xl border border-cream-muted bg-white px-5 py-5"
-                >
-                  <p className="text-sm font-semibold text-ink-primary">{card.title}</p>
-                  <p className="text-xs text-ink-secondary mt-0.5 mb-2">{card.subtitle}</p>
-                  <p className="text-xs text-ink-secondary leading-relaxed mb-4">
-                    {card.description}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/focus-type")}
-                    className="bg-forest-dark text-white font-semibold px-3 py-1.5 rounded text-xs hover:bg-forest-mid"
-                  >
-                    Start FocusType™ →
-                  </button>
-                </div>
-              );
-            }
-
-            // All other cards
             return (
               <div
                 key={card.title}
@@ -314,6 +340,30 @@ export default function IntelligencePage() {
               </div>
             );
           })}
+
+          {/* Path Intelligence */}
+          <div className="rounded-xl border border-cream-muted bg-white px-5 py-5">
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-sm font-semibold text-ink-primary">Path Intelligence</p>
+              <span className="rounded-full bg-forest-pale border border-forest-light px-2 py-0.5 text-xs font-semibold text-forest-mid">
+                Pro
+              </span>
+            </div>
+            <p className="text-xs text-ink-secondary mt-0.5 mb-2">
+              Career path scoring and guidance
+            </p>
+            <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+              See which career paths best match your skills and profile, with plain-language
+              guidance on why each one fits.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/intelligence/paths")}
+              className="bg-forest-dark text-white font-semibold px-3 py-1.5 rounded text-xs hover:bg-forest-mid transition-colors"
+            >
+              View Your Paths →
+            </button>
+          </div>
         </div>
 
         {/* Assessments section */}
