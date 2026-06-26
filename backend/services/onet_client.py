@@ -126,46 +126,68 @@ class OnetClient:
         ]
 
     def get_skills_profile(self, onet_code: str) -> list[Skill]:
-        """Return skills for *onet_code* with importance and level scores.
+        """Return skills for *onet_code* sorted by importance descending.
 
-        Args:
-            onet_code: O*NET-SOC code such as ``"15-1252.00"``.
+        v2 endpoint: /details/skills — each element has a flat ``importance``
+        integer (0–100).  No level (LV) scale is exposed at this endpoint.
+        Requests up to 100 elements to cover all skills in one call.
 
-        Returns:
-            List of skills.  Missing importance or level defaults to ``0.0``.
-
-        Example response key accessed: ``data["element"]``
-        Each element: ``{"id": "2.A.1.a", "name": "...",
-                         "score": {"importance": {"value": 72.0},
-                                   "level":      {"value": 4.25}}}``
+        .00 codes are O*NET umbrella occupations whose skills data lives in
+        the .01 sub-code; falls back automatically when the parent is empty.
         """
-        data = self._get(f"online/occupations/{onet_code}/summary/skills")
-        skills: list[Skill] = []
-
-        # v2 API: top-level keys may differ — log one example if we get nothing
-        elements = data.get("element") or data.get("elements") or []
-        if not elements:
-            _log.warning("skills empty for %s — raw: %s", onet_code, data)
-
-        for element in elements:
-            score = element.get("score", {})
-            # v2: score may be {"importance": {"value": 72.0}, "level": {"value": 4.25}}
-            # or  score may be {"value": 72.0} at a different nesting
-            def _score_val(key: str) -> float:
-                inner = score.get(key, {})
-                if isinstance(inner, dict):
-                    return float(inner.get("value", 0.0))
-                return float(inner or 0.0)
-
-            skills.append(
-                Skill(
-                    element_id=element.get("id", ""),
-                    name=element.get("name", ""),
-                    importance=_score_val("importance"),
-                    level=_score_val("level"),
-                )
+        def _fetch(code: str) -> list[dict]:
+            data = self._get(
+                f"online/occupations/{code}/details/skills",
+                params={"end": 100},
             )
-        return skills
+            return data.get("element") or []
+
+        elements = _fetch(onet_code)
+        if not elements and onet_code.endswith(".00"):
+            fallback = onet_code[:-3] + ".01"
+            _log.debug("skills empty for %s, trying sub-code %s", onet_code, fallback)
+            elements = _fetch(fallback)
+        if not elements:
+            _log.warning("skills empty for %s (no fallback data)", onet_code)
+
+        return [
+            Skill(
+                element_id=e.get("id", ""),
+                name=e.get("name", ""),
+                importance=float(e.get("importance", 0.0)),
+                level=0.0,
+            )
+            for e in elements
+        ]
+
+    def get_tech_skills(self, onet_code: str) -> set[str]:
+        """Return a lowercase set of technology tool names for *onet_code*.
+
+        Uses /details/technology_skills which lists specific software, tools,
+        and platforms (e.g. "Python", "React", "TypeScript") — compatible with
+        user profile skill tags.  Same .00→.01 fallback as get_skills_profile.
+        """
+        def _fetch(code: str) -> set[str]:
+            data = self._get(
+                f"online/occupations/{code}/details/technology_skills",
+                params={"end": 100},
+            )
+            names: set[str] = set()
+            for cat in data.get("category", []):
+                for ex in cat.get("example", []):
+                    names.add(ex["title"].lower())
+                for ex in cat.get("example_more", []):
+                    names.add(ex["title"].lower())
+            return names
+
+        names = _fetch(onet_code)
+        if not names and onet_code.endswith(".00"):
+            fallback = onet_code[:-3] + ".01"
+            _log.debug("tech skills empty for %s, trying sub-code %s", onet_code, fallback)
+            names = _fetch(fallback)
+        if not names:
+            _log.warning("tech skills empty for %s (no fallback data)", onet_code)
+        return names
 
     def get_job_zone(self, onet_code: str) -> int:
         """Return the Job Zone (1–5) for *onet_code*.

@@ -1,14 +1,21 @@
 """Deterministic career path scoring algorithm.
 
 Ranks O*NET occupations against a user's profile using a weighted sum of:
-  (a) skill overlap between the user's skills and O*NET required skills
+  (a) skill overlap — tries O*NET technology tools first, falls back to O*NET
+      generic competency skills.  Works for all fields: tech users get tool-name
+      matching; non-tech users match against competency names; zone delta carries
+      the score when neither finds an overlap.
   (b) a job-zone delta bonus that favours roles 1–2 zones above the user's
       current zone, and penalises lateral moves or regressions.
+
+Zone delta is the primary signal (60 %) so that non-tech users get meaningful
+differentiation even when no skill names match directly.  Skill overlap is a
+secondary refinement (40 %) that rewards closer matches.
 
 No LLM calls are made anywhere in this module.
 
 Typical O*NET call count per invocation:
-  2  (current-zone resolution) + 2 × |candidates| (zone + skills per candidate)
+  2  (current-zone resolution) + 3 × |candidates| (zone + tech_skills + skills per candidate)
 Keep _SKILL_SEARCH_COUNT small to avoid hitting the O*NET rate limit.
 """
 from __future__ import annotations
@@ -25,8 +32,8 @@ _log = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-_SKILLS_WEIGHT: float = 0.7   # fraction of score driven by skill overlap
-_ZONE_WEIGHT: float = 0.3     # fraction of score driven by zone progression
+_SKILLS_WEIGHT: float = 0.4   # secondary signal — skill overlap (tech tools or generic names)
+_ZONE_WEIGHT: float = 0.6     # primary signal  — zone progression (universal for all fields)
 
 _SKILL_LEVEL_WEIGHTS: dict[str, float] = {
     "beginner": 0.33,
@@ -39,6 +46,9 @@ _TOP_N: int = 10
 
 # Skill names searched as additional candidate-pool terms (beyond the title).
 _SKILL_SEARCH_COUNT: int = 2
+
+# Minimum token length for substring matching (prevents "R" from matching "reading").
+_MIN_MATCH_LEN: int = 3
 
 
 # ---------------------------------------------------------------------------
@@ -96,38 +106,94 @@ def _zone_delta_score(current_zone: int, candidate_zone: int) -> float:
     return -0.5      # regression
 
 
-def _skills_overlap_score(
+def _tech_skills_overlap_score(
+    user_skills: list[UserSkill],
+    onet_tech_names: set[str],
+) -> tuple[float, list[str]]:
+    """Return a [0.0, 1.0] overlap score and matched user skill names.
+
+    Matches user skill tags against O*NET technology tool names using
+    bidirectional substring matching (e.g. "React" matches "react native";
+    "TypeScript" matches "typescript").  Each matched skill contributes its
+    level weight; score is normalised by the total possible level weight.
+
+    Short tokens (<_MIN_MATCH_LEN chars) are skipped to avoid false positives
+    (e.g. "R" matching "reading comprehension").
+    """
+    if not onet_tech_names or not user_skills:
+        return 0.0, []
+
+    total_weight = sum(
+        _SKILL_LEVEL_WEIGHTS.get(s.level, _SKILL_LEVEL_WEIGHTS["beginner"])
+        for s in user_skills
+    )
+    if total_weight == 0.0:
+        return 0.0, []
+
+    weighted_overlap = 0.0
+    matched: list[str] = []
+
+    for us in user_skills:
+        name_lower = us.name.lower()
+        if len(name_lower) < _MIN_MATCH_LEN:
+            continue
+        hit = any(
+            name_lower in tech or tech in name_lower
+            for tech in onet_tech_names
+            if len(tech) >= _MIN_MATCH_LEN
+        )
+        if hit:
+            level_weight = _SKILL_LEVEL_WEIGHTS.get(
+                us.level, _SKILL_LEVEL_WEIGHTS["beginner"]
+            )
+            weighted_overlap += level_weight
+            matched.append(us.name)
+
+    return min(weighted_overlap / total_weight, 1.0), matched
+
+
+def _generic_skills_overlap_score(
     user_skills: list[UserSkill],
     onet_skills: list[Skill],
 ) -> tuple[float, list[str]]:
-    """Return a [0.0, 1.0] overlap score and matching skill names.
+    """Return a [0.0, 1.0] overlap score using O*NET generic competency names.
 
-    Score is the sum of (user_level_weight × onet_importance) for each
-    matched skill, normalised by the total O*NET importance across the
-    occupation.  Matching is case-insensitive on skill name.
-
-    Returns:
-        (score, list of matched skill names in original O*NET casing)
+    Fallback for users whose profile skills don't match any O*NET tech tool
+    (e.g. healthcare, education, trades).  Uses bidirectional substring
+    matching so "Patient Care" can match "Care" in an O*NET skill name and
+    vice versa.  Weighted by O*NET importance score so high-importance
+    skills count more toward the final result.
     """
-    if not onet_skills:
+    if not onet_skills or not user_skills:
         return 0.0, []
 
     total_importance = sum(s.importance for s in onet_skills)
     if total_importance == 0.0:
         return 0.0, []
 
-    user_map = {s.name.lower(): s for s in user_skills}
+    user_tokens = [
+        (us, us.name.lower())
+        for us in user_skills
+        if len(us.name) >= _MIN_MATCH_LEN
+    ]
     weighted_overlap = 0.0
     matched: list[str] = []
+    matched_onet: set[str] = set()
 
     for onet_skill in onet_skills:
-        user_skill = user_map.get(onet_skill.name.lower())
-        if user_skill is not None:
-            level_weight = _SKILL_LEVEL_WEIGHTS.get(
-                user_skill.level, _SKILL_LEVEL_WEIGHTS["beginner"]
-            )
-            weighted_overlap += level_weight * onet_skill.importance
-            matched.append(onet_skill.name)
+        skill_lower = onet_skill.name.lower()
+        if len(skill_lower) < _MIN_MATCH_LEN:
+            continue
+        for us, name_lower in user_tokens:
+            if name_lower in skill_lower or skill_lower in name_lower:
+                if onet_skill.name not in matched_onet:
+                    level_weight = _SKILL_LEVEL_WEIGHTS.get(
+                        us.level, _SKILL_LEVEL_WEIGHTS["beginner"]
+                    )
+                    weighted_overlap += level_weight * onet_skill.importance
+                    matched.append(us.name)
+                    matched_onet.add(onet_skill.name)
+                break
 
     return min(weighted_overlap / total_importance, 1.0), matched
 
@@ -217,12 +283,17 @@ def score_paths(
     ---------
     1. Resolve the user's current job zone (zone 1 for first-job / unknown).
     2. Build a candidate pool from O*NET keyword searches.
-    3. For each candidate fetch its zone and skills, then compute:
+    3. For each candidate fetch zone, tech tools, and generic competency skills,
+       then compute:
 
-           combined = _SKILLS_WEIGHT × overlap_score
-                    + _ZONE_WEIGHT   × zone_delta_score
+           overlap  = max(tech_tools_overlap, generic_skills_overlap)
+           combined = _SKILLS_WEIGHT × overlap + _ZONE_WEIGHT × zone_delta_score
 
-       clamped to [0.0, 1.0].
+       Zone delta is the primary signal (60 %) so non-tech users still get
+       meaningful differentiation.  Skill overlap is secondary (40 %) and uses
+       whichever O*NET dataset gives the better match for this user's field.
+
+       Score is clamped to [0.0, 1.0].
     4. Return up to _TOP_N results sorted by score descending.
 
     Candidates that trigger an O*NET API error are silently skipped.
@@ -241,13 +312,22 @@ def score_paths(
     for occ in candidates:
         try:
             zone = onet_client.get_job_zone(occ.code)
-            onet_skills = onet_client.get_skills_profile(occ.code)
+            onet_tech_names = onet_client.get_tech_skills(occ.code)
+            onet_generic_skills = onet_client.get_skills_profile(occ.code)
         except OnetAPIError:
             continue
 
-        overlap_score, matched_skills = _skills_overlap_score(
-            user_profile.skills, onet_skills
+        tech_score, tech_matched = _tech_skills_overlap_score(
+            user_profile.skills, onet_tech_names
         )
+        generic_score, generic_matched = _generic_skills_overlap_score(
+            user_profile.skills, onet_generic_skills
+        )
+        if tech_score >= generic_score:
+            overlap_score, matched_skills = tech_score, tech_matched
+        else:
+            overlap_score, matched_skills = generic_score, generic_matched
+
         zone_score = _zone_delta_score(current_zone, zone)
         raw = _SKILLS_WEIGHT * overlap_score + _ZONE_WEIGHT * zone_score
         final_score = round(max(0.0, min(1.0, raw)), 4)
