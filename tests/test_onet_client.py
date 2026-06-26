@@ -62,8 +62,7 @@ class TestOnetClientInit:
 
     def test_accepts_explicit_api_key(self) -> None:
         c = OnetClient(api_key="explicit-key")
-        assert c._session.auth.username == "explicit-key"
-        assert c._session.auth.password == "nologin"
+        assert c._session.headers["X-API-Key"] == "explicit-key"
 
 
 # ---------------------------------------------------------------------------
