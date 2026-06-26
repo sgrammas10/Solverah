@@ -76,18 +76,18 @@ class TestZoneDeltaScore:
         assert _zone_delta_score(2, 3) == 1.0
 
     def test_two_zones_above(self):
-        assert _zone_delta_score(2, 4) == 0.7
+        assert _zone_delta_score(2, 4) == 0.6
 
     def test_three_or_more_zones_above(self):
-        assert _zone_delta_score(1, 4) == 0.3
-        assert _zone_delta_score(1, 5) == 0.3
+        assert _zone_delta_score(1, 4) == 0.2
+        assert _zone_delta_score(1, 5) == 0.2
 
-    def test_same_zone_is_negative(self):
-        assert _zone_delta_score(3, 3) == -0.2
+    def test_same_zone_is_lateral(self):
+        assert _zone_delta_score(3, 3) == 0.2
 
-    def test_regression_is_most_negative(self):
-        assert _zone_delta_score(4, 3) == -0.5
-        assert _zone_delta_score(5, 2) == -0.5
+    def test_regression_scores(self):
+        assert _zone_delta_score(4, 3) == 0.0   # one step back
+        assert _zone_delta_score(5, 2) == -0.3  # three steps back
 
     def test_zone_1_to_2_is_maximum(self):
         # first_job user stepping to zone 2 should be ideal
@@ -451,9 +451,9 @@ class TestScorePaths:
             mock_client,
         )
 
-        # zone delta: 3 - 1 (default) = +2 → 0.7; no skills overlap
+        # zone delta: 3 - 1 (default) = +2 → 0.6; no skills overlap
         assert len(results) == 1
-        assert results[0].score == pytest.approx(_ZONE_WEIGHT * 0.7, abs=1e-3)
+        assert results[0].score == pytest.approx(_ZONE_WEIGHT * 0.6, abs=1e-3)
 
     def test_no_skill_overlap_scores_by_zone_only(self, mock_client):
         mock_client.search_occupations.side_effect = [

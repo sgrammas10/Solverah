@@ -50,7 +50,7 @@ def user_ctx(**kwargs) -> UserContext:
     return UserContext(**defaults)
 
 
-# Realistic LLM response that matches two candidates from the default fixture.
+# Realistic LLM response that matches three candidates from the default fixture.
 VALID_LLM_RESPONSE = {
     "suggestions": [
         {
@@ -76,6 +76,18 @@ VALID_LLM_RESPONSE = {
             "profile_dimensions": [
                 "Leverages your SQL expertise",
                 "Fits your autonomy preference",
+            ],
+        },
+        {
+            "onet_code": "11-3021.00",
+            "title": "IT Managers",
+            "why_text": (
+                "Your technical background positions you well to lead engineering teams "
+                "and drive delivery across complex projects."
+            ),
+            "profile_dimensions": [
+                "Leadership growth opportunity",
+                "Leverages your Python experience",
             ],
         },
     ]
@@ -186,7 +198,7 @@ class TestValidateResponse:
 
     def test_valid_response_returns_suggestions(self):
         result = _validate_response(VALID_LLM_RESPONSE, self.VALID_CODES)
-        assert len(result) == 2
+        assert len(result) == 3
         assert all(isinstance(s, PathSuggestion) for s in result)
 
     def test_maps_fields_correctly(self):
@@ -207,7 +219,7 @@ class TestValidateResponse:
 
     def test_raises_if_too_few_suggestions(self):
         data = {"suggestions": [VALID_LLM_RESPONSE["suggestions"][0]]}
-        with pytest.raises(ValueError, match="2"):
+        with pytest.raises(ValueError, match="1"):
             _validate_response(data, self.VALID_CODES)
 
     def test_raises_if_too_many_suggestions(self):
@@ -227,6 +239,7 @@ class TestValidateResponse:
             "suggestions": [
                 {**VALID_LLM_RESPONSE["suggestions"][0], "onet_code": "99-9999.00"},
                 VALID_LLM_RESPONSE["suggestions"][1],
+                VALID_LLM_RESPONSE["suggestions"][2],
             ]
         }
         with pytest.raises(ValueError, match="99-9999.00"):
@@ -234,13 +247,13 @@ class TestValidateResponse:
 
     def test_raises_if_required_key_missing(self):
         bad = {"onet_code": "15-1211.00", "title": "CS Analysts"}  # missing why_text etc.
-        data = {"suggestions": [bad, VALID_LLM_RESPONSE["suggestions"][1]]}
+        data = {"suggestions": [bad, VALID_LLM_RESPONSE["suggestions"][1], VALID_LLM_RESPONSE["suggestions"][2]]}
         with pytest.raises(ValueError, match="why_text"):
             _validate_response(data, self.VALID_CODES)
 
     def test_raises_if_profile_dimensions_too_short(self):
         bad = {**VALID_LLM_RESPONSE["suggestions"][0], "profile_dimensions": ["only one"]}
-        data = {"suggestions": [bad, VALID_LLM_RESPONSE["suggestions"][1]]}
+        data = {"suggestions": [bad, VALID_LLM_RESPONSE["suggestions"][1], VALID_LLM_RESPONSE["suggestions"][2]]}
         with pytest.raises(ValueError, match="profile_dimensions"):
             _validate_response(data, self.VALID_CODES)
 
@@ -255,7 +268,7 @@ class TestGenerateNarratives:
         _patch_client(monkeypatch)
         results = generate_narratives(DEFAULT_CANDIDATES, user_ctx())
 
-        assert len(results) == 2
+        assert len(results) == 3
         for s in results:
             assert isinstance(s, PathSuggestion)
             assert s.onet_code
@@ -291,7 +304,7 @@ class TestGenerateNarratives:
         results = generate_narratives(DEFAULT_CANDIDATES, user_ctx())
 
         assert mock_client.chat.completions.create.call_count == 2
-        assert len(results) == 2
+        assert len(results) == 3
 
     def test_retries_once_on_invalid_json_first_response(self, monkeypatch):
         # First response returns raw non-JSON text
@@ -308,7 +321,7 @@ class TestGenerateNarratives:
         monkeypatch.setattr(narrative_module, "_get_openai_client", lambda: mock_client)
 
         results = generate_narratives(DEFAULT_CANDIDATES, user_ctx())
-        assert len(results) == 2
+        assert len(results) == 3
 
     def test_raises_narrative_error_when_both_attempts_fail(self, monkeypatch):
         malformed = _make_openai_response({"bad": "response"})

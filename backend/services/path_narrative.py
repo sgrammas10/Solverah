@@ -107,12 +107,10 @@ def _build_prompt(
     system = (
         "You are a career advisor helping users identify realistic next-step career paths.\n\n"
         "CRITICAL RULES — follow exactly:\n"
-        "1. You MUST select occupations ONLY from the provided candidate list. "
-        "Never introduce an occupation that is not in the list.\n"
-        "2. Select exactly 3 candidates — no more, no fewer.\n"
-        "3. Prefer candidates with a higher match_score and a realistic forward progression.\n"
-        "4. why_text: 1–2 sentences, plain language, specific to this user, encouraging.\n"
-        "5. profile_dimensions: a list of exactly 2 or 3 short tags (5–8 words each) "
+        "1. Write a narrative for EVERY candidate in the list — do not skip any.\n"
+        "2. Preserve the exact order of the candidates as given.\n"
+        "3. why_text: 1–2 sentences, plain language, specific to this user, encouraging.\n"
+        "4. profile_dimensions: a list of exactly 2 or 3 short tags (5–8 words each) "
         "that reference the user's actual skills, archetype, or preferences. "
         "Examples: 'Builds on your Python skills', 'Fits your autonomy preference', "
         "'Matches your Deep Diver archetype'.\n\n"
@@ -144,8 +142,8 @@ def _build_prompt(
         "Candidate Career Paths (sorted by match_score, highest first)\n"
         "==============================================================\n"
         f"{candidates_json}\n\n"
-        "Select exactly 3 of the best forward-progression paths from the list above "
-        "and return the JSON object."
+        "Write a why_text and profile_dimensions for every candidate above, "
+        "in the same order, and return the JSON object."
     )
 
     return [
@@ -170,10 +168,8 @@ def _validate_response(data: dict, valid_codes: set[str]) -> list[PathSuggestion
         raise ValueError(
             f"'suggestions' must be a list, got {type(suggestions_raw).__name__}"
         )
-    if len(suggestions_raw) != 3:
-        raise ValueError(
-            f"Expected exactly 3 suggestions, got {len(suggestions_raw)}"
-        )
+    if len(suggestions_raw) == 0:
+        raise ValueError("'suggestions' list is empty")
 
     results: list[PathSuggestion] = []
     for i, item in enumerate(suggestions_raw):
@@ -222,17 +218,16 @@ def generate_narratives(
 ) -> list[PathSuggestion]:
     """Generate plain-language career path suggestions from scored candidates.
 
-    Calls OpenAI to select the best 3 candidates and write a narrative for
-    each.  The LLM is explicitly constrained to only choose from the provided
-    candidate list.  If the response is malformed, one retry is attempted
-    before raising NarrativeGenerationError.
+    Calls OpenAI to write a narrative for every scored candidate.  Order is
+    preserved from the input (highest score first).  If the response is
+    malformed, one retry is attempted before raising NarrativeGenerationError.
 
     Args:
-        candidates:   Scored candidates from path_scoring.score_paths (5–10).
+        candidates:   Scored candidates from path_scoring.score_paths (up to 10).
         user_context: User's archetype, preferences, and top skills.
 
     Returns:
-        3 PathSuggestion objects.
+        PathSuggestion objects for every input candidate, in score order.
 
     Raises:
         NarrativeGenerationError: Input is empty, or LLM response is
