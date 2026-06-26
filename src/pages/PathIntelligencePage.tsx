@@ -8,7 +8,7 @@ import PathSuggestionList from "../components/PathIntelligence/PathSuggestionLis
 // Types
 // ---------------------------------------------------------------------------
 
-type FetchState = "loading" | "error" | "career_status_not_set" | "success";
+type FetchState = "loading" | "error" | "career_status_not_set" | "profile_incomplete" | "success";
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -83,6 +83,8 @@ export default function PathIntelligencePage() {
     } catch (err) {
       if (err instanceof Error && err.message === "career_status_not_set") {
         setFetchState("career_status_not_set");
+      } else if (err instanceof Error && err.message === "profile_incomplete") {
+        setFetchState("profile_incomplete");
       } else {
         setFetchState("error");
       }
@@ -141,6 +143,23 @@ export default function PathIntelligencePage() {
 
         {/* Career status not set */}
         {fetchState === "career_status_not_set" && <CareerStatusOnboardingPrompt />}
+
+        {/* Profile too sparse to score */}
+        {fetchState === "profile_incomplete" && (
+          <div className="rounded-xl border border-cream-muted bg-white px-6 py-8 text-center space-y-4">
+            <p className="font-semibold text-ink-primary">Add a job title and a few skills to get started.</p>
+            <p className="text-sm text-ink-secondary leading-relaxed">
+              Path Intelligence needs your current (or most recent) job title and at least one skill to find matching career paths.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/job-seeker/profile?tab=experience")}
+              className="bg-forest-dark text-white font-semibold px-4 py-2 rounded text-sm hover:bg-forest-mid transition-colors"
+            >
+              Complete Your Profile
+            </button>
+          </div>
+        )}
 
         {/* Success */}
         {fetchState === "success" && data && (

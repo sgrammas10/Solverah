@@ -13,10 +13,13 @@ Keep _SKILL_SEARCH_COUNT small to avoid hitting the O*NET rate limit.
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import Literal
 
 from backend.services.onet_client import OnetAPIError, OnetClient, Occupation, Skill
+
+_log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -180,14 +183,23 @@ def _gather_candidates(
     for skill in profile.skills[:_SKILL_SEARCH_COUNT]:
         search_terms.append(skill.name)
 
+    api_errors = 0
     for term in search_terms:
         try:
-            for occ in onet_client.search_occupations(term):
+            results = onet_client.search_occupations(term)
+            _log.debug("O*NET search %r → %d results", term, len(results))
+            for occ in results:
                 if occ.code not in seen:
                     seen.add(occ.code)
                     candidates.append(occ)
-        except OnetAPIError:
-            continue
+        except OnetAPIError as exc:
+            _log.warning("O*NET search failed for term %r: %s", term, exc)
+            api_errors += 1
+
+    if search_terms and api_errors == len(search_terms):
+        raise OnetAPIError(
+            f"All {api_errors} O*NET search(es) failed — check ONET_API_KEY and connectivity"
+        )
 
     return candidates
 

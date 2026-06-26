@@ -3442,6 +3442,16 @@ def path_suggestions():
         first_exp = experience[0] if isinstance(experience[0], dict) else {}
         current_title = first_exp.get("position") or first_exp.get("title") or None
 
+    # Gate on having at least one searchable term before hitting O*NET.
+    # _gather_candidates uses current_title (non-first-job) and the first
+    # _SKILL_SEARCH_COUNT skills, so if both are absent there is nothing to
+    # search and the result will always be empty.
+    has_search_terms = bool(
+        (current_title and career_status != "first_job") or user_skills
+    )
+    if not has_search_terms:
+        return jsonify({"error": "profile_incomplete"}), 400
+
     user_profile = UserProfile(
         current_title=current_title,
         career_status=career_status,
@@ -3454,6 +3464,12 @@ def path_suggestions():
         scored = score_paths(user_profile, onet_client)
     except Exception:
         app.logger.exception("Path scoring failed for user %s", user.id)
+        return jsonify({"error": "Unable to score career paths"}), 500
+
+    if not scored:
+        # Profile is complete but O*NET returned nothing — treat as a
+        # transient service issue rather than a profile problem.
+        app.logger.warning("Empty scored list for user %s (title=%r, skills=%d)", user.id, current_title, len(user_skills))
         return jsonify({"error": "Unable to score career paths"}), 500
 
     manager_match_result: dict = profile.get("manager_match_result") or {}
