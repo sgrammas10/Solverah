@@ -196,10 +196,8 @@ def _gather_candidates(
             _log.warning("O*NET search failed for term %r: %s", term, exc)
             api_errors += 1
 
-    if search_terms and api_errors == len(search_terms):
-        raise OnetAPIError(
-            f"All {api_errors} O*NET search(es) failed — check ONET_API_KEY and connectivity"
-        )
+    if api_errors:
+        _log.warning("%d/%d O*NET search(es) failed", api_errors, len(search_terms))
 
     return candidates
 

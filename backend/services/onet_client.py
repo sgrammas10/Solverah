@@ -14,6 +14,7 @@ import time
 from dataclasses import dataclass
 
 import requests
+from requests.auth import HTTPBasicAuth
 
 _log = logging.getLogger(__name__)
 
@@ -79,8 +80,8 @@ class OnetClient:
                 "Add it to your environment or pass api_key= directly."
             )
         self._session = requests.Session()
+        self._session.auth = HTTPBasicAuth(key, "nologin")
         self._session.headers.update({
-            "X-API-Key": key,
             "Accept": "application/json",
         })
 
@@ -185,5 +186,4 @@ class OnetClient:
             Integer job zone between 1 and 5.
         """
         data = self._get(f"online/occupations/{onet_code}/summary/job_zone")
-        # v2 API: {"code": 4, "title": "Job Zone Four: ...", ...}
-        return int(data["code"])
+        return int(data["job_zone"]["value"])

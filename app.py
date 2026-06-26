@@ -3442,16 +3442,6 @@ def path_suggestions():
         first_exp = experience[0] if isinstance(experience[0], dict) else {}
         current_title = first_exp.get("position") or first_exp.get("title") or None
 
-    # Gate on having at least one searchable term before hitting O*NET.
-    # _gather_candidates uses current_title (non-first-job) and the first
-    # _SKILL_SEARCH_COUNT skills, so if both are absent there is nothing to
-    # search and the result will always be empty.
-    has_search_terms = bool(
-        (current_title and career_status != "first_job") or user_skills
-    )
-    if not has_search_terms:
-        return jsonify({"error": "profile_incomplete"}), 400
-
     user_profile = UserProfile(
         current_title=current_title,
         career_status=career_status,
