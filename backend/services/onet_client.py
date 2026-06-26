@@ -1,10 +1,9 @@
-"""O*NET Web Services API client.
+"""O*NET Web Services v2 API client.
 
-Authenticates with HTTP Basic Auth: ONET_API_KEY as username, "nologin" as
-password.  Set the ONET_API_KEY environment variable before instantiating
-OnetClient (see .env.example).
+Authenticates via X-API-Key header.  Set the ONET_API_KEY environment variable
+before instantiating OnetClient (see .env.example).
 
-API reference: https://services.onetcenter.org/developer/
+API reference: https://api-v2.onetcenter.org/
 """
 from __future__ import annotations
 
@@ -14,7 +13,6 @@ import time
 from dataclasses import dataclass
 
 import requests
-from requests.auth import HTTPBasicAuth
 
 _log = logging.getLogger(__name__)
 
@@ -63,14 +61,7 @@ class OnetAPIError(Exception):
 
 
 class OnetClient:
-    """Thin wrapper around the O*NET Web Services v1.9 REST API.
-
-    Args:
-        api_key: Overrides the ONET_API_KEY environment variable when provided.
-
-    Raises:
-        ValueError: When no API key is available.
-    """
+    """Thin wrapper around the O*NET Web Services v2 REST API."""
 
     def __init__(self, api_key: str | None = None) -> None:
         key = api_key or os.environ.get("ONET_API_KEY")
@@ -80,8 +71,8 @@ class OnetClient:
                 "Add it to your environment or pass api_key= directly."
             )
         self._session = requests.Session()
-        self._session.auth = HTTPBasicAuth(key, "nologin")
         self._session.headers.update({
+            "X-API-Key": key,
             "Accept": "application/json",
         })
 
@@ -186,4 +177,5 @@ class OnetClient:
             Integer job zone between 1 and 5.
         """
         data = self._get(f"online/occupations/{onet_code}/summary/job_zone")
-        return int(data["job_zone"]["value"])
+        # v2 response: {"code": 4, "title": "Job Zone Four: ..."}
+        return int(data["code"])
