@@ -217,22 +217,21 @@ class TestValidateResponse:
         with pytest.raises(ValueError, match="list"):
             _validate_response({"suggestions": "bad"}, self.VALID_CODES)
 
-    def test_raises_if_too_few_suggestions(self):
-        data = {"suggestions": [VALID_LLM_RESPONSE["suggestions"][0]]}
-        with pytest.raises(ValueError, match="1"):
-            _validate_response(data, self.VALID_CODES)
+    def test_raises_if_suggestions_empty(self):
+        with pytest.raises(ValueError, match="empty"):
+            _validate_response({"suggestions": []}, self.VALID_CODES)
 
-    def test_raises_if_too_many_suggestions(self):
+    def test_accepts_more_than_three_suggestions(self):
         data = {
             "suggestions": [
                 VALID_LLM_RESPONSE["suggestions"][0],
                 VALID_LLM_RESPONSE["suggestions"][1],
-                {**VALID_LLM_RESPONSE["suggestions"][0], "onet_code": "11-3021.00"},
-                {**VALID_LLM_RESPONSE["suggestions"][0], "onet_code": "11-3021.00"},
+                VALID_LLM_RESPONSE["suggestions"][2],
+                {**VALID_LLM_RESPONSE["suggestions"][1], "onet_code": "15-1299.00"},
             ]
         }
-        with pytest.raises(ValueError, match="4"):
-            _validate_response(data, self.VALID_CODES)
+        result = _validate_response(data, {*self.VALID_CODES, "15-1299.00"})
+        assert len(result) == 4
 
     def test_raises_if_code_not_in_candidates(self):
         data = {
