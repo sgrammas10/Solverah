@@ -210,15 +210,8 @@ class TestGetSkillsProfile:
 
 class TestGetJobZone:
     _RESPONSE = {
-        "occupation": {"href": "...", "code": "15-1252.00", "title": "Software Developers"},
-        "job_zone": {
-            "value": 4,
-            "title": "Considerable Preparation Needed",
-            "education": "Most of these occupations require a four-year bachelor's degree.",
-            "related_experience": "A considerable amount of work-related skill is required.",
-            "job_training": "Employees may need some on-the-job training.",
-            "svp_range": "(7.0 to < 8.0)",
-        },
+        "code": 4,
+        "title": "Job Zone Four: Considerable Preparation Needed",
     }
 
     def test_returns_integer_job_zone(self, client: OnetClient) -> None:
@@ -230,7 +223,7 @@ class TestGetJobZone:
 
     def test_job_zone_boundaries(self, client: OnetClient) -> None:
         for expected in (1, 2, 3, 4, 5):
-            resp = {"job_zone": {"value": expected, "title": "..."}}
+            resp = {"code": expected, "title": "..."}
             with patch.object(client._session, "get", return_value=_mock_response(resp)):
                 assert client.get_job_zone("15-1252.00") == expected
 

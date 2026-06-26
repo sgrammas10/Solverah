@@ -2117,7 +2117,7 @@ def profile():
         metadata={"updated_fields": sorted(profile_data.keys()), "target_user_id": user.id},
     )
     db.session.commit()
-    if "experience" in profile_data:
+    if profile_data.keys() & {"experience", "skills", "skill_levels"}:
         _invalidate_path_suggestions_cache(user.id)
 
     return jsonify({
@@ -2356,8 +2356,8 @@ def set_career_status():
         200 {"career_status": str}
         400 {"error": "invalid_status"}
     """
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
     if not user:
         return jsonify({"error": "not_found"}), 404
 
