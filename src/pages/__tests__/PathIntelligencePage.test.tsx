@@ -5,6 +5,9 @@ import PathIntelligencePage from "../PathIntelligencePage";
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   fetchWithAuth: vi.fn(),
+  user: {
+    profileData: { path_preferences: { move_type: "stay_in_field" } },
+  } as Record<string, unknown>,
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -16,7 +19,7 @@ vi.mock("react-router-dom", async (importOriginal) => {
 });
 
 vi.mock("../../contexts/useAuth", () => ({
-  useAuth: () => ({ fetchWithAuth: mocks.fetchWithAuth }),
+  useAuth: () => ({ fetchWithAuth: mocks.fetchWithAuth, user: mocks.user }),
 }));
 
 beforeEach(() => {
