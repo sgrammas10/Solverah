@@ -1,0 +1,173 @@
+import { useState } from "react";
+import { useAuth } from "../../contexts/useAuth";
+import type { MoveIntent, SeniorityIntent, Priority } from "../../types/pathIntelligence";
+
+interface PathPreferencesFormProps {
+  onComplete: () => void;
+}
+
+const QUESTIONS = [
+  {
+    key: "move_intent" as const,
+    text: "What kind of move are you looking for?",
+    options: [
+      { value: "stay_in_field" as MoveIntent, label: "Stay in my field", description: "Same domain, potentially a different company or team" },
+      { value: "adjacent" as MoveIntent, label: "Something adjacent", description: "Related skills, stepping into a nearby domain" },
+      { value: "fresh_start" as MoveIntent, label: "Fresh direction", description: "New territory — using transferable skills in a different field" },
+    ],
+  },
+  {
+    key: "seniority_intent" as const,
+    text: "What seniority level are you targeting?",
+    options: [
+      { value: "move_up" as SeniorityIntent, label: "Looking to move up", description: "Seeking a promotion or step up in responsibility" },
+      { value: "stay_lateral" as SeniorityIntent, label: "Similar level", description: "Same seniority, different role or company" },
+      { value: "open" as SeniorityIntent, label: "Open to either", description: "Not a dealbreaker — show me the best fits" },
+    ],
+  },
+  {
+    key: "priority" as const,
+    text: "What matters most in your next role?",
+    options: [
+      { value: "pay_title" as Priority, label: "Pay & title", description: "Compensation and seniority signal are the priority" },
+      { value: "interesting_work" as Priority, label: "Interesting work", description: "Stimulating problems and meaningful projects" },
+      { value: "work_life_balance" as Priority, label: "Work-life balance", description: "Sustainable pace and flexibility" },
+      { value: "learning_growth" as Priority, label: "Learning & growth", description: "Opportunities to build new skills and advance" },
+    ],
+  },
+] as const;
+
+type Answers = {
+  move_intent: MoveIntent | null;
+  seniority_intent: SeniorityIntent | null;
+  priority: Priority | null;
+};
+
+export default function PathPreferencesForm({ onComplete }: PathPreferencesFormProps) {
+  const { fetchWithAuth, updateProfileData } = useAuth();
+  const [step, setStep] = useState(0);
+  const [answers, setAnswers] = useState<Answers>({
+    move_intent: null,
+    seniority_intent: null,
+    priority: null,
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const question = QUESTIONS[step];
+  const currentAnswer = answers[question.key];
+  const isLastStep = step === QUESTIONS.length - 1;
+
+  function selectOption(value: MoveIntent | SeniorityIntent | Priority) {
+    setAnswers((prev) => ({ ...prev, [question.key]: value }));
+  }
+
+  async function handleNext() {
+    if (!currentAnswer) return;
+    if (!isLastStep) {
+      setStep((s) => s + 1);
+      return;
+    }
+
+    const { move_intent, seniority_intent, priority } = answers;
+    if (!move_intent || !seniority_intent || !priority) return;
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      await fetchWithAuth("/intelligence/path-preferences", {
+        method: "POST",
+        body: JSON.stringify({ move_intent, seniority_intent, priority }),
+      });
+      updateProfileData({ path_preferences: { move_intent, seniority_intent, priority } });
+      onComplete();
+    } catch {
+      setError("Something went wrong saving your preferences. Please try again.");
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Progress */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-widest text-ink-tertiary">
+            Question {step + 1} of {QUESTIONS.length}
+          </p>
+          <div className="flex gap-1.5">
+            {QUESTIONS.map((_, i) => (
+              <div
+                key={i}
+                className={`h-1 rounded-full transition-all duration-300 ${
+                  i <= step ? "w-6 bg-forest-dark" : "w-6 bg-cream-muted"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+        <h2 className="font-display text-xl font-semibold text-ink-primary">
+          {question.text}
+        </h2>
+      </div>
+
+      {/* Options */}
+      <div className="space-y-3">
+        {question.options.map((opt) => {
+          const selected = currentAnswer === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => selectOption(opt.value as MoveIntent & SeniorityIntent & Priority)}
+              className={`w-full text-left px-5 py-4 rounded-xl border transition-all ${
+                selected
+                  ? "border-2 border-forest-dark bg-forest-pale"
+                  : "border border-cream-muted bg-white hover:border-forest-light"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className={`font-semibold text-sm ${selected ? "text-forest-dark" : "text-ink-primary"}`}>
+                    {opt.label}
+                  </p>
+                  <p className="text-xs text-ink-secondary mt-0.5 leading-relaxed">
+                    {opt.description}
+                  </p>
+                </div>
+                {selected && (
+                  <span className="text-forest-dark font-bold text-sm shrink-0 mt-0.5">✓</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Navigation */}
+      <div className="flex items-center justify-between pt-1">
+        <button
+          type="button"
+          onClick={() => setStep((s) => s - 1)}
+          className={`text-sm font-semibold text-ink-secondary hover:text-ink-primary transition-colors ${
+            step === 0 ? "invisible" : ""
+          }`}
+        >
+          ← Back
+        </button>
+        <button
+          type="button"
+          onClick={handleNext}
+          disabled={!currentAnswer || submitting}
+          className="bg-forest-dark text-white font-semibold px-6 py-2.5 rounded text-sm hover:bg-forest-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {submitting ? "Saving…" : isLastStep ? "See my paths →" : "Next →"}
+        </button>
+      </div>
+
+      {error && (
+        <p className="text-xs text-red-600 text-center">{error}</p>
+      )}
+    </div>
+  );
+}

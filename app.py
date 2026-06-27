@@ -3379,6 +3379,53 @@ def company_lens_matches():
     })
 
 
+@app.post("/api/intelligence/path-preferences")
+@jwt_required()
+def save_path_preferences():
+    """POST /api/intelligence/path-preferences — Save the user's career search preferences.
+
+    Body: {"move_intent": str, "seniority_intent": str, "priority": str}
+
+    Returns:
+        200 {"message": "Preferences saved"}
+        400 if any field has an invalid value or is missing
+        401 if unauthenticated
+        404 if user not found
+    """
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    data = request.get_json() or {}
+    move_intent = data.get("move_intent")
+    seniority_intent = data.get("seniority_intent")
+    priority = data.get("priority")
+
+    valid_move = {"stay_in_field", "adjacent", "fresh_start"}
+    valid_seniority = {"move_up", "stay_lateral", "open"}
+    valid_priority = {"pay_title", "interesting_work", "work_life_balance", "learning_growth"}
+
+    if move_intent not in valid_move:
+        return jsonify({"error": "Invalid move_intent"}), 400
+    if seniority_intent not in valid_seniority:
+        return jsonify({"error": "Invalid seniority_intent"}), 400
+    if priority not in valid_priority:
+        return jsonify({"error": "Invalid priority"}), 400
+
+    profile = dict(user.profile_data or {})
+    profile["path_preferences"] = {
+        "move_intent": move_intent,
+        "seniority_intent": seniority_intent,
+        "priority": priority,
+    }
+    user.profile_data = profile
+    db.session.commit()
+
+    _invalidate_path_suggestions_cache(user.id)
+    return jsonify({"message": "Preferences saved"}), 200
+
+
 @app.get("/api/intelligence/path-suggestions")
 @jwt_required()
 def path_suggestions():
@@ -3453,11 +3500,18 @@ def path_suggestions():
         first_exp = experience[0] if isinstance(experience[0], dict) else {}
         current_title = first_exp.get("position") or first_exp.get("title") or None
 
+    path_preferences: dict = profile.get("path_preferences") or {}
+    move_intent: str | None = path_preferences.get("move_intent")
+    seniority_intent: str | None = path_preferences.get("seniority_intent")
+    priority: str | None = path_preferences.get("priority")
+
     user_profile = UserProfile(
         current_title=current_title,
         career_status=career_status,
         skills=user_skills,
         archetype=archetype,
+        move_intent=move_intent,
+        seniority_intent=seniority_intent,
     )
 
     try:
@@ -3481,6 +3535,9 @@ def path_suggestions():
         management_preferences=manager_match_result,
         career_status=career_status,
         top_skills=top_skills,
+        move_intent=move_intent,
+        seniority_intent=seniority_intent,
+        priority=priority,
     )
 
     try:

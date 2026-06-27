@@ -72,6 +72,8 @@ class UserProfile:
     # because mapping a free-form archetype string to occupations deterministically
     # would require an LLM or a hardcoded lookup that would drift quickly.
     archetype: str
+    move_intent: Literal["stay_in_field", "adjacent", "fresh_start"] | None = None
+    seniority_intent: Literal["move_up", "stay_lateral", "open"] | None = None
 
 
 @dataclass
@@ -87,15 +89,47 @@ class ScoredPath:
 # ---------------------------------------------------------------------------
 
 
-def _zone_delta_score(current_zone: int, candidate_zone: int) -> float:
+def _zone_delta_score(
+    current_zone: int,
+    candidate_zone: int,
+    seniority_intent: Literal["move_up", "stay_lateral", "open"] | None = None,
+) -> float:
     """Map the zone difference to a [-0.3, 1.0] score contribution.
 
-    Single-step forward (delta = 1) is the sweet spot and scores 1.0.
-    Lateral moves (delta = 0) and slight regressions (delta = -1) floor at
-    0.0–0.2 so skill overlap can still produce a meaningful score.
-    Significant regressions (delta <= -2) are penalised but not zeroed out.
+    Scoring varies based on seniority_intent:
+    - move_up: rewards forward progression, penalises lateral
+    - stay_lateral: rewards lateral moves, reduces forward progression weight
+    - open/None: original balanced behaviour
     """
     delta = candidate_zone - current_zone
+
+    if seniority_intent == "move_up":
+        if delta >= 3:
+            return 0.2
+        if delta == 2:
+            return 0.8   # boost ambition (was 0.6)
+        if delta == 1:
+            return 1.0
+        if delta == 0:
+            return 0.0   # penalise lateral when user wants up (was 0.2)
+        if delta == -1:
+            return 0.0
+        return -0.3
+
+    if seniority_intent == "stay_lateral":
+        if delta >= 3:
+            return 0.1
+        if delta == 2:
+            return 0.2
+        if delta == 1:
+            return 0.5   # mild forward acceptable
+        if delta == 0:
+            return 0.8   # lateral is the sweet spot
+        if delta == -1:
+            return 0.2   # slight regression tolerable
+        return -0.3
+
+    # "open" or None — original behaviour
     if delta >= 3:
         return 0.2   # large leap — possible but uncertain
     if delta == 2:
@@ -247,10 +281,19 @@ def _gather_candidates(
     candidates: list[Occupation] = []
 
     search_terms: list[str] = []
-    if profile.current_title and profile.career_status != "first_job":
-        search_terms.append(profile.current_title)
-    for skill in profile.skills[:_SKILL_SEARCH_COUNT]:
-        search_terms.append(skill.name)
+    intent = profile.move_intent
+
+    if intent == "stay_in_field":
+        if profile.current_title and profile.career_status != "first_job":
+            search_terms.append(profile.current_title)
+    elif intent == "fresh_start":
+        for skill in profile.skills[:_SKILL_SEARCH_COUNT]:
+            search_terms.append(skill.name)
+    else:  # "adjacent" or None — original behaviour
+        if profile.current_title and profile.career_status != "first_job":
+            search_terms.append(profile.current_title)
+        for skill in profile.skills[:_SKILL_SEARCH_COUNT]:
+            search_terms.append(skill.name)
 
     api_errors = 0
     for term in search_terms:
@@ -331,7 +374,7 @@ def score_paths(
         else:
             overlap_score, matched_skills = generic_score, generic_matched
 
-        zone_score = _zone_delta_score(current_zone, zone)
+        zone_score = _zone_delta_score(current_zone, zone, user_profile.seniority_intent)
         raw = _SKILLS_WEIGHT * overlap_score + _ZONE_WEIGHT * zone_score
         final_score = round(max(0.0, min(1.0, raw)), 4)
 

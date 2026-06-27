@@ -380,3 +380,43 @@ class TestGenerateNarratives:
         results = generate_narratives(DEFAULT_CANDIDATES, user_ctx())
         for s in results:
             assert all(isinstance(d, str) for d in s.profile_dimensions)
+
+
+# ---------------------------------------------------------------------------
+# _build_prompt — preferences section
+# ---------------------------------------------------------------------------
+
+
+class TestBuildPromptPreferences:
+    def test_preferences_section_included_when_set(self):
+        ctx = user_ctx(move_intent="fresh_start", seniority_intent="move_up", priority="learning_growth")
+        msgs = _build_prompt([scored_path("15-1252.00")], ctx)
+        user_content = msgs[1]["content"]
+        assert "Fresh direction" in user_content
+        assert "Looking to move up" in user_content
+        assert "Learning & growth" in user_content
+        assert "Preferences" in user_content
+
+    def test_preferences_section_omitted_when_none(self):
+        ctx = user_ctx()  # all None by default
+        msgs = _build_prompt([scored_path("15-1252.00")], ctx)
+        user_content = msgs[1]["content"]
+        assert "Preferences" not in user_content
+
+    def test_partial_preferences_still_included(self):
+        ctx = user_ctx(move_intent="stay_in_field")
+        msgs = _build_prompt([scored_path("15-1252.00")], ctx)
+        user_content = msgs[1]["content"]
+        assert "Stay in my field" in user_content
+        assert "Preferences" in user_content
+
+    def test_all_label_mappings_render(self):
+        cases = [
+            ("stay_in_field", "Stay in my field"),
+            ("adjacent", "Something adjacent"),
+            ("fresh_start", "Fresh direction"),
+        ]
+        for value, expected_label in cases:
+            ctx = user_ctx(move_intent=value)
+            msgs = _build_prompt([scored_path("15-1252.00")], ctx)
+            assert expected_label in msgs[1]["content"]

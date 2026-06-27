@@ -35,6 +35,9 @@ class UserContext:
     management_preferences: dict                               # Full ManagerMatch result dict
     career_status: Literal["employed", "between_jobs", "first_job"]
     top_skills: list[str]                                      # Highest-expertise skill names
+    move_intent: str | None = None
+    seniority_intent: str | None = None
+    priority: str | None = None
 
 
 @dataclass
@@ -71,6 +74,24 @@ def _get_openai_client():
 # ---------------------------------------------------------------------------
 # Prompt builder
 # ---------------------------------------------------------------------------
+
+
+_MOVE_INTENT_LABELS: dict[str, str] = {
+    "stay_in_field": "Stay in my field",
+    "adjacent": "Something adjacent",
+    "fresh_start": "Fresh direction",
+}
+_SENIORITY_INTENT_LABELS: dict[str, str] = {
+    "move_up": "Looking to move up",
+    "stay_lateral": "Similar level",
+    "open": "Open to either",
+}
+_PRIORITY_LABELS: dict[str, str] = {
+    "pay_title": "Pay & title",
+    "interesting_work": "Interesting work",
+    "work_life_balance": "Work-life balance",
+    "learning_growth": "Learning & growth",
+}
 
 
 def _format_management_prefs(prefs: dict) -> str:
@@ -132,6 +153,19 @@ def _build_prompt(
     )
     management_str = _format_management_prefs(ctx.management_preferences)
 
+    prefs_section = ""
+    if any([ctx.move_intent, ctx.seniority_intent, ctx.priority]):
+        move_label = _MOVE_INTENT_LABELS.get(ctx.move_intent or "", "Not specified")
+        seniority_label = _SENIORITY_INTENT_LABELS.get(ctx.seniority_intent or "", "Not specified")
+        priority_label = _PRIORITY_LABELS.get(ctx.priority or "", "Not specified")
+        prefs_section = (
+            "Preferences\n"
+            "===========\n"
+            f"Move direction:    {move_label}\n"
+            f"Seniority intent:  {seniority_label}\n"
+            f"What matters most: {priority_label}\n\n"
+        )
+
     user_msg = (
         "User Profile\n"
         "============\n"
@@ -139,6 +173,7 @@ def _build_prompt(
         f"WorkPulse archetype:  {ctx.archetype}\n"
         f"Top skills:           {top_skills_str}\n"
         f"Management preferences:\n{management_str}\n\n"
+        f"{prefs_section}"
         "Candidate Career Paths (sorted by match_score, highest first)\n"
         "==============================================================\n"
         f"{candidates_json}\n\n"

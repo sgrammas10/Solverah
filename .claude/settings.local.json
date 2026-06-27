@@ -6,7 +6,8 @@
       "PowerShell(cmd /c \"where node 2>nul\")",
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Sebastian Grammas\\\\AppData\\\\Local\\\\\" -Depth 1 | Where-Object { $_.Name -match \"node|nvm\" })",
       "PowerShell($userPath = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); $userPath -split \";\" | Where-Object { $_ -ne \"\" })",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(python -m pytest tests/test_path_scoring.py tests/test_path_narrative.py tests/test_path_preferences_api.py -x -q)"
     ]
   }
 }

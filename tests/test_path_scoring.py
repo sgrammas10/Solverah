@@ -351,6 +351,72 @@ class TestGatherCandidates:
 
 
 # ---------------------------------------------------------------------------
+# _zone_delta_score with seniority_intent
+# ---------------------------------------------------------------------------
+
+
+class TestZoneDeltaScoreWithIntent:
+    def test_move_up_boosts_delta_2(self):
+        assert _zone_delta_score(2, 4, "move_up") == 0.8
+
+    def test_move_up_penalises_lateral(self):
+        assert _zone_delta_score(3, 3, "move_up") == 0.0
+
+    def test_move_up_still_favours_delta_1(self):
+        assert _zone_delta_score(2, 3, "move_up") == 1.0
+
+    def test_stay_lateral_boosts_same_zone(self):
+        assert _zone_delta_score(3, 3, "stay_lateral") == 0.8
+
+    def test_stay_lateral_reduces_forward_step(self):
+        assert _zone_delta_score(2, 3, "stay_lateral") == 0.5
+
+    def test_stay_lateral_slight_regression_tolerable(self):
+        assert _zone_delta_score(3, 2, "stay_lateral") == 0.2
+
+    def test_open_matches_none_behaviour(self):
+        for delta in range(-2, 4):
+            assert _zone_delta_score(3, 3 + delta, "open") == _zone_delta_score(3, 3 + delta, None)
+
+
+# ---------------------------------------------------------------------------
+# _gather_candidates with move_intent
+# ---------------------------------------------------------------------------
+
+
+class TestGatherCandidatesWithMoveIntent:
+    def test_stay_in_field_only_searches_title(self, mock_client):
+        mock_client.search_occupations.return_value = [occ("15-1252.00")]
+        p = profile(skills=[user_skill("Python"), user_skill("SQL")], move_intent="stay_in_field")
+        _gather_candidates(p, mock_client, exclude_code=None)
+        mock_client.search_occupations.assert_called_once_with("Software Engineer")
+
+    def test_fresh_start_only_searches_skills(self, mock_client):
+        mock_client.search_occupations.return_value = [occ("43-4051.00")]
+        p = profile(skills=[user_skill("Python"), user_skill("SQL")], move_intent="fresh_start")
+        _gather_candidates(p, mock_client, exclude_code=None)
+        call_args = [c.args[0] for c in mock_client.search_occupations.call_args_list]
+        assert "Software Engineer" not in call_args
+        assert "Python" in call_args
+
+    def test_adjacent_uses_title_and_skills(self, mock_client):
+        mock_client.search_occupations.return_value = []
+        p = profile(skills=[user_skill("Python")], move_intent="adjacent")
+        _gather_candidates(p, mock_client, exclude_code=None)
+        call_args = [c.args[0] for c in mock_client.search_occupations.call_args_list]
+        assert "Software Engineer" in call_args
+        assert "Python" in call_args
+
+    def test_none_intent_behaves_like_adjacent(self, mock_client):
+        mock_client.search_occupations.return_value = []
+        p = profile(skills=[user_skill("Python")], move_intent=None)
+        _gather_candidates(p, mock_client, exclude_code=None)
+        call_args = [c.args[0] for c in mock_client.search_occupations.call_args_list]
+        assert "Software Engineer" in call_args
+        assert "Python" in call_args
+
+
+# ---------------------------------------------------------------------------
 # score_paths — integration-level tests with a fully mocked OnetClient
 # ---------------------------------------------------------------------------
 
