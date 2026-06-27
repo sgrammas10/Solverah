@@ -45,6 +45,7 @@ export default function WorkPulseResultsPage() {
       const data = await fetchWithAuth<WpApiResponse>("/work-pulse/results");
       setResult(data);
       setCachedResult(data);
+      updateProfile({ wpl_completed: true });
       setFetchState("success");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
@@ -57,10 +58,26 @@ export default function WorkPulseResultsPage() {
       }
       setFetchState("error");
     }
-  }, [fetchWithAuth, setCachedResult, state.answers, submitAnswers]);
+  }, [fetchWithAuth, setCachedResult, updateProfile, state.answers, submitAnswers]);
 
   useEffect(() => {
-    if (hasCached) return;
+    if (hasCached && user?.wpl_completed) {
+      // Cache and server agree — nothing to do.
+      return;
+    }
+    if (hasCached && !user?.wpl_completed) {
+      // Stale cache: server has no record. Re-submit if answers are available,
+      // otherwise the cache is useless — redirect back to the quiz.
+      if (state.answers.length === WP_QUESTIONS.length) {
+        if (!hasFiredRef.current) {
+          hasFiredRef.current = true;
+          submitAnswers();
+        }
+      } else {
+        navigate("/work-pulse", { replace: true });
+      }
+      return;
+    }
     // Fresh session: user already completed WP but sessionStorage was cleared — refetch from server.
     if (user?.wpl_completed) {
       fetchFromServer();

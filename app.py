@@ -3301,7 +3301,18 @@ def company_lens_matches():
     profile = user.profile_data or {}
     user_prefs = profile.get("culture_preferences")
     if not user_prefs:
-        return jsonify({"error": "Work Pulse not completed — culture preferences not found"}), 400
+        # Backfill for users who completed WP before culture_preferences was stored.
+        from model import UserIntake
+        intake = UserIntake.query.filter_by(user_id=user.id).first()
+        if intake and intake.wpl_answers:
+            from work_pulse.derive_preferences import derive_culture_preferences
+            user_prefs = derive_culture_preferences(intake.wpl_answers)
+            profile = dict(profile)
+            profile["culture_preferences"] = user_prefs
+            user.profile_data = profile
+            db.session.commit()
+        else:
+            return jsonify({"error": "Work Pulse not completed — culture preferences not found"}), 400
 
     try:
         limit = int(request.args.get("limit", 5))

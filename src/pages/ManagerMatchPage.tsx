@@ -57,7 +57,12 @@ export default function ManagerMatchPage() {
       reset();
       answersRef.current = [];
     } else if (state.answers.length >= 15) {
-      navigate('/manager-match/results', { replace: true });
+      if (state.cachedResult) {
+        navigate('/manager-match/results', { replace: true });
+      } else {
+        // Answers complete but no result (e.g. page reload, DB reset) — re-submit.
+        submitAnswers(state.answers);
+      }
     }
   }, []); // intentionally runs once on mount
 
