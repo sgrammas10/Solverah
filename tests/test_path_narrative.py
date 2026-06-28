@@ -258,8 +258,8 @@ class TestValidateResponse:
             _validate_response({"suggestions": duped}, self.VALID_CODES)
 
     def test_raises_if_code_not_in_candidates(self):
-        # Use a 3-item valid_codes so the length check passes, then test the bad code
-        three_codes = {"99-9999.00", "15-2051.00", "11-3021.00"}
+        # Use a 3-item valid_codes (without the bad code) so length check passes
+        three_codes = {"15-1211.00", "15-2051.00", "11-3021.00"}
         data = {
             "suggestions": [
                 {**VALID_LLM_RESPONSE["suggestions"][0], "onet_code": "99-9999.00"},
