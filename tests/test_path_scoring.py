@@ -20,6 +20,9 @@ from backend.services.path_scoring import (
     ScoredPath,
     UserProfile,
     UserSkill,
+    _CENTROID_MIX,
+    _COVERAGE_MIX,
+    _COVERAGE_TOP_K,
     _EMBED_CACHE,
     _EMBED_CACHE_MAX,
     _EMBED_THRESHOLD,
@@ -36,6 +39,7 @@ from backend.services.path_scoring import (
     _gather_candidates,
     _normalize_title_for_onet,
     _resolve_current_zone,
+    _role_coverage_score,
     _semantic_overlap_score,
     _substring_overlap_score,
     _work_style_similarity,
@@ -997,3 +1001,132 @@ def test_score_paths_skips_work_activities_fetch_when_no_behavioral_profile(mock
     )
 
     mock_client.get_work_activities.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# _role_coverage_score
+# ---------------------------------------------------------------------------
+
+
+def test_role_coverage_full_match():
+    """All top-K role items matched by user → 1.0."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+    # User skill and all role items aligned in the same direction.
+    ps._EMBED_CACHE["python"] = [1.0, 0.0]
+    for name in ["JavaScript", "React", "TypeScript", "Node.js", "REST APIs"]:
+        ps._EMBED_CACHE[name] = [1.0, 0.0]  # cos(python, item) = 1.0 ≥ _EMBED_THRESHOLD
+
+    user = [user_skill("Python", "advanced")]
+    role_items = [(name, 75.0) for name in ["JavaScript", "React", "TypeScript", "Node.js", "REST APIs"]]
+    score = _role_coverage_score(user, role_items)
+    assert score == pytest.approx(1.0)
+    ps._EMBED_CACHE.clear()
+
+
+def test_role_coverage_no_match():
+    """User skills orthogonal to all role items → 0.0."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+    ps._EMBED_CACHE["python"] = [1.0, 0.0]
+    for name in ["Instructing", "Learning Strategies", "Curriculum Design"]:
+        ps._EMBED_CACHE[name] = [0.0, 1.0]  # orthogonal → cos = 0.0 < _EMBED_THRESHOLD
+
+    user = [user_skill("Python", "advanced")]
+    role_items = [(name, 75.0) for name in ["Instructing", "Learning Strategies", "Curriculum Design"]]
+    score = _role_coverage_score(user, role_items)
+    assert score == pytest.approx(0.0)
+    ps._EMBED_CACHE.clear()
+
+
+def test_role_coverage_partial():
+    """3 of 5 top-K role items matched → 0.6."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+    # User skill and first 3 role items share the same direction; last 2 are orthogonal.
+    ps._EMBED_CACHE["python"] = [1.0, 0.0, 0.0, 0.0, 0.0]
+    for name in ["Skill A", "Skill B", "Skill C"]:
+        ps._EMBED_CACHE[name] = [1.0, 0.0, 0.0, 0.0, 0.0]  # cos=1.0 → matched
+    ps._EMBED_CACHE["Skill D"] = [0.0, 1.0, 0.0, 0.0, 0.0]  # orthogonal → not matched
+    ps._EMBED_CACHE["Skill E"] = [0.0, 0.0, 1.0, 0.0, 0.0]  # orthogonal → not matched
+
+    user = [user_skill("Python", "advanced")]
+    role_items = [
+        ("Skill A", 80.0), ("Skill B", 75.0), ("Skill C", 72.0),
+        ("Skill D", 80.0), ("Skill E", 80.0),
+    ]
+    # All 5 items are available; role centroid = mean of mixed vectors.
+    # Skill A/B/C are most similar to centroid and land in top-K.
+    # Even if ordering varies, 3 of the 5 items always match the user.
+    score = _role_coverage_score(user, role_items)
+    assert score == pytest.approx(3 / 5)
+    ps._EMBED_CACHE.clear()
+
+
+def test_role_coverage_empty_role_items():
+    """Empty role_items pool → 0.0."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+    ps._EMBED_CACHE["python"] = [1.0, 0.0]
+
+    user = [user_skill("Python", "advanced")]
+    score = _role_coverage_score(user, [])
+    assert score == 0.0
+    ps._EMBED_CACHE.clear()
+
+
+def test_role_coverage_excludes_uncached_from_pool():
+    """Role items missing from cache are excluded; denominator = cached items only."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+    ps._EMBED_CACHE["python"] = [1.0, 0.0]
+    ps._EMBED_CACHE["Skill A"] = [1.0, 0.0]   # matches user
+    ps._EMBED_CACHE["Skill B"] = [0.0, 1.0]   # doesn't match
+    # "Uncached Skill" deliberately absent → excluded from available_role
+
+    user = [user_skill("Python", "advanced")]
+    role_items = [("Skill A", 80.0), ("Skill B", 80.0), ("Uncached Skill", 80.0)]
+    score = _role_coverage_score(user, role_items)
+    # available_role has 2 items (Uncached excluded); core = top-2; matched=1
+    assert score == pytest.approx(0.5)
+    ps._EMBED_CACHE.clear()
+
+
+def test_overlap_combines_centroid_and_coverage(mock_client):
+    """When openai_client provided, overlap_score = 0.5×centroid + 0.5×coverage."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+
+    # All embeddings seeded so _batch_embed makes no API calls.
+    ps._EMBED_CACHE["python"] = [1.0, 0.0]         # user skill (lowercased)
+    ps._EMBED_CACHE["python hot"] = [1.0, 0.0]     # hot tech tool in role_items
+    ps._EMBED_CACHE["Programming"] = [1.0, 0.0]    # generic skill in role_items
+
+    mock_client.search_occupations.side_effect = [
+        [occ("15-1252.00", "SW Dev")],      # resolve current title
+        [occ("15-1211.00", "CS Analyst")],  # gather title
+        [],                                  # gather skill
+    ]
+    mock_client.get_job_zone.side_effect = [3, 3]  # current=3, candidate=3 (delta=0)
+    mock_client.get_tech_skills.return_value = {"python hot"}
+    mock_client.get_skills_profile.return_value = [onet_skill("Programming", 80.0)]
+
+    mock_openai = MagicMock()
+    mock_openai.embeddings.create.return_value = MagicMock(data=[])
+
+    results = score_paths(
+        profile(archetype="", skills=[user_skill("Python", "advanced")]),
+        mock_client,
+        mock_openai,
+    )
+
+    # centroid: user=[1,0], role centroid = mean([1,0],[1,0])=[1,0] → cos=1.0
+    # coverage: role_items=["python hot","Programming"], both [1,0]; role centroid=[1,0]
+    #   top-2 (K≥2): both items; user "python"=[1,0] matches both at cos=1.0 ≥ 0.70
+    #   coverage = 2/2 = 1.0
+    # overlap = 0.5×1.0 + 0.5×1.0 = 1.0
+    # zone: delta=0, seniority=None → zone_score=0.5; experienced, zone resolved
+    # final = 0.5×overlap + 0.5×zone = 0.5×1.0 + 0.5×0.5 = 0.75
+    assert len(results) == 1
+    assert results[0].score == pytest.approx(0.75)
+    ps._EMBED_CACHE.clear()

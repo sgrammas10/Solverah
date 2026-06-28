@@ -79,6 +79,15 @@ _WORK_ACTIVITY_IMPORTANCE_THRESHOLD: float = 50.0
 # overriding correct skill-based rankings.
 _WORK_STYLE_WEIGHT: float = 0.10
 
+# Role coverage signal: fraction of the K most representative role items the user
+# can cover.  "Most representative" = closest to the role's own embedding centroid,
+# so comparison targets self-calibrate per role (concrete tools for tech roles,
+# abstract competencies for non-tech roles).  Uses the same threshold as other
+# embedding matches since we're now comparing like-to-like.
+_COVERAGE_TOP_K: int = 5
+_CENTROID_MIX: float = 0.5
+_COVERAGE_MIX: float = 0.5
+
 # In-process embedding cache.  OrderedDict enables O(1) LRU eviction.
 _EMBED_CACHE: OrderedDict[str, list[float]] = OrderedDict()
 _EMBED_CACHE_MAX: int = 10_000
@@ -370,6 +379,55 @@ def _semantic_overlap_score(
     return _substring_overlap_score(user_skills, onet_items)
 
 
+def _role_coverage_score(
+    user_skills: list[UserSkill],
+    role_items: list[tuple[str, float]],
+) -> float:
+    """Coverage of the role's K most representative items.
+
+    Identifies the top-K role items most similar to the role's own centroid —
+    the items most central to what the role is about.  For a Web Developer that
+    surfaces JavaScript/React/TypeScript; for a teacher it surfaces instructional
+    software and curriculum skills.  Checks what fraction the user can match at
+    _EMBED_THRESHOLD (same as other embedding comparisons: like-to-like now).
+
+    Uses _EMBED_CACHE directly — call after _semantic_overlap_score has already
+    populated the cache.  Returns 0.0 gracefully when no embeddings are available.
+    """
+    available_role = [
+        (name, emb)
+        for name, _ in role_items
+        if (emb := _EMBED_CACHE.get(name)) is not None
+    ]
+    if not available_role:
+        return 0.0
+
+    available_user = [
+        (us, emb)
+        for us in user_skills
+        if (emb := _EMBED_CACHE.get(us.name.lower())) is not None
+    ]
+    if not available_user:
+        return 0.0
+
+    role_centroid = np.mean([np.array(emb) for _, emb in available_role], axis=0)
+    ranked = sorted(
+        available_role,
+        key=lambda x: _cosine_similarity(role_centroid.tolist(), x[1]),
+        reverse=True,
+    )
+    core = ranked[:_COVERAGE_TOP_K]
+
+    matched = sum(
+        1 for _, core_emb in core
+        if max(
+            _cosine_similarity(user_emb, core_emb)
+            for _, user_emb in available_user
+        ) >= _EMBED_THRESHOLD
+    )
+    return matched / len(core)
+
+
 # ---------------------------------------------------------------------------
 # Behavioral profile helpers
 # ---------------------------------------------------------------------------
@@ -632,9 +690,16 @@ def score_paths(
             continue
 
         role_items = _build_role_profile(hot_tech_names, onet_generic_skills)
-        overlap_score, matched_skills = _semantic_overlap_score(
+        centroid_score, matched_skills = _semantic_overlap_score(
             user_profile.skills, role_items, openai_client
         )
+
+        if openai_client is not None:
+            coverage_score = _role_coverage_score(user_profile.skills, role_items)
+            overlap_score = _CENTROID_MIX * centroid_score + _COVERAGE_MIX * coverage_score
+        else:
+            coverage_score = 0.0
+            overlap_score = centroid_score
 
         if not zone_is_reliable and overlap_score == 0.0:
             continue
@@ -692,6 +757,8 @@ def score_paths(
             "hot_tech_count": len(hot_tech_names),
             "generic_count": generic_count,
             "matched_skills": matched_skills,
+            "centroid_score": centroid_score,
+            "coverage_score": coverage_score,
             "overlap_score": overlap_score,
             "work_activities_count": len(work_activities) if occ_has_behavioral else None,
             "work_style_score": work_style_score if occ_has_behavioral else None,
@@ -704,7 +771,7 @@ def score_paths(
     if os.environ.get("SOLVERAH_SCORING_DEBUG"):
         _print_scoring_debug(
             user_profile, current_zone, zone_resolved, zone_is_reliable,
-            skills_w, zone_w, has_behavioral, _debug[:3]
+            skills_w, zone_w, has_behavioral, openai_client is not None, _debug[:3]
         )
 
     return scored[:_TOP_N]
@@ -718,6 +785,7 @@ def _print_scoring_debug(
     skills_w: float,
     zone_w: float,
     has_behavioral: bool,
+    has_openai: bool,
     top3_debug: list[dict],
 ) -> None:
     out_path = os.path.join(os.path.dirname(__file__), "..", "..", "scoring_debug.txt")
@@ -751,7 +819,14 @@ def _print_scoring_debug(
             f" ({d['hot_tech_count']} hot tech tools"
             f" + {d['generic_count']} generic skills)"
         )
-        lines.append(f"    Centroid similarity: {d['overlap_score']:.4f}")
+        lines.append(f"    Centroid similarity: {d['centroid_score']:.4f}")
+        if d.get("coverage_score") is not None and has_openai:
+            lines.append(f"    Coverage score    : {d['coverage_score']:.4f}")
+            lines.append(
+                f"    Overlap = {_CENTROID_MIX:.1f}×centroid({d['centroid_score']:.4f})"
+                f" + {_COVERAGE_MIX:.1f}×coverage({d['coverage_score']:.4f})"
+                f" = {d['overlap_score']:.4f}"
+            )
         lines.append(f"    Matched skills: {d['matched_skills']}")
         if has_behavioral and d.get("work_activities_count") is not None:
             lines.append(f"    Work Activities: {d['work_activities_count']} items")
