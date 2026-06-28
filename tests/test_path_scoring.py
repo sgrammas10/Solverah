@@ -6,8 +6,8 @@ Call-sequence notes (important for side_effect list ordering):
   score_paths with career_status="employed" and N skill search terms calls:
     search_occupations:  1 (resolve zone) + 1 (title in gather) + N (skills in gather)
     get_job_zone:        1 (current code) + 1 per unique candidate
-    get_tech_skills:     1–2 per unique candidate (2 when hot_only=True returns empty → fallback)
     get_skills_profile:  1 per unique candidate
+    get_tech_skills:     1 per unique candidate (hot_only=True, no fallback)
 """
 from __future__ import annotations
 
@@ -23,17 +23,19 @@ from backend.services.path_scoring import (
     _EMBED_CACHE,
     _EMBED_CACHE_MAX,
     _EMBED_THRESHOLD,
-    _GENERIC_MIX,
+    _HOT_TECH_IMPORTANCE,
     _MIN_MATCH_LEN,
     _SKILL_LEVEL_WEIGHTS,
     _SKILLS_WEIGHT_EXPERIENCED,
     _ZONE_WEIGHT_EXPERIENCED,
     _batch_embed,
+    _build_role_profile,
+    _compute_centroid_score,
+    _find_matched_skills,
     _gather_candidates,
     _normalize_title_for_onet,
     _resolve_current_zone,
     _semantic_overlap_score,
-    _semantic_score_via_embeddings,
     _substring_overlap_score,
     _zone_delta_score,
     score_paths,
@@ -504,10 +506,11 @@ class TestScorePaths:
             mock_client,
         )
 
-        # zone unresolved for an established user → skills_w=1.0, zone_w=0.0
-        # generic_score = 0.8 (0.67*0.8/0.67); overlap = _GENERIC_MIX*0.8 = 0.32; final = 0.32
+        # zone unresolved → skills_w=1.0, zone_w=0.0
+        # no hot tech tools; generic pool = [("Python", 80.0)]
+        # substring fallback: contribution = 0.67*(80/100)/0.67 = 0.8; final = 0.8
         assert len(results) == 1
-        assert results[0].score == pytest.approx(_GENERIC_MIX * (80.0 / 100.0), abs=1e-3)
+        assert results[0].score == pytest.approx(80.0 / 100.0, abs=1e-3)
 
     def test_between_jobs_no_title_zero_overlap_filtered(self, mock_client):
         mock_client.search_occupations.return_value = [occ("15-1211.00", "CS Analyst")]
@@ -714,8 +717,8 @@ class TestScorePaths:
         assert results == []
         mock_client.search_occupations.assert_not_called()
 
-    def test_tech_skills_fetches_full_list_once(self, mock_client):
-        """score_paths calls get_tech_skills once per candidate with the default (all tools)."""
+    def test_tech_skills_fetches_hot_only_once(self, mock_client):
+        """score_paths calls get_tech_skills(hot_only=True) exactly once per candidate."""
         mock_client.search_occupations.return_value = [occ("15-1252.00", "SW Dev")]
         mock_client.get_job_zone.return_value = 3
         mock_client.get_skills_profile.return_value = []
@@ -730,8 +733,7 @@ class TestScorePaths:
             mock_client,
         )
 
-        # Exactly one call per candidate — no hot_only retry logic.
-        assert mock_client.get_tech_skills.call_count == 1
+        mock_client.get_tech_skills.assert_called_once_with("15-1252.00", hot_only=True)
 
 
 # ---------------------------------------------------------------------------
@@ -794,11 +796,11 @@ def test_semantic_overlap_above_threshold_matches():
     import backend.services.path_scoring as ps
 
     ps._EMBED_CACHE.clear()
-    # Plant embeddings: user skill and onet item pointing in the same direction.
+    # Plant embeddings: user skill and role item pointing in the same direction.
     ps._EMBED_CACHE["python"] = [1.0, 0.0]
     ps._EMBED_CACHE["programming language"] = [0.99, 0.14]  # cos ≈ 0.99
 
-    score, matched = _semantic_score_via_embeddings(
+    score, matched = _compute_centroid_score(
         [user_skill("Python", "advanced")],
         [("programming language", 80.0)],
     )
@@ -813,6 +815,104 @@ def test_semantic_overlap_falls_back_to_substring_when_no_client():
         [user_skill("Python", "advanced")],
         [("python", 100.0)],
         None,  # no OpenAI client → substring fallback
+    )
+    assert score == pytest.approx(1.0)
+    assert matched == ["Python"]
+
+
+# ---------------------------------------------------------------------------
+# _build_role_profile
+# ---------------------------------------------------------------------------
+
+
+def test_build_role_profile_merges_hot_tech_and_generic():
+    names = {"python", "javascript"}
+    skills = [
+        onet_skill("Problem Solving", 70.0),
+        onet_skill("Communication", 80.0),
+    ]
+    items = _build_role_profile(names, skills)
+    names_in_items = {name for name, _ in items}
+    assert "python" in names_in_items
+    assert "javascript" in names_in_items
+    assert "Problem Solving" in names_in_items
+    assert "Communication" in names_in_items
+    hot_importances = {imp for name, imp in items if name in {"python", "javascript"}}
+    assert hot_importances == {_HOT_TECH_IMPORTANCE}
+
+
+def test_build_role_profile_excludes_low_importance_generic():
+    names: set[str] = set()
+    skills = [
+        onet_skill("High Skill", 75.0),
+        onet_skill("Low Skill", 30.0),
+    ]
+    items = _build_role_profile(names, skills)
+    names_in_items = {name for name, _ in items}
+    assert "High Skill" in names_in_items
+    assert "Low Skill" not in names_in_items
+
+
+def test_build_role_profile_no_hot_tech():
+    """For a non-tech role with no hot tools, profile is generic-skills only."""
+    names: set[str] = set()
+    skills = [onet_skill("Patient Care", 90.0)]
+    items = _build_role_profile(names, skills)
+    assert len(items) == 1
+    assert items[0] == ("Patient Care", 90.0)
+
+
+# ---------------------------------------------------------------------------
+# _compute_centroid_score and _find_matched_skills
+# ---------------------------------------------------------------------------
+
+
+def test_compute_centroid_score_produces_single_similarity():
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+    ps._EMBED_CACHE["python"] = [1.0, 0.0]
+    ps._EMBED_CACHE["programming language"] = [0.99, 0.14]  # high cosine sim
+
+    score, matched = _compute_centroid_score(
+        [user_skill("Python", "advanced")],
+        [("programming language", 80.0)],
+    )
+
+    assert isinstance(score, float)
+    assert 0.0 <= score <= 1.0
+    assert score > 0.5  # centroid similarity, not a fractional count
+    assert "Python" in matched
+    ps._EMBED_CACHE.clear()
+
+
+def test_find_matched_skills_does_not_affect_score():
+    """Centroid score is geometric; matched list does not influence it."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+    ps._EMBED_CACHE["python"] = [1.0, 0.0]   # aligned with role
+    ps._EMBED_CACHE["sql"] = [0.0, 1.0]       # orthogonal to role
+    ps._EMBED_CACHE["programming"] = [1.0, 0.0]
+
+    score, matched = _compute_centroid_score(
+        [user_skill("Python", "advanced"), user_skill("sql", "advanced")],
+        [("programming", 80.0)],
+    )
+
+    # Only Python aligns with the role item above threshold
+    assert "Python" in matched
+    assert "sql" not in matched
+    # Centroid is average of [1,0] and [0,1] → [0.5, 0.5]; role centroid = [1,0]
+    # cos([0.5,0.5], [1,0]) = 0.5/sqrt(0.5) ≈ 0.707 — not 0.5 (1/2 matched)
+    assert score == pytest.approx(0.707, abs=0.01)
+    ps._EMBED_CACHE.clear()
+
+
+def test_centroid_falls_back_to_substring_without_client():
+    """With openai_client=None, centroid path is skipped; substring matching is used."""
+    score, matched = _semantic_overlap_score(
+        [user_skill("Python", "advanced")],
+        [("Python", 100.0)],
+        None,
     )
     assert score == pytest.approx(1.0)
     assert matched == ["Python"]

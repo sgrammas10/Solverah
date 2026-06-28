@@ -1,9 +1,10 @@
 """Semantic career path scoring algorithm.
 
 Ranks O*NET occupations against a user's profile using a weighted sum of:
-  (a) semantic skill overlap — embedding-based similarity between user skills
-      and O*NET technology tools (hot-only) + generic competency skills,
-      weighted by O*NET importance score and user proficiency level.
+  (a) semantic skill overlap — cosine similarity between a proficiency-weighted
+      user skill centroid and an importance-weighted role profile centroid.
+      The role profile merges O*NET hot tech tools (trending tools only) with
+      important generic competency skills into a single unified pool.
   (b) job-zone delta — rewards roles 1–2 zones above the user's current zone.
 
 Zone delta carries more weight for first-job users (0.6) where zone direction
@@ -43,10 +44,6 @@ _ZONE_WEIGHT_EXPERIENCED: float = 0.5
 _SKILLS_WEIGHT_FIRST_JOB: float = 0.4
 _ZONE_WEIGHT_FIRST_JOB: float = 0.6
 
-# Within the skill signal: how tech vs. generic competency scores are blended.
-_TECH_MIX: float = 0.6
-_GENERIC_MIX: float = 0.4
-
 _SKILL_LEVEL_WEIGHTS: dict[str, float] = {
     "beginner": 0.33,
     "intermediate": 0.67,
@@ -62,10 +59,10 @@ _SKILL_SEARCH_COUNT: int = 2
 # Minimum token length for substring matching (prevents "R" from matching "reading").
 _MIN_MATCH_LEN: int = 3
 
-# Tech tools from O*NET have no per-tool importance score — treat all uniformly.
+# Hot tech tools from O*NET have no per-tool importance score — treat all uniformly.
 # 75 = high but not max, since any individual tool is rarely a requirement for every
 # practitioner in the role.
-_TECH_TOOL_IMPORTANCE: float = 75.0
+_HOT_TECH_IMPORTANCE: float = 75.0
 
 # Generic skills with importance below this threshold are excluded from scoring
 # to reduce noise from peripheral competencies.
@@ -164,6 +161,27 @@ def _zone_delta_score(
 
 
 # ---------------------------------------------------------------------------
+# Role profile builder
+# ---------------------------------------------------------------------------
+
+
+def _build_role_profile(
+    hot_tech_names: set[str],
+    generic_skills: list[Skill],
+) -> list[tuple[str, float]]:
+    """Merge hot tech tools and important generic skills into one importance-weighted pool."""
+    items: list[tuple[str, float]] = [
+        (name, _HOT_TECH_IMPORTANCE) for name in hot_tech_names
+    ]
+    items += [
+        (s.name, s.importance)
+        for s in generic_skills
+        if s.importance >= _GENERIC_IMPORTANCE_THRESHOLD
+    ]
+    return items
+
+
+# ---------------------------------------------------------------------------
 # Embedding helpers
 # ---------------------------------------------------------------------------
 
@@ -199,58 +217,75 @@ def _batch_embed(texts: list[str], client) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _semantic_score_via_embeddings(
+def _find_matched_skills(
     user_skills: list[UserSkill],
-    onet_items: list[tuple[str, float]],
-) -> tuple[float, list[str]]:
-    """Compute user-centric overlap score using cached embeddings.
+    role_items: list[tuple[str, float]],
+) -> list[str]:
+    """Return user skill names whose best cosine similarity to any role item >= _EMBED_THRESHOLD.
 
     Precondition: _batch_embed has been called for all texts.
-    O*NET items not in cache (partial API failure) are silently skipped.
-
-    For each user skill, finds the single O*NET item with highest cosine
-    similarity (greedy; one ONET item can match multiple user skills).
-    Match counts only when similarity >= _EMBED_THRESHOLD.
-
-    Denominator = sum of all user proficiency weights (user-centric: "what
-    fraction of YOUR skills apply to this role").
-    Contribution per match = proficiency_weight × (onet_importance / 100).
+    Used for UI display only — does not affect the centroid score.
     """
-    user_weight_total = sum(
-        _SKILL_LEVEL_WEIGHTS.get(us.level, _SKILL_LEVEL_WEIGHTS["beginner"])
-        for us in user_skills
-    )
-    if user_weight_total == 0:
-        return 0.0, []
-
-    available_onet = [
-        (name, imp, emb)
-        for name, imp in onet_items
-        if (emb := _EMBED_CACHE.get(name)) is not None
+    available_role = [
+        (name, _EMBED_CACHE[name])
+        for name, _ in role_items
+        if name in _EMBED_CACHE
     ]
-    if not available_onet:
-        return 0.0, []
+    if not available_role:
+        return []
 
-    weighted_sum = 0.0
     matched: list[str] = []
-
     for us in user_skills:
         user_emb = _EMBED_CACHE.get(us.name.lower())
         if user_emb is None:
             continue
-        prof_weight = _SKILL_LEVEL_WEIGHTS.get(us.level, _SKILL_LEVEL_WEIGHTS["beginner"])
-
-        best_sim, best_imp = 0.0, 0.0
-        for _, imp, onet_emb in available_onet:
-            sim = _cosine_similarity(user_emb, onet_emb)
-            if sim > best_sim:
-                best_sim, best_imp = sim, imp
-
+        best_sim = max(
+            (_cosine_similarity(user_emb, role_emb) for _, role_emb in available_role),
+            default=0.0,
+        )
         if best_sim >= _EMBED_THRESHOLD:
-            weighted_sum += prof_weight * (best_imp / 100.0)
             matched.append(us.name)
+    return matched
 
-    return min(weighted_sum / user_weight_total, 1.0), matched
+
+def _compute_centroid_score(
+    user_skills: list[UserSkill],
+    role_items: list[tuple[str, float]],
+) -> tuple[float, list[str]]:
+    """Cosine similarity between proficiency-weighted user centroid and importance-weighted role centroid.
+
+    Precondition: _batch_embed has been called for all texts.
+    Role items not in cache (partial API failure) are silently excluded.
+    Returns (centroid_similarity, matched_skill_names_for_display).
+    """
+    user_vecs, user_weights = [], []
+    for us in user_skills:
+        emb = _EMBED_CACHE.get(us.name.lower())
+        if emb is None:
+            continue
+        user_vecs.append(emb)
+        user_weights.append(_SKILL_LEVEL_WEIGHTS.get(us.level, _SKILL_LEVEL_WEIGHTS["beginner"]))
+
+    if not user_vecs:
+        return 0.0, []
+
+    role_vecs, role_weights = [], []
+    for name, imp in role_items:
+        emb = _EMBED_CACHE.get(name)
+        if emb is None:
+            continue
+        role_vecs.append(emb)
+        role_weights.append(imp / 100.0)
+
+    if not role_vecs:
+        return 0.0, []
+
+    user_centroid = np.average(np.array(user_vecs), axis=0, weights=np.array(user_weights))
+    role_centroid = np.average(np.array(role_vecs), axis=0, weights=np.array(role_weights))
+
+    score = _cosine_similarity(user_centroid.tolist(), role_centroid.tolist())
+    matched = _find_matched_skills(user_skills, role_items)
+    return score, matched
 
 
 def _substring_overlap_score(
@@ -312,7 +347,7 @@ def _semantic_overlap_score(
         all_texts = [s.name.lower() for s in user_skills] + [name for name, _ in onet_items]
         _batch_embed(all_texts, openai_client)
         if any(s.name.lower() in _EMBED_CACHE for s in user_skills):
-            return _semantic_score_via_embeddings(user_skills, onet_items)
+            return _compute_centroid_score(user_skills, onet_items)
 
     return _substring_overlap_score(user_skills, onet_items)
 
@@ -467,9 +502,8 @@ def score_paths(
     2. Build a candidate pool from O*NET keyword searches.
     3. For each candidate, fetch zone, hot tech tools, and generic skills, then:
 
-           tech_score    = semantic_overlap(user_skills, hot_tech_items)
-           generic_score = semantic_overlap(user_skills, important_generic_items)
-           overlap_score = 0.6 × tech_score + 0.4 × generic_score
+           role_items    = _build_role_profile(hot_tech_names, generic_skills)
+           overlap_score = centroid_similarity(user_centroid, role_centroid)
 
            zone_score    = _zone_delta_score(...)
 
@@ -510,26 +544,14 @@ def score_paths(
         try:
             zone = onet_client.get_job_zone(occ.code)
             onet_generic_skills: list[Skill] = onet_client.get_skills_profile(occ.code)
-            tech_names = onet_client.get_tech_skills(occ.code)
+            hot_tech_names = onet_client.get_tech_skills(occ.code, hot_only=True)
         except OnetAPIError:
             continue
 
-        tech_items: list[tuple[str, float]] = [(name, _TECH_TOOL_IMPORTANCE) for name in tech_names]
-        generic_items: list[tuple[str, float]] = [
-            (s.name, s.importance)
-            for s in onet_generic_skills
-            if s.importance >= _GENERIC_IMPORTANCE_THRESHOLD
-        ]
-
-        tech_score, tech_matched = _semantic_overlap_score(
-            user_profile.skills, tech_items, openai_client
+        role_items = _build_role_profile(hot_tech_names, onet_generic_skills)
+        overlap_score, matched_skills = _semantic_overlap_score(
+            user_profile.skills, role_items, openai_client
         )
-        generic_score, generic_matched = _semantic_overlap_score(
-            user_profile.skills, generic_items, openai_client
-        )
-
-        overlap_score = _TECH_MIX * tech_score + _GENERIC_MIX * generic_score
-        matched_skills = list(dict.fromkeys(tech_matched + generic_matched))
 
         if not zone_is_reliable and overlap_score == 0.0:
             continue
@@ -546,17 +568,18 @@ def score_paths(
                 overlapping_skills=matched_skills,
             )
         )
+        generic_count = sum(
+            1 for s in onet_generic_skills if s.importance >= _GENERIC_IMPORTANCE_THRESHOLD
+        )
         _debug.append({
             "title": occ.title,
             "code": occ.code,
             "zone": zone,
             "zone_score": zone_score,
-            "tech_score": tech_score,
-            "tech_matched": tech_matched,
-            "tech_items": sorted(name for name, _ in tech_items),
-            "generic_score": generic_score,
-            "generic_matched": generic_matched,
-            "generic_items": [(s.name, s.importance) for s in onet_generic_skills],
+            "role_item_count": len(role_items),
+            "hot_tech_count": len(hot_tech_names),
+            "generic_count": generic_count,
+            "matched_skills": matched_skills,
             "overlap_score": overlap_score,
             "final_score": final_score,
         })
@@ -607,24 +630,15 @@ def _print_scoring_debug(
             f"    Role zone: {d['zone']}  |  delta: {d['zone'] - current_zone:+d}"
             f"  |  zone_score: {d['zone_score']:.3f}"
         )
-        lines.append(f"\n    --- TECH TOOLS ({len(d['tech_items'])} total) ---")
-        for tool in d["tech_items"]:
-            lines.append(f"      {tool}")
-        lines.append(f"    Tech matched: {d['tech_matched']}  →  tech_score={d['tech_score']:.4f}")
-        lines.append(f"\n    --- GENERIC SKILLS (importance ≥ {_GENERIC_IMPORTANCE_THRESHOLD}) ---")
-        for name, imp in sorted(d["generic_items"], key=lambda x: -x[1]):
-            marker = "  *" if imp >= _GENERIC_IMPORTANCE_THRESHOLD else ""
-            lines.append(f"      {name:<40} importance={imp:.1f}{marker}")
         lines.append(
-            f"    Generic matched: {d['generic_matched']}  →  generic_score={d['generic_score']:.4f}"
+            f"\n    Role profile: {d['role_item_count']} items"
+            f" ({d['hot_tech_count']} hot tech tools"
+            f" + {d['generic_count']} generic skills)"
         )
+        lines.append(f"    Centroid similarity: {d['overlap_score']:.4f}")
+        lines.append(f"    Matched skills: {d['matched_skills']}")
         lines.append(
-            f"\n    overlap = {_TECH_MIX:.1f}×tech({d['tech_score']:.4f})"
-            f" + {_GENERIC_MIX:.1f}×generic({d['generic_score']:.4f})"
-            f" = {d['overlap_score']:.4f}"
-        )
-        lines.append(
-            f"    final   = {skills_w:.2f}×overlap({d['overlap_score']:.4f})"
+            f"\n    final   = {skills_w:.2f}×overlap({d['overlap_score']:.4f})"
             f" + {zone_w:.2f}×zone({d['zone_score']:.4f})"
             f" = {d['final_score']:.4f}"
         )
