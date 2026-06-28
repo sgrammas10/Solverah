@@ -160,12 +160,17 @@ class OnetClient:
             for e in elements
         ]
 
-    def get_tech_skills(self, onet_code: str) -> set[str]:
+    def get_tech_skills(self, onet_code: str, hot_only: bool = False) -> set[str]:
         """Return a lowercase set of technology tool names for *onet_code*.
 
         Uses /details/technology_skills which lists specific software, tools,
         and platforms (e.g. "Python", "React", "TypeScript") — compatible with
         user profile skill tags.  Same .00→.01 fallback as get_skills_profile.
+
+        Args:
+            hot_only: When True, returns only tools flagged as hot technologies
+                      by O*NET (trending, in-demand tools). Typically 10–20 per
+                      role vs. 200+ for the full list.
         """
         def _fetch(code: str) -> set[str]:
             data = self._get(
@@ -175,9 +180,11 @@ class OnetClient:
             names: set[str] = set()
             for cat in data.get("category", []):
                 for ex in cat.get("example", []):
-                    names.add(ex["title"].lower())
+                    if not hot_only or ex.get("hot_technology", False):
+                        names.add(ex["title"].lower())
                 for ex in cat.get("example_more", []):
-                    names.add(ex["title"].lower())
+                    if not hot_only or ex.get("hot_technology", False):
+                        names.add(ex["title"].lower())
             return names
 
         names = _fetch(onet_code)

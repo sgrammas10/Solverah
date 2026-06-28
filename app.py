@@ -3446,6 +3446,7 @@ def path_suggestions():
     from backend.services.path_narrative import (
         NarrativeGenerationError,
         UserContext,
+        _get_openai_client,
         generate_narratives,
     )
     from backend.services.onet_client import OnetClient
@@ -3516,7 +3517,11 @@ def path_suggestions():
 
     try:
         onet_client = OnetClient()
-        scored = score_paths(user_profile, onet_client)
+        try:
+            openai_client = _get_openai_client()
+        except RuntimeError:
+            openai_client = None
+        scored = score_paths(user_profile, onet_client, openai_client)
     except Exception:
         app.logger.exception("Path scoring failed for user %s", user.id)
         return jsonify({"error": "Unable to score career paths"}), 500

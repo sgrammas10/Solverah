@@ -48,9 +48,8 @@ User skills:
   'SQL'                     (beginner)
 
 ────────────────────────────────────────────────────────────
-#1  Software Developers  [15-1252.00]  score=0.0803 (8.0%)
+#1  Software Developers  [15-1252.00]  score=0.1038 (10.4%)
     Role zone: 4  |  delta: +3  |  zone_score: 0.200
-    Winning signal: tech
 
     --- TECH TOOLS (430 total) ---
       3m post-it app
@@ -483,25 +482,25 @@ User skills:
       xml path language xpath
       youtube
       zoom
-    Tech matched: ['React', 'TypeScript', 'Python', 'PostgreSQL', 'Elasticsearch', 'ROP', 'JavaScript', 'C++', 'SQL']  ->  tech_score=0.0803
+    Tech matched: ['React', 'TypeScript', 'Python', 'PostgreSQL', 'REST APIs', 'Elasticsearch', 'JavaScript', 'C++', 'SQL']  →  tech_score=0.1731
 
-    --- GENERIC SKILLS (35 total) ---
-      Programming                              importance=75.0
-      Critical Thinking                        importance=72.0
-      Judgment and Decision Making             importance=66.0
-      Active Learning                          importance=63.0
-      Reading Comprehension                    importance=63.0
-      Systems Analysis                         importance=63.0
-      Active Listening                         importance=60.0
-      Complex Problem Solving                  importance=60.0
-      Systems Evaluation                       importance=60.0
-      Technology Design                        importance=60.0
-      Operations Analysis                      importance=56.0
-      Writing                                  importance=56.0
-      Speaking                                 importance=53.0
-      Time Management                          importance=53.0
-      Coordination                             importance=50.0
-      Monitoring                               importance=50.0
+    --- GENERIC SKILLS (importance ≥ 50.0) ---
+      Programming                              importance=75.0  *
+      Critical Thinking                        importance=72.0  *
+      Judgment and Decision Making             importance=66.0  *
+      Active Learning                          importance=63.0  *
+      Reading Comprehension                    importance=63.0  *
+      Systems Analysis                         importance=63.0  *
+      Active Listening                         importance=60.0  *
+      Complex Problem Solving                  importance=60.0  *
+      Systems Evaluation                       importance=60.0  *
+      Technology Design                        importance=60.0  *
+      Operations Analysis                      importance=56.0  *
+      Writing                                  importance=56.0  *
+      Speaking                                 importance=53.0  *
+      Time Management                          importance=53.0  *
+      Coordination                             importance=50.0  *
+      Monitoring                               importance=50.0  *
       Instructing                              importance=47.0
       Service Orientation                      importance=47.0
       Social Perceptiveness                    importance=47.0
@@ -521,15 +520,14 @@ User skills:
       Management of Material Resources         importance=16.0
       Equipment Maintenance                    importance=6.0
       Repairing                                importance=3.0
-    Generic matched: []  ->  generic_score=0.0000
+    Generic matched: []  →  generic_score=0.0000
 
-    overlap_score=0.0803  (denom=min(425,37)=37)
-    final = 1.00x0.0803 + 0.00x0.2000 = 0.0803
+    overlap = 0.6×tech(0.1731) + 0.4×generic(0.0000) = 0.1038
+    final   = 1.00×overlap(0.1038) + 0.00×zone(0.2000) = 0.1038
 
 ────────────────────────────────────────────────────────────
-#2  Web Developers  [15-1254.00]  score=0.0803 (8.0%)
+#2  Web Developers  [15-1254.00]  score=0.1038 (10.4%)
     Role zone: 3  |  delta: +2  |  zone_score: 0.600
-    Winning signal: tech
 
     --- TECH TOOLS (251 total) ---
       3m post-it app
@@ -783,24 +781,24 @@ User skills:
       wordpress
       youtube
       zend framework
-    Tech matched: ['React', 'TypeScript', 'Python', 'PostgreSQL', 'Elasticsearch', 'ROP', 'JavaScript', 'C++', 'SQL']  ->  tech_score=0.0803
+    Tech matched: ['React', 'TypeScript', 'Python', 'PostgreSQL', 'REST APIs', 'Elasticsearch', 'JavaScript', 'C++', 'SQL']  →  tech_score=0.1731
 
-    --- GENERIC SKILLS (35 total) ---
-      Programming                              importance=78.0
-      Critical Thinking                        importance=69.0
-      Complex Problem Solving                  importance=66.0
-      Operations Analysis                      importance=66.0
-      Reading Comprehension                    importance=66.0
-      Active Learning                          importance=63.0
-      Active Listening                         importance=63.0
-      Judgment and Decision Making             importance=60.0
-      Speaking                                 importance=56.0
-      Systems Analysis                         importance=53.0
-      Writing                                  importance=53.0
-      Coordination                             importance=50.0
-      Monitoring                               importance=50.0
-      Systems Evaluation                       importance=50.0
-      Time Management                          importance=50.0
+    --- GENERIC SKILLS (importance ≥ 50.0) ---
+      Programming                              importance=78.0  *
+      Critical Thinking                        importance=69.0  *
+      Complex Problem Solving                  importance=66.0  *
+      Operations Analysis                      importance=66.0  *
+      Reading Comprehension                    importance=66.0  *
+      Active Learning                          importance=63.0  *
+      Active Listening                         importance=63.0  *
+      Judgment and Decision Making             importance=60.0  *
+      Speaking                                 importance=56.0  *
+      Systems Analysis                         importance=53.0  *
+      Writing                                  importance=53.0  *
+      Coordination                             importance=50.0  *
+      Monitoring                               importance=50.0  *
+      Systems Evaluation                       importance=50.0  *
+      Time Management                          importance=50.0  *
       Learning Strategies                      importance=47.0
       Persuasion                               importance=47.0
       Service Orientation                      importance=47.0
@@ -821,15 +819,14 @@ User skills:
       Installation                             importance=6.0
       Equipment Maintenance                    importance=0.0
       Repairing                                importance=0.0
-    Generic matched: []  ->  generic_score=0.0000
+    Generic matched: []  →  generic_score=0.0000
 
-    overlap_score=0.0803  (denom=min(247,37)=37)
-    final = 1.00x0.0803 + 0.00x0.6000 = 0.0803
+    overlap = 0.6×tech(0.1731) + 0.4×generic(0.0000) = 0.1038
+    final   = 1.00×overlap(0.1038) + 0.00×zone(0.6000) = 0.1038
 
 ────────────────────────────────────────────────────────────
-#3  Web and Digital Interface Designers  [15-1255.00]  score=0.0803 (8.0%)
+#3  Web and Digital Interface Designers  [15-1255.00]  score=0.0923 (9.2%)
     Role zone: 4  |  delta: +3  |  zone_score: 0.200
-    Winning signal: tech
 
     --- TECH TOOLS (236 total) ---
       3m post-it app
@@ -1068,28 +1065,28 @@ User skills:
       wireshark
       youtube
       zend framework
-    Tech matched: ['React', 'TypeScript', 'Python', 'PostgreSQL', 'Elasticsearch', 'ROP', 'JavaScript', 'C++', 'SQL']  ->  tech_score=0.0803
+    Tech matched: ['React', 'TypeScript', 'Python', 'PostgreSQL', 'Elasticsearch', 'JavaScript', 'C++', 'SQL']  →  tech_score=0.1538
 
-    --- GENERIC SKILLS (35 total) ---
-      Programming                              importance=75.0
-      Active Listening                         importance=72.0
-      Critical Thinking                        importance=69.0
-      Reading Comprehension                    importance=69.0
-      Complex Problem Solving                  importance=66.0
-      Judgment and Decision Making             importance=66.0
-      Active Learning                          importance=63.0
-      Systems Analysis                         importance=60.0
-      Time Management                          importance=60.0
-      Systems Evaluation                       importance=56.0
-      Writing                                  importance=56.0
-      Coordination                             importance=53.0
-      Monitoring                               importance=53.0
-      Speaking                                 importance=53.0
-      Negotiation                              importance=50.0
-      Operations Analysis                      importance=50.0
-      Persuasion                               importance=50.0
-      Social Perceptiveness                    importance=50.0
-      Technology Design                        importance=50.0
+    --- GENERIC SKILLS (importance ≥ 50.0) ---
+      Programming                              importance=75.0  *
+      Active Listening                         importance=72.0  *
+      Critical Thinking                        importance=69.0  *
+      Reading Comprehension                    importance=69.0  *
+      Complex Problem Solving                  importance=66.0  *
+      Judgment and Decision Making             importance=66.0  *
+      Active Learning                          importance=63.0  *
+      Systems Analysis                         importance=60.0  *
+      Time Management                          importance=60.0  *
+      Systems Evaluation                       importance=56.0  *
+      Writing                                  importance=56.0  *
+      Coordination                             importance=53.0  *
+      Monitoring                               importance=53.0  *
+      Speaking                                 importance=53.0  *
+      Negotiation                              importance=50.0  *
+      Operations Analysis                      importance=50.0  *
+      Persuasion                               importance=50.0  *
+      Social Perceptiveness                    importance=50.0  *
+      Technology Design                        importance=50.0  *
       Instructing                              importance=47.0
       Learning Strategies                      importance=47.0
       Mathematics                              importance=47.0
@@ -1106,9 +1103,9 @@ User skills:
       Equipment Maintenance                    importance=0.0
       Operation and Control                    importance=0.0
       Repairing                                importance=0.0
-    Generic matched: []  ->  generic_score=0.0000
+    Generic matched: []  →  generic_score=0.0000
 
-    overlap_score=0.0803  (denom=min(232,37)=37)
-    final = 1.00x0.0803 + 0.00x0.2000 = 0.0803
+    overlap = 0.6×tech(0.1538) + 0.4×generic(0.0000) = 0.0923
+    final   = 1.00×overlap(0.0923) + 0.00×zone(0.2000) = 0.0923
 
 ============================================================
