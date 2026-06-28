@@ -36,10 +36,15 @@ export default function ManagerMatchResultsPage() {
       setResult(data);
       setCachedResult(data);
       setFetchState("success");
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("No ManagerMatch result found")) {
+        navigate("/manager-match", { replace: true });
+        return;
+      }
       setFetchState("error");
     }
-  }, [fetchWithAuth, setCachedResult]);
+  }, [fetchWithAuth, setCachedResult, navigate]);
 
   useEffect(() => {
     if (hasCached) return;

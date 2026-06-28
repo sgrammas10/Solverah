@@ -96,6 +96,7 @@ describe("WorkPulseResultsPage", () => {
 
   it("renders from cached result immediately without calling fetchWithAuth", () => {
     mocks.wpState.cachedResult = MOCK_RESULT;
+    mocks.user = { wpl_completed: true };
     render(<WorkPulseResultsPage />);
 
     expect(screen.getByText("Structured Deep Thinker")).toBeInTheDocument();

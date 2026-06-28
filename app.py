@@ -3301,7 +3301,18 @@ def company_lens_matches():
     profile = user.profile_data or {}
     user_prefs = profile.get("culture_preferences")
     if not user_prefs:
-        return jsonify({"error": "Work Pulse not completed — culture preferences not found"}), 400
+        # Backfill for users who completed WP before culture_preferences was stored.
+        from model import UserIntake
+        intake = UserIntake.query.filter_by(user_id=user.id).first()
+        if intake and intake.wpl_answers:
+            from work_pulse.derive_preferences import derive_culture_preferences
+            user_prefs = derive_culture_preferences(intake.wpl_answers)
+            profile = dict(profile)
+            profile["culture_preferences"] = user_prefs
+            user.profile_data = profile
+            db.session.commit()
+        else:
+            return jsonify({"error": "Work Pulse not completed — culture preferences not found"}), 400
 
     try:
         limit = int(request.args.get("limit", 5))
@@ -3368,6 +3379,53 @@ def company_lens_matches():
     })
 
 
+@app.post("/api/intelligence/path-preferences")
+@jwt_required()
+def save_path_preferences():
+    """POST /api/intelligence/path-preferences — Save the user's career search preferences.
+
+    Body: {"move_intent": str, "seniority_intent": str, "priority": str}
+
+    Returns:
+        200 {"message": "Preferences saved"}
+        400 if any field has an invalid value or is missing
+        401 if unauthenticated
+        404 if user not found
+    """
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    data = request.get_json() or {}
+    move_intent = data.get("move_intent")
+    seniority_intent = data.get("seniority_intent")
+    priority = data.get("priority")
+
+    valid_move = {"stay_in_field", "adjacent", "fresh_start"}
+    valid_seniority = {"move_up", "stay_lateral", "open"}
+    valid_priority = {"pay_title", "interesting_work", "work_life_balance", "learning_growth"}
+
+    if move_intent not in valid_move:
+        return jsonify({"error": "Invalid move_intent"}), 400
+    if seniority_intent not in valid_seniority:
+        return jsonify({"error": "Invalid seniority_intent"}), 400
+    if priority not in valid_priority:
+        return jsonify({"error": "Invalid priority"}), 400
+
+    profile = dict(user.profile_data or {})
+    profile["path_preferences"] = {
+        "move_intent": move_intent,
+        "seniority_intent": seniority_intent,
+        "priority": priority,
+    }
+    user.profile_data = profile
+    db.session.commit()
+
+    _invalidate_path_suggestions_cache(user.id)
+    return jsonify({"message": "Preferences saved"}), 200
+
+
 @app.get("/api/intelligence/path-suggestions")
 @jwt_required()
 def path_suggestions():
@@ -3388,6 +3446,7 @@ def path_suggestions():
     from backend.services.path_narrative import (
         NarrativeGenerationError,
         UserContext,
+        _get_openai_client,
         generate_narratives,
     )
     from backend.services.onet_client import OnetClient
@@ -3432,9 +3491,40 @@ def path_suggestions():
     ]
 
     archetype = ""
+    archetype_description = ""
     intake = user.intake
     if intake and intake.wpl_result and isinstance(intake.wpl_result, dict):
         archetype = intake.wpl_result.get("archetype", "")
+        # The multi-sentence description embeds far more meaningfully than the
+        # short label against O*NET work-activity language.
+        archetype_description = intake.wpl_result.get("archetype_description", "")
+
+    focus_type: str | None = None
+    focus_type_result: dict = profile.get("focus_type_result") or {}
+    if focus_type_result:
+        # FocusType scoring produces no rich description — fall back to the label.
+        focus_type = focus_type_result.get("archetype") or None
+
+    manager_match_desc: str | None = None
+    manager_match_result: dict = profile.get("manager_match_result") or {}
+    if manager_match_result:
+        # Prefer the LLM-generated description over the short archetype label.
+        manager_match_desc = (
+            manager_match_result.get("archetype_description")
+            or manager_match_result.get("archetype")
+            or None
+        )
+
+    work_style_tags: list[str] = []
+    if intake and intake.wpl_result and isinstance(intake.wpl_result, dict):
+        signals = intake.wpl_result.get("emerging_signals") or []
+        # Use description sentences — they embed meaningfully against O*NET work
+        # activities; short title labels ("Independent Worker") do not.
+        work_style_tags = [
+            s.get("description") or s.get("title", "")
+            for s in signals
+            if isinstance(s, dict) and (s.get("description") or s.get("title"))
+        ]
 
     current_title: str | None = None
     experience: list = profile.get("experience") or []
@@ -3442,16 +3532,31 @@ def path_suggestions():
         first_exp = experience[0] if isinstance(experience[0], dict) else {}
         current_title = first_exp.get("position") or first_exp.get("title") or None
 
+    path_preferences: dict = profile.get("path_preferences") or {}
+    move_intent: str | None = path_preferences.get("move_intent")
+    seniority_intent: str | None = path_preferences.get("seniority_intent")
+    priority: str | None = path_preferences.get("priority")
+
     user_profile = UserProfile(
         current_title=current_title,
         career_status=career_status,
         skills=user_skills,
         archetype=archetype,
+        archetype_description=archetype_description,
+        move_intent=move_intent,
+        seniority_intent=seniority_intent,
+        focus_type=focus_type,
+        manager_match=manager_match_desc,
+        work_style_tags=work_style_tags,
     )
 
     try:
         onet_client = OnetClient()
-        scored = score_paths(user_profile, onet_client)
+        try:
+            openai_client = _get_openai_client()
+        except RuntimeError:
+            openai_client = None
+        scored = score_paths(user_profile, onet_client, openai_client)
     except Exception:
         app.logger.exception("Path scoring failed for user %s", user.id)
         return jsonify({"error": "Unable to score career paths"}), 500
@@ -3470,6 +3575,9 @@ def path_suggestions():
         management_preferences=manager_match_result,
         career_status=career_status,
         top_skills=top_skills,
+        move_intent=move_intent,
+        seniority_intent=seniority_intent,
+        priority=priority,
     )
 
     try:

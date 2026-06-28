@@ -35,6 +35,9 @@ class UserContext:
     management_preferences: dict                               # Full ManagerMatch result dict
     career_status: Literal["employed", "between_jobs", "first_job"]
     top_skills: list[str]                                      # Highest-expertise skill names
+    move_intent: str | None = None
+    seniority_intent: str | None = None
+    priority: str | None = None
 
 
 @dataclass
@@ -73,6 +76,24 @@ def _get_openai_client():
 # ---------------------------------------------------------------------------
 
 
+_MOVE_INTENT_LABELS: dict[str, str] = {
+    "stay_in_field": "Stay in my field",
+    "adjacent": "Something adjacent",
+    "fresh_start": "Fresh direction",
+}
+_SENIORITY_INTENT_LABELS: dict[str, str] = {
+    "move_up": "Looking to move up",
+    "stay_lateral": "Similar level",
+    "open": "Open to either",
+}
+_PRIORITY_LABELS: dict[str, str] = {
+    "pay_title": "Pay & title",
+    "interesting_work": "Interesting work",
+    "work_life_balance": "Work-life balance",
+    "learning_growth": "Learning & growth",
+}
+
+
 def _format_management_prefs(prefs: dict) -> str:
     if not prefs:
         return "Not provided."
@@ -107,12 +128,10 @@ def _build_prompt(
     system = (
         "You are a career advisor helping users identify realistic next-step career paths.\n\n"
         "CRITICAL RULES — follow exactly:\n"
-        "1. You MUST select occupations ONLY from the provided candidate list. "
-        "Never introduce an occupation that is not in the list.\n"
-        "2. Select exactly 2 or 3 candidates — no more, no fewer.\n"
-        "3. Prefer candidates with a higher match_score and a realistic forward progression.\n"
-        "4. why_text: 1–2 sentences, plain language, specific to this user, encouraging.\n"
-        "5. profile_dimensions: a list of exactly 2 or 3 short tags (5–8 words each) "
+        "1. Write a narrative for EVERY candidate in the list — do not skip any.\n"
+        "2. Preserve the exact order of the candidates as given.\n"
+        "3. why_text: 1–2 sentences, plain language, specific to this user, encouraging.\n"
+        "4. profile_dimensions: a list of exactly 2 or 3 short tags (5–8 words each) "
         "that reference the user's actual skills, archetype, or preferences. "
         "Examples: 'Builds on your Python skills', 'Fits your autonomy preference', "
         "'Matches your Deep Diver archetype'.\n\n"
@@ -134,6 +153,19 @@ def _build_prompt(
     )
     management_str = _format_management_prefs(ctx.management_preferences)
 
+    prefs_section = ""
+    if any([ctx.move_intent, ctx.seniority_intent, ctx.priority]):
+        move_label = _MOVE_INTENT_LABELS.get(ctx.move_intent or "", "Not specified")
+        seniority_label = _SENIORITY_INTENT_LABELS.get(ctx.seniority_intent or "", "Not specified")
+        priority_label = _PRIORITY_LABELS.get(ctx.priority or "", "Not specified")
+        prefs_section = (
+            "Preferences\n"
+            "===========\n"
+            f"Move direction:    {move_label}\n"
+            f"Seniority intent:  {seniority_label}\n"
+            f"What matters most: {priority_label}\n\n"
+        )
+
     user_msg = (
         "User Profile\n"
         "============\n"
@@ -141,11 +173,12 @@ def _build_prompt(
         f"WorkPulse archetype:  {ctx.archetype}\n"
         f"Top skills:           {top_skills_str}\n"
         f"Management preferences:\n{management_str}\n\n"
+        f"{prefs_section}"
         "Candidate Career Paths (sorted by match_score, highest first)\n"
         "==============================================================\n"
         f"{candidates_json}\n\n"
-        "Select the 2–3 best forward-progression paths from the list above "
-        "and return the JSON object."
+        "Write a why_text and profile_dimensions for every candidate above, "
+        "in the same order, and return the JSON object."
     )
 
     return [
@@ -170,12 +203,15 @@ def _validate_response(data: dict, valid_codes: set[str]) -> list[PathSuggestion
         raise ValueError(
             f"'suggestions' must be a list, got {type(suggestions_raw).__name__}"
         )
-    if not (2 <= len(suggestions_raw) <= 3):
+    if len(suggestions_raw) == 0:
+        raise ValueError("'suggestions' list is empty")
+    if len(suggestions_raw) != len(valid_codes):
         raise ValueError(
-            f"Expected 2–3 suggestions, got {len(suggestions_raw)}"
+            f"expected {len(valid_codes)} suggestions, got {len(suggestions_raw)}"
         )
 
     results: list[PathSuggestion] = []
+    seen_codes: set[str] = set()
     for i, item in enumerate(suggestions_raw):
         if not isinstance(item, dict):
             raise ValueError(f"suggestions[{i}] is not a dict")
@@ -191,6 +227,11 @@ def _validate_response(data: dict, valid_codes: set[str]) -> list[PathSuggestion
             raise ValueError(
                 f"suggestions[{i}].onet_code '{code}' is not in the input candidate list"
             )
+        if code in seen_codes:
+            raise ValueError(
+                f"suggestions[{i}].onet_code '{code}' appears more than once"
+            )
+        seen_codes.add(code)
 
         dims = item["profile_dimensions"]
         if not isinstance(dims, list) or len(dims) < 2:
@@ -222,17 +263,16 @@ def generate_narratives(
 ) -> list[PathSuggestion]:
     """Generate plain-language career path suggestions from scored candidates.
 
-    Calls OpenAI to select the best 2–3 candidates and write a narrative for
-    each.  The LLM is explicitly constrained to only choose from the provided
-    candidate list.  If the response is malformed, one retry is attempted
-    before raising NarrativeGenerationError.
+    Calls OpenAI to write a narrative for every scored candidate.  Order is
+    preserved from the input (highest score first).  If the response is
+    malformed, one retry is attempted before raising NarrativeGenerationError.
 
     Args:
-        candidates:   Scored candidates from path_scoring.score_paths (5–10).
+        candidates:   Scored candidates from path_scoring.score_paths (up to 10).
         user_context: User's archetype, preferences, and top skills.
 
     Returns:
-        2–3 PathSuggestion objects.
+        PathSuggestion objects for every input candidate, in score order.
 
     Raises:
         NarrativeGenerationError: Input is empty, or LLM response is

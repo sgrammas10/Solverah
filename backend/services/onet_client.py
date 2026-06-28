@@ -160,12 +160,17 @@ class OnetClient:
             for e in elements
         ]
 
-    def get_tech_skills(self, onet_code: str) -> set[str]:
+    def get_tech_skills(self, onet_code: str, hot_only: bool = False) -> set[str]:
         """Return a lowercase set of technology tool names for *onet_code*.
 
         Uses /details/technology_skills which lists specific software, tools,
         and platforms (e.g. "Python", "React", "TypeScript") — compatible with
         user profile skill tags.  Same .00→.01 fallback as get_skills_profile.
+
+        Args:
+            hot_only: When True, returns only tools flagged as hot technologies
+                      by O*NET (trending, in-demand tools). Typically 10–20 per
+                      role vs. 200+ for the full list.
         """
         def _fetch(code: str) -> set[str]:
             data = self._get(
@@ -175,9 +180,11 @@ class OnetClient:
             names: set[str] = set()
             for cat in data.get("category", []):
                 for ex in cat.get("example", []):
-                    names.add(ex["title"].lower())
+                    if not hot_only or ex.get("hot_technology", False):
+                        names.add(ex["title"].lower())
                 for ex in cat.get("example_more", []):
-                    names.add(ex["title"].lower())
+                    if not hot_only or ex.get("hot_technology", False):
+                        names.add(ex["title"].lower())
             return names
 
         names = _fetch(onet_code)
@@ -188,6 +195,35 @@ class OnetClient:
         if not names:
             _log.warning("tech skills empty for %s (no fallback data)", onet_code)
         return names
+
+    def get_work_activities(self, onet_code: str) -> list[Skill]:
+        """Return work activities for *onet_code* sorted by importance descending.
+
+        Hits the /details/work_activities endpoint.  Same .00→.01 fallback as
+        get_skills_profile.  Returns Skill objects (element_id, name, importance).
+        """
+        def _fetch(code: str) -> list[dict]:
+            data = self._get(
+                f"online/occupations/{code}/details/work_activities",
+                params={"end": 100},
+            )
+            return data.get("element") or []
+
+        elements = _fetch(onet_code)
+        if not elements and onet_code.endswith(".00"):
+            fallback = onet_code[:-3] + ".01"
+            _log.debug("work activities empty for %s, trying sub-code %s", onet_code, fallback)
+            elements = _fetch(fallback)
+
+        return [
+            Skill(
+                element_id=e.get("id", ""),
+                name=e.get("name", ""),
+                importance=float(e.get("importance", 0.0)),
+                level=0.0,
+            )
+            for e in elements
+        ]
 
     def get_job_zone(self, onet_code: str) -> int:
         """Return the Job Zone (1–5) for *onet_code*.

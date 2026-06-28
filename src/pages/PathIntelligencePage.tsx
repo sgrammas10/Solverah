@@ -3,12 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/useAuth";
 import type { PathSuggestionsResponse } from "../types/pathIntelligence";
 import PathSuggestionList from "../components/PathIntelligence/PathSuggestionList";
+import PathPreferencesForm from "../components/PathIntelligence/PathPreferencesForm";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type FetchState = "loading" | "error" | "career_status_not_set" | "profile_incomplete" | "success";
+type FetchState = "loading" | "error" | "career_status_not_set" | "profile_incomplete" | "needs_preferences" | "success";
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -64,6 +65,7 @@ function CareerStatusOnboardingPrompt() {
 // ---------------------------------------------------------------------------
 
 export default function PathIntelligencePage() {
+  const navigate = useNavigate();
   const { fetchWithAuth, user } = useAuth();
   const experience =
     (user?.profileData?.experience as Array<{ position?: string }> | undefined) ?? [];
@@ -94,7 +96,11 @@ export default function PathIntelligencePage() {
   useEffect(() => {
     if (!hasFiredRef.current) {
       hasFiredRef.current = true;
-      fetchSuggestions();
+      if (!user?.profileData?.path_preferences) {
+        setFetchState("needs_preferences");
+      } else {
+        fetchSuggestions();
+      }
     }
   }, []); // intentionally runs once on mount; hasFiredRef guards against Strict Mode double-fire
 
@@ -120,6 +126,11 @@ export default function PathIntelligencePage() {
             guidance on why each one fits.
           </p>
         </div>
+
+        {/* Preferences intake */}
+        {fetchState === "needs_preferences" && (
+          <PathPreferencesForm onComplete={() => fetchSuggestions()} />
+        )}
 
         {/* Loading */}
         {fetchState === "loading" && <SkeletonCards />}
@@ -163,11 +174,22 @@ export default function PathIntelligencePage() {
 
         {/* Success */}
         {fetchState === "success" && data && (
-          <PathSuggestionList
-            suggestions={data.suggestions}
-            currentTitle={currentTitle}
-            careerStatus={data.career_status}
-          />
+          <>
+            <PathSuggestionList
+              suggestions={data.suggestions}
+              currentTitle={currentTitle}
+              careerStatus={data.career_status}
+            />
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => setFetchState("needs_preferences")}
+                className="text-xs text-ink-secondary underline hover:text-ink-primary transition-colors"
+              >
+                Adjust search preferences
+              </button>
+            </div>
+          </>
         )}
 
       </div>

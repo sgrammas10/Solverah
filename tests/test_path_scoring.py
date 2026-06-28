@@ -6,8 +6,8 @@ Call-sequence notes (important for side_effect list ordering):
   score_paths with career_status="employed" and N skill search terms calls:
     search_occupations:  1 (resolve zone) + 1 (title in gather) + N (skills in gather)
     get_job_zone:        1 (current code) + 1 per unique candidate
-    get_tech_skills:     1 per unique candidate
     get_skills_profile:  1 per unique candidate
+    get_tech_skills:     1 per unique candidate (hot_only=True, no fallback)
 """
 from __future__ import annotations
 
@@ -20,14 +20,25 @@ from backend.services.path_scoring import (
     ScoredPath,
     UserProfile,
     UserSkill,
+    _EMBED_CACHE,
+    _EMBED_CACHE_MAX,
+    _EMBED_THRESHOLD,
+    _HOT_TECH_IMPORTANCE,
     _MIN_MATCH_LEN,
     _SKILL_LEVEL_WEIGHTS,
-    _SKILLS_WEIGHT,
-    _ZONE_WEIGHT,
+    _SKILLS_WEIGHT_EXPERIENCED,
+    _ZONE_WEIGHT_EXPERIENCED,
+    _batch_embed,
+    _build_behavioral_profile,
+    _build_role_profile,
+    _compute_centroid_score,
+    _find_matched_skills,
     _gather_candidates,
-    _generic_skills_overlap_score,
+    _normalize_title_for_onet,
     _resolve_current_zone,
-    _tech_skills_overlap_score,
+    _semantic_overlap_score,
+    _substring_overlap_score,
+    _work_style_similarity,
     _zone_delta_score,
     score_paths,
 )
@@ -76,18 +87,18 @@ class TestZoneDeltaScore:
         assert _zone_delta_score(2, 3) == 1.0
 
     def test_two_zones_above(self):
-        assert _zone_delta_score(2, 4) == 0.7
+        assert _zone_delta_score(2, 4) == 0.6
 
     def test_three_or_more_zones_above(self):
-        assert _zone_delta_score(1, 4) == 0.3
-        assert _zone_delta_score(1, 5) == 0.3
+        assert _zone_delta_score(1, 4) == 0.2
+        assert _zone_delta_score(1, 5) == 0.2
 
-    def test_same_zone_is_negative(self):
-        assert _zone_delta_score(3, 3) == -0.2
+    def test_same_zone_is_lateral(self):
+        assert _zone_delta_score(3, 3) == 0.5
 
-    def test_regression_is_most_negative(self):
-        assert _zone_delta_score(4, 3) == -0.5
-        assert _zone_delta_score(5, 2) == -0.5
+    def test_regression_scores(self):
+        assert _zone_delta_score(4, 3) == 0.0   # one step back
+        assert _zone_delta_score(5, 2) == -0.3  # three steps back
 
     def test_zone_1_to_2_is_maximum(self):
         # first_job user stepping to zone 2 should be ideal
@@ -95,143 +106,113 @@ class TestZoneDeltaScore:
 
 
 # ---------------------------------------------------------------------------
-# _generic_skills_overlap_score
+# _substring_overlap_score
 # ---------------------------------------------------------------------------
 
 
-class TestGenericSkillsOverlapScore:
+class TestSubstringOverlapScore:
+    """Tests for the bidirectional substring fallback.
+
+    Input format: _substring_overlap_score(user_skills, [(name, importance_0_to_100), ...])
+    Denominator = sum of user proficiency weights (user-centric).
+    Each match contributes: proficiency_weight * (importance / 100).
+    """
+
     def test_full_match_advanced_scores_1(self):
-        score, matched = _generic_skills_overlap_score(
+        score, matched = _substring_overlap_score(
             [user_skill("Python", "advanced")],
-            [onet_skill("Python", importance=100.0)],
+            [("Python", 100.0)],
         )
         assert matched == ["Python"]
         assert score == pytest.approx(1.0)
 
     def test_no_match_returns_zero_and_empty(self):
-        score, matched = _generic_skills_overlap_score(
+        score, matched = _substring_overlap_score(
             [user_skill("Python")],
-            [onet_skill("SQL"), onet_skill("Tableau")],
+            [("SQL", 50.0), ("Tableau", 50.0)],
         )
         assert score == 0.0
         assert matched == []
 
-    def test_advanced_scores_higher_than_beginner(self):
-        onet = [onet_skill("Python", importance=100.0)]
-        score_b, _ = _generic_skills_overlap_score([user_skill("Python", "beginner")], onet)
-        score_a, _ = _generic_skills_overlap_score([user_skill("Python", "advanced")], onet)
+    def test_proficiency_affects_score_across_multi_skill_users(self):
+        # With 2 user skills where only Python matches, the unmatched skill
+        # stays in the denominator — higher proficiency on the match → higher score.
+        onet = [("Python", 100.0)]
+        score_b, _ = _substring_overlap_score(
+            [user_skill("Python", "beginner"), user_skill("NoMatch", "advanced")], onet
+        )
+        score_a, _ = _substring_overlap_score(
+            [user_skill("Python", "advanced"), user_skill("NoMatch", "advanced")], onet
+        )
         assert score_b < score_a
 
-    def test_beginner_weight_is_correct(self):
-        # beginner weight = 0.33; only skill; importance 100 / total 100 → 0.33
-        score, _ = _generic_skills_overlap_score(
+    def test_single_match_gives_full_importance_coverage(self):
+        # With one skill that matches at 100% importance, score = importance fraction = 1.0.
+        # (Denominator = user weight; contribution = user_weight * 1.0 → cancels out.)
+        score, _ = _substring_overlap_score(
             [user_skill("Python", "beginner")],
-            [onet_skill("Python", importance=100.0)],
+            [("Python", 100.0)],
         )
-        assert score == pytest.approx(_SKILL_LEVEL_WEIGHTS["beginner"])
+        assert score == pytest.approx(1.0)
 
     def test_partial_match_normalised_correctly(self):
         # user has Python (advanced=1.0); onet has Python (50) + SQL (50)
-        # overlap = 1.0 * 50 / 100 = 0.5
-        score, matched = _generic_skills_overlap_score(
+        # contribution = 1.0 * (50/100) = 0.5; denominator = 1.0 → score = 0.5
+        score, matched = _substring_overlap_score(
             [user_skill("Python", "advanced")],
-            [onet_skill("Python", importance=50.0), onet_skill("SQL", importance=50.0)],
+            [("Python", 50.0), ("SQL", 50.0)],
         )
         assert score == pytest.approx(0.5)
         assert matched == ["Python"]
 
     def test_case_insensitive_matching(self):
-        score, matched = _generic_skills_overlap_score(
-            [user_skill("python")],  # lowercase user input
-            [onet_skill("Python")],  # titlecase from O*NET
+        score, matched = _substring_overlap_score(
+            [user_skill("python")],   # lowercase user input
+            [("Python", 50.0)],       # titlecase from O*NET
         )
         assert score > 0.0
         assert matched == ["python"]  # returns the user's skill name as entered
 
-    def test_empty_onet_skills_returns_zero(self):
-        score, matched = _generic_skills_overlap_score([user_skill("Python")], [])
+    def test_empty_onet_items_returns_zero(self):
+        score, matched = _substring_overlap_score([user_skill("Python")], [])
         assert score == 0.0
         assert matched == []
 
     def test_score_never_exceeds_one(self):
         user = [user_skill("A", "advanced"), user_skill("B", "advanced")]
-        onet = [onet_skill("A", importance=100.0), onet_skill("B", importance=100.0)]
-        score, _ = _generic_skills_overlap_score(user, onet)
+        onet = [("A", 100.0), ("B", 100.0)]
+        score, _ = _substring_overlap_score(user, onet)
         assert score <= 1.0
 
-    def test_zero_total_importance_returns_zero(self):
-        score, _ = _generic_skills_overlap_score(
+    def test_zero_importance_returns_zero(self):
+        score, _ = _substring_overlap_score(
             [user_skill("Python")],
-            [onet_skill("Python", importance=0.0)],
+            [("Python", 0.0)],
         )
         assert score == 0.0
-
-
-# ---------------------------------------------------------------------------
-# _tech_skills_overlap_score
-# ---------------------------------------------------------------------------
-
-
-class TestTechSkillsOverlapScore:
-    def test_exact_match_advanced_scores_1(self):
-        score, matched = _tech_skills_overlap_score(
-            [user_skill("Python", "advanced")],
-            {"python"},
-        )
-        assert score == pytest.approx(1.0)
-        assert matched == ["Python"]
-
-    def test_no_match_returns_zero_and_empty(self):
-        score, matched = _tech_skills_overlap_score(
-            [user_skill("Python")],
-            {"tableau", "powerbi"},
-        )
-        assert score == 0.0
-        assert matched == []
-
-    def test_empty_tech_names_returns_zero(self):
-        score, matched = _tech_skills_overlap_score([user_skill("Python")], set())
-        assert score == 0.0
-        assert matched == []
-
-    def test_empty_user_skills_returns_zero(self):
-        score, matched = _tech_skills_overlap_score([], {"python"})
-        assert score == 0.0
-        assert matched == []
-
-    def test_advanced_scores_higher_than_beginner(self):
-        # Two skills, only Python matches — so level weight is divided by total of both,
-        # making the ratio differ between beginner and advanced.
-        score_b, _ = _tech_skills_overlap_score(
-            [user_skill("Python", "beginner"), user_skill("SQL", "beginner")], {"python"}
-        )
-        score_a, _ = _tech_skills_overlap_score(
-            [user_skill("Python", "advanced"), user_skill("SQL", "beginner")], {"python"}
-        )
-        assert score_b < score_a
 
     def test_substring_match(self):
-        score, matched = _tech_skills_overlap_score(
+        score, matched = _substring_overlap_score(
             [user_skill("React", "advanced")],
-            {"react native"},
+            [("react native", 100.0)],
         )
         assert score > 0.0
         assert matched == ["React"]
 
     def test_short_token_skipped(self):
-        score, matched = _tech_skills_overlap_score(
+        score, matched = _substring_overlap_score(
             [user_skill("R", "advanced")],
-            {"r programming"},
+            [("r programming", 100.0)],
         )
         assert score == 0.0
         assert matched == []
 
-    def test_score_capped_at_one(self):
-        score, _ = _tech_skills_overlap_score(
-            [user_skill("Python", "advanced"), user_skill("SQL", "advanced")],
-            {"python", "sql"},
-        )
-        assert score <= 1.0
+    def test_empty_user_skills_returns_zero(self):
+        score, matched = _substring_overlap_score([], [("python", 100.0)])
+        assert score == 0.0
+        assert matched == []
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -242,56 +223,63 @@ class TestTechSkillsOverlapScore:
 class TestResolveCurrentZone:
     def test_first_job_never_queries_onet(self, mock_client):
         p = profile(career_status="first_job", current_title="Barista")
-        zone, code = _resolve_current_zone(p, mock_client)
+        zone, code, resolved = _resolve_current_zone(p, mock_client)
         assert zone == 1
         assert code is None
+        assert resolved is False
         mock_client.search_occupations.assert_not_called()
 
     def test_none_title_returns_zone_1(self, mock_client):
         p = profile(career_status="between_jobs", current_title=None)
-        zone, code = _resolve_current_zone(p, mock_client)
+        zone, code, resolved = _resolve_current_zone(p, mock_client)
         assert zone == 1
         assert code is None
+        assert resolved is False
 
     def test_employed_resolves_title_to_zone(self, mock_client):
         mock_client.search_occupations.return_value = [occ("15-1252.00", "Software Devs")]
         mock_client.get_job_zone.return_value = 3
-        zone, code = _resolve_current_zone(
+        zone, code, resolved = _resolve_current_zone(
             profile(career_status="employed", current_title="Software Engineer"),
             mock_client,
         )
         assert zone == 3
         assert code == "15-1252.00"
+        assert resolved is True
 
     def test_between_jobs_resolves_title(self, mock_client):
         mock_client.search_occupations.return_value = [occ("11-1021.00", "General Managers")]
         mock_client.get_job_zone.return_value = 4
-        zone, code = _resolve_current_zone(
+        zone, code, resolved = _resolve_current_zone(
             profile(career_status="between_jobs", current_title="General Manager"),
             mock_client,
         )
         assert zone == 4
         assert code == "11-1021.00"
+        assert resolved is True
 
     def test_empty_search_falls_back_to_zone_1(self, mock_client):
         mock_client.search_occupations.return_value = []
-        zone, code = _resolve_current_zone(profile(), mock_client)
+        zone, code, resolved = _resolve_current_zone(profile(), mock_client)
         assert zone == 1
         assert code is None
+        assert resolved is False
 
     def test_search_api_error_falls_back_to_zone_1(self, mock_client):
         mock_client.search_occupations.side_effect = OnetAPIError("timeout")
-        zone, code = _resolve_current_zone(profile(), mock_client)
+        zone, code, resolved = _resolve_current_zone(profile(), mock_client)
         assert zone == 1
         assert code is None
+        assert resolved is False
 
     def test_job_zone_api_error_still_returns_code(self, mock_client):
         # The code is known even if zone fetch fails; use it to exclude from candidates.
         mock_client.search_occupations.return_value = [occ("15-1252.00")]
         mock_client.get_job_zone.side_effect = OnetAPIError("zone fail")
-        zone, code = _resolve_current_zone(profile(), mock_client)
+        zone, code, resolved = _resolve_current_zone(profile(), mock_client)
         assert zone == 1
         assert code == "15-1252.00"
+        assert resolved is False
 
 
 # ---------------------------------------------------------------------------
@@ -348,6 +336,75 @@ class TestGatherCandidates:
         assert "Skill0" in call_args
         assert "Skill1" in call_args
         assert "Skill2" not in call_args
+
+
+# ---------------------------------------------------------------------------
+# _zone_delta_score with seniority_intent
+# ---------------------------------------------------------------------------
+
+
+class TestZoneDeltaScoreWithIntent:
+    def test_move_up_boosts_delta_2(self):
+        assert _zone_delta_score(2, 4, "move_up") == 0.8
+
+    def test_move_up_penalises_lateral(self):
+        assert _zone_delta_score(3, 3, "move_up") == 0.0
+
+    def test_move_up_still_favours_delta_1(self):
+        assert _zone_delta_score(2, 3, "move_up") == 1.0
+
+    def test_stay_lateral_boosts_same_zone(self):
+        assert _zone_delta_score(3, 3, "stay_lateral") == 0.8
+
+    def test_stay_lateral_reduces_forward_step(self):
+        assert _zone_delta_score(2, 3, "stay_lateral") == 0.5
+
+    def test_stay_lateral_slight_regression_tolerable(self):
+        assert _zone_delta_score(3, 2, "stay_lateral") == 0.2
+
+    def test_open_matches_none_behaviour(self):
+        for delta in range(-2, 4):
+            assert _zone_delta_score(3, 3 + delta, "open") == _zone_delta_score(3, 3 + delta, None)
+
+
+# ---------------------------------------------------------------------------
+# _gather_candidates with move_intent
+# ---------------------------------------------------------------------------
+
+
+class TestGatherCandidatesWithMoveIntent:
+    def test_stay_in_field_searches_title_and_skills(self, mock_client):
+        mock_client.search_occupations.return_value = [occ("15-1252.00")]
+        p = profile(skills=[user_skill("Python"), user_skill("SQL")], move_intent="stay_in_field")
+        _gather_candidates(p, mock_client, exclude_code=None)
+        call_args = [c.args[0] for c in mock_client.search_occupations.call_args_list]
+        # title + up to _SKILL_SEARCH_COUNT skills
+        assert "Software Engineer" in call_args
+        assert "Python" in call_args
+
+    def test_fresh_start_only_searches_skills(self, mock_client):
+        mock_client.search_occupations.return_value = [occ("43-4051.00")]
+        p = profile(skills=[user_skill("Python"), user_skill("SQL")], move_intent="fresh_start")
+        _gather_candidates(p, mock_client, exclude_code=None)
+        call_args = [c.args[0] for c in mock_client.search_occupations.call_args_list]
+        assert "Software Engineer" not in call_args
+        assert "Python" in call_args
+
+    def test_adjacent_uses_title_and_skills(self, mock_client):
+        mock_client.search_occupations.return_value = []
+        p = profile(skills=[user_skill("Python")], move_intent="adjacent")
+        _gather_candidates(p, mock_client, exclude_code=None)
+        call_args = [c.args[0] for c in mock_client.search_occupations.call_args_list]
+        assert "Software Engineer" in call_args
+        assert "Python" in call_args
+
+    def test_none_intent_behaves_like_adjacent(self, mock_client):
+        mock_client.search_occupations.return_value = []
+        p = profile(skills=[user_skill("Python")], move_intent=None)
+        _gather_candidates(p, mock_client, exclude_code=None)
+        call_args = [c.args[0] for c in mock_client.search_occupations.call_args_list]
+        assert "Software Engineer" in call_args
+        assert "Python" in call_args
 
 
 # ---------------------------------------------------------------------------
@@ -440,6 +497,27 @@ class TestScorePaths:
         mock_client.search_occupations.return_value = [occ("15-1211.00", "CS Analyst")]
         mock_client.get_job_zone.return_value = 3   # candidate zone
         mock_client.get_tech_skills.return_value = set()
+        mock_client.get_skills_profile.return_value = [onet_skill("Python", 80.0)]
+
+        results = score_paths(
+            profile(
+                career_status="between_jobs",
+                current_title=None,
+                skills=[user_skill("Python", "intermediate")],
+            ),
+            mock_client,
+        )
+
+        # zone unresolved → skills_w=1.0, zone_w=0.0
+        # no hot tech tools; generic pool = [("Python", 80.0)]
+        # substring fallback: contribution = 0.67*(80/100)/0.67 = 0.8; final = 0.8
+        assert len(results) == 1
+        assert results[0].score == pytest.approx(80.0 / 100.0, abs=1e-3)
+
+    def test_between_jobs_no_title_zero_overlap_filtered(self, mock_client):
+        mock_client.search_occupations.return_value = [occ("15-1211.00", "CS Analyst")]
+        mock_client.get_job_zone.return_value = 3
+        mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = []
 
         results = score_paths(
@@ -451,9 +529,8 @@ class TestScorePaths:
             mock_client,
         )
 
-        # zone delta: 3 - 1 (default) = +2 → 0.7; no skills overlap
-        assert len(results) == 1
-        assert results[0].score == pytest.approx(_ZONE_WEIGHT * 0.7, abs=1e-3)
+        # zone is unresolved and overlap is zero for an established user → filtered out
+        assert results == []
 
     def test_no_skill_overlap_scores_by_zone_only(self, mock_client):
         mock_client.search_occupations.side_effect = [
@@ -471,8 +548,8 @@ class TestScorePaths:
         )
 
         assert results[0].overlapping_skills == []
-        # score = _SKILLS_WEIGHT*0.0 + _ZONE_WEIGHT*1.0
-        assert results[0].score == pytest.approx(_ZONE_WEIGHT * 1.0)
+        # experienced user, zone resolved: skills_w=0.5, zone_w=0.5; no skill overlap
+        assert results[0].score == pytest.approx(_ZONE_WEIGHT_EXPERIENCED * 1.0)
 
     def test_higher_zone_beats_same_zone_with_equal_skills(self, mock_client):
         mock_client.search_occupations.side_effect = [
@@ -641,3 +718,282 @@ class TestScorePaths:
         )
         assert results == []
         mock_client.search_occupations.assert_not_called()
+
+    def test_tech_skills_fetches_hot_only_once(self, mock_client):
+        """score_paths calls get_tech_skills(hot_only=True) exactly once per candidate."""
+        mock_client.search_occupations.return_value = [occ("15-1252.00", "SW Dev")]
+        mock_client.get_job_zone.return_value = 3
+        mock_client.get_skills_profile.return_value = []
+        mock_client.get_tech_skills.return_value = {"python", "javascript"}
+
+        score_paths(
+            profile(
+                career_status="between_jobs",
+                current_title=None,
+                skills=[user_skill("Python", "intermediate")],
+            ),
+            mock_client,
+        )
+
+        mock_client.get_tech_skills.assert_called_once_with("15-1252.00", hot_only=True)
+
+
+# ---------------------------------------------------------------------------
+# _normalize_title_for_onet
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_title_calls_openai_and_strips_artifacts():
+    mock_openai = MagicMock()
+    mock_openai.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content="Output: Software Developer"))]
+    )
+    result = _normalize_title_for_onet("Co-Founder & CTO", mock_openai)
+    assert result == "Software Developer"
+    mock_openai.chat.completions.create.assert_called_once()
+
+
+def test_normalize_title_returns_none_on_api_error():
+    mock_openai = MagicMock()
+    mock_openai.chat.completions.create.side_effect = Exception("API error")
+    result = _normalize_title_for_onet("Some Title", mock_openai)
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _batch_embed and cache
+# ---------------------------------------------------------------------------
+
+
+def test_batch_embed_caches_and_pre_evicts():
+    import backend.services.path_scoring as ps
+
+    ps._EMBED_CACHE.clear()
+    # Fill cache to max with sentinel values.
+    for i in range(ps._EMBED_CACHE_MAX):
+        ps._EMBED_CACHE[f"existing_{i}"] = [0.0]
+
+    mock_openai = MagicMock()
+    mock_openai.embeddings.create.return_value = MagicMock(
+        data=[
+            MagicMock(index=0, embedding=[1.0]),
+            MagicMock(index=1, embedding=[2.0]),
+        ]
+    )
+
+    _batch_embed(["new_text_1", "new_text_2"], mock_openai)
+
+    assert "new_text_1" in ps._EMBED_CACHE
+    assert "new_text_2" in ps._EMBED_CACHE
+    assert len(ps._EMBED_CACHE) == ps._EMBED_CACHE_MAX  # evicted 2, added 2
+    ps._EMBED_CACHE.clear()
+
+
+# ---------------------------------------------------------------------------
+# _semantic_overlap_score and _semantic_score_via_embeddings
+# ---------------------------------------------------------------------------
+
+
+def test_semantic_overlap_above_threshold_matches():
+    import backend.services.path_scoring as ps
+
+    ps._EMBED_CACHE.clear()
+    # Plant embeddings: user skill and role item pointing in the same direction.
+    ps._EMBED_CACHE["python"] = [1.0, 0.0]
+    ps._EMBED_CACHE["programming language"] = [0.99, 0.14]  # cos ≈ 0.99
+
+    score, matched = _compute_centroid_score(
+        [user_skill("Python", "advanced")],
+        [("programming language", 80.0)],
+    )
+
+    assert score > 0.0
+    assert "Python" in matched
+    ps._EMBED_CACHE.clear()
+
+
+def test_semantic_overlap_falls_back_to_substring_when_no_client():
+    score, matched = _semantic_overlap_score(
+        [user_skill("Python", "advanced")],
+        [("python", 100.0)],
+        None,  # no OpenAI client → substring fallback
+    )
+    assert score == pytest.approx(1.0)
+    assert matched == ["Python"]
+
+
+# ---------------------------------------------------------------------------
+# _build_role_profile
+# ---------------------------------------------------------------------------
+
+
+def test_build_role_profile_merges_hot_tech_and_generic():
+    names = {"python", "javascript"}
+    skills = [
+        onet_skill("Problem Solving", 70.0),
+        onet_skill("Communication", 80.0),
+    ]
+    items = _build_role_profile(names, skills)
+    names_in_items = {name for name, _ in items}
+    assert "python" in names_in_items
+    assert "javascript" in names_in_items
+    assert "Problem Solving" in names_in_items
+    assert "Communication" in names_in_items
+    hot_importances = {imp for name, imp in items if name in {"python", "javascript"}}
+    assert hot_importances == {_HOT_TECH_IMPORTANCE}
+
+
+def test_build_role_profile_excludes_low_importance_generic():
+    names: set[str] = set()
+    skills = [
+        onet_skill("High Skill", 75.0),
+        onet_skill("Low Skill", 30.0),
+    ]
+    items = _build_role_profile(names, skills)
+    names_in_items = {name for name, _ in items}
+    assert "High Skill" in names_in_items
+    assert "Low Skill" not in names_in_items
+
+
+def test_build_role_profile_no_hot_tech():
+    """For a non-tech role with no hot tools, profile is generic-skills only."""
+    names: set[str] = set()
+    skills = [onet_skill("Patient Care", 90.0)]
+    items = _build_role_profile(names, skills)
+    assert len(items) == 1
+    assert items[0] == ("Patient Care", 90.0)
+
+
+# ---------------------------------------------------------------------------
+# _compute_centroid_score and _find_matched_skills
+# ---------------------------------------------------------------------------
+
+
+def test_compute_centroid_score_produces_single_similarity():
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+    ps._EMBED_CACHE["python"] = [1.0, 0.0]
+    ps._EMBED_CACHE["programming language"] = [0.99, 0.14]  # high cosine sim
+
+    score, matched = _compute_centroid_score(
+        [user_skill("Python", "advanced")],
+        [("programming language", 80.0)],
+    )
+
+    assert isinstance(score, float)
+    assert 0.0 <= score <= 1.0
+    assert score > 0.5  # centroid similarity, not a fractional count
+    assert "Python" in matched
+    ps._EMBED_CACHE.clear()
+
+
+def test_find_matched_skills_does_not_affect_score():
+    """Centroid score is geometric; matched list does not influence it."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+    ps._EMBED_CACHE["python"] = [1.0, 0.0]   # aligned with role
+    ps._EMBED_CACHE["sql"] = [0.0, 1.0]       # orthogonal to role
+    ps._EMBED_CACHE["programming"] = [1.0, 0.0]
+
+    score, matched = _compute_centroid_score(
+        [user_skill("Python", "advanced"), user_skill("sql", "advanced")],
+        [("programming", 80.0)],
+    )
+
+    # Only Python aligns with the role item above threshold
+    assert "Python" in matched
+    assert "sql" not in matched
+    # Centroid is average of [1,0] and [0,1] → [0.5, 0.5]; role centroid = [1,0]
+    # cos([0.5,0.5], [1,0]) = 0.5/sqrt(0.5) ≈ 0.707 — not 0.5 (1/2 matched)
+    assert score == pytest.approx(0.707, abs=0.01)
+    ps._EMBED_CACHE.clear()
+
+
+def test_centroid_falls_back_to_substring_without_client():
+    """With openai_client=None, centroid path is skipped; substring matching is used."""
+    score, matched = _semantic_overlap_score(
+        [user_skill("Python", "advanced")],
+        [("Python", 100.0)],
+        None,
+    )
+    assert score == pytest.approx(1.0)
+    assert matched == ["Python"]
+
+
+# ---------------------------------------------------------------------------
+# _build_behavioral_profile
+# ---------------------------------------------------------------------------
+
+
+def test_build_behavioral_profile_with_all_fields():
+    p = profile(
+        archetype="Autonomous Strategic Contributor",
+        focus_type="Deep Diver",
+        manager_match="The Operator",
+        work_style_tags=["Independent Worker", "Constructive Feedback Utilizer"],
+    )
+    result = _build_behavioral_profile(p)
+    # Space-joined so that description sentences with their own punctuation
+    # don't get double periods inserted between them.
+    assert result == (
+        "Autonomous Strategic Contributor Deep Diver The Operator "
+        "Independent Worker Constructive Feedback Utilizer"
+    )
+
+
+def test_build_behavioral_profile_partial():
+    p = profile(archetype="Deep Diver")
+    result = _build_behavioral_profile(p)
+    assert result == "Deep Diver"
+
+
+def test_build_behavioral_profile_no_assessments():
+    p = profile(archetype="", focus_type=None, manager_match=None, work_style_tags=[])
+    result = _build_behavioral_profile(p)
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _work_style_similarity
+# ---------------------------------------------------------------------------
+
+
+def test_work_style_similarity_returns_zero_without_client():
+    score = _work_style_similarity(
+        "Deep Diver. The Operator",
+        [("Getting Information", 80.0), ("Communicating", 70.0)],
+        None,
+    )
+    assert score == 0.0
+
+
+def test_work_style_similarity_returns_zero_on_empty_activities():
+    mock_openai = MagicMock()
+    score = _work_style_similarity("Deep Diver", [], mock_openai)
+    assert score == 0.0
+    mock_openai.embeddings.create.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# score_paths — behavioral profile signal
+# ---------------------------------------------------------------------------
+
+
+def test_score_paths_skips_work_activities_fetch_when_no_behavioral_profile(mock_client):
+    """get_work_activities must not be called when behavioral_profile is None."""
+    mock_client.search_occupations.side_effect = [
+        [occ("15-1252.00", "SW Dev")],   # resolve
+        [occ("15-1211.00", "CS Analyst")],  # gather title
+        [],                               # gather skill
+    ]
+    mock_client.get_job_zone.side_effect = [3, 4]
+    mock_client.get_tech_skills.return_value = set()
+    mock_client.get_skills_profile.return_value = [onet_skill("Python", 80.0)]
+
+    score_paths(
+        profile(archetype="", focus_type=None, manager_match=None, work_style_tags=[],
+                skills=[user_skill("Python", "intermediate")]),
+        mock_client,
+    )
+
+    mock_client.get_work_activities.assert_not_called()
