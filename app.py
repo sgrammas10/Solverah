@@ -3110,6 +3110,7 @@ def focus_type_submit():
     profile["focus_type_result"] = result
     user.profile_data = profile
     db.session.commit()
+    _invalidate_path_suggestions_cache(user.id)
 
     return jsonify(result)
 

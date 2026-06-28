@@ -61,6 +61,7 @@ export default function ManagerMatchPage() {
         navigate('/manager-match/results', { replace: true });
       } else {
         // Answers complete but no result (e.g. page reload, DB reset) — re-submit.
+        pendingAnswersRef.current = state.answers;
         submitAnswers(state.answers);
       }
     }

@@ -36,3 +36,6 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+
+# Debug output
+scoring_debug.txt
