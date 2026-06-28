@@ -83,7 +83,7 @@ class TestZoneDeltaScore:
         assert _zone_delta_score(1, 5) == 0.2
 
     def test_same_zone_is_lateral(self):
-        assert _zone_delta_score(3, 3) == 0.2
+        assert _zone_delta_score(3, 3) == 0.5
 
     def test_regression_scores(self):
         assert _zone_delta_score(4, 3) == 0.0   # one step back
@@ -200,8 +200,6 @@ class TestTechSkillsOverlapScore:
         assert matched == []
 
     def test_advanced_scores_higher_than_beginner(self):
-        # Two skills, only Python matches — so level weight is divided by total of both,
-        # making the ratio differ between beginner and advanced.
         score_b, _ = _tech_skills_overlap_score(
             [user_skill("Python", "beginner"), user_skill("SQL", "beginner")], {"python"}
         )
@@ -242,56 +240,63 @@ class TestTechSkillsOverlapScore:
 class TestResolveCurrentZone:
     def test_first_job_never_queries_onet(self, mock_client):
         p = profile(career_status="first_job", current_title="Barista")
-        zone, code = _resolve_current_zone(p, mock_client)
+        zone, code, resolved = _resolve_current_zone(p, mock_client)
         assert zone == 1
         assert code is None
+        assert resolved is False
         mock_client.search_occupations.assert_not_called()
 
     def test_none_title_returns_zone_1(self, mock_client):
         p = profile(career_status="between_jobs", current_title=None)
-        zone, code = _resolve_current_zone(p, mock_client)
+        zone, code, resolved = _resolve_current_zone(p, mock_client)
         assert zone == 1
         assert code is None
+        assert resolved is False
 
     def test_employed_resolves_title_to_zone(self, mock_client):
         mock_client.search_occupations.return_value = [occ("15-1252.00", "Software Devs")]
         mock_client.get_job_zone.return_value = 3
-        zone, code = _resolve_current_zone(
+        zone, code, resolved = _resolve_current_zone(
             profile(career_status="employed", current_title="Software Engineer"),
             mock_client,
         )
         assert zone == 3
         assert code == "15-1252.00"
+        assert resolved is True
 
     def test_between_jobs_resolves_title(self, mock_client):
         mock_client.search_occupations.return_value = [occ("11-1021.00", "General Managers")]
         mock_client.get_job_zone.return_value = 4
-        zone, code = _resolve_current_zone(
+        zone, code, resolved = _resolve_current_zone(
             profile(career_status="between_jobs", current_title="General Manager"),
             mock_client,
         )
         assert zone == 4
         assert code == "11-1021.00"
+        assert resolved is True
 
     def test_empty_search_falls_back_to_zone_1(self, mock_client):
         mock_client.search_occupations.return_value = []
-        zone, code = _resolve_current_zone(profile(), mock_client)
+        zone, code, resolved = _resolve_current_zone(profile(), mock_client)
         assert zone == 1
         assert code is None
+        assert resolved is False
 
     def test_search_api_error_falls_back_to_zone_1(self, mock_client):
         mock_client.search_occupations.side_effect = OnetAPIError("timeout")
-        zone, code = _resolve_current_zone(profile(), mock_client)
+        zone, code, resolved = _resolve_current_zone(profile(), mock_client)
         assert zone == 1
         assert code is None
+        assert resolved is False
 
     def test_job_zone_api_error_still_returns_code(self, mock_client):
         # The code is known even if zone fetch fails; use it to exclude from candidates.
         mock_client.search_occupations.return_value = [occ("15-1252.00")]
         mock_client.get_job_zone.side_effect = OnetAPIError("zone fail")
-        zone, code = _resolve_current_zone(profile(), mock_client)
+        zone, code, resolved = _resolve_current_zone(profile(), mock_client)
         assert zone == 1
         assert code == "15-1252.00"
+        assert resolved is False
 
 
 # ---------------------------------------------------------------------------
@@ -385,11 +390,14 @@ class TestZoneDeltaScoreWithIntent:
 
 
 class TestGatherCandidatesWithMoveIntent:
-    def test_stay_in_field_only_searches_title(self, mock_client):
+    def test_stay_in_field_searches_title_and_skills(self, mock_client):
         mock_client.search_occupations.return_value = [occ("15-1252.00")]
         p = profile(skills=[user_skill("Python"), user_skill("SQL")], move_intent="stay_in_field")
         _gather_candidates(p, mock_client, exclude_code=None)
-        mock_client.search_occupations.assert_called_once_with("Software Engineer")
+        call_args = [c.args[0] for c in mock_client.search_occupations.call_args_list]
+        # title + up to _SKILL_SEARCH_COUNT skills
+        assert "Software Engineer" in call_args
+        assert "Python" in call_args
 
     def test_fresh_start_only_searches_skills(self, mock_client):
         mock_client.search_occupations.return_value = [occ("43-4051.00")]
@@ -506,6 +514,26 @@ class TestScorePaths:
         mock_client.search_occupations.return_value = [occ("15-1211.00", "CS Analyst")]
         mock_client.get_job_zone.return_value = 3   # candidate zone
         mock_client.get_tech_skills.return_value = set()
+        mock_client.get_skills_profile.return_value = [onet_skill("Python", 80.0)]
+
+        results = score_paths(
+            profile(
+                career_status="between_jobs",
+                current_title=None,
+                skills=[user_skill("Python", "intermediate")],
+            ),
+            mock_client,
+        )
+
+        # zone unresolved for an established user → skills_w=1.0, zone_w=0.0
+        # generic overlap: 0.67 * 80 / 80 = 0.67; zone not used
+        assert len(results) == 1
+        assert results[0].score == pytest.approx(_SKILL_LEVEL_WEIGHTS["intermediate"], abs=1e-3)
+
+    def test_between_jobs_no_title_zero_overlap_filtered(self, mock_client):
+        mock_client.search_occupations.return_value = [occ("15-1211.00", "CS Analyst")]
+        mock_client.get_job_zone.return_value = 3
+        mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = []
 
         results = score_paths(
@@ -517,9 +545,8 @@ class TestScorePaths:
             mock_client,
         )
 
-        # zone delta: 3 - 1 (default) = +2 → 0.6; no skills overlap
-        assert len(results) == 1
-        assert results[0].score == pytest.approx(_ZONE_WEIGHT * 0.6, abs=1e-3)
+        # zone is unresolved and overlap is zero for an established user → filtered out
+        assert results == []
 
     def test_no_skill_overlap_scores_by_zone_only(self, mock_client):
         mock_client.search_occupations.side_effect = [

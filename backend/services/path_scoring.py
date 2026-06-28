@@ -137,7 +137,7 @@ def _zone_delta_score(
     if delta == 1:
         return 1.0   # ideal single-step forward
     if delta == 0:
-        return 0.2   # lateral — valid, skills determine final rank
+        return 0.5   # lateral — solid match, skill overlap differentiates
     if delta == -1:
         return 0.0   # slight regression — score driven entirely by skill overlap
     return -0.3      # significant regression — only high skill overlap saves it
@@ -149,44 +149,45 @@ def _tech_skills_overlap_score(
 ) -> tuple[float, list[str]]:
     """Return a [0.0, 1.0] overlap score and matched user skill names.
 
-    Matches user skill tags against O*NET technology tool names using
-    bidirectional substring matching (e.g. "React" matches "react native";
-    "TypeScript" matches "typescript").  Each matched skill contributes its
-    level weight; score is normalised by the total possible level weight.
-
-    Short tokens (<_MIN_MATCH_LEN chars) are skipped to avoid false positives
-    (e.g. "R" matching "reading comprehension").
+    Measures what fraction of the role's tech tools the user covers, weighted
+    by proficiency level. Normalised against the role's tech tool count so
+    extra user skills beyond what the role needs don't dilute the score.
     """
     if not onet_tech_names or not user_skills:
         return 0.0, []
 
-    total_weight = sum(
-        _SKILL_LEVEL_WEIGHTS.get(s.level, _SKILL_LEVEL_WEIGHTS["beginner"])
-        for s in user_skills
-    )
-    if total_weight == 0.0:
+    eligible_techs = {t for t in onet_tech_names if len(t) >= _MIN_MATCH_LEN}
+    if not eligible_techs:
         return 0.0, []
+
+    eligible_user = [s for s in user_skills if len(s.name.lower()) >= _MIN_MATCH_LEN]
+    if not eligible_user:
+        return 0.0, []
+
+    # Use the smaller set as the denominator — prevents a long O*NET tool list from
+    # diluting the score when the user knows most of their relevant skills for the role,
+    # and prevents extra user skills from diluting the score when the role has few tools.
+    total_possible = float(min(len(eligible_techs), len(eligible_user)))
 
     weighted_overlap = 0.0
     matched: list[str] = []
+    matched_techs: set[str] = set()
 
-    for us in user_skills:
+    for us in eligible_user:
         name_lower = us.name.lower()
-        if len(name_lower) < _MIN_MATCH_LEN:
-            continue
-        hit = any(
-            name_lower in tech or tech in name_lower
-            for tech in onet_tech_names
-            if len(tech) >= _MIN_MATCH_LEN
-        )
-        if hit:
-            level_weight = _SKILL_LEVEL_WEIGHTS.get(
-                us.level, _SKILL_LEVEL_WEIGHTS["beginner"]
-            )
-            weighted_overlap += level_weight
-            matched.append(us.name)
+        for tech in eligible_techs:
+            if tech in matched_techs:
+                continue
+            if name_lower in tech or tech in name_lower:
+                level_weight = _SKILL_LEVEL_WEIGHTS.get(
+                    us.level, _SKILL_LEVEL_WEIGHTS["beginner"]
+                )
+                weighted_overlap += level_weight
+                matched.append(us.name)
+                matched_techs.add(tech)
+                break
 
-    return min(weighted_overlap / total_weight, 1.0), matched
+    return min(weighted_overlap / total_possible, 1.0), matched
 
 
 def _generic_skills_overlap_score(
@@ -238,32 +239,33 @@ def _generic_skills_overlap_score(
 def _resolve_current_zone(
     profile: UserProfile,
     onet_client: OnetClient,
-) -> tuple[int, str | None]:
-    """Return (current_zone, current_onet_code).
+) -> tuple[int, str | None, bool]:
+    """Return (current_zone, current_onet_code, zone_resolved).
 
     Searches O*NET for the user's current title and fetches its job zone.
     Falls back to zone 1 (entry-level) on first_job status, missing title,
-    empty search results, or any O*NET API error.
+    empty search results, or any O*NET API error.  zone_resolved is False
+    whenever the zone is a fallback default rather than a real lookup result.
     """
     if profile.career_status == "first_job" or not profile.current_title:
-        return 1, None
+        return 1, None, False
 
     try:
         occupations = onet_client.search_occupations(profile.current_title)
     except OnetAPIError:
-        return 1, None
+        return 1, None, False
 
     if not occupations:
-        return 1, None
+        return 1, None, False
 
     current_code = occupations[0].code
     try:
         zone = onet_client.get_job_zone(current_code)
     except OnetAPIError:
         # Return code so it can still be excluded from the candidate pool.
-        return 1, current_code
+        return 1, current_code, False
 
-    return zone, current_code
+    return zone, current_code, True
 
 
 def _gather_candidates(
@@ -286,6 +288,10 @@ def _gather_candidates(
     if intent == "stay_in_field":
         if profile.current_title and profile.career_status != "first_job":
             search_terms.append(profile.current_title)
+        # Skills ensure a relevant candidate pool when the title doesn't map
+        # cleanly to O*NET (e.g. "Founder & Full Stack Engineer" → foundry roles).
+        for skill in profile.skills[:_SKILL_SEARCH_COUNT]:
+            search_terms.append(skill.name)
     elif intent == "fresh_start":
         for skill in profile.skills[:_SKILL_SEARCH_COUNT]:
             search_terms.append(skill.name)
@@ -351,10 +357,23 @@ def score_paths(
     Returns:
         Up to 10 ScoredPath objects, best match first.
     """
-    current_zone, current_code = _resolve_current_zone(user_profile, onet_client)
+    current_zone, current_code, zone_resolved = _resolve_current_zone(user_profile, onet_client)
     candidates = _gather_candidates(user_profile, onet_client, exclude_code=current_code)
 
+    # Zone signal is reliable only when O*NET actually resolved the title, or when
+    # the user is first_job (zone 1 is genuinely accurate by definition).
+    # For established users whose title didn't map in O*NET, the fallback zone 1 is
+    # meaningless — using it actively penalises high-zone tech roles vs low-zone
+    # irrelevant roles, so we drop zone entirely and rank purely on skill overlap.
+    zone_is_reliable = zone_resolved or user_profile.career_status == "first_job"
+    if zone_is_reliable:
+        skills_w, zone_w = _SKILLS_WEIGHT, _ZONE_WEIGHT
+    else:
+        skills_w, zone_w = 1.0, 0.0
+
     scored: list[ScoredPath] = []
+    _debug: list[dict] = []
+
     for occ in candidates:
         try:
             zone = onet_client.get_job_zone(occ.code)
@@ -371,11 +390,18 @@ def score_paths(
         )
         if tech_score >= generic_score:
             overlap_score, matched_skills = tech_score, tech_matched
+            winning_signal = "tech"
         else:
             overlap_score, matched_skills = generic_score, generic_matched
+            winning_signal = "generic"
+
+        # Without a reliable zone signal, zero-overlap candidates would score 0
+        # anyway — skip them to avoid polluting results with irrelevant roles.
+        if not zone_is_reliable and overlap_score == 0.0:
+            continue
 
         zone_score = _zone_delta_score(current_zone, zone, user_profile.seniority_intent)
-        raw = _SKILLS_WEIGHT * overlap_score + _ZONE_WEIGHT * zone_score
+        raw = skills_w * overlap_score + zone_w * zone_score
         final_score = round(max(0.0, min(1.0, raw)), 4)
 
         scored.append(
@@ -386,6 +412,77 @@ def score_paths(
                 overlapping_skills=matched_skills,
             )
         )
+        _debug.append({
+            "title": occ.title,
+            "code": occ.code,
+            "zone": zone,
+            "zone_score": zone_score,
+            "tech_score": tech_score,
+            "tech_matched": tech_matched,
+            "tech_tools": sorted(onet_tech_names),
+            "generic_score": generic_score,
+            "generic_matched": generic_matched,
+            "generic_skills": [(s.name, s.importance) for s in onet_generic_skills],
+            "winning_signal": winning_signal,
+            "overlap_score": overlap_score,
+            "final_score": final_score,
+        })
 
     scored.sort(key=lambda p: p.score, reverse=True)
+    _debug.sort(key=lambda d: d["final_score"], reverse=True)
+    _print_scoring_debug(user_profile, current_zone, zone_resolved, zone_is_reliable, skills_w, zone_w, _debug[:3])
+
     return scored[:_TOP_N]
+
+
+def _print_scoring_debug(
+    profile: UserProfile,
+    current_zone: int,
+    zone_resolved: bool,
+    zone_is_reliable: bool,
+    skills_w: float,
+    zone_w: float,
+    top3_debug: list[dict],
+) -> None:
+    import os
+    out_path = os.path.join(os.path.dirname(__file__), "..", "..", "scoring_debug.txt")
+    out_path = os.path.normpath(out_path)
+    sep = "─" * 60
+    lines: list[str] = []
+    lines.append("=" * 60)
+    lines.append("PATH SCORING DEBUG")
+    lines.append("=" * 60)
+    lines.append(f"Title      : {profile.current_title!r}")
+    lines.append(f"Status     : {profile.career_status}")
+    lines.append(f"Zone       : {current_zone}  (resolved={zone_resolved}, reliable={zone_is_reliable})")
+    lines.append(f"Weights    : skills={skills_w:.2f}  zone={zone_w:.2f}")
+    lines.append(f"Intent     : move={profile.move_intent}  seniority={profile.seniority_intent}")
+    lines.append("User skills:")
+    for s in profile.skills:
+        lines.append(f"  {s.name!r:<25} ({s.level})")
+
+    for rank, d in enumerate(top3_debug, 1):
+        lines.append(f"\n{sep}")
+        lines.append(f"#{rank}  {d['title']}  [{d['code']}]  score={d['final_score']:.4f} ({d['final_score']*100:.1f}%)")
+        lines.append(f"    Role zone: {d['zone']}  |  delta: {d['zone'] - current_zone:+d}  |  zone_score: {d['zone_score']:.3f}")
+        lines.append(f"    Winning signal: {d['winning_signal']}")
+        lines.append(f"\n    --- TECH TOOLS ({len(d['tech_tools'])} total) ---")
+        if d['tech_tools']:
+            for tool in d['tech_tools']:
+                lines.append(f"      {tool}")
+        else:
+            lines.append("      (none)")
+        lines.append(f"    Tech matched: {d['tech_matched']}  ->  tech_score={d['tech_score']:.4f}")
+        lines.append(f"\n    --- GENERIC SKILLS ({len(d['generic_skills'])} total) ---")
+        for name, imp in sorted(d['generic_skills'], key=lambda x: -x[1]):
+            lines.append(f"      {name:<40} importance={imp:.1f}")
+        lines.append(f"    Generic matched: {d['generic_matched']}  ->  generic_score={d['generic_score']:.4f}")
+        user_eligible = sum(1 for s in profile.skills if len(s.name) >= _MIN_MATCH_LEN)
+        tech_eligible = sum(1 for t in d['tech_tools'] if len(t) >= _MIN_MATCH_LEN)
+        denom = min(tech_eligible, user_eligible) if tech_eligible else 0
+        lines.append(f"\n    overlap_score={d['overlap_score']:.4f}  (denom=min({tech_eligible},{user_eligible})={denom})")
+        lines.append(f"    final = {skills_w:.2f}x{d['overlap_score']:.4f} + {zone_w:.2f}x{d['zone_score']:.4f} = {d['final_score']:.4f}")
+
+    lines.append("\n" + "=" * 60)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
