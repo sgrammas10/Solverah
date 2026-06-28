@@ -50,7 +50,7 @@ def user_ctx(**kwargs) -> UserContext:
     return UserContext(**defaults)
 
 
-# Realistic LLM response that matches three candidates from the default fixture.
+# Realistic LLM response that matches all five candidates from the default fixture.
 VALID_LLM_RESPONSE = {
     "suggestions": [
         {
@@ -88,6 +88,30 @@ VALID_LLM_RESPONSE = {
             "profile_dimensions": [
                 "Leadership growth opportunity",
                 "Leverages your Python experience",
+            ],
+        },
+        {
+            "onet_code": "15-1299.00",
+            "title": "Software Quality Analysts",
+            "why_text": (
+                "Your attention to detail and Python skills make quality engineering "
+                "a strong lateral move with clear upward potential."
+            ),
+            "profile_dimensions": [
+                "Builds on your Python skills",
+                "Suits your analytical style",
+            ],
+        },
+        {
+            "onet_code": "13-1161.00",
+            "title": "Market Research Analysts",
+            "why_text": (
+                "Your SQL and data skills transfer directly into market research, "
+                "opening doors in a new domain."
+            ),
+            "profile_dimensions": [
+                "Leverages your SQL expertise",
+                "Broadens your career direction",
             ],
         },
     ]
@@ -194,11 +218,11 @@ class TestBuildPrompt:
 
 
 class TestValidateResponse:
-    VALID_CODES = {"15-1211.00", "15-2051.00", "11-3021.00"}
+    VALID_CODES = {"15-1211.00", "15-2051.00", "11-3021.00", "15-1299.00", "13-1161.00"}
 
     def test_valid_response_returns_suggestions(self):
         result = _validate_response(VALID_LLM_RESPONSE, self.VALID_CODES)
-        assert len(result) == 3
+        assert len(result) == 5
         assert all(isinstance(s, PathSuggestion) for s in result)
 
     def test_maps_fields_correctly(self):
@@ -221,19 +245,21 @@ class TestValidateResponse:
         with pytest.raises(ValueError, match="empty"):
             _validate_response({"suggestions": []}, self.VALID_CODES)
 
-    def test_accepts_more_than_three_suggestions(self):
-        data = {
-            "suggestions": [
-                VALID_LLM_RESPONSE["suggestions"][0],
-                VALID_LLM_RESPONSE["suggestions"][1],
-                VALID_LLM_RESPONSE["suggestions"][2],
-                {**VALID_LLM_RESPONSE["suggestions"][1], "onet_code": "15-1299.00"},
-            ]
-        }
-        result = _validate_response(data, {*self.VALID_CODES, "15-1299.00"})
-        assert len(result) == 4
+    def test_raises_if_count_mismatches(self):
+        # Fewer suggestions than valid_codes → rejected
+        data = {"suggestions": VALID_LLM_RESPONSE["suggestions"][:3]}
+        with pytest.raises(ValueError, match="expected 5 suggestions, got 3"):
+            _validate_response(data, self.VALID_CODES)
+
+    def test_raises_if_duplicate_code(self):
+        duped = [*VALID_LLM_RESPONSE["suggestions"]]
+        duped[1] = {**duped[0]}  # duplicate of index 0
+        with pytest.raises(ValueError, match="more than once"):
+            _validate_response({"suggestions": duped}, self.VALID_CODES)
 
     def test_raises_if_code_not_in_candidates(self):
+        # Use a 3-item valid_codes so the length check passes, then test the bad code
+        three_codes = {"99-9999.00", "15-2051.00", "11-3021.00"}
         data = {
             "suggestions": [
                 {**VALID_LLM_RESPONSE["suggestions"][0], "onet_code": "99-9999.00"},
@@ -242,19 +268,21 @@ class TestValidateResponse:
             ]
         }
         with pytest.raises(ValueError, match="99-9999.00"):
-            _validate_response(data, self.VALID_CODES)
+            _validate_response(data, three_codes)
 
     def test_raises_if_required_key_missing(self):
+        three_codes = {"15-1211.00", "15-2051.00", "11-3021.00"}
         bad = {"onet_code": "15-1211.00", "title": "CS Analysts"}  # missing why_text etc.
         data = {"suggestions": [bad, VALID_LLM_RESPONSE["suggestions"][1], VALID_LLM_RESPONSE["suggestions"][2]]}
         with pytest.raises(ValueError, match="why_text"):
-            _validate_response(data, self.VALID_CODES)
+            _validate_response(data, three_codes)
 
     def test_raises_if_profile_dimensions_too_short(self):
+        three_codes = {"15-1211.00", "15-2051.00", "11-3021.00"}
         bad = {**VALID_LLM_RESPONSE["suggestions"][0], "profile_dimensions": ["only one"]}
         data = {"suggestions": [bad, VALID_LLM_RESPONSE["suggestions"][1], VALID_LLM_RESPONSE["suggestions"][2]]}
         with pytest.raises(ValueError, match="profile_dimensions"):
-            _validate_response(data, self.VALID_CODES)
+            _validate_response(data, three_codes)
 
 
 # ---------------------------------------------------------------------------
@@ -267,7 +295,7 @@ class TestGenerateNarratives:
         _patch_client(monkeypatch)
         results = generate_narratives(DEFAULT_CANDIDATES, user_ctx())
 
-        assert len(results) == 3
+        assert len(results) == len(DEFAULT_CANDIDATES)
         for s in results:
             assert isinstance(s, PathSuggestion)
             assert s.onet_code
@@ -303,7 +331,7 @@ class TestGenerateNarratives:
         results = generate_narratives(DEFAULT_CANDIDATES, user_ctx())
 
         assert mock_client.chat.completions.create.call_count == 2
-        assert len(results) == 3
+        assert len(results) == len(DEFAULT_CANDIDATES)
 
     def test_retries_once_on_invalid_json_first_response(self, monkeypatch):
         # First response returns raw non-JSON text
@@ -320,7 +348,7 @@ class TestGenerateNarratives:
         monkeypatch.setattr(narrative_module, "_get_openai_client", lambda: mock_client)
 
         results = generate_narratives(DEFAULT_CANDIDATES, user_ctx())
-        assert len(results) == 3
+        assert len(results) == len(DEFAULT_CANDIDATES)
 
     def test_raises_narrative_error_when_both_attempts_fail(self, monkeypatch):
         malformed = _make_openai_response({"bad": "response"})

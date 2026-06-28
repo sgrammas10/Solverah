@@ -48,33 +48,39 @@ User skills:
   'SQL'                     (beginner)
 
 ────────────────────────────────────────────────────────────
-#1  Web Developers  [15-1254.00]  score=0.8959 (89.6%)
-    Role zone: 3  |  delta: +2  |  zone_score: 0.600
-
-    Role profile: 137 items (122 hot tech tools + 15 generic skills)
-    Centroid similarity: 0.8959
-    Matched skills: ['React', 'TypeScript', 'Python', 'PostgreSQL', 'Elasticsearch', 'JavaScript', 'C++', 'SQL']
-
-    final   = 1.00×overlap(0.8959) + 0.00×zone(0.6000) = 0.8959
-
-────────────────────────────────────────────────────────────
-#2  Architectural and Engineering Managers  [11-9041.00]  score=0.8918 (89.2%)
+#1  Architectural and Engineering Managers  [11-9041.00]  score=0.7897 (79.0%)
     Role zone: 5  |  delta: +4  |  zone_score: 0.200
 
     Role profile: 93 items (71 hot tech tools + 22 generic skills)
     Centroid similarity: 0.8918
     Matched skills: ['React', 'Python', 'PostgreSQL', 'Elasticsearch', 'JavaScript', 'C++', 'SQL']
+    Work Activities: 28 items
+    Behavioral similarity: 0.4837
 
-    final   = 1.00×overlap(0.8918) + 0.00×zone(0.2000) = 0.8918
+    final   = 1.00×overlap(0.8918) + 0.00×zone(0.2000) = 0.7897
 
 ────────────────────────────────────────────────────────────
-#3  Web and Digital Interface Designers  [15-1255.00]  score=0.8917 (89.2%)
+#2  Career/Technical Education Teachers, Middle School  [25-2023.00]  score=0.7895 (79.0%)
     Role zone: 4  |  delta: +3  |  zone_score: 0.200
 
-    Role profile: 134 items (115 hot tech tools + 19 generic skills)
-    Centroid similarity: 0.8917
-    Matched skills: ['React', 'TypeScript', 'Python', 'PostgreSQL', 'Elasticsearch', 'JavaScript', 'C++', 'SQL']
+    Role profile: 86 items (69 hot tech tools + 17 generic skills)
+    Centroid similarity: 0.8861
+    Matched skills: ['React', 'Python', 'PostgreSQL', 'Elasticsearch', 'JavaScript', 'C++', 'SQL']
+    Work Activities: 30 items
+    Behavioral similarity: 0.4996
 
-    final   = 1.00×overlap(0.8917) + 0.00×zone(0.2000) = 0.8917
+    final   = 1.00×overlap(0.8861) + 0.00×zone(0.2000) = 0.7895
+
+────────────────────────────────────────────────────────────
+#3  Web Developers  [15-1254.00]  score=0.7866 (78.7%)
+    Role zone: 3  |  delta: +2  |  zone_score: 0.600
+
+    Role profile: 137 items (122 hot tech tools + 15 generic skills)
+    Centroid similarity: 0.8959
+    Matched skills: ['React', 'TypeScript', 'Python', 'PostgreSQL', 'Elasticsearch', 'JavaScript', 'C++', 'SQL']
+    Work Activities: 21 items
+    Behavioral similarity: 0.4586
+
+    final   = 1.00×overlap(0.8959) + 0.00×zone(0.6000) = 0.7866
 
 ============================================================

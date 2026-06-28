@@ -196,6 +196,35 @@ class OnetClient:
             _log.warning("tech skills empty for %s (no fallback data)", onet_code)
         return names
 
+    def get_work_activities(self, onet_code: str) -> list[Skill]:
+        """Return work activities for *onet_code* sorted by importance descending.
+
+        Hits the /details/work_activities endpoint.  Same .00→.01 fallback as
+        get_skills_profile.  Returns Skill objects (element_id, name, importance).
+        """
+        def _fetch(code: str) -> list[dict]:
+            data = self._get(
+                f"online/occupations/{code}/details/work_activities",
+                params={"end": 100},
+            )
+            return data.get("element") or []
+
+        elements = _fetch(onet_code)
+        if not elements and onet_code.endswith(".00"):
+            fallback = onet_code[:-3] + ".01"
+            _log.debug("work activities empty for %s, trying sub-code %s", onet_code, fallback)
+            elements = _fetch(fallback)
+
+        return [
+            Skill(
+                element_id=e.get("id", ""),
+                name=e.get("name", ""),
+                importance=float(e.get("importance", 0.0)),
+                level=0.0,
+            )
+            for e in elements
+        ]
+
     def get_job_zone(self, onet_code: str) -> int:
         """Return the Job Zone (1–5) for *onet_code*.
 

@@ -29,6 +29,7 @@ from backend.services.path_scoring import (
     _SKILLS_WEIGHT_EXPERIENCED,
     _ZONE_WEIGHT_EXPERIENCED,
     _batch_embed,
+    _build_behavioral_profile,
     _build_role_profile,
     _compute_centroid_score,
     _find_matched_skills,
@@ -37,6 +38,7 @@ from backend.services.path_scoring import (
     _resolve_current_zone,
     _semantic_overlap_score,
     _substring_overlap_score,
+    _work_style_similarity,
     _zone_delta_score,
     score_paths,
 )
@@ -916,3 +918,82 @@ def test_centroid_falls_back_to_substring_without_client():
     )
     assert score == pytest.approx(1.0)
     assert matched == ["Python"]
+
+
+# ---------------------------------------------------------------------------
+# _build_behavioral_profile
+# ---------------------------------------------------------------------------
+
+
+def test_build_behavioral_profile_with_all_fields():
+    p = profile(
+        archetype="Autonomous Strategic Contributor",
+        focus_type="Deep Diver",
+        manager_match="The Operator",
+        work_style_tags=["Independent Worker", "Constructive Feedback Utilizer"],
+    )
+    result = _build_behavioral_profile(p)
+    # Space-joined so that description sentences with their own punctuation
+    # don't get double periods inserted between them.
+    assert result == (
+        "Autonomous Strategic Contributor Deep Diver The Operator "
+        "Independent Worker Constructive Feedback Utilizer"
+    )
+
+
+def test_build_behavioral_profile_partial():
+    p = profile(archetype="Deep Diver")
+    result = _build_behavioral_profile(p)
+    assert result == "Deep Diver"
+
+
+def test_build_behavioral_profile_no_assessments():
+    p = profile(archetype="", focus_type=None, manager_match=None, work_style_tags=[])
+    result = _build_behavioral_profile(p)
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _work_style_similarity
+# ---------------------------------------------------------------------------
+
+
+def test_work_style_similarity_returns_zero_without_client():
+    score = _work_style_similarity(
+        "Deep Diver. The Operator",
+        [("Getting Information", 80.0), ("Communicating", 70.0)],
+        None,
+    )
+    assert score == 0.0
+
+
+def test_work_style_similarity_returns_zero_on_empty_activities():
+    mock_openai = MagicMock()
+    score = _work_style_similarity("Deep Diver", [], mock_openai)
+    assert score == 0.0
+    mock_openai.embeddings.create.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# score_paths — behavioral profile signal
+# ---------------------------------------------------------------------------
+
+
+def test_score_paths_skips_work_activities_fetch_when_no_behavioral_profile(mock_client):
+    """get_work_activities must not be called when behavioral_profile is None."""
+    mock_client.search_occupations.side_effect = [
+        [occ("15-1252.00", "SW Dev")],   # resolve
+        [occ("15-1211.00", "CS Analyst")],  # gather title
+        [],                               # gather skill
+    ]
+    mock_client.get_job_zone.side_effect = [3, 4]
+    mock_client.get_tech_skills.return_value = set()
+    mock_client.get_skills_profile.return_value = [onet_skill("Python", 80.0)]
+
+    score_paths(
+        profile(archetype="", focus_type=None, manager_match=None, work_style_tags=[],
+                skills=[user_skill("Python", "intermediate")]),
+        mock_client,
+    )
+
+    mock_client.get_work_activities.assert_not_called()

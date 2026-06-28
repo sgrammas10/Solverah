@@ -71,6 +71,14 @@ _GENERIC_IMPORTANCE_THRESHOLD: float = 50.0
 # Cosine similarity threshold for an embedding match to count.
 _EMBED_THRESHOLD: float = 0.70
 
+# Work activity importance threshold — activities below this are excluded.
+_WORK_ACTIVITY_IMPORTANCE_THRESHOLD: float = 50.0
+
+# Maximum share of final score contributed by the behavioral work-style signal.
+# Kept low until validated against more profiles — enough to add nuance without
+# overriding correct skill-based rankings.
+_WORK_STYLE_WEIGHT: float = 0.10
+
 # In-process embedding cache.  OrderedDict enables O(1) LRU eviction.
 _EMBED_CACHE: OrderedDict[str, list[float]] = OrderedDict()
 _EMBED_CACHE_MAX: int = 10_000
@@ -97,6 +105,13 @@ class UserProfile:
     archetype: str
     move_intent: Literal["stay_in_field", "adjacent", "fresh_start"] | None = None
     seniority_intent: Literal["move_up", "stay_lateral", "open"] | None = None
+    # Behavioral profile — populated from completed assessments, None if not yet taken.
+    # These fields should store full description text (not short label names) so the
+    # embedding model can find meaningful semantic distance against O*NET work activities.
+    archetype_description: str = ""   # multi-sentence WPL archetype description
+    focus_type: str | None = None     # FocusType label (no rich description available)
+    manager_match: str | None = None  # ManagerMatch archetype_description text
+    work_style_tags: list[str] = field(default_factory=list)  # WPL signal descriptions
 
 
 @dataclass
@@ -346,10 +361,75 @@ def _semantic_overlap_score(
     if openai_client is not None:
         all_texts = [s.name.lower() for s in user_skills] + [name for name, _ in onet_items]
         _batch_embed(all_texts, openai_client)
-        if any(s.name.lower() in _EMBED_CACHE for s in user_skills):
+        if (
+            any(s.name.lower() in _EMBED_CACHE for s in user_skills)
+            and any(name in _EMBED_CACHE for name, _ in onet_items)
+        ):
             return _compute_centroid_score(user_skills, onet_items)
 
     return _substring_overlap_score(user_skills, onet_items)
+
+
+# ---------------------------------------------------------------------------
+# Behavioral profile helpers
+# ---------------------------------------------------------------------------
+
+
+def _build_behavioral_profile(profile: UserProfile) -> str | None:
+    """Compose a single descriptive string from completed assessment results.
+
+    Prefers full description text over short label names so the embedding lands
+    in the right semantic neighbourhood relative to O*NET work-activity language.
+    Returns None if no assessment data is present — callers skip work_style_score.
+    """
+    parts: list[str] = []
+    # Use the rich multi-sentence description when available; fall back to the label.
+    if profile.archetype_description:
+        parts.append(profile.archetype_description)
+    elif profile.archetype:
+        parts.append(profile.archetype)
+    if profile.focus_type:
+        parts.append(profile.focus_type)
+    if profile.manager_match:
+        parts.append(profile.manager_match)
+    parts.extend(profile.work_style_tags)
+    return " ".join(parts) if parts else None
+
+
+def _work_style_similarity(
+    behavioral_profile: str,
+    work_activities: list[tuple[str, float]],
+    openai_client,
+) -> float:
+    """Cosine similarity between the user's behavioral profile and the role's work activities.
+
+    Embeds behavioral_profile as a single text. Computes importance-weighted centroid
+    of work activity embeddings. Returns 0.0 if openai_client is None or embeddings fail.
+    """
+    if openai_client is None or not work_activities:
+        return 0.0
+    try:
+        all_texts = [behavioral_profile] + [name for name, _ in work_activities]
+        _batch_embed(all_texts, openai_client)
+        profile_emb = _EMBED_CACHE.get(behavioral_profile)
+        if profile_emb is None:
+            return 0.0
+        activity_vecs, activity_weights = [], []
+        for name, imp in work_activities:
+            emb = _EMBED_CACHE.get(name)
+            if emb is None:
+                continue
+            activity_vecs.append(emb)
+            activity_weights.append(imp / 100.0)
+        if not activity_vecs:
+            return 0.0
+        activity_centroid = np.average(
+            np.array(activity_vecs), axis=0, weights=np.array(activity_weights)
+        )
+        return _cosine_similarity(profile_emb, activity_centroid.tolist())
+    except Exception:
+        _log.warning("work_style_similarity failed", exc_info=True)
+        return 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -537,6 +617,9 @@ def score_paths(
     else:
         skills_w, zone_w = 1.0, 0.0
 
+    behavioral_profile = _build_behavioral_profile(user_profile)
+    has_behavioral = behavioral_profile is not None and openai_client is not None
+
     scored: list[ScoredPath] = []
     _debug: list[dict] = []
 
@@ -557,7 +640,36 @@ def score_paths(
             continue
 
         zone_score = _zone_delta_score(current_zone, zone, user_profile.seniority_intent)
-        raw = skills_w * overlap_score + zone_w * zone_score
+
+        occ_has_behavioral = has_behavioral
+        work_activities: list[tuple[str, float]] = []
+        if occ_has_behavioral:
+            try:
+                work_activities = [
+                    (a.name, a.importance)
+                    for a in onet_client.get_work_activities(occ.code)
+                    if a.importance >= _WORK_ACTIVITY_IMPORTANCE_THRESHOLD
+                ]
+            except OnetAPIError:
+                occ_has_behavioral = False
+
+        work_style_score = (
+            _work_style_similarity(behavioral_profile, work_activities, openai_client)
+            if occ_has_behavioral and work_activities
+            else 0.0
+        )
+
+        if zone_is_reliable and occ_has_behavioral:
+            # 0.10 behavioral; remaining 0.90 split evenly between skills and zone.
+            raw = 0.45 * overlap_score + 0.45 * zone_score + _WORK_STYLE_WEIGHT * work_style_score
+            formula_case = "zone_and_behavioral"
+        elif occ_has_behavioral:
+            raw = (1.0 - _WORK_STYLE_WEIGHT) * overlap_score + _WORK_STYLE_WEIGHT * work_style_score
+            formula_case = "behavioral_only"
+        else:
+            raw = skills_w * overlap_score + zone_w * zone_score
+            formula_case = "standard"
+
         final_score = round(max(0.0, min(1.0, raw)), 4)
 
         scored.append(
@@ -581,15 +693,19 @@ def score_paths(
             "generic_count": generic_count,
             "matched_skills": matched_skills,
             "overlap_score": overlap_score,
+            "work_activities_count": len(work_activities) if occ_has_behavioral else None,
+            "work_style_score": work_style_score if occ_has_behavioral else None,
+            "formula_case": formula_case,
             "final_score": final_score,
         })
 
     scored.sort(key=lambda p: p.score, reverse=True)
     _debug.sort(key=lambda d: d["final_score"], reverse=True)
-    _print_scoring_debug(
-        user_profile, current_zone, zone_resolved, zone_is_reliable,
-        skills_w, zone_w, _debug[:3]
-    )
+    if os.environ.get("SOLVERAH_SCORING_DEBUG"):
+        _print_scoring_debug(
+            user_profile, current_zone, zone_resolved, zone_is_reliable,
+            skills_w, zone_w, has_behavioral, _debug[:3]
+        )
 
     return scored[:_TOP_N]
 
@@ -601,11 +717,11 @@ def _print_scoring_debug(
     zone_is_reliable: bool,
     skills_w: float,
     zone_w: float,
+    has_behavioral: bool,
     top3_debug: list[dict],
 ) -> None:
-    import os as _os
-    out_path = _os.path.join(_os.path.dirname(__file__), "..", "..", "scoring_debug.txt")
-    out_path = _os.path.normpath(out_path)
+    out_path = os.path.join(os.path.dirname(__file__), "..", "..", "scoring_debug.txt")
+    out_path = os.path.normpath(out_path)
     sep = "─" * 60
     lines: list[str] = []
     lines.append("=" * 60)
@@ -637,11 +753,31 @@ def _print_scoring_debug(
         )
         lines.append(f"    Centroid similarity: {d['overlap_score']:.4f}")
         lines.append(f"    Matched skills: {d['matched_skills']}")
-        lines.append(
-            f"\n    final   = {skills_w:.2f}×overlap({d['overlap_score']:.4f})"
-            f" + {zone_w:.2f}×zone({d['zone_score']:.4f})"
-            f" = {d['final_score']:.4f}"
-        )
+        if has_behavioral and d.get("work_activities_count") is not None:
+            lines.append(f"    Work Activities: {d['work_activities_count']} items")
+            lines.append(f"    Behavioral similarity: {d['work_style_score']:.4f}")
+        case = d.get("formula_case", "standard")
+        ws = d.get("work_style_score") or 0.0
+        if case == "zone_and_behavioral":
+            formula_str = (
+                f"0.45×overlap({d['overlap_score']:.4f})"
+                f" + 0.45×zone({d['zone_score']:.4f})"
+                f" + {_WORK_STYLE_WEIGHT:.2f}×behavioral({ws:.4f})"
+                f" = {d['final_score']:.4f}"
+            )
+        elif case == "behavioral_only":
+            formula_str = (
+                f"{1.0 - _WORK_STYLE_WEIGHT:.2f}×overlap({d['overlap_score']:.4f})"
+                f" + {_WORK_STYLE_WEIGHT:.2f}×behavioral({ws:.4f})"
+                f" = {d['final_score']:.4f}"
+            )
+        else:
+            formula_str = (
+                f"{skills_w:.2f}×overlap({d['overlap_score']:.4f})"
+                f" + {zone_w:.2f}×zone({d['zone_score']:.4f})"
+                f" = {d['final_score']:.4f}"
+            )
+        lines.append(f"\n    final   = {formula_str}")
 
     lines.append("\n" + "=" * 60)
     with open(out_path, "w", encoding="utf-8") as f:

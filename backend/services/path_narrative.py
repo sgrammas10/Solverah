@@ -205,8 +205,13 @@ def _validate_response(data: dict, valid_codes: set[str]) -> list[PathSuggestion
         )
     if len(suggestions_raw) == 0:
         raise ValueError("'suggestions' list is empty")
+    if len(suggestions_raw) != len(valid_codes):
+        raise ValueError(
+            f"expected {len(valid_codes)} suggestions, got {len(suggestions_raw)}"
+        )
 
     results: list[PathSuggestion] = []
+    seen_codes: set[str] = set()
     for i, item in enumerate(suggestions_raw):
         if not isinstance(item, dict):
             raise ValueError(f"suggestions[{i}] is not a dict")
@@ -222,6 +227,11 @@ def _validate_response(data: dict, valid_codes: set[str]) -> list[PathSuggestion
             raise ValueError(
                 f"suggestions[{i}].onet_code '{code}' is not in the input candidate list"
             )
+        if code in seen_codes:
+            raise ValueError(
+                f"suggestions[{i}].onet_code '{code}' appears more than once"
+            )
+        seen_codes.add(code)
 
         dims = item["profile_dimensions"]
         if not isinstance(dims, list) or len(dims) < 2:

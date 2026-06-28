@@ -3491,9 +3491,40 @@ def path_suggestions():
     ]
 
     archetype = ""
+    archetype_description = ""
     intake = user.intake
     if intake and intake.wpl_result and isinstance(intake.wpl_result, dict):
         archetype = intake.wpl_result.get("archetype", "")
+        # The multi-sentence description embeds far more meaningfully than the
+        # short label against O*NET work-activity language.
+        archetype_description = intake.wpl_result.get("archetype_description", "")
+
+    focus_type: str | None = None
+    focus_type_result: dict = profile.get("focus_type_result") or {}
+    if focus_type_result:
+        # FocusType scoring produces no rich description — fall back to the label.
+        focus_type = focus_type_result.get("archetype") or None
+
+    manager_match_desc: str | None = None
+    manager_match_result: dict = profile.get("manager_match_result") or {}
+    if manager_match_result:
+        # Prefer the LLM-generated description over the short archetype label.
+        manager_match_desc = (
+            manager_match_result.get("archetype_description")
+            or manager_match_result.get("archetype")
+            or None
+        )
+
+    work_style_tags: list[str] = []
+    if intake and intake.wpl_result and isinstance(intake.wpl_result, dict):
+        signals = intake.wpl_result.get("emerging_signals") or []
+        # Use description sentences — they embed meaningfully against O*NET work
+        # activities; short title labels ("Independent Worker") do not.
+        work_style_tags = [
+            s.get("description") or s.get("title", "")
+            for s in signals
+            if isinstance(s, dict) and (s.get("description") or s.get("title"))
+        ]
 
     current_title: str | None = None
     experience: list = profile.get("experience") or []
@@ -3511,8 +3542,12 @@ def path_suggestions():
         career_status=career_status,
         skills=user_skills,
         archetype=archetype,
+        archetype_description=archetype_description,
         move_intent=move_intent,
         seniority_intent=seniority_intent,
+        focus_type=focus_type,
+        manager_match=manager_match_desc,
+        work_style_tags=work_style_tags,
     )
 
     try:
