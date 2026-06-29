@@ -1,0 +1,158 @@
+
+============================================================
+ZONE RESOLUTION — O*NET Search Result
+============================================================
+Search term  : 'Founder & Full Stack Engineer'
+O*NET found  : True
+First result : Engineers, All Other [17-2199.00]
+
+============================================================
+ZONE RESOLUTION — Final Outcome
+============================================================
+zone=1  resolved=False  reliable=False
+onet_code='17-2199.00'
+
+============================================================
+SEARCH TERM GENERATION — LLM Input
+============================================================
+Current title: 'Founder & Full Stack Engineer'
+Skills (39): React, TypeScript, Vite, Tailwind, Flask, Python, PostgreSQL, REST APIs, CI, CD, Conversational AI, semantic search, cosine similarity, OCR, object detection, time-series forecasting, ARIMA, SARIMA, Prophet, LSTM, U-Net segmentation, NiFi pipelines, Elasticsearch, Cloudflare R2, web scraping, openpyxl, Vega dashboards, Binary exploitation, ROP, stack overflows, ASLR, NX bypass, reverse engineering, network security, DNS attacks, JavaScript, C++, Assembly, SQL
+
+Full prompt:
+You are a career advisor with knowledge of O*NET occupations.
+
+Analyze the skills below and identify the distinct career domains they represent.
+For each domain, output ONE standard O*NET occupation title.
+
+Rules:
+- Use exact O*NET-style titles (e.g. "Software Developers", "Information Security Analysts", "Registered Nurses", "Data Scientists")
+- Target industry-practical roles, NOT academic research roles (not "Bioinformatics Scientists", not "Remote Sensing Scientists")
+- Do NOT infer niche specializations (blockchain, quantum computing, biotech) unless the user lists core specialized skills for that field (e.g. Solidity for blockchain, lab techniques for biotech)
+- Cover ALL distinct domains present — if the user has both programming skills AND security skills, include both
+- Output ONLY a JSON array of strings, no explanation
+
+Current title: Founder & Full Stack Engineer
+Skills: React, TypeScript, Vite, Tailwind, Flask, Python, PostgreSQL, REST APIs, CI, CD, Conversational AI, semantic search, cosine similarity, OCR, object detection, time-series forecasting, ARIMA, SARIMA, Prophet, LSTM, U-Net segmentation, NiFi pipelines, Elasticsearch, Cloudflare R2, web scraping, openpyxl, Vega dashboards, Binary exploitation, ROP, stack overflows, ASLR, NX bypass, reverse engineering, network security, DNS attacks, JavaScript, C++, Assembly, SQL
+
+Output:
+
+============================================================
+SEARCH TERM GENERATION — LLM Output
+============================================================
+Raw response : '[\n    "Software Developers",\n    "Information Security Analysts",\n    "Data Scientists"\n]'
+Parsed terms : ['Software Developers', 'Information Security Analysts', 'Data Scientists']
+
+============================================================
+CANDIDATE SEARCH — Term: 'Software Developers'
+============================================================
+Results (20): ['Software Developers', 'Software Quality Assurance Analysts and Testers', 'Computer Programmers', 'Computer Systems Analysts', 'Web Developers', 'Computer User Support Specialists', 'Computer Systems Engineers/Architects', 'Web and Digital Interface Designers', 'Computer and Information Research Scientists', 'Network and Computer Systems Administrators', 'Database Architects', 'Data Scientists', 'Database Administrators', 'Remote Sensing Scientists and Technologists', 'Information Security Engineers', 'Electrical Engineers', 'Bioengineers and Biomedical Engineers', 'Electronics Engineers, Except Computer', 'Radio Frequency Identification Device Specialists', 'Computer Network Architects']
+
+============================================================
+CANDIDATE SEARCH — Term: 'Information Security Analysts'
+============================================================
+Results (20): ['Information Security Analysts', 'Information Security Engineers', 'Intelligence Analysts', 'Digital Forensics Analysts', 'Security Management Specialists', 'Security Managers', 'Penetration Testers', 'Computer Systems Analysts', 'First-Line Supervisors of Security Workers', 'Transportation Security Screeners', 'Database Administrators', 'Security Guards', 'Computer and Information Systems Managers', 'Computer Network Architects', 'Software Quality Assurance Analysts and Testers', 'Operations Research Analysts', 'Security and Fire Alarm Systems Installers', 'Computer Network Support Specialists', 'Health Information Technologists and Medical Registrars', 'Blockchain Engineers']
+
+============================================================
+CANDIDATE SEARCH — Term: 'Data Scientists'
+============================================================
+Results (20): ['Data Scientists', 'Atmospheric and Space Scientists', 'Bioinformatics Scientists', 'Social Science Research Assistants', 'Environmental Scientists and Specialists, Including Health', 'Computer and Information Research Scientists', 'Remote Sensing Scientists and Technologists', 'Survey Researchers', 'Political Scientists', 'Materials Scientists', 'Bioinformatics Technicians', 'Food Science Technicians', 'Biological Scientists, All Other', 'Life Scientists, All Other', 'Physical Scientists, All Other', 'Social Scientists and Related Workers, All Other', 'Conservation Scientists', 'Geological Technicians, Except Hydrologic Technicians', 'Food Scientists and Technologists', 'Statisticians']
+
+============================================================
+CANDIDATE POOL — Final
+============================================================
+Total candidates: 60
+  [15-1252.00] Software Developers
+  [15-1253.00] Software Quality Assurance Analysts and Testers
+  [15-1251.00] Computer Programmers
+  [15-1211.00] Computer Systems Analysts
+  [15-1254.00] Web Developers
+  [15-1232.00] Computer User Support Specialists
+  [15-1299.08] Computer Systems Engineers/Architects
+  [15-1255.00] Web and Digital Interface Designers
+  [15-1221.00] Computer and Information Research Scientists
+  [15-1244.00] Network and Computer Systems Administrators
+  [15-1243.00] Database Architects
+  [15-2051.00] Data Scientists
+  [15-1242.00] Database Administrators
+  [19-2099.01] Remote Sensing Scientists and Technologists
+  [15-1299.05] Information Security Engineers
+  [17-2071.00] Electrical Engineers
+  [17-2031.00] Bioengineers and Biomedical Engineers
+  [17-2072.00] Electronics Engineers, Except Computer
+  [17-2072.01] Radio Frequency Identification Device Specialists
+  [15-1241.00] Computer Network Architects
+  [15-1212.00] Information Security Analysts
+  [15-1299.05] Information Security Engineers
+  [33-3021.06] Intelligence Analysts
+  [15-1299.06] Digital Forensics Analysts
+  [13-1199.07] Security Management Specialists
+  [11-3013.01] Security Managers
+  [15-1299.04] Penetration Testers
+  [15-1211.00] Computer Systems Analysts
+  [33-1091.00] First-Line Supervisors of Security Workers
+  [33-9093.00] Transportation Security Screeners
+  [15-1242.00] Database Administrators
+  [33-9032.00] Security Guards
+  [11-3021.00] Computer and Information Systems Managers
+  [15-1241.00] Computer Network Architects
+  [15-1253.00] Software Quality Assurance Analysts and Testers
+  [15-2031.00] Operations Research Analysts
+  [49-2098.00] Security and Fire Alarm Systems Installers
+  [15-1231.00] Computer Network Support Specialists
+  [29-9021.00] Health Information Technologists and Medical Registrars
+  [15-1299.07] Blockchain Engineers
+  [15-2051.00] Data Scientists
+  [19-2021.00] Atmospheric and Space Scientists
+  [19-1029.01] Bioinformatics Scientists
+  [19-4061.00] Social Science Research Assistants
+  [19-2041.00] Environmental Scientists and Specialists, Including Health
+  [15-1221.00] Computer and Information Research Scientists
+  [19-2099.01] Remote Sensing Scientists and Technologists
+  [19-3022.00] Survey Researchers
+  [19-3094.00] Political Scientists
+  [19-2032.00] Materials Scientists
+  [15-2099.01] Bioinformatics Technicians
+  [19-4013.00] Food Science Technicians
+  [19-1029.00] Biological Scientists, All Other
+  [19-1099.00] Life Scientists, All Other
+  [19-2099.00] Physical Scientists, All Other
+  [19-3099.00] Social Scientists and Related Workers, All Other
+  [19-1031.00] Conservation Scientists
+  [19-4043.00] Geological Technicians, Except Hydrologic Technicians
+  [19-1012.00] Food Scientists and Technologists
+  [15-2041.00] Statisticians
+
+============================================================
+BEHAVIORAL PROFILE — Composed String
+============================================================
+archetype      : 'Autonomous Strategic Contributor'
+focus_type     : 'Deep Diver'
+manager_match  : 'As an Operator, you prioritize efficiency and outcomes within your team. Your blend of seeking autonomy while valuing direct feedback and personal relationships makes you a driven manager who inspires others to achieve their best work.'
+work_style_tags: ['You can return to your tasks promptly after interruptions, showcasing resilience and quick adaptability in your work style.', 'You thrive when given full autonomy over your work processes, allowing you to manage your time and approach effectively.', 'Your openness to critical feedback reflects a growth-oriented mindset, enhancing your ability to improve and adapt in your role.', 'Your day-to-day tasks closely match your personal development goals, indicating a strong connection between current projects and future aspirations.']
+
+Composed string:
+You naturally create momentum by taking charge of your tasks and defining your own processes, leading to high-quality outcomes. Environments that grant you the freedom to work independently while providing clarity in expectations will suit you best. However, you may face friction stemming from occasional urgency and external pressures that do not align with your working style. Deep Diver As an Operator, you prioritize efficiency and outcomes within your team. Your blend of seeking autonomy while valuing direct feedback and personal relationships makes you a driven manager who inspires others to achieve their best work. You can return to your tasks promptly after interruptions, showcasing resilience and quick adaptability in your work style. You thrive when given full autonomy over your work processes, allowing you to manage your time and approach effectively. Your openness to critical feedback reflects a growth-oriented mindset, enhancing your ability to improve and adapt in your role. Your day-to-day tasks closely match your personal development goals, indicating a strong connection between current projects and future aspirations.
+
+============================================================
+CANDIDATE SCORES — Top 5 Detail
+============================================================
+  [15-1221.00] Computer and Information Research Scientists
+    centroid=0.9073  coverage=0.4000
+    work_style=0.4283  zone=0.2000
+    final=0.5973
+  [15-1255.00] Web and Digital Interface Designers
+    centroid=0.8917  coverage=0.4000
+    work_style=0.4463  zone=0.2000
+    final=0.5960
+  [15-1254.00] Web Developers
+    centroid=0.8960  coverage=0.4000
+    work_style=0.4359  zone=0.6000
+    final=0.5950
+  [15-1299.07] Blockchain Engineers
+    centroid=0.8802  coverage=0.6000
+    work_style=0.0000  zone=0.2000
+    final=0.5551
+  [19-2099.01] Remote Sensing Scientists and Technologists
+    centroid=0.8899  coverage=0.2000
+    work_style=0.4604  zone=0.2000
+    final=0.5238

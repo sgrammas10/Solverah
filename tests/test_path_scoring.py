@@ -12,6 +12,7 @@ Call-sequence notes (important for side_effect list ordering):
 """
 from __future__ import annotations
 
+import os
 from unittest.mock import MagicMock
 
 import pytest
@@ -29,6 +30,7 @@ from backend.services.path_scoring import (
     _EMBED_CACHE_MAX,
     _EMBED_THRESHOLD,
     _HOT_TECH_IMPORTANCE,
+    _LLM_DEBUG_LOG,
     _MIN_MATCH_LEN,
     _SKILL_LEVEL_WEIGHTS,
     _SKILLS_WEIGHT_EXPERIENCED,
@@ -1281,3 +1283,111 @@ class TestPriorityWeights:
 
         results = score_paths(profile(skills=[], priority=None), mock_client)
         assert results[0].score == pytest.approx(_ZONE_WEIGHT_EXPERIENCED * 1.0, abs=1e-3)
+
+
+# ---------------------------------------------------------------------------
+# Zone normalization — O*NET plural form and two-attempt fallback
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_title_uses_onet_plural_form():
+    """LLM returns a plural O*NET title; _resolve_current_zone resolves zone via that title."""
+    mock_openai = MagicMock()
+    mock_openai.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content="Software Developers"))]
+    )
+    mock_onet = MagicMock(spec=OnetClient)
+    mock_onet.search_occupations.side_effect = [
+        [],  # raw title → no O*NET results
+        [occ("15-1252.00", "Software Developers")],  # normalized plural → found
+    ]
+    mock_onet.get_job_zone.return_value = 4
+
+    zone, code, resolved = _resolve_current_zone(
+        profile(career_status="employed", current_title="Founder & Full Stack Engineer"),
+        mock_onet,
+        mock_openai,
+    )
+
+    assert resolved is True
+    assert zone == 4
+    assert code == "15-1252.00"
+    calls = [str(c) for c in mock_onet.search_occupations.call_args_list]
+    assert any("Software Developers" in c for c in calls)
+
+
+def test_normalize_title_fallback_attempt_on_first_miss():
+    """When first normalized title finds nothing O*NET, second fallback prompt succeeds."""
+    mock_openai = MagicMock()
+    mock_openai.chat.completions.create.side_effect = [
+        MagicMock(choices=[MagicMock(message=MagicMock(content="Quantum Engineer"))]),
+        MagicMock(choices=[MagicMock(message=MagicMock(content="Software Developers"))]),
+    ]
+    mock_onet = MagicMock(spec=OnetClient)
+    mock_onet.search_occupations.side_effect = [
+        [],  # raw title → no results
+        [],  # "Quantum Engineer" → no results
+        [occ("15-1252.00", "Software Developers")],  # fallback broad category → found
+    ]
+    mock_onet.get_job_zone.return_value = 4
+
+    zone, code, resolved = _resolve_current_zone(
+        profile(career_status="employed", current_title="Quantum Computing Visionary"),
+        mock_onet,
+        mock_openai,
+    )
+
+    assert resolved is True
+    assert zone == 4
+    assert code == "15-1252.00"
+    assert mock_openai.chat.completions.create.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# LLM debug log written by score_paths
+# ---------------------------------------------------------------------------
+
+
+def _debug_log_path() -> str:
+    import backend.services.path_scoring as ps
+    return os.path.normpath(
+        os.path.join(os.path.dirname(ps.__file__), "..", "..", "llm_debug.txt")
+    )
+
+
+def _make_search_terms_openai() -> MagicMock:
+    mock_openai = MagicMock()
+    mock_openai.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content='["Software Developers"]'))]
+    )
+    mock_openai.embeddings.create.return_value = MagicMock(data=[])
+    return mock_openai
+
+
+def test_llm_debug_log_written_after_score_paths(mock_client):
+    """score_paths writes llm_debug.txt containing key section headers."""
+    mock_client.search_occupations.return_value = []
+    p = profile(career_status="between_jobs", current_title=None, skills=[user_skill("Python")])
+
+    score_paths(p, mock_client, _make_search_terms_openai())
+
+    path = _debug_log_path()
+    assert os.path.exists(path)
+    content = open(path, encoding="utf-8").read()
+    assert "SEARCH TERM GENERATION" in content
+    assert "BEHAVIORAL PROFILE" in content
+    assert "CANDIDATE SCORES" in content
+
+
+def test_llm_debug_log_cleared_between_invocations(mock_client):
+    """Second score_paths call does not include entries from the first invocation."""
+    mock_client.search_occupations.return_value = []
+    p = profile(career_status="between_jobs", current_title=None, skills=[user_skill("Python")])
+    mock_openai = _make_search_terms_openai()
+
+    score_paths(p, mock_client, mock_openai)
+    score_paths(p, mock_client, mock_openai)
+
+    content = open(_debug_log_path(), encoding="utf-8").read()
+    # Each invocation generates exactly one SEARCH TERM GENERATION — LLM Input entry.
+    assert content.count("SEARCH TERM GENERATION — LLM Input") == 1

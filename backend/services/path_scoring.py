@@ -94,6 +94,21 @@ _COVERAGE_MIX: float = 0.5
 _EMBED_CACHE: OrderedDict[str, list[float]] = OrderedDict()
 _EMBED_CACHE_MAX: int = 10_000
 
+# Accumulated LLM interaction log for the current score_paths invocation.
+_LLM_DEBUG_LOG: list[str] = []
+
+
+def _llm_log(section: str, content: str) -> None:
+    _LLM_DEBUG_LOG.append(f"\n{'='*60}\n{section}\n{'='*60}\n{content}")
+
+
+def _write_llm_debug_log() -> None:
+    out_path = os.path.join(os.path.dirname(__file__), "..", "..", "llm_debug.txt")
+    out_path = os.path.normpath(out_path)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(_LLM_DEBUG_LOG))
+    _LLM_DEBUG_LOG.clear()
+
 
 # ---------------------------------------------------------------------------
 # Data types
@@ -503,15 +518,24 @@ def _normalize_title_for_onet(raw_title: str, client) -> str | None:
 
     Returns the normalised title string, or None on any error.
     """
+    prompt = (
+        "Map this job title to a standard O*NET occupation title.\n"
+        "Use exact O*NET-style titles (e.g. 'Software Developers', 'Web Developers',\n"
+        "'General and Operations Managers', 'Computer and Information Systems Managers').\n"
+        "Use plural form as O*NET uses plural occupation names.\n"
+        "No explanation. Output the title only.\n\n"
+        "Examples:\n"
+        "  'Co-Founder & CTO' → 'Computer and Information Systems Managers'\n"
+        "  'Founder & Full Stack Engineer' → 'Software Developers'\n"
+        "  'Senior Data Analyst' → 'Data Scientists'\n"
+        "  'Head of Growth' → 'Marketing Managers'\n\n"
+        f"Input: {raw_title}\n"
+        "Output:"
+    )
     try:
         resp = client.chat.completions.create(
             model=os.environ.get("OPENAI_NARRATIVE_MODEL", "gpt-4o-mini"),
-            messages=[{"role": "user", "content": (
-                "Map this job title to a clean, standard O*NET occupation title.\n"
-                "Example: 'Co-Founder & Full Stack Engineer' → 'Software Developer'\n"
-                f"Input: {raw_title}\n"
-                "Output (title only):"
-            )}],
+            messages=[{"role": "user", "content": prompt}],
             max_tokens=20,
             temperature=0,
         )
@@ -519,8 +543,19 @@ def _normalize_title_for_onet(raw_title: str, client) -> str | None:
         for prefix in ("output:", "title:"):
             if normalized.lower().startswith(prefix):
                 normalized = normalized[len(prefix):].strip()
+        _llm_log(
+            "ZONE RESOLUTION — Title Normalization",
+            f"Raw title input : {raw_title!r}\n"
+            f"Prompt sent     :\n{prompt}\n"
+            f"Raw LLM response: {resp.choices[0].message.content!r}\n"
+            f"Parsed output   : {normalized!r}",
+        )
         return normalized or None
-    except Exception:
+    except Exception as exc:
+        _llm_log(
+            "ZONE RESOLUTION — Title Normalization FAILED",
+            f"Raw title: {raw_title!r}\nError    : {exc!r}",
+        )
         _log.warning("title normalisation LLM call failed for %r", raw_title, exc_info=True)
         return None
 
@@ -569,6 +604,15 @@ Current title: {profile.current_title or "Not provided"}
 Skills: {", ".join(s.name for s in profile.skills)}
 
 Output:"""
+
+    _llm_log(
+        "SEARCH TERM GENERATION — LLM Input",
+        f"Current title: {profile.current_title!r}\n"
+        f"Skills ({len(profile.skills)}): {', '.join(s.name for s in profile.skills)}\n\n"
+        f"Full prompt:\n{prompt}",
+    )
+
+    raw = ""
     try:
         resp = client.chat.completions.create(
             model=os.environ.get("OPENAI_NARRATIVE_MODEL", "gpt-4o-mini"),
@@ -587,13 +631,34 @@ Output:"""
             cleaned = [t.strip() for t in terms if t.strip()]
             if cleaned:
                 _log.debug("_generate_search_terms → %s", cleaned)
+                _llm_log(
+                    "SEARCH TERM GENERATION — LLM Output",
+                    f"Raw response : {raw!r}\nParsed terms : {cleaned}",
+                )
                 return cleaned
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        fallback = _fallback()
+        _llm_log(
+            "SEARCH TERM GENERATION — Parse Failed, Using Fallback",
+            f"Raw response : {raw!r}\nError        : {exc!r}\nFallback     : {fallback}",
+        )
         _log.warning("_generate_search_terms: LLM returned invalid JSON", exc_info=True)
-    except Exception:
+        return fallback
+    except Exception as exc:
+        fallback = _fallback()
+        _llm_log(
+            "SEARCH TERM GENERATION — Parse Failed, Using Fallback",
+            f"Raw response : {raw!r}\nError        : {exc!r}\nFallback     : {fallback}",
+        )
         _log.warning("_generate_search_terms LLM call failed", exc_info=True)
+        return fallback
 
-    return _fallback()
+    fallback = _fallback()
+    _llm_log(
+        "SEARCH TERM GENERATION — Parse Failed, Using Fallback",
+        f"Raw response : {raw!r}\nError        : (empty or invalid list)\nFallback     : {fallback}",
+    )
+    return fallback
 
 
 # ---------------------------------------------------------------------------
@@ -620,7 +685,18 @@ def _resolve_current_zone(
         try:
             occupations = onet_client.search_occupations(title)
         except OnetAPIError:
+            _llm_log(
+                "ZONE RESOLUTION — O*NET Search Result",
+                f"Search term  : {title!r}\nO*NET found  : False (API error)",
+            )
             return None
+        _llm_log(
+            "ZONE RESOLUTION — O*NET Search Result",
+            f"Search term  : {title!r}\n"
+            f"O*NET found  : {bool(occupations)}\n"
+            f"First result : "
+            f"{(occupations[0].title + ' [' + occupations[0].code + ']') if occupations else 'N/A'}",
+        )
         if not occupations:
             return None
         code = occupations[0].code
@@ -632,6 +708,11 @@ def _resolve_current_zone(
 
     result = _search_and_resolve(profile.current_title)
     if result is not None:
+        _llm_log(
+            "ZONE RESOLUTION — Final Outcome",
+            f"zone={result[0]}  resolved={result[2]}  reliable={result[2]}\n"
+            f"onet_code={result[1]!r}",
+        )
         return result
 
     if openai_client is not None:
@@ -639,8 +720,55 @@ def _resolve_current_zone(
         if normalized:
             result = _search_and_resolve(normalized)
             if result is not None:
+                _llm_log(
+                    "ZONE RESOLUTION — Final Outcome",
+                    f"zone={result[0]}  resolved={result[2]}  reliable={result[2]}\n"
+                    f"onet_code={result[1]!r}",
+                )
                 return result
 
+        # Second attempt: broad category fallback prompt when first normalized title also misses.
+        try:
+            fallback_prompt = (
+                f"What is the closest standard job category for: {profile.current_title}\n"
+                "Reply with only a common job title, one of: Software Developers, "
+                "Web Developers, Data Scientists, Registered Nurses, Accountants, "
+                "Marketing Managers, Sales Representatives, Teachers, Engineers.\n"
+                "Output:"
+            )
+            resp = openai_client.chat.completions.create(
+                model=os.environ.get("OPENAI_NARRATIVE_MODEL", "gpt-4o-mini"),
+                messages=[{"role": "user", "content": fallback_prompt}],
+                max_tokens=20,
+                temperature=0,
+            )
+            broad = resp.choices[0].message.content.strip().strip('"\'')
+            _llm_log(
+                "ZONE RESOLUTION — Broad Category Fallback",
+                f"Raw title : {profile.current_title!r}\n"
+                f"Prompt    :\n{fallback_prompt}\n"
+                f"LLM output: {broad!r}",
+            )
+            if broad:
+                result = _search_and_resolve(broad)
+                if result is not None:
+                    _llm_log(
+                        "ZONE RESOLUTION — Final Outcome",
+                        f"zone={result[0]}  resolved={result[2]}  reliable={result[2]}\n"
+                        f"onet_code={result[1]!r}",
+                    )
+                    return result
+        except Exception:
+            _log.warning(
+                "broad category fallback LLM call failed for %r",
+                profile.current_title,
+                exc_info=True,
+            )
+
+    _llm_log(
+        "ZONE RESOLUTION — Final Outcome",
+        "zone=1  resolved=False  reliable=False\nonet_code=None",
+    )
     return 1, None, False
 
 
@@ -672,9 +800,18 @@ def _profile_seeded_candidates(
         try:
             results = onet_client.search_occupations(term)
             _log.debug("O*NET search %r → %d results", term, len(results))
+            _llm_log(
+                f"CANDIDATE SEARCH — Term: {term!r}",
+                f"Results ({len(results)}): {[o.title for o in results]}",
+            )
             candidates.extend(results)
         except OnetAPIError as exc:
             _log.warning("O*NET search failed for %r: %s", term, exc)
+    _llm_log(
+        "CANDIDATE POOL — Final",
+        f"Total candidates: {len(candidates)}\n"
+        + "\n".join(f"  [{o.code}] {o.title}" for o in candidates),
+    )
     return candidates
 
 
@@ -758,6 +895,8 @@ def score_paths(
                        embedding-based skill matching.  When None, falls back
                        to substring matching and raw O*NET title search.
     """
+    _LLM_DEBUG_LOG.clear()
+
     current_zone, current_code, zone_resolved = _resolve_current_zone(
         user_profile, onet_client, openai_client
     )
@@ -765,6 +904,15 @@ def score_paths(
 
     behavioral_profile = _build_behavioral_profile(user_profile)
     has_behavioral = behavioral_profile is not None and openai_client is not None
+
+    _llm_log(
+        "BEHAVIORAL PROFILE — Composed String",
+        f"archetype      : {user_profile.archetype!r}\n"
+        f"focus_type     : {user_profile.focus_type!r}\n"
+        f"manager_match  : {user_profile.manager_match!r}\n"
+        f"work_style_tags: {user_profile.work_style_tags}\n\n"
+        f"Composed string:\n{behavioral_profile or '(None — no assessment data)'}",
+    )
 
     zone_is_reliable = zone_resolved or user_profile.career_status == "first_job"
     growth_focused = user_profile.priority in ("learning_growth", "pay_title")
@@ -871,6 +1019,18 @@ def score_paths(
 
     scored.sort(key=lambda p: p.score, reverse=True)
     _debug.sort(key=lambda d: d["final_score"], reverse=True)
+
+    _llm_log(
+        "CANDIDATE SCORES — Top 5 Detail",
+        "\n".join(
+            f"  [{d['code']}] {d['title']}\n"
+            f"    centroid={d['centroid_score']:.4f}  coverage={d['coverage_score']:.4f}\n"
+            f"    work_style={(d.get('work_style_score') or 0.0):.4f}  zone={d['zone_score']:.4f}\n"
+            f"    final={d['final_score']:.4f}"
+            for d in _debug[:5]
+        ) or "(no candidates scored)",
+    )
+
     if os.environ.get("SOLVERAH_SCORING_DEBUG"):
         _print_scoring_debug(
             user_profile, current_zone, zone_resolved, zone_is_reliable,
@@ -878,6 +1038,7 @@ def score_paths(
             openai_client is not None, _debug[:3]
         )
 
+    _write_llm_debug_log()
     return scored[:_TOP_N]
 
 
