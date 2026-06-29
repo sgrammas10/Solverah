@@ -3546,6 +3546,7 @@ def path_suggestions():
         archetype_description=archetype_description,
         move_intent=move_intent,
         seniority_intent=seniority_intent,
+        priority=priority,
         focus_type=focus_type,
         manager_match=manager_match_desc,
         work_style_tags=work_style_tags,

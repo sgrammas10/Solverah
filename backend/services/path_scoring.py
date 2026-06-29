@@ -21,6 +21,7 @@ O*NET call count:
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 from collections import OrderedDict
@@ -115,6 +116,7 @@ class UserProfile:
     archetype: str
     move_intent: Literal["stay_in_field", "adjacent", "fresh_start"] | None = None
     seniority_intent: Literal["move_up", "stay_lateral", "open"] | None = None
+    priority: Literal["pay_title", "interesting_work", "work_life_balance", "learning_growth"] | None = None
     # Behavioral profile — populated from completed assessments, None if not yet taken.
     # These fields should store full description text (not short label names) so the
     # embedding model can find meaningful semantic distance against O*NET work activities.
@@ -531,19 +533,17 @@ def _normalize_title_for_onet(raw_title: str, client) -> str | None:
 def _generate_search_terms(profile: UserProfile, client) -> list[str]:
     """Return O*NET-searchable occupation titles spanning the profile's skill domains.
 
-    When client is provided, one LLM call maps the full skill set to 4–6 occupation
-    titles that cover distinct domains (e.g., ML Engineer, Security Analyst, Data
-    Engineer) rather than searching by raw skill names like "Python" or "React".
-    Falls back to the current title + first-N-skills strategy on failure or when
-    client is None.
+    When client is provided, one LLM call maps the full skill set to 5–7 occupation
+    titles that cover distinct domains (ML Engineer, Security Analyst, Data Engineer,
+    etc.) rather than searching by raw skill names.  Falls back to title + first-N-skills
+    when client is None or the call fails.
     """
     def _fallback() -> list[str]:
         terms: list[str] = []
-        intent = profile.move_intent
         if (
             profile.current_title
             and profile.career_status != "first_job"
-            and intent != "fresh_start"
+            and profile.move_intent != "fresh_start"
         ):
             terms.append(profile.current_title)
         for skill in profile.skills[:_SKILL_SEARCH_COUNT]:
@@ -553,43 +553,43 @@ def _generate_search_terms(profile: UserProfile, client) -> list[str]:
     if client is None:
         return _fallback()
 
-    skill_names = ", ".join(s.name for s in profile.skills)
-    title_line = (
-        f"Current job title: {profile.current_title}"
-        if profile.current_title
-        else "Current job title: (none / first job)"
-    )
-    intent_hint = {
-        "stay_in_field": "The person wants to stay in their current field.",
-        "adjacent": "The person is open to roles in adjacent fields.",
-        "fresh_start": "The person wants a fresh start — do NOT include their current role.",
-    }.get(profile.move_intent or "", "")
+    prompt = f"""You are a career advisor with knowledge of O*NET occupations.
 
-    prompt = (
-        "Map this person's background to 4–6 O*NET-searchable occupation titles that span "
-        "all distinct technical domains in their skill set.\n\n"
-        "Rules:\n"
-        "- Use only standard O*NET occupation title vocabulary\n"
-        "- Cover every distinct domain present (web development, machine learning, "
-        "cybersecurity, data engineering, AI, etc.)\n"
-        + (f"- {intent_hint}\n" if intent_hint else "")
-        + "- Output ONLY a comma-separated list of titles, nothing else\n\n"
-        f"{title_line}\n"
-        f"Skills: {skill_names}\n\n"
-        "Output:"
-    )
+Analyze the skills below and identify the distinct career domains they represent.
+For each domain, output ONE standard O*NET occupation title.
+
+Rules:
+- Use exact O*NET-style titles (e.g. "Software Developers", "Information Security Analysts", "Registered Nurses", "Data Scientists")
+- Target industry-practical roles, NOT academic research roles (not "Bioinformatics Scientists", not "Remote Sensing Scientists")
+- Do NOT infer niche specializations (blockchain, quantum computing, biotech) unless the user lists core specialized skills for that field (e.g. Solidity for blockchain, lab techniques for biotech)
+- Cover ALL distinct domains present — if the user has both programming skills AND security skills, include both
+- Output ONLY a JSON array of strings, no explanation
+
+Current title: {profile.current_title or "Not provided"}
+Skills: {", ".join(s.name for s in profile.skills)}
+
+Output:"""
     try:
         resp = client.chat.completions.create(
             model=os.environ.get("OPENAI_NARRATIVE_MODEL", "gpt-4o-mini"),
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=120,
+            max_tokens=150,
             temperature=0,
         )
         raw = resp.choices[0].message.content.strip()
-        terms = [t.strip().strip('"\'') for t in raw.split(",") if t.strip()]
-        if terms:
-            _log.debug("_generate_search_terms → %s", terms)
-            return terms
+        if raw.startswith("```"):
+            raw = raw[raw.index("\n") + 1:] if "\n" in raw else raw[3:]
+            if raw.endswith("```"):
+                raw = raw[:raw.rindex("```")].rstrip()
+        raw = raw.strip()
+        terms = json.loads(raw)
+        if isinstance(terms, list) and terms and all(isinstance(t, str) for t in terms):
+            cleaned = [t.strip() for t in terms if t.strip()]
+            if cleaned:
+                _log.debug("_generate_search_terms → %s", cleaned)
+                return cleaned
+    except json.JSONDecodeError:
+        _log.warning("_generate_search_terms: LLM returned invalid JSON", exc_info=True)
     except Exception:
         _log.warning("_generate_search_terms LLM call failed", exc_info=True)
 
@@ -649,32 +649,72 @@ def _resolve_current_zone(
 # ---------------------------------------------------------------------------
 
 
-def _gather_candidates(
-    onet_client: OnetClient,
-    exclude_code: str | None,
-    search_terms: list[str],
-) -> list[Occupation]:
-    """Build a deduplicated candidate pool by searching O*NET for each term."""
+def _deduplicate(occupations: list[Occupation], exclude_code: str | None) -> list[Occupation]:
+    """Return occupations with duplicates removed and *exclude_code* filtered out."""
     seen: set[str] = {exclude_code} if exclude_code else set()
-    candidates: list[Occupation] = []
+    result: list[Occupation] = []
+    for occ in occupations:
+        if occ.code not in seen:
+            seen.add(occ.code)
+            result.append(occ)
+    return result
 
-    api_errors = 0
+
+def _profile_seeded_candidates(
+    profile: UserProfile,
+    onet_client: OnetClient,
+    openai_client,
+) -> list[Occupation]:
+    """Search O*NET using LLM-generated occupation titles that span skill domains."""
+    search_terms = _generate_search_terms(profile, openai_client)
+    candidates: list[Occupation] = []
     for term in search_terms:
         try:
             results = onet_client.search_occupations(term)
             _log.debug("O*NET search %r → %d results", term, len(results))
-            for occ in results:
-                if occ.code not in seen:
-                    seen.add(occ.code)
-                    candidates.append(occ)
+            candidates.extend(results)
         except OnetAPIError as exc:
-            _log.warning("O*NET search failed for term %r: %s", term, exc)
-            api_errors += 1
-
-    if api_errors:
-        _log.warning("%d/%d O*NET search(es) failed", api_errors, len(search_terms))
-
+            _log.warning("O*NET search failed for %r: %s", term, exc)
     return candidates
+
+
+def _gather_candidates(
+    profile: UserProfile,
+    onet_client: OnetClient,
+    openai_client,
+    current_code: str | None,
+) -> list[Occupation]:
+    """Build an intent-driven, deduplicated candidate pool.
+
+    fresh_start  → Bright Outlook occupations (forward-looking pool).
+                   Falls back to profile-seeded search if Bright Outlook is empty.
+    adjacent     → Profile-seeded search + all occupations in the user's SOC family.
+    stay_in_field / None → Profile-seeded search (keyword search on generated titles).
+    """
+    if profile.move_intent == "fresh_start":
+        candidates = onet_client.get_bright_outlook_occupations()
+        if not candidates:
+            candidates = _profile_seeded_candidates(profile, onet_client, openai_client)
+        return _deduplicate(candidates, current_code)
+
+    if profile.move_intent == "adjacent":
+        candidates = _profile_seeded_candidates(profile, onet_client, openai_client)
+        if current_code:
+            try:
+                families = onet_client.get_job_families()
+                user_soc_prefix = current_code[:2]
+                for family in families:
+                    if family["code"].startswith(user_soc_prefix):
+                        family_occs = onet_client.get_job_family_occupations(family["code"])
+                        candidates.extend(family_occs)
+                        break
+            except OnetAPIError:
+                pass
+        return _deduplicate(candidates, current_code)
+
+    # stay_in_field or None
+    candidates = _profile_seeded_candidates(profile, onet_client, openai_client)
+    return _deduplicate(candidates, current_code)
 
 
 # ---------------------------------------------------------------------------
@@ -721,20 +761,29 @@ def score_paths(
     current_zone, current_code, zone_resolved = _resolve_current_zone(
         user_profile, onet_client, openai_client
     )
-    search_terms = _generate_search_terms(user_profile, openai_client)
-    candidates = _gather_candidates(onet_client, exclude_code=current_code, search_terms=search_terms)
-
-    zone_is_reliable = zone_resolved or user_profile.career_status == "first_job"
-    if zone_is_reliable:
-        if user_profile.career_status == "first_job":
-            skills_w, zone_w = _SKILLS_WEIGHT_FIRST_JOB, _ZONE_WEIGHT_FIRST_JOB
-        else:
-            skills_w, zone_w = _SKILLS_WEIGHT_EXPERIENCED, _ZONE_WEIGHT_EXPERIENCED
-    else:
-        skills_w, zone_w = 1.0, 0.0
+    candidates = _gather_candidates(user_profile, onet_client, openai_client, current_code)
 
     behavioral_profile = _build_behavioral_profile(user_profile)
     has_behavioral = behavioral_profile is not None and openai_client is not None
+
+    zone_is_reliable = zone_resolved or user_profile.career_status == "first_job"
+    growth_focused = user_profile.priority in ("learning_growth", "pay_title")
+
+    if zone_is_reliable and has_behavioral:
+        if growth_focused:
+            skills_w, zone_w, style_w = 0.30, 0.50, 0.20
+        else:
+            skills_w, zone_w, style_w = 0.40, 0.40, 0.20
+    elif zone_is_reliable:
+        if growth_focused:
+            skills_w, zone_w = 0.35, 0.65
+        else:
+            skills_w, zone_w = _SKILLS_WEIGHT_EXPERIENCED, _ZONE_WEIGHT_EXPERIENCED
+        style_w = 0.0
+    elif has_behavioral:
+        skills_w, zone_w, style_w = 0.75, 0.00, 0.25
+    else:
+        skills_w, zone_w, style_w = 1.0, 0.0, 0.0
 
     scored: list[ScoredPath] = []
     _debug: list[dict] = []
@@ -782,13 +831,9 @@ def score_paths(
             else 0.0
         )
 
-        if zone_is_reliable and occ_has_behavioral:
-            # 0.10 behavioral; remaining 0.90 split evenly between skills and zone.
-            raw = 0.45 * overlap_score + 0.45 * zone_score + _WORK_STYLE_WEIGHT * work_style_score
-            formula_case = "zone_and_behavioral"
-        elif occ_has_behavioral:
-            raw = (1.0 - _WORK_STYLE_WEIGHT) * overlap_score + _WORK_STYLE_WEIGHT * work_style_score
-            formula_case = "behavioral_only"
+        if occ_has_behavioral:
+            raw = skills_w * overlap_score + zone_w * zone_score + style_w * work_style_score
+            formula_case = "with_behavioral"
         else:
             raw = skills_w * overlap_score + zone_w * zone_score
             formula_case = "standard"
@@ -829,8 +874,8 @@ def score_paths(
     if os.environ.get("SOLVERAH_SCORING_DEBUG"):
         _print_scoring_debug(
             user_profile, current_zone, zone_resolved, zone_is_reliable,
-            skills_w, zone_w, has_behavioral, openai_client is not None,
-            search_terms, _debug[:3]
+            skills_w, zone_w, style_w, growth_focused, has_behavioral,
+            openai_client is not None, _debug[:3]
         )
 
     return scored[:_TOP_N]
@@ -843,9 +888,10 @@ def _print_scoring_debug(
     zone_is_reliable: bool,
     skills_w: float,
     zone_w: float,
+    style_w: float,
+    growth_focused: bool,
     has_behavioral: bool,
     has_openai: bool,
-    search_terms: list[str],
     top3_debug: list[dict],
 ) -> None:
     out_path = os.path.join(os.path.dirname(__file__), "..", "..", "scoring_debug.txt")
@@ -858,9 +904,9 @@ def _print_scoring_debug(
     lines.append(f"Title      : {profile.current_title!r}")
     lines.append(f"Status     : {profile.career_status}")
     lines.append(f"Zone       : {current_zone}  (resolved={zone_resolved}, reliable={zone_is_reliable})")
-    lines.append(f"Weights    : skills={skills_w:.2f}  zone={zone_w:.2f}")
-    lines.append(f"Intent     : move={profile.move_intent}  seniority={profile.seniority_intent}")
-    lines.append(f"Search terms: {search_terms}")
+    lines.append(f"Weights    : skills={skills_w:.2f}  zone={zone_w:.2f}  style={style_w:.2f}")
+    lines.append(f"Intent     : move={profile.move_intent}  seniority={profile.seniority_intent}  priority={profile.priority}")
+    lines.append(f"Growth focused: {growth_focused}")
     lines.append("User skills:")
     for s in profile.skills:
         lines.append(f"  {s.name!r:<25} ({s.level})")
@@ -894,17 +940,11 @@ def _print_scoring_debug(
             lines.append(f"    Behavioral similarity: {d['work_style_score']:.4f}")
         case = d.get("formula_case", "standard")
         ws = d.get("work_style_score") or 0.0
-        if case == "zone_and_behavioral":
+        if case == "with_behavioral":
             formula_str = (
-                f"0.45×overlap({d['overlap_score']:.4f})"
-                f" + 0.45×zone({d['zone_score']:.4f})"
-                f" + {_WORK_STYLE_WEIGHT:.2f}×behavioral({ws:.4f})"
-                f" = {d['final_score']:.4f}"
-            )
-        elif case == "behavioral_only":
-            formula_str = (
-                f"{1.0 - _WORK_STYLE_WEIGHT:.2f}×overlap({d['overlap_score']:.4f})"
-                f" + {_WORK_STYLE_WEIGHT:.2f}×behavioral({ws:.4f})"
+                f"{skills_w:.2f}×overlap({d['overlap_score']:.4f})"
+                f" + {zone_w:.2f}×zone({d['zone_score']:.4f})"
+                f" + {style_w:.2f}×behavioral({ws:.4f})"
                 f" = {d['final_score']:.4f}"
             )
         else:

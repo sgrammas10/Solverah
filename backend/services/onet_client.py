@@ -17,6 +17,12 @@ import requests
 _log = logging.getLogger(__name__)
 
 _BASE_URL = "https://api-v2.onetcenter.org"
+
+# Module-level cache for Bright Outlook occupations — same list for every user,
+# changes only quarterly, so 24-hour TTL avoids hammering the API.
+_BRIGHT_OUTLOOK_CACHE: list["Occupation"] = []
+_BRIGHT_OUTLOOK_CACHE_TS: float = 0.0
+_BRIGHT_OUTLOOK_CACHE_TTL: float = 86400.0  # 24 hours
 _TIMEOUT = 10  # seconds
 _MAX_RETRIES = 3
 # O*NET recommends waiting ≥200 ms before retrying after a 429.
@@ -223,6 +229,65 @@ class OnetClient:
                 level=0.0,
             )
             for e in elements
+        ]
+
+    def get_bright_outlook_occupations(self) -> list[Occupation]:
+        """Return all Bright Outlook occupations, deduplicated across the three categories.
+
+        Fetches /online/bright_outlook/ for category codes, then each category's
+        occupations from /online/bright_outlook/[category_code].  Results are cached
+        for _BRIGHT_OUTLOOK_CACHE_TTL seconds (24h) — the list changes only quarterly.
+        On any OnetAPIError returns the stale cache (possibly empty) so the caller
+        can fall back to profile-seeded search.
+        """
+        global _BRIGHT_OUTLOOK_CACHE, _BRIGHT_OUTLOOK_CACHE_TS
+        now = time.monotonic()
+        if _BRIGHT_OUTLOOK_CACHE and now - _BRIGHT_OUTLOOK_CACHE_TS < _BRIGHT_OUTLOOK_CACHE_TTL:
+            return _BRIGHT_OUTLOOK_CACHE
+        try:
+            data = self._get("online/bright_outlook")
+            categories = [cat["code"] for cat in data.get("bright_outlook_category", [])]
+            seen: set[str] = set()
+            result: list[Occupation] = []
+            for category_code in categories:
+                cat_data = self._get(f"online/bright_outlook/{category_code}")
+                for occ_data in cat_data.get("occupation", []):
+                    code = occ_data.get("code", "")
+                    if code and code not in seen:
+                        seen.add(code)
+                        result.append(Occupation(code=code, title=occ_data.get("title", "")))
+            _BRIGHT_OUTLOOK_CACHE = result
+            _BRIGHT_OUTLOOK_CACHE_TS = now
+            return result
+        except OnetAPIError:
+            _log.warning("get_bright_outlook_occupations failed; returning stale cache", exc_info=True)
+            return _BRIGHT_OUTLOOK_CACHE
+
+    def get_job_families(self) -> list[dict]:
+        """Return all SOC job family codes and titles from /online/job_families/.
+
+        Each dict has "code" (e.g. "15-0000") and "title" keys.
+        Raises OnetAPIError on failure.
+        """
+        data = self._get("online/job_families")
+        return [
+            {"code": fam.get("code", ""), "title": fam.get("title", "")}
+            for fam in data.get("job_family", [])
+        ]
+
+    def get_job_family_occupations(self, family_code: str) -> list[Occupation]:
+        """Return all occupations within a SOC job family.
+
+        Args:
+            family_code: SOC major-group code, e.g. "15-0000".
+
+        Raises:
+            OnetAPIError: On any HTTP error.
+        """
+        data = self._get(f"online/job_families/{family_code}")
+        return [
+            Occupation(code=occ_data.get("code", ""), title=occ_data.get("title", ""))
+            for occ_data in data.get("occupation", [])
         ]
 
     def get_job_zone(self, onet_code: str) -> int:

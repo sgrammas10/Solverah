@@ -16,6 +16,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import backend.services.onet_client as onet_module
 from backend.services.onet_client import OnetAPIError, OnetClient, Occupation, Skill
 from backend.services.path_scoring import (
     ScoredPath,
@@ -296,30 +297,43 @@ class TestResolveCurrentZone:
 class TestGatherCandidates:
     def test_deduplicates_across_searches(self, mock_client):
         mock_client.search_occupations.return_value = [occ("15-1252.00", "SW Dev")]
-        candidates = _gather_candidates(mock_client, exclude_code=None, search_terms=["Software Developer", "Python"])
+        p = profile(skills=[user_skill("Python")])
+        candidates = _gather_candidates(p, mock_client, None, None)
         assert [c.code for c in candidates].count("15-1252.00") == 1
 
     def test_excludes_current_code(self, mock_client):
-        mock_client.search_occupations.return_value = [
-            occ("15-1252.00"),
-            occ("15-1211.00"),
-        ]
-        candidates = _gather_candidates(mock_client, exclude_code="15-1252.00", search_terms=["Python"])
+        mock_client.search_occupations.return_value = [occ("15-1252.00"), occ("15-1211.00")]
+        p = profile(skills=[user_skill("Python")])
+        candidates = _gather_candidates(p, mock_client, None, "15-1252.00")
         assert all(c.code != "15-1252.00" for c in candidates)
 
-    def test_searches_all_provided_terms(self, mock_client):
-        mock_client.search_occupations.return_value = []
-        _gather_candidates(mock_client, exclude_code=None, search_terms=["Software Developer", "ML Engineer", "Security Analyst"])
-        assert mock_client.search_occupations.call_count == 3
+    def test_stay_in_field_uses_keyword_search(self, mock_client):
+        mock_client.search_occupations.return_value = [occ("15-1211.00")]
+        p = profile(skills=[user_skill("Python")], move_intent="stay_in_field")
+        _gather_candidates(p, mock_client, None, None)
+        mock_client.search_occupations.assert_called()
+        mock_client.get_bright_outlook_occupations.assert_not_called()
 
-    def test_empty_terms_returns_empty(self, mock_client):
-        candidates = _gather_candidates(mock_client, exclude_code=None, search_terms=[])
+    def test_fresh_start_uses_bright_outlook(self, mock_client):
+        mock_client.get_bright_outlook_occupations.return_value = [occ("15-1252.00", "SW Dev")]
+        p = profile(skills=[user_skill("Python")], move_intent="fresh_start")
+        candidates = _gather_candidates(p, mock_client, None, None)
+        mock_client.get_bright_outlook_occupations.assert_called_once()
         mock_client.search_occupations.assert_not_called()
-        assert candidates == []
+        assert len(candidates) == 1
 
-    def test_api_error_on_one_term_is_skipped(self, mock_client):
+    def test_fresh_start_falls_back_when_bright_outlook_empty(self, mock_client):
+        mock_client.get_bright_outlook_occupations.return_value = []
+        mock_client.search_occupations.return_value = [occ("15-1211.00", "CS Analyst")]
+        p = profile(skills=[user_skill("Python")], move_intent="fresh_start")
+        candidates = _gather_candidates(p, mock_client, None, None)
+        assert len(candidates) >= 1
+        mock_client.search_occupations.assert_called()
+
+    def test_api_error_on_keyword_search_skipped(self, mock_client):
         mock_client.search_occupations.side_effect = OnetAPIError("fail")
-        candidates = _gather_candidates(mock_client, exclude_code=None, search_terms=["Software Developer", "Python"])
+        p = profile(skills=[user_skill("Python")])
+        candidates = _gather_candidates(p, mock_client, None, None)
         assert candidates == []
 
 
@@ -1124,3 +1138,146 @@ def test_overlap_combines_centroid_and_coverage(mock_client):
     assert len(results) == 1
     assert results[0].score == pytest.approx(0.75)
     ps._EMBED_CACHE.clear()
+
+
+# ---------------------------------------------------------------------------
+# OnetClient — get_bright_outlook_occupations (cache behaviour)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def reset_bright_outlook_cache():
+    """Reset the module-level Bright Outlook cache before and after each test."""
+    onet_module._BRIGHT_OUTLOOK_CACHE = []
+    onet_module._BRIGHT_OUTLOOK_CACHE_TS = 0.0
+    yield
+    onet_module._BRIGHT_OUTLOOK_CACHE = []
+    onet_module._BRIGHT_OUTLOOK_CACHE_TS = 0.0
+
+
+class TestBrightOutlookOccupations:
+    def test_deduplicates_across_categories(self, reset_bright_outlook_cache):
+        client = MagicMock(spec=OnetClient)
+        # Two categories; second returns an occ already seen in first.
+        client._get.side_effect = [
+            {"bright_outlook_category": [{"code": "growing"}, {"code": "openings"}]},
+            {"occupation": [{"code": "15-1252.00", "title": "SW Dev"}, {"code": "15-1211.00", "title": "CS Analyst"}]},
+            {"occupation": [{"code": "15-1252.00", "title": "SW Dev"}, {"code": "11-3021.00", "title": "IT Manager"}]},
+        ]
+        from backend.services.onet_client import OnetClient as RealClient
+        result = RealClient.get_bright_outlook_occupations(client)
+        codes = [o.code for o in result]
+        assert codes.count("15-1252.00") == 1
+        assert len(codes) == 3
+
+    def test_uses_cache_within_ttl(self, reset_bright_outlook_cache):
+        client = MagicMock(spec=OnetClient)
+        client._get.side_effect = [
+            {"bright_outlook_category": [{"code": "growing"}]},
+            {"occupation": [{"code": "15-1252.00", "title": "SW Dev"}]},
+        ]
+        from backend.services.onet_client import OnetClient as RealClient
+        RealClient.get_bright_outlook_occupations(client)
+        RealClient.get_bright_outlook_occupations(client)
+        # _get called only twice (categories + one category); second call hit cache
+        assert client._get.call_count == 2
+
+    def test_returns_stale_cache_on_error(self, reset_bright_outlook_cache):
+        client = MagicMock(spec=OnetClient)
+        # Prime the cache with one successful fetch.
+        client._get.side_effect = [
+            {"bright_outlook_category": [{"code": "growing"}]},
+            {"occupation": [{"code": "15-1252.00", "title": "SW Dev"}]},
+        ]
+        from backend.services.onet_client import OnetClient as RealClient, OnetAPIError as RealAPIError
+        RealClient.get_bright_outlook_occupations(client)
+        # Expire the cache and make the next call fail.
+        onet_module._BRIGHT_OUTLOOK_CACHE_TS = 0.0
+        client._get.side_effect = RealAPIError("network error")
+        result = RealClient.get_bright_outlook_occupations(client)
+        assert len(result) == 1
+        assert result[0].code == "15-1252.00"
+
+
+# ---------------------------------------------------------------------------
+# _generate_search_terms — LLM path (JSON parsing)
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateSearchTermsLLM:
+    def test_parses_valid_json_array(self):
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value.choices[0].message.content = (
+            '["Software Developers", "Data Scientists", "Information Security Analysts"]'
+        )
+        p = profile(skills=[user_skill("Python"), user_skill("React")])
+        terms = _generate_search_terms(p, mock_client)
+        assert terms == ["Software Developers", "Data Scientists", "Information Security Analysts"]
+
+    def test_strips_markdown_fences(self):
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value.choices[0].message.content = (
+            '```json\n["Software Developers", "Data Scientists"]\n```'
+        )
+        p = profile(skills=[user_skill("Python")])
+        terms = _generate_search_terms(p, mock_client)
+        assert "Software Developers" in terms
+
+    def test_falls_back_on_invalid_json(self):
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value.choices[0].message.content = (
+            "here are some titles: Software Developer, Data Scientist"
+        )
+        p = profile(skills=[user_skill("Python")])
+        terms = _generate_search_terms(p, mock_client)
+        # Should return fallback list (title + skills), not raise
+        assert isinstance(terms, list)
+        assert len(terms) > 0
+
+    def test_falls_back_on_api_exception(self):
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.side_effect = Exception("API down")
+        p = profile(skills=[user_skill("Python")])
+        terms = _generate_search_terms(p, mock_client)
+        assert isinstance(terms, list)
+
+
+# ---------------------------------------------------------------------------
+# Priority weight adjustment
+# ---------------------------------------------------------------------------
+
+
+class TestPriorityWeights:
+    def test_learning_growth_increases_zone_weight(self, mock_client):
+        """When priority=learning_growth and zone is reliable, zone_w should be 0.65."""
+        mock_client.search_occupations.side_effect = [
+            [occ("15-1252.00")],         # resolve
+            [occ("15-1211.00", "CS Analyst")],  # gather
+            [],
+        ]
+        # current=2, candidate=3 (+1 → zone_score=1.0)
+        mock_client.get_job_zone.side_effect = [2, 3]
+        mock_client.get_tech_skills.return_value = set()
+        mock_client.get_skills_profile.return_value = []  # no skill overlap
+
+        results = score_paths(
+            profile(skills=[], priority="learning_growth"),
+            mock_client,
+        )
+        # zone_w=0.65, overlap=0 → score = 0.65 × 1.0 = 0.65
+        assert len(results) == 1
+        assert results[0].score == pytest.approx(0.65, abs=1e-3)
+
+    def test_no_priority_uses_balanced_weights(self, mock_client):
+        """Without priority, zone_w stays at 0.50 (ZONE_WEIGHT_EXPERIENCED)."""
+        mock_client.search_occupations.side_effect = [
+            [occ("15-1252.00")],
+            [occ("15-1211.00", "CS Analyst")],
+            [],
+        ]
+        mock_client.get_job_zone.side_effect = [2, 3]
+        mock_client.get_tech_skills.return_value = set()
+        mock_client.get_skills_profile.return_value = []
+
+        results = score_paths(profile(skills=[], priority=None), mock_client)
+        assert results[0].score == pytest.approx(_ZONE_WEIGHT_EXPERIENCED * 1.0, abs=1e-3)
