@@ -12,6 +12,7 @@ is highly predictive.  For experienced users the split is balanced (0.5/0.5)
 because semantic skill matching is now an equally reliable signal.
 
 LLM calls made per invocation (when openai_client is provided):
+  1  (search term generation — maps full skill set to O*NET occupation titles)
   1  (title normalisation, only if raw O*NET search returns no results)
   1–2 (batch embedding of all unique skill/tool strings, cached across requests)
 
@@ -523,6 +524,79 @@ def _normalize_title_for_onet(raw_title: str, client) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# Search term generation
+# ---------------------------------------------------------------------------
+
+
+def _generate_search_terms(profile: UserProfile, client) -> list[str]:
+    """Return O*NET-searchable occupation titles spanning the profile's skill domains.
+
+    When client is provided, one LLM call maps the full skill set to 4–6 occupation
+    titles that cover distinct domains (e.g., ML Engineer, Security Analyst, Data
+    Engineer) rather than searching by raw skill names like "Python" or "React".
+    Falls back to the current title + first-N-skills strategy on failure or when
+    client is None.
+    """
+    def _fallback() -> list[str]:
+        terms: list[str] = []
+        intent = profile.move_intent
+        if (
+            profile.current_title
+            and profile.career_status != "first_job"
+            and intent != "fresh_start"
+        ):
+            terms.append(profile.current_title)
+        for skill in profile.skills[:_SKILL_SEARCH_COUNT]:
+            terms.append(skill.name)
+        return terms
+
+    if client is None:
+        return _fallback()
+
+    skill_names = ", ".join(s.name for s in profile.skills)
+    title_line = (
+        f"Current job title: {profile.current_title}"
+        if profile.current_title
+        else "Current job title: (none / first job)"
+    )
+    intent_hint = {
+        "stay_in_field": "The person wants to stay in their current field.",
+        "adjacent": "The person is open to roles in adjacent fields.",
+        "fresh_start": "The person wants a fresh start — do NOT include their current role.",
+    }.get(profile.move_intent or "", "")
+
+    prompt = (
+        "Map this person's background to 4–6 O*NET-searchable occupation titles that span "
+        "all distinct technical domains in their skill set.\n\n"
+        "Rules:\n"
+        "- Use only standard O*NET occupation title vocabulary\n"
+        "- Cover every distinct domain present (web development, machine learning, "
+        "cybersecurity, data engineering, AI, etc.)\n"
+        + (f"- {intent_hint}\n" if intent_hint else "")
+        + "- Output ONLY a comma-separated list of titles, nothing else\n\n"
+        f"{title_line}\n"
+        f"Skills: {skill_names}\n\n"
+        "Output:"
+    )
+    try:
+        resp = client.chat.completions.create(
+            model=os.environ.get("OPENAI_NARRATIVE_MODEL", "gpt-4o-mini"),
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=120,
+            temperature=0,
+        )
+        raw = resp.choices[0].message.content.strip()
+        terms = [t.strip().strip('"\'') for t in raw.split(",") if t.strip()]
+        if terms:
+            _log.debug("_generate_search_terms → %s", terms)
+            return terms
+    except Exception:
+        _log.warning("_generate_search_terms LLM call failed", exc_info=True)
+
+    return _fallback()
+
+
+# ---------------------------------------------------------------------------
 # Zone resolution
 # ---------------------------------------------------------------------------
 
@@ -576,30 +650,13 @@ def _resolve_current_zone(
 
 
 def _gather_candidates(
-    profile: UserProfile,
     onet_client: OnetClient,
     exclude_code: str | None,
+    search_terms: list[str],
 ) -> list[Occupation]:
-    """Build a deduplicated candidate pool by searching O*NET."""
+    """Build a deduplicated candidate pool by searching O*NET for each term."""
     seen: set[str] = {exclude_code} if exclude_code else set()
     candidates: list[Occupation] = []
-
-    search_terms: list[str] = []
-    intent = profile.move_intent
-
-    if intent == "stay_in_field":
-        if profile.current_title and profile.career_status != "first_job":
-            search_terms.append(profile.current_title)
-        for skill in profile.skills[:_SKILL_SEARCH_COUNT]:
-            search_terms.append(skill.name)
-    elif intent == "fresh_start":
-        for skill in profile.skills[:_SKILL_SEARCH_COUNT]:
-            search_terms.append(skill.name)
-    else:  # "adjacent" or None
-        if profile.current_title and profile.career_status != "first_job":
-            search_terms.append(profile.current_title)
-        for skill in profile.skills[:_SKILL_SEARCH_COUNT]:
-            search_terms.append(skill.name)
 
     api_errors = 0
     for term in search_terms:
@@ -664,7 +721,8 @@ def score_paths(
     current_zone, current_code, zone_resolved = _resolve_current_zone(
         user_profile, onet_client, openai_client
     )
-    candidates = _gather_candidates(user_profile, onet_client, exclude_code=current_code)
+    search_terms = _generate_search_terms(user_profile, openai_client)
+    candidates = _gather_candidates(onet_client, exclude_code=current_code, search_terms=search_terms)
 
     zone_is_reliable = zone_resolved or user_profile.career_status == "first_job"
     if zone_is_reliable:
@@ -771,7 +829,8 @@ def score_paths(
     if os.environ.get("SOLVERAH_SCORING_DEBUG"):
         _print_scoring_debug(
             user_profile, current_zone, zone_resolved, zone_is_reliable,
-            skills_w, zone_w, has_behavioral, openai_client is not None, _debug[:3]
+            skills_w, zone_w, has_behavioral, openai_client is not None,
+            search_terms, _debug[:3]
         )
 
     return scored[:_TOP_N]
@@ -786,6 +845,7 @@ def _print_scoring_debug(
     zone_w: float,
     has_behavioral: bool,
     has_openai: bool,
+    search_terms: list[str],
     top3_debug: list[dict],
 ) -> None:
     out_path = os.path.join(os.path.dirname(__file__), "..", "..", "scoring_debug.txt")
@@ -800,6 +860,7 @@ def _print_scoring_debug(
     lines.append(f"Zone       : {current_zone}  (resolved={zone_resolved}, reliable={zone_is_reliable})")
     lines.append(f"Weights    : skills={skills_w:.2f}  zone={zone_w:.2f}")
     lines.append(f"Intent     : move={profile.move_intent}  seniority={profile.seniority_intent}")
+    lines.append(f"Search terms: {search_terms}")
     lines.append("User skills:")
     for s in profile.skills:
         lines.append(f"  {s.name!r:<25} ({s.level})")

@@ -3,11 +3,12 @@
 All O*NET HTTP calls are mocked — no live API traffic in CI.
 
 Call-sequence notes (important for side_effect list ordering):
-  score_paths with career_status="employed" and N skill search terms calls:
+  score_paths with career_status="employed" and N skill search terms calls (no openai_client):
     search_occupations:  1 (resolve zone) + 1 (title in gather) + N (skills in gather)
     get_job_zone:        1 (current code) + 1 per unique candidate
     get_skills_profile:  1 per unique candidate
     get_tech_skills:     1 per unique candidate (hot_only=True, no fallback)
+  When openai_client is provided, _generate_search_terms adds 1 LLM call before gathering.
 """
 from __future__ import annotations
 
@@ -37,6 +38,7 @@ from backend.services.path_scoring import (
     _compute_centroid_score,
     _find_matched_skills,
     _gather_candidates,
+    _generate_search_terms,
     _normalize_title_for_onet,
     _resolve_current_zone,
     _role_coverage_score,
@@ -293,10 +295,8 @@ class TestResolveCurrentZone:
 
 class TestGatherCandidates:
     def test_deduplicates_across_searches(self, mock_client):
-        # Same occupation returned by both the title and the skill search.
         mock_client.search_occupations.return_value = [occ("15-1252.00", "SW Dev")]
-        p = profile(skills=[user_skill("Python")])
-        candidates = _gather_candidates(p, mock_client, exclude_code=None)
+        candidates = _gather_candidates(mock_client, exclude_code=None, search_terms=["Software Developer", "Python"])
         assert [c.code for c in candidates].count("15-1252.00") == 1
 
     def test_excludes_current_code(self, mock_client):
@@ -304,42 +304,23 @@ class TestGatherCandidates:
             occ("15-1252.00"),
             occ("15-1211.00"),
         ]
-        candidates = _gather_candidates(profile(skills=[]), mock_client, exclude_code="15-1252.00")
+        candidates = _gather_candidates(mock_client, exclude_code="15-1252.00", search_terms=["Python"])
         assert all(c.code != "15-1252.00" for c in candidates)
 
-    def test_first_job_skips_title_search(self, mock_client):
+    def test_searches_all_provided_terms(self, mock_client):
         mock_client.search_occupations.return_value = []
-        p = profile(career_status="first_job", current_title="Intern", skills=[])
-        _gather_candidates(p, mock_client, exclude_code=None)
-        # No current_title search term for first_job — only skills, which are empty here.
-        mock_client.search_occupations.assert_not_called()
+        _gather_candidates(mock_client, exclude_code=None, search_terms=["Software Developer", "ML Engineer", "Security Analyst"])
+        assert mock_client.search_occupations.call_count == 3
 
-    def test_first_job_with_skills_searches_skills(self, mock_client):
-        mock_client.search_occupations.return_value = [occ("43-4051.00", "Customer Rep")]
-        p = profile(career_status="first_job", current_title=None, skills=[user_skill("Communication")])
-        candidates = _gather_candidates(p, mock_client, exclude_code=None)
-        mock_client.search_occupations.assert_called_once_with("Communication")
-        assert len(candidates) == 1
+    def test_empty_terms_returns_empty(self, mock_client):
+        candidates = _gather_candidates(mock_client, exclude_code=None, search_terms=[])
+        mock_client.search_occupations.assert_not_called()
+        assert candidates == []
 
     def test_api_error_on_one_term_is_skipped(self, mock_client):
         mock_client.search_occupations.side_effect = OnetAPIError("fail")
-        p = profile(skills=[user_skill("Python")])
-        candidates = _gather_candidates(p, mock_client, exclude_code=None)
+        candidates = _gather_candidates(mock_client, exclude_code=None, search_terms=["Software Developer", "Python"])
         assert candidates == []
-
-    def test_uses_at_most_skill_search_count_skills(self, mock_client):
-        mock_client.search_occupations.return_value = []
-        # 5 skills; only top 2 should be searched (plus the title)
-        many_skills = [user_skill(f"Skill{i}") for i in range(5)]
-        p = profile(skills=many_skills)
-        _gather_candidates(p, mock_client, exclude_code=None)
-        call_args = [c.args[0] for c in mock_client.search_occupations.call_args_list]
-        # title + 2 skill names = 3 calls total
-        assert len(call_args) == 3
-        assert "Software Engineer" in call_args   # current_title
-        assert "Skill0" in call_args
-        assert "Skill1" in call_args
-        assert "Skill2" not in call_args
 
 
 # ---------------------------------------------------------------------------
@@ -376,39 +357,52 @@ class TestZoneDeltaScoreWithIntent:
 # ---------------------------------------------------------------------------
 
 
-class TestGatherCandidatesWithMoveIntent:
-    def test_stay_in_field_searches_title_and_skills(self, mock_client):
-        mock_client.search_occupations.return_value = [occ("15-1252.00")]
+class TestGenerateSearchTerms:
+    """Fallback behaviour (no openai_client) matches the old _gather_candidates term logic."""
+
+    def test_stay_in_field_includes_title_and_skills(self):
         p = profile(skills=[user_skill("Python"), user_skill("SQL")], move_intent="stay_in_field")
-        _gather_candidates(p, mock_client, exclude_code=None)
-        call_args = [c.args[0] for c in mock_client.search_occupations.call_args_list]
-        # title + up to _SKILL_SEARCH_COUNT skills
-        assert "Software Engineer" in call_args
-        assert "Python" in call_args
+        terms = _generate_search_terms(p, client=None)
+        assert "Software Engineer" in terms
+        assert "Python" in terms
 
-    def test_fresh_start_only_searches_skills(self, mock_client):
-        mock_client.search_occupations.return_value = [occ("43-4051.00")]
+    def test_fresh_start_excludes_title(self):
         p = profile(skills=[user_skill("Python"), user_skill("SQL")], move_intent="fresh_start")
-        _gather_candidates(p, mock_client, exclude_code=None)
-        call_args = [c.args[0] for c in mock_client.search_occupations.call_args_list]
-        assert "Software Engineer" not in call_args
-        assert "Python" in call_args
+        terms = _generate_search_terms(p, client=None)
+        assert "Software Engineer" not in terms
+        assert "Python" in terms
 
-    def test_adjacent_uses_title_and_skills(self, mock_client):
-        mock_client.search_occupations.return_value = []
+    def test_adjacent_includes_title_and_skills(self):
         p = profile(skills=[user_skill("Python")], move_intent="adjacent")
-        _gather_candidates(p, mock_client, exclude_code=None)
-        call_args = [c.args[0] for c in mock_client.search_occupations.call_args_list]
-        assert "Software Engineer" in call_args
-        assert "Python" in call_args
+        terms = _generate_search_terms(p, client=None)
+        assert "Software Engineer" in terms
+        assert "Python" in terms
 
-    def test_none_intent_behaves_like_adjacent(self, mock_client):
-        mock_client.search_occupations.return_value = []
+    def test_none_intent_behaves_like_adjacent(self):
         p = profile(skills=[user_skill("Python")], move_intent=None)
-        _gather_candidates(p, mock_client, exclude_code=None)
-        call_args = [c.args[0] for c in mock_client.search_occupations.call_args_list]
-        assert "Software Engineer" in call_args
-        assert "Python" in call_args
+        terms = _generate_search_terms(p, client=None)
+        assert "Software Engineer" in terms
+        assert "Python" in terms
+
+    def test_first_job_skips_title(self):
+        p = profile(career_status="first_job", current_title="Intern", skills=[user_skill("Python")])
+        terms = _generate_search_terms(p, client=None)
+        assert "Intern" not in terms
+        assert "Python" in terms
+
+    def test_limits_to_skill_search_count_skills(self):
+        many_skills = [user_skill(f"Skill{i}") for i in range(5)]
+        p = profile(skills=many_skills)
+        terms = _generate_search_terms(p, client=None)
+        assert "Software Engineer" in terms
+        assert "Skill0" in terms
+        assert "Skill1" in terms
+        assert "Skill2" not in terms
+
+    def test_empty_skills_first_job_returns_empty(self):
+        p = profile(career_status="first_job", current_title=None, skills=[])
+        terms = _generate_search_terms(p, client=None)
+        assert terms == []
 
 
 # ---------------------------------------------------------------------------
