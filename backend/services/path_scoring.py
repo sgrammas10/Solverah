@@ -87,12 +87,25 @@ _WORK_STYLE_WEIGHT: float = 0.10
 # abstract competencies for non-tech roles).  Uses the same threshold as other
 # embedding matches since we're now comparing like-to-like.
 _COVERAGE_TOP_K: int = 5
-_CENTROID_MIX: float = 0.5
-_COVERAGE_MIX: float = 0.5
+_CENTROID_MIX: float = 0.35
+_COVERAGE_MIX: float = 0.65
 
 # In-process embedding cache.  OrderedDict enables O(1) LRU eviction.
 _EMBED_CACHE: OrderedDict[str, list[float]] = OrderedDict()
 _EMBED_CACHE_MAX: int = 10_000
+
+# SOC code prefixes for life/physical/social-science occupations.
+# These appear as keyword-search noise (searching "Data Scientists" returns
+# Bioinformatics Scientists, Political Scientists, etc.) and are excluded from
+# the candidate pool unless the user's skills indicate life-science expertise.
+_LIFE_SCIENCE_SOC_PREFIXES: tuple[str, ...] = ("19-1", "19-2", "19-3", "19-4")
+
+# Skill keywords that indicate the user has genuine life-science expertise.
+_LIFE_SCIENCE_SKILL_KEYWORDS: frozenset[str] = frozenset({
+    "biology", "chemistry", "biochemistry", "molecular biology", "genetics",
+    "ecology", "geology", "meteorology", "physics", "microbiology",
+    "anatomy", "physiology", "pharmacology", "lab", "laboratory",
+})
 
 # Accumulated LLM interaction log for the current score_paths invocation.
 _LLM_DEBUG_LOG: list[str] = []
@@ -401,13 +414,13 @@ def _role_coverage_score(
     user_skills: list[UserSkill],
     role_items: list[tuple[str, float]],
 ) -> float:
-    """Coverage of the role's K most representative items.
+    """Coverage measured from the user's perspective.
 
-    Identifies the top-K role items most similar to the role's own centroid —
-    the items most central to what the role is about.  For a Web Developer that
-    surfaces JavaScript/React/TypeScript; for a teacher it surfaces instructional
-    software and curriculum skills.  Checks what fraction the user can match at
-    _EMBED_THRESHOLD (same as other embedding comparisons: like-to-like now).
+    Finds the K user skills most similar to the role's centroid — the user's
+    "best fits" for this role — then checks what fraction of those skills the
+    role actually values at _EMBED_THRESHOLD.  A full-stack engineer's React/Python
+    skills score high coverage against Software Developers (1.0) but near-zero
+    against Atmospheric Scientists (0.0), spreading what the centroid compresses.
 
     Uses _EMBED_CACHE directly — call after _semantic_overlap_score has already
     populated the cache.  Returns 0.0 gracefully when no embeddings are available.
@@ -429,21 +442,31 @@ def _role_coverage_score(
         return 0.0
 
     role_centroid = np.mean([np.array(emb) for _, emb in available_role], axis=0)
-    ranked = sorted(
-        available_role,
-        key=lambda x: _cosine_similarity(role_centroid.tolist(), x[1]),
+    role_centroid_list = role_centroid.tolist()
+
+    # Find the user's top-K skills most similar to this role's centroid.
+    user_with_sims = sorted(
+        [
+            (us, emb, _cosine_similarity(emb, role_centroid_list))
+            for us, emb in available_user
+        ],
+        key=lambda x: x[2],
         reverse=True,
     )
-    core = ranked[:_COVERAGE_TOP_K]
+    top_k = user_with_sims[:_COVERAGE_TOP_K]
 
-    matched = sum(
-        1 for _, core_emb in core
-        if max(
-            _cosine_similarity(user_emb, core_emb)
-            for _, user_emb in available_user
-        ) >= _EMBED_THRESHOLD
-    )
-    return matched / len(core)
+    # For each top-K user skill, check whether the role values it.
+    matched = 0
+    for _us, skill_emb, sim_to_centroid in top_k:
+        if sim_to_centroid < _EMBED_THRESHOLD:
+            continue  # user skill doesn't align with this role at all
+        best_role_match = max(
+            _cosine_similarity(skill_emb, r_emb) for _, r_emb in available_role
+        )
+        if best_role_match >= _EMBED_THRESHOLD:
+            matched += 1
+
+    return matched / len(top_k) if top_k else 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -706,26 +729,31 @@ def _resolve_current_zone(
             return 1, code, False
         return zone, code, True
 
-    result = _search_and_resolve(profile.current_title)
-    if result is not None:
+    # Save the raw result separately so LLM search assignments don't overwrite it.
+    raw_result = _search_and_resolve(profile.current_title)
+    # Only accept the raw match when O*NET returned a reliable zone.
+    # When reliable=False (get_job_zone raised), fall through to LLM normalization
+    # so a title like "Founder & Full Stack Engineer" → "Engineers, All Other" (zone fail)
+    # still gets a second chance instead of being stuck at zone=1.
+    if raw_result is not None and raw_result[2]:
         _llm_log(
             "ZONE RESOLUTION — Final Outcome",
-            f"zone={result[0]}  resolved={result[2]}  reliable={result[2]}\n"
-            f"onet_code={result[1]!r}",
+            f"zone={raw_result[0]}  resolved={raw_result[2]}  reliable={raw_result[2]}\n"
+            f"onet_code={raw_result[1]!r}",
         )
-        return result
+        return raw_result
 
     if openai_client is not None:
         normalized = _normalize_title_for_onet(profile.current_title, openai_client)
         if normalized:
-            result = _search_and_resolve(normalized)
-            if result is not None:
+            norm_result = _search_and_resolve(normalized)
+            if norm_result is not None:
                 _llm_log(
                     "ZONE RESOLUTION — Final Outcome",
-                    f"zone={result[0]}  resolved={result[2]}  reliable={result[2]}\n"
-                    f"onet_code={result[1]!r}",
+                    f"zone={norm_result[0]}  resolved={norm_result[2]}  reliable={norm_result[2]}\n"
+                    f"onet_code={norm_result[1]!r}",
                 )
-                return result
+                return norm_result
 
         # Second attempt: broad category fallback prompt when first normalized title also misses.
         try:
@@ -750,20 +778,30 @@ def _resolve_current_zone(
                 f"LLM output: {broad!r}",
             )
             if broad:
-                result = _search_and_resolve(broad)
-                if result is not None:
+                broad_result = _search_and_resolve(broad)
+                if broad_result is not None:
                     _llm_log(
                         "ZONE RESOLUTION — Final Outcome",
-                        f"zone={result[0]}  resolved={result[2]}  reliable={result[2]}\n"
-                        f"onet_code={result[1]!r}",
+                        f"zone={broad_result[0]}  resolved={broad_result[2]}  reliable={broad_result[2]}\n"
+                        f"onet_code={broad_result[1]!r}",
                     )
-                    return result
+                    return broad_result
         except Exception:
             _log.warning(
                 "broad category fallback LLM call failed for %r",
                 profile.current_title,
                 exc_info=True,
             )
+
+    # All LLM attempts exhausted. Fall back to the unreliable raw match if one
+    # was found — preserves the code so the current role is excluded from candidates.
+    if raw_result is not None:
+        _llm_log(
+            "ZONE RESOLUTION — Final Outcome (raw unreliable fallback)",
+            f"zone={raw_result[0]}  resolved={raw_result[2]}  reliable={raw_result[2]}\n"
+            f"onet_code={raw_result[1]!r}",
+        )
+        return raw_result
 
     _llm_log(
         "ZONE RESOLUTION — Final Outcome",
@@ -775,6 +813,30 @@ def _resolve_current_zone(
 # ---------------------------------------------------------------------------
 # Candidate pool
 # ---------------------------------------------------------------------------
+
+
+def _infer_user_has_life_science(profile: UserProfile) -> bool:
+    skill_names = {s.name.lower() for s in profile.skills}
+    return bool(skill_names & _LIFE_SCIENCE_SKILL_KEYWORDS)
+
+
+def _filter_candidate_pool(
+    candidates: list[Occupation],
+    profile: UserProfile,
+) -> list[Occupation]:
+    """Remove life/physical/social-science roles unless the user has domain skills.
+
+    O*NET keyword search is fuzzy: searching "Data Scientists" returns Bioinformatics
+    Scientists, Political Scientists, Atmospheric Scientists, etc.  These are almost
+    always irrelevant for software/business users and pollute the scored pool.
+    Keep them only when the user's skills indicate genuine life-science expertise.
+    """
+    if _infer_user_has_life_science(profile):
+        return candidates
+    return [
+        occ for occ in candidates
+        if not any(occ.code.startswith(prefix) for prefix in _LIFE_SCIENCE_SOC_PREFIXES)
+    ]
 
 
 def _deduplicate(occupations: list[Occupation], exclude_code: str | None) -> list[Occupation]:
@@ -832,7 +894,7 @@ def _gather_candidates(
         candidates = onet_client.get_bright_outlook_occupations()
         if not candidates:
             candidates = _profile_seeded_candidates(profile, onet_client, openai_client)
-        return _deduplicate(candidates, current_code)
+        return _filter_candidate_pool(_deduplicate(candidates, current_code), profile)
 
     if profile.move_intent == "adjacent":
         candidates = _profile_seeded_candidates(profile, onet_client, openai_client)
@@ -847,7 +909,7 @@ def _gather_candidates(
                         break
             except OnetAPIError:
                 pass
-        return _deduplicate(candidates, current_code)
+        return _filter_candidate_pool(_deduplicate(candidates, current_code), profile)
 
     # stay_in_field or None
     candidates = _profile_seeded_candidates(profile, onet_client, openai_client)

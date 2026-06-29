@@ -39,6 +39,7 @@ from backend.services.path_scoring import (
     _build_behavioral_profile,
     _build_role_profile,
     _compute_centroid_score,
+    _filter_candidate_pool,
     _find_matched_skills,
     _gather_candidates,
     _generate_search_terms,
@@ -1050,24 +1051,26 @@ def test_role_coverage_no_match():
 
 
 def test_role_coverage_partial():
-    """3 of 5 top-K role items matched → 0.6."""
+    """3 of 5 user skills align with the role → coverage = 3/5."""
     import backend.services.path_scoring as ps
     ps._EMBED_CACHE.clear()
-    # User skill and first 3 role items share the same direction; last 2 are orthogonal.
-    ps._EMBED_CACHE["python"] = [1.0, 0.0, 0.0, 0.0, 0.0]
-    for name in ["Skill A", "Skill B", "Skill C"]:
-        ps._EMBED_CACHE[name] = [1.0, 0.0, 0.0, 0.0, 0.0]  # cos=1.0 → matched
-    ps._EMBED_CACHE["Skill D"] = [0.0, 1.0, 0.0, 0.0, 0.0]  # orthogonal → not matched
-    ps._EMBED_CACHE["Skill E"] = [0.0, 0.0, 1.0, 0.0, 0.0]  # orthogonal → not matched
+    # 5 user skills: 3 in tech direction [1,0], 2 in orthogonal direction [0,1].
+    # Role items: all [1,0] → role centroid = [1,0].
+    # User top-K (k=5): tech skills cos=1.0 ≥ threshold → matched;
+    #                   research skills cos=0.0 < threshold → skipped.
+    ps._EMBED_CACHE["skill_a"] = [1.0, 0.0]
+    ps._EMBED_CACHE["skill_b"] = [1.0, 0.0]
+    ps._EMBED_CACHE["skill_c"] = [1.0, 0.0]
+    ps._EMBED_CACHE["skill_d"] = [0.0, 1.0]
+    ps._EMBED_CACHE["skill_e"] = [0.0, 1.0]
+    ps._EMBED_CACHE["Role Item X"] = [1.0, 0.0]
+    ps._EMBED_CACHE["Role Item Y"] = [1.0, 0.0]
 
-    user = [user_skill("Python", "advanced")]
-    role_items = [
-        ("Skill A", 80.0), ("Skill B", 75.0), ("Skill C", 72.0),
-        ("Skill D", 80.0), ("Skill E", 80.0),
+    user = [
+        user_skill("skill_a"), user_skill("skill_b"), user_skill("skill_c"),
+        user_skill("skill_d"), user_skill("skill_e"),
     ]
-    # All 5 items are available; role centroid = mean of mixed vectors.
-    # Skill A/B/C are most similar to centroid and land in top-K.
-    # Even if ordering varies, 3 of the 5 items always match the user.
+    role_items = [("Role Item X", 80.0), ("Role Item Y", 75.0)]
     score = _role_coverage_score(user, role_items)
     assert score == pytest.approx(3 / 5)
     ps._EMBED_CACHE.clear()
@@ -1086,18 +1089,22 @@ def test_role_coverage_empty_role_items():
 
 
 def test_role_coverage_excludes_uncached_from_pool():
-    """Role items missing from cache are excluded; denominator = cached items only."""
+    """Uncached role items are excluded from the centroid, affecting which user skills are top-K."""
     import backend.services.path_scoring as ps
     ps._EMBED_CACHE.clear()
-    ps._EMBED_CACHE["python"] = [1.0, 0.0]
-    ps._EMBED_CACHE["Skill A"] = [1.0, 0.0]   # matches user
-    ps._EMBED_CACHE["Skill B"] = [0.0, 1.0]   # doesn't match
-    # "Uncached Skill" deliberately absent → excluded from available_role
+    # 2 user skills: tech [1,0,0] and research [0,1,0].
+    # Role has one cached item [1,0,0] and one uncached item (absent from cache).
+    # role centroid (cached only) = [1,0,0] → tech user skill cos=1.0, research cos=0.0.
+    # top-K (k=2): both user skills; tech passes threshold → matched; research skipped.
+    # coverage = 1/2 = 0.5
+    ps._EMBED_CACHE["skill_tech"] = [1.0, 0.0, 0.0]
+    ps._EMBED_CACHE["skill_research"] = [0.0, 1.0, 0.0]
+    ps._EMBED_CACHE["Role Item"] = [1.0, 0.0, 0.0]
+    # "Uncached Role Item" deliberately absent → excluded from available_role
 
-    user = [user_skill("Python", "advanced")]
-    role_items = [("Skill A", 80.0), ("Skill B", 80.0), ("Uncached Skill", 80.0)]
+    user = [user_skill("skill_tech"), user_skill("skill_research")]
+    role_items = [("Role Item", 80.0), ("Uncached Role Item", 80.0)]
     score = _role_coverage_score(user, role_items)
-    # available_role has 2 items (Uncached excluded); core = top-2; matched=1
     assert score == pytest.approx(0.5)
     ps._EMBED_CACHE.clear()
 
@@ -1131,12 +1138,11 @@ def test_overlap_combines_centroid_and_coverage(mock_client):
     )
 
     # centroid: user=[1,0], role centroid = mean([1,0],[1,0])=[1,0] → cos=1.0
-    # coverage: role_items=["python hot","Programming"], both [1,0]; role centroid=[1,0]
-    #   top-2 (K≥2): both items; user "python"=[1,0] matches both at cos=1.0 ≥ 0.70
-    #   coverage = 2/2 = 1.0
-    # overlap = 0.5×1.0 + 0.5×1.0 = 1.0
+    # coverage (user-direction): role centroid=[1,0]; user "python"=[1,0], cos=1.0 >=0.70
+    #   best_role_match=1.0 >=0.70 → matched; top-K=1 user skill → coverage=1/1=1.0
+    # overlap = 0.35*1.0 + 0.65*1.0 = 1.0
     # zone: delta=0, seniority=None → zone_score=0.5; experienced, zone resolved
-    # final = 0.5×overlap + 0.5×zone = 0.5×1.0 + 0.5×0.5 = 0.75
+    # final = 0.5*overlap + 0.5*zone = 0.5*1.0 + 0.5*0.5 = 0.75
     assert len(results) == 1
     assert results[0].score == pytest.approx(0.75)
     ps._EMBED_CACHE.clear()
@@ -1391,3 +1397,148 @@ def test_llm_debug_log_cleared_between_invocations(mock_client):
     content = open(_debug_log_path(), encoding="utf-8").read()
     # Each invocation generates exactly one SEARCH TERM GENERATION — LLM Input entry.
     assert content.count("SEARCH TERM GENERATION — LLM Input") == 1
+
+
+# ---------------------------------------------------------------------------
+# Bug fixes: zone normalization, candidate filtering, coverage direction
+# ---------------------------------------------------------------------------
+
+
+def test_zone_llm_normalization_fires_on_unreliable_raw_match():
+    """LLM normalization runs even when raw O*NET search finds a code but get_job_zone fails."""
+    mock_openai = MagicMock()
+    mock_openai.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content="Software Developers"))]
+    )
+    mock_onet = MagicMock(spec=OnetClient)
+    mock_onet.search_occupations.side_effect = [
+        [occ("17-2199.00", "Engineers, All Other")],  # raw title → unreliable match
+        [occ("15-1252.00", "Software Developers")],   # LLM-normalized → reliable
+    ]
+    mock_onet.get_job_zone.side_effect = [
+        OnetAPIError("zone lookup failed"),  # raw match zone fails → reliable=False
+        4,                                   # normalized match zone succeeds
+    ]
+
+    zone, code, resolved = _resolve_current_zone(
+        profile(career_status="employed", current_title="Founder & Full Stack Engineer"),
+        mock_onet,
+        mock_openai,
+    )
+
+    assert resolved is True
+    assert zone == 4
+    assert code == "15-1252.00"
+    # LLM was called for normalization
+    mock_openai.chat.completions.create.assert_called_once()
+
+
+def test_candidate_pool_excludes_unrelated_science_roles():
+    """Life/physical/social science SOC codes are removed when user has no domain skills."""
+    sw_user = profile(
+        career_status="employed",
+        skills=[user_skill("React"), user_skill("TypeScript"), user_skill("Python")],
+    )
+    candidates = [
+        occ("15-1252.00", "Software Developers"),
+        occ("19-1029.01", "Bioinformatics Scientists"),
+        occ("19-2021.00", "Atmospheric and Space Scientists"),
+        occ("19-3094.00", "Political Scientists"),
+        occ("15-1211.00", "Computer Systems Analysts"),
+    ]
+    filtered = _filter_candidate_pool(candidates, sw_user)
+    codes = [o.code for o in filtered]
+    assert "15-1252.00" in codes
+    assert "15-1211.00" in codes
+    assert "19-1029.01" not in codes
+    assert "19-2021.00" not in codes
+    assert "19-3094.00" not in codes
+
+
+def test_coverage_user_direction_higher_for_aligned_role():
+    """User's tech skills produce high coverage for Software Developers, near-zero for Atmospheric Scientists."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+
+    # User skills: all in tech direction [1, 0]
+    for skill in ["react", "javascript", "python"]:
+        ps._EMBED_CACHE[skill] = [1.0, 0.0]
+
+    # Software Developers role items: tech direction [1, 0]
+    sw_role_items = [(name, 75.0) for name in ["JavaScript", "React", "Python"]]
+    for name in ["JavaScript", "React", "Python"]:
+        ps._EMBED_CACHE[name] = [1.0, 0.0]
+
+    # Atmospheric Scientists role items: orthogonal direction [0, 1]
+    atm_role_items = [(name, 75.0) for name in ["Meteorology", "FORTRAN", "Radar Systems"]]
+    for name in ["Meteorology", "FORTRAN", "Radar Systems"]:
+        ps._EMBED_CACHE[name] = [0.0, 1.0]
+
+    user = [user_skill("react"), user_skill("javascript"), user_skill("python")]
+    sw_coverage = _role_coverage_score(user, sw_role_items)
+    atm_coverage = _role_coverage_score(user, atm_role_items)
+
+    assert sw_coverage > atm_coverage
+    assert sw_coverage == pytest.approx(1.0)
+    assert atm_coverage == pytest.approx(0.0)
+    ps._EMBED_CACHE.clear()
+
+
+def test_software_developers_ranks_above_research_scientists(mock_client):
+    """Full-stack engineer profile scores Software Developers higher than CIRS."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+
+    # User skills: tech direction [1, 0]
+    for skill in ["react", "typescript", "python", "sql"]:
+        ps._EMBED_CACHE[skill] = [1.0, 0.0]
+
+    # Software Developers hot tech: tech direction
+    for item in ["JavaScript", "React", "Python", "TypeScript", "Node.js"]:
+        ps._EMBED_CACHE[item] = [1.0, 0.0]
+
+    # CIRS hot tech: orthogonal direction (research/formal methods)
+    for item in ["FORTRAN", "Mathematica", "R Programming"]:
+        ps._EMBED_CACHE[item] = [0.0, 1.0]
+
+    sw_dev = occ("15-1252.00", "Software Developers")
+    cirs = occ("15-1221.00", "Computer and Information Research Scientists")
+
+    mock_client.search_occupations.side_effect = [
+        [occ("15-1253.00")],  # resolve current title → code 15-1253.00 (SW QA, zone 3)
+        [sw_dev, cirs],        # gather: search term results
+    ]
+    mock_client.get_job_zone.side_effect = [3, 3, 4]  # current=3, SW Dev=3, CIRS=4
+    mock_client.get_tech_skills.side_effect = [
+        {"JavaScript", "React", "Python", "TypeScript", "Node.js"},
+        {"FORTRAN", "Mathematica", "R Programming"},
+    ]
+    mock_client.get_skills_profile.side_effect = [[], []]
+
+    mock_openai = MagicMock()
+    mock_openai.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content='["Software Developers"]'))]
+    )
+    mock_openai.embeddings.create.return_value = MagicMock(data=[])
+
+    results = score_paths(
+        profile(
+            current_title="Software Engineer",
+            career_status="employed",
+            skills=[
+                user_skill("react"), user_skill("typescript"),
+                user_skill("python"), user_skill("sql"),
+            ],
+        ),
+        mock_client,
+        mock_openai,
+    )
+
+    codes = [r.onet_code for r in results]
+    assert "15-1252.00" in codes
+    assert "15-1221.00" in codes
+    sw_rank = codes.index("15-1252.00")
+    cirs_rank = codes.index("15-1221.00")
+    assert sw_rank < cirs_rank, f"Software Developers should rank above CIRS; got order {codes}"
+
+    ps._EMBED_CACHE.clear()
