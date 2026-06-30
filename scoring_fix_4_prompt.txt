@@ -1,0 +1,201 @@
+================================================================================
+IMPLEMENTATION PROMPT: Scoring Fix Round 4 — Research Role Exclusion + Zone Fix
+================================================================================
+
+After proficiency weighting was added, CIRS is still #1 at 78%. This is because:
+
+  1. Zone is still resolving as zone=1/resolved=False (zone_w=0.0 on all scores)
+     Without zone weight, CIRS (zone 5, far out of reach) gets no penalty.
+     Software Developers (zone 4, close match) gets no boost.
+
+  2. The candidate pool still includes "practitioner-adjacent research roles"
+     (Operations Research Analysts 15-2031, Statisticians 15-2041, CIRS 15-1221).
+     These are in the 15- SOC group so the previous 19-xxxx filter didn't exclude them.
+     They use Python + statistical analysis = semantically close to this user's centroid.
+
+  3. Python=Advanced (3x weight) made things worse: Python is core to research roles
+     too. The proficiency weighting amplified the research signal, not reduced it.
+
+
+================================================================================
+FIX 1 — Zone resolution (CRITICAL — fixes the biggest lever in the formula)
+================================================================================
+
+The llm_debug.txt from the previous run showed NO "ZONE RESOLUTION — Title
+Normalization" log entry, which means the LLM normalizer is still not being called.
+
+The code path must be:
+  Step 1: search O*NET with raw title → found "Engineers, All Other" → reliable=False
+  Step 2: IF reliable=False AND openai_client is not None → call _normalize_title_for_onet
+  Step 3: search O*NET with normalized title → should find "Software Developers"
+
+The bug is in step 2: the code is NOT calling _normalize_title_for_onet when
+reliable=False. Add this logic explicitly in _resolve_current_zone:
+
+  def _resolve_current_zone(profile, onet_client, openai_client=None):
+      raw_title = profile.current_title
+
+      # Attempt 1: raw title
+      zone, code, reliable = _search_and_zone(raw_title, onet_client)
+      _llm_log("ZONE — Raw attempt", f"title={raw_title!r} zone={zone} reliable={reliable}")
+
+      if reliable:
+          return zone, code, True
+
+      # Attempt 2: LLM-normalized title (runs even if attempt 1 found something unreliable)
+      if openai_client is not None:
+          normalized = _normalize_title_for_onet(raw_title, openai_client)
+          _llm_log("ZONE — LLM normalized to", repr(normalized))
+          if normalized:
+              zone2, code2, reliable2 = _search_and_zone(normalized, onet_client)
+              _llm_log("ZONE — Normalized attempt", f"zone={zone2} reliable={reliable2}")
+              if zone2 and zone2 > 1:
+                  return zone2, code2, True
+
+      return 1, None, False
+
+VERIFY: after this fix, llm_debug.txt MUST contain a "ZONE — LLM normalized to" entry.
+If it doesn't, openai_client is still None when score_paths is called — check app.py.
+
+
+================================================================================
+FIX 2 — Exclude practitioner-adjacent research roles from candidate pool
+================================================================================
+
+Add an explicit exclusion list for roles that are research/academic by nature
+and should not appear for a software/tech user unless they have explicit research intent.
+
+In _gather_candidates(), after collecting all candidates, filter out:
+
+  RESEARCH_ROLE_CODES = {
+      "15-1221.00",   # Computer and Information Research Scientists
+      "15-2031.00",   # Operations Research Analysts
+      "15-2041.00",   # Statisticians
+      "15-2099.01",   # Bioinformatics Technicians
+      "15-2021.00",   # Mathematicians
+      "19-2021.00",   # Atmospheric and Space Scientists
+      "19-1029.01",   # Bioinformatics Scientists
+      "19-2099.01",   # Remote Sensing Scientists and Technologists
+      "19-3022.00",   # Survey Researchers
+      "19-3094.00",   # Political Scientists
+      "19-1031.00",   # Conservation Scientists
+      "19-1012.00",   # Food Scientists and Technologists
+      "19-2032.00",   # Materials Scientists
+      "19-4061.00",   # Social Science Research Assistants
+  }
+
+  # Unlock these codes if user has explicit research/academic intent
+  RESEARCH_UNLOCK_SIGNALS = [
+      "research", "academia", "phd", "laboratory", "experiments",
+      "genomics", "biology", "chemistry", "ecology", "clinical"
+  ]
+
+  user_skill_names_lower = {s.name.lower() for s in profile.skills}
+  unlock_research = any(sig in name for sig in RESEARCH_UNLOCK_SIGNALS
+                        for name in user_skill_names_lower)
+
+  if not unlock_research:
+      candidates = [c for c in candidates if c.code not in RESEARCH_ROLE_CODES]
+
+  Also exclude ALL 19-xxxx SOC codes unless unlocked:
+  if not unlock_research:
+      candidates = [c for c in candidates
+                    if not c.code.startswith("19-")
+                    and c.code not in RESEARCH_ROLE_CODES]
+
+
+================================================================================
+FIX 3 — Security skills must generate search terms (they're being ignored)
+================================================================================
+
+The user has significant security skills (Binary exploitation, ROP, ASLR, NX bypass,
+reverse engineering, network security, DNS attacks) all rated Intermediate.
+These should be generating candidates like:
+  - Penetration Testers [15-1299.04]
+  - Information Security Analysts [15-1212.00]
+  - Information Security Engineers [15-1299.05]
+  - Digital Forensics Analysts [15-1299.06]
+
+Check the LLM search term generation prompt. If it's only generating 3 terms
+(Software Developers, Information Security Analysts, Data Scientists), the security
+skills should be generating at least Penetration Testers as a separate term.
+
+Update the search term generation prompt to explicitly state:
+  - If the user has security/exploitation skills → include "Penetration Testers"
+    and/or "Information Security Analysts" as separate terms
+  - Cap at 5-6 terms max to prevent pool bloat
+
+Updated search term generation prompt:
+
+  You are a career advisor with knowledge of O*NET occupations.
+
+  Analyze the skills below and identify ALL distinct career domains they represent.
+  For each domain, output ONE standard O*NET occupation title.
+
+  Rules:
+  - Use exact O*NET-style titles in plural form
+    (e.g. "Software Developers", "Information Security Analysts", "Registered Nurses")
+  - Include roles for EVERY distinct domain present:
+    * Web/frontend skills → "Web Developers" or "Software Developers"
+    * Security/exploitation/reverse engineering → "Penetration Testers" or "Information Security Analysts"
+    * Data/ML/statistics skills → "Data Scientists"
+    * Database skills → "Database Architects"
+    * Network skills → "Computer Network Architects"
+  - Target industry-practical roles, NOT academic research roles
+    (NOT "Computer and Information Research Scientists", "Operations Research Analysts",
+     "Statisticians", "Bioinformatics Scientists", "Remote Sensing Scientists")
+  - Do NOT infer niche roles (blockchain, quantum) unless user lists core specialized skills
+  - Output ONLY a JSON array of strings, no explanation, max 6 items
+
+  Current title: {title}
+  Skills: {skills}
+
+  Output:
+
+
+================================================================================
+EXPECTED RESULTS AFTER ALL 3 FIXES
+================================================================================
+
+Zone: "Founder & Full Stack Engineer" → LLM → "Software Developers" → zone=4
+      zone_w becomes 0.50, skills_w becomes 0.50
+
+Candidate pool (clean, no research roles):
+  Software Developers, Web Developers, Web and Digital Interface Designers,
+  Information Security Analysts, Penetration Testers, Information Security Engineers,
+  Digital Forensics Analysts, Computer Programmers, Computer Systems Analysts,
+  Database Architects, Data Scientists, Computer Network Architects,
+  Computer and Information Systems Managers, etc.
+
+Top results:
+  #1  Software Developers or Web Developers          (~70-80%)
+  #2  Information Security Analysts or Penetration Testers (~65-70%)
+  #3  Web and Digital Interface Designers or Data Scientists
+  NOT: CIRS, Operations Research Analysts, Statisticians, Bioinformatics Scientists
+
+
+================================================================================
+VERIFICATION
+================================================================================
+
+1. flask run → trigger Path Intelligence
+
+2. Check llm_debug.txt:
+   - "ZONE — LLM normalized to" entry EXISTS and shows "Software Developers" or similar
+   - "ZONE — Normalized attempt" shows zone=4, reliable=True
+   - CANDIDATE POOL shows NO codes from RESEARCH_ROLE_CODES list
+   - SEARCH TERM GENERATION output includes "Penetration Testers"
+
+3. Check scoring_debug.txt:
+   - Zone: 4  (resolved=True, reliable=True)
+   - Weights: skills=0.50  zone=0.50
+   - #1 is NOT CIRS, NOT Operations Research Analysts, NOT Statisticians
+
+4. pytest tests/ — all pass
+
+================================================================================
+FILES MODIFIED
+================================================================================
+  backend/services/path_scoring.py  — all 3 fixes
+  tests/test_path_scoring.py        — tests for zone LLM path and pool exclusion
+================================================================================

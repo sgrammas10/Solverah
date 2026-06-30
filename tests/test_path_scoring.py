@@ -1459,6 +1459,42 @@ def test_candidate_pool_excludes_unrelated_science_roles():
     assert "19-3094.00" not in codes
 
 
+def test_candidate_pool_excludes_research_adjacent_roles_by_default():
+    """CIRS and the 15-2 Mathematical Science Occupations family are removed for a tech user."""
+    tech_user = profile(
+        career_status="employed",
+        skills=[user_skill("React"), user_skill("Python"), user_skill("SQL")],
+    )
+    candidates = [
+        occ("15-1252.00", "Software Developers"),
+        occ("15-1221.00", "Computer and Information Research Scientists"),
+        occ("15-2031.00", "Operations Research Analysts"),
+        occ("15-2041.00", "Statisticians"),
+        occ("15-2021.00", "Mathematicians"),
+        occ("15-2099.01", "Bioinformatics Technicians"),
+    ]
+    filtered = _filter_candidate_pool(candidates, tech_user)
+    codes = [o.code for o in filtered]
+    assert codes == ["15-1252.00"]
+
+
+def test_candidate_pool_keeps_research_roles_when_unlocked_by_skills():
+    """A user with explicit research-domain skills keeps CIRS / 15-2 roles in the pool."""
+    research_user = profile(
+        career_status="employed",
+        skills=[user_skill("Python"), user_skill("bioinformatics")],
+    )
+    candidates = [
+        occ("15-1252.00", "Software Developers"),
+        occ("15-1221.00", "Computer and Information Research Scientists"),
+        occ("15-2041.00", "Statisticians"),
+    ]
+    filtered = _filter_candidate_pool(candidates, research_user)
+    codes = [o.code for o in filtered]
+    assert "15-1221.00" in codes
+    assert "15-2041.00" in codes
+
+
 def test_coverage_user_direction_higher_for_aligned_role():
     """User's tech skills produce high coverage for Software Developers, near-zero for Atmospheric Scientists."""
     import backend.services.path_scoring as ps
@@ -1488,8 +1524,14 @@ def test_coverage_user_direction_higher_for_aligned_role():
     ps._EMBED_CACHE.clear()
 
 
-def test_software_developers_ranks_above_research_scientists(mock_client):
-    """Full-stack engineer profile scores Software Developers higher than CIRS."""
+def test_research_scientist_excluded_from_results_for_tech_user(mock_client):
+    """Full-stack engineer profile excludes CIRS entirely rather than merely ranking it lower.
+
+    Earlier rounds relied on embedding-direction differentiation alone to push
+    CIRS below Software Developers, but real-world embeddings for CIRS (Python,
+    statistical methods) overlap enough with practitioner skills that this didn't
+    hold up — CIRS still won. _filter_candidate_pool now excludes it outright.
+    """
     import backend.services.path_scoring as ps
     ps._EMBED_CACHE.clear()
 
@@ -1501,23 +1543,18 @@ def test_software_developers_ranks_above_research_scientists(mock_client):
     for item in ["JavaScript", "React", "Python", "TypeScript", "Node.js"]:
         ps._EMBED_CACHE[item] = [1.0, 0.0]
 
-    # CIRS hot tech: orthogonal direction (research/formal methods)
-    for item in ["FORTRAN", "Mathematica", "R Programming"]:
-        ps._EMBED_CACHE[item] = [0.0, 1.0]
-
     sw_dev = occ("15-1252.00", "Software Developers")
     cirs = occ("15-1221.00", "Computer and Information Research Scientists")
 
     mock_client.search_occupations.side_effect = [
         [occ("15-1253.00")],  # resolve current title → code 15-1253.00 (SW QA, zone 3)
-        [sw_dev, cirs],        # gather: search term results
+        [sw_dev, cirs],        # gather: search term results (CIRS filtered out before scoring)
     ]
-    mock_client.get_job_zone.side_effect = [3, 3, 4]  # current=3, SW Dev=3, CIRS=4
+    mock_client.get_job_zone.side_effect = [3, 3]  # current=3, SW Dev=3 (CIRS never scored)
     mock_client.get_tech_skills.side_effect = [
         {"JavaScript", "React", "Python", "TypeScript", "Node.js"},
-        {"FORTRAN", "Mathematica", "R Programming"},
     ]
-    mock_client.get_skills_profile.side_effect = [[], []]
+    mock_client.get_skills_profile.side_effect = [[]]
 
     mock_openai = MagicMock()
     mock_openai.chat.completions.create.return_value = MagicMock(
@@ -1540,10 +1577,7 @@ def test_software_developers_ranks_above_research_scientists(mock_client):
 
     codes = [r.onet_code for r in results]
     assert "15-1252.00" in codes
-    assert "15-1221.00" in codes
-    sw_rank = codes.index("15-1252.00")
-    cirs_rank = codes.index("15-1221.00")
-    assert sw_rank < cirs_rank, f"Software Developers should rank above CIRS; got order {codes}"
+    assert "15-1221.00" not in codes
 
     ps._EMBED_CACHE.clear()
 
@@ -1729,12 +1763,12 @@ def test_proficiency_weights_applied_in_score_paths(mock_client):
     ps._EMBED_CACHE["Forecasting"] = [0.0, 1.0]
 
     role_a = occ("15-1257.00", "Web Developers")
-    role_b = occ("15-2041.00", "Statisticians")
+    role_b = occ("15-2011.00", "Actuaries")  # non-excluded SOC code; not in _RESEARCH_ROLE_CODES_EXCLUDE
 
     mock_client.search_occupations.side_effect = [
         [occ("15-1253.00")],   # zone resolution for "Frontend Developer"
         [role_a],               # gather: "Web Developers"
-        [role_b],               # gather: "Statisticians"
+        [role_b],               # gather: "Actuaries"
     ]
     mock_client.get_job_zone.side_effect = [3, 4, 3]  # current, role_a, role_b
     mock_client.get_tech_skills.side_effect = [
@@ -1745,7 +1779,7 @@ def test_proficiency_weights_applied_in_score_paths(mock_client):
 
     mock_openai = MagicMock()
     mock_openai.chat.completions.create.return_value = MagicMock(
-        choices=[MagicMock(message=MagicMock(content='["Web Developers", "Statisticians"]'))]
+        choices=[MagicMock(message=MagicMock(content='["Web Developers", "Actuaries"]'))]
     )
     mock_openai.embeddings.create.return_value = MagicMock(data=[])
 
@@ -1765,8 +1799,8 @@ def test_proficiency_weights_applied_in_score_paths(mock_client):
 
     score_map = {r.onet_code: r.score for r in results}
     assert "15-1257.00" in score_map, "Web Developers should appear"
-    assert "15-2041.00" in score_map, "Statisticians should appear"
-    assert score_map["15-1257.00"] > score_map["15-2041.00"]
+    assert "15-2011.00" in score_map, "Actuaries should appear"
+    assert score_map["15-1257.00"] > score_map["15-2011.00"]
     ps._EMBED_CACHE.clear()
 
 

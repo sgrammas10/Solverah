@@ -125,6 +125,24 @@ _HEALTHCARE_SKILL_KEYWORDS: frozenset[str] = frozenset({
     "pharmacist", "therapy", "diagnosis", "ehr", "electronic health records",
 })
 
+# Research-flavored SOC codes that sit inside the default-allowed "15-" prefix
+# and so are not caught by the inclusion-list filter above.  These are listed
+# explicitly rather than by SOC minor-group prefix: "15-2" (Mathematical Science
+# Occupations) also contains practitioner roles like Data Scientists (15-2051.00)
+# and Actuaries (15-2011.00) that must stay in the pool.  Skipped entirely when
+# the user's skills signal genuine research/academic intent.
+_RESEARCH_ROLE_CODES_EXCLUDE: frozenset[str] = frozenset({
+    "15-1221.00",  # Computer and Information Research Scientists
+    "15-2021.00",  # Mathematicians
+    "15-2031.00",  # Operations Research Analysts
+    "15-2041.00",  # Statisticians
+    "15-2099.01",  # Bioinformatics Technicians
+})
+_RESEARCH_UNLOCK_SKILL_KEYWORDS: frozenset[str] = frozenset({
+    "phd", "academia", "laboratory", "genomics", "bioinformatics",
+    "biostatistics", "operations research", "statistics", "applied mathematics",
+})
+
 # Accumulated LLM interaction log for the current score_paths invocation.
 _LLM_DEBUG_LOG: list[str] = []
 
@@ -664,7 +682,7 @@ For each domain, output ONE standard O*NET occupation title.
 
 Rules:
 - Use exact O*NET-style titles (e.g. "Software Developers", "Information Security Analysts", "Registered Nurses", "Data Scientists")
-- Target industry-practical roles, NOT academic research roles (not "Bioinformatics Scientists", not "Remote Sensing Scientists")
+- Target industry-practical roles, NOT academic research roles (not "Bioinformatics Scientists", not "Remote Sensing Scientists", not "Operations Research Analysts", not "Statisticians")
 - Do NOT infer niche specializations (blockchain, quantum computing, biotech) unless the user lists core specialized skills for that field (e.g. Solidity for blockchain, lab techniques for biotech)
 - Cover ALL distinct domains present — if the user has both programming skills AND security skills, include both
 - Output ONLY a JSON array of strings, no explanation
@@ -878,6 +896,12 @@ def _get_allowed_soc_prefixes(profile: UserProfile) -> tuple[str, ...]:
     return tuple(allowed)
 
 
+def _research_roles_unlocked(profile: UserProfile) -> bool:
+    """True if the user's skills signal genuine research/academic intent."""
+    skill_names = {s.name.lower() for s in profile.skills}
+    return bool(skill_names & _RESEARCH_UNLOCK_SKILL_KEYWORDS)
+
+
 def _filter_candidate_pool(
     candidates: list[Occupation],
     profile: UserProfile,
@@ -887,12 +911,20 @@ def _filter_candidate_pool(
     O*NET keyword search is fuzzy: searching "Data Scientists" returns Bioinformatics
     Scientists, Political Scientists, Atmospheric Scientists, etc.  An inclusion list
     limits the pool to occupations the user's skills actually point toward.
+
+    Research-flavored codes inside the allowed "15-" family (CIRS, Operations
+    Research Analysts, Statisticians, ...) are additionally excluded unless the
+    user's skills unlock them — they semantically overlap with practitioner
+    skills (Python, statistics) enough to otherwise dominate the ranking.
     """
     allowed = _get_allowed_soc_prefixes(profile)
-    return [
+    pool = [
         occ for occ in candidates
         if any(occ.code.startswith(prefix) for prefix in allowed)
     ]
+    if not _research_roles_unlocked(profile):
+        pool = [occ for occ in pool if occ.code not in _RESEARCH_ROLE_CODES_EXCLUDE]
+    return pool
 
 
 def _deduplicate(occupations: list[Occupation], exclude_code: str | None) -> list[Occupation]:
