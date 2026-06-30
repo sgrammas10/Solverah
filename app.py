@@ -2109,6 +2109,14 @@ def profile():
                         )
                         db.session.add(correction)
 
+    # Reset proficiency confirmation when skills list actually changes so the
+    # modal re-prompts the user to rate their new skills.
+    if "skills" in profile_data:
+        new_skills = set(profile_data.get("skills") or [])
+        old_skills = set(existing.get("skills") or [])
+        if new_skills - old_skills:
+            merged["skills_proficiency_confirmed"] = False
+
     user.profile_data = merged
     log_audit_event(
         action="update",
@@ -2374,6 +2382,54 @@ def set_career_status():
     db.session.commit()
 
     return jsonify({"career_status": status}), 200
+
+
+@app.route("/api/profile/skills/proficiency", methods=["PATCH"])
+@jwt_required()
+def set_skills_proficiency():
+    """PATCH /api/profile/skills/proficiency — Bulk-update skill proficiency ratings.
+
+    Accepts a list of { name, proficiency } objects and writes them into the
+    ``skill_levels`` dict in profile_data.  Also sets skills_proficiency_confirmed=True
+    so the proficiency modal is not re-shown on the next Path Intelligence visit.
+
+    Request body:
+        { "skills": [{ "name": "React", "proficiency": "advanced" }, ...] }
+
+    Returns:
+        200 {"skills_proficiency_confirmed": true, "skill_levels": {...}}
+        400 {"error": "invalid_body"}
+        400 {"error": "invalid_proficiency"}
+        404 if user not found
+    """
+    current_email = get_jwt_identity()
+    user = User.query.filter_by(email=current_email).first()
+    if not user:
+        return jsonify({"error": "not_found"}), 404
+
+    data = request.get_json() or {}
+    skills_list = data.get("skills")
+    if not isinstance(skills_list, list):
+        return jsonify({"error": "invalid_body"}), 400
+
+    valid_proficiencies = {"beginner", "intermediate", "advanced"}
+    for item in skills_list:
+        if not isinstance(item, dict) or "name" not in item:
+            return jsonify({"error": "invalid_body"}), 400
+        if item.get("proficiency") not in valid_proficiencies:
+            return jsonify({"error": "invalid_proficiency"}), 400
+
+    profile_data = dict(user.profile_data or {})
+    skill_levels = dict(profile_data.get("skill_levels") or {})
+    for item in skills_list:
+        skill_levels[item["name"]] = item["proficiency"]
+    profile_data["skill_levels"] = skill_levels
+    profile_data["skills_proficiency_confirmed"] = True
+    user.profile_data = profile_data
+    db.session.commit()
+    _invalidate_path_suggestions_cache(user.id)
+
+    return jsonify({"skills_proficiency_confirmed": True, "skill_levels": skill_levels}), 200
 
 
 @app.route("/api/profile/resume-url", methods=["GET"])

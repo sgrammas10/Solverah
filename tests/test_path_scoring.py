@@ -39,6 +39,8 @@ from backend.services.path_scoring import (
     _build_behavioral_profile,
     _build_role_profile,
     _compute_centroid_score,
+    _compute_weighted_user_centroid,
+    _cosine_similarity,
     _filter_candidate_pool,
     _find_matched_skills,
     _gather_candidates,
@@ -1684,4 +1686,101 @@ def test_web_developers_above_survey_researchers(mock_client):
     codes = [r.onet_code for r in results]
     assert "15-1257.00" in codes, "Web Developers should appear in results"
     assert "19-3022.00" not in codes, "Survey Researchers should be filtered for web-dev user"
+    ps._EMBED_CACHE.clear()
+
+
+# ---------------------------------------------------------------------------
+# Proficiency-weighted centroid
+# ---------------------------------------------------------------------------
+
+
+def test_proficiency_weights_shift_centroid_toward_advanced_skills():
+    """Weighted centroid leans toward the advanced-skill direction."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+    ps._EMBED_CACHE["react"] = [1.0, 0.0]
+    ps._EMBED_CACHE["arima"] = [0.0, 1.0]
+
+    user = [
+        UserSkill(name="react", level="advanced"),
+        UserSkill(name="arima", level="beginner"),
+    ]
+    centroid, _ = _compute_weighted_user_centroid(user)
+    assert centroid is not None
+
+    sim_to_react = _cosine_similarity(centroid, [1.0, 0.0])
+    sim_to_arima = _cosine_similarity(centroid, [0.0, 1.0])
+    assert sim_to_react > sim_to_arima
+    ps._EMBED_CACHE.clear()
+
+
+def test_proficiency_weights_applied_in_score_paths(mock_client):
+    """React=Advanced user scores a React-heavy role higher than an ARIMA-heavy role."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+
+    ps._EMBED_CACHE["react"] = [1.0, 0.0]
+    ps._EMBED_CACHE["arima"] = [0.0, 1.0]
+    ps._EMBED_CACHE["React"] = [1.0, 0.0]
+    ps._EMBED_CACHE["JavaScript"] = [1.0, 0.0]
+    ps._EMBED_CACHE["TypeScript"] = [1.0, 0.0]
+    ps._EMBED_CACHE["ARIMA"] = [0.0, 1.0]
+    ps._EMBED_CACHE["Time Series"] = [0.0, 1.0]
+    ps._EMBED_CACHE["Forecasting"] = [0.0, 1.0]
+
+    role_a = occ("15-1257.00", "Web Developers")
+    role_b = occ("15-2041.00", "Statisticians")
+
+    mock_client.search_occupations.side_effect = [
+        [occ("15-1253.00")],   # zone resolution for "Frontend Developer"
+        [role_a],               # gather: "Web Developers"
+        [role_b],               # gather: "Statisticians"
+    ]
+    mock_client.get_job_zone.side_effect = [3, 4, 3]  # current, role_a, role_b
+    mock_client.get_tech_skills.side_effect = [
+        {"React", "JavaScript", "TypeScript"},  # role_a
+        {"ARIMA", "Time Series", "Forecasting"},  # role_b
+    ]
+    mock_client.get_skills_profile.side_effect = [[], []]
+
+    mock_openai = MagicMock()
+    mock_openai.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content='["Web Developers", "Statisticians"]'))]
+    )
+    mock_openai.embeddings.create.return_value = MagicMock(data=[])
+
+    results = score_paths(
+        profile(
+            current_title="Frontend Developer",
+            career_status="employed",
+            archetype="",
+            skills=[
+                UserSkill(name="react", level="advanced"),
+                UserSkill(name="arima", level="beginner"),
+            ],
+        ),
+        mock_client,
+        mock_openai,
+    )
+
+    score_map = {r.onet_code: r.score for r in results}
+    assert "15-1257.00" in score_map, "Web Developers should appear"
+    assert "15-2041.00" in score_map, "Statisticians should appear"
+    assert score_map["15-1257.00"] > score_map["15-2041.00"]
+    ps._EMBED_CACHE.clear()
+
+
+def test_beginner_proficiency_defaults_to_weight_1():
+    """Unrecognized proficiency level falls back to beginner weight without error."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+    ps._EMBED_CACHE["skill_x"] = [1.0, 0.0]
+
+    user = [UserSkill(name="skill_x", level="unknown")]  # type: ignore[arg-type]
+    centroid, available = _compute_weighted_user_centroid(user)
+
+    assert centroid is not None, "should not fail for unknown level"
+    assert available is not None
+    _, weight = available[0]
+    assert weight == pytest.approx(_SKILL_LEVEL_WEIGHTS["beginner"])
     ps._EMBED_CACHE.clear()

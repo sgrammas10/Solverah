@@ -166,22 +166,22 @@ You naturally create momentum by taking charge of your tasks and defining your o
 CANDIDATE SCORES — Top 5 Detail
 ============================================================
   [15-1221.00] Computer and Information Research Scientists
-    centroid=0.9074  coverage=0.4000
+    centroid=0.9003  coverage=0.4000
     work_style=0.4283  zone=1.0000
-    final=0.7818
+    final=0.7807
   [15-2031.00] Operations Research Analysts
-    centroid=0.8511  coverage=0.2000
+    centroid=0.8478  coverage=0.2000
     work_style=0.4428  zone=1.0000
-    final=0.7462
+    final=0.7457
   [15-2041.00] Statisticians
-    centroid=0.8250  coverage=0.2000
+    centroid=0.8209  coverage=0.2000
     work_style=0.4330  zone=1.0000
-    final=0.7403
-  [15-1243.00] Database Architects
-    centroid=0.8838  coverage=0.6000
-    work_style=0.4551  zone=0.5000
-    final=0.5636
+    final=0.7397
   [15-1255.00] Web and Digital Interface Designers
-    centroid=0.8917  coverage=0.6000
+    centroid=0.8841  coverage=0.6000
     work_style=0.4463  zone=0.5000
-    final=0.5630
+    final=0.5619
+  [15-1244.00] Network and Computer Systems Administrators
+    centroid=0.8686  coverage=0.6000
+    work_style=0.4239  zone=0.5000
+    final=0.5551

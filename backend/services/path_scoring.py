@@ -428,6 +428,30 @@ def _semantic_overlap_score(
     return _substring_overlap_score(user_skills, onet_items)
 
 
+def _compute_weighted_user_centroid(
+    user_skills: list[UserSkill],
+) -> tuple[list[float], list[tuple[list[float], float]]] | tuple[None, None]:
+    """Proficiency-weighted centroid of cached user skill embeddings.
+
+    Returns (centroid, [(emb, weight), ...]) so callers can reuse the per-skill
+    (embedding, weight) pairs without re-fetching from the cache.
+    Returns (None, None) when no embeddings are cached for any user skill.
+    """
+    available: list[tuple[list[float], float]] = []
+    for us in user_skills:
+        emb = _EMBED_CACHE.get(us.name.lower())
+        if emb is None:
+            continue
+        weight = _SKILL_LEVEL_WEIGHTS.get(us.level, _SKILL_LEVEL_WEIGHTS["beginner"])
+        available.append((emb, weight))
+    if not available:
+        return None, None
+    vecs = np.array([e for e, _ in available])
+    weights = np.array([w for _, w in available])
+    centroid: list[float] = np.average(vecs, axis=0, weights=weights).tolist()
+    return centroid, available
+
+
 def _role_coverage_score(
     user_skills: list[UserSkill],
     role_items: list[tuple[str, float]],
@@ -441,6 +465,11 @@ def _role_coverage_score(
     Bioinformatics Scientists are genomics tools (none matched) — giving clear
     differentiation even when the centroid score compresses all tech roles together.
 
+    The user centroid is proficiency-weighted so advanced skills steer the direction
+    more than beginner skills.  The match threshold is also tightened for beginner
+    skills: a role item needs a higher cosine similarity to count as "covered" when
+    the best-matching user skill is only at beginner level.
+
     Uses _EMBED_CACHE directly — call after _semantic_overlap_score has already
     populated the cache.  Returns 0.0 gracefully when no embeddings are available.
     """
@@ -452,17 +481,11 @@ def _role_coverage_score(
     if not available_role:
         return 0.0
 
-    available_user_embs = [
-        emb
-        for us in user_skills
-        if (emb := _EMBED_CACHE.get(us.name.lower())) is not None
-    ]
-    if not available_user_embs:
+    user_centroid, available_user = _compute_weighted_user_centroid(user_skills)
+    if user_centroid is None:
         return 0.0
 
-    user_centroid = np.mean(np.array(available_user_embs), axis=0).tolist()
-
-    # Top-K role items closest to the user's centroid.
+    # Top-K role items closest to the proficiency-weighted user centroid.
     role_sims = sorted(
         [
             (name, emb, _cosine_similarity(emb, user_centroid))
@@ -473,14 +496,20 @@ def _role_coverage_score(
     )
     top_k = role_sims[:_COVERAGE_TOP_K]
 
-    # Check whether the user actually has each of those top-K role items.
+    # Check whether the user actually has each top-K role item.
+    # Use the proficiency of the best-matching skill to set the threshold:
+    # advanced (weight=1.0) → threshold 0.70; beginner (weight=0.33) → ~0.733.
     matched = 0
     for _, item_emb, _ in top_k:
-        best_match = max(
-            (_cosine_similarity(item_emb, u_emb) for u_emb in available_user_embs),
-            default=0.0,
-        )
-        if best_match >= _EMBED_THRESHOLD:
+        best_match = 0.0
+        best_weight = _SKILL_LEVEL_WEIGHTS["beginner"]
+        for u_emb, u_weight in available_user:  # type: ignore[union-attr]
+            sim = _cosine_similarity(item_emb, u_emb)
+            if sim > best_match:
+                best_match = sim
+                best_weight = u_weight
+        effective_threshold = _EMBED_THRESHOLD + (1.0 - best_weight) * 0.05
+        if best_match >= effective_threshold:
             matched += 1
 
     return matched / len(top_k) if top_k else 0.0
