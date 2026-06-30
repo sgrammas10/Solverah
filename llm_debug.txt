@@ -165,23 +165,23 @@ You naturally create momentum by taking charge of your tasks and defining your o
 ============================================================
 CANDIDATE SCORES — Top 5 Detail
 ============================================================
-  [19-1029.01] Bioinformatics Scientists
-    centroid=0.8841  coverage=0.0000
-    work_style=0.4654  zone=1.0000
-    final=0.6859
   [15-1221.00] Computer and Information Research Scientists
-    centroid=0.9077  coverage=0.0000
+    centroid=0.9074  coverage=0.4000
     work_style=0.4283  zone=1.0000
-    final=0.6810
-  [19-3022.00] Survey Researchers
-    centroid=0.8134  coverage=0.0000
-    work_style=0.4661  zone=1.0000
-    final=0.6786
+    final=0.7818
   [15-2031.00] Operations Research Analysts
-    centroid=0.8514  coverage=0.0000
+    centroid=0.8511  coverage=0.2000
     work_style=0.4428  zone=1.0000
-    final=0.6780
+    final=0.7462
   [15-2041.00] Statisticians
-    centroid=0.8253  coverage=0.0000
+    centroid=0.8250  coverage=0.2000
     work_style=0.4330  zone=1.0000
-    final=0.6733
+    final=0.7403
+  [15-1243.00] Database Architects
+    centroid=0.8838  coverage=0.6000
+    work_style=0.4551  zone=0.5000
+    final=0.5636
+  [15-1255.00] Web and Digital Interface Designers
+    centroid=0.8917  coverage=0.6000
+    work_style=0.4463  zone=0.5000
+    final=0.5630

@@ -87,24 +87,42 @@ _WORK_STYLE_WEIGHT: float = 0.10
 # abstract competencies for non-tech roles).  Uses the same threshold as other
 # embedding matches since we're now comparing like-to-like.
 _COVERAGE_TOP_K: int = 5
-_CENTROID_MIX: float = 0.35
-_COVERAGE_MIX: float = 0.65
+_CENTROID_MIX: float = 0.5
+_COVERAGE_MIX: float = 0.5
 
 # In-process embedding cache.  OrderedDict enables O(1) LRU eviction.
 _EMBED_CACHE: OrderedDict[str, list[float]] = OrderedDict()
 _EMBED_CACHE_MAX: int = 10_000
 
-# SOC code prefixes for life/physical/social-science occupations.
-# These appear as keyword-search noise (searching "Data Scientists" returns
-# Bioinformatics Scientists, Political Scientists, etc.) and are excluded from
-# the candidate pool unless the user's skills indicate life-science expertise.
-_LIFE_SCIENCE_SOC_PREFIXES: tuple[str, ...] = ("19-1", "19-2", "19-3", "19-4")
+# Inclusion list: only SOC codes with these prefixes are kept in the candidate pool
+# by default.  This prevents O*NET keyword search from contaminating the pool with
+# unrelated occupations (searching "Data Scientists" returns Bioinformatics Scientists,
+# Political Scientists, Atmospheric Scientists, etc.).
+_DEFAULT_ALLOWED_SOC_PREFIXES: tuple[str, ...] = (
+    "11-",  # Management Occupations
+    "13-",  # Business and Financial Operations
+    "15-",  # Computer and Mathematical Occupations
+    "17-",  # Architecture and Engineering
+    "23-",  # Legal
+    "25-",  # Educational Instruction
+    "41-",  # Sales
+    "43-",  # Office and Administrative Support
+)
 
-# Skill keywords that indicate the user has genuine life-science expertise.
+# Skill keywords that expand the allowed SOC prefixes.
 _LIFE_SCIENCE_SKILL_KEYWORDS: frozenset[str] = frozenset({
     "biology", "chemistry", "biochemistry", "molecular biology", "genetics",
     "ecology", "geology", "meteorology", "physics", "microbiology",
     "anatomy", "physiology", "pharmacology", "lab", "laboratory",
+    "bioinformatics", "genomics",
+})
+_SOCIAL_SCIENCE_SKILL_KEYWORDS: frozenset[str] = frozenset({
+    "sociology", "political science", "psychology", "anthropology",
+    "economics", "survey design", "qualitative research", "ethnography",
+})
+_HEALTHCARE_SKILL_KEYWORDS: frozenset[str] = frozenset({
+    "nursing", "patient care", "clinical", "medical", "healthcare",
+    "pharmacist", "therapy", "diagnosis", "ehr", "electronic health records",
 })
 
 # Accumulated LLM interaction log for the current score_paths invocation.
@@ -414,13 +432,14 @@ def _role_coverage_score(
     user_skills: list[UserSkill],
     role_items: list[tuple[str, float]],
 ) -> float:
-    """Coverage measured from the user's perspective.
+    """Coverage: top-K role items closest to the user centroid, fraction matched by user.
 
-    Finds the K user skills most similar to the role's centroid — the user's
-    "best fits" for this role — then checks what fraction of those skills the
-    role actually values at _EMBED_THRESHOLD.  A full-stack engineer's React/Python
-    skills score high coverage against Software Developers (1.0) but near-zero
-    against Atmospheric Scientists (0.0), spreading what the centroid compresses.
+    Asks "what does this role offer that is most relevant to this user?" then checks
+    whether the user actually has those skills.  A full-stack engineer's centroid is
+    firmly in the tech direction, so the top-K role items selected for Software
+    Developers are React/Python/JS (all matched) while the top-K items selected for
+    Bioinformatics Scientists are genomics tools (none matched) — giving clear
+    differentiation even when the centroid score compresses all tech roles together.
 
     Uses _EMBED_CACHE directly — call after _semantic_overlap_score has already
     populated the cache.  Returns 0.0 gracefully when no embeddings are available.
@@ -433,37 +452,35 @@ def _role_coverage_score(
     if not available_role:
         return 0.0
 
-    available_user = [
-        (us, emb)
+    available_user_embs = [
+        emb
         for us in user_skills
         if (emb := _EMBED_CACHE.get(us.name.lower())) is not None
     ]
-    if not available_user:
+    if not available_user_embs:
         return 0.0
 
-    role_centroid = np.mean([np.array(emb) for _, emb in available_role], axis=0)
-    role_centroid_list = role_centroid.tolist()
+    user_centroid = np.mean(np.array(available_user_embs), axis=0).tolist()
 
-    # Find the user's top-K skills most similar to this role's centroid.
-    user_with_sims = sorted(
+    # Top-K role items closest to the user's centroid.
+    role_sims = sorted(
         [
-            (us, emb, _cosine_similarity(emb, role_centroid_list))
-            for us, emb in available_user
+            (name, emb, _cosine_similarity(emb, user_centroid))
+            for name, emb in available_role
         ],
         key=lambda x: x[2],
         reverse=True,
     )
-    top_k = user_with_sims[:_COVERAGE_TOP_K]
+    top_k = role_sims[:_COVERAGE_TOP_K]
 
-    # For each top-K user skill, check whether the role values it.
+    # Check whether the user actually has each of those top-K role items.
     matched = 0
-    for _us, skill_emb, sim_to_centroid in top_k:
-        if sim_to_centroid < _EMBED_THRESHOLD:
-            continue  # user skill doesn't align with this role at all
-        best_role_match = max(
-            _cosine_similarity(skill_emb, r_emb) for _, r_emb in available_role
+    for _, item_emb, _ in top_k:
+        best_match = max(
+            (_cosine_similarity(item_emb, u_emb) for u_emb in available_user_embs),
+            default=0.0,
         )
-        if best_role_match >= _EMBED_THRESHOLD:
+        if best_match >= _EMBED_THRESHOLD:
             matched += 1
 
     return matched / len(top_k) if top_k else 0.0
@@ -815,27 +832,37 @@ def _resolve_current_zone(
 # ---------------------------------------------------------------------------
 
 
-def _infer_user_has_life_science(profile: UserProfile) -> bool:
+def _get_allowed_soc_prefixes(profile: UserProfile) -> tuple[str, ...]:
+    """Return the SOC code prefixes allowed for this user's candidate pool.
+
+    Starts from the default set of software/business/engineering families and
+    expands it based on domain keywords found in the user's skill list.
+    """
+    allowed: list[str] = list(_DEFAULT_ALLOWED_SOC_PREFIXES)
     skill_names = {s.name.lower() for s in profile.skills}
-    return bool(skill_names & _LIFE_SCIENCE_SKILL_KEYWORDS)
+    if skill_names & _LIFE_SCIENCE_SKILL_KEYWORDS:
+        allowed.extend(("19-1", "19-2"))
+    if skill_names & _SOCIAL_SCIENCE_SKILL_KEYWORDS:
+        allowed.append("19-3")
+    if skill_names & _HEALTHCARE_SKILL_KEYWORDS:
+        allowed.extend(("29-", "31-"))
+    return tuple(allowed)
 
 
 def _filter_candidate_pool(
     candidates: list[Occupation],
     profile: UserProfile,
 ) -> list[Occupation]:
-    """Remove life/physical/social-science roles unless the user has domain skills.
+    """Keep only candidates whose SOC codes fall within the user's allowed families.
 
     O*NET keyword search is fuzzy: searching "Data Scientists" returns Bioinformatics
-    Scientists, Political Scientists, Atmospheric Scientists, etc.  These are almost
-    always irrelevant for software/business users and pollute the scored pool.
-    Keep them only when the user's skills indicate genuine life-science expertise.
+    Scientists, Political Scientists, Atmospheric Scientists, etc.  An inclusion list
+    limits the pool to occupations the user's skills actually point toward.
     """
-    if _infer_user_has_life_science(profile):
-        return candidates
+    allowed = _get_allowed_soc_prefixes(profile)
     return [
         occ for occ in candidates
-        if not any(occ.code.startswith(prefix) for prefix in _LIFE_SCIENCE_SOC_PREFIXES)
+        if any(occ.code.startswith(prefix) for prefix in allowed)
     ]
 
 
@@ -913,7 +940,7 @@ def _gather_candidates(
 
     # stay_in_field or None
     candidates = _profile_seeded_candidates(profile, onet_client, openai_client)
-    return _deduplicate(candidates, current_code)
+    return _filter_candidate_pool(_deduplicate(candidates, current_code), profile)
 
 
 # ---------------------------------------------------------------------------

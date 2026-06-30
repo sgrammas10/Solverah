@@ -620,7 +620,7 @@ class TestScorePaths:
     def test_results_sorted_descending(self, mock_client):
         mock_client.search_occupations.side_effect = [
             [occ("15-1252.00")],
-            [occ("A-0001.00", "Low"), occ("A-0002.00", "High")],
+            [occ("15-0001.00", "Low"), occ("15-0002.00", "High")],
             [],
         ]
         # current=2; both candidates at zone 3 (delta=+1)
@@ -636,7 +636,7 @@ class TestScorePaths:
             mock_client,
         )
 
-        assert results[0].onet_code == "A-0002.00"
+        assert results[0].onet_code == "15-0002.00"
         for i in range(len(results) - 1):
             assert results[i].score >= results[i + 1].score
 
@@ -1051,26 +1051,27 @@ def test_role_coverage_no_match():
 
 
 def test_role_coverage_partial():
-    """3 of 5 user skills align with the role → coverage = 3/5."""
+    """3 of 5 top-K role items are matched by user → coverage = 3/5."""
     import backend.services.path_scoring as ps
     ps._EMBED_CACHE.clear()
-    # 5 user skills: 3 in tech direction [1,0], 2 in orthogonal direction [0,1].
-    # Role items: all [1,0] → role centroid = [1,0].
-    # User top-K (k=5): tech skills cos=1.0 ≥ threshold → matched;
-    #                   research skills cos=0.0 < threshold → skipped.
+    # User: 3 tech skills all in [1,0] direction → user_centroid = [1,0].
     ps._EMBED_CACHE["skill_a"] = [1.0, 0.0]
     ps._EMBED_CACHE["skill_b"] = [1.0, 0.0]
     ps._EMBED_CACHE["skill_c"] = [1.0, 0.0]
-    ps._EMBED_CACHE["skill_d"] = [0.0, 1.0]
-    ps._EMBED_CACHE["skill_e"] = [0.0, 1.0]
-    ps._EMBED_CACHE["Role Item X"] = [1.0, 0.0]
-    ps._EMBED_CACHE["Role Item Y"] = [1.0, 0.0]
+    # Role has 5 items: 3 tech [1,0] (close to user_centroid, user matches) and
+    # 2 orthogonal [0,1] (far from user_centroid, user does not match).
+    # All 5 are in top-K (k=5); 3 matched → 3/5.
+    ps._EMBED_CACHE["Role Tech 1"] = [1.0, 0.0]
+    ps._EMBED_CACHE["Role Tech 2"] = [1.0, 0.0]
+    ps._EMBED_CACHE["Role Tech 3"] = [1.0, 0.0]
+    ps._EMBED_CACHE["Role Other 1"] = [0.0, 1.0]
+    ps._EMBED_CACHE["Role Other 2"] = [0.0, 1.0]
 
-    user = [
-        user_skill("skill_a"), user_skill("skill_b"), user_skill("skill_c"),
-        user_skill("skill_d"), user_skill("skill_e"),
+    user = [user_skill("skill_a"), user_skill("skill_b"), user_skill("skill_c")]
+    role_items = [
+        ("Role Tech 1", 80.0), ("Role Tech 2", 80.0), ("Role Tech 3", 80.0),
+        ("Role Other 1", 80.0), ("Role Other 2", 80.0),
     ]
-    role_items = [("Role Item X", 80.0), ("Role Item Y", 75.0)]
     score = _role_coverage_score(user, role_items)
     assert score == pytest.approx(3 / 5)
     ps._EMBED_CACHE.clear()
@@ -1089,21 +1090,21 @@ def test_role_coverage_empty_role_items():
 
 
 def test_role_coverage_excludes_uncached_from_pool():
-    """Uncached role items are excluded from the centroid, affecting which user skills are top-K."""
+    """Uncached role items are excluded from top-K selection."""
     import backend.services.path_scoring as ps
     ps._EMBED_CACHE.clear()
-    # 2 user skills: tech [1,0,0] and research [0,1,0].
-    # Role has one cached item [1,0,0] and one uncached item (absent from cache).
-    # role centroid (cached only) = [1,0,0] → tech user skill cos=1.0, research cos=0.0.
-    # top-K (k=2): both user skills; tech passes threshold → matched; research skipped.
+    # User has 1 tech skill [1,0] → user_centroid = [1,0].
+    # Role has 2 cached items (tech and research) plus 1 uncached item.
+    # Only cached items participate in top-K; uncached item is silently ignored.
+    # top-2: "Cached Tech Item" cos=1.0 → matched; "Cached Other Item" cos=0.0 → not matched.
     # coverage = 1/2 = 0.5
-    ps._EMBED_CACHE["skill_tech"] = [1.0, 0.0, 0.0]
-    ps._EMBED_CACHE["skill_research"] = [0.0, 1.0, 0.0]
-    ps._EMBED_CACHE["Role Item"] = [1.0, 0.0, 0.0]
-    # "Uncached Role Item" deliberately absent → excluded from available_role
+    ps._EMBED_CACHE["skill_tech"] = [1.0, 0.0]
+    ps._EMBED_CACHE["Cached Tech Item"] = [1.0, 0.0]
+    ps._EMBED_CACHE["Cached Other Item"] = [0.0, 1.0]
+    # "Uncached Item" deliberately absent → excluded from available_role
 
-    user = [user_skill("skill_tech"), user_skill("skill_research")]
-    role_items = [("Role Item", 80.0), ("Uncached Role Item", 80.0)]
+    user = [user_skill("skill_tech")]
+    role_items = [("Cached Tech Item", 80.0), ("Cached Other Item", 80.0), ("Uncached Item", 80.0)]
     score = _role_coverage_score(user, role_items)
     assert score == pytest.approx(0.5)
     ps._EMBED_CACHE.clear()
@@ -1137,10 +1138,11 @@ def test_overlap_combines_centroid_and_coverage(mock_client):
         mock_openai,
     )
 
-    # centroid: user=[1,0], role centroid = mean([1,0],[1,0])=[1,0] → cos=1.0
-    # coverage (user-direction): role centroid=[1,0]; user "python"=[1,0], cos=1.0 >=0.70
-    #   best_role_match=1.0 >=0.70 → matched; top-K=1 user skill → coverage=1/1=1.0
-    # overlap = 0.35*1.0 + 0.65*1.0 = 1.0
+    # centroid: user=[1,0], role_centroid = mean([1,0],[1,0])=[1,0] → cos=1.0
+    # coverage (user-centroid): user_centroid=[1,0]; top-2 role items "python hot"[1,0] and
+    #   "Programming"[1,0] both close to user_centroid; user "python"[1,0] matches both.
+    #   coverage = 2/2 = 1.0
+    # overlap = 0.5*1.0 + 0.5*1.0 = 1.0
     # zone: delta=0, seniority=None → zone_score=0.5; experienced, zone resolved
     # final = 0.5*overlap + 0.5*zone = 0.5*1.0 + 0.5*0.5 = 0.75
     assert len(results) == 1
@@ -1541,4 +1543,145 @@ def test_software_developers_ranks_above_research_scientists(mock_client):
     cirs_rank = codes.index("15-1221.00")
     assert sw_rank < cirs_rank, f"Software Developers should rank above CIRS; got order {codes}"
 
+    ps._EMBED_CACHE.clear()
+
+
+# ---------------------------------------------------------------------------
+# Scoring Fix Round 3 regression tests
+# ---------------------------------------------------------------------------
+
+
+def test_no_life_science_roles_for_software_user():
+    """SOC 19-1/2/3/4 codes are all removed for users with no life/science skills."""
+    tech_user = profile(
+        career_status="employed",
+        skills=[user_skill("React"), user_skill("Python"),
+                user_skill("JavaScript"), user_skill("SQL")],
+    )
+    candidates = [
+        occ("15-1252.00", "Software Developers"),
+        occ("19-1029.01", "Bioinformatics Scientists"),
+        occ("19-2021.00", "Atmospheric Scientists"),
+        occ("19-3094.00", "Political Scientists"),
+        occ("19-4099.01", "Bioinformatics Technicians"),
+        occ("15-1211.00", "Computer Systems Analysts"),
+    ]
+    filtered = _filter_candidate_pool(candidates, tech_user)
+    codes = [o.code for o in filtered]
+    assert "15-1252.00" in codes
+    assert "15-1211.00" in codes
+    assert not any(c.startswith("19-") for c in codes)
+
+
+def test_coverage_user_centroid_direction_differentiates_tech_vs_research():
+    """Top-K role items closest to tech user's centroid are tech items, not genomics items."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+
+    for skill in ["react", "typescript", "python", "javascript", "sql"]:
+        ps._EMBED_CACHE[skill] = [1.0, 0.0]
+
+    sw_items = [(n, 75.0) for n in ["JavaScript SDK", "React Framework", "Python Libraries"]]
+    for n in ["JavaScript SDK", "React Framework", "Python Libraries"]:
+        ps._EMBED_CACHE[n] = [1.0, 0.0]
+
+    bio_items = [(n, 75.0) for n in ["Genomics Toolkit", "Sequencing Platform", "Bioinformatics Suite"]]
+    for n in ["Genomics Toolkit", "Sequencing Platform", "Bioinformatics Suite"]:
+        ps._EMBED_CACHE[n] = [0.0, 1.0]
+
+    user = [user_skill("react"), user_skill("typescript"), user_skill("python"),
+            user_skill("javascript"), user_skill("sql")]
+    sw_cov = _role_coverage_score(user, sw_items)
+    bio_cov = _role_coverage_score(user, bio_items)
+
+    assert sw_cov == pytest.approx(1.0)
+    assert bio_cov == pytest.approx(0.0)
+    ps._EMBED_CACHE.clear()
+
+
+def test_software_developers_above_bioinformatics(mock_client):
+    """Bioinformatics is filtered out for a tech-only user; Software Developers appears."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+
+    for skill in ["react", "typescript", "python", "sql"]:
+        ps._EMBED_CACHE[skill] = [1.0, 0.0]
+    for item in ["JavaScript", "React", "Python", "TypeScript"]:
+        ps._EMBED_CACHE[item] = [1.0, 0.0]
+
+    sw_dev = occ("15-1252.00", "Software Developers")
+    bio_sci = occ("19-1029.01", "Bioinformatics Scientists")
+
+    mock_client.search_occupations.side_effect = [
+        [occ("15-1253.00")],   # resolve current title
+        [sw_dev, bio_sci],      # gather: both returned by O*NET search
+    ]
+    mock_client.get_job_zone.side_effect = [3, 4]  # current=3, sw_dev=4
+    mock_client.get_tech_skills.return_value = {"JavaScript", "React", "Python", "TypeScript"}
+    mock_client.get_skills_profile.return_value = []
+
+    mock_openai = MagicMock()
+    mock_openai.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content='["Software Developers"]'))]
+    )
+    mock_openai.embeddings.create.return_value = MagicMock(data=[])
+
+    results = score_paths(
+        profile(
+            current_title="Full Stack Developer",
+            career_status="employed",
+            skills=[user_skill("react"), user_skill("typescript"),
+                    user_skill("python"), user_skill("sql")],
+        ),
+        mock_client,
+        mock_openai,
+    )
+
+    codes = [r.onet_code for r in results]
+    assert "15-1252.00" in codes, "Software Developers should appear in results"
+    assert "19-1029.01" not in codes, "Bioinformatics should be filtered for tech-only user"
+    ps._EMBED_CACHE.clear()
+
+
+def test_web_developers_above_survey_researchers(mock_client):
+    """Survey Researchers (19-3xxx) are filtered out for a web-dev user."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+
+    for skill in ["html", "css", "javascript", "react"]:
+        ps._EMBED_CACHE[skill] = [1.0, 0.0]
+    for item in ["HTML5", "CSS3", "JavaScript", "React.js"]:
+        ps._EMBED_CACHE[item] = [1.0, 0.0]
+
+    web_dev = occ("15-1257.00", "Web Developers")
+    survey = occ("19-3022.00", "Survey Researchers")
+
+    mock_client.search_occupations.side_effect = [
+        [occ("15-1253.00")],   # resolve current title
+        [web_dev, survey],      # gather: both returned by O*NET search
+    ]
+    mock_client.get_job_zone.side_effect = [3, 4]  # current=3, web_dev=4
+    mock_client.get_tech_skills.return_value = {"HTML5", "CSS3", "JavaScript", "React.js"}
+    mock_client.get_skills_profile.return_value = []
+
+    mock_openai = MagicMock()
+    mock_openai.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content='["Web Developers"]'))]
+    )
+    mock_openai.embeddings.create.return_value = MagicMock(data=[])
+
+    results = score_paths(
+        profile(
+            current_title="Frontend Developer",
+            career_status="employed",
+            skills=[user_skill("html"), user_skill("css"),
+                    user_skill("javascript"), user_skill("react")],
+        ),
+        mock_client,
+        mock_openai,
+    )
+
+    codes = [r.onet_code for r in results]
+    assert "15-1257.00" in codes, "Web Developers should appear in results"
+    assert "19-3022.00" not in codes, "Survey Researchers should be filtered for web-dev user"
     ps._EMBED_CACHE.clear()
