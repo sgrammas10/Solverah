@@ -125,19 +125,23 @@ _HEALTHCARE_SKILL_KEYWORDS: frozenset[str] = frozenset({
     "pharmacist", "therapy", "diagnosis", "ehr", "electronic health records",
 })
 
-# Research-flavored SOC codes that sit inside the default-allowed "15-" prefix
-# and so are not caught by the inclusion-list filter above.  These are listed
-# explicitly rather than by SOC minor-group prefix: "15-2" (Mathematical Science
-# Occupations) also contains practitioner roles like Data Scientists (15-2051.00)
-# and Actuaries (15-2011.00) that must stay in the pool.  Skipped entirely when
-# the user's skills signal genuine research/academic intent.
-_RESEARCH_ROLE_CODES_EXCLUDE: frozenset[str] = frozenset({
-    "15-1221.00",  # Computer and Information Research Scientists
-    "15-2021.00",  # Mathematicians
-    "15-2031.00",  # Operations Research Analysts
-    "15-2041.00",  # Statisticians
-    "15-2099.01",  # Bioinformatics Technicians
-})
+# Research-role filtering for the candidate pool.
+#
+# SOC minor group 15-2 (Mathematical Science Occupations) is a distinct research
+# track that should not appear for practitioner tech/software profiles.  The
+# entire prefix is excluded rather than listing individual codes, so newly-added
+# SOC codes in that group are handled automatically.
+#
+# 15-2051.00 (Data Scientists) is the sole practitioner-facing role in 15-2 and
+# is whitelisted so it survives the prefix exclusion.
+#
+# 15-1221.00 (CIRS) is in 15-1 (Computer Occupations) alongside legitimate roles
+# and requires an explicit code exclusion — it cannot be handled by prefix alone.
+#
+# These constants are bypassed when the user's skills signal genuine research intent.
+_RESEARCH_SOC_PREFIX_EXCLUDE: tuple[str, ...] = ("15-2",)
+_RESEARCH_SOC_WHITELIST: frozenset[str] = frozenset({"15-2051.00"})   # Data Scientists
+_RESEARCH_ROLE_CODES_EXCLUDE: frozenset[str] = frozenset({"15-1221.00"})  # CIRS
 _RESEARCH_UNLOCK_SKILL_KEYWORDS: frozenset[str] = frozenset({
     "phd", "academia", "laboratory", "genomics", "bioinformatics",
     "biostatistics", "operations research", "statistics", "applied mathematics",
@@ -677,15 +681,30 @@ def _generate_search_terms(profile: UserProfile, client) -> list[str]:
 
     prompt = f"""You are a career advisor with knowledge of O*NET occupations.
 
-Analyze the skills below and identify the distinct career domains they represent.
+Analyze the skills below and identify ALL distinct career domains they represent.
 For each domain, output ONE standard O*NET occupation title.
 
 Rules:
-- Use exact O*NET-style titles (e.g. "Software Developers", "Information Security Analysts", "Registered Nurses", "Data Scientists")
-- Target industry-practical roles, NOT academic research roles (not "Bioinformatics Scientists", not "Remote Sensing Scientists", not "Operations Research Analysts", not "Statisticians")
-- Do NOT infer niche specializations (blockchain, quantum computing, biotech) unless the user lists core specialized skills for that field (e.g. Solidity for blockchain, lab techniques for biotech)
-- Cover ALL distinct domains present — if the user has both programming skills AND security skills, include both
-- Output ONLY a JSON array of strings, no explanation
+- Use exact O*NET-style titles in plural form
+  (e.g. "Software Developers", "Information Security Analysts", "Registered Nurses")
+- Include a title for EVERY distinct domain present:
+    Web/frontend skills                        → "Web Developers" or "Software Developers"
+    Security/exploitation/reverse engineering  → "Penetration Testers"
+    Security monitoring/defense                → "Information Security Analysts"
+    Data/ML/statistics skills                  → "Data Scientists"
+    Database skills                            → "Database Architects"
+    Network skills                             → "Computer Network Architects"
+- Target industry-practical roles, NOT academic or research roles.
+  Examples of what NOT to include:
+    "Computer and Information Research Scientists"
+    "Operations Research Analysts"
+    "Statisticians"
+    "Bioinformatics Scientists"
+    "Remote Sensing Scientists"
+    "Survey Researchers"
+- Do NOT infer niche roles (blockchain, quantum) unless user lists core specialized
+  skills for that field
+- Output ONLY a JSON array of strings, no explanation, max 6 items
 
 Current title: {profile.current_title or "Not provided"}
 Skills: {", ".join(s.name for s in profile.skills)}
@@ -908,14 +927,18 @@ def _filter_candidate_pool(
 ) -> list[Occupation]:
     """Keep only candidates whose SOC codes fall within the user's allowed families.
 
-    O*NET keyword search is fuzzy: searching "Data Scientists" returns Bioinformatics
-    Scientists, Political Scientists, Atmospheric Scientists, etc.  An inclusion list
-    limits the pool to occupations the user's skills actually point toward.
+    Applied to the full merged pool (primary + supplementary) so research-adjacent
+    roles cannot re-enter via the supplementary keyword search path.
 
-    Research-flavored codes inside the allowed "15-" family (CIRS, Operations
-    Research Analysts, Statisticians, ...) are additionally excluded unless the
-    user's skills unlock them — they semantically overlap with practitioner
-    skills (Python, statistics) enough to otherwise dominate the ranking.
+    SOC prefix filter: inclusion list limits the pool to domains the user's skills
+    point toward, preventing cross-domain contamination (19-xxxx life scientists
+    appearing for a software profile, etc.).
+
+    Research exclusion: SOC minor group 15-2 (Mathematical Science Occupations) is
+    excluded for tech profiles — excluded by prefix so future codes in that group
+    are handled automatically.  15-2051.00 (Data Scientists) is whitelisted as the
+    only practitioner-facing role in 15-2.  15-1221.00 (CIRS) is excluded by its
+    specific code since it sits in the otherwise-legitimate 15-1 Computer family.
     """
     allowed = _get_allowed_soc_prefixes(profile)
     pool = [
@@ -923,7 +946,14 @@ def _filter_candidate_pool(
         if any(occ.code.startswith(prefix) for prefix in allowed)
     ]
     if not _research_roles_unlocked(profile):
-        pool = [occ for occ in pool if occ.code not in _RESEARCH_ROLE_CODES_EXCLUDE]
+        pool = [
+            occ for occ in pool
+            if occ.code not in _RESEARCH_ROLE_CODES_EXCLUDE
+            and (
+                not any(occ.code.startswith(p) for p in _RESEARCH_SOC_PREFIX_EXCLUDE)
+                or occ.code in _RESEARCH_SOC_WHITELIST
+            )
+        ]
     return pool
 
 
@@ -943,25 +973,20 @@ def _profile_seeded_candidates(
     onet_client: OnetClient,
     openai_client,
 ) -> list[Occupation]:
-    """Search O*NET using LLM-generated occupation titles that span skill domains."""
+    """Full keyword search used as the fresh_start fallback pool (all results per term).
+
+    Not called for stay_in_field / adjacent / None — those paths use job family as
+    primary and first-result-only keyword search as supplementary.
+    """
     search_terms = _generate_search_terms(profile, openai_client)
     candidates: list[Occupation] = []
     for term in search_terms:
         try:
             results = onet_client.search_occupations(term)
             _log.debug("O*NET search %r → %d results", term, len(results))
-            _llm_log(
-                f"CANDIDATE SEARCH — Term: {term!r}",
-                f"Results ({len(results)}): {[o.title for o in results]}",
-            )
             candidates.extend(results)
         except OnetAPIError as exc:
             _log.warning("O*NET search failed for %r: %s", term, exc)
-    _llm_log(
-        "CANDIDATE POOL — Final",
-        f"Total candidates: {len(candidates)}\n"
-        + "\n".join(f"  [{o.code}] {o.title}" for o in candidates),
-    )
     return candidates
 
 
@@ -971,12 +996,18 @@ def _gather_candidates(
     openai_client,
     current_code: str | None,
 ) -> list[Occupation]:
-    """Build an intent-driven, deduplicated candidate pool.
+    """Build a deduplicated candidate pool.
 
-    fresh_start  → Bright Outlook occupations (forward-looking pool).
-                   Falls back to profile-seeded search if Bright Outlook is empty.
-    adjacent     → Profile-seeded search + all occupations in the user's SOC family.
-    stay_in_field / None → Profile-seeded search (keyword search on generated titles).
+    fresh_start → Bright Outlook occupations (forward-looking pool).
+                  Falls back to full keyword search if Bright Outlook is empty.
+
+    adjacent / stay_in_field / None → Job family as primary (structural, field-scoped,
+                  no keyword noise) + first-result-per-term keyword search as
+                  supplementary (adds cross-family pivots and specific targeted roles
+                  like Penetration Testers that the LLM nominates explicitly).
+
+    The full merged pool is passed through _filter_candidate_pool so research-adjacent
+    roles (15-2 Mathematical Science Occupations, CIRS) cannot re-enter via either path.
     """
     if profile.move_intent == "fresh_start":
         candidates = onet_client.get_bright_outlook_occupations()
@@ -984,24 +1015,56 @@ def _gather_candidates(
             candidates = _profile_seeded_candidates(profile, onet_client, openai_client)
         return _filter_candidate_pool(_deduplicate(candidates, current_code), profile)
 
-    if profile.move_intent == "adjacent":
-        candidates = _profile_seeded_candidates(profile, onet_client, openai_client)
-        if current_code:
-            try:
-                families = onet_client.get_job_families()
-                user_soc_prefix = current_code[:2]
-                for family in families:
-                    if family["code"].startswith(user_soc_prefix):
-                        family_occs = onet_client.get_job_family_occupations(family["code"])
-                        candidates.extend(family_occs)
-                        break
-            except OnetAPIError:
-                pass
-        return _filter_candidate_pool(_deduplicate(candidates, current_code), profile)
+    # adjacent / stay_in_field / None — unified flow
+    seen: set[str] = {current_code} if current_code else set()
+    candidates: list[Occupation] = []
 
-    # stay_in_field or None
-    candidates = _profile_seeded_candidates(profile, onet_client, openai_client)
-    return _filter_candidate_pool(_deduplicate(candidates, current_code), profile)
+    # PRIMARY: job family occupations — field-scoped, no keyword matching.
+    # Replace this block with get_related_occupations(current_code) when O*NET
+    # adds that endpoint; it will produce a tighter, skills-similarity-based pool.
+    if current_code:
+        family_code = current_code[:2] + "-0000"
+        try:
+            primary = onet_client.get_job_family_occupations(family_code)
+            _llm_log(
+                "CANDIDATE POOL — Primary (Job Family)",
+                f"Seed code: {current_code}  family: {family_code}\n"
+                f"Results ({len(primary)}): {[o.title for o in primary]}",
+            )
+            for o in primary:
+                if o.code not in seen:
+                    seen.add(o.code)
+                    candidates.append(o)
+        except OnetAPIError:
+            _log.warning("get_job_family_occupations failed for %s", current_code, exc_info=True)
+
+    # SUPPLEMENTARY: LLM keyword search — first result per term only.
+    # Taking result[0] targets the canonical O*NET title for each domain and
+    # eliminates collateral noise ("Data Scientists" search → 15-2051.00 only,
+    # not the 19 other scientist roles fuzzy search returns alongside it).
+    search_terms = _generate_search_terms(profile, openai_client)
+    for term in search_terms:
+        try:
+            results = onet_client.search_occupations(term)
+            if results:
+                o = results[0]
+                if o.code not in seen:
+                    seen.add(o.code)
+                    candidates.append(o)
+            _llm_log(
+                f"CANDIDATE SEARCH — Term: {term!r}",
+                f"First result: "
+                f"{results[0].title + ' [' + results[0].code + ']' if results else 'None'}",
+            )
+        except OnetAPIError as exc:
+            _log.warning("O*NET search failed for %r: %s", term, exc)
+
+    _llm_log(
+        "CANDIDATE POOL — Final",
+        f"Total candidates: {len(candidates)}\n"
+        + "\n".join(f"  [{o.code}] {o.title}" for o in candidates),
+    )
+    return _filter_candidate_pool(candidates, profile)
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,328 @@
+================================================================================
+IMPLEMENTATION PROMPT: Option B — O*NET Related Occupations as Primary Pool
+================================================================================
+
+PROBLEM BEING SOLVED
+--------------------
+The current candidate pool is built by O*NET fuzzy keyword search, which returns
+too many semantically adjacent but professionally irrelevant roles (Operations
+Research Analysts, Statisticians, CIRS). Filtering these out post-hoc with
+hard-coded SOC codes is fragile and field-specific.
+
+SOLUTION
+--------
+Use O*NET's related occupations endpoint to build the primary candidate pool.
+O*NET's relatedness is computed from shared skills, work activities, knowledge,
+and work context in the O*NET database — not keyword fuzzy matching. This means
+the pool is high-quality by construction, generalizes to any field, and requires
+no hard-coded exclusions.
+
+Zone resolution already gives us the user's resolved O*NET code (e.g. 15-1252.00
+for Software Developers). That code is the seed. Related occupations for Software
+Developers will include Web Developers, Information Security Analysts, Computer
+Programmers — NOT Operations Research Analysts or Statisticians.
+
+================================================================================
+STEP 1 — Probe the endpoint before writing any code
+================================================================================
+
+Before implementing, verify the endpoint exists and understand the response shape.
+
+Run this in a Python shell with a live ONET_API_KEY:
+
+    from backend.services.onet_client import OnetClient
+    client = OnetClient()
+
+    # Try the most likely endpoint path
+    result = client._get("online/occupations/15-1252.00/related_occupations")
+    print(result)
+
+    # If that 404s, try:
+    result = client._get("online/occupations/15-1252.00/related")
+    print(result)
+
+    # If that 404s, check O*NET API v2 docs at https://api-v2.onetcenter.org/
+    # for the correct path. The pattern follows other endpoints:
+    #   /online/occupations/{code}/details/skills
+    #   /online/occupations/{code}/summary/job_zone
+    # Related occupations would be one of the above patterns.
+
+NOTE: Do not proceed with implementation until the correct endpoint path and
+response shape are confirmed. The rest of this prompt assumes the endpoint
+exists — adjust field names based on what the probe actually returns.
+
+Expected response shape (adjust based on probe output):
+    {
+      "occupation": [
+        {"code": "15-1254.00", "title": "Web Developers"},
+        {"code": "15-1212.00", "title": "Information Security Analysts"},
+        ...
+      ]
+    }
+    OR possibly:
+    {
+      "related_occupation": [
+        {"code": "...", "title": "...", "fit": 0.92},
+        ...
+      ]
+    }
+
+================================================================================
+STEP 2 — Add get_related_occupations() to OnetClient
+================================================================================
+
+In backend/services/onet_client.py, add after get_job_zone():
+
+    def get_related_occupations(self, onet_code: str) -> list[Occupation]:
+        """Return O*NET-scored related occupations for *onet_code*.
+
+        O*NET computes relatedness from shared skills, work activities,
+        knowledge, and work context — not keyword similarity. This produces
+        a high-quality, field-appropriate candidate pool without needing
+        hard-coded exclusion lists.
+
+        Falls back to empty list on API error so callers can degrade gracefully
+        to keyword search.
+        """
+        try:
+            # Use the endpoint path confirmed in STEP 1
+            data = self._get(f"online/occupations/{onet_code}/related_occupations")
+            # Adjust the key name based on actual probe output
+            occs = data.get("occupation", []) or data.get("related_occupation", [])
+            return [
+                Occupation(code=occ["code"], title=occ["title"])
+                for occ in occs
+                if occ.get("code") and occ.get("title")
+            ]
+        except OnetAPIError as exc:
+            _log.warning(
+                "get_related_occupations failed for %s: %s", onet_code, exc
+            )
+            return []
+
+================================================================================
+STEP 3 — Rearchitect _gather_candidates() in path_scoring.py
+================================================================================
+
+CURRENT FLOW:
+  1. LLM generates 3 keyword search terms
+  2. O*NET keyword search each term → 20 results each → 60 candidate pool
+  3. _filter_candidate_pool applies SOC prefix filter → ~40 candidates
+
+NEW FLOW:
+  1. If zone resolution gave us a code (current_code is not None):
+       PRIMARY pool = onet_client.get_related_occupations(current_code)
+  2. LLM still generates keyword search terms (for pivot/supplementary roles)
+  3. O*NET keyword search each term → results → SUPPLEMENTARY pool
+  4. Merge: primary + supplementary, deduplicate by code
+  5. Apply existing _filter_candidate_pool (SOC prefix filter) to merged pool
+
+  If current_code is None (zone resolution failed):
+       Fall back to current keyword-only approach (no change to existing behavior)
+
+IMPLEMENTATION in _gather_candidates():
+
+    def _gather_candidates(
+        profile: UserProfile,
+        onet_client: OnetClient,
+        exclude_code: str | None,
+        current_onet_code: str | None,   # ← NEW PARAM: from zone resolution
+        openai_client=None,
+    ) -> list[Occupation]:
+
+        seen: set[str] = set()
+        if exclude_code:
+            seen.add(exclude_code)
+
+        candidates: list[Occupation] = []
+
+        # ── PRIMARY: O*NET related occupations (high quality, no keyword noise) ──
+        if current_onet_code:
+            related = onet_client.get_related_occupations(current_onet_code)
+            _llm_log(
+                "CANDIDATE POOL — Related Occupations",
+                f"Seed code: {current_onet_code}\n"
+                f"Related ({len(related)}): {[o.title for o in related]}"
+            )
+            for occ in related:
+                if occ.code not in seen:
+                    seen.add(occ.code)
+                    candidates.append(occ)
+
+        # ── SUPPLEMENTARY: LLM keyword search (for pivots, Bright Outlook, etc.) ──
+        search_terms = _generate_search_terms(profile, openai_client)
+        for term in search_terms:
+            results = onet_client.search_occupations(term)
+            _llm_log(
+                f"CANDIDATE SEARCH — Term: {term!r}",
+                f"Results ({len(results)}): {[o.title for o in results]}"
+            )
+            for occ in results:
+                if occ.code not in seen:
+                    seen.add(occ.code)
+                    candidates.append(occ)
+
+        # Existing filter (SOC prefix inclusion) still applies
+        filtered = _filter_candidate_pool(candidates, profile)
+
+        _llm_log(
+            "CANDIDATE POOL — Final",
+            f"Total candidates: {len(filtered)}\n"
+            + "\n".join(f"  [{o.code}] {o.title}" for o in filtered)
+        )
+        return filtered
+
+Also pass current_onet_code into _gather_candidates from score_paths():
+  The zone resolution result (current_code) is already available in score_paths()
+  before _gather_candidates is called — just thread it through as a parameter.
+
+
+================================================================================
+STEP 4 — Update _generate_search_terms() prompt (minor)
+================================================================================
+
+The LLM search terms still run as supplementary. Update the "NOT academic" example
+list in the prompt to explicitly name Operations Research Analysts and Statisticians
+(in addition to the existing Bioinformatics Scientists / Remote Sensing Scientists),
+so the LLM doesn't generate them as primary search terms:
+
+  Change:
+    "Target industry-practical roles, NOT academic research roles
+     (not 'Bioinformatics Scientists', not 'Remote Sensing Scientists')"
+
+  To:
+    "Target industry-practical roles, NOT academic or research roles.
+     Examples of what NOT to include:
+       'Computer and Information Research Scientists'
+       'Operations Research Analysts'
+       'Statisticians'
+       'Bioinformatics Scientists'
+       'Remote Sensing Scientists'
+       'Survey Researchers'"
+
+This is a belt-and-suspenders measure — the related occupations approach already
+handles pool quality structurally, but this prevents the LLM from adding research
+roles back in through the supplementary keyword search path.
+
+
+================================================================================
+EXPECTED CANDIDATE POOL AFTER CHANGE
+================================================================================
+
+Seed: Software Developers [15-1252.00] (from zone resolution)
+
+Related occupations (primary pool, expected from O*NET):
+  Web Developers
+  Software Quality Assurance Analysts and Testers
+  Computer Programmers
+  Computer Systems Analysts
+  Information Security Analysts
+  Database Administrators
+  Computer Systems Engineers/Architects
+  Web and Digital Interface Designers
+  Computer Network Architects
+  Network and Computer Systems Administrators
+  [~10-15 total]
+
+LLM search terms supplementary (for "Information Security Analysts", "Data Scientists"):
+  Penetration Testers
+  Information Security Engineers
+  Digital Forensics Analysts
+  Data Scientists
+  [additional 5-10 relevant roles]
+
+Total pool: ~20-25 tightly relevant candidates
+vs. current 40-60 with many irrelevant research roles
+
+CIRS, Operations Research Analysts, Statisticians will NOT appear because:
+  1. O*NET's related occupations for Software Developers won't include them
+  2. LLM search terms updated to explicitly avoid generating them
+  3. SOC prefix filter still applies as a final backstop
+
+
+================================================================================
+IF THE RELATED OCCUPATIONS ENDPOINT DOES NOT EXIST
+================================================================================
+
+If the probe in STEP 1 confirms no related occupations endpoint exists in v2:
+
+  FALLBACK OPTION: Use job family occupations as the primary pool.
+  OnetClient.get_job_family_occupations() already exists and is tested.
+
+  The user's resolved O*NET code (e.g., 15-1252.00) → family code = "15-0000"
+  (Computer and Information Technology Occupations)
+
+  get_job_family_occupations("15-0000") returns ALL ~50 occupations in the 15-
+  family. This is broader than related occupations but much better than keyword
+  search — it's at least field-scoped. Operations Research Analysts (15-2031)
+  and Statisticians (15-2041) are in 15-2, not 15-1, so they'd still appear.
+
+  In this case: use job family + apply the minimal SOC sub-prefix exclusion
+  (exclude 15-2xxx from tech profiles) since we're already scoped to one family.
+  This is a much narrower exclusion than the original hard-coded list approach —
+  just one SOC minor group rather than 14 specific codes — and is defensible
+  because 15-2 (Mathematical Science Occupations) is a genuinely distinct
+  professional track from 15-1 (Computer Occupations).
+
+  In either case: update this prompt with findings and proceed accordingly.
+
+
+================================================================================
+TESTS
+================================================================================
+
+New tests in tests/test_path_scoring.py:
+  - test_related_occupations_used_as_primary_pool
+      Mock get_related_occupations to return [Software Developers, Web Developers]
+      Mock keyword search to return [CIRS, Operations Research Analysts]
+      Assert: final pool contains Software Developers, Web Developers
+      Assert: CIRS and Operations Research Analysts NOT in pool
+        (because related occupations pool dominates and supplementary search
+         for these terms returns them, but the llm_search_terms prompt should
+         not generate CIRS/ORA as terms — mock accordingly)
+
+  - test_falls_back_to_keyword_search_when_no_code
+      current_onet_code = None
+      Assert: get_related_occupations never called
+      Assert: keyword search runs as normal
+
+  - test_related_occupations_api_error_degrades_gracefully
+      get_related_occupations raises OnetAPIError
+      Assert: function returns [] (not raises)
+      Assert: _gather_candidates continues with keyword search only
+
+New test in tests/test_onet_client.py (or wherever OnetClient is tested):
+  - test_get_related_occupations_returns_occupation_list
+      Mock HTTP response with expected shape from probe
+      Assert: returns list of Occupation objects with correct code/title
+
+
+================================================================================
+FILES MODIFIED
+================================================================================
+  backend/services/onet_client.py    — add get_related_occupations()
+  backend/services/path_scoring.py   — rearchitect _gather_candidates(),
+                                       update search term prompt
+  tests/test_path_scoring.py         — 3 new tests
+  tests/test_onet_client.py          — 1 new test
+
+
+================================================================================
+VERIFICATION
+================================================================================
+1. Probe confirms endpoint path and response shape (before any code change)
+
+2. flask run → trigger Path Intelligence for current user
+
+3. Check llm_debug.txt:
+   - "CANDIDATE POOL — Related Occupations" section exists with ~10-15 roles
+   - Roles listed are all practical tech/IT roles
+   - CIRS, Operations Research Analysts, Statisticians are NOT listed
+   - "CANDIDATE POOL — Final" shows ~20-25 candidates total
+
+4. Check scoring_debug.txt:
+   - #1 is Software Developers, Web Developers, or Information Security Analysts
+   - No research/academic roles in top 10
+
+5. pytest tests/ — all tests pass
+================================================================================

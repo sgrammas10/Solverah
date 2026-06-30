@@ -86,7 +86,9 @@ def profile(**kwargs) -> UserProfile:
 
 @pytest.fixture()
 def mock_client() -> MagicMock:
-    return MagicMock(spec=OnetClient)
+    m = MagicMock(spec=OnetClient)
+    m.get_job_family_occupations.return_value = []  # default: job family empty; override per test
+    return m
 
 
 # ---------------------------------------------------------------------------
@@ -307,6 +309,7 @@ class TestGatherCandidates:
         assert [c.code for c in candidates].count("15-1252.00") == 1
 
     def test_excludes_current_code(self, mock_client):
+        mock_client.get_job_family_occupations.return_value = []
         mock_client.search_occupations.return_value = [occ("15-1252.00"), occ("15-1211.00")]
         p = profile(skills=[user_skill("Python")])
         candidates = _gather_candidates(p, mock_client, None, "15-1252.00")
@@ -340,6 +343,63 @@ class TestGatherCandidates:
         p = profile(skills=[user_skill("Python")])
         candidates = _gather_candidates(p, mock_client, None, None)
         assert candidates == []
+
+
+# ---------------------------------------------------------------------------
+# _gather_candidates — job family primary architecture (Fix 5)
+# ---------------------------------------------------------------------------
+
+
+def test_gather_candidates_uses_job_family_as_primary_pool(mock_client):
+    """Job family is used as primary pool; only first keyword result per term is added.
+
+    current_code "15-9999.00" is used as the resolved code (not present in the family
+    results) so all family members are eligible (none excluded as current occupation).
+    """
+    sw_dev = occ("15-1252.00", "Software Developers")
+    web_dev = occ("15-1254.00", "Web Developers")
+    cirs = occ("15-1221.00", "Computer and Information Research Scientists")
+    data_sci = occ("15-2051.00", "Data Scientists")
+
+    mock_client.get_job_family_occupations.return_value = [sw_dev, cirs, web_dev]
+    # Keyword search: first result per term = data_sci (only it is added; second result ignored)
+    mock_client.search_occupations.return_value = [data_sci, occ("15-2031.00", "Operations Research Analysts")]
+
+    p = profile(career_status="employed", skills=[user_skill("Python")])
+    candidates = _gather_candidates(p, mock_client, None, "15-9999.00")
+    codes = [c.code for c in candidates]
+
+    assert "15-1252.00" in codes    # from job family
+    assert "15-1254.00" in codes    # from job family
+    assert "15-2051.00" in codes    # first result from keyword search (whitelisted)
+    assert "15-1221.00" not in codes  # filtered by _RESEARCH_ROLE_CODES_EXCLUDE
+    assert "15-2031.00" not in codes  # filtered by _RESEARCH_SOC_PREFIX_EXCLUDE (15-2)
+
+
+def test_gather_candidates_first_result_only_from_keyword_search(mock_client):
+    """Keyword search contributes only result[0] per term, not all 20 results."""
+    a = occ("15-1252.00", "Software Developers")
+    b = occ("15-1254.00", "Web Developers")
+    c_ = occ("15-1211.00", "Computer Systems Analysts")
+
+    mock_client.get_job_family_occupations.return_value = []
+    mock_client.search_occupations.return_value = [a, b, c_]  # 3 results
+
+    p = profile(career_status="employed", skills=[user_skill("Python")])
+    candidates = _gather_candidates(p, mock_client, None, "15-9999.00")
+    codes = [c.code for c in candidates]
+
+    assert "15-1252.00" in codes   # result[0] kept
+    assert "15-1254.00" not in codes  # result[1] discarded
+    assert "15-1211.00" not in codes  # result[2] discarded
+
+
+def test_gather_candidates_skips_primary_when_no_code(mock_client):
+    """When current_code is None, job family call is skipped entirely."""
+    mock_client.search_occupations.return_value = [occ("15-1252.00")]
+    p = profile(skills=[user_skill("Python")])
+    _gather_candidates(p, mock_client, None, None)
+    mock_client.get_job_family_occupations.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -444,11 +504,14 @@ class TestScorePaths:
     """
 
     def test_employed_returns_scored_paths(self, mock_client):
+        # Both candidates come from job family (primary pool).
+        mock_client.get_job_family_occupations.return_value = [
+            occ("15-1211.00", "CS Analysts"),
+            occ("11-3021.00", "IT Managers"),
+        ]
         mock_client.search_occupations.side_effect = [
-            [occ("15-1252.00", "SW Dev")],        # resolve: current title
-            [occ("15-1211.00", "CS Analysts"),    # gather: title search
-             occ("11-3021.00", "IT Managers")],
-            [],                                    # gather: skill search (Python)
+            [occ("15-1252.00", "SW Dev")],  # resolve: current title
+            [], [],                          # keyword supplementary — nothing extra
         ]
         # get_job_zone: current=3, CS Analysts=4, IT Mgrs=5
         mock_client.get_job_zone.side_effect = [3, 4, 5]
@@ -488,11 +551,11 @@ class TestScorePaths:
         mock_client.search_occupations.assert_called_once_with("Communication")
 
     def test_between_jobs_resolves_title_and_scores(self, mock_client):
+        # Data Sci comes from job family (15-2051.00 is whitelisted in _RESEARCH_SOC_WHITELIST).
+        mock_client.get_job_family_occupations.return_value = [occ("15-2051.00", "Data Sci")]
         mock_client.search_occupations.side_effect = [
-            [occ("15-1252.00", "SW Dev")],   # resolve
-            [occ("15-1252.00", "SW Dev"),    # gather (current excluded)
-             occ("15-2051.00", "Data Sci")],
-            [],                               # skill search
+            [occ("15-1252.00", "SW Dev")],  # resolve
+            [], [],                          # keyword supplementary — nothing extra
         ]
         mock_client.get_job_zone.side_effect = [3, 4]   # current=3, Data Sci=4
         mock_client.get_tech_skills.return_value = set()
@@ -569,16 +632,17 @@ class TestScorePaths:
         assert results[0].score == pytest.approx(_ZONE_WEIGHT_EXPERIENCED * 1.0)
 
     def test_higher_zone_beats_same_zone_with_equal_skills(self, mock_client):
+        mock_client.get_job_family_occupations.return_value = [
+            occ("15-1211.00", "Same Zone"),
+            occ("11-3021.00", "Higher Zone"),
+        ]
         mock_client.search_occupations.side_effect = [
-            [occ("15-1252.00")],                         # resolve
-            [occ("15-1211.00", "Same Zone"),             # gather
-             occ("11-3021.00", "Higher Zone")],
-            [],
+            [occ("15-1252.00")],  # resolve
+            [], [],               # keyword supplementary — nothing extra
         ]
         # current=3, same=3, higher=4
         mock_client.get_job_zone.side_effect = [3, 3, 4]
         mock_client.get_tech_skills.return_value = set()
-        # Identical skill overlap for both candidates
         mock_client.get_skills_profile.return_value = [onet_skill("Python", 100.0)]
 
         results = score_paths(
@@ -620,10 +684,13 @@ class TestScorePaths:
         assert len(results) <= 10
 
     def test_results_sorted_descending(self, mock_client):
+        mock_client.get_job_family_occupations.return_value = [
+            occ("15-0001.00", "Low"),
+            occ("15-0002.00", "High"),
+        ]
         mock_client.search_occupations.side_effect = [
-            [occ("15-1252.00")],
-            [occ("15-0001.00", "Low"), occ("15-0002.00", "High")],
-            [],
+            [occ("15-1252.00")],  # resolve
+            [], [],               # keyword supplementary — nothing extra
         ]
         # current=2; both candidates at zone 3 (delta=+1)
         mock_client.get_job_zone.side_effect = [2, 3, 3]
@@ -648,10 +715,14 @@ class TestScorePaths:
         assert results == []
 
     def test_api_error_on_zone_fetch_skips_candidate(self, mock_client):
+        # Both candidates come from job family; 15-1211 fails zone lookup, 15-2051 succeeds.
+        mock_client.get_job_family_occupations.return_value = [
+            occ("15-1211.00", "Fails"),
+            occ("15-2051.00", "Succeeds"),
+        ]
         mock_client.search_occupations.side_effect = [
             [occ("15-1252.00")],
-            [occ("15-1211.00", "Fails"), occ("15-2051.00", "Succeeds")],
-            [],
+            [], [],
         ]
         mock_client.get_job_zone.side_effect = [
             3,                         # current zone
@@ -666,10 +737,13 @@ class TestScorePaths:
         assert results[0].onet_code == "15-2051.00"
 
     def test_api_error_on_skills_fetch_skips_candidate(self, mock_client):
+        mock_client.get_job_family_occupations.return_value = [
+            occ("15-1211.00", "Fails Skills"),
+            occ("15-2051.00", "OK"),
+        ]
         mock_client.search_occupations.side_effect = [
             [occ("15-1252.00")],
-            [occ("15-1211.00", "Fails Skills"), occ("15-2051.00", "OK")],
-            [],
+            [], [],
         ]
         mock_client.get_job_zone.side_effect = [3, 4, 4]
         mock_client.get_tech_skills.return_value = set()
@@ -1460,22 +1534,33 @@ def test_candidate_pool_excludes_unrelated_science_roles():
 
 
 def test_candidate_pool_excludes_research_adjacent_roles_by_default():
-    """CIRS and the 15-2 Mathematical Science Occupations family are removed for a tech user."""
+    """15-2 Mathematical Science Occupations and CIRS are removed for a tech user.
+
+    15-2051.00 (Data Scientists) is the sole 15-2 practitioner role and must survive
+    the prefix exclusion via _RESEARCH_SOC_WHITELIST.
+    """
     tech_user = profile(
         career_status="employed",
         skills=[user_skill("React"), user_skill("Python"), user_skill("SQL")],
     )
     candidates = [
         occ("15-1252.00", "Software Developers"),
-        occ("15-1221.00", "Computer and Information Research Scientists"),
-        occ("15-2031.00", "Operations Research Analysts"),
-        occ("15-2041.00", "Statisticians"),
-        occ("15-2021.00", "Mathematicians"),
-        occ("15-2099.01", "Bioinformatics Technicians"),
+        occ("15-2051.00", "Data Scientists"),            # whitelisted — must survive
+        occ("15-1221.00", "Computer and Information Research Scientists"),  # excluded by code
+        occ("15-2031.00", "Operations Research Analysts"),   # excluded by 15-2 prefix
+        occ("15-2041.00", "Statisticians"),                  # excluded by 15-2 prefix
+        occ("15-2021.00", "Mathematicians"),                 # excluded by 15-2 prefix
+        occ("15-2099.01", "Bioinformatics Technicians"),     # excluded by 15-2 prefix
     ]
     filtered = _filter_candidate_pool(candidates, tech_user)
     codes = [o.code for o in filtered]
-    assert codes == ["15-1252.00"]
+    assert "15-1252.00" in codes
+    assert "15-2051.00" in codes
+    assert "15-1221.00" not in codes
+    assert "15-2031.00" not in codes
+    assert "15-2041.00" not in codes
+    assert "15-2021.00" not in codes
+    assert "15-2099.01" not in codes
 
 
 def test_candidate_pool_keeps_research_roles_when_unlocked_by_skills():
@@ -1525,36 +1610,36 @@ def test_coverage_user_direction_higher_for_aligned_role():
 
 
 def test_research_scientist_excluded_from_results_for_tech_user(mock_client):
-    """Full-stack engineer profile excludes CIRS entirely rather than merely ranking it lower.
+    """CIRS is excluded from score_paths results even when it appears in the job family.
 
-    Earlier rounds relied on embedding-direction differentiation alone to push
-    CIRS below Software Developers, but real-world embeddings for CIRS (Python,
-    statistical methods) overlap enough with practitioner skills that this didn't
-    hold up — CIRS still won. _filter_candidate_pool now excludes it outright.
+    CIRS enters via the job family primary pool (15-0000 family includes 15-1221.00),
+    but _filter_candidate_pool removes it before it reaches the scoring loop.
     """
     import backend.services.path_scoring as ps
     ps._EMBED_CACHE.clear()
 
-    # User skills: tech direction [1, 0]
     for skill in ["react", "typescript", "python", "sql"]:
         ps._EMBED_CACHE[skill] = [1.0, 0.0]
-
-    # Software Developers hot tech: tech direction
     for item in ["JavaScript", "React", "Python", "TypeScript", "Node.js"]:
         ps._EMBED_CACHE[item] = [1.0, 0.0]
 
     sw_dev = occ("15-1252.00", "Software Developers")
+    web_dev = occ("15-1254.00", "Web Developers")
     cirs = occ("15-1221.00", "Computer and Information Research Scientists")
 
+    # Zone resolution: one search_occupations call
     mock_client.search_occupations.side_effect = [
-        [occ("15-1253.00")],  # resolve current title → code 15-1253.00 (SW QA, zone 3)
-        [sw_dev, cirs],        # gather: search term results (CIRS filtered out before scoring)
+        [occ("15-1253.00")],   # zone resolution for "Software Engineer"
+        [sw_dev],               # supplementary: first result for "Software Developers" term
     ]
-    mock_client.get_job_zone.side_effect = [3, 3]  # current=3, SW Dev=3 (CIRS never scored)
+    # Job family primary includes sw_dev, web_dev, cirs; CIRS filtered before scoring
+    mock_client.get_job_family_occupations.return_value = [sw_dev, cirs, web_dev]
+    mock_client.get_job_zone.side_effect = [3, 3, 3]  # current=3, sw_dev=3, web_dev=3
     mock_client.get_tech_skills.side_effect = [
-        {"JavaScript", "React", "Python", "TypeScript", "Node.js"},
+        {"JavaScript", "React", "Python", "TypeScript", "Node.js"},  # sw_dev
+        {"HTML", "CSS", "JavaScript"},                                # web_dev
     ]
-    mock_client.get_skills_profile.side_effect = [[]]
+    mock_client.get_skills_profile.side_effect = [[], []]
 
     mock_openai = MagicMock()
     mock_openai.chat.completions.create.return_value = MagicMock(
@@ -1763,23 +1848,23 @@ def test_proficiency_weights_applied_in_score_paths(mock_client):
     ps._EMBED_CACHE["Forecasting"] = [0.0, 1.0]
 
     role_a = occ("15-1257.00", "Web Developers")
-    role_b = occ("15-2011.00", "Actuaries")  # non-excluded SOC code; not in _RESEARCH_ROLE_CODES_EXCLUDE
+    role_b = occ("13-1041.00", "Compliance Officers")  # 13- prefix (Business), not in 15-2 exclusion
 
     mock_client.search_occupations.side_effect = [
-        [occ("15-1253.00")],   # zone resolution for "Frontend Developer"
-        [role_a],               # gather: "Web Developers"
-        [role_b],               # gather: "Actuaries"
+        [occ("15-1253.00")],    # zone resolution for "Frontend Developer"
+        [role_a],                # keyword first result: "Web Developers"
+        [role_b],                # keyword first result: "Compliance Officers"
     ]
     mock_client.get_job_zone.side_effect = [3, 4, 3]  # current, role_a, role_b
     mock_client.get_tech_skills.side_effect = [
         {"React", "JavaScript", "TypeScript"},  # role_a
-        {"ARIMA", "Time Series", "Forecasting"},  # role_b
+        {"ARIMA", "Time Series", "Forecasting"},  # role_b (orthogonal to React)
     ]
     mock_client.get_skills_profile.side_effect = [[], []]
 
     mock_openai = MagicMock()
     mock_openai.chat.completions.create.return_value = MagicMock(
-        choices=[MagicMock(message=MagicMock(content='["Web Developers", "Actuaries"]'))]
+        choices=[MagicMock(message=MagicMock(content='["Web Developers", "Compliance Officers"]'))]
     )
     mock_openai.embeddings.create.return_value = MagicMock(data=[])
 
@@ -1799,8 +1884,8 @@ def test_proficiency_weights_applied_in_score_paths(mock_client):
 
     score_map = {r.onet_code: r.score for r in results}
     assert "15-1257.00" in score_map, "Web Developers should appear"
-    assert "15-2011.00" in score_map, "Actuaries should appear"
-    assert score_map["15-1257.00"] > score_map["15-2011.00"]
+    assert "13-1041.00" in score_map, "Compliance Officers should appear"
+    assert score_map["15-1257.00"] > score_map["13-1041.00"]
     ps._EMBED_CACHE.clear()
 
 

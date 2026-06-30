@@ -2,82 +2,185 @@
 ============================================================
 ZONE RESOLUTION — O*NET Search Result
 ============================================================
-Search term  : 'Frontend Developer'
+Search term  : 'Founder & Full Stack Engineer'
 O*NET found  : True
-First result : A Role [15-1253.00]
+First result : Engineers, All Other [17-2199.00]
+
+============================================================
+ZONE RESOLUTION — Title Normalization
+============================================================
+Raw title input : 'Founder & Full Stack Engineer'
+Prompt sent     :
+Map this job title to a standard O*NET occupation title.
+Use exact O*NET-style titles (e.g. 'Software Developers', 'Web Developers',
+'General and Operations Managers', 'Computer and Information Systems Managers').
+Use plural form as O*NET uses plural occupation names.
+No explanation. Output the title only.
+
+Examples:
+  'Co-Founder & CTO' → 'Computer and Information Systems Managers'
+  'Founder & Full Stack Engineer' → 'Software Developers'
+  'Senior Data Analyst' → 'Data Scientists'
+  'Head of Growth' → 'Marketing Managers'
+
+Input: Founder & Full Stack Engineer
+Output:
+Raw LLM response: 'Software Developers'
+Parsed output   : 'Software Developers'
+
+============================================================
+ZONE RESOLUTION — O*NET Search Result
+============================================================
+Search term  : 'Software Developers'
+O*NET found  : True
+First result : Software Developers [15-1252.00]
 
 ============================================================
 ZONE RESOLUTION — Final Outcome
 ============================================================
-zone=3  resolved=True  reliable=True
-onet_code='15-1253.00'
+zone=4  resolved=True  reliable=True
+onet_code='15-1252.00'
+
+============================================================
+CANDIDATE POOL — Primary (Job Family)
+============================================================
+Seed code: 15-1252.00  family: 15-0000
+Results (20): ['Actuaries', 'Bioinformatics Technicians', 'Biostatisticians', 'Blockchain Engineers', 'Business Intelligence Analysts', 'Clinical Data Managers', 'Computer and Information Research Scientists', 'Computer Network Architects', 'Computer Network Support Specialists', 'Computer Occupations, All Other', 'Computer Programmers', 'Computer Systems Analysts', 'Computer Systems Engineers/Architects', 'Computer User Support Specialists', 'Data Scientists', 'Data Warehousing Specialists', 'Database Administrators', 'Database Architects', 'Digital Forensics Analysts', 'Document Management Specialists']
 
 ============================================================
 SEARCH TERM GENERATION — LLM Input
 ============================================================
-Current title: 'Frontend Developer'
-Skills (2): react, arima
+Current title: 'Founder & Full Stack Engineer'
+Skills (39): React, TypeScript, Vite, Tailwind, Flask, Python, PostgreSQL, REST APIs, CI, CD, Conversational AI, semantic search, cosine similarity, OCR, object detection, time-series forecasting, ARIMA, SARIMA, Prophet, LSTM, U-Net segmentation, NiFi pipelines, Elasticsearch, Cloudflare R2, web scraping, openpyxl, Vega dashboards, Binary exploitation, ROP, stack overflows, ASLR, NX bypass, reverse engineering, network security, DNS attacks, JavaScript, C++, Assembly, SQL
 
 Full prompt:
 You are a career advisor with knowledge of O*NET occupations.
 
-Analyze the skills below and identify the distinct career domains they represent.
+Analyze the skills below and identify ALL distinct career domains they represent.
 For each domain, output ONE standard O*NET occupation title.
 
 Rules:
-- Use exact O*NET-style titles (e.g. "Software Developers", "Information Security Analysts", "Registered Nurses", "Data Scientists")
-- Target industry-practical roles, NOT academic research roles (not "Bioinformatics Scientists", not "Remote Sensing Scientists", not "Operations Research Analysts", not "Statisticians")
-- Do NOT infer niche specializations (blockchain, quantum computing, biotech) unless the user lists core specialized skills for that field (e.g. Solidity for blockchain, lab techniques for biotech)
-- Cover ALL distinct domains present — if the user has both programming skills AND security skills, include both
-- Output ONLY a JSON array of strings, no explanation
+- Use exact O*NET-style titles in plural form
+  (e.g. "Software Developers", "Information Security Analysts", "Registered Nurses")
+- Include a title for EVERY distinct domain present:
+    Web/frontend skills                        → "Web Developers" or "Software Developers"
+    Security/exploitation/reverse engineering  → "Penetration Testers"
+    Security monitoring/defense                → "Information Security Analysts"
+    Data/ML/statistics skills                  → "Data Scientists"
+    Database skills                            → "Database Architects"
+    Network skills                             → "Computer Network Architects"
+- Target industry-practical roles, NOT academic or research roles.
+  Examples of what NOT to include:
+    "Computer and Information Research Scientists"
+    "Operations Research Analysts"
+    "Statisticians"
+    "Bioinformatics Scientists"
+    "Remote Sensing Scientists"
+    "Survey Researchers"
+- Do NOT infer niche roles (blockchain, quantum) unless user lists core specialized
+  skills for that field
+- Output ONLY a JSON array of strings, no explanation, max 6 items
 
-Current title: Frontend Developer
-Skills: react, arima
+Current title: Founder & Full Stack Engineer
+Skills: React, TypeScript, Vite, Tailwind, Flask, Python, PostgreSQL, REST APIs, CI, CD, Conversational AI, semantic search, cosine similarity, OCR, object detection, time-series forecasting, ARIMA, SARIMA, Prophet, LSTM, U-Net segmentation, NiFi pipelines, Elasticsearch, Cloudflare R2, web scraping, openpyxl, Vega dashboards, Binary exploitation, ROP, stack overflows, ASLR, NX bypass, reverse engineering, network security, DNS attacks, JavaScript, C++, Assembly, SQL
 
 Output:
 
 ============================================================
 SEARCH TERM GENERATION — LLM Output
 ============================================================
-Raw response : '["Web Developers", "Actuaries"]'
-Parsed terms : ['Web Developers', 'Actuaries']
+Raw response : '[\n    "Web Developers",\n    "Penetration Testers",\n    "Information Security Analysts",\n    "Data Scientists",\n    "Database Architects",\n    "Computer Network Architects"\n]'
+Parsed terms : ['Web Developers', 'Penetration Testers', 'Information Security Analysts', 'Data Scientists', 'Database Architects', 'Computer Network Architects']
 
 ============================================================
 CANDIDATE SEARCH — Term: 'Web Developers'
 ============================================================
-Results (1): ['Web Developers']
+First result: Web Developers [15-1254.00]
 
 ============================================================
-CANDIDATE SEARCH — Term: 'Actuaries'
+CANDIDATE SEARCH — Term: 'Penetration Testers'
 ============================================================
-Results (1): ['Actuaries']
+First result: Penetration Testers [15-1299.04]
+
+============================================================
+CANDIDATE SEARCH — Term: 'Information Security Analysts'
+============================================================
+First result: Information Security Analysts [15-1212.00]
+
+============================================================
+CANDIDATE SEARCH — Term: 'Data Scientists'
+============================================================
+First result: Data Scientists [15-2051.00]
+
+============================================================
+CANDIDATE SEARCH — Term: 'Database Architects'
+============================================================
+First result: Database Architects [15-1243.00]
+
+============================================================
+CANDIDATE SEARCH — Term: 'Computer Network Architects'
+============================================================
+First result: Computer Network Architects [15-1241.00]
 
 ============================================================
 CANDIDATE POOL — Final
 ============================================================
-Total candidates: 2
-  [15-1257.00] Web Developers
+Total candidates: 23
   [15-2011.00] Actuaries
+  [15-2099.01] Bioinformatics Technicians
+  [15-2041.01] Biostatisticians
+  [15-1299.07] Blockchain Engineers
+  [15-2051.01] Business Intelligence Analysts
+  [15-2051.02] Clinical Data Managers
+  [15-1221.00] Computer and Information Research Scientists
+  [15-1241.00] Computer Network Architects
+  [15-1231.00] Computer Network Support Specialists
+  [15-1299.00] Computer Occupations, All Other
+  [15-1251.00] Computer Programmers
+  [15-1211.00] Computer Systems Analysts
+  [15-1299.08] Computer Systems Engineers/Architects
+  [15-1232.00] Computer User Support Specialists
+  [15-2051.00] Data Scientists
+  [15-1243.01] Data Warehousing Specialists
+  [15-1242.00] Database Administrators
+  [15-1243.00] Database Architects
+  [15-1299.06] Digital Forensics Analysts
+  [15-1299.03] Document Management Specialists
+  [15-1254.00] Web Developers
+  [15-1299.04] Penetration Testers
+  [15-1212.00] Information Security Analysts
 
 ============================================================
 BEHAVIORAL PROFILE — Composed String
 ============================================================
-archetype      : ''
-focus_type     : None
-manager_match  : None
-work_style_tags: []
+archetype      : 'Autonomous Strategic Contributor'
+focus_type     : 'Deep Diver'
+manager_match  : 'As an Operator, you prioritize efficiency and outcomes within your team. Your blend of seeking autonomy while valuing direct feedback and personal relationships makes you a driven manager who inspires others to achieve their best work.'
+work_style_tags: ['You can return to your tasks promptly after interruptions, showcasing resilience and quick adaptability in your work style.', 'You thrive when given full autonomy over your work processes, allowing you to manage your time and approach effectively.', 'Your openness to critical feedback reflects a growth-oriented mindset, enhancing your ability to improve and adapt in your role.', 'Your day-to-day tasks closely match your personal development goals, indicating a strong connection between current projects and future aspirations.']
 
 Composed string:
-(None — no assessment data)
+You naturally create momentum by taking charge of your tasks and defining your own processes, leading to high-quality outcomes. Environments that grant you the freedom to work independently while providing clarity in expectations will suit you best. However, you may face friction stemming from occasional urgency and external pressures that do not align with your working style. Deep Diver As an Operator, you prioritize efficiency and outcomes within your team. Your blend of seeking autonomy while valuing direct feedback and personal relationships makes you a driven manager who inspires others to achieve their best work. You can return to your tasks promptly after interruptions, showcasing resilience and quick adaptability in your work style. You thrive when given full autonomy over your work processes, allowing you to manage your time and approach effectively. Your openness to critical feedback reflects a growth-oriented mindset, enhancing your ability to improve and adapt in your role. Your day-to-day tasks closely match your personal development goals, indicating a strong connection between current projects and future aspirations.
 
 ============================================================
 CANDIDATE SCORES — Top 5 Detail
 ============================================================
-  [15-1257.00] Web Developers
-    centroid=0.9496  coverage=1.0000
-    work_style=0.0000  zone=1.0000
-    final=0.9874
-  [15-2011.00] Actuaries
-    centroid=0.3134  coverage=1.0000
-    work_style=0.0000  zone=0.5000
-    final=0.5783
+  [15-1243.00] Database Architects
+    centroid=0.8748  coverage=0.4000
+    work_style=0.4551  zone=0.5000
+    final=0.5322
+  [15-1241.00] Computer Network Architects
+    centroid=0.8767  coverage=0.4000
+    work_style=0.4385  zone=0.5000
+    final=0.5292
+  [15-1251.00] Computer Programmers
+    centroid=0.8773  coverage=0.4000
+    work_style=0.4353  zone=0.5000
+    final=0.5287
+  [15-1242.00] Database Administrators
+    centroid=0.8735  coverage=0.4000
+    work_style=0.4374  zone=0.5000
+    final=0.5285
+  [15-1211.00] Computer Systems Analysts
+    centroid=0.8712  coverage=0.4000
+    work_style=0.4377  zone=0.5000
+    final=0.5282
