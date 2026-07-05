@@ -6,10 +6,17 @@ Ranks O*NET occupations against a user's profile using a weighted sum of:
       The role profile merges O*NET hot tech tools (trending tools only) with
       important generic competency skills into a single unified pool.
   (b) job-zone delta — rewards roles 1–2 zones above the user's current zone.
+  (c) role-identity anchor — cosine similarity between the user's current/most
+      recent occupation title and the candidate's O*NET title (1.0 on an exact
+      O*NET code match).  Reserved as a top-level weight by move_intent before
+      the skills/zone/style split below, which is then rescaled to fit the
+      remaining budget.  Zero when there's no current title or no openai_client.
 
 Zone delta carries more weight for first-job users (0.6) where zone direction
 is highly predictive.  For experienced users the split is balanced (0.5/0.5)
-because semantic skill matching is now an equally reliable signal.
+because semantic skill matching is now an equally reliable signal.  These two
+weights (plus the optional behavioral style weight) are rescaled by
+(1 - role_w) once the role-identity anchor above claims its share.
 
 LLM calls made per invocation (when openai_client is provided):
   1  (search term generation — maps full skill set to O*NET occupation titles)
@@ -80,6 +87,19 @@ _WORK_ACTIVITY_IMPORTANCE_THRESHOLD: float = 50.0
 # Kept low until validated against more profiles — enough to add nuance without
 # overriding correct skill-based rankings.
 _WORK_STYLE_WEIGHT: float = 0.10
+
+# Role-identity anchor weight, reserved by move_intent before the skills/zone/style
+# split (see score_paths).  fresh_start deliberately zeroes this out — the user is
+# explicitly asking to leave their current occupation, so anchoring to it would
+# fight their stated intent.  Keyed by move_intent; None (unspecified) is a real
+# dict key here, not a "missing" sentinel.
+_ROLE_WEIGHT_BY_INTENT: dict[str | None, float] = {
+    "stay_in_field": 0.50,
+    None: 0.35,
+    "adjacent": 0.25,
+    "fresh_start": 0.0,
+}
+_ROLE_WEIGHT_DEFAULT: float = 0.35
 
 # Role coverage signal: fraction of the K most representative role items the user
 # can cover.  "Most representative" = closest to the role's own embedding centroid,
@@ -305,6 +325,37 @@ def _batch_embed(texts: list[str], client) -> None:
             _EMBED_CACHE[missing[item.index]] = item.embedding
     except Exception:
         _log.warning("embedding API call failed (%d texts)", len(missing), exc_info=True)
+
+
+def _role_similarity_score(
+    current_title: str | None,
+    candidate_title: str,
+    candidate_code: str,
+    current_code: str | None,
+    openai_client,
+) -> float | None:
+    """How close *candidate* is to the user's current/most-recent occupation.
+
+    Returns 1.0 immediately on an exact O*NET code match (no embedding call
+    needed) — this guarantees the user's own occupation, or its zone-normalised
+    equivalent, sits at the ceiling.  Otherwise embeds *current_title* and
+    *candidate_title* and returns their cosine similarity.
+
+    Returns None (not 0.0) when there is no current title to anchor to or
+    embeddings are unavailable, so callers can distinguish "no signal" from
+    "measured and low" and fall back to zero weight rather than penalising
+    every candidate.
+    """
+    if current_code is not None and candidate_code == current_code:
+        return 1.0
+    if current_title is None or openai_client is None:
+        return None
+    _batch_embed([current_title, candidate_title], openai_client)
+    current_emb = _EMBED_CACHE.get(current_title)
+    candidate_emb = _EMBED_CACHE.get(candidate_title)
+    if current_emb is None or candidate_emb is None:
+        return None
+    return _cosine_similarity(current_emb, candidate_emb)
 
 
 # ---------------------------------------------------------------------------
@@ -776,16 +827,24 @@ def _resolve_current_zone(
     profile: UserProfile,
     onet_client: OnetClient,
     openai_client=None,
-) -> tuple[int, str | None, bool]:
-    """Return (current_zone, current_onet_code, zone_resolved).
+) -> tuple[int, str | None, bool, str | None]:
+    """Return (current_zone, current_onet_code, zone_resolved, current_title_used).
 
     Searches O*NET for the user's current title.  If the raw title returns no
     results and openai_client is provided, retries once with an LLM-normalised
     title.  Falls back to zone 1 on first_job status, missing title, or any
     unresolvable case.  zone_resolved is False whenever the zone is a fallback.
+
+    current_title_used is the title string that produced the returned code —
+    the raw title, the LLM-normalised title, or the broad-category fallback
+    title, whichever search succeeded.  Used downstream as the anchor text for
+    role-similarity scoring.  Falls back to the raw title even when no
+    zone/code could be resolved at all (still non-None whenever a title was
+    provided), since that signal is independent of zone reliability.  None
+    only when the profile has no current title to begin with.
     """
     if profile.career_status == "first_job" or not profile.current_title:
-        return 1, None, False
+        return 1, None, False, None
 
     def _search_and_resolve(title: str) -> tuple[int, str | None, bool] | None:
         try:
@@ -824,7 +883,7 @@ def _resolve_current_zone(
             f"zone={raw_result[0]}  resolved={raw_result[2]}  reliable={raw_result[2]}\n"
             f"onet_code={raw_result[1]!r}",
         )
-        return raw_result
+        return raw_result[0], raw_result[1], raw_result[2], profile.current_title
 
     if openai_client is not None:
         normalized = _normalize_title_for_onet(profile.current_title, openai_client)
@@ -836,7 +895,7 @@ def _resolve_current_zone(
                     f"zone={norm_result[0]}  resolved={norm_result[2]}  reliable={norm_result[2]}\n"
                     f"onet_code={norm_result[1]!r}",
                 )
-                return norm_result
+                return norm_result[0], norm_result[1], norm_result[2], normalized
 
         # Second attempt: broad category fallback prompt when first normalized title also misses.
         try:
@@ -868,7 +927,7 @@ def _resolve_current_zone(
                         f"zone={broad_result[0]}  resolved={broad_result[2]}  reliable={broad_result[2]}\n"
                         f"onet_code={broad_result[1]!r}",
                     )
-                    return broad_result
+                    return broad_result[0], broad_result[1], broad_result[2], broad
         except Exception:
             _log.warning(
                 "broad category fallback LLM call failed for %r",
@@ -884,13 +943,13 @@ def _resolve_current_zone(
             f"zone={raw_result[0]}  resolved={raw_result[2]}  reliable={raw_result[2]}\n"
             f"onet_code={raw_result[1]!r}",
         )
-        return raw_result
+        return raw_result[0], raw_result[1], raw_result[2], profile.current_title
 
     _llm_log(
         "ZONE RESOLUTION — Final Outcome",
         "zone=1  resolved=False  reliable=False\nonet_code=None",
     )
-    return 1, None, False
+    return 1, None, False, profile.current_title
 
 
 # ---------------------------------------------------------------------------
@@ -1087,23 +1146,29 @@ def score_paths(
     ---------
     1. Resolve the user's current job zone (zone 1 for first-job / unknown).
        When openai_client is provided, retries with LLM-normalised title on
-       O*NET search miss.
+       O*NET search miss.  Also yields the anchor title used for role-identity
+       scoring (raw, LLM-normalised, or broad-category fallback).
     2. Build a candidate pool from O*NET keyword searches.
-    3. For each candidate, fetch zone, hot tech tools, and generic skills, then:
+    3. Reserve role_w by move_intent (0.0 when there's no anchor title or no
+       openai_client), then rescale skills_w/zone_w/style_w by (1 - role_w) so
+       all four weights sum to 1.0.  A no-op when role_w is 0.
+    4. For each candidate, fetch zone, hot tech tools, and generic skills, then:
 
            role_items    = _build_role_profile(hot_tech_names, generic_skills)
            overlap_score = centroid_similarity(user_centroid, role_centroid)
 
            zone_score    = _zone_delta_score(...)
+           role_score    = _role_similarity_score(...)  # 1.0 if candidate == current occupation
 
            # Weights depend on career_status and zone reliability:
            #   first_job + reliable zone  → skills 0.4 / zone 0.6
            #   experienced + reliable     → skills 0.5 / zone 0.5
            #   unresolvable zone          → skills 1.0 / zone 0.0
+           # ...then rescaled by (1 - role_w) to make room for the role term.
 
-           final = skills_w × overlap_score + zone_w × zone_score
+           final = role_w × (role_score or 0.0) + skills_w × overlap_score + zone_w × zone_score
 
-    4. Return up to _TOP_N results sorted by score descending.
+    5. Return up to _TOP_N results sorted by score descending.
 
     Args:
         user_profile:  Career snapshot of the user.
@@ -1114,7 +1179,7 @@ def score_paths(
     """
     _LLM_DEBUG_LOG.clear()
 
-    current_zone, current_code, zone_resolved = _resolve_current_zone(
+    current_zone, current_code, zone_resolved, current_role_title = _resolve_current_zone(
         user_profile, onet_client, openai_client
     )
     candidates = _gather_candidates(user_profile, onet_client, openai_client, current_code)
@@ -1150,6 +1215,19 @@ def score_paths(
     else:
         skills_w, zone_w, style_w = 1.0, 0.0, 0.0
 
+    # Reserve role_w before the skills/zone/style split, then rescale that split
+    # into the remaining budget so all four weights sum to 1.0.  No anchor title
+    # or no openai_client (no embeddings) forces role_w to 0 — a no-op rescale,
+    # so those paths are byte-for-byte identical to pre-role-anchor behavior.
+    if current_role_title is None or openai_client is None:
+        role_w = 0.0
+    else:
+        role_w = _ROLE_WEIGHT_BY_INTENT.get(user_profile.move_intent, _ROLE_WEIGHT_DEFAULT)
+
+    skills_w *= (1.0 - role_w)
+    zone_w *= (1.0 - role_w)
+    style_w *= (1.0 - role_w)
+
     scored: list[ScoredPath] = []
     _debug: list[dict] = []
 
@@ -1162,6 +1240,18 @@ def score_paths(
             continue
 
         role_items = _build_role_profile(hot_tech_names, onet_generic_skills)
+
+        # Pre-warm the embedding cache with the role-similarity texts alongside the
+        # skills/role-item texts _semantic_overlap_score is about to request, so both
+        # land in the same batched API call instead of two round trips per candidate.
+        if openai_client is not None and current_role_title is not None:
+            _batch_embed(
+                [s.name.lower() for s in user_profile.skills]
+                + [name for name, _ in role_items]
+                + [current_role_title, occ.title],
+                openai_client,
+            )
+
         centroid_score, matched_skills = _semantic_overlap_score(
             user_profile.skills, role_items, openai_client
         )
@@ -1177,6 +1267,9 @@ def score_paths(
             continue
 
         zone_score = _zone_delta_score(current_zone, zone, user_profile.seniority_intent)
+        role_score = _role_similarity_score(
+            current_role_title, occ.title, occ.code, current_code, openai_client
+        )
 
         occ_has_behavioral = has_behavioral
         work_activities: list[tuple[str, float]] = []
@@ -1196,11 +1289,18 @@ def score_paths(
             else 0.0
         )
 
+        role_contribution = role_w * (role_score if role_score is not None else 0.0)
+
         if occ_has_behavioral:
-            raw = skills_w * overlap_score + zone_w * zone_score + style_w * work_style_score
+            raw = (
+                role_contribution
+                + skills_w * overlap_score
+                + zone_w * zone_score
+                + style_w * work_style_score
+            )
             formula_case = "with_behavioral"
         else:
-            raw = skills_w * overlap_score + zone_w * zone_score
+            raw = role_contribution + skills_w * overlap_score + zone_w * zone_score
             formula_case = "standard"
 
         final_score = round(max(0.0, min(1.0, raw)), 4)
@@ -1221,6 +1321,8 @@ def score_paths(
             "code": occ.code,
             "zone": zone,
             "zone_score": zone_score,
+            "role_score": role_score,
+            "role_w": role_w,
             "role_item_count": len(role_items),
             "hot_tech_count": len(hot_tech_names),
             "generic_count": generic_count,
@@ -1243,6 +1345,7 @@ def score_paths(
             f"  [{d['code']}] {d['title']}\n"
             f"    centroid={d['centroid_score']:.4f}  coverage={d['coverage_score']:.4f}\n"
             f"    work_style={(d.get('work_style_score') or 0.0):.4f}  zone={d['zone_score']:.4f}\n"
+            f"    role={(d.get('role_score') or 0.0):.4f}  role_w={d['role_w']:.2f}\n"
             f"    final={d['final_score']:.4f}"
             for d in _debug[:5]
         ) or "(no candidates scored)",
@@ -1251,7 +1354,7 @@ def score_paths(
     if os.environ.get("SOLVERAH_SCORING_DEBUG"):
         _print_scoring_debug(
             user_profile, current_zone, zone_resolved, zone_is_reliable,
-            skills_w, zone_w, style_w, growth_focused, has_behavioral,
+            role_w, skills_w, zone_w, style_w, growth_focused, has_behavioral,
             openai_client is not None, _debug[:3]
         )
 
@@ -1264,6 +1367,7 @@ def _print_scoring_debug(
     current_zone: int,
     zone_resolved: bool,
     zone_is_reliable: bool,
+    role_w: float,
     skills_w: float,
     zone_w: float,
     style_w: float,
@@ -1282,7 +1386,7 @@ def _print_scoring_debug(
     lines.append(f"Title      : {profile.current_title!r}")
     lines.append(f"Status     : {profile.career_status}")
     lines.append(f"Zone       : {current_zone}  (resolved={zone_resolved}, reliable={zone_is_reliable})")
-    lines.append(f"Weights    : skills={skills_w:.2f}  zone={zone_w:.2f}  style={style_w:.2f}")
+    lines.append(f"Weights    : role={role_w:.2f}  skills={skills_w:.2f}  zone={zone_w:.2f}  style={style_w:.2f}")
     lines.append(f"Intent     : move={profile.move_intent}  seniority={profile.seniority_intent}  priority={profile.priority}")
     lines.append(f"Growth focused: {growth_focused}")
     lines.append("User skills:")
@@ -1313,21 +1417,29 @@ def _print_scoring_debug(
                 f" = {d['overlap_score']:.4f}"
             )
         lines.append(f"    Matched skills: {d['matched_skills']}")
+        if d.get("role_score") is not None:
+            lines.append(
+                f"    Role similarity   : {d['role_score']:.4f}"
+                f"  (current: {profile.current_title!r})"
+            )
         if has_behavioral and d.get("work_activities_count") is not None:
             lines.append(f"    Work Activities: {d['work_activities_count']} items")
             lines.append(f"    Behavioral similarity: {d['work_style_score']:.4f}")
         case = d.get("formula_case", "standard")
         ws = d.get("work_style_score") or 0.0
+        rs = d.get("role_score") or 0.0
         if case == "with_behavioral":
             formula_str = (
-                f"{skills_w:.2f}×overlap({d['overlap_score']:.4f})"
+                f"{role_w:.2f}×role({rs:.4f})"
+                f" + {skills_w:.2f}×overlap({d['overlap_score']:.4f})"
                 f" + {zone_w:.2f}×zone({d['zone_score']:.4f})"
                 f" + {style_w:.2f}×behavioral({ws:.4f})"
                 f" = {d['final_score']:.4f}"
             )
         else:
             formula_str = (
-                f"{skills_w:.2f}×overlap({d['overlap_score']:.4f})"
+                f"{role_w:.2f}×role({rs:.4f})"
+                f" + {skills_w:.2f}×overlap({d['overlap_score']:.4f})"
                 f" + {zone_w:.2f}×zone({d['zone_score']:.4f})"
                 f" = {d['final_score']:.4f}"
             )

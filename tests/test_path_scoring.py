@@ -48,6 +48,7 @@ from backend.services.path_scoring import (
     _normalize_title_for_onet,
     _resolve_current_zone,
     _role_coverage_score,
+    _role_similarity_score,
     _semantic_overlap_score,
     _substring_overlap_score,
     _work_style_similarity,
@@ -237,63 +238,70 @@ class TestSubstringOverlapScore:
 class TestResolveCurrentZone:
     def test_first_job_never_queries_onet(self, mock_client):
         p = profile(career_status="first_job", current_title="Barista")
-        zone, code, resolved = _resolve_current_zone(p, mock_client)
+        zone, code, resolved, title = _resolve_current_zone(p, mock_client)
         assert zone == 1
         assert code is None
         assert resolved is False
+        assert title is None
         mock_client.search_occupations.assert_not_called()
 
     def test_none_title_returns_zone_1(self, mock_client):
         p = profile(career_status="between_jobs", current_title=None)
-        zone, code, resolved = _resolve_current_zone(p, mock_client)
+        zone, code, resolved, title = _resolve_current_zone(p, mock_client)
         assert zone == 1
         assert code is None
         assert resolved is False
+        assert title is None
 
     def test_employed_resolves_title_to_zone(self, mock_client):
         mock_client.search_occupations.return_value = [occ("15-1252.00", "Software Devs")]
         mock_client.get_job_zone.return_value = 3
-        zone, code, resolved = _resolve_current_zone(
+        zone, code, resolved, title = _resolve_current_zone(
             profile(career_status="employed", current_title="Software Engineer"),
             mock_client,
         )
         assert zone == 3
         assert code == "15-1252.00"
         assert resolved is True
+        assert title == "Software Engineer"
 
     def test_between_jobs_resolves_title(self, mock_client):
         mock_client.search_occupations.return_value = [occ("11-1021.00", "General Managers")]
         mock_client.get_job_zone.return_value = 4
-        zone, code, resolved = _resolve_current_zone(
+        zone, code, resolved, title = _resolve_current_zone(
             profile(career_status="between_jobs", current_title="General Manager"),
             mock_client,
         )
         assert zone == 4
         assert code == "11-1021.00"
         assert resolved is True
+        assert title == "General Manager"
 
     def test_empty_search_falls_back_to_zone_1(self, mock_client):
         mock_client.search_occupations.return_value = []
-        zone, code, resolved = _resolve_current_zone(profile(), mock_client)
+        zone, code, resolved, title = _resolve_current_zone(profile(), mock_client)
         assert zone == 1
         assert code is None
         assert resolved is False
+        assert title == "Software Engineer"
 
     def test_search_api_error_falls_back_to_zone_1(self, mock_client):
         mock_client.search_occupations.side_effect = OnetAPIError("timeout")
-        zone, code, resolved = _resolve_current_zone(profile(), mock_client)
+        zone, code, resolved, title = _resolve_current_zone(profile(), mock_client)
         assert zone == 1
         assert code is None
         assert resolved is False
+        assert title == "Software Engineer"
 
     def test_job_zone_api_error_still_returns_code(self, mock_client):
         # The code is known even if zone fetch fails; use it to exclude from candidates.
         mock_client.search_occupations.return_value = [occ("15-1252.00")]
         mock_client.get_job_zone.side_effect = OnetAPIError("zone fail")
-        zone, code, resolved = _resolve_current_zone(profile(), mock_client)
+        zone, code, resolved, title = _resolve_current_zone(profile(), mock_client)
         assert zone == 1
         assert code == "15-1252.00"
         assert resolved is False
+        assert title == "Software Engineer"
 
 
 # ---------------------------------------------------------------------------
@@ -1226,9 +1234,13 @@ def test_overlap_combines_centroid_and_coverage(mock_client):
     #   coverage = 2/2 = 1.0
     # overlap = 0.5*1.0 + 0.5*1.0 = 1.0
     # zone: delta=0, seniority=None → zone_score=0.5; experienced, zone resolved
-    # final = 0.5*overlap + 0.5*zone = 0.5*1.0 + 0.5*0.5 = 0.75
+    # role: move_intent unspecified (None) → role_w=0.35; anchor title "Software Engineer"
+    #   resolved but its embedding (and the candidate's) aren't seeded here, so
+    #   role_score is None → contributes 0.  role_w still carves out its share of the
+    #   skills/zone budget: skills_w = zone_w = 0.5*(1-0.35) = 0.325.
+    # final = 0.35*0 + 0.325*overlap(1.0) + 0.325*zone(0.5) = 0.325 + 0.1625 = 0.4875
     assert len(results) == 1
-    assert results[0].score == pytest.approx(0.75)
+    assert results[0].score == pytest.approx(0.4875)
     ps._EMBED_CACHE.clear()
 
 
@@ -1393,7 +1405,7 @@ def test_normalize_title_uses_onet_plural_form():
     ]
     mock_onet.get_job_zone.return_value = 4
 
-    zone, code, resolved = _resolve_current_zone(
+    zone, code, resolved, title = _resolve_current_zone(
         profile(career_status="employed", current_title="Founder & Full Stack Engineer"),
         mock_onet,
         mock_openai,
@@ -1402,6 +1414,7 @@ def test_normalize_title_uses_onet_plural_form():
     assert resolved is True
     assert zone == 4
     assert code == "15-1252.00"
+    assert title == "Software Developers"
     calls = [str(c) for c in mock_onet.search_occupations.call_args_list]
     assert any("Software Developers" in c for c in calls)
 
@@ -1421,7 +1434,7 @@ def test_normalize_title_fallback_attempt_on_first_miss():
     ]
     mock_onet.get_job_zone.return_value = 4
 
-    zone, code, resolved = _resolve_current_zone(
+    zone, code, resolved, title = _resolve_current_zone(
         profile(career_status="employed", current_title="Quantum Computing Visionary"),
         mock_onet,
         mock_openai,
@@ -1430,6 +1443,7 @@ def test_normalize_title_fallback_attempt_on_first_miss():
     assert resolved is True
     assert zone == 4
     assert code == "15-1252.00"
+    assert title == "Software Developers"
     assert mock_openai.chat.completions.create.call_count == 2
 
 
@@ -1504,7 +1518,7 @@ def test_zone_llm_normalization_fires_on_unreliable_raw_match():
         4,                                   # normalized match zone succeeds
     ]
 
-    zone, code, resolved = _resolve_current_zone(
+    zone, code, resolved, title = _resolve_current_zone(
         profile(career_status="employed", current_title="Founder & Full Stack Engineer"),
         mock_onet,
         mock_openai,
@@ -1513,6 +1527,7 @@ def test_zone_llm_normalization_fires_on_unreliable_raw_match():
     assert resolved is True
     assert zone == 4
     assert code == "15-1252.00"
+    assert title == "Software Developers"
     # LLM was called for normalization
     mock_openai.chat.completions.create.assert_called_once()
 
@@ -1909,3 +1924,173 @@ def test_beginner_proficiency_defaults_to_weight_1():
     _, weight = available[0]
     assert weight == pytest.approx(_SKILL_LEVEL_WEIGHTS["beginner"])
     ps._EMBED_CACHE.clear()
+
+
+# ---------------------------------------------------------------------------
+# _role_similarity_score and role-identity anchor weighting (scoring_fix_6)
+# ---------------------------------------------------------------------------
+
+
+def test_role_similarity_exact_code_match_skips_embedding():
+    """Exact O*NET code match returns 1.0 immediately — no embedding call needed."""
+    mock_openai = MagicMock()
+    score = _role_similarity_score(
+        "Software Engineer", "Software Developers", "15-1252.00", "15-1252.00", mock_openai
+    )
+    assert score == 1.0
+    mock_openai.embeddings.create.assert_not_called()
+
+
+def test_stay_in_field_boosts_title_matching_candidate(mock_client):
+    """stay_in_field reserves role_w=0.50.  Two candidates share identical skills/zone
+    signal (overlap_score=0.0, zone_score=1.0 for both); the one that IS the user's
+    own occupation (exact O*NET code match) must score materially higher than the
+    other, and higher than the pre-change skills+zone-only formula would give either.
+    """
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+
+    sw_dev = occ("15-1252.00", "Software Developers")   # matches the resolved current code
+    web_dev = occ("15-1257.00", "Web Developers")        # does not match
+
+    mock_client.get_job_family_occupations.return_value = [sw_dev, web_dev]
+    mock_client.search_occupations.side_effect = [
+        [occ("15-1252.00", "Software Developers")],  # resolve: current title
+        [],                                            # keyword supplementary — nothing extra
+    ]
+    mock_client.get_job_zone.side_effect = [3, 4, 4]  # current=3, sw_dev=4, web_dev=4
+    mock_client.get_tech_skills.return_value = set()
+    mock_client.get_skills_profile.return_value = []  # empty role_items → overlap_score=0.0 for both
+
+    mock_openai = MagicMock()
+    mock_openai.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content='["Software Developers"]'))]
+    )
+    mock_openai.embeddings.create.return_value = MagicMock(data=[])  # no embeddings available
+
+    results = score_paths(
+        profile(
+            current_title="Software Engineer",
+            career_status="employed",
+            archetype="",  # no behavioral profile — isolates the role/skills/zone terms
+            move_intent="stay_in_field",
+            skills=[user_skill("python", "advanced")],
+        ),
+        mock_client,
+        mock_openai,
+    )
+
+    score_map = {r.onet_code: r.score for r in results}
+    # Pre-change formula (no role term) would give 0.5*0.0 + 0.5*1.0 = 0.5 for BOTH candidates.
+    assert score_map["15-1252.00"] == pytest.approx(0.75)
+    assert score_map["15-1252.00"] > 0.5
+    assert score_map["15-1257.00"] == pytest.approx(0.25)
+    ps._EMBED_CACHE.clear()
+
+
+def test_fresh_start_leaves_score_unchanged(mock_client):
+    """fresh_start forces role_w=0 regardless of current_title/openai_client — regression
+    guard: final score must equal the pre-change skills+zone formula exactly."""
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+
+    candidate = occ("15-1252.00", "Software Developers")
+
+    mock_client.search_occupations.return_value = [occ("11-9999.00", "Some Current Role")]
+    mock_client.get_bright_outlook_occupations.return_value = [candidate]
+    mock_client.get_job_zone.side_effect = [3, 4]  # current=3, candidate=4
+    mock_client.get_tech_skills.return_value = set()
+    mock_client.get_skills_profile.return_value = []
+
+    mock_openai = MagicMock()
+    mock_openai.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content='["Some Role"]'))]
+    )
+    mock_openai.embeddings.create.return_value = MagicMock(data=[])
+
+    results = score_paths(
+        profile(
+            current_title="Product Manager",
+            career_status="employed",
+            archetype="",
+            move_intent="fresh_start",
+            skills=[],
+        ),
+        mock_client,
+        mock_openai,
+    )
+
+    assert len(results) == 1
+    # skills_w=0.5 * overlap(0.0) + zone_w=0.5 * zone_delta(+1 → 1.0), role_w forced to 0.
+    assert results[0].score == pytest.approx(0.5)
+    ps._EMBED_CACHE.clear()
+
+
+def test_first_job_score_unaffected_by_move_intent(mock_client):
+    """current_title=None (first-job) forces role_w=0 no matter what move_intent is set —
+    regression guard for the path most likely to break silently."""
+    import backend.services.path_scoring as ps
+
+    def run(move_intent):
+        ps._EMBED_CACHE.clear()
+        m = MagicMock(spec=OnetClient)
+        m.get_job_family_occupations.return_value = []
+        m.get_bright_outlook_occupations.return_value = []
+        m.search_occupations.return_value = [occ("43-4051.00", "Customer Rep")]
+        m.get_job_zone.return_value = 2
+        m.get_tech_skills.return_value = set()
+        m.get_skills_profile.return_value = [onet_skill("Communication", 80.0)]
+
+        mock_openai = MagicMock()
+        mock_openai.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content='["Communication"]'))]
+        )
+        mock_openai.embeddings.create.return_value = MagicMock(data=[])
+
+        results = score_paths(
+            profile(
+                current_title=None,
+                career_status="first_job",
+                archetype="",
+                move_intent=move_intent,
+                skills=[user_skill("Communication", "intermediate")],
+            ),
+            m,
+            mock_openai,
+        )
+        assert len(results) == 1
+        return results[0].score
+
+    score_stay = run("stay_in_field")
+    score_none = run(None)
+    score_fresh = run("fresh_start")
+    assert score_stay == score_none == score_fresh
+    ps._EMBED_CACHE.clear()
+
+
+def test_no_openai_client_leaves_score_unchanged(mock_client):
+    """openai_client=None forces role_w=0 via the same guard as fresh_start — even a
+    candidate that exactly matches the resolved current O*NET code must not get a role
+    boost, so substring-fallback scoring is byte-for-byte unchanged from pre-change."""
+    mock_client.get_job_family_occupations.return_value = [occ("15-1252.00", "Software Developers")]
+    mock_client.search_occupations.return_value = [occ("15-1252.00", "Software Developers")]
+    mock_client.get_job_zone.return_value = 4  # current == candidate zone → same-zone delta
+    mock_client.get_tech_skills.return_value = set()
+    mock_client.get_skills_profile.return_value = [onet_skill("Python", 80.0)]
+
+    results = score_paths(
+        profile(
+            current_title="Software Developer",
+            career_status="employed",
+            archetype="",
+            move_intent="stay_in_field",
+            skills=[user_skill("Python", "advanced")],
+        ),
+        mock_client,
+        None,
+    )
+
+    assert len(results) == 1
+    # substring overlap: "python" ⊂ "Python"(80) → 0.8; zone delta 0 (open/None) → 0.5.
+    expected = 0.5 * 0.8 + 0.5 * 0.5
+    assert results[0].score == pytest.approx(expected)
