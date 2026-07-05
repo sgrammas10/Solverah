@@ -179,28 +179,28 @@ You naturally create momentum by taking charge of your tasks and defining your o
 ============================================================
 CANDIDATE SCORES — Top 5 Detail
 ============================================================
-  [15-1252.00] Software Developers
-    centroid=0.8791  coverage=0.2000
-    work_style=0.4305  zone=0.5000
-    role=1.0000  role_w=0.50
-    final=0.7490
-  [15-1251.00] Computer Programmers
-    centroid=0.8778  coverage=0.4000
-    work_style=0.4353  zone=0.5000
-    role=0.7002  role_w=0.50
-    final=0.6145
   [15-1211.01] Health Informatics Specialists
-    centroid=0.8001  coverage=0.4000
+    centroid=0.8000  coverage=0.4000
     work_style=0.4713  zone=1.0000
-    role=0.3738  role_w=0.50
-    final=0.5740
+    role=0.3738  role_w=0.25
+    final=0.6741
+  [15-1252.00] Software Developers
+    centroid=0.8787  coverage=0.2000
+    work_style=0.4305  zone=0.5000
+    role=1.0000  role_w=0.25
+    final=0.6234
+  [15-1251.00] Computer Programmers
+    centroid=0.8773  coverage=0.4000
+    work_style=0.4353  zone=0.5000
+    role=0.7002  role_w=0.25
+    final=0.5715
   [15-1255.00] Web and Digital Interface Designers
-    centroid=0.8841  coverage=0.6000
+    centroid=0.8838  coverage=0.6000
     work_style=0.4463  zone=0.5000
-    role=0.5140  role_w=0.50
+    role=0.5139  role_w=0.25
+    final=0.5499
+  [15-1299.01] Web Administrators
+    centroid=0.8224  coverage=0.6000
+    work_style=0.4724  zone=0.5000
+    role=0.4780  role_w=0.25
     final=0.5379
-  [15-1253.00] Software Quality Assurance Analysts and Testers
-    centroid=0.8718  coverage=0.4000
-    work_style=0.4519  zone=0.5000
-    role=0.5283  role_w=0.50
-    final=0.5297

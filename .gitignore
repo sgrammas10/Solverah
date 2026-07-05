@@ -39,3 +39,4 @@ __pycache__/
 
 # Debug output
 scoring_debug.txt
+llm_debug.txt
