@@ -308,12 +308,18 @@ class TestGatherCandidates:
         candidates = _gather_candidates(p, mock_client, None, None)
         assert [c.code for c in candidates].count("15-1252.00") == 1
 
-    def test_excludes_current_code(self, mock_client):
+    def test_does_not_exclude_current_code(self, mock_client):
+        """current_code is NOT excluded from the candidate pool.
+
+        Zone resolution normalises "Founder & Full Stack Engineer" → "Software Developers"
+        to derive a zone number.  Software Developers is still a valid recommendation, so
+        it must remain eligible.  The zone-resolved code is seeding, not blocking.
+        """
         mock_client.get_job_family_occupations.return_value = []
         mock_client.search_occupations.return_value = [occ("15-1252.00"), occ("15-1211.00")]
         p = profile(skills=[user_skill("Python")])
         candidates = _gather_candidates(p, mock_client, None, "15-1252.00")
-        assert all(c.code != "15-1252.00" for c in candidates)
+        assert any(c.code == "15-1252.00" for c in candidates)
 
     def test_stay_in_field_uses_keyword_search(self, mock_client):
         mock_client.search_occupations.return_value = [occ("15-1211.00")]

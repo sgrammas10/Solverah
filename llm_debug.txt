@@ -45,7 +45,7 @@ onet_code='15-1252.00'
 CANDIDATE POOL — Primary (Job Family)
 ============================================================
 Seed code: 15-1252.00  family: 15-0000
-Results (20): ['Actuaries', 'Bioinformatics Technicians', 'Biostatisticians', 'Blockchain Engineers', 'Business Intelligence Analysts', 'Clinical Data Managers', 'Computer and Information Research Scientists', 'Computer Network Architects', 'Computer Network Support Specialists', 'Computer Occupations, All Other', 'Computer Programmers', 'Computer Systems Analysts', 'Computer Systems Engineers/Architects', 'Computer User Support Specialists', 'Data Scientists', 'Data Warehousing Specialists', 'Database Administrators', 'Database Architects', 'Digital Forensics Analysts', 'Document Management Specialists']
+Results (38): ['Actuaries', 'Bioinformatics Technicians', 'Biostatisticians', 'Blockchain Engineers', 'Business Intelligence Analysts', 'Clinical Data Managers', 'Computer and Information Research Scientists', 'Computer Network Architects', 'Computer Network Support Specialists', 'Computer Occupations, All Other', 'Computer Programmers', 'Computer Systems Analysts', 'Computer Systems Engineers/Architects', 'Computer User Support Specialists', 'Data Scientists', 'Data Warehousing Specialists', 'Database Administrators', 'Database Architects', 'Digital Forensics Analysts', 'Document Management Specialists', 'Geographic Information Systems Technologists and Technicians', 'Health Informatics Specialists', 'Information Security Analysts', 'Information Security Engineers', 'Information Technology Project Managers', 'Mathematical Science Occupations, All Other', 'Mathematicians', 'Network and Computer Systems Administrators', 'Operations Research Analysts', 'Penetration Testers', 'Software Developers', 'Software Quality Assurance Analysts and Testers', 'Statisticians', 'Telecommunications Engineering Specialists', 'Video Game Designers', 'Web Administrators', 'Web and Digital Interface Designers', 'Web Developers']
 
 ============================================================
 SEARCH TERM GENERATION — LLM Input
@@ -125,7 +125,7 @@ First result: Computer Network Architects [15-1241.00]
 ============================================================
 CANDIDATE POOL — Final
 ============================================================
-Total candidates: 23
+Total candidates: 38
   [15-2011.00] Actuaries
   [15-2099.01] Bioinformatics Technicians
   [15-2041.01] Biostatisticians
@@ -146,9 +146,24 @@ Total candidates: 23
   [15-1243.00] Database Architects
   [15-1299.06] Digital Forensics Analysts
   [15-1299.03] Document Management Specialists
-  [15-1254.00] Web Developers
-  [15-1299.04] Penetration Testers
+  [15-1299.02] Geographic Information Systems Technologists and Technicians
+  [15-1211.01] Health Informatics Specialists
   [15-1212.00] Information Security Analysts
+  [15-1299.05] Information Security Engineers
+  [15-1299.09] Information Technology Project Managers
+  [15-2099.00] Mathematical Science Occupations, All Other
+  [15-2021.00] Mathematicians
+  [15-1244.00] Network and Computer Systems Administrators
+  [15-2031.00] Operations Research Analysts
+  [15-1299.04] Penetration Testers
+  [15-1252.00] Software Developers
+  [15-1253.00] Software Quality Assurance Analysts and Testers
+  [15-2041.00] Statisticians
+  [15-1241.01] Telecommunications Engineering Specialists
+  [15-1255.01] Video Game Designers
+  [15-1299.01] Web Administrators
+  [15-1255.00] Web and Digital Interface Designers
+  [15-1254.00] Web Developers
 
 ============================================================
 BEHAVIORAL PROFILE — Composed String
@@ -164,23 +179,23 @@ You naturally create momentum by taking charge of your tasks and defining your o
 ============================================================
 CANDIDATE SCORES — Top 5 Detail
 ============================================================
-  [15-1243.00] Database Architects
-    centroid=0.8748  coverage=0.4000
-    work_style=0.4551  zone=0.5000
-    final=0.5322
-  [15-1241.00] Computer Network Architects
-    centroid=0.8767  coverage=0.4000
-    work_style=0.4385  zone=0.5000
-    final=0.5292
-  [15-1251.00] Computer Programmers
-    centroid=0.8773  coverage=0.4000
-    work_style=0.4353  zone=0.5000
-    final=0.5287
-  [15-1242.00] Database Administrators
-    centroid=0.8735  coverage=0.4000
-    work_style=0.4374  zone=0.5000
-    final=0.5285
-  [15-1211.00] Computer Systems Analysts
-    centroid=0.8712  coverage=0.4000
-    work_style=0.4377  zone=0.5000
-    final=0.5282
+  [15-1211.01] Health Informatics Specialists
+    centroid=0.8001  coverage=0.4000
+    work_style=0.4713  zone=1.0000
+    final=0.7743
+  [15-1255.00] Web and Digital Interface Designers
+    centroid=0.8838  coverage=0.6000
+    work_style=0.4463  zone=0.5000
+    final=0.5618
+  [15-1299.01] Web Administrators
+    centroid=0.8224  coverage=0.6000
+    work_style=0.4724  zone=0.5000
+    final=0.5578
+  [15-1244.00] Network and Computer Systems Administrators
+    centroid=0.8681  coverage=0.6000
+    work_style=0.4239  zone=0.5000
+    final=0.5550
+  [15-1299.09] Information Technology Project Managers
+    centroid=0.8730  coverage=0.4000
+    work_style=0.4736  zone=0.5000
+    final=0.5357

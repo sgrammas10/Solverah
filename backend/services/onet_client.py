@@ -278,13 +278,16 @@ class OnetClient:
     def get_job_family_occupations(self, family_code: str) -> list[Occupation]:
         """Return all occupations within a SOC job family.
 
+        Requests up to 100 entries to cover the full family in one call — the
+        largest O*NET family (15-0000) has ~38 occupations as of 2024.
+
         Args:
             family_code: SOC major-group code, e.g. "15-0000".
 
         Raises:
             OnetAPIError: On any HTTP error.
         """
-        data = self._get(f"online/job_families/{family_code}")
+        data = self._get(f"online/job_families/{family_code}", params={"end": 100})
         return [
             Occupation(code=occ_data.get("code", ""), title=occ_data.get("title", ""))
             for occ_data in data.get("occupation", [])

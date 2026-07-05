@@ -1016,7 +1016,11 @@ def _gather_candidates(
         return _filter_candidate_pool(_deduplicate(candidates, current_code), profile)
 
     # adjacent / stay_in_field / None — unified flow
-    seen: set[str] = {current_code} if current_code else set()
+    # current_code is used only for zone resolution and family seeding — it is not
+    # excluded from the candidate pool because the zone-normalised title (e.g.
+    # "Software Developers" for a "Founder & Full Stack Engineer") may itself be a
+    # meaningful and distinct career recommendation for the user.
+    seen: set[str] = set()
     candidates: list[Occupation] = []
 
     # PRIMARY: job family occupations — field-scoped, no keyword matching.
