@@ -25,6 +25,9 @@ LLM calls made per invocation (when openai_client is provided):
 
 O*NET call count:
   2  (current-zone resolution) + 3 × |candidates| (zone + tech_skills + skills per candidate)
+  Per-candidate fetches run concurrently via a bounded thread pool (see
+  _fetch_candidate_data / _FETCH_MAX_WORKERS) — these are cheap once warm,
+  since onet_client caches occupation-level data across requests.
 """
 from __future__ import annotations
 
@@ -32,12 +35,19 @@ import json
 import logging
 import os
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Literal
 
 import numpy as np
 
-from backend.services.onet_client import OnetAPIError, OnetClient, Occupation, Skill
+from backend.services.onet_client import (
+    OnetAPIError,
+    OnetClient,
+    OnetRateLimitError,
+    Occupation,
+    Skill,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -61,6 +71,14 @@ _SKILL_LEVEL_WEIGHTS: dict[str, float] = {
 
 # Maximum number of ScoredPath objects returned.
 _TOP_N: int = 10
+
+# Bounded worker count for the per-candidate O*NET fetch phase (score_paths).
+# These are I/O-bound HTTP calls — the GIL releases during I/O, so a thread
+# pool gives real concurrency without overwhelming O*NET's rate limits
+# (already handled via retry/backoff in onet_client._get on 429). Candidate
+# pools are ~20-50 per request; 8 workers gives meaningful parallelism while
+# keeping simultaneous in-flight requests to O*NET modest.
+_FETCH_MAX_WORKERS: int = 8
 
 # Skill names searched as additional candidate-pool terms (beyond the title).
 _SKILL_SEARCH_COUNT: int = 2
@@ -93,10 +111,15 @@ _WORK_STYLE_WEIGHT: float = 0.10
 # explicitly asking to leave their current occupation, so anchoring to it would
 # fight their stated intent.  Keyed by move_intent; None (unspecified) is a real
 # dict key here, not a "missing" sentinel.
+#
+# adjacent keeps role_w close to stay_in_field's value rather than cutting it
+# sharply — the broadening for moderately-distant candidates is instead done by
+# reshaping role_similarity itself (see _shape_role_similarity) so close matches
+# aren't penalised just for scoring under "adjacent" instead of "stay_in_field".
 _ROLE_WEIGHT_BY_INTENT: dict[str | None, float] = {
     "stay_in_field": 0.50,
     None: 0.35,
-    "adjacent": 0.25,
+    "adjacent": 0.45,
     "fresh_start": 0.0,
 }
 _ROLE_WEIGHT_DEFAULT: float = 0.35
@@ -220,6 +243,29 @@ class ScoredPath:
     title: str
     score: float  # 0.0–1.0, higher is a better match
     overlapping_skills: list[str] = field(default_factory=list)
+
+
+@dataclass
+class _CandidateFetch:
+    """Result of the parallelizable per-candidate O*NET fetch phase in score_paths.
+
+    One instance per candidate submitted to the fetch thread pool.  ``error``
+    is set (all data fields left at defaults) when zone/skills/tech-skills
+    fetch raised OnetAPIError/OnetRateLimitError — the scoring phase treats
+    this exactly like the old inline ``except: continue``, just detected
+    after the fact instead of during the loop.  ``work_activities`` is only
+    populated when a behavioral profile exists for this run; a failure
+    fetching it does NOT set ``error`` — it only disables the behavioral
+    component for this candidate (occ_has_behavioral=False), matching the
+    pre-existing distinction between the two failure modes.
+    """
+    occ: Occupation
+    zone: int | None = None
+    onet_generic_skills: list[Skill] = field(default_factory=list)
+    hot_tech_names: set[str] = field(default_factory=set)
+    work_activities: list[tuple[str, float]] = field(default_factory=list)
+    occ_has_behavioral: bool = False
+    error: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -356,6 +402,27 @@ def _role_similarity_score(
     if current_emb is None or candidate_emb is None:
         return None
     return _cosine_similarity(current_emb, candidate_emb)
+
+
+def _shape_role_similarity(
+    role_score: float | None,
+    move_intent: Literal["stay_in_field", "adjacent", "fresh_start"] | None,
+) -> float | None:
+    """Reshape a raw role_similarity value through a concave curve for `adjacent`.
+
+    stay_in_field / None intent: passes the raw score through unchanged — the
+    sharp linear discrimination there is already validated.  adjacent: applies
+    sqrt so near-ceiling scores (close matches) keep ~full credit while
+    mid-range scores get lifted, broadening leniency for moderately-distant
+    candidates without taxing close matches — a single linear weight cannot
+    do both at once.  fresh_start passes through raw (role_w is 0 there, so
+    the shaped value is never multiplied into anything) purely for logging
+    consistency.  None passes through unchanged so the existing
+    role_w-collapses-to-0 guard is untouched.
+    """
+    if role_score is None or move_intent != "adjacent":
+        return role_score
+    return float(np.sqrt(max(0.0, role_score)))
 
 
 # ---------------------------------------------------------------------------
@@ -1130,6 +1197,55 @@ def _gather_candidates(
     return _filter_candidate_pool(candidates, profile)
 
 
+def _fetch_candidate_data(
+    occ: Occupation,
+    onet_client: OnetClient,
+    has_behavioral: bool,
+) -> _CandidateFetch:
+    """Fetch zone/skills/tech-skills (and, if applicable, work-activities) for
+    one candidate. Runs inside a ThreadPoolExecutor worker thread (see
+    score_paths) — must not touch any shared mutable state (no _batch_embed,
+    no _debug/_llm_log mutation): this function's only job is the I/O fetch,
+    matching the fetch/score phase split score_paths relies on. _EMBED_CACHE
+    in particular is an unlocked OrderedDict with LRU eviction — concurrent
+    mutation from multiple threads would corrupt it, so embedding calls must
+    stay in the sequential scoring phase.
+
+    Two separate try/excepts, matching the two distinct failure modes the
+    sequential loop used to have: a zone/skills/tech-skills failure drops the
+    candidate entirely (error=True), while a work-activities failure only
+    disables the behavioral component for this candidate and it still scores
+    normally.
+    """
+    try:
+        zone = onet_client.get_job_zone(occ.code)
+        onet_generic_skills = onet_client.get_skills_profile(occ.code)
+        hot_tech_names = onet_client.get_tech_skills(occ.code, hot_only=True)
+    except (OnetAPIError, OnetRateLimitError):
+        return _CandidateFetch(occ=occ, error=True)
+
+    work_activities: list[tuple[str, float]] = []
+    occ_has_behavioral = has_behavioral
+    if occ_has_behavioral:
+        try:
+            work_activities = [
+                (a.name, a.importance)
+                for a in onet_client.get_work_activities(occ.code)
+                if a.importance >= _WORK_ACTIVITY_IMPORTANCE_THRESHOLD
+            ]
+        except (OnetAPIError, OnetRateLimitError):
+            occ_has_behavioral = False
+
+    return _CandidateFetch(
+        occ=occ,
+        zone=zone,
+        onet_generic_skills=onet_generic_skills,
+        hot_tech_names=hot_tech_names,
+        work_activities=work_activities,
+        occ_has_behavioral=occ_has_behavioral,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -1231,13 +1347,29 @@ def score_paths(
     scored: list[ScoredPath] = []
     _debug: list[dict] = []
 
-    for occ in candidates:
-        try:
-            zone = onet_client.get_job_zone(occ.code)
-            onet_generic_skills: list[Skill] = onet_client.get_skills_profile(occ.code)
-            hot_tech_names = onet_client.get_tech_skills(occ.code, hot_only=True)
-        except OnetAPIError:
+    # Phase A: fetch each candidate's O*NET data concurrently — these are I/O-bound
+    # calls, independent per candidate. executor.map (not submit+as_completed) so
+    # results come back in submission (candidate) order: the `with` block already
+    # waits for every worker before Phase B starts, so there's no latency benefit
+    # to completion order, and submission order keeps _debug/scored insertion
+    # order deterministic run to run (relevant for stable-sort tie-breaking below).
+    with ThreadPoolExecutor(max_workers=_FETCH_MAX_WORKERS) as executor:
+        fetches = list(executor.map(
+            lambda c: _fetch_candidate_data(c, onet_client, has_behavioral),
+            candidates,
+        ))
+
+    # Phase B: sequential scoring — unchanged from the pre-parallelization logic,
+    # just reading fetched fields from `fetch` instead of calling onet_client inline.
+    for fetch in fetches:
+        if fetch.error:
             continue
+        occ = fetch.occ
+        zone = fetch.zone
+        onet_generic_skills = fetch.onet_generic_skills
+        hot_tech_names = fetch.hot_tech_names
+        occ_has_behavioral = fetch.occ_has_behavioral
+        work_activities = fetch.work_activities
 
         role_items = _build_role_profile(hot_tech_names, onet_generic_skills)
 
@@ -1270,18 +1402,7 @@ def score_paths(
         role_score = _role_similarity_score(
             current_role_title, occ.title, occ.code, current_code, openai_client
         )
-
-        occ_has_behavioral = has_behavioral
-        work_activities: list[tuple[str, float]] = []
-        if occ_has_behavioral:
-            try:
-                work_activities = [
-                    (a.name, a.importance)
-                    for a in onet_client.get_work_activities(occ.code)
-                    if a.importance >= _WORK_ACTIVITY_IMPORTANCE_THRESHOLD
-                ]
-            except OnetAPIError:
-                occ_has_behavioral = False
+        shaped_role_score = _shape_role_similarity(role_score, user_profile.move_intent)
 
         work_style_score = (
             _work_style_similarity(behavioral_profile, work_activities, openai_client)
@@ -1289,7 +1410,7 @@ def score_paths(
             else 0.0
         )
 
-        role_contribution = role_w * (role_score if role_score is not None else 0.0)
+        role_contribution = role_w * (shaped_role_score if shaped_role_score is not None else 0.0)
 
         if occ_has_behavioral:
             raw = (
@@ -1322,6 +1443,7 @@ def score_paths(
             "zone": zone,
             "zone_score": zone_score,
             "role_score": role_score,
+            "shaped_role_score": shaped_role_score,
             "role_w": role_w,
             "role_item_count": len(role_items),
             "hot_tech_count": len(hot_tech_names),
@@ -1418,16 +1540,24 @@ def _print_scoring_debug(
             )
         lines.append(f"    Matched skills: {d['matched_skills']}")
         if d.get("role_score") is not None:
-            lines.append(
-                f"    Role similarity   : {d['role_score']:.4f}"
-                f"  (current: {profile.current_title!r})"
-            )
+            raw_rs = d["role_score"]
+            shaped_rs = d.get("shaped_role_score")
+            if shaped_rs is not None and abs(shaped_rs - raw_rs) > 1e-9:
+                lines.append(
+                    f"    Role similarity   : raw={raw_rs:.4f} → shaped={shaped_rs:.4f}"
+                    f"  (current: {profile.current_title!r})"
+                )
+            else:
+                lines.append(
+                    f"    Role similarity   : {raw_rs:.4f}"
+                    f"  (current: {profile.current_title!r})"
+                )
         if has_behavioral and d.get("work_activities_count") is not None:
             lines.append(f"    Work Activities: {d['work_activities_count']} items")
             lines.append(f"    Behavioral similarity: {d['work_style_score']:.4f}")
         case = d.get("formula_case", "standard")
         ws = d.get("work_style_score") or 0.0
-        rs = d.get("role_score") or 0.0
+        rs = d.get("shaped_role_score") or 0.0
         if case == "with_behavioral":
             formula_str = (
                 f"{role_w:.2f}×role({rs:.4f})"

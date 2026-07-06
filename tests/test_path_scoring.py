@@ -2,13 +2,22 @@
 
 All O*NET HTTP calls are mocked — no live API traffic in CI.
 
-Call-sequence notes (important for side_effect list ordering):
+Call-count notes:
   score_paths with career_status="employed" and N skill search terms calls (no openai_client):
     search_occupations:  1 (resolve zone) + 1 (title in gather) + N (skills in gather)
     get_job_zone:        1 (current code) + 1 per unique candidate
     get_skills_profile:  1 per unique candidate
     get_tech_skills:     1 per unique candidate (hot_only=True, no fallback)
   When openai_client is provided, _generate_search_terms adds 1 LLM call before gathering.
+
+Mocking convention: get_job_zone / get_skills_profile / get_tech_skills /
+get_work_activities are mocked with code-keyed side_effect functions (see the
+by_code() helper below) rather than positional side_effect lists, because
+score_paths() fetches candidate data concurrently via a thread pool — the
+order these are actually invoked in across candidates is not guaranteed.
+search_occupations remains positional-order-sensitive (via plain side_effect
+lists), since candidate gathering (_gather_candidates) and current-zone
+resolution (_resolve_current_zone) both stay fully sequential.
 """
 from __future__ import annotations
 
@@ -18,7 +27,13 @@ from unittest.mock import MagicMock
 import pytest
 
 import backend.services.onet_client as onet_module
-from backend.services.onet_client import OnetAPIError, OnetClient, Occupation, Skill
+from backend.services.onet_client import (
+    OnetAPIError,
+    OnetClient,
+    OnetRateLimitError,
+    Occupation,
+    Skill,
+)
 from backend.services.path_scoring import (
     ScoredPath,
     UserProfile,
@@ -32,6 +47,7 @@ from backend.services.path_scoring import (
     _HOT_TECH_IMPORTANCE,
     _LLM_DEBUG_LOG,
     _MIN_MATCH_LEN,
+    _ROLE_WEIGHT_BY_INTENT,
     _SKILL_LEVEL_WEIGHTS,
     _SKILLS_WEIGHT_EXPERIENCED,
     _ZONE_WEIGHT_EXPERIENCED,
@@ -49,6 +65,7 @@ from backend.services.path_scoring import (
     _resolve_current_zone,
     _role_coverage_score,
     _role_similarity_score,
+    _shape_role_similarity,
     _semantic_overlap_score,
     _substring_overlap_score,
     _work_style_similarity,
@@ -83,6 +100,60 @@ def profile(**kwargs) -> UserProfile:
     }
     defaults.update(kwargs)
     return UserProfile(**defaults)
+
+
+class Seq:
+    """Marks a by_code() value as a sequence consumed in order across repeated
+    calls to the *same* onet_code, rather than a single fixed response.
+
+    Needed when one occupation is legitimately looked up twice in a single
+    score_paths() call with different expected results each time — e.g. the
+    user's current occupation also appears in the candidate pool (stay_in_field
+    doesn't exclude it), so get_job_zone(code) is called once during the
+    (sequential) current-zone resolution and again later during the candidate
+    loop for that same occupation. Safe to rely on call order here specifically
+    because resolution always fully completes before the parallel candidate
+    fetch phase starts — the nondeterminism parallelization introduces is only
+    in the relative order *across different candidates*, not between the
+    sequential resolve step and the candidate phase as a whole.
+    """
+    def __init__(self, *values):
+        self.values = list(values)
+
+
+def by_code(mapping: dict[str, object], *, default=None):
+    """Build a side_effect function keyed on the onet_code positional arg.
+
+    Replaces positional side_effect lists (order-dependent) for
+    get_job_zone/get_skills_profile/get_tech_skills/get_work_activities:
+    score_paths fetches candidate data concurrently via a thread pool, so the
+    order these mocks are actually invoked in is not guaranteed to match
+    submission order. Keying responses on the onet_code argument itself makes
+    the mock order-independent. Raises KeyError on an unmapped code (surfaced
+    as a test failure) unless *default* is given, so a missing test-data entry
+    fails loudly rather than silently returning None.
+
+    Wrap a value in Seq(...) when the same code is called more than once and
+    needs different answers each time (see Seq's docstring).
+    """
+    queues = {code: iter(v.values) for code, v in mapping.items() if isinstance(v, Seq)}
+
+    def _side_effect(code, *args, **kwargs):
+        if code in queues:
+            try:
+                value = next(queues[code])
+            except StopIteration:
+                raise KeyError(f"by_code(): Seq exhausted for onet_code={code!r}") from None
+        elif code in mapping:
+            value = mapping[code]
+        elif default is not None:
+            value = default
+        else:
+            raise KeyError(f"by_code(): no mapped response for onet_code={code!r}")
+        if isinstance(value, Exception):
+            raise value
+        return value
+    return _side_effect
 
 
 @pytest.fixture()
@@ -528,12 +599,14 @@ class TestScorePaths:
             [], [],                          # keyword supplementary — nothing extra
         ]
         # get_job_zone: current=3, CS Analysts=4, IT Mgrs=5
-        mock_client.get_job_zone.side_effect = [3, 4, 5]
+        mock_client.get_job_zone.side_effect = by_code({
+            "15-1252.00": 3, "15-1211.00": 4, "11-3021.00": 5,
+        })
         mock_client.get_tech_skills.return_value = set()
-        mock_client.get_skills_profile.side_effect = [
-            [onet_skill("Python", 80.0)],
-            [onet_skill("Leadership", 60.0)],
-        ]
+        mock_client.get_skills_profile.side_effect = by_code({
+            "15-1211.00": [onet_skill("Python", 80.0)],
+            "11-3021.00": [onet_skill("Leadership", 60.0)],
+        })
 
         results = score_paths(
             profile(career_status="employed", skills=[user_skill("Python", "advanced")]),
@@ -571,7 +644,7 @@ class TestScorePaths:
             [occ("15-1252.00", "SW Dev")],  # resolve
             [], [],                          # keyword supplementary — nothing extra
         ]
-        mock_client.get_job_zone.side_effect = [3, 4]   # current=3, Data Sci=4
+        mock_client.get_job_zone.side_effect = by_code({"15-1252.00": 3, "15-2051.00": 4})   # current=3, Data Sci=4
         mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = [onet_skill("Statistics", 70.0)]
 
@@ -632,7 +705,7 @@ class TestScorePaths:
             [occ("15-1211.00", "CS Analyst")],  # gather title
             [],                                  # gather skill
         ]
-        mock_client.get_job_zone.side_effect = [2, 3]   # current=2, candidate=3 (+1)
+        mock_client.get_job_zone.side_effect = by_code({"15-1252.00": 2, "15-1211.00": 3})   # current=2, candidate=3 (+1)
         mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = [onet_skill("COBOL", 100.0)]
 
@@ -655,7 +728,9 @@ class TestScorePaths:
             [], [],               # keyword supplementary — nothing extra
         ]
         # current=3, same=3, higher=4
-        mock_client.get_job_zone.side_effect = [3, 3, 4]
+        mock_client.get_job_zone.side_effect = by_code({
+            "15-1252.00": 3, "15-1211.00": 3, "11-3021.00": 4,
+        })
         mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = [onet_skill("Python", 100.0)]
 
@@ -674,7 +749,7 @@ class TestScorePaths:
             [occ("43-4051.00", "Entry Role")],
             [],
         ]
-        mock_client.get_job_zone.side_effect = [4, 2]   # current=4, candidate=2 (-2)
+        mock_client.get_job_zone.side_effect = by_code({"15-1252.00": 4, "43-4051.00": 2})   # current=4, candidate=2 (-2)
         mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = []
 
@@ -690,7 +765,7 @@ class TestScorePaths:
             many,                  # gather title
             [],                    # gather skill
         ]
-        mock_client.get_job_zone.side_effect = [3] + [4] * 20
+        mock_client.get_job_zone.side_effect = by_code({"15-1252.00": 3}, default=4)
         mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = []
 
@@ -707,12 +782,14 @@ class TestScorePaths:
             [], [],               # keyword supplementary — nothing extra
         ]
         # current=2; both candidates at zone 3 (delta=+1)
-        mock_client.get_job_zone.side_effect = [2, 3, 3]
+        mock_client.get_job_zone.side_effect = by_code({
+            "15-1252.00": 2, "15-0001.00": 3, "15-0002.00": 3,
+        })
         mock_client.get_tech_skills.return_value = set()
-        mock_client.get_skills_profile.side_effect = [
-            [],                            # Low: no skills
-            [onet_skill("Python", 100.0)], # High: skill match
-        ]
+        mock_client.get_skills_profile.side_effect = by_code({
+            "15-0001.00": [],                            # Low: no skills
+            "15-0002.00": [onet_skill("Python", 100.0)], # High: skill match
+        })
 
         results = score_paths(
             profile(skills=[user_skill("Python", "advanced")]),
@@ -738,11 +815,38 @@ class TestScorePaths:
             [occ("15-1252.00")],
             [], [],
         ]
-        mock_client.get_job_zone.side_effect = [
-            3,                         # current zone
-            OnetAPIError("zone fail"), # first candidate fails
-            4,                         # second candidate succeeds
+        mock_client.get_job_zone.side_effect = by_code({
+            "15-1252.00": 3,                          # current zone
+            "15-1211.00": OnetAPIError("zone fail"),  # first candidate fails
+            "15-2051.00": 4,                          # second candidate succeeds
+        })
+        mock_client.get_tech_skills.return_value = set()
+        mock_client.get_skills_profile.return_value = []
+
+        results = score_paths(profile(skills=[]), mock_client)
+        assert len(results) == 1
+        assert results[0].onet_code == "15-2051.00"
+
+    def test_rate_limit_error_on_zone_fetch_skips_candidate_during_parallel_fetch(self, mock_client):
+        """A candidate hitting OnetRateLimitError during the (now-parallel) fetch
+        phase must be skipped like any other fetch failure, not crash the whole
+        request — parallelizing raises the odds of hitting O*NET's rate limiter
+        (up to _FETCH_MAX_WORKERS candidates in flight at once), so this failure
+        mode needed the same handling OnetAPIError already had.
+        """
+        mock_client.get_job_family_occupations.return_value = [
+            occ("15-1211.00", "Fails"),
+            occ("15-2051.00", "Succeeds"),
         ]
+        mock_client.search_occupations.side_effect = [
+            [occ("15-1252.00")],
+            [], [],
+        ]
+        mock_client.get_job_zone.side_effect = by_code({
+            "15-1252.00": 3,                                       # current zone
+            "15-1211.00": OnetRateLimitError("rate limited"),      # first candidate fails
+            "15-2051.00": 4,                                       # second candidate succeeds
+        })
         mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = []
 
@@ -759,12 +863,14 @@ class TestScorePaths:
             [occ("15-1252.00")],
             [], [],
         ]
-        mock_client.get_job_zone.side_effect = [3, 4, 4]
+        mock_client.get_job_zone.side_effect = by_code({
+            "15-1252.00": 3, "15-1211.00": 4, "15-2051.00": 4,
+        })
         mock_client.get_tech_skills.return_value = set()
-        mock_client.get_skills_profile.side_effect = [
-            OnetAPIError("skills fail"),
-            [],
-        ]
+        mock_client.get_skills_profile.side_effect = by_code({
+            "15-1211.00": OnetAPIError("skills fail"),
+            "15-2051.00": [],
+        })
 
         results = score_paths(profile(skills=[]), mock_client)
         assert len(results) == 1
@@ -778,7 +884,7 @@ class TestScorePaths:
             [],  # Python skill search
             [],  # SQL skill search
         ]
-        mock_client.get_job_zone.side_effect = [2, 3]
+        mock_client.get_job_zone.side_effect = by_code({"15-1252.00": 2, "15-1211.00": 3})
         mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = [
             onet_skill("Python", 80.0),
@@ -803,7 +909,9 @@ class TestScorePaths:
             [],
         ]
         # Candidates at zones 4 (+1) and 1 (regression)
-        mock_client.get_job_zone.side_effect = [3, 4, 1]
+        mock_client.get_job_zone.side_effect = by_code({
+            "15-1252.00": 3, "15-1211.00": 4, "43-4051.00": 1,
+        })
         mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = [onet_skill("Python", 100.0)]
 
@@ -1091,7 +1199,7 @@ def test_score_paths_skips_work_activities_fetch_when_no_behavioral_profile(mock
         [occ("15-1211.00", "CS Analyst")],  # gather title
         [],                               # gather skill
     ]
-    mock_client.get_job_zone.side_effect = [3, 4]
+    mock_client.get_job_zone.side_effect = by_code({"15-1252.00": 3, "15-1211.00": 4})
     mock_client.get_tech_skills.return_value = set()
     mock_client.get_skills_profile.return_value = [onet_skill("Python", 80.0)]
 
@@ -1215,7 +1323,7 @@ def test_overlap_combines_centroid_and_coverage(mock_client):
         [occ("15-1211.00", "CS Analyst")],  # gather title
         [],                                  # gather skill
     ]
-    mock_client.get_job_zone.side_effect = [3, 3]  # current=3, candidate=3 (delta=0)
+    mock_client.get_job_zone.side_effect = by_code({"15-1252.00": 3, "15-1211.00": 3})  # current=3, candidate=3 (delta=0)
     mock_client.get_tech_skills.return_value = {"python hot"}
     mock_client.get_skills_profile.return_value = [onet_skill("Programming", 80.0)]
 
@@ -1360,7 +1468,7 @@ class TestPriorityWeights:
             [],
         ]
         # current=2, candidate=3 (+1 → zone_score=1.0)
-        mock_client.get_job_zone.side_effect = [2, 3]
+        mock_client.get_job_zone.side_effect = by_code({"15-1252.00": 2, "15-1211.00": 3})
         mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = []  # no skill overlap
 
@@ -1379,7 +1487,7 @@ class TestPriorityWeights:
             [occ("15-1211.00", "CS Analyst")],
             [],
         ]
-        mock_client.get_job_zone.side_effect = [2, 3]
+        mock_client.get_job_zone.side_effect = by_code({"15-1252.00": 2, "15-1211.00": 3})
         mock_client.get_tech_skills.return_value = set()
         mock_client.get_skills_profile.return_value = []
 
@@ -1655,12 +1763,14 @@ def test_research_scientist_excluded_from_results_for_tech_user(mock_client):
     ]
     # Job family primary includes sw_dev, web_dev, cirs; CIRS filtered before scoring
     mock_client.get_job_family_occupations.return_value = [sw_dev, cirs, web_dev]
-    mock_client.get_job_zone.side_effect = [3, 3, 3]  # current=3, sw_dev=3, web_dev=3
-    mock_client.get_tech_skills.side_effect = [
-        {"JavaScript", "React", "Python", "TypeScript", "Node.js"},  # sw_dev
-        {"HTML", "CSS", "JavaScript"},                                # web_dev
-    ]
-    mock_client.get_skills_profile.side_effect = [[], []]
+    mock_client.get_job_zone.side_effect = by_code({
+        "15-1253.00": 3, "15-1252.00": 3, "15-1254.00": 3,
+    })  # current=3, sw_dev=3, web_dev=3
+    mock_client.get_tech_skills.side_effect = by_code({
+        "15-1252.00": {"JavaScript", "React", "Python", "TypeScript", "Node.js"},  # sw_dev
+        "15-1254.00": {"HTML", "CSS", "JavaScript"},                                # web_dev
+    })
+    mock_client.get_skills_profile.return_value = []
 
     mock_openai = MagicMock()
     mock_openai.chat.completions.create.return_value = MagicMock(
@@ -1758,7 +1868,7 @@ def test_software_developers_above_bioinformatics(mock_client):
         [occ("15-1253.00")],   # resolve current title
         [sw_dev, bio_sci],      # gather: both returned by O*NET search
     ]
-    mock_client.get_job_zone.side_effect = [3, 4]  # current=3, sw_dev=4
+    mock_client.get_job_zone.side_effect = by_code({"15-1253.00": 3, "15-1252.00": 4})  # current=3, sw_dev=4
     mock_client.get_tech_skills.return_value = {"JavaScript", "React", "Python", "TypeScript"}
     mock_client.get_skills_profile.return_value = []
 
@@ -1802,7 +1912,7 @@ def test_web_developers_above_survey_researchers(mock_client):
         [occ("15-1253.00")],   # resolve current title
         [web_dev, survey],      # gather: both returned by O*NET search
     ]
-    mock_client.get_job_zone.side_effect = [3, 4]  # current=3, web_dev=4
+    mock_client.get_job_zone.side_effect = by_code({"15-1253.00": 3, "15-1257.00": 4})  # current=3, web_dev=4
     mock_client.get_tech_skills.return_value = {"HTML5", "CSS3", "JavaScript", "React.js"}
     mock_client.get_skills_profile.return_value = []
 
@@ -1876,12 +1986,14 @@ def test_proficiency_weights_applied_in_score_paths(mock_client):
         [role_a],                # keyword first result: "Web Developers"
         [role_b],                # keyword first result: "Compliance Officers"
     ]
-    mock_client.get_job_zone.side_effect = [3, 4, 3]  # current, role_a, role_b
-    mock_client.get_tech_skills.side_effect = [
-        {"React", "JavaScript", "TypeScript"},  # role_a
-        {"ARIMA", "Time Series", "Forecasting"},  # role_b (orthogonal to React)
-    ]
-    mock_client.get_skills_profile.side_effect = [[], []]
+    mock_client.get_job_zone.side_effect = by_code({
+        "15-1253.00": 3, "15-1257.00": 4, "13-1041.00": 3,
+    })  # current, role_a, role_b
+    mock_client.get_tech_skills.side_effect = by_code({
+        "15-1257.00": {"React", "JavaScript", "TypeScript"},  # role_a
+        "13-1041.00": {"ARIMA", "Time Series", "Forecasting"},  # role_b (orthogonal to React)
+    })
+    mock_client.get_skills_profile.return_value = []
 
     mock_openai = MagicMock()
     mock_openai.chat.completions.create.return_value = MagicMock(
@@ -1958,7 +2070,11 @@ def test_stay_in_field_boosts_title_matching_candidate(mock_client):
         [occ("15-1252.00", "Software Developers")],  # resolve: current title
         [],                                            # keyword supplementary — nothing extra
     ]
-    mock_client.get_job_zone.side_effect = [3, 4, 4]  # current=3, sw_dev=4, web_dev=4
+    # sw_dev shares the current-resolved code, so get_job_zone("15-1252.00") is called
+    # twice: once resolving the current zone (3), once scoring sw_dev as a candidate (4).
+    mock_client.get_job_zone.side_effect = by_code({
+        "15-1252.00": Seq(3, 4), "15-1257.00": 4,
+    })  # current=3, sw_dev=4, web_dev=4
     mock_client.get_tech_skills.return_value = set()
     mock_client.get_skills_profile.return_value = []  # empty role_items → overlap_score=0.0 for both
 
@@ -1998,7 +2114,7 @@ def test_fresh_start_leaves_score_unchanged(mock_client):
 
     mock_client.search_occupations.return_value = [occ("11-9999.00", "Some Current Role")]
     mock_client.get_bright_outlook_occupations.return_value = [candidate]
-    mock_client.get_job_zone.side_effect = [3, 4]  # current=3, candidate=4
+    mock_client.get_job_zone.side_effect = by_code({"11-9999.00": 3, "15-1252.00": 4})  # current=3, candidate=4
     mock_client.get_tech_skills.return_value = set()
     mock_client.get_skills_profile.return_value = []
 
@@ -2094,3 +2210,102 @@ def test_no_openai_client_leaves_score_unchanged(mock_client):
     # substring overlap: "python" ⊂ "Python"(80) → 0.8; zone delta 0 (open/None) → 0.5.
     expected = 0.5 * 0.8 + 0.5 * 0.5
     assert results[0].score == pytest.approx(expected)
+
+
+# ---------------------------------------------------------------------------
+# _shape_role_similarity — concave reshape for adjacent move_intent
+# ---------------------------------------------------------------------------
+
+
+def test_shape_role_similarity_passthrough_for_stay_in_field_and_none():
+    """stay_in_field and unspecified (None) intent keep the raw linear score —
+    the sharp discrimination there is already validated and must not change."""
+    assert _shape_role_similarity(0.42, "stay_in_field") == 0.42
+    assert _shape_role_similarity(0.42, None) == 0.42
+
+
+def test_shape_role_similarity_sqrt_for_adjacent():
+    """adjacent applies sqrt: mid-range values get lifted, boundaries are fixed points."""
+    assert _shape_role_similarity(0.30, "adjacent") == pytest.approx(0.30 ** 0.5)
+    assert _shape_role_similarity(0.0, "adjacent") == 0.0
+    assert _shape_role_similarity(1.0, "adjacent") == pytest.approx(1.0)
+
+
+def test_shape_role_similarity_none_passthrough():
+    """role_score=None (no anchor / embeddings unavailable) passes through unchanged
+    for every intent, so the existing role_w-collapses-to-0 guard is untouched."""
+    assert _shape_role_similarity(None, "adjacent") is None
+    assert _shape_role_similarity(None, "stay_in_field") is None
+    assert _shape_role_similarity(None, None) is None
+
+
+def test_adjacent_mid_range_role_score_beats_stay_in_field_linear_treatment():
+    """A mid-range role_similarity (0.2-0.4 band) must contribute more to the final
+    score under adjacent's role_w×reshape than the same raw score would contribute
+    under stay_in_field's role_w×raw — confirms the reshape actually broadens
+    mid-range credit rather than just being a relabelled weight cut."""
+    raw_role_score = 0.30
+
+    stay_contribution = _ROLE_WEIGHT_BY_INTENT["stay_in_field"] * _shape_role_similarity(
+        raw_role_score, "stay_in_field"
+    )
+    adjacent_contribution = _ROLE_WEIGHT_BY_INTENT["adjacent"] * _shape_role_similarity(
+        raw_role_score, "adjacent"
+    )
+
+    assert adjacent_contribution > stay_contribution
+
+
+def test_adjacent_near_ceiling_role_score_close_to_stay_in_field(mock_client):
+    """Regression guard for the exact bug this spec fixes: a candidate with
+    role_score≈1.0 (exact O*NET code match to the resolved current title) must not
+    crater just because move_intent switched from stay_in_field to adjacent.
+    sqrt(1.0)=1.0 keeps the reshaped value at the ceiling, and role_w only drops
+    modestly (0.50→0.45), so the adjacent score must sit close to — not a
+    double-digit-point crater below — the stay_in_field score."""
+    import backend.services.path_scoring as ps
+
+    def run(move_intent):
+        ps._EMBED_CACHE.clear()
+        sw_dev = occ("15-1252.00", "Software Developers")   # matches resolved current code
+        web_dev = occ("15-1257.00", "Web Developers")        # does not match
+
+        mock_client.get_job_family_occupations.return_value = [sw_dev, web_dev]
+        mock_client.search_occupations.side_effect = [
+            [occ("15-1252.00", "Software Developers")],  # resolve: current title
+            [],                                            # keyword supplementary — nothing extra
+        ]
+        # sw_dev shares the current-resolved code — see the analogous comment in
+        # test_stay_in_field_boosts_title_matching_candidate above.
+        mock_client.get_job_zone.side_effect = by_code({
+            "15-1252.00": Seq(3, 4), "15-1257.00": 4,
+        })  # current=3, sw_dev=4, web_dev=4
+        mock_client.get_tech_skills.return_value = set()
+        mock_client.get_skills_profile.return_value = []  # empty role_items → overlap_score=0.0
+
+        mock_openai = MagicMock()
+        mock_openai.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content='["Software Developers"]'))]
+        )
+        mock_openai.embeddings.create.return_value = MagicMock(data=[])
+
+        results = score_paths(
+            profile(
+                current_title="Software Engineer",
+                career_status="employed",
+                archetype="",
+                move_intent=move_intent,
+                skills=[user_skill("python", "advanced")],
+            ),
+            mock_client,
+            mock_openai,
+        )
+        return {r.onet_code: r.score for r in results}["15-1252.00"]
+
+    stay_score = run("stay_in_field")
+    adjacent_score = run("adjacent")
+
+    assert stay_score == pytest.approx(0.75)
+    assert adjacent_score == pytest.approx(0.725)
+    assert abs(adjacent_score - stay_score) <= 0.05
+    ps._EMBED_CACHE.clear()
