@@ -63,6 +63,16 @@ def _clear_occ_cache():
     onet_module._OCC_CACHE.clear()
 
 
+@pytest.fixture(autouse=True)
+def _clear_bright_outlook_cache():
+    """Same rationale as _clear_occ_cache, for the separate Bright Outlook cache."""
+    onet_module._BRIGHT_OUTLOOK_CACHE = []
+    onet_module._BRIGHT_OUTLOOK_CACHE_TS = 0.0
+    yield
+    onet_module._BRIGHT_OUTLOOK_CACHE = []
+    onet_module._BRIGHT_OUTLOOK_CACHE_TS = 0.0
+
+
 # ---------------------------------------------------------------------------
 # OnetClient initialisation
 # ---------------------------------------------------------------------------
@@ -407,3 +417,99 @@ class TestOccupationCache:
             before = call_count["n"]
             assert client.get_job_zone("15-9008.00") == 3
             assert call_count["n"] == before
+
+
+# ---------------------------------------------------------------------------
+# get_bright_outlook_occupations
+# ---------------------------------------------------------------------------
+
+
+class TestGetBrightOutlookOccupations:
+    """Regression coverage for a live-only bug: GET /online/bright_outlook
+
+    returns a bare JSON array of {href, code, title} — not an object with a
+    "bright_outlook_category" key. The old code called categories_data.get(...)
+    on that array and crashed with AttributeError (not OnetAPIError, so the
+    existing stale-cache fallback never caught it) the first time a real user
+    exercised the fresh_start / new-field flow. Confirmed against the live v2
+    API before fixing. These response shapes mirror what was actually observed.
+    """
+
+    _CATEGORIES = [
+        {"href": "https://api-v2.onetcenter.org/online/bright_outlook/grow", "code": "grow", "title": "Rapid Growth"},
+        {"href": "https://api-v2.onetcenter.org/online/bright_outlook/openings", "code": "openings", "title": "Numerous Openings"},
+        # Live response also includes this meta-entry with no "code" key at all —
+        # must be skipped, not looped over as a 3rd category.
+        {"href": "https://api-v2.onetcenter.org/online/bright_outlook/all", "title": "All Bright Outlook Occupations"},
+    ]
+
+    @staticmethod
+    def _category_response(occupations: list[dict]) -> dict:
+        return {"start": 1, "end": 100, "total": len(occupations), "occupation": occupations}
+
+    def test_parses_bare_array_category_response(self, client: OnetClient) -> None:
+        """The exact shape that used to crash: a bare list, not {"bright_outlook_category": [...]}."""
+        responses = [
+            _mock_response(self._CATEGORIES),
+            _mock_response(self._category_response([
+                {"code": "13-2011.00", "title": "Accountants and Auditors"},
+            ])),
+            _mock_response(self._category_response([
+                {"code": "15-1252.00", "title": "Software Developers"},
+            ])),
+        ]
+        with patch.object(client._session, "get", side_effect=responses):
+            result = client.get_bright_outlook_occupations()
+
+        assert {o.code for o in result} == {"13-2011.00", "15-1252.00"}
+
+    def test_deduplicates_across_categories(self, client: OnetClient) -> None:
+        responses = [
+            _mock_response(self._CATEGORIES),
+            _mock_response(self._category_response([
+                {"code": "13-2011.00", "title": "Accountants and Auditors"},
+            ])),
+            _mock_response(self._category_response([
+                {"code": "13-2011.00", "title": "Accountants and Auditors"},  # same occupation, other category
+            ])),
+        ]
+        with patch.object(client._session, "get", side_effect=responses):
+            result = client.get_bright_outlook_occupations()
+
+        assert [o.code for o in result].count("13-2011.00") == 1
+
+    def test_requests_up_to_100_per_category(self, client: OnetClient) -> None:
+        """Categories can hold 300+ occupations; the API defaults to a 20-item
+        page, so each per-category call must explicitly request end=100."""
+        responses = [
+            _mock_response(self._CATEGORIES),
+            _mock_response(self._category_response([])),
+            _mock_response(self._category_response([])),
+        ]
+        with patch.object(client._session, "get", side_effect=responses) as mock_get:
+            client.get_bright_outlook_occupations()
+
+        category_calls = mock_get.call_args_list[1:]
+        assert all(call.kwargs.get("params", {}).get("end") == 100 for call in category_calls)
+
+    def test_api_error_falls_back_to_stale_cache(self, client: OnetClient) -> None:
+        onet_module._BRIGHT_OUTLOOK_CACHE = [Occupation(code="15-1252.00", title="Software Developers")]
+        onet_module._BRIGHT_OUTLOOK_CACHE_TS = 0.0  # expired, forces a re-fetch attempt
+
+        with patch.object(client._session, "get", return_value=_mock_response({}, status_code=500)):
+            result = client.get_bright_outlook_occupations()
+
+        assert result == [Occupation(code="15-1252.00", title="Software Developers")]
+
+    def test_cache_hit_avoids_second_fetch(self, client: OnetClient) -> None:
+        responses = [
+            _mock_response(self._CATEGORIES),
+            _mock_response(self._category_response([{"code": "13-2011.00", "title": "Accountants"}])),
+            _mock_response(self._category_response([{"code": "15-1252.00", "title": "SW Dev"}])),
+        ]
+        with patch.object(client._session, "get", side_effect=responses) as mock_get:
+            first = client.get_bright_outlook_occupations()
+            second = client.get_bright_outlook_occupations()
+
+        assert first == second
+        assert mock_get.call_count == 3  # not re-fetched on the second call

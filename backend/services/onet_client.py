@@ -318,18 +318,27 @@ class OnetClient:
         for _BRIGHT_OUTLOOK_CACHE_TTL seconds (24h) — the list changes only quarterly.
         On any OnetAPIError returns the stale cache (possibly empty) so the caller
         can fall back to profile-seeded search.
+
+        /online/bright_outlook returns a bare JSON array of {href, code, title}
+        (not wrapped in an object) — unlike every other list endpoint in this
+        client. Confirmed against the live v2 API.  The array also includes a
+        4th "All Bright Outlook Occupations" meta-entry with no "code" key
+        (only href/title) — skipped rather than looped over, since it's a
+        convenience alias for the same 3 categories, not a distinct category.
         """
         global _BRIGHT_OUTLOOK_CACHE, _BRIGHT_OUTLOOK_CACHE_TS
         now = time.monotonic()
         if _BRIGHT_OUTLOOK_CACHE and now - _BRIGHT_OUTLOOK_CACHE_TS < _BRIGHT_OUTLOOK_CACHE_TTL:
             return _BRIGHT_OUTLOOK_CACHE
         try:
-            data = self._get("online/bright_outlook")
-            categories = [cat["code"] for cat in data.get("bright_outlook_category", [])]
+            categories_data = self._get("online/bright_outlook")
+            categories = [cat["code"] for cat in categories_data if cat.get("code")]
             seen: set[str] = set()
             result: list[Occupation] = []
             for category_code in categories:
-                cat_data = self._get(f"online/bright_outlook/{category_code}")
+                # end=100 per category: categories can hold 300+ occupations and the
+                # API defaults to a 20-item page, same rationale as get_job_family_occupations.
+                cat_data = self._get(f"online/bright_outlook/{category_code}", params={"end": 100})
                 for occ_data in cat_data.get("occupation", []):
                     code = occ_data.get("code", "")
                     if code and code not in seen:

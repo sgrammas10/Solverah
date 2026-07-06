@@ -1371,8 +1371,10 @@ class TestBrightOutlookOccupations:
     def test_deduplicates_across_categories(self, reset_bright_outlook_cache):
         client = MagicMock(spec=OnetClient)
         # Two categories; second returns an occ already seen in first.
+        # /online/bright_outlook returns a bare array, not {"bright_outlook_category": [...]}
+        # — confirmed against the live v2 API.
         client._get.side_effect = [
-            {"bright_outlook_category": [{"code": "growing"}, {"code": "openings"}]},
+            [{"code": "growing"}, {"code": "openings"}],
             {"occupation": [{"code": "15-1252.00", "title": "SW Dev"}, {"code": "15-1211.00", "title": "CS Analyst"}]},
             {"occupation": [{"code": "15-1252.00", "title": "SW Dev"}, {"code": "11-3021.00", "title": "IT Manager"}]},
         ]
@@ -1385,7 +1387,7 @@ class TestBrightOutlookOccupations:
     def test_uses_cache_within_ttl(self, reset_bright_outlook_cache):
         client = MagicMock(spec=OnetClient)
         client._get.side_effect = [
-            {"bright_outlook_category": [{"code": "growing"}]},
+            [{"code": "growing"}],
             {"occupation": [{"code": "15-1252.00", "title": "SW Dev"}]},
         ]
         from backend.services.onet_client import OnetClient as RealClient
@@ -1398,7 +1400,7 @@ class TestBrightOutlookOccupations:
         client = MagicMock(spec=OnetClient)
         # Prime the cache with one successful fetch.
         client._get.side_effect = [
-            {"bright_outlook_category": [{"code": "growing"}]},
+            [{"code": "growing"}],
             {"occupation": [{"code": "15-1252.00", "title": "SW Dev"}]},
         ]
         from backend.services.onet_client import OnetClient as RealClient, OnetAPIError as RealAPIError
