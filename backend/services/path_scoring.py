@@ -63,6 +63,15 @@ _ZONE_WEIGHT_EXPERIENCED: float = 0.5
 _SKILLS_WEIGHT_FIRST_JOB: float = 0.4
 _ZONE_WEIGHT_FIRST_JOB: float = 0.6
 
+# fresh_start has no current-occupation anchor (role_w is forced to 0 for this
+# intent), which leaves zone delta as the single largest, and only completely
+# field-blind, signal in the formula — every zone+1 role floats to the top
+# together regardless of relevance. This transfers a fraction of zone_w to
+# skills_w for fresh_start only (see score_paths), dampening that blindness.
+# Starting hypothesis, not a validated number — tune against scoring_debug.txt
+# like every other weight constant in this file.
+_ZONE_DAMPENING_FRESH_START: float = 0.6
+
 _SKILL_LEVEL_WEIGHTS: dict[str, float] = {
     "beginner": 0.33,
     "intermediate": 0.67,
@@ -1295,6 +1304,12 @@ def score_paths(
     """
     _LLM_DEBUG_LOG.clear()
 
+    # Logged explicitly up front so a mismatch between intent and the weights
+    # actually used further down is visible at a glance instead of requiring
+    # reverse-math from the final scores (see the fresh_start zone-dampening
+    # investigation this came out of).
+    _llm_log("MOVE INTENT", f"move_intent: {user_profile.move_intent!r}")
+
     current_zone, current_code, zone_resolved, current_role_title = _resolve_current_zone(
         user_profile, onet_client, openai_client
     )
@@ -1330,6 +1345,23 @@ def score_paths(
         skills_w, zone_w, style_w = 0.75, 0.00, 0.25
     else:
         skills_w, zone_w, style_w = 1.0, 0.0, 0.0
+
+    # fresh_start has no current-occupation anchor (role_w forced to 0 below),
+    # leaving zone delta as the single largest, field-blind signal — every
+    # zone+1 role in the candidate pool scores identically on this term
+    # regardless of relevance. Transfer a fraction of zone_w to skills_w to
+    # dampen that. Safe across every branch above, including zone_w == 0
+    # (unresolvable zone) — the transfer is just 0, no special-casing needed.
+    if user_profile.move_intent == "fresh_start":
+        pre_dampening_zone_w = zone_w
+        transfer = zone_w * _ZONE_DAMPENING_FRESH_START
+        skills_w += transfer
+        zone_w -= transfer
+        _llm_log(
+            "WEIGHT ALLOCATION — fresh_start zone dampening",
+            f"zone_w: {pre_dampening_zone_w:.2f} → {zone_w:.2f} (fresh_start dampening)\n"
+            f"skills_w: {skills_w - transfer:.2f} → {skills_w:.2f}",
+        )
 
     # Reserve role_w before the skills/zone/style split, then rescale that split
     # into the remaining budget so all four weights sum to 1.0.  No anchor title

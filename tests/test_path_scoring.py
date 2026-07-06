@@ -1496,6 +1496,55 @@ class TestPriorityWeights:
         results = score_paths(profile(skills=[], priority=None), mock_client)
         assert results[0].score == pytest.approx(_ZONE_WEIGHT_EXPERIENCED * 1.0, abs=1e-3)
 
+    @pytest.mark.parametrize("move_intent", ["stay_in_field", "adjacent", None])
+    def test_fresh_start_dampening_does_not_trigger_for_other_intents(self, mock_client, move_intent):
+        """_ZONE_DAMPENING_FRESH_START must only ever fire on move_intent == "fresh_start".
+
+        Reuses the exact zone_w=0.65 setup from test_learning_growth_increases_zone_weight
+        (the branch with the most zone_w to dampen, so a stray trigger here would be the
+        most visible) with no openai_client, so role_w stays 0 regardless of move_intent
+        and this isolates the zone/skills weights alone. Score must equal the plain
+        (undampened) 0.65 formula byte-for-byte for every non-fresh_start intent.
+        """
+        mock_client.search_occupations.side_effect = [
+            [occ("15-1252.00")],
+            [occ("15-1211.00", "CS Analyst")],
+            [],
+        ]
+        mock_client.get_job_zone.side_effect = by_code({"15-1252.00": 2, "15-1211.00": 3})
+        mock_client.get_tech_skills.return_value = set()
+        mock_client.get_skills_profile.return_value = []
+
+        results = score_paths(
+            profile(skills=[], priority="learning_growth", move_intent=move_intent),
+            mock_client,
+        )
+        assert results[0].score == pytest.approx(0.65, abs=1e-3)
+
+    def test_fresh_start_dampening_is_a_noop_when_zone_unresolvable(self, mock_client):
+        """zone_w is already 0 in the unresolvable-zone branch; the fresh_start transfer
+        (zone_w * _ZONE_DAMPENING_FRESH_START) must be a no-op there — 0 * anything = 0,
+        no special-casing needed, no crash, no negative weight."""
+        mock_client.search_occupations.return_value = []
+        mock_client.get_bright_outlook_occupations.return_value = [occ("15-1211.00", "CS Analyst")]
+        mock_client.get_job_zone.return_value = 3
+        mock_client.get_tech_skills.return_value = set()
+        mock_client.get_skills_profile.return_value = [onet_skill("Python", 80.0)]
+
+        results = score_paths(
+            profile(
+                career_status="between_jobs",
+                current_title=None,
+                move_intent="fresh_start",
+                skills=[user_skill("Python", "intermediate")],
+            ),
+            mock_client,
+        )
+        # Same formula/value as test_between_jobs_no_title_uses_skill_search_only:
+        # zone unresolved -> skills_w=1.0, zone_w=0.0 (dampened to 0.0*0.6=0, still 0.0).
+        assert len(results) == 1
+        assert results[0].score == pytest.approx(80.0 / 100.0, abs=1e-3)
+
 
 # ---------------------------------------------------------------------------
 # Zone normalization — O*NET plural form and two-attempt fallback
@@ -2107,8 +2156,9 @@ def test_stay_in_field_boosts_title_matching_candidate(mock_client):
 
 
 def test_fresh_start_leaves_score_unchanged(mock_client):
-    """fresh_start forces role_w=0 regardless of current_title/openai_client — regression
-    guard: final score must equal the pre-change skills+zone formula exactly."""
+    """fresh_start forces role_w=0 regardless of current_title/openai_client, and dampens
+    zone_w in favor of skills_w (see _ZONE_DAMPENING_FRESH_START) — regression guard for
+    both the role_w=0 guarantee and the exact dampened skills+zone formula."""
     import backend.services.path_scoring as ps
     ps._EMBED_CACHE.clear()
 
@@ -2139,14 +2189,85 @@ def test_fresh_start_leaves_score_unchanged(mock_client):
     )
 
     assert len(results) == 1
-    # skills_w=0.5 * overlap(0.0) + zone_w=0.5 * zone_delta(+1 → 1.0), role_w forced to 0.
-    assert results[0].score == pytest.approx(0.5)
+    # Pre-dampening: skills_w=0.5 * overlap(0.0) + zone_w=0.5 * zone_delta(+1 -> 1.0) = 0.5.
+    # fresh_start dampening at 0.6: skills_w 0.5->0.8, zone_w 0.5->0.2.
+    # final = 0.8*0.0 + 0.2*1.0 = 0.2, role_w forced to 0.
+    assert results[0].score == pytest.approx(0.2)
+    ps._EMBED_CACHE.clear()
+
+
+def test_fresh_start_dampening_narrows_gap_between_zone_up_and_skill_match():
+    """Regression guard for the bug this spec fixes: an irrelevant zone+1 candidate
+    with near-zero skill overlap (Zone Up No Match) used to float above a same-zone
+    candidate with real skill relevance (Same Zone Match) purely on zone delta,
+    because role_w=0 for fresh_start leaves zone as the only field-agnostic signal.
+
+    Uses the growth-focused branch (skills_w=0.35, zone_w=0.65 pre-dampening — the
+    branch with the most zone_w to dampen). Same Zone Match's one relevant skill
+    (Python, importance 100) is diluted by 5 additional non-matching user skills so
+    its overlap is real but partial (~0.167), matching a realistic "some relevant
+    skills among many" profile rather than a contrived perfect match. Expected
+    values below are the actual score_paths output for this fixture, confirmed by
+    direct computation — not hand-derived — given how easily this formula's
+    fallback substring-matching normalization compounds.
+    """
+    import backend.services.path_scoring as ps
+    ps._EMBED_CACHE.clear()
+
+    zone_up_no_match = occ("15-1211.00", "Zone Up No Match")
+    same_zone_match = occ("15-2051.00", "Same Zone Match")
+    diluting_skills = [user_skill(f"Skill{i}", "advanced") for i in range(5)]
+
+    def run(move_intent):
+        # Fresh mock per call — fresh_start and other intents take different
+        # candidate-gathering paths (bright_outlook vs job_family/keyword search),
+        # so a shared mock's search_occupations.side_effect would be consumed out
+        # of step between the two calls.
+        m = MagicMock(spec=OnetClient)
+        m.get_job_family_occupations.return_value = [zone_up_no_match, same_zone_match]
+        m.get_bright_outlook_occupations.return_value = [zone_up_no_match, same_zone_match]
+        m.search_occupations.side_effect = [[occ("15-1252.00")]] + [[]] * 10
+        m.get_job_zone.side_effect = by_code({
+            "15-1252.00": 3,   # current
+            "15-1211.00": 4,   # zone+1
+            "15-2051.00": 3,   # zone+0
+        })
+        m.get_tech_skills.return_value = set()
+        m.get_skills_profile.side_effect = by_code({
+            "15-1211.00": [onet_skill("COBOL", 100.0)],  # no overlap with user's Python
+            "15-2051.00": [onet_skill("Python", 100.0)],  # matches user's Python exactly
+        })
+        return {
+            r.onet_code: r.score
+            for r in score_paths(
+                profile(
+                    career_status="employed",
+                    archetype="",
+                    priority="learning_growth",
+                    move_intent=move_intent,
+                    skills=[user_skill("Python", "advanced")] + diluting_skills,
+                ),
+                m,
+            )
+        }
+
+    undamped = run(None)  # same branch weights as fresh_start, minus the dampening transfer
+    damped = run("fresh_start")
+
+    gap_undamped = undamped["15-1211.00"] - undamped["15-2051.00"]
+    gap_damped = damped["15-1211.00"] - damped["15-2051.00"]
+
+    assert gap_undamped == pytest.approx(0.2667, abs=1e-3)
+    assert gap_damped == pytest.approx(0.0067, abs=1e-3)
+    assert abs(gap_damped) < abs(gap_undamped)
     ps._EMBED_CACHE.clear()
 
 
 def test_first_job_score_unaffected_by_move_intent(mock_client):
     """current_title=None (first-job) forces role_w=0 no matter what move_intent is set —
-    regression guard for the path most likely to break silently."""
+    regression guard for the path most likely to break silently. fresh_start additionally
+    dampens zone_w in favor of skills_w (see _ZONE_DAMPENING_FRESH_START), so it now
+    legitimately differs from stay_in_field/None rather than matching them exactly."""
     import backend.services.path_scoring as ps
 
     def run(move_intent):
@@ -2182,7 +2303,11 @@ def test_first_job_score_unaffected_by_move_intent(mock_client):
     score_stay = run("stay_in_field")
     score_none = run(None)
     score_fresh = run("fresh_start")
-    assert score_stay == score_none == score_fresh
+    assert score_stay == score_none
+    # fresh_start dampens zone_w (0.5 -> 0.2 at the 0.6 factor) in favor of skills_w,
+    # so it's expected to differ from stay_in_field/None here — not a regression.
+    assert score_fresh != score_stay
+    assert score_fresh == pytest.approx(0.52)
     ps._EMBED_CACHE.clear()
 
 
