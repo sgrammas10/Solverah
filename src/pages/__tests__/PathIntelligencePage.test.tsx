@@ -87,3 +87,77 @@ describe("PathIntelligencePage - career status not set", () => {
     );
   });
 });
+
+// ─── skill proficiency modal ───────────────────────────────────────────────
+
+const baseUser = mocks.user;
+
+describe("PathIntelligencePage - skill proficiency modal", () => {
+  afterEach(() => {
+    mocks.user = baseUser;
+  });
+
+  it("shows proficiency modal on first PI visit when skills are unrated", () => {
+    mocks.user = {
+      profileData: {
+        path_preferences: { move_type: "stay_in_field" },
+        skills: ["React", "Python"],
+        skills_proficiency_confirmed: false,
+      },
+    } as Record<string, unknown>;
+
+    renderPage();
+    expect(screen.getByText("Rate your skills")).toBeInTheDocument();
+  });
+
+  it("skip closes modal and shows nudge banner after results load", async () => {
+    mocks.user = {
+      profileData: {
+        path_preferences: { move_type: "stay_in_field" },
+        skills: ["React"],
+        skills_proficiency_confirmed: false,
+      },
+    } as Record<string, unknown>;
+    mocks.fetchWithAuth.mockResolvedValueOnce({
+      suggestions: [],
+      career_status: "employed",
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /skip for now/i }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/rate your skills to get more accurate/i)
+      ).toBeInTheDocument()
+    );
+  });
+
+  it("saving ratings PATCHes proficiency then re-fetches suggestions", async () => {
+    mocks.user = {
+      profileData: {
+        path_preferences: { move_type: "stay_in_field" },
+        skills: ["React"],
+        skills_proficiency_confirmed: false,
+      },
+    } as Record<string, unknown>;
+    mocks.fetchWithAuth
+      .mockResolvedValueOnce({ skills_proficiency_confirmed: true, skill_levels: {} })
+      .mockResolvedValueOnce({ suggestions: [], career_status: "employed" });
+
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /save & continue/i }));
+
+    await waitFor(() =>
+      expect(mocks.fetchWithAuth).toHaveBeenCalledWith(
+        "/profile/skills/proficiency",
+        expect.objectContaining({ method: "PATCH" })
+      )
+    );
+    await waitFor(() =>
+      expect(mocks.fetchWithAuth).toHaveBeenCalledWith(
+        "/intelligence/path-suggestions"
+      )
+    );
+  });
+});

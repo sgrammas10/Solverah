@@ -5,11 +5,14 @@ Mock response shapes mirror the O*NET v1.9 REST API JSON format.
 """
 from __future__ import annotations
 
+import time
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
 
+import backend.services.onet_client as onet_module
 from backend.services.onet_client import (
     Occupation,
     OnetAPIError,
@@ -47,6 +50,27 @@ def _mock_response(json_data: dict, status_code: int = 200) -> MagicMock:
 def client(monkeypatch: pytest.MonkeyPatch) -> OnetClient:
     monkeypatch.setenv("ONET_API_KEY", "test-key")
     return OnetClient()
+
+
+@pytest.fixture(autouse=True)
+def _clear_occ_cache():
+    """_OCC_CACHE is module-level (shared across every OnetClient instance,
+    by design — see onet_client.py) so it must be cleared between tests or
+    one test's mocked response leaks into the next test's assertions.
+    """
+    onet_module._OCC_CACHE.clear()
+    yield
+    onet_module._OCC_CACHE.clear()
+
+
+@pytest.fixture(autouse=True)
+def _clear_bright_outlook_cache():
+    """Same rationale as _clear_occ_cache, for the separate Bright Outlook cache."""
+    onet_module._BRIGHT_OUTLOOK_CACHE = []
+    onet_module._BRIGHT_OUTLOOK_CACHE_TS = 0.0
+    yield
+    onet_module._BRIGHT_OUTLOOK_CACHE = []
+    onet_module._BRIGHT_OUTLOOK_CACHE_TS = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -208,10 +232,13 @@ class TestGetJobZone:
         assert isinstance(zone, int)
 
     def test_job_zone_boundaries(self, client: OnetClient) -> None:
+        # Distinct onet_code per iteration — get_job_zone results are now cached
+        # per-code, so reusing one code across differing mocked responses would
+        # just return the first cached value on every later iteration.
         for expected in (1, 2, 3, 4, 5):
             resp = {"code": expected, "title": "..."}
             with patch.object(client._session, "get", return_value=_mock_response(resp)):
-                assert client.get_job_zone("15-1252.00") == expected
+                assert client.get_job_zone(f"15-125{expected}.00") == expected
 
     def test_raises_on_rate_limit(
         self, client: OnetClient, monkeypatch: pytest.MonkeyPatch
@@ -281,3 +308,208 @@ class TestGetTechSkills:
         with patch.object(client._session, "get", return_value=_mock_response({}, status_code=429)):
             with pytest.raises(OnetRateLimitError):
                 client.get_tech_skills("15-1252.00")
+
+
+# ---------------------------------------------------------------------------
+# Occupation-level cache (get_job_zone / get_skills_profile / get_tech_skills /
+# get_work_activities) — shared module-level cache, see _OCC_CACHE.
+# ---------------------------------------------------------------------------
+
+
+class TestOccupationCache:
+    def test_get_job_zone_cache_hit_avoids_second_fetch(self, client: OnetClient) -> None:
+        with patch.object(
+            client._session, "get", return_value=_mock_response({"code": 4, "title": "..."})
+        ) as mock_get:
+            assert client.get_job_zone("15-9001.00") == 4
+            assert client.get_job_zone("15-9001.00") == 4
+
+        assert mock_get.call_count == 1
+
+    def test_get_skills_profile_cache_hit_avoids_second_fetch(self, client: OnetClient) -> None:
+        resp = {"element": [{"id": "2.A.1.a", "name": "Reading Comprehension", "importance": 72}]}
+        with patch.object(client._session, "get", return_value=_mock_response(resp)) as mock_get:
+            first = client.get_skills_profile("15-9002.00")
+            second = client.get_skills_profile("15-9002.00")
+
+        assert mock_get.call_count == 1
+        assert first == second
+
+    def test_get_tech_skills_cache_hit_avoids_second_fetch(self, client: OnetClient) -> None:
+        resp = {"category": [{"example": [{"title": "Python"}], "example_more": []}]}
+        with patch.object(client._session, "get", return_value=_mock_response(resp)) as mock_get:
+            first = client.get_tech_skills("15-9003.00")
+            second = client.get_tech_skills("15-9003.00")
+
+        assert mock_get.call_count == 1
+        assert first == second == {"python"}
+
+    def test_get_tech_skills_hot_only_variants_cached_separately(self, client: OnetClient) -> None:
+        """hot_only=True/False must not share a cache entry — different results."""
+        resp = {
+            "category": [{
+                "example": [
+                    {"title": "Python", "hot_technology": True},
+                    {"title": "COBOL", "hot_technology": False},
+                ],
+                "example_more": [],
+            }]
+        }
+        with patch.object(client._session, "get", return_value=_mock_response(resp)) as mock_get:
+            hot_only = client.get_tech_skills("15-9004.00", hot_only=True)
+            all_tools = client.get_tech_skills("15-9004.00", hot_only=False)
+
+        assert hot_only == {"python"}
+        assert all_tools == {"python", "cobol"}
+        assert mock_get.call_count == 2
+
+    def test_get_work_activities_cache_hit_avoids_second_fetch(self, client: OnetClient) -> None:
+        resp = {"element": [{"id": "4.A.1.a", "name": "Getting Information", "importance": 80}]}
+        with patch.object(client._session, "get", return_value=_mock_response(resp)) as mock_get:
+            first = client.get_work_activities("15-9005.00")
+            second = client.get_work_activities("15-9005.00")
+
+        assert mock_get.call_count == 1
+        assert first == second
+
+    def test_cached_list_and_set_values_are_not_shared_by_reference(self, client: OnetClient) -> None:
+        """Mutating one caller's result must not corrupt what later callers get back."""
+        skills_resp = {"element": [{"id": "2.A.1.a", "name": "Reading Comprehension", "importance": 72}]}
+        with patch.object(client._session, "get", return_value=_mock_response(skills_resp)):
+            first = client.get_skills_profile("15-9006.00")
+            first.append(Skill(element_id="x", name="Injected", importance=1.0, level=0.0))
+            second = client.get_skills_profile("15-9006.00")
+
+        assert len(second) == 1
+
+        tech_resp = {"category": [{"example": [{"title": "Python"}], "example_more": []}]}
+        with patch.object(client._session, "get", return_value=_mock_response(tech_resp)):
+            first_set = client.get_tech_skills("15-9007.00")
+            first_set.add("injected")
+            second_set = client.get_tech_skills("15-9007.00")
+
+        assert second_set == {"python"}
+
+    def test_cache_is_thread_safe_under_concurrent_access(self, client: OnetClient) -> None:
+        """Many threads racing on a cold cache entry must all get the correct value,
+        without corruption, and settle into a cache hit afterwards. A cold cache may
+        allow a handful of duplicate live fetches (see onet_client._occ_cache_get/_set
+        docstrings) — this asserts a loose upper bound, not a strict single-fetch
+        guarantee, matching that documented tradeoff.
+        """
+        call_count = {"n": 0}
+
+        def _slow_get(*args, **kwargs):
+            call_count["n"] += 1
+            time.sleep(0.01)  # widen the race window
+            return _mock_response({"code": 3, "title": "..."})
+
+        with patch.object(client._session, "get", side_effect=_slow_get):
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                results = list(executor.map(
+                    lambda _: client.get_job_zone("15-9008.00"), range(10)
+                ))
+
+            assert all(r == 3 for r in results)
+            assert call_count["n"] <= 10  # bounded duplicate-fetch window, not exactly 1
+
+            # Cache is now warm — a subsequent call must be a guaranteed hit.
+            before = call_count["n"]
+            assert client.get_job_zone("15-9008.00") == 3
+            assert call_count["n"] == before
+
+
+# ---------------------------------------------------------------------------
+# get_bright_outlook_occupations
+# ---------------------------------------------------------------------------
+
+
+class TestGetBrightOutlookOccupations:
+    """Regression coverage for a live-only bug: GET /online/bright_outlook
+
+    returns a bare JSON array of {href, code, title} — not an object with a
+    "bright_outlook_category" key. The old code called categories_data.get(...)
+    on that array and crashed with AttributeError (not OnetAPIError, so the
+    existing stale-cache fallback never caught it) the first time a real user
+    exercised the fresh_start / new-field flow. Confirmed against the live v2
+    API before fixing. These response shapes mirror what was actually observed.
+    """
+
+    _CATEGORIES = [
+        {"href": "https://api-v2.onetcenter.org/online/bright_outlook/grow", "code": "grow", "title": "Rapid Growth"},
+        {"href": "https://api-v2.onetcenter.org/online/bright_outlook/openings", "code": "openings", "title": "Numerous Openings"},
+        # Live response also includes this meta-entry with no "code" key at all —
+        # must be skipped, not looped over as a 3rd category.
+        {"href": "https://api-v2.onetcenter.org/online/bright_outlook/all", "title": "All Bright Outlook Occupations"},
+    ]
+
+    @staticmethod
+    def _category_response(occupations: list[dict]) -> dict:
+        return {"start": 1, "end": 100, "total": len(occupations), "occupation": occupations}
+
+    def test_parses_bare_array_category_response(self, client: OnetClient) -> None:
+        """The exact shape that used to crash: a bare list, not {"bright_outlook_category": [...]}."""
+        responses = [
+            _mock_response(self._CATEGORIES),
+            _mock_response(self._category_response([
+                {"code": "13-2011.00", "title": "Accountants and Auditors"},
+            ])),
+            _mock_response(self._category_response([
+                {"code": "15-1252.00", "title": "Software Developers"},
+            ])),
+        ]
+        with patch.object(client._session, "get", side_effect=responses):
+            result = client.get_bright_outlook_occupations()
+
+        assert {o.code for o in result} == {"13-2011.00", "15-1252.00"}
+
+    def test_deduplicates_across_categories(self, client: OnetClient) -> None:
+        responses = [
+            _mock_response(self._CATEGORIES),
+            _mock_response(self._category_response([
+                {"code": "13-2011.00", "title": "Accountants and Auditors"},
+            ])),
+            _mock_response(self._category_response([
+                {"code": "13-2011.00", "title": "Accountants and Auditors"},  # same occupation, other category
+            ])),
+        ]
+        with patch.object(client._session, "get", side_effect=responses):
+            result = client.get_bright_outlook_occupations()
+
+        assert [o.code for o in result].count("13-2011.00") == 1
+
+    def test_requests_up_to_100_per_category(self, client: OnetClient) -> None:
+        """Categories can hold 300+ occupations; the API defaults to a 20-item
+        page, so each per-category call must explicitly request end=100."""
+        responses = [
+            _mock_response(self._CATEGORIES),
+            _mock_response(self._category_response([])),
+            _mock_response(self._category_response([])),
+        ]
+        with patch.object(client._session, "get", side_effect=responses) as mock_get:
+            client.get_bright_outlook_occupations()
+
+        category_calls = mock_get.call_args_list[1:]
+        assert all(call.kwargs.get("params", {}).get("end") == 100 for call in category_calls)
+
+    def test_api_error_falls_back_to_stale_cache(self, client: OnetClient) -> None:
+        onet_module._BRIGHT_OUTLOOK_CACHE = [Occupation(code="15-1252.00", title="Software Developers")]
+        onet_module._BRIGHT_OUTLOOK_CACHE_TS = 0.0  # expired, forces a re-fetch attempt
+
+        with patch.object(client._session, "get", return_value=_mock_response({}, status_code=500)):
+            result = client.get_bright_outlook_occupations()
+
+        assert result == [Occupation(code="15-1252.00", title="Software Developers")]
+
+    def test_cache_hit_avoids_second_fetch(self, client: OnetClient) -> None:
+        responses = [
+            _mock_response(self._CATEGORIES),
+            _mock_response(self._category_response([{"code": "13-2011.00", "title": "Accountants"}])),
+            _mock_response(self._category_response([{"code": "15-1252.00", "title": "SW Dev"}])),
+        ]
+        with patch.object(client._session, "get", side_effect=responses) as mock_get:
+            first = client.get_bright_outlook_occupations()
+            second = client.get_bright_outlook_occupations()
+
+        assert first == second
+        assert mock_get.call_count == 3  # not re-fetched on the second call

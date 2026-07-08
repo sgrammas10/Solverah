@@ -1,0 +1,93 @@
+
+============================================================
+MOVE INTENT
+============================================================
+move_intent: 'fresh_start'
+
+============================================================
+ZONE RESOLUTION — O*NET Search Result
+============================================================
+Search term  : 'Founder & Full Stack Engineer'
+O*NET found  : True
+First result : Engineers, All Other [17-2199.00]
+
+============================================================
+ZONE RESOLUTION — Title Normalization
+============================================================
+Raw title input : 'Founder & Full Stack Engineer'
+Prompt sent     :
+Map this job title to a standard O*NET occupation title.
+Use exact O*NET-style titles (e.g. 'Software Developers', 'Web Developers',
+'General and Operations Managers', 'Computer and Information Systems Managers').
+Use plural form as O*NET uses plural occupation names.
+No explanation. Output the title only.
+
+Examples:
+  'Co-Founder & CTO' → 'Computer and Information Systems Managers'
+  'Founder & Full Stack Engineer' → 'Software Developers'
+  'Senior Data Analyst' → 'Data Scientists'
+  'Head of Growth' → 'Marketing Managers'
+
+Input: Founder & Full Stack Engineer
+Output:
+Raw LLM response: 'Software Developers'
+Parsed output   : 'Software Developers'
+
+============================================================
+ZONE RESOLUTION — O*NET Search Result
+============================================================
+Search term  : 'Software Developers'
+O*NET found  : True
+First result : Software Developers [15-1252.00]
+
+============================================================
+ZONE RESOLUTION — Final Outcome
+============================================================
+zone=4  resolved=True  reliable=True
+onet_code='15-1252.00'
+
+============================================================
+BEHAVIORAL PROFILE — Composed String
+============================================================
+archetype      : 'Autonomous Strategic Contributor'
+focus_type     : 'Deep Diver'
+manager_match  : 'As an Operator, you prioritize efficiency and outcomes within your team. Your blend of seeking autonomy while valuing direct feedback and personal relationships makes you a driven manager who inspires others to achieve their best work.'
+work_style_tags: ['You can return to your tasks promptly after interruptions, showcasing resilience and quick adaptability in your work style.', 'You thrive when given full autonomy over your work processes, allowing you to manage your time and approach effectively.', 'Your openness to critical feedback reflects a growth-oriented mindset, enhancing your ability to improve and adapt in your role.', 'Your day-to-day tasks closely match your personal development goals, indicating a strong connection between current projects and future aspirations.']
+
+Composed string:
+You naturally create momentum by taking charge of your tasks and defining your own processes, leading to high-quality outcomes. Environments that grant you the freedom to work independently while providing clarity in expectations will suit you best. However, you may face friction stemming from occasional urgency and external pressures that do not align with your working style. Deep Diver As an Operator, you prioritize efficiency and outcomes within your team. Your blend of seeking autonomy while valuing direct feedback and personal relationships makes you a driven manager who inspires others to achieve their best work. You can return to your tasks promptly after interruptions, showcasing resilience and quick adaptability in your work style. You thrive when given full autonomy over your work processes, allowing you to manage your time and approach effectively. Your openness to critical feedback reflects a growth-oriented mindset, enhancing your ability to improve and adapt in your role. Your day-to-day tasks closely match your personal development goals, indicating a strong connection between current projects and future aspirations.
+
+============================================================
+WEIGHT ALLOCATION — fresh_start zone dampening
+============================================================
+zone_w: 0.50 → 0.20 (fresh_start dampening)
+skills_w: 0.30 → 0.60
+
+============================================================
+CANDIDATE SCORES — Top 5 Detail
+============================================================
+  [25-1032.00] Engineering Teachers, Postsecondary
+    centroid=0.7653  coverage=0.6000
+    work_style=0.4685  zone=1.0000
+    role=0.3009  role_w=0.00
+    final=0.7033
+  [15-1299.07] Blockchain Engineers
+    centroid=0.8718  coverage=0.8000
+    work_style=0.0000  zone=0.5000
+    role=0.4273  role_w=0.00
+    final=0.6015
+  [25-1021.00] Computer Science Teachers, Postsecondary
+    centroid=0.7872  coverage=0.2000
+    work_style=0.4666  zone=1.0000
+    role=0.3977  role_w=0.00
+    final=0.5895
+  [25-4012.00] Curators
+    centroid=0.7780  coverage=0.2000
+    work_style=0.4667  zone=1.0000
+    role=0.2634  role_w=0.00
+    final=0.5867
+  [13-1111.00] Management Analysts
+    centroid=0.8711  coverage=0.4000
+    work_style=0.4694  zone=0.5000
+    role=0.4040  role_w=0.00
+    final=0.5752

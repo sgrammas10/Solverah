@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/useAuth";
 import type { PathSuggestionsResponse } from "../types/pathIntelligence";
 import PathSuggestionList from "../components/PathIntelligence/PathSuggestionList";
 import PathPreferencesForm from "../components/PathIntelligence/PathPreferencesForm";
+import SkillProficiencyModal from "../components/PathIntelligence/SkillProficiencyModal";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -70,8 +71,15 @@ export default function PathIntelligencePage() {
   const experience =
     (user?.profileData?.experience as Array<{ position?: string }> | undefined) ?? [];
   const currentTitle = experience[0]?.position ?? null;
+  const userSkills = (user?.profileData?.["skills"] as string[] | undefined) ?? [];
+  const skillLevels = (user?.profileData?.["skill_levels"] as Record<string, string> | undefined) ?? {};
+  const proficiencyConfirmed = user?.profileData?.["skills_proficiency_confirmed"] as boolean | undefined;
+
   const [fetchState, setFetchState] = useState<FetchState>("loading");
   const [data, setData] = useState<PathSuggestionsResponse | null>(null);
+  const [showProficiencyModal, setShowProficiencyModal] = useState(false);
+  const [proficiencySaving, setProficiencySaving] = useState(false);
+  const [proficiencySkipped, setProficiencySkipped] = useState(false);
   const hasFiredRef = useRef(false);
 
   const fetchSuggestions = useCallback(async () => {
@@ -93,10 +101,48 @@ export default function PathIntelligencePage() {
     }
   }, [fetchWithAuth]);
 
+  const proceedAfterProficiency = useCallback(() => {
+    if (!user?.profileData?.path_preferences) {
+      setFetchState("needs_preferences");
+    } else {
+      fetchSuggestions();
+    }
+  }, [user, fetchSuggestions]);
+
+  const handleProficiencySave = async (levels: Record<string, string>) => {
+    setProficiencySaving(true);
+    try {
+      await fetchWithAuth("/profile/skills/proficiency", {
+        method: "PATCH",
+        body: JSON.stringify({
+          skills: Object.entries(levels).map(([name, proficiency]) => ({
+            name,
+            proficiency,
+          })),
+        }),
+      });
+    } catch {
+      // Non-fatal — proceed anyway so the user isn't blocked
+    } finally {
+      setProficiencySaving(false);
+    }
+    setShowProficiencyModal(false);
+    proceedAfterProficiency();
+  };
+
+  const handleProficiencySkip = () => {
+    setShowProficiencyModal(false);
+    setProficiencySkipped(true);
+    proceedAfterProficiency();
+  };
+
   useEffect(() => {
     if (!hasFiredRef.current) {
       hasFiredRef.current = true;
-      if (!user?.profileData?.path_preferences) {
+      if (userSkills.length > 0 && proficiencyConfirmed !== true) {
+        setShowProficiencyModal(true);
+        // Don't set fetchState here — modal controls what happens next
+      } else if (!user?.profileData?.path_preferences) {
         setFetchState("needs_preferences");
       } else {
         fetchSuggestions();
@@ -105,94 +151,129 @@ export default function PathIntelligencePage() {
   }, []); // intentionally runs once on mount; hasFiredRef guards against Strict Mode double-fire
 
   return (
-    <div className="min-h-screen bg-cream-base">
-      <div className="mx-auto max-w-2xl px-6 pt-12 pb-20 space-y-8">
+    <>
+      {showProficiencyModal && (
+        <SkillProficiencyModal
+          skills={userSkills}
+          initialLevels={skillLevels}
+          saving={proficiencySaving}
+          onSave={handleProficiencySave}
+          onSkip={handleProficiencySkip}
+        />
+      )}
 
-        {/* Header */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
-              Path Intelligence
+      <div className="min-h-screen bg-cream-base">
+        <div className="mx-auto max-w-2xl px-6 pt-12 pb-20 space-y-8">
+
+          {/* Header */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
+                Path Intelligence
+              </p>
+              <span className="rounded-full bg-forest-pale border border-forest-light px-2 py-0.5 text-xs font-semibold text-forest-mid">
+                Pro
+              </span>
+            </div>
+            <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
+              Your Career Paths
+            </h1>
+            <p className="text-sm text-ink-secondary pt-1">
+              Career paths scored against your skills and work profile, with plain-language
+              guidance on why each one fits.
             </p>
-            <span className="rounded-full bg-forest-pale border border-forest-light px-2 py-0.5 text-xs font-semibold text-forest-mid">
-              Pro
-            </span>
           </div>
-          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
-            Your Career Paths
-          </h1>
-          <p className="text-sm text-ink-secondary pt-1">
-            Career paths scored against your skills and work profile, with plain-language
-            guidance on why each one fits.
-          </p>
-        </div>
 
-        {/* Preferences intake */}
-        {fetchState === "needs_preferences" && (
-          <PathPreferencesForm onComplete={() => fetchSuggestions()} />
-        )}
-
-        {/* Loading */}
-        {fetchState === "loading" && <SkeletonCards />}
-
-        {/* Error */}
-        {fetchState === "error" && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-            <p className="font-medium mb-1">
-              We couldn't load your path suggestions right now.
-            </p>
-            <p className="text-xs">Please try again in a moment.</p>
-            <button
-              type="button"
-              onClick={fetchSuggestions}
-              className="mt-3 text-xs font-semibold text-red-700 underline"
-            >
-              Try again
-            </button>
-          </div>
-        )}
-
-        {/* Career status not set */}
-        {fetchState === "career_status_not_set" && <CareerStatusOnboardingPrompt />}
-
-        {/* Profile too sparse to score */}
-        {fetchState === "profile_incomplete" && (
-          <div className="rounded-xl border border-cream-muted bg-white px-6 py-8 text-center space-y-4">
-            <p className="font-semibold text-ink-primary">Add a job title and a few skills to get started.</p>
-            <p className="text-sm text-ink-secondary leading-relaxed">
-              Path Intelligence needs your current (or most recent) job title and at least one skill to find matching career paths.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate("/job-seeker/profile?tab=experience")}
-              className="bg-forest-dark text-white font-semibold px-4 py-2 rounded text-sm hover:bg-forest-mid transition-colors"
-            >
-              Complete Your Profile
-            </button>
-          </div>
-        )}
-
-        {/* Success */}
-        {fetchState === "success" && data && (
-          <>
-            <PathSuggestionList
-              suggestions={data.suggestions}
-              currentTitle={currentTitle}
-              careerStatus={data.career_status}
-            />
-            <div className="text-center pt-2">
+          {/* Nudge banner — shown when user skipped the proficiency modal */}
+          {proficiencySkipped && fetchState === "success" && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 flex items-center justify-between gap-4">
+              <p className="text-sm text-amber-800">
+                Rate your skills to get more accurate career matches.
+              </p>
               <button
                 type="button"
-                onClick={() => setFetchState("needs_preferences")}
-                className="text-xs text-ink-secondary underline hover:text-ink-primary transition-colors"
+                onClick={() => setShowProficiencyModal(true)}
+                className="shrink-0 text-xs font-semibold text-amber-800 underline hover:text-amber-900 transition-colors"
               >
-                Adjust search preferences
+                Rate skills
               </button>
             </div>
-          </>
-        )}
+          )}
 
+          {/* Preferences intake */}
+          {fetchState === "needs_preferences" && (
+            <PathPreferencesForm onComplete={() => fetchSuggestions()} />
+          )}
+
+          {/* Loading */}
+          {fetchState === "loading" && <SkeletonCards />}
+
+          {/* Error */}
+          {fetchState === "error" && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+              <p className="font-medium mb-1">
+                We couldn't load your path suggestions right now.
+              </p>
+              <p className="text-xs">Please try again in a moment.</p>
+              <button
+                type="button"
+                onClick={fetchSuggestions}
+                className="mt-3 text-xs font-semibold text-red-700 underline"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
+          {/* Career status not set */}
+          {fetchState === "career_status_not_set" && <CareerStatusOnboardingPrompt />}
+
+          {/* Profile too sparse to score */}
+          {fetchState === "profile_incomplete" && (
+            <div className="rounded-xl border border-cream-muted bg-white px-6 py-8 text-center space-y-4">
+              <p className="font-semibold text-ink-primary">Add a job title and a few skills to get started.</p>
+              <p className="text-sm text-ink-secondary leading-relaxed">
+                Path Intelligence needs your current (or most recent) job title and at least one skill to find matching career paths.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/job-seeker/profile?tab=experience")}
+                className="bg-forest-dark text-white font-semibold px-4 py-2 rounded text-sm hover:bg-forest-mid transition-colors"
+              >
+                Complete Your Profile
+              </button>
+            </div>
+          )}
+
+          {/* Success */}
+          {fetchState === "success" && data && (
+            <>
+              <PathSuggestionList
+                suggestions={data.suggestions}
+                currentTitle={currentTitle}
+                careerStatus={data.career_status}
+              />
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowProficiencyModal(true)}
+                  className="text-xs text-ink-secondary underline hover:text-ink-primary transition-colors"
+                >
+                  Edit skill ratings
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFetchState("needs_preferences")}
+                  className="text-xs text-ink-secondary underline hover:text-ink-primary transition-colors"
+                >
+                  Adjust search preferences
+                </button>
+              </div>
+            </>
+          )}
+
+        </div>
       </div>
-    </div>
+    </>
   );
 }
