@@ -1002,6 +1002,32 @@ def test_batch_embed_caches_and_pre_evicts():
     ps._EMBED_CACHE.clear()
 
 
+def test_batch_embed_dedupes_and_chunks_at_api_cap():
+    """Duplicate texts are sent once; oversized batches split at the per-request cap."""
+    import backend.services.path_scoring as ps
+
+    ps._EMBED_CACHE.clear()
+    calls: list[list[str]] = []
+
+    def fake_create(model, input):
+        calls.append(list(input))
+        return MagicMock(
+            data=[MagicMock(index=i, embedding=[1.0]) for i in range(len(input))]
+        )
+
+    mock_openai = MagicMock()
+    mock_openai.embeddings.create.side_effect = fake_create
+
+    texts = [f"text_{i}" for i in range(ps._EMBED_BATCH_MAX_INPUTS + 5)]
+    _batch_embed(texts + texts[:10], mock_openai)  # 10 duplicates must not inflate the batch
+
+    assert len(calls) == 2
+    assert len(calls[0]) == ps._EMBED_BATCH_MAX_INPUTS
+    assert len(calls[1]) == 5
+    assert all(t in ps._EMBED_CACHE for t in texts)
+    ps._EMBED_CACHE.clear()
+
+
 # ---------------------------------------------------------------------------
 # _semantic_overlap_score and _semantic_score_via_embeddings
 # ---------------------------------------------------------------------------
@@ -1349,6 +1375,72 @@ def test_overlap_combines_centroid_and_coverage(mock_client):
     # final = 0.35*0 + 0.325*overlap(1.0) + 0.325*zone(0.5) = 0.325 + 0.1625 = 0.4875
     assert len(results) == 1
     assert results[0].score == pytest.approx(0.4875)
+    ps._EMBED_CACHE.clear()
+
+
+def test_score_paths_embeds_all_candidates_in_one_call(mock_client):
+    """Regression: score_paths must batch every candidate's texts into a single
+    embeddings API call, not one call per candidate.
+
+    Per-candidate embedding calls (one blocking OpenAI round trip inside the
+    scoring loop) pushed /api/intelligence/path-suggestions past gunicorn's 30s
+    worker timeout in production. Without the up-front batch this test sees one
+    embeddings call per candidate and fails.
+    """
+    import backend.services.path_scoring as ps
+
+    ps._EMBED_CACHE.clear()
+
+    candidates = [
+        occ("15-1211.00", "Computer Systems Analysts"),
+        occ("15-1254.00", "Web Developers"),
+        occ("15-1244.00", "Network and Computer Systems Administrators"),
+    ]
+    mock_client.search_occupations.side_effect = [
+        [occ("15-1252.00", "Software Developers")],  # resolve current title
+        [candidates[0]],  # gather: term 1
+        [candidates[1]],  # gather: term 2
+        [candidates[2]],  # gather: term 3
+    ]
+    mock_client.get_job_zone.side_effect = by_code(
+        {"15-1252.00": 3, "15-1211.00": 3, "15-1254.00": 3, "15-1244.00": 3}
+    )
+    mock_client.get_tech_skills.return_value = {"python hot"}
+    mock_client.get_skills_profile.return_value = [onet_skill("Programming", 80.0)]
+
+    mock_openai = MagicMock()
+    mock_openai.chat.completions.create.return_value = MagicMock(
+        choices=[
+            MagicMock(
+                message=MagicMock(
+                    content='["Computer Systems Analysts", "Web Developers", '
+                    '"Network and Computer Systems Administrators"]'
+                )
+            )
+        ]
+    )
+    embed_calls: list[list[str]] = []
+
+    def fake_create(model, input):
+        embed_calls.append(list(input))
+        return MagicMock(
+            data=[MagicMock(index=i, embedding=[1.0, 0.0]) for i in range(len(input))]
+        )
+
+    mock_openai.embeddings.create.side_effect = fake_create
+
+    results = score_paths(
+        profile(archetype="", skills=[user_skill("Python", "advanced")]),
+        mock_client,
+        mock_openai,
+    )
+
+    assert len(results) == 3
+    assert len(embed_calls) == 1
+    # The single call must cover texts from every candidate, not just the first.
+    assert "python" in embed_calls[0]  # user skill, lowercased
+    for c in candidates:
+        assert c.title in embed_calls[0]
     ps._EMBED_CACHE.clear()
 
 
