@@ -43,25 +43,26 @@ model = DiscreteBayesianNetwork([
 #    updates them.
 # ---------------------------------------------------------------------------
 cpd_p_autonomy = TabularCPD(
-    variable="P_Autonomy", variable_card=2,
-    # [P(Low), P(High)] -- uninformative 50/50 prior, no belief yet about
-    # this person. Once Reflection answers exist, replace with the real
-    # split (e.g. [[0.3],[0.7]] if reflection says they lean High-autonomy).
-    # Moving this off 50/50 shifts the marginal odds of every downstream
-    # node (Fit_Autonomy, Engagement, Guidance) toward whichever state you
-    # weight higher, even before any evidence is supplied at query time.
-    values=[[0.5], [0.5]],
-    state_names={"P_Autonomy": ["Low", "High"]},
+    variable="P_Autonomy", variable_card=3,
+    # [P(Low), P(Moderate), P(High)] -- uninformative ~1/3-1/3-1/3 prior, no
+    # belief yet about this person. Once Reflection answers exist, replace
+    # with the real split. Moving this off uniform shifts the marginal odds
+    # of every downstream node (Fit_Autonomy, Engagement, Guidance) toward
+    # whichever state you weight higher, even before any evidence is
+    # supplied at query time.
+    values=[[0.34], [0.33], [0.33]],
+    state_names={"P_Autonomy": ["Low", "Moderate", "High"]},
 )
 
 cpd_e_manager = TabularCPD(
-    variable="E_ManagerStyle", variable_card=2,
-    # [P(Controlling), P(Empowering)] -- same uninformative-prior logic as
-    # above, but for the environment/manager signal (CompanyLens/ManagerMatch
-    # would supply the real split). Skews here bias Fit_Autonomy's marginal
-    # toward whichever manager style is weighted higher.
-    values=[[0.5], [0.5]],
-    state_names={"E_ManagerStyle": ["Controlling", "Empowering"]},
+    variable="E_ManagerStyle", variable_card=3,
+    # [P(Controlling), P(Balanced), P(Empowering)] -- same uninformative-
+    # prior logic as above, but for the environment/manager signal
+    # (CompanyLens/ManagerMatch would supply the real split). Skews here
+    # bias Fit_Autonomy's marginal toward whichever manager style is
+    # weighted higher.
+    values=[[0.34], [0.33], [0.33]],
+    state_names={"E_ManagerStyle": ["Controlling", "Balanced", "Empowering"]},
 )
 
 # ---------------------------------------------------------------------------
@@ -75,39 +76,44 @@ cpd_fit_autonomy = TabularCPD(
     variable="Fit_Autonomy", variable_card=2,
     values=[
         # Column order for evidence=[P_Autonomy, E_ManagerStyle] is:
-        #   (Low,Controlling) (Low,Empowering) (High,Controlling) (High,Empowering)
-        # Each pair of columns (Poor row, Good row) must sum to 1.0 -- these
-        # are the four "cells" of the interaction hypothesis:
-        #   col1 0.20/0.80 (Low,Controlling)  -> mostly Good. A low-autonomy
-        #     person under a controlling manager is expected to fit fine;
-        #     raising 0.20 says "actually this combo causes more friction
-        #     than expected" and pulls Fit toward Poor for that cell only.
-        #   col2 0.30/0.70 (Low,Empowering)   -> still mostly Good, slightly
-        #     worse than col1 because a low-autonomy person can feel
-        #     under-supported without structure. Raising 0.30 claims
-        #     empowering managers hurt low-autonomy people more than
-        #     controlling ones do.
-        #   col3 0.85/0.15 (High,Controlling) -> the core "mismatch" cell:
-        #     a high-autonomy person under a controlling manager is
-        #     predicted mostly Poor. Lowering 0.85 says this mismatch is
-        #     less damaging than currently modeled; raising it says it's
-        #     worse.
-        #   col4 0.10/0.90 (High,Empowering)  -> the core "match" cell:
-        #     high-autonomy + empowering manager is predicted mostly Good.
-        #     Raising 0.10 waters down how strongly this ideal pairing
-        #     guarantees a good fit.
+        #   (Low,Ctrl) (Low,Bal) (Low,Emp) (Mod,Ctrl) (Mod,Bal) (Mod,Emp) (High,Ctrl) (High,Bal) (High,Emp)
+        # Each pair of columns (Poor row, Good row) must sum to 1.0. This is
+        # a soft "matching" hypothesis: Low<->Controlling, Moderate<->Balanced,
+        # High<->Empowering are each other's best-fit pairing, and Good-rate
+        # falls off as person/manager style diverge along that diagonal.
+        #   (Low,Ctrl)   0.20/0.80 -> best-fit corner for a low-autonomy
+        #     person; raising 0.20 says this pairing causes more friction
+        #     than expected.
+        #   (Low,Bal)    0.25/0.75 -> one step off the low-autonomy person's
+        #     ideal (structure), slightly worse than (Low,Ctrl).
+        #   (Low,Emp)    0.30/0.70 -> furthest from a low-autonomy person's
+        #     ideal; under-supported without structure.
+        #   (Mod,Ctrl)   0.55/0.45 -> moderate person tolerates structure but
+        #     it's not their best fit.
+        #   (Mod,Bal)    0.20/0.80 -> the matched-pair cell for a moderate
+        #     person; deliberately the strongest Good-rate in the table.
+        #   (Mod,Emp)    0.35/0.65 -> moderate person under-structured
+        #     relative to their ideal, but still workable.
+        #   (High,Ctrl)  0.85/0.15 -> the core "mismatch" cell: a
+        #     high-autonomy person under a controlling manager is predicted
+        #     mostly Poor.
+        #   (High,Bal)   0.45/0.55 -> one step off the high-autonomy
+        #     person's ideal (full empowerment), better than (High,Ctrl)
+        #     but not as good as (High,Emp).
+        #   (High,Emp)   0.10/0.90 -> the core "match" cell: high-autonomy +
+        #     empowering manager is predicted mostly Good.
         # Because this feeds Engagement/Guidance, any change to a single
         # cell only moves the query result for evidence that lands in that
-        # cell -- it does not affect the other three combinations.
-        [0.20, 0.30, 0.85, 0.10],   # Fit = Poor
-        [0.80, 0.70, 0.15, 0.90],   # Fit = Good
+        # cell -- it does not affect the other eight combinations.
+        [0.20, 0.25, 0.30, 0.55, 0.20, 0.35, 0.85, 0.45, 0.10],   # Fit = Poor
+        [0.80, 0.75, 0.70, 0.45, 0.80, 0.65, 0.15, 0.55, 0.90],   # Fit = Good
     ],
     evidence=["P_Autonomy", "E_ManagerStyle"],
-    evidence_card=[2, 2],
+    evidence_card=[3, 3],
     state_names={
         "Fit_Autonomy": ["Poor", "Good"],
-        "P_Autonomy": ["Low", "High"],
-        "E_ManagerStyle": ["Controlling", "Empowering"],
+        "P_Autonomy": ["Low", "Moderate", "High"],
+        "E_ManagerStyle": ["Controlling", "Balanced", "Empowering"],
     },
 )
 
@@ -200,4 +206,11 @@ if __name__ == "__main__":
     evidence2 = {"P_Autonomy": "High", "E_ManagerStyle": "Empowering"}
     guidance2 = infer.query(variables=["Guidance"], evidence=evidence2, show_progress=False)
     print("P(Guidance | High autonomy, Empowering manager):")
-    print(guidance2)
+    print(guidance2, "\n")
+
+    print("-" * 60)
+    # Matched-pair case introduced by the Moderate/Balanced states.
+    evidence3 = {"P_Autonomy": "Moderate", "E_ManagerStyle": "Balanced"}
+    guidance3 = infer.query(variables=["Guidance"], evidence=evidence3, show_progress=False)
+    print("P(Guidance | Moderate autonomy, Balanced manager):")
+    print(guidance3)
