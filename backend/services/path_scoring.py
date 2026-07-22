@@ -145,6 +145,7 @@ _COVERAGE_MIX: float = 0.5
 # In-process embedding cache.  OrderedDict enables O(1) LRU eviction.
 _EMBED_CACHE: OrderedDict[str, list[float]] = OrderedDict()
 _EMBED_CACHE_MAX: int = 10_000
+_EMBED_BATCH_MAX_INPUTS: int = 2048  # OpenAI embeddings API cap on inputs per request
 
 # Inclusion list: only SOC codes with these prefixes are kept in the candidate pool
 # by default.  This prevents O*NET keyword search from contaminating the pool with
@@ -365,19 +366,22 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
 def _batch_embed(texts: list[str], client) -> None:
     """Fetch embeddings for any texts not already in _EMBED_CACHE.
 
-    Batches all missing texts into a single API call.  Silently no-ops on any
-    API failure — callers receive 0 similarity for uncached texts.
+    Deduplicates the missing texts and batches them into as few API calls as
+    the per-request input cap allows — one call in the typical case.  Silently
+    no-ops on any API failure — callers receive 0 similarity for uncached texts.
     """
-    missing = [t for t in texts if t not in _EMBED_CACHE]
+    missing = list(dict.fromkeys(t for t in texts if t not in _EMBED_CACHE))
     if not missing:
         return
     try:
-        resp = client.embeddings.create(model="text-embedding-3-small", input=missing)
-        evict_count = max(0, len(_EMBED_CACHE) + len(missing) - _EMBED_CACHE_MAX)
-        for _ in range(evict_count):
-            _EMBED_CACHE.popitem(last=False)
-        for item in resp.data:
-            _EMBED_CACHE[missing[item.index]] = item.embedding
+        for start in range(0, len(missing), _EMBED_BATCH_MAX_INPUTS):
+            chunk = missing[start:start + _EMBED_BATCH_MAX_INPUTS]
+            resp = client.embeddings.create(model="text-embedding-3-small", input=chunk)
+            evict_count = max(0, len(_EMBED_CACHE) + len(chunk) - _EMBED_CACHE_MAX)
+            for _ in range(evict_count):
+                _EMBED_CACHE.popitem(last=False)
+            for item in resp.data:
+                _EMBED_CACHE[chunk[item.index]] = item.embedding
     except Exception:
         _log.warning("embedding API call failed (%d texts)", len(missing), exc_info=True)
 
@@ -1391,6 +1395,29 @@ def score_paths(
             candidates,
         ))
 
+    # Pre-warm the embedding cache for every text Phase B will need — user
+    # skills, each candidate's role items, titles, and behavioral texts — in
+    # one batched API call. Phase A has already fetched all candidate data, so
+    # the full text universe is known here. Embedding inside the per-candidate
+    # loop meant one blocking OpenAI round trip per candidate, which pushed
+    # the request past gunicorn's worker timeout in production.
+    if openai_client is not None:
+        all_texts: list[str] = [s.name.lower() for s in user_profile.skills]
+        if current_role_title is not None:
+            all_texts.append(current_role_title)
+        if behavioral_profile is not None:
+            all_texts.append(behavioral_profile)
+        for fetch in fetches:
+            if fetch.error:
+                continue
+            all_texts += [
+                name
+                for name, _ in _build_role_profile(fetch.hot_tech_names, fetch.onet_generic_skills)
+            ]
+            all_texts.append(fetch.occ.title)
+            all_texts += [name for name, _ in fetch.work_activities]
+        _batch_embed(all_texts, openai_client)
+
     # Phase B: sequential scoring — unchanged from the pre-parallelization logic,
     # just reading fetched fields from `fetch` instead of calling onet_client inline.
     for fetch in fetches:
@@ -1404,17 +1431,6 @@ def score_paths(
         work_activities = fetch.work_activities
 
         role_items = _build_role_profile(hot_tech_names, onet_generic_skills)
-
-        # Pre-warm the embedding cache with the role-similarity texts alongside the
-        # skills/role-item texts _semantic_overlap_score is about to request, so both
-        # land in the same batched API call instead of two round trips per candidate.
-        if openai_client is not None and current_role_title is not None:
-            _batch_embed(
-                [s.name.lower() for s in user_profile.skills]
-                + [name for name, _ in role_items]
-                + [current_role_title, occ.title],
-                openai_client,
-            )
 
         centroid_score, matched_skills = _semantic_overlap_score(
             user_profile.skills, role_items, openai_client
