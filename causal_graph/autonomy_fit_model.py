@@ -22,9 +22,42 @@ Requirements:
     pip install pgmpy
 """
 
+import itertools
+
 from pgmpy.models import DiscreteBayesianNetwork
 from pgmpy.factors.discrete import TabularCPD
 from pgmpy.inference import VariableElimination
+
+
+def compounding_engagement_values(
+    n_fit_dims: int, ceiling_high: float = 0.80, poor_divisor: float = 4.0
+) -> list[list[float]]:
+    """
+    Generate the Engagement CPD's [Low_row, High_row] so that Poor fits
+    compound multiplicatively in odds-space instead of being hand-typed
+    per cell.
+
+    ceiling_high: P(Engagement=High) when every Fit_* dimension is Good.
+    poor_divisor: factor the odds of High engagement are divided by for
+        EACH Fit_* dimension that reads Poor -- two Poor dimensions divide
+        the odds by poor_divisor**2 (not poor_divisor*2), which is what
+        makes the harm compound rather than just add up. Raise this to
+        make engagement collapse faster as Poor fits stack up; lower it
+        (toward 1.0) to flatten back toward a purely additive curve.
+
+    Column order matches what pgmpy expects for evidence=[Fit_dim_1, ...,
+    Fit_dim_n]: itertools.product(["Poor", "Good"], repeat=n_fit_dims).
+    """
+    base_odds = ceiling_high / (1 - ceiling_high)
+    low_row: list[float] = []
+    high_row: list[float] = []
+    for combo in itertools.product(["Poor", "Good"], repeat=n_fit_dims):
+        n_poor = combo.count("Poor")
+        odds = base_odds / (poor_divisor**n_poor)
+        p_high = odds / (1 + odds)
+        high_row.append(round(p_high, 4))
+        low_row.append(round(1 - p_high, 4))
+    return [low_row, high_row]
 
 # ---------------------------------------------------------------------------
 # 1. Graph structure: which nodes causally influence which.
@@ -216,32 +249,28 @@ cpd_fit_feedback = TabularCPD(
 # ---------------------------------------------------------------------------
 cpd_engagement = TabularCPD(
     variable="Engagement", variable_card=2,
-    values=[
-        # Column order for evidence=[Fit_Autonomy, Fit_Pace, Fit_Feedback] is:
-        #   (Poor,Poor,Poor) (Poor,Poor,Good) (Poor,Good,Poor) (Poor,Good,Good)
-        #   (Good,Poor,Poor) (Good,Poor,Good) (Good,Good,Poor) (Good,Good,Good)
-        # Read the "Engagement = High" row: each Fit dimension flipping from
-        # Poor->Good adds roughly +0.15-0.20 of High-Engagement probability,
-        # and the effect is roughly additive/independent across the three
-        # dimensions rather than requiring all three to be Good at once:
-        #   all-Poor          (col1) 0.10 High -- floor: engagement is bad
-        #     even if the model is wrong elsewhere, since nothing is going
-        #     right.
-        #   exactly one Good  (cols 2,3,5) 0.25 High -- one good dimension
-        #     gives a modest lift over the floor.
-        #   exactly two Good  (cols 4,6,7) 0.45 High -- two good dimensions
-        #     roughly doubles the one-Good lift; still below 50/50.
-        #   all three Good    (col8) 0.75 High -- ceiling: engagement is
-        #     good when every dimension fits, but capped below certainty
-        #     (0.75, not 1.0) since fit isn't the only driver of engagement
-        #     in reality.
-        # Raising the floor (col1) makes the model less sensitive to bad
-        # fit; raising the ceiling (col8) claims fit alone can almost
-        # guarantee engagement. Changing a middle column shifts how much
-        # credit a single good dimension gets without touching the others.
-        [0.90, 0.75, 0.75, 0.55, 0.75, 0.55, 0.55, 0.25],   # Engagement = Low
-        [0.10, 0.25, 0.25, 0.45, 0.25, 0.45, 0.45, 0.75],   # Engagement = High
-    ],
+    # Column order for evidence=[Fit_Autonomy, Fit_Pace, Fit_Feedback] is:
+    #   (Poor,Poor,Poor) (Poor,Poor,Good) (Poor,Good,Poor) (Poor,Good,Good)
+    #   (Good,Poor,Poor) (Good,Poor,Good) (Good,Good,Poor) (Good,Good,Good)
+    #
+    # Values are generated (not hand-typed) by compounding_engagement_values,
+    # so that Poor fits COMPOUND multiplicatively in odds-space rather than
+    # just adding up. With ceiling_high=0.80 and poor_divisor=4.0:
+    #   0 Poor: odds 4.00 / 1  -> 0.8000 High  (ceiling)
+    #   1 Poor: odds 4.00 / 4  -> 0.5000 High
+    #   2 Poor: odds 4.00 / 16 -> 0.2000 High
+    #   3 Poor: odds 4.00 / 64 -> 0.0588 High  (floor)
+    # This is deliberately super-additive: a pure additive model would
+    # predict harm growing in fixed steps (~0.247 per Poor fit -> 0.247,
+    # 0.494, 0.741). The actual drop from the ceiling is 0.30, 0.60, 0.7412
+    # -- each extra Poor fit costs MORE than the one before it, so e.g. two
+    # Poor fits together are worse than twice the damage of one Poor fit
+    # alone. Cells with the same Poor-count are identical regardless of
+    # *which* dimension is Poor (Autonomy/Pace/Feedback are treated as
+    # interchangeable risk factors here). Tune the compounding via
+    # compounding_engagement_values's poor_divisor/ceiling_high args rather
+    # than editing cells by hand.
+    values=compounding_engagement_values(3),
     evidence=["Fit_Autonomy", "Fit_Pace", "Fit_Feedback"],
     evidence_card=[2, 2, 2],
     state_names={
