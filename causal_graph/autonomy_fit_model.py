@@ -66,7 +66,8 @@ cpd_p_autonomy = TabularCPD(
     # Moving this off 50/50 shifts the marginal odds of every downstream
     # node (Fit_Autonomy, Engagement, Guidance) toward whichever state you
     # weight higher, even before any evidence is supplied at query time.
-    values=[[0.5], [0.5]],
+    
+    values=[[0.5], [0.5]],  # these values will initially be input by the reflection survey or some other form of input from the user profile
     state_names={"P_Autonomy": ["Low", "High"]},
 )
 
