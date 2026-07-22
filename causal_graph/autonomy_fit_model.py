@@ -60,24 +60,38 @@ model = DiscreteBayesianNetwork([
 #autonomy trait
 cpd_p_autonomy = TabularCPD(
     variable="P_Autonomy", variable_card=2,
+    # [P(Low), P(High)] -- uninformative 50/50 prior, no belief yet about
+    # this person. Once Reflection answers exist, replace with the real
+    # split (e.g. [[0.3],[0.7]] if reflection says they lean High-autonomy).
+    # Moving this off 50/50 shifts the marginal odds of every downstream
+    # node (Fit_Autonomy, Engagement, Guidance) toward whichever state you
+    # weight higher, even before any evidence is supplied at query time.
     values=[[0.5], [0.5]],
     state_names={"P_Autonomy": ["Low", "High"]},
 )
 
 cpd_e_manager = TabularCPD(
     variable="E_ManagerStyle", variable_card=2,
+    # [P(Controlling), P(Empowering)] -- same uninformative-prior logic as
+    # above, but for the environment/manager signal (CompanyLens/ManagerMatch
+    # would supply the real split). Skews here bias Fit_Autonomy's marginal
+    # toward whichever manager style is weighted higher.
     values=[[0.5], [0.5]],
     state_names={"E_ManagerStyle": ["Controlling", "Empowering"]},
 )
 #pace trait
 cpd_p_pace = TabularCPD(
     variable="P_Pace", variable_card=2,
+    # Same pattern as P_Autonomy but for pace preference. Uninformative
+    # until real Reflection data backs it.
     values=[[0.5], [0.5]],
     state_names={"P_Pace": ["Low", "High"]},
 )
 
 cpd_e_pace = TabularCPD(
     variable="E_Pace", variable_card=2,
+    # Environment's actual operating pace. Uninformative until CompanyLens
+    # supplies a measured value.
     values=[[0.5], [0.5]],
     state_names={"E_Pace": ["Low", "High"]},
 )
@@ -85,12 +99,16 @@ cpd_e_pace = TabularCPD(
 #feedback trait
 cpd_p_feedback = TabularCPD(
     variable="P_Feedback", variable_card=2,
+    # Person's desired feedback frequency. Uninformative until Reflection
+    # data backs it.
     values=[[0.5], [0.5]],
     state_names={"P_Feedback": ["Low", "High"]},
 )
 
 cpd_e_feedback = TabularCPD(
     variable="E_Feedback", variable_card=2,
+    # Environment's actual feedback cadence. Uninformative until
+    # CompanyLens/ManagerMatch supplies a measured value.
     values=[[0.5], [0.5]],
     state_names={"E_Feedback": ["Low", "High"]},
 )
@@ -107,6 +125,29 @@ cpd_fit_autonomy = TabularCPD(
     values=[
         # Column order for evidence=[P_Autonomy, E_ManagerStyle] is:
         #   (Low,Controlling) (Low,Empowering) (High,Controlling) (High,Empowering)
+        # Each pair of columns (Poor row, Good row) must sum to 1.0 -- these
+        # are the four "cells" of the interaction hypothesis:
+        #   col1 0.20/0.80 (Low,Controlling)  -> mostly Good. A low-autonomy
+        #     person under a controlling manager is expected to fit fine;
+        #     raising 0.20 says "actually this combo causes more friction
+        #     than expected" and pulls Fit toward Poor for that cell only.
+        #   col2 0.30/0.70 (Low,Empowering)   -> still mostly Good, slightly
+        #     worse than col1 because a low-autonomy person can feel
+        #     under-supported without structure. Raising 0.30 claims
+        #     empowering managers hurt low-autonomy people more than
+        #     controlling ones do.
+        #   col3 0.85/0.15 (High,Controlling) -> the core "mismatch" cell:
+        #     a high-autonomy person under a controlling manager is
+        #     predicted mostly Poor. Lowering 0.85 says this mismatch is
+        #     less damaging than currently modeled; raising it says it's
+        #     worse.
+        #   col4 0.10/0.90 (High,Empowering)  -> the core "match" cell:
+        #     high-autonomy + empowering manager is predicted mostly Good.
+        #     Raising 0.10 waters down how strongly this ideal pairing
+        #     guarantees a good fit.
+        # Because this feeds Engagement/Guidance, any change to a single
+        # cell only moves the query result for evidence that lands in that
+        # cell -- it does not affect the other three combinations.
         [0.20, 0.30, 0.85, 0.10],   # Fit = Poor
         [0.80, 0.70, 0.15, 0.90],   # Fit = Good
     ],
@@ -121,6 +162,15 @@ cpd_fit_autonomy = TabularCPD(
 
 cpd_fit_pace = TabularCPD(
     variable="Fit_Pace", variable_card=2,
+    # Same 4-column structure/logic as cpd_fit_autonomy above, just with
+    # P_Pace/E_Pace states instead of P_Autonomy/E_ManagerStyle:
+    #   col1 (Low,Low)   0.20/0.80 -> mostly Good (matched, both low pace)
+    #   col2 (Low,High)  0.30/0.70 -> mostly Good, slightly riskier mismatch
+    #   col3 (High,Low)  0.85/0.15 -> mismatch cell, mostly Poor
+    #   col4 (High,High) 0.10/0.90 -> matched, mostly Good
+    # Currently reuses the exact same numbers as autonomy as a placeholder;
+    # tune independently once pace-specific evidence suggests the fit
+    # penalty for a pace mismatch differs from an autonomy mismatch.
     values=[
         [0.20, 0.30, 0.85, 0.10],   # Fit = Poor
         [0.80, 0.70, 0.15, 0.90],   # Fit = Good
@@ -136,6 +186,16 @@ cpd_fit_pace = TabularCPD(
 
 cpd_fit_feedback = TabularCPD(
     variable="Fit_Feedback", variable_card=2,
+    # Same 4-column structure/logic as cpd_fit_autonomy above, just with
+    # P_Feedback/E_Feedback states:
+    #   col1 (Low,Low)   0.20/0.80 -> matched, mostly Good
+    #   col2 (Low,High)  0.30/0.70 -> mismatch risk, but softer than col3
+    #   col3 (High,Low)  0.85/0.15 -> mismatch cell (wants feedback, gets
+    #     little), mostly Poor
+    #   col4 (High,High) 0.10/0.90 -> matched, mostly Good
+    # Also a placeholder copy of the autonomy numbers; replace once there's
+    # a reason to believe feedback mismatches hurt fit more/less than
+    # autonomy or pace mismatches do.
     values=[
         [0.20, 0.30, 0.85, 0.10],   # Fit = Poor
         [0.80, 0.70, 0.15, 0.90],   # Fit = Good
@@ -159,6 +219,25 @@ cpd_engagement = TabularCPD(
         # Column order for evidence=[Fit_Autonomy, Fit_Pace, Fit_Feedback] is:
         #   (Poor,Poor,Poor) (Poor,Poor,Good) (Poor,Good,Poor) (Poor,Good,Good)
         #   (Good,Poor,Poor) (Good,Poor,Good) (Good,Good,Poor) (Good,Good,Good)
+        # Read the "Engagement = High" row: each Fit dimension flipping from
+        # Poor->Good adds roughly +0.15-0.20 of High-Engagement probability,
+        # and the effect is roughly additive/independent across the three
+        # dimensions rather than requiring all three to be Good at once:
+        #   all-Poor          (col1) 0.10 High -- floor: engagement is bad
+        #     even if the model is wrong elsewhere, since nothing is going
+        #     right.
+        #   exactly one Good  (cols 2,3,5) 0.25 High -- one good dimension
+        #     gives a modest lift over the floor.
+        #   exactly two Good  (cols 4,6,7) 0.45 High -- two good dimensions
+        #     roughly doubles the one-Good lift; still below 50/50.
+        #   all three Good    (col8) 0.75 High -- ceiling: engagement is
+        #     good when every dimension fits, but capped below certainty
+        #     (0.75, not 1.0) since fit isn't the only driver of engagement
+        #     in reality.
+        # Raising the floor (col1) makes the model less sensitive to bad
+        # fit; raising the ceiling (col8) claims fit alone can almost
+        # guarantee engagement. Changing a middle column shifts how much
+        # credit a single good dimension gets without touching the others.
         [0.90, 0.75, 0.75, 0.55, 0.75, 0.55, 0.55, 0.25],   # Engagement = Low
         [0.10, 0.25, 0.25, 0.45, 0.25, 0.45, 0.45, 0.75],   # Engagement = High
     ],
@@ -180,6 +259,21 @@ cpd_engagement = TabularCPD(
 cpd_guidance = TabularCPD(
     variable="Guidance", variable_card=2,
     values=[
+        # Columns are evidence=[Engagement=Low, Engagement=High].
+        # col1 (Engagement Low):  0.80 Reconsider / 0.20 Proceed -- strong
+        #   but not absolute lean toward flagging the match for review.
+        #   Raising 0.80 makes Guidance react more sharply to any sign of
+        #   low engagement (more false-positive "reconsider" flags on noisy
+        #   data); lowering it makes Guidance more forgiving of a bad
+        #   engagement read.
+        # col2 (Engagement High): 0.15 Reconsider / 0.85 Proceed -- mirrors
+        #   col1. Lowering 0.15 makes "Proceed" more confident when
+        #   engagement looks good; raising it injects more caution even
+        #   when signals are positive (useful if false "High" engagement
+        #   reads are a known risk).
+        # This is the only node with no hedging built in via other
+        # evidence, so it's the most direct lever for how cautious vs.
+        # decisive Solverah's final recommendation is.
         [0.80, 0.15],   # Guidance = "Reconsider / probe further" | Engagement Low, High
         [0.20, 0.85],   # Guidance = "Proceed"                    | Engagement Low, High
     ],
