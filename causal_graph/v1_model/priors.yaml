@@ -1,0 +1,29 @@
+# priors.yaml  --  PLACEHOLDER weights. Directionally correct, magnitudes provisional.
+# Replace with expert-elicited values later. The structure code never changes.
+#
+# Convention (logistic linear predictor):
+#   logit(P_fit) = intercept
+#                + sum over active dims:  mag*|gap| + dir*gap
+#                + sum over active+measurable confounders:  weight * raw_value
+#
+# Placeholder logic:
+#   mag < 0  -> any mismatch lowers P(fit)   (the true, near-tautological signal)
+#   dir = 0  -> no assumed asymmetry until the expert says otherwise
+#   confounder = 0 -> no assumed effect until data/expert (term present, weight neutral)
+
+intercept: 0.0
+
+dimensions:
+  autonomy:      { mag: -1.0, dir: 0.0 }
+  pace:          { mag: -1.0, dir: 0.0 }
+  collaboration: { mag: -1.0, dir: 0.0 }
+  feedback:      { mag: -1.0, dir: 0.0 }
+  innovation:    { mag: -1.0, dir: 0.0 }
+  decision:      { mag: -1.0, dir: 0.0 }
+  # structure / orientation added here when toggled active
+
+confounders:
+  stage_size: 0.0
+  comp:       0.0
+  industry:   0.0
+  # prestige added here when toggled active

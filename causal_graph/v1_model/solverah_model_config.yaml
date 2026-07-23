@@ -1,0 +1,102 @@
+# solverah_model_config.yaml
+# SINGLE SOURCE OF TRUTH for the causal Bayesian model STRUCTURE.
+# Numbers (priors) live in priors.yaml — swap that file when the expert
+# delivers real values; this file never changes for that.
+#
+# Add a dimension  -> append one block under `dimensions` + one entry in priors.yaml
+# Add a confounder -> append one block under `confounders` + one entry in priors.yaml
+# Toggle on/off    -> set `active: true|false` (nothing deleted, easy A/B)
+
+settings:
+  fit_layer: deterministic        # Fit node = f(person, env). Computed, not learned.
+  gap: signed                     # gap = person_score - env_score, range -1..1
+  outcome:
+    name: fit_yes
+    type: binary
+    link: logistic
+  # How each dimension's signed gap enters the outcome linear predictor.
+  #   mag -> |gap|  : any mismatch lowers fit (symmetric baseline)
+  #   dir -> gap    : directional asymmetry (over vs under offered)
+  gap_features: [mag, dir]
+
+# ---------------------------------------------------------------------------
+# DIMENSIONS  (person + env -> Fit -> outcome)
+# ---------------------------------------------------------------------------
+dimensions:
+  - key: autonomy
+    label: Autonomy
+    low_pole: Directed
+    high_pole: Self-directed
+    active: true
+  - key: pace
+    label: Pace
+    low_pole: Steady
+    high_pole: Fast
+    active: true
+  - key: collaboration
+    label: Collaboration
+    low_pole: Solo
+    high_pole: Collective
+    active: true
+  - key: feedback
+    label: Feedback Culture
+    low_pole: Sparse / gentle
+    high_pole: Frequent / blunt
+    active: true
+  - key: innovation
+    label: Innovation Stance
+    low_pole: Execute / optimize
+    high_pole: Invent / explore
+    active: true
+  - key: decision
+    label: Decision Basis
+    low_pole: Intuition / judgement
+    high_pole: Data / analysis
+    active: true
+
+  # --- on-deck: flip active to true when the model needs more resolution ---
+  - key: structure
+    label: Structure
+    low_pole: Improvisational
+    high_pole: Process-driven
+    active: false
+  - key: orientation
+    label: Orientation
+    low_pole: Task / results
+    high_pole: People / relationships
+    active: false
+
+# ---------------------------------------------------------------------------
+# CONFOUNDERS  (raw company value -> outcome, AND -> the env scores it biases)
+#   `biases`     = which dimensions' ENV (company) score it distorts.
+#                  Drives DAG edges + adjustment-set derivation + the drawing.
+#   `measurable` = false -> documented as residual bias, NOT added as a model term.
+# ---------------------------------------------------------------------------
+confounders:
+  - key: stage_size
+    label: Company stage / size
+    measurable: true
+    active: true
+    biases: [autonomy, pace, collaboration, feedback, innovation, decision]
+  - key: comp
+    label: Compensation
+    measurable: true
+    active: true
+    biases: [pace, autonomy]
+  - key: industry
+    label: Industry / sector
+    measurable: true
+    active: true
+    biases: [decision, feedback]
+  - key: prestige
+    label: Prestige / brand
+    measurable: true
+    active: false
+    biases: [autonomy, feedback]
+
+  # --- unmeasurable: kept for documentation, excluded from model terms ---
+  - key: manager_quality
+    label: Manager quality
+    measurable: false
+    active: false
+    biases: [feedback, autonomy]
