@@ -71,6 +71,14 @@ dimensions:
 #   `biases`     = which dimensions' ENV (company) score it distorts.
 #                  Drives DAG edges + adjustment-set derivation + the drawing.
 #   `measurable` = false -> documented as residual bias, NOT added as a model term.
+#   `kind`       = continuous -> standardized via `scale` {mean, sd} before it
+#                  gets a single weight; categorical -> one-hot via `levels`,
+#                  gets one weight per level (a raw scalar weight on a nominal
+#                  value like industry would be meaningless).
+#   `scale`      = fixed (not batch-computed) placeholder mean/sd for
+#                  standardizing a continuous confounder's raw value. Fixed so
+#                  a single point prediction (batch size 1) doesn't produce an
+#                  undefined std, and so fit-time/predict-time scaling agree.
 # ---------------------------------------------------------------------------
 confounders:
   - key: stage_size
@@ -78,21 +86,29 @@ confounders:
     measurable: true
     active: true
     biases: [autonomy, pace, collaboration, feedback, innovation, decision]
+    kind: continuous
+    scale: { mean: 3.0, sd: 1.5 }        # placeholder stage-index stats; replace with real distribution
   - key: comp
     label: Compensation
     measurable: true
     active: true
     biases: [pace, autonomy]
+    kind: continuous
+    scale: { mean: 120000, sd: 40000 }   # placeholder comp stats; replace with real distribution
   - key: industry
     label: Industry / sector
     measurable: true
     active: true
     biases: [decision, feedback]
+    kind: categorical
+    levels: [tech, finance, healthcare, retail, other]  # placeholder set; extend as real data arrives
   - key: prestige
     label: Prestige / brand
     measurable: true
     active: false
     biases: [autonomy, feedback]
+    kind: continuous
+    scale: { mean: 0.0, sd: 1.0 }        # placeholder; not active yet
 
   # --- unmeasurable: kept for documentation, excluded from model terms ---
   - key: manager_quality
