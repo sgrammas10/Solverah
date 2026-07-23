@@ -23,6 +23,7 @@ import os
 import numpy as np
 import pymc as pm
 import yaml
+import arviz as az
 
 MODEL_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -297,6 +298,67 @@ def sanity_check(cfg, pri):
           f"(prior was mean=-1.0, sd=0.5; planted truth=-2.0)")
 
 
+def recovery_curve(cfg, pri, ns=(200, 800, 2000, 5000),
+                   planted_dim="pace", planted_val=-2.0, seed=0, **sample_kwargs):
+    """Refit on growing prefixes of ONE synthetic dataset and watch the target
+    weight converge from the prior toward the planted truth. This is the test
+    that actually earns the claim 'data updates the weights'."""
+    dims = active(cfg["dimensions"])
+    confs = [c for c in active(cfg["confounders"]) if c.get("measurable")]
+    rng = np.random.default_rng(seed)
+    n_max = max(ns)
+
+    # one big dataset; use prefixes so the curve is apples-to-apples
+    person = {d["key"]: rng.uniform(0, 1, n_max) for d in dims}
+    env    = {d["key"]: rng.uniform(0, 1, n_max) for d in dims}
+    conf   = _synthetic_conf(confs, n_max, rng)
+
+    true_weights = {
+        "intercept": 0.0,
+        "dimensions": {d["key"]: {"mag": -1.0, "dir": 0.0} for d in dims},
+        "confounders": {c["key"]: (np.zeros(len(c["levels"]))
+                        if c.get("kind") == "categorical" else 0.0) for c in confs},
+    }
+    true_weights["dimensions"][planted_dim]["mag"] = planted_val
+
+    z = outcome_logit(person, env, preprocess_conf(conf, cfg), cfg, true_weights)
+    y_all = rng.binomial(1, 1.0 / (1.0 + np.exp(-z)))
+
+    target = f"{planted_dim}_mag"
+    pm_ = pri["dimensions"][planted_dim]["mag"]
+    kw = dict(draws=1000, tune=1000, chains=2, target_accept=0.9,
+              random_seed=seed, progressbar=False)
+    kw.update(sample_kwargs)
+
+    print(f"\nRecovery curve for {target}  (prior {pm_['mean']}/{pm_['sd']}, truth {planted_val})")
+    print(f"{'n':>7} {'post_mean':>10} {'post_sd':>9} {'|err|':>7} {'r_hat':>6}")
+    rows = []
+    for n in ns:
+        sub = lambda d: {k: v[:n] for k, v in d.items()}
+        idata = fit_posterior(sub(person), sub(env), sub(conf), y_all[:n], cfg, pri, **kw)
+        s = idata.posterior[target].values
+        m, sd = float(s.mean()), float(s.std())
+        rhat = float(az.rhat(idata)[target].values)
+        rows.append((n, m, sd))
+        print(f"{n:>7} {m:>10.3f} {sd:>9.3f} {abs(m - planted_val):>7.3f} {rhat:>6.2f}")
+    return rows
+
+def plot_recovery(rows, planted_val=-2.0, prior_mean=-1.0, out="recovery_curve.png"):
+    import matplotlib; matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    ns, means, sds = zip(*rows)
+    plt.figure(figsize=(7, 4.5))
+    plt.errorbar(ns, means, yerr=sds, marker="o", capsize=4, label="posterior mean ± sd")
+    plt.axhline(planted_val, ls="--", color="crimson", label=f"planted truth ({planted_val})")
+    plt.axhline(prior_mean, ls=":", color="gray", label=f"prior mean ({prior_mean})")
+    plt.xscale("log"); plt.xlabel("training rows (n)"); plt.ylabel("pace_mag")
+    plt.title("Bayesian updating: posterior → truth as data grows")
+    plt.legend(); plt.tight_layout(); plt.savefig(out, dpi=130)
+    print("saved", out)
+
 if __name__ == "__main__":
     cfg, pri = load()
     sanity_check(cfg, pri)
+
+    rows = recovery_curve(cfg, pri, ns=(200,800,2000), draws=500, tune=500)
+    plot_recovery(rows)
