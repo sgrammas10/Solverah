@@ -362,5 +362,5 @@ if __name__ == "__main__":
     cfg, pri = load()
     sanity_check(cfg, pri)
 
-    rows = recovery_curve(cfg, pri, ns=(200, 800, 2000, 5000), chains=4)
-    plot_recovery(rows)
+    #rows = recovery_curve(cfg, pri, ns=(200, 800, 2000, 5000), chains=4)
+    #plot_recovery(rows)
