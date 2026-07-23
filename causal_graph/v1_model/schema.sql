@@ -117,6 +117,17 @@ CREATE TABLE company_confounder_value (
 );
 CREATE INDEX ix_conf_company ON company_confounder_value(company_id);
 
+-- value_num encoding per continuous confounder (stored RAW / unscaled; the
+-- model standardizes via the `scale` in solverah_model_config.yaml). value_num
+-- is generic, so the DB does NOT range-check these -- the loader
+-- (assemble_training_data) and the workbook dropdowns are the only guardrail.
+--   'stage_size' : integer 1..5  (1 seed .. 5 enterprise; keep headcount too)
+--   'comp'       : integer 1..5  MARKET-RELATIVE pay posture, NOT dollars
+--                  (1 well below .. 3 at market .. 5 well above, vs. talent-
+--                  market peers for comparable roles). Key stays 'comp'; the
+--                  workbook column label 'comp_vs_market' is the same thing.
+--   'industry'   : categorical -> uses value_cat (tech|finance|healthcare|retail|other)
+
 -- ============================================================================
 -- RECOMMENDATIONS + FUNNEL  (what was shown, what they did)
 -- ============================================================================

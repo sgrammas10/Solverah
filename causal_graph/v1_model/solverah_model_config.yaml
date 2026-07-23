@@ -89,12 +89,24 @@ confounders:
     kind: continuous
     scale: { mean: 3.0, sd: 1.5 }        # placeholder stage-index stats; replace with real distribution
   - key: comp
-    label: Compensation
+    label: Compensation posture (relative to talent market)
+    # NOT absolute dollars. Absolute pay is not a company-level property (it
+    # varies within a company by role/level/geo more than the company varies
+    # from its peers) and is mostly explained by industry+geo -- so it fails to
+    # isolate the causal signal and double-counts `industry`. What biases pace/
+    # autonomy is the company's PAY POSTURE vs. the talent market for comparable
+    # roles: "we pay top of market -> we expect intensity." Captured as an
+    # ordered 1-5 band (1 well below ... 3 at market ... 5 well above), stored
+    # as a number so it stays a single ordered continuous weight (no code change
+    # -- kind is still `continuous`). Self-centering (market = 3 for every
+    # sector), so far less collinear with `industry` than raw dollars were.
+    # NOTE: company-level because v1 is person<->company. When role/team
+    # matching lands, make comp role-conditioned.
     measurable: true
     active: true
     biases: [pace, autonomy]
     kind: continuous
-    scale: { mean: 120000, sd: 40000 }   # placeholder comp stats; replace with real distribution
+    scale: { mean: 3.0, sd: 1.0 }        # 1-5 market-relative band; center=at-market. Replace with real distribution once ~15 companies are scored.
   - key: industry
     label: Industry / sector
     measurable: true
