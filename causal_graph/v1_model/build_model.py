@@ -20,6 +20,8 @@ values get standardized, categorical values get one-hot per level).
 
 import os
 
+os.environ["PYTENSOR_FLAGS"] = "cxx="
+
 import numpy as np
 import pymc as pm
 import yaml
@@ -289,7 +291,7 @@ def sanity_check(cfg, pri):
           f"(prior mean -1.0) ...")
     idata = fit_posterior(
         person, env, conf, outcome, cfg, pri,
-        draws=1000, tune=1000, chains=2, target_accept=0.9,
+        draws=1000, tune=1000, chains=4, target_accept=0.9,
         random_seed=0, progressbar=False,
     )
 
@@ -360,5 +362,5 @@ if __name__ == "__main__":
     cfg, pri = load()
     sanity_check(cfg, pri)
 
-    rows = recovery_curve(cfg, pri, ns=(200,800,2000), draws=500, tune=500)
+    rows = recovery_curve(cfg, pri, ns=(200, 800, 2000, 5000), chains=4)
     plot_recovery(rows)
