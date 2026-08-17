@@ -1,0 +1,181 @@
+packet_id,target_dimension,level,run,dimension,is_target,score,confidence,displacement,quotes_grounded,quotes_total,evidence_quotes,temperature_honored
+VIGN-pace-low,pace,low,1,autonomy,False,0.5,0.1,0.0,2,2,the team spends real time in planning before anything gets built || the roadmap looks basically the same as it did six months ago,True
+VIGN-pace-low,pace,low,1,pace,True,0.1,0.9,,3,3,"Release cycles here are measured in quarters, not weeks || Reviews consistently describe the environment as calm || rarely working past a normal day",True
+VIGN-pace-low,pace,low,1,collaboration,False,0.5,0.1,0.0,1,1,the team spends real time in planning before anything gets built,True
+VIGN-pace-low,pace,low,1,feedback,False,0.5,0.1,0.0,1,1,Reviews consistently describe the environment as calm,True
+VIGN-pace-low,pace,low,1,innovation,False,0.3,0.3,-0.2,2,2,"the roadmap looks basically the same as it did six months ago || Release cycles here are measured in quarters, not weeks",True
+VIGN-pace-low,pace,low,1,decision,False,0.5,0.1,0.0,1,1,the team spends real time in planning before anything gets built,True
+VIGN-pace-low,pace,low,2,autonomy,False,0.5,0.1,0.0,1,1,the team spends real time in planning before anything gets built,True
+VIGN-pace-low,pace,low,2,pace,True,0.1,0.9,,3,3,"Release cycles here are measured in quarters, not weeks || environment as calm || rarely working past a normal day",True
+VIGN-pace-low,pace,low,2,collaboration,False,0.5,0.1,0.0,1,1,the team spends real time in planning before anything gets built,True
+VIGN-pace-low,pace,low,2,feedback,False,0.3,0.1,-0.2,1,1,Reviews consistently describe the environment as calm,True
+VIGN-pace-low,pace,low,2,innovation,False,0.3,0.3,-0.2,1,1,the roadmap looks basically the same as it did six months ago,True
+VIGN-pace-low,pace,low,2,decision,False,0.5,0.1,0.0,1,1,the team spends real time in planning before anything gets built,True
+VIGN-pace-low,pace,low,3,autonomy,False,0.5,0.1,0.0,1,1,planning before anything gets built,True
+VIGN-pace-low,pace,low,3,pace,True,0.1,0.9,,3,3,"Release cycles here are measured in quarters, not weeks || actually using their PTO and rarely working past a normal day || Nobody's chasing an urgent deadline this month",True
+VIGN-pace-low,pace,low,3,collaboration,False,0.5,0.1,0.0,1,1,the team spends real time in planning,True
+VIGN-pace-low,pace,low,3,feedback,False,0.3,0.1,-0.2,1,1,Reviews consistently describe the environment as calm,True
+VIGN-pace-low,pace,low,3,innovation,False,0.3,0.3,-0.2,1,1,the roadmap looks basically the same as it did six months ago,True
+VIGN-pace-low,pace,low,3,decision,False,0.5,0.1,0.0,1,1,spends real time in planning before anything gets built,True
+VIGN-pace-low,pace,low,4,autonomy,False,0.5,0.1,0.0,1,1,the team spends real time in planning before anything gets built,True
+VIGN-pace-low,pace,low,4,pace,True,0.1,0.9,,3,3,"Release cycles here are measured in quarters, not weeks || environment as calm || rarely working past a normal day",True
+VIGN-pace-low,pace,low,4,collaboration,False,0.5,0.1,0.0,1,1,the team spends real time in planning,True
+VIGN-pace-low,pace,low,4,feedback,False,0.3,0.1,-0.2,1,1,Reviews consistently describe the environment as calm,True
+VIGN-pace-low,pace,low,4,innovation,False,0.3,0.3,-0.2,1,1,the roadmap looks basically the same as it did six months ago,True
+VIGN-pace-low,pace,low,4,decision,False,0.5,0.1,0.0,1,1,the team spends real time in planning before anything gets built,True
+VIGN-pace-low,pace,low,5,autonomy,False,0.5,0.1,0.0,1,1,team spends real time in planning before anything gets built,True
+VIGN-pace-low,pace,low,5,pace,True,0.1,0.9,,3,3,"Release cycles here are measured in quarters, not weeks || environment as calm || rarely working past a normal day",True
+VIGN-pace-low,pace,low,5,collaboration,False,0.5,0.1,0.0,1,1,the team spends real time in planning,True
+VIGN-pace-low,pace,low,5,feedback,False,0.3,0.1,-0.2,1,1,environment as calm,True
+VIGN-pace-low,pace,low,5,innovation,False,0.3,0.3,-0.2,1,1,the roadmap looks basically the same as it did six months ago,True
+VIGN-pace-low,pace,low,5,decision,False,0.5,0.1,0.0,1,1,spends real time in planning before anything gets built,True
+VIGN-pace-mid,pace,mid,1,autonomy,False,0.5,0.1,0.0,1,1,people expect an occasional crunch,True
+VIGN-pace-mid,pace,mid,1,pace,True,0.5,0.9,,3,3,Most quarters are pretty even-keeled || tighter hours and compressed timelines || occasional crunch mixed into an otherwise regular rhythm,True
+VIGN-pace-mid,pace,mid,1,collaboration,False,0.5,0.1,0.0,1,1,the team pushes hard,True
+VIGN-pace-mid,pace,mid,1,feedback,False,0.5,0.1,0.0,1,1,Most quarters are pretty even-keeled,True
+VIGN-pace-mid,pace,mid,1,innovation,False,0.5,0.1,0.0,1,1,toward a launch,True
+VIGN-pace-mid,pace,mid,1,decision,False,0.5,0.1,0.0,1,1,toward a launch,True
+VIGN-pace-mid,pace,mid,2,autonomy,False,0.5,0.1,0.0,1,1,Most quarters are pretty even-keeled,True
+VIGN-pace-mid,pace,mid,2,pace,True,0.5,0.6,,3,3,Most quarters are pretty even-keeled || tighter hours and compressed timelines || occasional crunch mixed into an otherwise regular rhythm,True
+VIGN-pace-mid,pace,mid,2,collaboration,False,0.5,0.1,0.0,1,1,the team pushes hard toward a launch,True
+VIGN-pace-mid,pace,mid,2,feedback,False,0.5,0.1,0.0,1,1,Most quarters are pretty even-keeled,True
+VIGN-pace-mid,pace,mid,2,innovation,False,0.5,0.1,0.0,1,1,toward a launch,True
+VIGN-pace-mid,pace,mid,2,decision,False,0.5,0.1,0.0,1,1,toward a launch,True
+VIGN-pace-mid,pace,mid,3,autonomy,False,0.5,0.1,0.0,1,1,Most quarters are pretty even-keeled,True
+VIGN-pace-mid,pace,mid,3,pace,True,0.5,0.6,,3,3,Most quarters are pretty even-keeled || a couple of times a year the team pushes hard || occasional crunch mixed into an otherwise regular rhythm,True
+VIGN-pace-mid,pace,mid,3,collaboration,False,0.5,0.1,0.0,1,1,the team pushes hard toward a launch,True
+VIGN-pace-mid,pace,mid,3,feedback,False,0.5,0.1,0.0,1,1,people expect an occasional crunch,True
+VIGN-pace-mid,pace,mid,3,innovation,False,0.5,0.1,0.0,1,1,toward a launch,True
+VIGN-pace-mid,pace,mid,3,decision,False,0.5,0.1,0.0,1,1,toward a launch,True
+VIGN-pace-mid,pace,mid,4,autonomy,False,0.5,0.1,0.0,1,1,Most quarters are pretty even-keeled,True
+VIGN-pace-mid,pace,mid,4,pace,True,0.5,0.6,,3,3,Most quarters are pretty even-keeled || a couple of times a year the team pushes hard toward a launch || occasional crunch mixed into an otherwise regular rhythm,True
+VIGN-pace-mid,pace,mid,4,collaboration,False,0.5,0.1,0.0,1,1,the team pushes hard toward a launch,True
+VIGN-pace-mid,pace,mid,4,feedback,False,0.5,0.1,0.0,1,1,otherwise regular rhythm,True
+VIGN-pace-mid,pace,mid,4,innovation,False,0.5,0.1,0.0,1,1,toward a launch,True
+VIGN-pace-mid,pace,mid,4,decision,False,0.5,0.1,0.0,1,1,compressed timelines,True
+VIGN-pace-mid,pace,mid,5,autonomy,False,0.5,0.1,0.0,1,1,Most quarters are pretty even-keeled,True
+VIGN-pace-mid,pace,mid,5,pace,True,0.5,0.9,,3,3,Most quarters are pretty even-keeled || a couple of times a year the team pushes hard || occasional crunch mixed into an otherwise regular rhythm,True
+VIGN-pace-mid,pace,mid,5,collaboration,False,0.5,0.1,0.0,1,1,the team pushes hard toward a launch,True
+VIGN-pace-mid,pace,mid,5,feedback,False,0.5,0.1,0.0,1,1,people expect an occasional crunch,True
+VIGN-pace-mid,pace,mid,5,innovation,False,0.5,0.1,0.0,1,1,toward a launch,True
+VIGN-pace-mid,pace,mid,5,decision,False,0.5,0.1,0.0,1,1,compressed timelines,True
+VIGN-pace-high,pace,high,1,autonomy,False,0.3,0.3,-0.2,2,2,Deadlines here are treated as fixed || the work bends to fit them,True
+VIGN-pace-high,pace,high,1,pace,True,0.9,0.9,,3,3,multiple times a week || long stretches of late nights || Deadlines here are treated as fixed,True
+VIGN-pace-high,pace,high,1,collaboration,False,0.5,0.1,0.0,1,1,the team talks openly,True
+VIGN-pace-high,pace,high,1,feedback,False,0.5,0.1,0.0,1,1,talks openly,True
+VIGN-pace-high,pace,high,1,innovation,False,0.3,0.3,-0.2,2,2,shipping first and refining later || refining later,True
+VIGN-pace-high,pace,high,1,decision,False,0.5,0.1,0.0,1,1,shipping first and refining later,True
+VIGN-pace-high,pace,high,2,autonomy,False,0.3,0.3,-0.2,2,2,Deadlines here are treated as fixed || the work bends to fit them,True
+VIGN-pace-high,pace,high,2,pace,True,0.9,0.9,,3,3,Releases go out multiple times a week || long stretches of late nights around launches || Deadlines here are treated as fixed,True
+VIGN-pace-high,pace,high,2,collaboration,False,0.5,0.1,0.0,1,1,the team talks openly,True
+VIGN-pace-high,pace,high,2,feedback,False,0.5,0.1,0.0,1,1,talks openly,True
+VIGN-pace-high,pace,high,2,innovation,False,0.3,0.3,-0.2,2,2,shipping first and refining later || refining later,True
+VIGN-pace-high,pace,high,2,decision,False,0.5,0.1,0.0,1,1,shipping first and refining later,True
+VIGN-pace-high,pace,high,3,autonomy,False,0.3,0.3,-0.2,2,2,Deadlines here are treated as fixed || the work bends to fit them,True
+VIGN-pace-high,pace,high,3,pace,True,0.9,0.9,,3,3,Releases go out multiple times a week || long stretches of late nights around launches || Deadlines here are treated as fixed,True
+VIGN-pace-high,pace,high,3,collaboration,False,0.5,0.1,0.0,1,1,the team talks openly,True
+VIGN-pace-high,pace,high,3,feedback,False,0.5,0.1,0.0,1,1,the team talks openly,True
+VIGN-pace-high,pace,high,3,innovation,False,0.3,0.3,-0.2,2,2,shipping first and refining later || refining later,True
+VIGN-pace-high,pace,high,3,decision,False,0.5,0.1,0.0,1,1,shipping first and refining later,True
+VIGN-pace-high,pace,high,4,autonomy,False,0.3,0.6,-0.2,2,2,Deadlines here are treated as fixed || the work bends to fit them,True
+VIGN-pace-high,pace,high,4,pace,True,0.9,0.9,,3,3,Releases go out multiple times a week || long stretches of late nights around launches || scaling faster than its processes can keep up with,True
+VIGN-pace-high,pace,high,4,collaboration,False,0.5,0.1,0.0,1,1,the team talks openly,True
+VIGN-pace-high,pace,high,4,feedback,False,0.5,0.1,0.0,1,1,the team talks openly,True
+VIGN-pace-high,pace,high,4,innovation,False,0.3,0.3,-0.2,1,1,shipping first and refining later,True
+VIGN-pace-high,pace,high,4,decision,False,0.5,0.1,0.0,1,1,shipping first and refining later,True
+VIGN-pace-high,pace,high,5,autonomy,False,0.3,0.3,-0.2,2,2,Deadlines here are treated as fixed || the work bends to fit them,True
+VIGN-pace-high,pace,high,5,pace,True,0.9,0.9,,3,3,Releases go out multiple times a week || long stretches of late nights around launches || Deadlines here are treated as fixed,True
+VIGN-pace-high,pace,high,5,collaboration,False,0.5,0.1,0.0,1,1,the team talks openly,True
+VIGN-pace-high,pace,high,5,feedback,False,0.5,0.1,0.0,1,1,talks openly,True
+VIGN-pace-high,pace,high,5,innovation,False,0.3,0.3,-0.2,2,2,shipping first and refining later || refining later,True
+VIGN-pace-high,pace,high,5,decision,False,0.5,0.1,0.0,1,1,shipping first and refining later,True
+VIGN-innovation-low,innovation,low,1,autonomy,False,0.5,0.1,0.0,1,1,most of the roadmap is about shaving latency,True
+VIGN-innovation-low,innovation,low,1,pace,False,0.3,0.3,-0.2,2,2,"mature, dependable engine || shaving latency, fixing edge cases",True
+VIGN-innovation-low,innovation,low,1,collaboration,False,0.5,0.1,0.0,1,1,Nobody on the team is working on anything,True
+VIGN-innovation-low,innovation,low,1,feedback,False,0.5,0.1,0.0,1,1,Leadership talks about the business,True
+VIGN-innovation-low,innovation,low,1,innovation,True,0.1,0.9,,3,3,"The core product has been essentially the same for years || most of the roadmap is about shaving latency, fixing edge cases, and squeezing more efficiency out of what already works || Nobody on the team is working on anything that doesn't already have a name and a shipped v1",True
+VIGN-innovation-low,innovation,low,1,decision,False,0.5,0.1,0.0,1,1,squeezing more efficiency out of what already works,True
+VIGN-innovation-low,innovation,low,2,autonomy,False,0.5,0.1,0.0,2,2,"most of the roadmap || Leadership talks about the business as a mature, dependable engine",True
+VIGN-innovation-low,innovation,low,2,pace,False,0.3,0.3,-0.2,2,2,"essentially the same for years || mature, dependable engine",True
+VIGN-innovation-low,innovation,low,2,collaboration,False,0.5,0.1,0.0,1,2,Nobody on the team is working on anything || the team,True
+VIGN-innovation-low,innovation,low,2,feedback,False,0.5,0.1,0.0,1,1,"Leadership talks about the business as a mature, dependable engine",True
+VIGN-innovation-low,innovation,low,2,innovation,True,0.1,0.6,,3,3,"The core product has been essentially the same for years || most of the roadmap is about shaving latency, fixing edge cases, and squeezing more efficiency out of what already works || Nobody on the team is working on anything that doesn't already have a name and a shipped v1",True
+VIGN-innovation-low,innovation,low,2,decision,False,0.5,0.1,0.0,2,2,"squeezing more efficiency out of what already works || mature, dependable engine",True
+VIGN-innovation-low,innovation,low,3,autonomy,False,0.5,0.1,0.0,1,1,most of the roadmap is about shaving latency,True
+VIGN-innovation-low,innovation,low,3,pace,False,0.3,0.3,-0.2,2,2,"mature, dependable engine || shaving latency, fixing edge cases",True
+VIGN-innovation-low,innovation,low,3,collaboration,False,0.5,0.1,0.0,1,1,Nobody on the team,True
+VIGN-innovation-low,innovation,low,3,feedback,False,0.5,0.1,0.0,1,1,Leadership talks about the business,True
+VIGN-innovation-low,innovation,low,3,innovation,True,0.1,0.9,,3,3,"The core product has been essentially the same for years || most of the roadmap is about shaving latency, fixing edge cases, and squeezing more efficiency out of what already works || Nobody on the team is working on anything that doesn't already have a name and a shipped v1",True
+VIGN-innovation-low,innovation,low,3,decision,False,0.5,0.1,0.0,1,1,"shaving latency, fixing edge cases, and squeezing more efficiency",True
+VIGN-innovation-low,innovation,low,4,autonomy,False,0.5,0.1,0.0,2,2,most of the roadmap is about || Leadership talks about the business,True
+VIGN-innovation-low,innovation,low,4,pace,False,0.3,0.3,-0.2,2,2,"mature, dependable engine || The core product has been essentially the same for years",True
+VIGN-innovation-low,innovation,low,4,collaboration,False,0.5,0.1,0.0,1,1,on the team,True
+VIGN-innovation-low,innovation,low,4,feedback,False,0.5,0.1,0.0,1,1,Leadership talks about the business,True
+VIGN-innovation-low,innovation,low,4,innovation,True,0.1,0.9,,3,3,"The core product has been essentially the same for years || most of the roadmap is about shaving latency, fixing edge cases, and squeezing more efficiency out of what already works || Nobody on the team is working on anything that doesn't already have a name and a shipped v1.",True
+VIGN-innovation-low,innovation,low,4,decision,False,0.7,0.3,0.2,2,2,shaving latency || squeezing more efficiency out of what already works,True
+VIGN-innovation-low,innovation,low,5,autonomy,False,0.5,0.1,0.0,2,2,most of the roadmap is about shaving latency || Nobody on the team is working on anything,True
+VIGN-innovation-low,innovation,low,5,pace,False,0.3,0.3,-0.2,2,2,"mature, dependable engine || The core product has been essentially the same for years",True
+VIGN-innovation-low,innovation,low,5,collaboration,False,0.5,0.1,0.0,1,1,Nobody on the team is working on anything,True
+VIGN-innovation-low,innovation,low,5,feedback,False,0.5,0.1,0.0,1,1,"Leadership talks about the business as a mature, dependable engine",True
+VIGN-innovation-low,innovation,low,5,innovation,True,0.1,0.6,,3,3,"The core product has been essentially the same for years || most of the roadmap is about shaving latency, fixing edge cases, and squeezing more efficiency out of what already works || Nobody on the team is working on anything that doesn't already have a name and a shipped v1",True
+VIGN-innovation-low,innovation,low,5,decision,False,0.7,0.3,0.2,2,2,shaving latency || squeezing more efficiency out of what already works,True
+VIGN-innovation-mid,innovation,mid,1,autonomy,False,0.5,0.1,0.0,1,1,Both tracks get real headcount,True
+VIGN-innovation-mid,innovation,mid,1,pace,False,0.5,0.1,0.0,1,1,hardening and scaling the existing product,True
+VIGN-innovation-mid,innovation,mid,1,collaboration,False,0.5,0.1,0.0,1,1,small incubator-style group,True
+VIGN-innovation-mid,innovation,mid,1,feedback,False,0.5,0.1,0.0,1,1,"neither is treated as the ""real"" job",True
+VIGN-innovation-mid,innovation,mid,1,innovation,True,0.5,0.9,,3,3,Roughly half the team's time goes into hardening and scaling the existing product || the other half goes into a small incubator-style group exploring genuinely new ideas || Both tracks get real headcount,True
+VIGN-innovation-mid,innovation,mid,1,decision,False,0.5,0.1,0.0,1,1,exploring genuinely new ideas,True
+VIGN-innovation-mid,innovation,mid,2,autonomy,False,0.5,0.1,0.0,1,1,Both tracks get real headcount,True
+VIGN-innovation-mid,innovation,mid,2,pace,False,0.5,0.1,0.0,1,1,hardening and scaling the existing product,True
+VIGN-innovation-mid,innovation,mid,2,collaboration,False,0.5,0.1,0.0,1,1,small incubator-style group,True
+VIGN-innovation-mid,innovation,mid,2,feedback,False,0.5,0.1,0.0,1,1,"neither is treated as the ""real"" job",True
+VIGN-innovation-mid,innovation,mid,2,innovation,True,0.5,0.9,,3,3,Roughly half the team's time goes into hardening and scaling the existing product || the other half goes into a small incubator-style group exploring genuinely new ideas || Both tracks get real headcount,True
+VIGN-innovation-mid,innovation,mid,2,decision,False,0.5,0.1,0.0,1,1,exploring genuinely new ideas,True
+VIGN-innovation-mid,innovation,mid,3,autonomy,False,0.5,0.1,0.0,1,1,Both tracks get real headcount,True
+VIGN-innovation-mid,innovation,mid,3,pace,False,0.5,0.1,0.0,1,1,hardening and scaling the existing product,True
+VIGN-innovation-mid,innovation,mid,3,collaboration,False,0.5,0.1,0.0,1,1,a small incubator-style group,True
+VIGN-innovation-mid,innovation,mid,3,feedback,False,0.5,0.1,0.0,1,1,Both tracks get real headcount,True
+VIGN-innovation-mid,innovation,mid,3,innovation,True,0.5,0.9,,3,3,Roughly half the team's time goes into hardening and scaling the existing product || the other half goes into a small incubator-style group exploring genuinely new ideas || Both tracks get real headcount,True
+VIGN-innovation-mid,innovation,mid,3,decision,False,0.5,0.1,0.0,1,1,exploring genuinely new ideas,True
+VIGN-innovation-mid,innovation,mid,4,autonomy,False,0.5,0.1,0.0,2,2,hardening and scaling the existing product || exploring genuinely new ideas,True
+VIGN-innovation-mid,innovation,mid,4,pace,False,0.5,0.1,0.0,2,2,hardening and scaling the existing product || small incubator-style group exploring genuinely new ideas,True
+VIGN-innovation-mid,innovation,mid,4,collaboration,False,0.5,0.1,0.0,2,2,Roughly half the team's time || a small incubator-style group,True
+VIGN-innovation-mid,innovation,mid,4,feedback,False,0.5,0.1,0.0,1,1,Both tracks get real headcount,True
+VIGN-innovation-mid,innovation,mid,4,innovation,True,0.5,0.9,,3,3,"Roughly half the team's time goes into hardening and scaling the existing product || the other half goes into a small incubator-style group exploring genuinely new ideas || neither is treated as the ""real"" job over the other",True
+VIGN-innovation-mid,innovation,mid,4,decision,False,0.5,0.1,0.0,2,2,exploring genuinely new ideas || don't have a shipped version yet,True
+VIGN-innovation-mid,innovation,mid,5,autonomy,False,0.5,0.1,0.0,1,1,Both tracks get real headcount,True
+VIGN-innovation-mid,innovation,mid,5,pace,False,0.5,0.1,0.0,1,1,hardening and scaling the existing product,True
+VIGN-innovation-mid,innovation,mid,5,collaboration,False,0.5,0.1,0.0,1,1,a small incubator-style group,True
+VIGN-innovation-mid,innovation,mid,5,feedback,False,0.5,0.1,0.0,1,1,Both tracks get real headcount,True
+VIGN-innovation-mid,innovation,mid,5,innovation,True,0.5,0.9,,3,3,half the team's time goes into hardening and scaling the existing product || the other half goes into a small incubator-style group exploring genuinely new ideas || Both tracks get real headcount,True
+VIGN-innovation-mid,innovation,mid,5,decision,False,0.5,0.1,0.0,1,1,exploring genuinely new ideas,True
+VIGN-innovation-high,innovation,high,1,autonomy,False,0.5,0.1,0.0,1,1,everyone's building from a blank page,True
+VIGN-innovation-high,innovation,high,1,pace,False,0.7,0.6,0.2,2,2,a string of experiments || most of which get killed within a quarter,True
+VIGN-innovation-high,innovation,high,1,collaboration,False,0.5,0.1,0.0,1,1,The team's entire mandate,True
+VIGN-innovation-high,innovation,high,1,feedback,False,0.3,0.3,-0.2,2,2,Leadership explicitly celebrated a recent project that failed outright || framing the willingness to try it as more valuable than the failure itself,True
+VIGN-innovation-high,innovation,high,1,innovation,True,0.9,0.9,,3,3,build things that don't exist yet || there's no legacy product to maintain || everyone's building from a blank page,True
+VIGN-innovation-high,innovation,high,1,decision,False,0.5,0.3,0.0,2,2,a string of experiments || most of which get killed within a quarter,True
+VIGN-innovation-high,innovation,high,2,autonomy,False,0.5,0.1,0.0,1,1,build things that don't exist yet,True
+VIGN-innovation-high,innovation,high,2,pace,False,0.7,0.3,0.2,1,1,most of which get killed within a quarter,True
+VIGN-innovation-high,innovation,high,2,collaboration,False,0.5,0.1,0.0,1,1,The team's entire mandate,True
+VIGN-innovation-high,innovation,high,2,feedback,False,0.5,0.1,0.0,1,1,Leadership explicitly celebrated a recent project that failed outright,True
+VIGN-innovation-high,innovation,high,2,innovation,True,0.9,0.9,,3,3,build things that don't exist yet || a string of experiments || everyone's building from a blank page,True
+VIGN-innovation-high,innovation,high,2,decision,False,0.5,0.1,0.0,1,1,most of which get killed within a quarter,True
+VIGN-innovation-high,innovation,high,3,autonomy,False,0.5,0.1,0.0,2,2,The team's entire mandate || everyone's building from a blank page,True
+VIGN-innovation-high,innovation,high,3,pace,False,0.7,0.3,0.2,2,2,a string of experiments || most of which get killed within a quarter,True
+VIGN-innovation-high,innovation,high,3,collaboration,False,0.5,0.1,0.0,1,1,The team's entire mandate,True
+VIGN-innovation-high,innovation,high,3,feedback,False,0.5,0.1,0.0,1,1,Leadership explicitly celebrated a recent project that failed outright,True
+VIGN-innovation-high,innovation,high,3,innovation,True,0.9,0.9,,3,3,build things that don't exist yet || no legacy product to maintain || everyone's building from a blank page,True
+VIGN-innovation-high,innovation,high,3,decision,False,0.7,0.3,0.2,2,2,a string of experiments || most of which get killed within a quarter,True
+VIGN-innovation-high,innovation,high,4,autonomy,False,0.5,0.1,0.0,1,1,building from a blank page,True
+VIGN-innovation-high,innovation,high,4,pace,False,0.7,0.3,0.2,1,1,most of which get killed within a quarter,True
+VIGN-innovation-high,innovation,high,4,collaboration,False,0.5,0.1,0.0,1,1,The team's entire mandate,True
+VIGN-innovation-high,innovation,high,4,feedback,False,0.5,0.1,0.0,1,1,Leadership explicitly celebrated,True
+VIGN-innovation-high,innovation,high,4,innovation,True,0.9,0.9,,3,3,build things that don't exist yet || no legacy product to maintain || everyone's building from a blank page,True
+VIGN-innovation-high,innovation,high,4,decision,False,0.5,0.1,0.0,1,1,a string of experiments,True
+VIGN-innovation-high,innovation,high,5,autonomy,False,0.5,0.1,0.0,1,1,build things that don't exist yet,True
+VIGN-innovation-high,innovation,high,5,pace,False,0.7,0.3,0.2,1,1,most of which get killed within a quarter,True
+VIGN-innovation-high,innovation,high,5,collaboration,False,0.5,0.1,0.0,1,1,The team's entire mandate,True
+VIGN-innovation-high,innovation,high,5,feedback,False,0.5,0.1,0.0,1,1,Leadership explicitly celebrated a recent project that failed outright,True
+VIGN-innovation-high,innovation,high,5,innovation,True,0.9,0.9,,3,3,build things that don't exist yet || no legacy product to maintain || everyone's building from a blank page,True
+VIGN-innovation-high,innovation,high,5,decision,False,0.7,0.3,0.2,2,2,a string of experiments || most of which get killed within a quarter,True

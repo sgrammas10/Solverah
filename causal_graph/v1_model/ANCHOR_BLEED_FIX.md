@@ -1,7 +1,9 @@
 # Cross-dimension bleed — diagnosis and fix
 
-**Status: instrument fixed, cause not yet isolated. Two diagnostic arms are staged and
-unrun (50 API calls total). `anchors.json` is UNTOUCHED and stays frozen.**
+**Status: both bleeds resolved. Across rounds 4–5 (2026-08-17, 450 scored rows) the
+reproducible-bleed count fell from 5 cells to 1, and that survivor is a vignette artifact
+already fixed independently in Arm A. One combined confirmation run remains outstanding.
+`anchors.json` is UNTOUCHED and stays frozen.**
 
 Not a handoff. This is the working record for one defect, so the reasoning behind
 `anchors_v2_PROPOSED.json` travels with the file when it goes to Julie.
@@ -136,3 +138,157 @@ not depend on the bleed question — the bleed lives entirely in the off-target 
 It also remains true that **no person-side score in any round came from a real
 respondent.** Every one was hand-picked to match the intended level. Round 3 licenses
 "ready to pilot," and the bleed work does not move that line.
+
+---
+
+## 6. Round-4 result (2026-08-17) — both arms, 50 calls, recomputed from the CSVs
+
+Controls held in both arms: on-target autonomy 0.1/0.3/0.5/0.7/0.9 at **zero variance**,
+`temperature_honored` on all 300 rows, grounding 217/218 (A) and 207/211 (B). No vignette
+edit changed autonomy intensity, so both arms are valid.
+
+Runs displaced ≥0.2 off neutral, out of 5:
+
+| off-target | level | round 3 | Arm A (vignette fix) | Arm B (anchor fix) | reading |
+|---|---|---|---|---|---|
+| collaboration | 0.5 | 5 | **0** | 5 | vignette was the cause |
+| collaboration | 0.7 | 4 | 5 | **1** | anchor was the cause |
+| collaboration | 0.9 | 5 | 5 | **0** | anchor was the cause |
+| decision | 0.1 | 4 | **1** | 4 | vignette was the cause |
+| innovation | 0.1 | 5 | 5 | 5 | **neither fix works** |
+| pace | 0.1 | 0 | 3 | 0 | introduced by the Arm A edit |
+
+**The MIXED prediction was right, and it matters: the two fixes are complementary and
+neither is sufficient.** The "if Arm A alone clears every level, drop the anchor proposal"
+condition did not trigger — Arm A left collaboration at 5/5 on both 0.7 and 0.9.
+
+### The `evidence_quotes` column is what made this conclusive
+
+The new column produced a controlled demonstration that no amount of score-watching could
+have. At autonomy 0.9, **both arms cited the same phrase** and scored it differently:
+
+| arm | cited phrase | collaboration score |
+|---|---|---|
+| A — frozen bands | "how their piece gets done end to end" | **0.3**, 5/5 |
+| B — rewritten bands | "own their piece end to end" | **0.5**, 5/5 |
+
+Same model, same evidence, same vignette meaning. Only the band text differed. Arm A's
+word-level scrub of the ownership token did *not* help; rewriting the band did. That is
+the causal claim, not an inference from aggregates.
+
+And the rewrite correctly did **not** over-fix: Arm B still scored collaboration 0.3 on
+the 0.5 vignette's "*without looping anyone in first*" (5/5). That phrase is genuine
+meeting-density evidence and the rewritten bands are supposed to keep scoring it. A
+"fix" that had zeroed that too would have been a rubric that stopped measuring
+Collaboration.
+
+### The Innovation hypothesis was falsified
+
+`autonomy 0.1 → innovation` stayed at 5/5 in **both** arms. The scorer cited
+**"step-by-step playbook"** on every run of every arm. So removing the word *execute*
+from the vignette did nothing, and renaming the pole plus adding a `keep_distinct` guard
+did nothing. The lexical-collision theory is dead.
+
+What survives both is process-maturity vocabulary sitting inside **Innovation's own low
+band**: "*Operational excellence*", "*efficiency focus*", "*mature offering*", plus
+`where_to_look`'s "*operational excellence*" and "*product maturity*". A mandatory
+step-by-step playbook matches those directly. Innovation's low band is currently written
+to reward process rigidity, which is an Autonomy fact. `anchors_v3_PROPOSED.json` rewrites
+those three fields in terms of novelty of output only. **Untested — 5 calls.**
+
+### The finding worth carrying past this defect
+
+**`keep_distinct` does not override band text.** Collaboration was fixed by rewriting its
+*bands*. Innovation was given a plain-English guard — "*Do not read 'follows a detailed
+brief' as low Innovation*" — and the scorer did exactly that anyway, 5 times out of 5.
+For Julie's rewrite: **guards are documentation for human raters; bands are the
+instrument.** Any anchor change intended to move the LLM scorer has to land in band text.
+`anchors_v3_PROPOSED.json` tags every edit `[VALIDATED]` / `[NEW]` / `[NEUTRAL]` /
+`[FALSIFIED]` so this distinction survives the handoff to her.
+
+### Two loose ends, neither urgent
+
+`autonomy 0.1 → pace` appeared at 3/5 in Arm A having been 0/5 in round 3, citing "*two
+layers of manager review*". Two of the five runs stayed neutral, so at n=5 this is weak;
+it is also arguably a *correct* inference, since two approval layers genuinely does slow
+tempo. Do not treat it as a defect without more runs.
+
+`autonomy 0.1 → decision` was fixed by the vignette edit (4/5 → 1/5) and not by the
+anchor edit, so it belongs with the vignette-artifact group. No further action.
+
+### The question this run raises and cannot answer
+
+If the Innovation band rewrite *also* fails, the coupling is not a rubric defect at all —
+companies that mandate step-by-step playbooks genuinely do tend to be optimize-shops, and
+the scorer would be reading a real correlation in the world. That would make it a
+**modelling** problem rather than a rubric one: `fit_gap()` would be double-counting
+correlated dimensions, and the fix belongs in the causal graph, not in `anchors.json`.
+Run the 5 calls before assuming either.
+
+---
+
+## 7. Round-5 result — Innovation band rewrite, and where this lands
+
+`anchors_v3_PROPOSED.json` against the unchanged v3 vignettes, 25 calls. Controls held:
+on-target 0.1/0.3/0.5/0.7/0.9 at zero variance, grounding 205/206.
+
+**Reproducible bleed cells (≥3 of 5 runs displaced) across every run to date:**
+
+| run | anchors | vignettes | cells | surviving cells |
+|---|---|---|---|---|
+| round 3 | frozen | v3 | **5** | collab 0.5/0.7/0.9, decision 0.1, innovation 0.1 |
+| round 4 Arm A | frozen | v4 cleaned | **4** | collab 0.7/0.9, innovation 0.1, pace 0.1 |
+| round 4 Arm B | v2 proposed | v3 | **3** | collab 0.5, decision 0.1, innovation 0.1 |
+| round 5 | **v3 proposed** | v3 | **1** | collab 0.5 |
+
+**The Innovation band rewrite worked, and by the same controlled mechanism.** 5/5 → 2/5,
+mean 0.14 → 0.42. The scorer still cites "*step-by-step playbook*" on every run — but now
+reads it as 0.3–0.5 instead of 0.1. Identical evidence, identical model, different band
+text, different score. Removing "*Operational excellence*", "*efficiency focus*" and
+"*mature offering*" from Innovation's low band was the fix; the pole rename and the
+`keep_distinct` guard were not, and remain tagged `[FALSIFIED]`.
+
+Precision about what round 5 licenses: Innovation's **0.1 band text** is validated. Its
+0.3 band text and `where_to_look` moved in the same run and were **not** independently
+isolated — they are tagged `[NEUTRAL]`, not validated. Claiming otherwise would repeat §5's
+original error at a smaller scale.
+
+**The one surviving cell is not an anchor problem.** Collaboration @ 0.5, 4/5, citing
+"*without looping anyone in first*" — genuine meeting-density evidence that a working
+Collaboration rubric *should* catch. Arm A already took it to 0/5 by removing the phrase
+from the vignette. The rubric is behaving correctly here; the vignette was leaking.
+
+**The residual noise now sits at the scorer's own confidence floor.** Every remaining
+displaced row in round 5 is a 0.3 at confidence 0.1–0.3 — `anchors.json`'s "Low" and "Very
+low: close to guessing" bands. That is the honest failure mode Finding 3 predicted for a
+dimension the evidence barely touches. Round 3's innovation bleed, by contrast, sat at 0.1
+— two full bands off neutral. The character of what is left is different in kind, not just
+smaller.
+
+### The last outstanding run
+
+**No run has combined both fixes.** Every result above varies one at a time, which is what
+made them interpretable, but the actual proposed end state is v3 anchors *plus* v4
+vignettes and it has never been scored:
+
+```
+python run_vignette_probe.py --pairs vignette_probe_pairs_v4_bleed_diagnostic.yaml \
+       --anchors ..\..\..\Solverah_IP\ground_truth\rater_app\anchors_v3_PROPOSED.json \
+       --allow-rubric-mismatch --out vignette_probe_results_v6_combined.csv
+```
+
+25 calls. Prediction, recorded before scoring: **zero reproducible bleed cells**, with
+scattered 1–2/5 incidentals at confidence ≤0.3. Watch for the one thing a combined run can
+show that neither arm could — an *interaction*, where a fix that worked alone stops working
+alongside the other. Nothing predicts one, but nothing has tested for it either.
+
+### The question that no longer needs answering
+
+Round 4 raised the possibility that autonomy→innovation was a real construct correlation
+rather than a rubric defect, which would have made it a `fit_gap()` problem in the causal
+graph. Round 5 answers it: band text alone moved the reading from 0.1 to 0.42 on unchanged
+evidence, so most of what looked like a correlation was rubric wording. Whatever survives
+at 2/5 and low confidence is too weak to justify restructuring the model around it. **Drop
+the modelling branch** — but note that this only clears autonomy↔innovation. Item 6 of the
+`-17c` handoff (whether raw subtraction is the right operation over two lattices that
+coarse) is untouched by any of this.

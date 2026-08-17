@@ -1,0 +1,151 @@
+packet_id,target_dimension,level,run,dimension,is_target,score,confidence,displacement,quotes_grounded,quotes_total,evidence_quotes,temperature_honored
+VIGN-autonomy-0.1,autonomy,0.1,1,autonomy,True,0.1,0.9,,3,3,detailed brief that spells out exactly how the work is to be done || passes through two layers of manager review || skip a step in the playbook,True
+VIGN-autonomy-0.1,autonomy,0.1,1,pace,False,0.5,0.1,0.0,1,1,Before anything ships,True
+VIGN-autonomy-0.1,autonomy,0.1,1,collaboration,False,0.5,0.1,0.0,1,1,the team picks up,True
+VIGN-autonomy-0.1,autonomy,0.1,1,feedback,False,0.5,0.1,0.0,1,1,New hires are told during onboarding,True
+VIGN-autonomy-0.1,autonomy,0.1,1,innovation,False,0.5,0.1,0.0,1,1,Before anything ships,True
+VIGN-autonomy-0.1,autonomy,0.1,1,decision,False,0.5,0.1,0.0,1,1,"Before anything ships, it passes through two layers of manager review",True
+VIGN-autonomy-0.1,autonomy,0.1,2,autonomy,True,0.1,0.9,,3,3,detailed brief that spells out exactly how the work is to be done || passes through two layers of manager review || skip a step in the playbook,True
+VIGN-autonomy-0.1,autonomy,0.1,2,pace,False,0.5,0.1,0.0,1,1,the fastest way to get in trouble here,True
+VIGN-autonomy-0.1,autonomy,0.1,2,collaboration,False,0.5,0.1,0.0,1,1,Every task the team picks up,True
+VIGN-autonomy-0.1,autonomy,0.1,2,feedback,False,0.5,0.1,0.0,1,1,two layers of manager review,True
+VIGN-autonomy-0.1,autonomy,0.1,2,innovation,False,0.5,0.1,0.0,1,1,Every task the team picks up,True
+VIGN-autonomy-0.1,autonomy,0.1,2,decision,False,0.5,0.1,0.0,2,2,detailed brief || two layers of manager review,True
+VIGN-autonomy-0.1,autonomy,0.1,3,autonomy,True,0.1,0.9,,3,3,detailed brief that spells out exactly how the work is to be done || passes through two layers of manager review || step-by-step playbook for nearly every job,True
+VIGN-autonomy-0.1,autonomy,0.1,3,pace,False,0.5,0.3,0.0,2,2,fastest way to get in trouble here || Before anything ships,True
+VIGN-autonomy-0.1,autonomy,0.1,3,collaboration,False,0.5,0.1,0.0,1,1,Every task the team picks up,True
+VIGN-autonomy-0.1,autonomy,0.1,3,feedback,False,0.5,0.1,0.0,1,1,New hires are told during onboarding,True
+VIGN-autonomy-0.1,autonomy,0.1,3,innovation,False,0.5,0.1,0.0,1,1,Every task the team picks up,True
+VIGN-autonomy-0.1,autonomy,0.1,3,decision,False,0.5,0.1,0.0,2,2,detailed brief || two layers of manager review,True
+VIGN-autonomy-0.1,autonomy,0.1,4,autonomy,True,0.1,0.9,,3,3,detailed brief that spells out exactly how the work is to be done || passes through two layers of manager review || skip a step in the playbook,True
+VIGN-autonomy-0.1,autonomy,0.1,4,pace,False,0.5,0.3,0.0,2,2,the fastest way to get in trouble here || Before anything ships,True
+VIGN-autonomy-0.1,autonomy,0.1,4,collaboration,False,0.5,0.1,0.0,1,1,Every task the team picks up,True
+VIGN-autonomy-0.1,autonomy,0.1,4,feedback,False,0.5,0.1,0.0,1,1,New hires are told during onboarding,True
+VIGN-autonomy-0.1,autonomy,0.1,4,innovation,False,0.5,0.1,0.0,1,1,Every task the team picks up,True
+VIGN-autonomy-0.1,autonomy,0.1,4,decision,False,0.5,0.1,0.0,1,1,Before anything ships,True
+VIGN-autonomy-0.1,autonomy,0.1,5,autonomy,True,0.1,0.9,,3,3,detailed brief that spells out exactly how the work is to be done || two layers of manager review || step-by-step playbook for nearly every job,True
+VIGN-autonomy-0.1,autonomy,0.1,5,pace,False,0.5,0.1,0.0,1,1,Before anything ships,True
+VIGN-autonomy-0.1,autonomy,0.1,5,collaboration,False,0.5,0.1,0.0,1,1,Every task the team picks up,True
+VIGN-autonomy-0.1,autonomy,0.1,5,feedback,False,0.5,0.1,0.0,1,1,New hires are told during onboarding,True
+VIGN-autonomy-0.1,autonomy,0.1,5,innovation,False,0.5,0.1,0.0,1,1,Before anything ships,True
+VIGN-autonomy-0.1,autonomy,0.1,5,decision,False,0.5,0.1,0.0,1,1,"Before anything ships, it passes through two layers of manager review",True
+VIGN-autonomy-0.3,autonomy,0.3,1,autonomy,True,0.3,0.9,,3,3,Managers set the overall direction and priorities || some say in exactly how they carry it out within that frame || anything touching the bigger picture goes through a manager first,True
+VIGN-autonomy-0.3,autonomy,0.3,1,pace,False,0.5,0.1,0.0,1,1,each project,True
+VIGN-autonomy-0.3,autonomy,0.3,1,collaboration,False,0.5,0.1,0.0,1,1,each project,True
+VIGN-autonomy-0.3,autonomy,0.3,1,feedback,False,0.5,0.1,0.0,1,1,A few day-to-day tactical calls,True
+VIGN-autonomy-0.3,autonomy,0.3,1,innovation,False,0.5,0.1,0.0,1,1,the overall direction and priorities,True
+VIGN-autonomy-0.3,autonomy,0.3,1,decision,False,0.5,0.1,0.0,1,1,goes through a manager first,True
+VIGN-autonomy-0.3,autonomy,0.3,2,autonomy,True,0.3,0.9,,3,3,Managers set the overall direction and priorities || within that frame || anything touching the bigger picture goes through a manager first,True
+VIGN-autonomy-0.3,autonomy,0.3,2,pace,False,0.5,0.1,0.0,1,1,day-to-day tactical calls,True
+VIGN-autonomy-0.3,autonomy,0.3,2,collaboration,False,0.5,0.1,0.0,1,1,people have some say,True
+VIGN-autonomy-0.3,autonomy,0.3,2,feedback,False,0.5,0.1,0.0,1,1,Managers set the overall direction and priorities,True
+VIGN-autonomy-0.3,autonomy,0.3,2,innovation,False,0.5,0.1,0.0,1,1,overall direction and priorities for each project,True
+VIGN-autonomy-0.3,autonomy,0.3,2,decision,False,0.5,0.1,0.0,2,2,day-to-day tactical calls || goes through a manager first,True
+VIGN-autonomy-0.3,autonomy,0.3,3,autonomy,True,0.3,0.6,,3,3,Managers set the overall direction and priorities || some say in exactly how they carry it out within that frame || anything touching the bigger picture goes through a manager first,True
+VIGN-autonomy-0.3,autonomy,0.3,3,pace,False,0.5,0.1,0.0,1,1,for each project,True
+VIGN-autonomy-0.3,autonomy,0.3,3,collaboration,False,0.5,0.1,0.0,1,1,for each project,True
+VIGN-autonomy-0.3,autonomy,0.3,3,feedback,False,0.5,0.1,0.0,1,1,within that frame,True
+VIGN-autonomy-0.3,autonomy,0.3,3,innovation,False,0.5,0.1,0.0,1,1,for each project,True
+VIGN-autonomy-0.3,autonomy,0.3,3,decision,False,0.5,0.1,0.0,1,1,Managers set the overall direction and priorities,True
+VIGN-autonomy-0.3,autonomy,0.3,4,autonomy,True,0.3,0.6,,3,3,"Managers set the overall direction and priorities || within that frame, but the frame itself isn't up for negotiation || anything touching the bigger picture goes through a manager first",True
+VIGN-autonomy-0.3,autonomy,0.3,4,pace,False,0.5,0.1,0.0,1,1,day-to-day tactical calls,True
+VIGN-autonomy-0.3,autonomy,0.3,4,collaboration,False,0.5,0.1,0.0,1,1,for each project,True
+VIGN-autonomy-0.3,autonomy,0.3,4,feedback,False,0.5,0.1,0.0,1,1,people have some say,True
+VIGN-autonomy-0.3,autonomy,0.3,4,innovation,False,0.5,0.1,0.0,1,1,for each project,True
+VIGN-autonomy-0.3,autonomy,0.3,4,decision,False,0.5,0.1,0.0,1,1,anything touching the bigger picture goes through a manager first,True
+VIGN-autonomy-0.3,autonomy,0.3,5,autonomy,True,0.3,0.6,,3,3,Managers set the overall direction and priorities || within that frame || anything touching the bigger picture goes through a manager first,True
+VIGN-autonomy-0.3,autonomy,0.3,5,pace,False,0.5,0.1,0.0,1,1,day-to-day tactical calls,True
+VIGN-autonomy-0.3,autonomy,0.3,5,collaboration,False,0.5,0.1,0.0,1,1,for each project,True
+VIGN-autonomy-0.3,autonomy,0.3,5,feedback,False,0.5,0.1,0.0,1,1,Managers set the overall direction and priorities,True
+VIGN-autonomy-0.3,autonomy,0.3,5,innovation,False,0.5,0.1,0.0,1,1,for each project,True
+VIGN-autonomy-0.3,autonomy,0.3,5,decision,False,0.5,0.1,0.0,1,1,A few day-to-day tactical calls,True
+VIGN-autonomy-0.5,autonomy,0.5,1,autonomy,True,0.5,0.9,,3,3,Team leads set the quarter's priorities and the big milestones || how each person gets there is mostly up to them || It really depends on the person and the project,True
+VIGN-autonomy-0.5,autonomy,0.5,1,pace,False,0.5,0.1,0.0,1,1,the quarter's priorities and the big milestones,True
+VIGN-autonomy-0.5,autonomy,0.5,1,collaboration,False,0.5,0.1,0.0,1,1,whoever is doing the work,True
+VIGN-autonomy-0.5,autonomy,0.5,1,feedback,False,0.5,0.1,0.0,1,1,It really depends on the person and the project,True
+VIGN-autonomy-0.5,autonomy,0.5,1,innovation,False,0.5,0.1,0.0,1,1,A couple of workflows are documented,True
+VIGN-autonomy-0.5,autonomy,0.5,1,decision,False,0.5,0.1,0.0,1,1,how each person gets there is mostly up to them,True
+VIGN-autonomy-0.5,autonomy,0.5,2,autonomy,True,0.5,0.9,,3,3,Team leads set the quarter's priorities and the big milestones || how each person gets there is mostly up to them || plenty of day-to-day method calls sit with whoever is doing the work rather than needing approval,True
+VIGN-autonomy-0.5,autonomy,0.5,2,pace,False,0.5,0.1,0.0,1,1,the quarter's priorities and the big milestones,True
+VIGN-autonomy-0.5,autonomy,0.5,2,collaboration,False,0.5,0.1,0.0,1,1,whoever is doing the work,True
+VIGN-autonomy-0.5,autonomy,0.5,2,feedback,False,0.5,0.1,0.0,1,1,there's no single house style,True
+VIGN-autonomy-0.5,autonomy,0.5,2,innovation,False,0.5,0.1,0.0,1,1,the quarter's priorities and the big milestones,True
+VIGN-autonomy-0.5,autonomy,0.5,2,decision,False,0.5,0.1,0.0,1,1,It really depends on the person and the project,True
+VIGN-autonomy-0.5,autonomy,0.5,3,autonomy,True,0.5,0.9,,3,3,Team leads set the quarter's priorities and the big milestones || how each person gets there is mostly up to them || plenty of day-to-day method calls sit with whoever is doing the work,True
+VIGN-autonomy-0.5,autonomy,0.5,3,pace,False,0.5,0.1,0.0,1,1,Team leads set the quarter's priorities and the big milestones,True
+VIGN-autonomy-0.5,autonomy,0.5,3,collaboration,False,0.5,0.1,0.0,1,1,It really depends on the person and the project,True
+VIGN-autonomy-0.5,autonomy,0.5,3,feedback,False,0.5,0.1,0.0,1,1,It really depends on the person and the project,True
+VIGN-autonomy-0.5,autonomy,0.5,3,innovation,False,0.5,0.1,0.0,1,1,It really depends on the person and the project,True
+VIGN-autonomy-0.5,autonomy,0.5,3,decision,False,0.5,0.1,0.0,1,1,It really depends on the person and the project,True
+VIGN-autonomy-0.5,autonomy,0.5,4,autonomy,True,0.5,0.9,,3,3,Team leads set the quarter's priorities and the big milestones || how each person gets there is mostly up to them || plenty of day-to-day method calls sit with whoever is doing the work rather than needing approval,True
+VIGN-autonomy-0.5,autonomy,0.5,4,pace,False,0.5,0.1,0.0,1,1,Team leads set the quarter's priorities and the big milestones,True
+VIGN-autonomy-0.5,autonomy,0.5,4,collaboration,False,0.5,0.1,0.0,1,1,It really depends on the person and the project,True
+VIGN-autonomy-0.5,autonomy,0.5,4,feedback,False,0.5,0.1,0.0,1,1,It really depends on the person and the project,True
+VIGN-autonomy-0.5,autonomy,0.5,4,innovation,False,0.5,0.1,0.0,1,1,It really depends on the person and the project,True
+VIGN-autonomy-0.5,autonomy,0.5,4,decision,False,0.5,0.1,0.0,1,1,It really depends on the person and the project,True
+VIGN-autonomy-0.5,autonomy,0.5,5,autonomy,True,0.5,0.6,,3,3,Team leads set the quarter's priorities and the big milestones || how each person gets there is mostly up to them || It really depends on the person and the project,True
+VIGN-autonomy-0.5,autonomy,0.5,5,pace,False,0.5,0.1,0.0,1,1,the quarter's priorities and the big milestones,True
+VIGN-autonomy-0.5,autonomy,0.5,5,collaboration,False,0.5,0.1,0.0,1,1,"some follow a shared template, others don't",True
+VIGN-autonomy-0.5,autonomy,0.5,5,feedback,False,0.5,0.1,0.0,1,1,It really depends on the person and the project,True
+VIGN-autonomy-0.5,autonomy,0.5,5,innovation,False,0.5,0.1,0.0,1,1,the quarter's priorities and the big milestones,True
+VIGN-autonomy-0.5,autonomy,0.5,5,decision,False,0.5,0.1,0.0,1,1,plenty of day-to-day method calls sit with whoever is doing the work,True
+VIGN-autonomy-0.7,autonomy,0.7,1,autonomy,True,0.7,0.9,,3,3,largely choose how to get there || manager still signs off before anything major goes out || judged on results rather than on following a specific process,True
+VIGN-autonomy-0.7,autonomy,0.7,1,pace,False,0.5,0.1,0.0,1,1,before anything major goes out,True
+VIGN-autonomy-0.7,autonomy,0.7,1,collaboration,False,0.5,0.1,0.0,1,1,Each person on the team,True
+VIGN-autonomy-0.7,autonomy,0.7,1,feedback,False,0.5,0.1,0.0,1,1,judged on results,True
+VIGN-autonomy-0.7,autonomy,0.7,1,innovation,False,0.5,0.1,0.0,1,1,Each person on the team is responsible for the outcome they're assigned,True
+VIGN-autonomy-0.7,autonomy,0.7,1,decision,False,0.5,0.1,0.0,1,1,judged on results,True
+VIGN-autonomy-0.7,autonomy,0.7,2,autonomy,True,0.7,0.9,,3,3,largely choose how to get there || manager still signs off before anything major goes out || judged on results rather than on following a specific process,True
+VIGN-autonomy-0.7,autonomy,0.7,2,pace,False,0.5,0.1,0.0,1,1,recent internal memo,True
+VIGN-autonomy-0.7,autonomy,0.7,2,collaboration,False,0.5,0.1,0.0,1,1,Each person on the team,True
+VIGN-autonomy-0.7,autonomy,0.7,2,feedback,False,0.5,0.1,0.0,1,1,judged on results,True
+VIGN-autonomy-0.7,autonomy,0.7,2,innovation,False,0.5,0.1,0.0,1,1,anything major goes out,True
+VIGN-autonomy-0.7,autonomy,0.7,2,decision,False,0.5,0.3,0.0,1,1,judged on results,True
+VIGN-autonomy-0.7,autonomy,0.7,3,autonomy,True,0.7,0.9,,3,3,largely choose how to get there || manager still signs off before anything major goes out || judged on results rather than on following a specific process,True
+VIGN-autonomy-0.7,autonomy,0.7,3,pace,False,0.5,0.1,0.0,1,1,before anything major goes out,True
+VIGN-autonomy-0.7,autonomy,0.7,3,collaboration,False,0.3,0.1,-0.2,1,1,Each person on the team is responsible for the outcome they're assigned,True
+VIGN-autonomy-0.7,autonomy,0.7,3,feedback,False,0.5,0.1,0.0,1,1,judged on results rather than on following a specific process,True
+VIGN-autonomy-0.7,autonomy,0.7,3,innovation,False,0.5,0.1,0.0,1,1,without describing it as a finished shift yet,True
+VIGN-autonomy-0.7,autonomy,0.7,3,decision,False,0.5,0.3,0.0,1,1,judged on results rather than on following a specific process,True
+VIGN-autonomy-0.7,autonomy,0.7,4,autonomy,True,0.7,0.9,,3,3,largely choose how to get there || a manager still signs off before anything major goes out || judged on results rather than on following a specific process,True
+VIGN-autonomy-0.7,autonomy,0.7,4,pace,False,0.5,0.1,0.0,1,1,before anything major goes out,True
+VIGN-autonomy-0.7,autonomy,0.7,4,collaboration,False,0.3,0.1,-0.2,1,1,Each person on the team is responsible for the outcome they're assigned,True
+VIGN-autonomy-0.7,autonomy,0.7,4,feedback,False,0.5,0.1,0.0,1,1,judged on results rather than on following a specific process,True
+VIGN-autonomy-0.7,autonomy,0.7,4,innovation,False,0.5,0.1,0.0,1,1,without describing it as a finished shift yet,True
+VIGN-autonomy-0.7,autonomy,0.7,4,decision,False,0.5,0.1,0.0,1,1,judged on results rather than on following a specific process,True
+VIGN-autonomy-0.7,autonomy,0.7,5,autonomy,True,0.7,0.9,,3,3,largely choose how to get there || manager still signs off before anything major goes out || judged on results rather than on following a specific process,True
+VIGN-autonomy-0.7,autonomy,0.7,5,pace,False,0.5,0.1,0.0,1,1,before anything major goes out,True
+VIGN-autonomy-0.7,autonomy,0.7,5,collaboration,False,0.5,0.1,0.0,1,1,Each person on the team,True
+VIGN-autonomy-0.7,autonomy,0.7,5,feedback,False,0.5,0.1,0.0,1,1,judged on results,True
+VIGN-autonomy-0.7,autonomy,0.7,5,innovation,False,0.5,0.1,0.0,1,1,without describing it as a finished shift yet,True
+VIGN-autonomy-0.7,autonomy,0.7,5,decision,False,0.5,0.1,0.0,1,1,judged on results,True
+VIGN-autonomy-0.9,autonomy,0.9,1,autonomy,True,0.9,0.9,,3,3,trusted to decide how their piece gets done end to end || nobody's checking in on the method || everyone sets their own method as they go,True
+VIGN-autonomy-0.9,autonomy,0.9,1,pace,False,0.5,0.1,0.0,1,1,only that the result lands,True
+VIGN-autonomy-0.9,autonomy,0.9,1,collaboration,False,0.5,0.1,0.0,1,1,how their piece gets done end to end,True
+VIGN-autonomy-0.9,autonomy,0.9,1,feedback,False,0.5,0.1,0.0,1,1,nobody's checking in on the method,True
+VIGN-autonomy-0.9,autonomy,0.9,1,innovation,False,0.5,0.1,0.0,1,1,There's no standard playbook,True
+VIGN-autonomy-0.9,autonomy,0.9,1,decision,False,0.5,0.1,0.0,1,1,only that the result lands,True
+VIGN-autonomy-0.9,autonomy,0.9,2,autonomy,True,0.9,0.9,,3,3,trusted to decide how their piece gets done end to end || nobody's checking in on the method || everyone sets their own method as they go,True
+VIGN-autonomy-0.9,autonomy,0.9,2,pace,False,0.5,0.1,0.0,1,1,only that the result lands,True
+VIGN-autonomy-0.9,autonomy,0.9,2,collaboration,False,0.5,0.1,0.0,1,1,how their piece gets done end to end,True
+VIGN-autonomy-0.9,autonomy,0.9,2,feedback,False,0.5,0.1,0.0,1,1,nobody's checking in on the method,True
+VIGN-autonomy-0.9,autonomy,0.9,2,innovation,False,0.5,0.1,0.0,1,1,There's no standard playbook,True
+VIGN-autonomy-0.9,autonomy,0.9,2,decision,False,0.5,0.1,0.0,1,1,A recent internal survey,True
+VIGN-autonomy-0.9,autonomy,0.9,3,autonomy,True,0.9,0.9,,3,3,trusted to decide how their piece gets done end to end || nobody's checking in on the method || everyone sets their own method as they go,True
+VIGN-autonomy-0.9,autonomy,0.9,3,pace,False,0.5,0.1,0.0,1,1,only that the result lands,True
+VIGN-autonomy-0.9,autonomy,0.9,3,collaboration,False,0.5,0.1,0.0,1,1,how their piece gets done end to end,True
+VIGN-autonomy-0.9,autonomy,0.9,3,feedback,False,0.5,0.1,0.0,1,1,nobody's checking in on the method,True
+VIGN-autonomy-0.9,autonomy,0.9,3,innovation,False,0.5,0.1,0.0,1,1,no standard playbook,True
+VIGN-autonomy-0.9,autonomy,0.9,3,decision,False,0.5,0.1,0.0,1,1,only that the result lands,True
+VIGN-autonomy-0.9,autonomy,0.9,4,autonomy,True,0.9,0.9,,3,3,trusted to decide how their piece gets done end to end || nobody's checking in on the method || everyone sets their own method as they go,True
+VIGN-autonomy-0.9,autonomy,0.9,4,pace,False,0.5,0.1,0.0,1,1,only that the result lands,True
+VIGN-autonomy-0.9,autonomy,0.9,4,collaboration,False,0.5,0.1,0.0,1,1,how their piece gets done end to end,True
+VIGN-autonomy-0.9,autonomy,0.9,4,feedback,False,0.5,0.1,0.0,1,1,nobody's checking in on the method,True
+VIGN-autonomy-0.9,autonomy,0.9,4,innovation,False,0.5,0.1,0.0,1,1,There's no standard playbook,True
+VIGN-autonomy-0.9,autonomy,0.9,4,decision,False,0.5,0.1,0.0,1,1,only that the result lands,True
+VIGN-autonomy-0.9,autonomy,0.9,5,autonomy,True,0.9,0.9,,3,3,trusted to decide how their piece gets done end to end || nobody's checking in on the method || everyone sets their own method as they go,True
+VIGN-autonomy-0.9,autonomy,0.9,5,pace,False,0.5,0.1,0.0,1,1,only that the result lands,True
+VIGN-autonomy-0.9,autonomy,0.9,5,collaboration,False,0.5,0.1,0.0,1,1,their piece gets done end to end,True
+VIGN-autonomy-0.9,autonomy,0.9,5,feedback,False,0.5,0.1,0.0,1,1,nobody's checking in on the method,True
+VIGN-autonomy-0.9,autonomy,0.9,5,innovation,False,0.5,0.1,0.0,1,1,There's no standard playbook,True
+VIGN-autonomy-0.9,autonomy,0.9,5,decision,False,0.5,0.1,0.0,1,1,only that the result lands,True
