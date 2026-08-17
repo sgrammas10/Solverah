@@ -1,0 +1,153 @@
+# vignette_probe_pairs_v2_boundary.yaml
+#
+# Round 2 -- a small, targeted follow-up to round 1 (vignette_probe_pairs_v1.yaml).
+#
+# WHY THIS EXISTS: round 1 tested the two extremes (person 0.0/1.0) and the one lattice
+# overlap point (0.5) and came back a clean PASS on all 12 pairs, once the tolerance logic
+# was corrected to account for the company rubric's fixed 0.1/0.9 floor and ceiling. But
+# round 1 could not test the actual worry that motivated writing SCALE_CALIBRATION_CHECK.md
+# in the first place -- Finding 2's `au1` example: does an item's high-pole wording, read
+# at face value, describe something as extreme as the company's TOP band (0.9), or does it
+# only describe something more like the company's "leaning" band (0.7) while still earning
+# full credit toward a 1.0 person score because the scoring method has no way to grade
+# HOW STRONGLY within a single item?
+#
+# DESIGN: one pair per dimension (4 pairs, not 12 -- "small round"). Each pair:
+#   - company_vignette is written to match ONLY that dimension's anchor 0.7 ("leaning X")
+#     text -- deliberately withholding the anchor's 0.9-band intensifying language
+#     ("minimal approval", "flat decision rights", "hypergrowth", etc.).
+#   - person_vignette is built by paraphrasing each item's HIGH-POLE OPTION as literally
+#     as possible, without adding extra intensity beyond what the item itself says (round
+#     1's "high" vignettes deliberately used MORE extreme framing than the items'
+#     literal text, e.g. "get out of my way" -- this round intentionally does NOT do that).
+#   - Because all four items still get answered on the high pole (the literal wording still
+#     supports it), person_item_choices are still all-high and target_person is still 1.0 --
+#     this is not a bug, it's the point: the person-side aggregator has no way to produce
+#     anything BETWEEN 0.75 and 1.0 once someone picks high on all 4 items, regardless of
+#     how moderately worded those items are.
+#
+# PREDICTED OUTCOME IF FINDING 2 IS REAL: company_mean lands near 0.7 (correctly reading
+# only 0.7-level evidence), while the closest achievable company band to the person's
+# mechanically-forced 1.0 is 0.9 -- producing a residual around -0.2, well outside every
+# dimension's tolerance ceiling (0.16 for autonomy/innovation, 0.20 for pace/collaboration).
+# A FAIL verdict here is NOT a bug and NOT alarming on its own -- it would be the first
+# direct empirical confirmation of Finding 2. Read run_vignette_probe.py's printed verdict
+# for these pairs against this prediction, not against the PASS/FAIL label in isolation.
+#
+# PREDICTED OUTCOME IF FINDING 2 IS WRONG (a real, useful possibility, not just a formality):
+# company_mean drifts up toward 0.9 despite the vignette deliberately withholding 0.9-level
+# language -- meaning the company scorer ALSO over-reads moderate evidence as extreme, for
+# an unrelated reason. That would still leave company and person agreeing (both near 1.0/0.9)
+# but for the wrong reason on both sides -- a different, arguably worse finding, since it
+# would mean neither instrument can be trusted to distinguish 0.7-level from 0.9-level
+# evidence, and the current apparent "agreement" would be a double error, not calibration.
+#
+# FROZEN 2026-08-17b, same conventions as round 1: don't edit target values or vignette
+# text after this point without a dated amendment; person side already verified against
+# assessment_items.yaml before any company-side call (see score_person_side.py).
+
+rubric_version_expected: v1-frozen-2026-08-15
+
+dimensions:
+
+  autonomy:
+    items: [au1, au2, au3, au4]
+    pairs:
+
+    - level: boundary_07
+      target_band: 0.7
+      target_person: 1.0
+      person_item_choices: { au1: A, au2: A, au3: A, au4: A }
+      note: >
+        Predicted company ~0.7 vs. structural-expected 0.9 (nearest band to person's
+        forced 1.0) -- a residual around -0.2 here would confirm Finding 2, not indicate
+        a bug in this script or the scorer.
+      person_vignette: >
+        When I'm handed a new project, I map out my own approach and run with it,
+        checking in with my manager only when I actually need to. Looking back at past
+        roles, I did my best work when I was given the goal and left to figure out how
+        to get there myself. If a time-sensitive call comes up that's a bit outside my
+        usual scope, I'll make the call and let my manager know afterward rather than
+        wait. And what's frustrated me most in past jobs has been having every step
+        dictated to me with no room to decide anything myself.
+      company_vignette: >
+        Each person on the team is responsible for the outcome they're assigned, and
+        they largely choose how to get there, though a manager still signs off before
+        anything major goes out. Job postings talk about people owning their area and
+        being judged on results rather than on following a specific process. A recent
+        internal memo mentioned wanting to give people more room to decide how they
+        work, without describing it as a finished shift yet.
+
+  pace:
+    items: [pa1, pa2, pa3, pa4]
+    pairs:
+
+    - level: boundary_07
+      target_band: 0.7
+      target_person: 1.0
+      person_item_choices: { pa1: A, pa2: A, pa3: A, pa4: A }
+      note: >
+        Predicted company ~0.7 vs. structural-expected 0.9 -- same logic as autonomy's
+        boundary_07 pair above.
+      person_vignette: >
+        The stretches at work where a lot is happening and turnarounds are quick are
+        the ones where I feel most in my element. If a project I'm mid-way through
+        suddenly needed to ship a week early, I'd get energized by the push and go for
+        it. My natural rhythm is closer to sprint, ship, iterate than one long steady
+        cadence. And what's worn me down most in past jobs has been things moving too
+        slowly and sitting around waiting.
+      company_vignette: >
+        Releases go out every couple of weeks, and there's regularly a sense of urgency
+        around hitting the next one. Timelines are fairly tight, but people don't
+        describe the pace as unrelenting -- most weeks settle back down once a release
+        is out the door. A few reviews mention the energy being up without describing
+        burnout.
+
+  collaboration:
+    items: [co1, co2, co3, co4]
+    pairs:
+
+    - level: boundary_07
+      target_band: 0.7
+      target_person: 1.0
+      person_item_choices: { co1: B, co2: B, co3: B, co4: A }
+      note: >
+        Predicted company ~0.7 vs. structural-expected 0.9 -- same logic as autonomy's
+        boundary_07 pair above.
+      person_vignette: >
+        I do my best work bouncing ideas off a group rather than sitting with something
+        alone. When something hard lands on my plate, my first move is to pull people
+        into a room and think it through together. I'd take an afternoon of energetic
+        team problem-solving over a quiet solo block. And what's drained me most in past
+        roles has been too much isolation, working on my own with no one to bounce
+        ideas off.
+      company_vignette: >
+        Most projects involve people from a couple of different functions working
+        together, and meetings happen often enough that they're a normal part of the
+        week. Decisions on how to approach a project usually get talked through with
+        the group rather than made solo, though individuals still carry clear pieces
+        of the work on their own.
+
+  innovation:
+    items: [in1, in2, in3, in4]
+    pairs:
+
+    - level: boundary_07
+      target_band: 0.7
+      target_person: 1.0
+      person_item_choices: { in1: B, in2: B, in3: B, in4: A }
+      note: >
+        Predicted company ~0.7 vs. structural-expected 0.9 -- same logic as autonomy's
+        boundary_07 pair above.
+      person_vignette: >
+        I get more satisfaction from building something that didn't exist before than
+        from polishing something that already works. Handed a process that's running
+        fine, my instinct is to question whether it should exist at all. The projects
+        that have energized me most were open-ended and ambiguous, figured out as I
+        went. And what's frustrated me most in past jobs has been having no room to
+        try new approaches.
+      company_vignette: >
+        New feature and capability work shows up on the roadmap alongside maintenance
+        of what already exists, and trying a new approach is generally encouraged
+        rather than discouraged. A couple of recent projects tested ideas that didn't
+        pan out, and nobody seemed to treat that as a black mark.

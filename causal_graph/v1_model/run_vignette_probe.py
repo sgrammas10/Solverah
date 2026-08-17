@@ -70,6 +70,20 @@ TOLERANCE_DEFAULT = {
 CONFIDENCE_LABEL = {0.9: "High", 0.6: "Medium", 0.3: "Low", 0.1: "Very low"}
 
 
+def closest_company_band(target_person: float) -> float:
+    """Nearest achievable company band (sp.SCORE_BAND_VALUES) to a person-side target.
+    FIX, added after the first live run: the original verdict compared company_mean
+    directly against the raw target_person value. That's wrong at the extremes -- the
+    company rubric has no band below 0.1 or above 0.9, so a person target of 0.0 or 1.0
+    can NEVER be matched exactly no matter how well-calibrated the instruments are
+    (confirmed empirically: round 1's actual run landed on exactly 0.1/0.9 with zero
+    variance on every single low/high pair, across all four dimensions -- that's the
+    lattice mismatch from SCALE_CALIBRATION_CHECK.md's Finding 1, not noise or a
+    calibration defect). Comparing against the closest ACHIEVABLE band isolates whether
+    there's miscalibration BEYOND what Finding 1 already predicts and prices in."""
+    return min(sp.SCORE_BAND_VALUES, key=lambda b: abs(b - target_person))
+
+
 def grounded_count(quotes: list[str], vignette_text: str) -> tuple[int, int]:
     """Lightweight reuse of S1-5's normalization, applied directly to the raw vignette
     text instead of parsed packet excerpts (SCALE_CALIBRATION_CHECK.md's explicit
@@ -152,23 +166,28 @@ def main() -> int:
 
             company_mean = sum(on_target_scores) / len(on_target_scores)
             target_person = pair["target_person"]
-            delta = company_mean - target_person
+            structural_expected = closest_company_band(target_person)
+            structural_gap = round(structural_expected - target_person, 4)
+            delta = company_mean - target_person          # raw, for transparency only
+            residual = company_mean - structural_expected  # what verdict is actually based on
             tol = TOLERANCE_DEFAULT[dim_name]
             tol_ceiling = TOLERANCE_CEILING[dim_name]
-            if abs(delta) <= tol:
+            if abs(residual) <= tol:
                 verdict = "PASS"
-            elif abs(delta) <= tol_ceiling:
+            elif abs(residual) <= tol_ceiling:
                 verdict = "BORDERLINE"
             else:
                 verdict = "FAIL"
 
             pair_summaries.append({
                 "dimension": dim_name, "level": level,
-                "target_person": target_person, "company_mean": round(company_mean, 4),
-                "delta": round(delta, 4), "tolerance_default": tol,
-                "tolerance_ceiling": tol_ceiling, "verdict": verdict,
+                "target_person": target_person, "structural_expected": structural_expected,
+                "structural_gap": structural_gap, "company_mean": round(company_mean, 4),
+                "delta": round(delta, 4), "residual": round(residual, 4),
+                "tolerance_default": tol, "tolerance_ceiling": tol_ceiling, "verdict": verdict,
                 "company_scores": on_target_scores,
                 "leakage_flags": leakage_flags,
+                "note": pair.get("note", ""),
             })
 
     # Full per-run, per-dimension log -- Finding 3's off-target data included.
@@ -179,28 +198,34 @@ def main() -> int:
     print(f"\nWrote {len(rows)} rows to {args.out}", file=sys.stderr)
 
     # Per-dimension summary -- NOT pooled across all 12 pairs, per the calibration doc's
-    # corrected "What would pass" section.
-    print(f"\n{'dimension':<15}{'level':<7}{'target':<8}{'company':<9}{'delta':<8}{'verdict'}")
-    print("-" * 70)
+    # corrected "What would pass" section. Verdict is based on RESIDUAL (company_mean vs.
+    # the closest ACHIEVABLE company band), not raw delta vs. the person's raw target --
+    # see closest_company_band()'s docstring for why the original delta-based check was
+    # wrong at the extremes.
+    print(f"\n{'dimension':<15}{'level':<9}{'target':<8}{'struct.exp':<11}{'company':<9}"
+          f"{'residual':<10}{'verdict'}")
+    print("-" * 90)
     by_dim: dict[str, list[dict]] = {}
     for s in pair_summaries:
         by_dim.setdefault(s["dimension"], []).append(s)
-        print(f"{s['dimension']:<15}{s['level']:<7}{s['target_person']:<8}"
-              f"{s['company_mean']:<9}{s['delta']:<8}{s['verdict']}")
+        print(f"{s['dimension']:<15}{s['level']:<9}{s['target_person']:<8}"
+              f"{s['structural_expected']:<11}{s['company_mean']:<9}{s['residual']:<10}{s['verdict']}")
         if s["leakage_flags"]:
             for flag in s["leakage_flags"]:
                 print(f"    LEAKAGE WARNING: {flag}")
+        if s["note"]:
+            print(f"    NOTE: {s['note']}")
 
-    print("\nPer-dimension systematic-offset check (same sign on 2+ of 3 pairs, "
-          "beyond half the default tolerance):")
+    print("\nPer-dimension systematic-offset check (same sign on 2+ pairs, "
+          "beyond half the default tolerance, using RESIDUAL not raw delta):")
     for dim_name, summaries in by_dim.items():
-        signs = [1 if s["delta"] > TOLERANCE_DEFAULT[dim_name] / 2 else
-                 (-1 if s["delta"] < -TOLERANCE_DEFAULT[dim_name] / 2 else 0)
+        signs = [1 if s["residual"] > TOLERANCE_DEFAULT[dim_name] / 2 else
+                 (-1 if s["residual"] < -TOLERANCE_DEFAULT[dim_name] / 2 else 0)
                  for s in summaries]
         nonzero = [s for s in signs if s != 0]
         systematic = len(nonzero) >= 2 and len(set(nonzero)) == 1
-        direction = "person > company" if systematic and nonzero[0] > 0 else (
-            "company > person" if systematic and nonzero[0] < 0 else "no clear direction")
+        direction = "person > company" if systematic and nonzero[0] < 0 else (
+            "company > person" if systematic and nonzero[0] > 0 else "no clear direction")
         print(f"  {dim_name}: {direction}"
               + (" -- SYSTEMATIC, see calibration doc's 'What would fail' section "
                  "before concluding intensity mismatch" if systematic else ""))
