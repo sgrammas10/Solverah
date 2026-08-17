@@ -163,20 +163,25 @@ fixed 5-band scale, not sampling noise in the usual sense). No dimension has yet
 above 0.098; the original "~0.11" ceiling doesn't correspond to anything actually observed once the
 pooled figure is thrown out.
 
-Per-dimension, across all 6 packets: feedback was the noisiest (nonzero on 3 of 6), autonomy
-nonzero on 2 of 6, pace/collaboration/innovation/decision nonzero on 1 of 6 each. **Use each
-dimension's own worst observed nonzero SD as its tolerance width, not one blanket number**:
-feedback and innovation should use a tolerance around 2×0.098 ≈ 0.20 (matches the original figure,
-but now for a documented reason instead of an assumed one); autonomy, pace, collaboration, and
-decision — which showed zero variance on 4–5 of 6 real packets — should use a tighter tolerance,
-something like 2×0.080 ≈ 0.16 as a ceiling and closer to 0.08–0.10 as a working default, since a
-tolerance this loose on a dimension that's usually rock-stable would let a real miscalibration hide
-inside it. **Feedback in particular now has three independent reasons to expect a noisy, hard-to-
-interpret read on this probe**: it's the noisiest dimension in the variance data, it's one of the
-two dimensions with zero reverse-keyed items in the bias review, and it's the dimension flagged
-across two prior sessions (08-15b, 08-17) as the standing candidate for an anchor rewrite. A null or
-a failure on feedback specifically should not be over-read as calibration-specific until the other
-two explanations are ruled out.
+Per-dimension, across all 6 packets: feedback was the noisiest (nonzero on 3 of 6: 0.098, 0.098,
+0.080), autonomy nonzero on 2 of 6 (0.080, 0.080), pace/collaboration/innovation/decision nonzero
+on 1 of 6 each (pace 0.098, collaboration 0.098, innovation 0.080, decision 0.098). ~~feedback and
+innovation should use a tolerance around 2×0.098 ≈ 0.20 ... autonomy, pace, collaboration, and
+decision ... should use a tighter tolerance ... 2×0.080 ≈ 0.16~~ — **corrected: this grouped the
+wrong dimensions together.** Going by each dimension's own *worst observed value*, not frequency:
+autonomy and innovation top out at 0.080 (tolerance ≈ 2×0.080 ≈ 0.16); pace, collaboration,
+feedback, and decision top out at 0.098 (tolerance ≈ 2×0.098 ≈ 0.20). **Use each dimension's own
+worst observed nonzero SD as its tolerance width, not one blanket number, and not the grouping this
+doc first proposed**: autonomy and innovation get the tighter ~0.16 ceiling (with ~0.08–0.10 as a
+working default, since both showed zero variance on 4–5 of 6 real packets and a looser tolerance
+would let a real miscalibration hide inside it); pace, collaboration, feedback, and decision get
+the looser ~0.20 ceiling. **Feedback in particular now has three independent reasons to expect a
+noisy, hard-to-interpret read on this probe**: it's the noisiest dimension in the variance data
+(nonzero on half the packets tested, not just one), it's one of the two dimensions with zero
+reverse-keyed items in the bias review, and it's the dimension flagged across two prior sessions
+(08-15b, 08-17) as the standing candidate for an anchor rewrite. A null or a failure on feedback
+specifically should not be over-read as calibration-specific until the other two explanations are
+ruled out.
 
 ## The check to actually run — paired vignette probe
 
@@ -237,8 +242,8 @@ diversity to measure by design. Don't apply that gate here; it isn't the right t
 
 **What would pass:** for a pair both targeting "high," the person score and the mean company
 score should be within the target dimension's own tolerance (see Finding 3's corrected derivation
-above — roughly 0.08–0.10 for autonomy/pace/collaboration/decision, roughly 0.20 for feedback/
-innovation) of each other — not exact agreement, given Finding 1's lattice mismatch, but no
+above — roughly 0.08–0.10 for autonomy/innovation, roughly 0.20 for pace/collaboration/feedback/
+decision) of each other — not exact agreement, given Finding 1's lattice mismatch, but no
 *systematic* directional gap. ~~across all 18 pairs~~ — **corrected: evaluate this per dimension
 (3 pairs), not pooled across all 18.** Pooling would repeat the exact averaging mistake S1-3 caught
 the same session this doc was written — a real offset on one dimension can be diluted by five clean
