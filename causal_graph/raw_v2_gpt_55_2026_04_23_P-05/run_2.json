@@ -1,0 +1,50 @@
+{
+  "run_index": 2,
+  "timestamp": "2026-08-17T15:38:13.828144+00:00",
+  "model": "gpt-5.5-2026-04-23",
+  "requested_temperature": 1.0,
+  "temperature_honored": true,
+  "reasoning_effort": "medium",
+  "packet_id": "P-05",
+  "packet_path": "C:\\Users\\Sebastian Grammas\\Desktop\\Solverah_IP\\ground_truth\\anonymization\\P-05_packet_ANON.txt",
+  "rubric_version": "v1-frozen-2026-08-15",
+  "response": {
+    "id": "chatcmpl-EDthQ7TTWaVQdCcwnWC3jnAOFDij7",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\"autonomy\":{\"confidence\":0.6,\"score\":0.7},\"collaboration\":{\"confidence\":0.6,\"score\":0.5},\"decision\":{\"confidence\":0.6,\"score\":0.7},\"feedback\":{\"confidence\":0.3,\"score\":0.3},\"innovation\":{\"confidence\":0.6,\"score\":0.3},\"pace\":{\"confidence\":0.6,\"score\":0.3}}",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": [],
+          "audio": null,
+          "function_call": null,
+          "tool_calls": null
+        }
+      }
+    ],
+    "created": 1786981080,
+    "model": "gpt-5.5-2026-04-23",
+    "object": "chat.completion",
+    "service_tier": "default",
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 848,
+      "prompt_tokens": 5077,
+      "total_tokens": 5925,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": 0,
+        "audio_tokens": 0,
+        "reasoning_tokens": 742,
+        "rejected_prediction_tokens": 0
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 4864
+      }
+    }
+  }
+}
