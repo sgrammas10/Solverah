@@ -341,7 +341,7 @@ def call_with_retry(client: OpenAI, messages: list[dict], model: str, temperatur
     raise last_exc  # pragma: no cover — unreachable, loop either returns or raises
 
 
-def run_once(client: OpenAI, run_index: int, model: str, temperature: float) -> dict:
+def run_once(client: OpenAI, run_index: int, model: str, temperature: float, raw_dir: Path) -> dict:
     messages = build_messages()
     response = call_with_retry(client, messages, model, temperature)
     timestamp = datetime.now(timezone.utc).isoformat()
@@ -355,8 +355,8 @@ def run_once(client: OpenAI, run_index: int, model: str, temperature: float) -> 
         "temperature": temperature,
         "response": response.model_dump(),
     }
-    RAW_DIR.mkdir(parents=True, exist_ok=True)
-    raw_path = RAW_DIR / f"run_{run_index}.json"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    raw_path = raw_dir / f"run_{run_index}.json"
     raw_path.write_text(json.dumps(raw_record, indent=2), encoding="utf-8")
 
     rows = []
@@ -422,20 +422,35 @@ def main() -> None:
 
     client = OpenAI(api_key=api_key)
 
+    # SAFETY FIX (found while wiring up S1-4's missing gpt-5.5-on-old-packet cell):
+    # this script used to write to a hardcoded runs.csv / raw/ regardless of --model,
+    # which would silently overwrite the original gpt-4o-2024-08-06 baseline data the
+    # instant anyone ran it with a different --model. Same class of bug as the P-01/P-02
+    # output-naming near-miss already caught in scorer_variance_test_v2.py (08-17
+    # handoff). Fix here is deliberately narrow: the DEFAULT model still writes to the
+    # original runs.csv / raw/ paths, unchanged, so nothing that references those exact
+    # filenames breaks. Only a NON-default --model gets a model-tagged path instead.
+    if args.model == MODEL:
+        csv_path, raw_dir = OUTPUT_DIR / "runs.csv", RAW_DIR
+    else:
+        model_tag = args.model.replace(".", "").replace("-", "_")
+        csv_path = OUTPUT_DIR / f"runs_{model_tag}.csv"
+        raw_dir = OUTPUT_DIR / f"raw_{model_tag}"
+    print(f"Model: {args.model}{'  (default -- writing to the original runs.csv/raw/)' if args.model == MODEL else '  (writing to model-tagged output so the gpt-4o baseline is not touched)'}")
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    raw_dir.mkdir(parents=True, exist_ok=True)
 
     all_rows: list[dict] = []
     for i in range(1, args.n_runs + 1):
         print(f"Run {i}/{args.n_runs}...")
-        rows = run_once(client, i, args.model, args.temperature)
+        rows = run_once(client, i, args.model, args.temperature, raw_dir)
         all_rows.extend(rows)
 
     df = pd.DataFrame(all_rows)
-    csv_path = OUTPUT_DIR / "runs.csv"
     df.to_csv(csv_path, index=False)
     print(f"\nWrote {csv_path}")
-    print(f"Wrote raw responses to {RAW_DIR}\n")
+    print(f"Wrote raw responses to {raw_dir}\n")
 
     print("=" * 80)
     print("SCORE")
