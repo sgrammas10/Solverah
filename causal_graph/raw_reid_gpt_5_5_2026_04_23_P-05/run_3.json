@@ -1,0 +1,61 @@
+{
+  "run_index": 3,
+  "timestamp": "2026-08-17T16:26:34.838295+00:00",
+  "model": "gpt-5.5-2026-04-23",
+  "requested_temperature": 1.0,
+  "temperature_honored": true,
+  "reasoning_effort": "medium",
+  "packet_id": "P-05",
+  "ground_truth_company": "Doist",
+  "response": {
+    "id": "chatcmpl-EDuSIJZQpx5aH4vKx7UvhGcxKnJcz",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\"confidence\":\"high\",\"quoted_clues\":[\"work from anywhere in the world\",\"encouraged to work 8-hour days and no more than 40 hours/week\",\"Ambition\",\"Mastery\",\"use our own product for our internal communication\"],\"reasoning\":\"The remote-anywhere, async-first culture, 40-hour limit, and named values match Doist\u2019s public culture pages. The clue that employees use their own product for internal communication points to Twist, Doist\u2019s async team-communication app, and the packet\u2019s references to client apps/CX also fit Doist\u2019s Todoist/Twist product organization.\",\"top_guess\":\"Doist\"}",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": [],
+          "audio": null,
+          "function_call": null,
+          "tool_calls": null
+        }
+      }
+    ],
+    "created": 1786983986,
+    "model": "gpt-5.5-2026-04-23",
+    "object": "chat.completion",
+    "service_tier": "default",
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 357,
+      "prompt_tokens": 2709,
+      "total_tokens": 3066,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": 0,
+        "audio_tokens": 0,
+        "reasoning_tokens": 213,
+        "rejected_prediction_tokens": 0
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 1792
+      }
+    }
+  },
+  "parsed": {
+    "confidence": "high",
+    "quoted_clues": [
+      "work from anywhere in the world",
+      "encouraged to work 8-hour days and no more than 40 hours/week",
+      "Ambition",
+      "Mastery",
+      "use our own product for our internal communication"
+    ],
+    "reasoning": "The remote-anywhere, async-first culture, 40-hour limit, and named values match Doist\u2019s public culture pages. The clue that employees use their own product for internal communication points to Twist, Doist\u2019s async team-communication app, and the packet\u2019s references to client apps/CX also fit Doist\u2019s Todoist/Twist product organization.",
+    "top_guess": "Doist"
+  }
+}

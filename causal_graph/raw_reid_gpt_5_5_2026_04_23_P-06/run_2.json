@@ -1,0 +1,61 @@
+{
+  "run_index": 2,
+  "timestamp": "2026-08-17T16:26:55.370216+00:00",
+  "model": "gpt-5.5-2026-04-23",
+  "requested_temperature": 1.0,
+  "temperature_honored": true,
+  "reasoning_effort": "medium",
+  "packet_id": "P-06",
+  "ground_truth_company": "Raymond James",
+  "response": {
+    "id": "chatcmpl-EDuSZD3jvEQ3g0ZT7cD8SMu7BqXnS",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\"confidence\":\"high\",\"quoted_clues\":[\"client-first, integrity, independence and a conservative, long-term view\",\"Our 'associates'\",\"independent contractor financial advisors\",\"zero cross-selling requirements\",\"departing advisors to take their client list with them\"],\"reasoning\":\"The values phrase is essentially Raymond James' distinctive value set. The firm also calls employees 'associates,' has both employee and independent financial advisors, operates a bank, has a Sept. 30 fiscal year, and is known for a conservative, advisor-autonomy culture with no cross-selling pressure. The referenced internal culture document is very likely 'The Raymond James Way.'\",\"top_guess\":\"Raymond James Financial, Inc.\"}",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": [],
+          "audio": null,
+          "function_call": null,
+          "tool_calls": null
+        }
+      }
+    ],
+    "created": 1786984003,
+    "model": "gpt-5.5-2026-04-23",
+    "object": "chat.completion",
+    "service_tier": "default",
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 526,
+      "prompt_tokens": 4868,
+      "total_tokens": 5394,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": 0,
+        "audio_tokens": 0,
+        "reasoning_tokens": 370,
+        "rejected_prediction_tokens": 0
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 3840
+      }
+    }
+  },
+  "parsed": {
+    "confidence": "high",
+    "quoted_clues": [
+      "client-first, integrity, independence and a conservative, long-term view",
+      "Our 'associates'",
+      "independent contractor financial advisors",
+      "zero cross-selling requirements",
+      "departing advisors to take their client list with them"
+    ],
+    "reasoning": "The values phrase is essentially Raymond James' distinctive value set. The firm also calls employees 'associates,' has both employee and independent financial advisors, operates a bank, has a Sept. 30 fiscal year, and is known for a conservative, advisor-autonomy culture with no cross-selling pressure. The referenced internal culture document is very likely 'The Raymond James Way.'",
+    "top_guess": "Raymond James Financial, Inc."
+  }
+}

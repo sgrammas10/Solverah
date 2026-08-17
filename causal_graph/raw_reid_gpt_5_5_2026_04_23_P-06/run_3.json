@@ -1,0 +1,61 @@
+{
+  "run_index": 3,
+  "timestamp": "2026-08-17T16:27:02.427926+00:00",
+  "model": "gpt-5.5-2026-04-23",
+  "requested_temperature": 1.0,
+  "temperature_honored": true,
+  "reasoning_effort": "medium",
+  "packet_id": "P-06",
+  "ground_truth_company": "Raymond James",
+  "response": {
+    "id": "chatcmpl-EDuSjfq6652NKKOwqkowEJiNSUnRP",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\"confidence\":\"high\",\"quoted_clues\":[\"client-first, integrity, independence and a conservative, long-term view\",\"Our 'associates' (which include our employee financial advisors and all of our other employees) and our independent contractor financial advisors\",\"fiscal year ended 2025-09-30\",\"We value independence\",\"We have zero cross-selling requirements\"],\"reasoning\":\"The values wording, use of \u201cassociates,\u201d mix of employee and independent financial advisors, and Sept. 30 fiscal year align very closely with Raymond James Financial. The advisor-centric culture, conservative long-term framing, and references to branch/complex managers and brokerage operations further fit Raymond James.\",\"top_guess\":\"Raymond James Financial\"}",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": [],
+          "audio": null,
+          "function_call": null,
+          "tool_calls": null
+        }
+      }
+    ],
+    "created": 1786984013,
+    "model": "gpt-5.5-2026-04-23",
+    "object": "chat.completion",
+    "service_tier": "default",
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 345,
+      "prompt_tokens": 4868,
+      "total_tokens": 5213,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": 0,
+        "audio_tokens": 0,
+        "reasoning_tokens": 187,
+        "rejected_prediction_tokens": 0
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 0
+      }
+    }
+  },
+  "parsed": {
+    "confidence": "high",
+    "quoted_clues": [
+      "client-first, integrity, independence and a conservative, long-term view",
+      "Our 'associates' (which include our employee financial advisors and all of our other employees) and our independent contractor financial advisors",
+      "fiscal year ended 2025-09-30",
+      "We value independence",
+      "We have zero cross-selling requirements"
+    ],
+    "reasoning": "The values wording, use of \u201cassociates,\u201d mix of employee and independent financial advisors, and Sept. 30 fiscal year align very closely with Raymond James Financial. The advisor-centric culture, conservative long-term framing, and references to branch/complex managers and brokerage operations further fit Raymond James.",
+    "top_guess": "Raymond James Financial"
+  }
+}
