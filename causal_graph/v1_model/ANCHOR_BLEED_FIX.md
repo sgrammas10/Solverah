@@ -1,9 +1,10 @@
 # Cross-dimension bleed — diagnosis and fix
 
-**Status: both bleeds resolved. Across rounds 4–5 (2026-08-17, 450 scored rows) the
-reproducible-bleed count fell from 5 cells to 1, and that survivor is a vignette artifact
-already fixed independently in Arm A. One combined confirmation run remains outstanding.
-`anchors.json` is UNTOUCHED and stays frozen.**
+**Status: the autonomy defect is CLOSED (round 6: 0 reproducible cells, down from 5).
+`anchors_v3_PROPOSED.json` is cleared to hand to Julie — round 7 confirmed the rewritten
+bands still score their own dimension correctly. Round 7 also established that
+pace↔innovation is a DIFFERENT KIND of problem that no anchor rewrite can fix; see §9.
+`anchors.json` is UNTOUCHED and stays frozen throughout.**
 
 Not a handoff. This is the working record for one defect, so the reasoning behind
 `anchors_v2_PROPOSED.json` travels with the file when it goes to Julie.
@@ -292,3 +293,103 @@ at 2/5 and low confidence is too weak to justify restructuring the model around 
 the modelling branch** — but note that this only clears autonomy↔innovation. Item 6 of the
 `-17c` handoff (whether raw subtraction is the right operation over two lattices that
 coarse) is untouched by any of this.
+
+---
+
+## 8. Round 6 — combined fixes. Autonomy defect closed.
+
+v3 anchors + v4 vignettes, the actual proposed end state, 25 calls. On-target
+0.1/0.3/0.5/0.7/0.9 at zero variance, grounding 205/205.
+
+| run | anchors | vignettes | cells ≥3/5 | rows displaced /125 | mean \|displacement\| |
+|---|---|---|---|---|---|
+| round 3 | frozen | v3 | 5 | 27 | 0.0592 |
+| round 4 A | frozen | v4 | 4 | 22 | 0.0448 |
+| round 4 B | v2 | v3 | 3 | 17 | 0.0336 |
+| round 5 | v3 | v3 | 1 | 14 | 0.0240 |
+| **round 6** | **v3** | **v4** | **0** | **2** | **0.0032** |
+
+Monotone across all five runs, and **no interaction**: every cell came in at or below its
+best single-fix value. The two survivors both cite "*Each person on the team is responsible
+for the outcome they're assigned*" at confidence 0.1 — the rubric's own "close to guessing"
+floor.
+
+**Correction to §6's conclusion.** §6 said the lexical hypothesis was "dead." It was dead
+*alone*: innovation @0.1 went 2/5 → 0/5 and pace @0.1 went 3/5 → 0/5 only once the band
+text was also fixed. The word removals contributed nothing by themselves and something in
+combination. "Neither alone, both together" applies to more cells than §6 credited.
+
+---
+
+## 9. Round 7 — pace↔innovation. A third category, and it is not fixable in the rubric.
+
+Found for free by re-running the corrected detector over rounds 1–2, which had contained
+this the whole time. 30 calls, all vignettes reused verbatim from round 1.
+
+**Prediction 4 held, and it was the one that gated the handoff.** Under v3's rewritten
+bands, on-target innovation scored 0.1/0.5/0.9 and pace 0.1/0.5/0.9, both at zero
+variance. Rounds 5–6 had only ever scored *autonomy* vignettes under v3, so the rewritten
+innovation bands had never been asked to score innovation evidence. They do it correctly.
+**`anchors_v3_PROPOSED.json` is cleared to ship to Julie.**
+
+**Predictions 1 and 2 were falsified, and byte-identically so.** pace→innovation is
+*unchanged* between the frozen anchors and v3: 5/5 at 0.30 on both extremes, before and
+after. The v3 rewrite did nothing here. The mechanism I proposed — shared
+process-maturity vocabulary — was wrong.
+
+**The quotes show why, and they establish a third category of bleed:**
+
+| relationship | cited phrase | is it really evidence for the off-target dimension? |
+|---|---|---|
+| pace-low → innovation | "the roadmap looks basically the same as it did six months ago" | **yes** — an unchanged roadmap is direct evidence of low novelty |
+| pace-high → innovation | "shipping first and refining later" | **yes** — "refining later" is a statement on the create-vs-refine axis |
+| innovation-low → pace | "mature, dependable engine", "shaving latency, fixing edge cases" | **yes** — maintenance work implies a steady cadence |
+| innovation-high → pace | "most of which get killed within a quarter" | **yes** — "within a quarter" is a tempo statement |
+| pace-high → autonomy | "Deadlines here are treated as fixed \|\| the work bends to fit them" | **yes** — that is a decision-rights fact |
+
+Not one of these is vocabulary collision. Every cited phrase is genuine evidence for both
+dimensions, because **the underlying facts co-occur in real companies.** A company whose
+roadmap hasn't moved in six months really is both slow and non-novel. That is not
+measurement error; it is the world.
+
+### The taxonomy this run forces
+
+1. **Anchor defect** — the off-target dimension's band text claims a construct that belongs
+   to the target dimension. *Fix: rewrite band text.* (autonomy↔collaboration,
+   autonomy→innovation. Both now fixed and validated.)
+2. **Vignette artifact** — the vignette gratuitously states something about the off-target
+   dimension. *Fix: rewrite the vignette.* (the 0.5 autonomy vignette's "without looping
+   anyone in first".)
+3. **Genuine construct correlation** — the cited phrase is real evidence for both
+   dimensions because the facts co-occur. *No rubric fix exists, and attempting one would
+   make the rubric stop measuring something true.* (pace↔innovation, pace→autonomy.)
+
+The corrected displacement detector cannot tell these apart — all three look like a
+displaced score. **Only the `evidence_quotes` column separates them**, which is the
+strongest argument yet for the instrumentation change in §1.
+
+Supporting signal: the confidence profile differs by category. Round 6's residual (category
+1/2, fixed) is 2 rows, both at confidence 0.1. Round 7's is 34 rows at 0.1/0.3/0.6 — the
+scorer is not guessing, it is reading weak but real evidence.
+
+### What follows, and what does not
+
+**Do not sweep all 15 dimension pairs as a rubric exercise.** A sweep would measure
+categories 1 and 3 together and the count would be uninterpretable without reading every
+quote. Three pairs examined, two were category 1, one is category 3 — the base rate for
+"needs an anchor fix" is not high enough to justify 15 pairs of calls on the chance.
+
+**pace↔innovation belongs to the model, not the rubric.** §7 closed the modelling branch
+for autonomy↔innovation on the evidence that band text alone moved the reading. That
+argument does not transfer: here band text moved nothing and the evidence is substantively
+dual-loaded. If pace and innovation are genuinely correlated in real companies, `fit_gap()`
+computing an independent per-dimension gap and summing is double-counting, and that is the
+same open question as `-17c` item 6 (whether raw subtraction is right over two coarse
+lattices) reached from a second direction. **These are one problem, not two.**
+
+**A caveat on my own analysis tooling, not the probe.** An ad-hoc recompute of these
+numbers initially dropped every 0.7 reading, because `abs(0.7 - 0.5)` is
+0.19999999999999996 in float and fails a `>= 0.2` test. `run_vignette_probe.py` rounds to
+4 places before comparing and is correct; the throwaway script was not. Any future
+re-analysis of these CSVs must round before thresholding — the bands are decimal, the
+arithmetic is not.
