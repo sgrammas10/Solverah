@@ -115,6 +115,19 @@ Run the 2×2.
 - Re-check the per-run mood effect **separately** — low per-dimension SD with a surviving correlated
   run-level severity shift is still fatal to the "five of six" confidence argument.
 
+> **PARTIAL DATA POINT, 2026-08-17 — does not lift this hold.** A narrower cell than this
+> section specs (stronger model × real anonymized packet × the frozen `anchors.json`
+> instrument, NOT the full 2×2 — old model was not rerun on the new packet, new model was not
+> rerun on the old packet) was run against P-01 and P-02, n=5 each. Full writeup:
+> `SOLVERAH_HANDOFF_2026-08-17.md`. Headline: mean SD cleared the bar on both (0.033, 0.037),
+> but the bar assumed roughly uniform per-dimension SD and neither packet is uniform — both are
+> four dimensions at exactly zero plus two wobbling a full band, and *which* two changes between
+> packets (decision solid on P-01, the least stable cell on P-02; innovation the reverse).
+> Feedback failed on both. **The result that actually replicated cleanly is the per-run mood
+> effect: 0.0667 spread on both packets, against gpt-4o's original 0.22** — the specific failure
+> mode this section cares most about. Model tier is still not isolated from packet/schema.
+> Script: `scorer_variance_test_v2.py`, same folder.
+
 ---
 
 ## Decisions this sprint forces, that are yours (§9)

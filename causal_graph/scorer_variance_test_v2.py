@@ -67,7 +67,17 @@ from openai import (
 _DEFAULT_IP_DIR = Path(__file__).resolve().parent.parent.parent / "Solverah_IP"
 REPO_IP = Path(os.environ.get("SOLVERAH_IP_DIR", str(_DEFAULT_IP_DIR)))
 ANCHORS_PATH = REPO_IP / "ground_truth" / "rater_app" / "anchors.json"
-PACKET_PATH = REPO_IP / "ground_truth" / "anonymization" / "P-01_packet_ANON.txt"
+
+VALID_PACKETS = ["P-01", "P-02", "P-03", "P-04", "P-05", "P-06"]
+DEFAULT_PACKET_ID = "P-01"
+
+
+def packet_path_for(packet_id: str) -> Path:
+    if packet_id not in VALID_PACKETS:
+        raise ValueError(f"--packet must be one of {VALID_PACKETS}, got {packet_id!r}")
+    return REPO_IP / "ground_truth" / "anonymization" / f"{packet_id}_packet_ANON.txt"
+
+
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 
 load_dotenv(ENV_PATH if ENV_PATH.exists() else None)
@@ -87,8 +97,17 @@ SCORE_BAND_VALUES = [0.1, 0.3, 0.5, 0.7, 0.9]
 CONFIDENCE_BAND_VALUES = [0.1, 0.3, 0.6, 0.9]
 
 OUTPUT_DIR = Path(__file__).parent
-RAW_DIR = OUTPUT_DIR / "raw_v2_gpt55_P01"
-RUNS_CSV = OUTPUT_DIR / "runs_v2_gpt55_P01.csv"
+
+
+def output_paths_for(packet_id: str, model: str) -> tuple[Path, Path]:
+    """Every output is stamped with packet + model so results can never be
+    mislabeled -- the exact failure this fixes: hand-editing PACKET_PATH
+    used to leave P-02 data sitting in a file still named '..._P01.csv'."""
+    model_tag = model.replace(".", "").replace("-", "_")
+    raw_dir = OUTPUT_DIR / f"raw_v2_{model_tag}_{packet_id}"
+    runs_csv = OUTPUT_DIR / f"runs_v2_{model_tag}_{packet_id}.csv"
+    return raw_dir, runs_csv
+
 
 MAX_RETRIES = 5
 BACKOFF_BASE_SECONDS = 2.0
@@ -143,12 +162,13 @@ def build_rubric_text(anchors: dict) -> str:
     return "\n".join(lines)
 
 
-def load_packet_section1() -> str:
-    if not PACKET_PATH.exists():
+def load_packet_section1(packet_path: Path) -> str:
+    if not packet_path.exists():
         raise FileNotFoundError(
-            f"Packet not found at {PACKET_PATH}. Set SOLVERAH_IP_DIR if the repo moved."
+            f"Packet not found at {packet_path}. Set SOLVERAH_IP_DIR if the repo moved, "
+            f"or check --packet matches an existing P-0N_packet_ANON.txt file."
         )
-    raw = PACKET_PATH.read_text(encoding="utf-8")
+    raw = packet_path.read_text(encoding="utf-8")
     start_marker = "########## SECTION 1"
     end_marker = "########## END OF PACKET ##########"
     start = raw.find(start_marker)
@@ -249,7 +269,7 @@ def call_with_retry(client: OpenAI, messages: list[dict], model: str, temperatur
     raise last_exc  # pragma: no cover
 
 
-def run_once(client: OpenAI, run_index: int, model: str, temperature: float, reasoning_effort: str, rubric: str, packet: str) -> list[dict]:
+def run_once(client: OpenAI, run_index: int, model: str, temperature: float, reasoning_effort: str, rubric: str, packet: str, packet_id: str, packet_path: Path, raw_dir: Path) -> list[dict]:
     messages = build_messages(rubric, packet)
     response, temperature_honored = call_with_retry(client, messages, model, temperature, reasoning_effort)
     timestamp = datetime.now(timezone.utc).isoformat()
@@ -263,12 +283,13 @@ def run_once(client: OpenAI, run_index: int, model: str, temperature: float, rea
         "requested_temperature": temperature,
         "temperature_honored": temperature_honored,
         "reasoning_effort": reasoning_effort,
-        "packet": str(PACKET_PATH),
+        "packet_id": packet_id,
+        "packet_path": str(packet_path),
         "rubric_version": "v1-frozen-2026-08-15",
         "response": response.model_dump(),
     }
-    RAW_DIR.mkdir(parents=True, exist_ok=True)
-    (RAW_DIR / f"run_{run_index}.json").write_text(json.dumps(raw_record, indent=2), encoding="utf-8")
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    (raw_dir / f"run_{run_index}.json").write_text(json.dumps(raw_record, indent=2), encoding="utf-8")
 
     rows = []
     for dim in DIMENSIONS:
@@ -280,12 +301,28 @@ def run_once(client: OpenAI, run_index: int, model: str, temperature: float, rea
                 "score": float(dim_result["score"]),
                 "confidence": float(dim_result["confidence"]),
                 "model": model,
+                "packet_id": packet_id,
                 "temperature_honored": temperature_honored,
                 "reasoning_effort": reasoning_effort,
                 "timestamp": timestamp,
             }
         )
     return rows
+
+
+def print_mood_effect(df: pd.DataFrame, n_runs: int) -> None:
+    """The per-run correlated severity shift -- flagged in the 2026-08-07 handoff as
+    the finding that mattered more than per-dimension SD, because it's what breaks
+    'five of six moved the same direction' style arguments."""
+    pivot = df.pivot(index="dimension", columns="run", values="score").reindex(DIMENSIONS)
+    pivot = pivot.reindex(columns=range(1, n_runs + 1))
+    run_means = pivot.mean(axis=0)
+    grand_mean = run_means.mean()
+    deviations = run_means - grand_mean
+    print("\nPER-RUN MOOD EFFECT (mean deviation across all 6 dims, by run):")
+    for run_i, dev in deviations.items():
+        print(f"  run{run_i}: {dev:+.4f}")
+    print(f"  spread (max-min): {deviations.max() - deviations.min():.4f}")
 
 
 def print_stat_table(df: pd.DataFrame, value_col: str, n_runs: int) -> pd.DataFrame:
@@ -303,7 +340,8 @@ def print_stat_table(df: pd.DataFrame, value_col: str, n_runs: int) -> pd.DataFr
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Corrected variance re-test: gpt-5.5 x real P-01 packet x frozen anchors.")
+    parser = argparse.ArgumentParser(description="Corrected variance re-test: gpt-5.5 x a real anonymized packet x frozen anchors.")
+    parser.add_argument("--packet", default=DEFAULT_PACKET_ID, choices=VALID_PACKETS, help=f"Which packet to score (default: {DEFAULT_PACKET_ID})")
     parser.add_argument("--model", default=MODEL)
     parser.add_argument("--n-runs", type=int, default=N_RUNS)
     parser.add_argument("--temperature", type=float, default=TEMPERATURE)
@@ -314,27 +352,31 @@ def main() -> None:
     if not api_key:
         raise SystemExit("OPENAI_API_KEY is not set in the environment.")
 
+    packet_path = packet_path_for(args.packet)
+    raw_dir, runs_csv = output_paths_for(args.packet, args.model)
+
     anchors = load_anchors()
     rubric = build_rubric_text(anchors)
-    packet = load_packet_section1()
+    packet = load_packet_section1(packet_path)
+    print(f"Packet: {args.packet}   Model: {args.model}   Reasoning effort: {args.reasoning_effort}")
     print(f"Loaded rubric {anchors['rubric_version']} ({len(rubric)} chars) and packet ({len(packet)} chars) from:")
     print(f"  {ANCHORS_PATH}")
-    print(f"  {PACKET_PATH}\n")
+    print(f"  {packet_path}\n")
 
     client = OpenAI(api_key=api_key)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    raw_dir.mkdir(parents=True, exist_ok=True)
 
     all_rows: list[dict] = []
     for i in range(1, args.n_runs + 1):
         print(f"Run {i}/{args.n_runs}...")
-        rows = run_once(client, i, args.model, args.temperature, args.reasoning_effort, rubric, packet)
+        rows = run_once(client, i, args.model, args.temperature, args.reasoning_effort, rubric, packet, args.packet, packet_path, raw_dir)
         all_rows.extend(rows)
 
     df = pd.DataFrame(all_rows)
-    df.to_csv(RUNS_CSV, index=False)
-    print(f"\nWrote {RUNS_CSV}")
-    print(f"Wrote raw responses to {RAW_DIR}\n")
+    df.to_csv(runs_csv, index=False)
+    print(f"\nWrote {runs_csv}")
+    print(f"Wrote raw responses to {raw_dir}\n")
 
     temp_honored_values = df["temperature_honored"].unique()
     print("=" * 80)
@@ -345,6 +387,8 @@ def main() -> None:
     score_stats = print_stat_table(df, "score", args.n_runs)
     print("\nCONFIDENCE")
     confidence_stats = print_stat_table(df, "confidence", args.n_runs)
+
+    print_mood_effect(df, args.n_runs)
 
     max_sd_row = pd.concat(
         [score_stats["sd"].rename("score_sd"), confidence_stats["sd"].rename("confidence_sd")], axis=1
