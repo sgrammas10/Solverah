@@ -1,7 +1,14 @@
 # Sprint: Scorer Pipeline 01 — "Instrument before build"
 
-> **STATUS: ON HOLD 2026-08-09 — not approved, do not start.** Sebastian is reviewing before any
-> code is written.
+> **STATUS: COMPLETE 2026-08-17.** Hold lifted same day. All seven tasks (S1-1 through S1-7) built,
+> verified, and — where they touch the live API — run for real. Full results in
+> `SOLVERAH_HANDOFF_2026-08-17b.md`. The two blocking decisions (#6 confidence role, #7 discrete
+> bands) were ratified as recommended below (informational-only, keep continuous + optional band
+> column). Nothing in this doc's original scope, corrections, or design constraints was changed —
+> S1-1 through S1-7 below are the historical plan and were followed as written.
+>
+> ~~**STATUS: ON HOLD 2026-08-09 — not approved, do not start.** Sebastian is reviewing before any
+> code is written.~~
 >
 > **Amendment, same day:** the 19-company v3 kit has been scrapped; ground truth is the 6-company
 > v4.1 / rubric v3 kit only. This does not invalidate the corrections below. The v3 GT-01 packet and
