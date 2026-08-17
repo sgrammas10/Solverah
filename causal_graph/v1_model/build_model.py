@@ -20,7 +20,12 @@ values get standardized, categorical values get one-hot per level).
 
 import os
 
-os.environ["PYTENSOR_FLAGS"] = "cxx="
+# setdefault, not a hard assignment: the original dev machine had no C++ compiler, so
+# this forced the slow pure-Python linker unconditionally, even on machines (e.g. CI, this
+# analysis environment) that have g++ and would sample far faster with it. Set
+# PYTENSOR_FLAGS=cxx=<path> in the environment before running to opt into compiled mode;
+# unset environments keep the original no-compiler-required behavior.
+os.environ.setdefault("PYTENSOR_FLAGS", "cxx=")
 
 import numpy as np
 import pymc as pm
@@ -28,6 +33,40 @@ import yaml
 import arviz as az
 
 MODEL_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# ---------------------------------------------------------------------------
+# Achievable-band lattices -- see lattice_gap_analysis.py, section A ("the pole
+# penalty"). Person-side answers come off a 4-item mean_pole ladder with 5 possible
+# values; env-side (company) scores are the mean of N_RUNS band draws from
+# {0.1, 0.3, 0.5, 0.7, 0.9} and can therefore never fall below 0.1 or above 0.9.
+# Deliberately duplicated here rather than imported from lattice_gap_analysis.py: that
+# script is a frozen, side-effect-executing analysis snapshot (importing it re-runs the
+# whole printed report), not a library. If BAND_VALUES or N_RUNS ever change, the two
+# copies have to be reconciled by hand -- that's a smaller risk than a production model
+# depending on an analysis script's module-level prints.
+# ---------------------------------------------------------------------------
+PERSON_LATTICE = np.array([0.0, 0.25, 0.5, 0.75, 1.0])
+BAND_VALUES = np.array([0.1, 0.3, 0.5, 0.7, 0.9])
+N_RUNS = 5
+
+
+def _company_lattice():
+    import itertools
+    vals = {round(float(np.mean(c)), 6)
+            for c in itertools.combinations_with_replacement(BAND_VALUES, N_RUNS)}
+    return np.array(sorted(vals))
+
+
+COMPANY_LATTICE = _company_lattice()
+
+
+def closest_achievable(value, lattice=COMPANY_LATTICE):
+    """Nearest value on `lattice` to `value` (elementwise; scalars, lists or arrays).
+    numpy-only -- never call this on a pytensor/pm.Data symbolic value (see fit_gap()).
+    """
+    value = np.asarray(value, dtype=float)
+    lattice = np.asarray(lattice, dtype=float)
+    return lattice[np.abs(value[..., None] - lattice).argmin(-1)]
 
 
 # ---------------------------------------------------------------------------
@@ -50,8 +89,28 @@ def active(items):
 # ---------------------------------------------------------------------------
 # Deterministic Fit layer: signed gap
 # ---------------------------------------------------------------------------
-def fit_gap(person_score, env_score):
-    return person_score - env_score            # signed, range -1..1
+def fit_gap(person_score, env_score, snap_person=True):
+    """Signed gap, range -1..1.
+
+    snap_person=True (the fix, default): person_score is first replaced by its closest
+    achievable value on COMPANY_LATTICE. Without this, a person at either pole of their
+    own 5-point ladder is compared against an env scale that structurally cannot reach
+    past [0.1, 0.9] -- so even a PERFECTLY matched pole candidate carries a permanent
+    |gap| floor of ~0.10 per dimension that a mid-scale candidate never pays. Across six
+    dimensions that floor alone costs a decisive candidate 45% of their odds against an
+    identically well-matched mid candidate (lattice_gap_analysis.py, section A). A
+    mid-scale person's closest achievable value barely moves, so genuine gaps are not
+    inflated by this -- only the structural pole penalty is removed.
+
+    snap_person=False: raw signed difference, no correction. Required for pytensor/pm.Data
+    symbolic inputs inside build_model()'s pm.Model() context, where the snap has already
+    been applied in plain numpy before the value became pm.Data (closest_achievable() is
+    numpy-only and cannot run on a symbolic tensor). Also useful for reproducing the old,
+    unfixed behavior directly for comparison.
+    """
+    if snap_person:
+        person_score = closest_achievable(person_score)
+    return person_score - env_score
 
 
 # ---------------------------------------------------------------------------
@@ -93,13 +152,13 @@ def preprocess_conf(conf, cfg):
 #                 the synthetic data-generating process below) -- the
 #                 arithmetic here (+, -, *, abs, indexing) doesn't care which.
 # ---------------------------------------------------------------------------
-def outcome_logit(person, env, conf, cfg, weights):
+def outcome_logit(person, env, conf, cfg, weights, snap_person=True):
     feats = cfg["settings"]["gap_features"]     # e.g. ["mag", "dir"]
     z = weights["intercept"]
 
     for d in active(cfg["dimensions"]):
         k = d["key"]
-        g = fit_gap(person[k], env[k])
+        g = fit_gap(person[k], env[k], snap_person=snap_person)
         w = weights["dimensions"][k]
         if "mag" in feats:
             z += w["mag"] * abs(g)              # any mismatch hurts (symmetric)
@@ -119,11 +178,12 @@ def outcome_logit(person, env, conf, cfg, weights):
     return z
 
 
-def p_fit(person, env, conf, cfg, weights):
+def p_fit(person, env, conf, cfg, weights, snap_person=True):
     """Symbolic only (pytensor sigmoid) -- for use inside a pm.Model() context.
     The synthetic-data generator below needs plain numpy and computes its own
-    sigmoid from outcome_logit() directly instead of calling this."""
-    return pm.math.sigmoid(outcome_logit(person, env, conf, cfg, weights))
+    sigmoid from outcome_logit() directly instead of calling this. Pass
+    snap_person=False if person is already-snapped pm.Data (see build_model())."""
+    return pm.math.sigmoid(outcome_logit(person, env, conf, cfg, weights, snap_person=snap_person))
 
 
 # ---------------------------------------------------------------------------
@@ -175,8 +235,16 @@ def build_model(person, env, conf, cfg, pri, outcome=None):
     with pm.Model() as model:
         weights = sample_weights_from_priors(cfg, pri)
 
+        # Snap person values onto COMPANY_LATTICE in plain numpy BEFORE they become
+        # pm.Data -- closest_achievable() is a numpy argmin and cannot run on a pytensor
+        # symbolic tensor, so this is the one place the fit_gap() correction can happen
+        # for the model-fitting path. outcome_logit() is then called with
+        # snap_person=False below so it isn't (and can't be) re-applied symbolically.
         person_data = {
-            d["key"]: pm.Data(f"person_{d['key']}", np.asarray(person[d["key"]], dtype=float))
+            d["key"]: pm.Data(
+                f"person_{d['key']}",
+                closest_achievable(np.asarray(person[d["key"]], dtype=float)),
+            )
             for d in active(cfg["dimensions"])
         }
         env_data = {
@@ -187,7 +255,7 @@ def build_model(person, env, conf, cfg, pri, outcome=None):
             k: pm.Data(f"conf_{k}", v) for k, v in preprocess_conf(conf, cfg).items()
         }
 
-        z = outcome_logit(person_data, env_data, conf_data, cfg, weights)
+        z = outcome_logit(person_data, env_data, conf_data, cfg, weights, snap_person=False)
         pm.Deterministic("p_fit", pm.math.sigmoid(z))
 
         if outcome is not None:
@@ -246,10 +314,13 @@ def sanity_check(cfg, pri):
 
     rng = np.random.default_rng(0)
 
-    # synthetic person/company: perfect match vs bad match, priors only
+    # synthetic person/company: perfect match vs bad match, priors only. person values are
+    # PERSON_LATTICE points (0.9 isn't reachable on the real 5-point person ladder, unlike
+    # before this pass -- see the pole-candidate check just below for why that distinction
+    # now matters).
     perfect_p = {d["key"]: [0.5] for d in dims}
     perfect_e = {d["key"]: [0.5] for d in dims}
-    bad_p = {d["key"]: [0.9] for d in dims}
+    bad_p = {d["key"]: [1.0] for d in dims}
     bad_e = {d["key"]: [0.1] for d in dims}
     conf_one = _synthetic_conf(confs, 1, rng)
 
@@ -265,12 +336,33 @@ def sanity_check(cfg, pri):
     print(f"P(fit) large mismatch (gap=0.8 everywhere), prior-predictive: "
           f"{bad_samples.mean():.3f} +/- {bad_samples.std():.3f}")
 
+    # Regression check for the Finding-1 fix (lattice_gap_analysis.py section A): a pole
+    # candidate (person=1.0, every dimension) matched against the closest env CAN ever
+    # offer (0.9) should now price in as a near-perfect match, not a structurally
+    # mismatched one. Before the fix this printed P(fit)~0.35 despite being the best match
+    # a 0.9-ceiling env can produce -- the same 45%-of-odds penalty the analysis quantified.
+    pole_p = {d["key"]: [1.0] for d in dims}
+    pole_e = {d["key"]: [0.9] for d in dims}  # closest achievable company value to 1.0
+    pole_samples = np.asarray(
+        prior_predictive(pole_p, pole_e, conf_one, cfg, pri, draws=1000, random_seed=2)
+    ).flatten()
+    print(f"P(fit) pole candidate, closest-achievable match (person=1.0, env=0.9), "
+          f"prior-predictive: {pole_samples.mean():.3f} +/- {pole_samples.std():.3f}")
+    print("  (pre-fix this read ~0.35, i.e. priced as a mismatch; should now sit close to "
+          "the perfect-match number above, since 0.9 is the best this env can ever offer)")
+
     print(f"\nConfounder->env edges: {dag_edges(cfg)}")
 
     # --- synthetic-data fit: prove the posterior actually updates on data ---
+    # Draw from the REAL lattices, not rng.uniform(0,1) (lattice_gap_analysis.py section
+    # D / Finding 2): the instruments can only ever emit PERSON_LATTICE's 5 person values
+    # and COMPANY_LATTICE's 53 achievable env values (~200k distinct |gap| values under
+    # uniforms vs. 53 in reality), so validating against continuous uniforms assumes a gap
+    # resolution the pipeline doesn't have and makes every n-needed figure optimistic by an
+    # unmeasured amount.
     n = 200
-    person = {d["key"]: rng.uniform(0, 1, n) for d in dims}
-    env = {d["key"]: rng.uniform(0, 1, n) for d in dims}
+    person = {d["key"]: rng.choice(PERSON_LATTICE, n) for d in dims}
+    env = {d["key"]: closest_achievable(rng.random(n)) for d in dims}
     conf = _synthetic_conf(confs, n, rng)
 
     true_weights = {
@@ -310,9 +402,13 @@ def recovery_curve(cfg, pri, ns=(200, 800, 2000, 5000),
     rng = np.random.default_rng(seed)
     n_max = max(ns)
 
-    # one big dataset; use prefixes so the curve is apples-to-apples
-    person = {d["key"]: rng.uniform(0, 1, n_max) for d in dims}
-    env    = {d["key"]: rng.uniform(0, 1, n_max) for d in dims}
+    # one big dataset; use prefixes so the curve is apples-to-apples. Drawn from the real
+    # lattices, not rng.uniform(0,1) -- see the matching comment in sanity_check() and
+    # lattice_gap_analysis.py section D. This is what Finding 2 says invalidates every
+    # n-needed number quoted before this fix: the resolution of the validation data did
+    # not match what the instruments can actually produce.
+    person = {d["key"]: rng.choice(PERSON_LATTICE, n_max) for d in dims}
+    env    = {d["key"]: closest_achievable(rng.random(n_max)) for d in dims}
     conf   = _synthetic_conf(confs, n_max, rng)
 
     true_weights = {
@@ -362,5 +458,10 @@ if __name__ == "__main__":
     cfg, pri = load()
     sanity_check(cfg, pri)
 
+    # recovery_curve() now draws from PERSON_LATTICE/COMPANY_LATTICE (Finding 2), not
+    # uniform(0,1) -- already re-run once this session with chains=2 to fit a reasonable
+    # wall-clock budget (see SOLVERAH_HANDOFF_2026-08-17e.md for the full before/after
+    # numbers and recovery_curve_LATTICE_FIXED.png vs recovery_curve_UNIFORM_ORIGINAL.png).
+    # Left commented by default because a full run at chains=4 takes several minutes.
     #rows = recovery_curve(cfg, pri, ns=(200, 800, 2000, 5000), chains=4)
     #plot_recovery(rows)
