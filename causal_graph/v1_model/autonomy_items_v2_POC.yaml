@@ -1,0 +1,63 @@
+# autonomy_items_v2_POC.yaml -- PROOF OF CONCEPT, not merged into assessment_items.yaml.
+#
+# Redesign of the autonomy item set as a graduated-difficulty (Guttman-style) forced-choice
+# ladder, per the "Option B" discussion in SCALE_CALIBRATION_CHECK.md's follow-up. Replaces
+# au1-au4 (which round 2's boundary probe showed are all pitched at roughly the same
+# intensity -- a 0.7-level narrative endorses all four, forcing a 1.0 person score against
+# company evidence that correctly scored 0.7, a 0.2 gap).
+#
+# DESIGN: each item targets a different point on the autonomy scale, calibrated against
+# anchors.json's own band language (not verbatim -- paraphrased, same guardrail as the
+# vignette pairs). Still strictly forced-choice, two concrete scenario options each --
+# deliberately NOT a labeled intensity scale (that would just be Option A, a Likert item,
+# in disguise, which reopens central-tendency and desirability problems Option B is meant
+# to avoid). The grading variable across items is STAKES / SCOPE / EXPECTED CHECK-IN
+# FREQUENCY, not an explicit "how strongly" label.
+#
+# STATUS: this is a face-valid design, not an empirically validated one -- there is no real
+# respondent data to check the difficulty ordering against yet. The vignette-probe
+# validation in vignette_probe_pairs_v3_autonomy_ladder.yaml checks that the design is
+# internally coherent (that a hand-scored character built to represent each target level
+# produces the predicted score) and that the COMPANY side can discriminate all five bands
+# precisely. It does NOT validate that real people's answer patterns actually follow this
+# ladder -- that requires a real pilot, same limitation the original items had (assessment_
+# items.yaml's own header: "STATUS: these are DRAFTS ... bias-test before use").
+
+form_version: v2-poc-autonomy-only
+scoring:
+  method: mean_pole
+  pole_values: { low: 0.0, high: 1.0 }
+
+items:
+  - id: au1v2
+    dimension: autonomy
+    difficulty_target: 0.3   # not part of the real schema -- POC annotation only
+    prompt: "You're given a routine task you've handled many times before, with no special instructions attached. You're more likely to:"
+    options:
+      - { key: A, text: "Just do it your usual way without checking in.", pole: high }
+      - { key: B, text: "Quickly confirm the expected approach first, just to be sure.", pole: low }
+
+  - id: au2v2
+    dimension: autonomy
+    difficulty_target: 0.5
+    prompt: "You're handed a new project that's fairly low-risk if something goes wrong. You're more likely to:"
+    options:
+      - { key: A, text: "Figure out your own approach as you go.", pole: high }
+      - { key: B, text: "Get your approach reviewed by your manager first, even though the risk is low.", pole: low }
+
+  - id: au3v2
+    dimension: autonomy
+    difficulty_target: 0.7
+    prompt: "You're handed a project with a tight deadline and no set process. You're more likely to:"
+    options:
+      - { key: A, text: "Map out your own approach and run with it, checking in only when needed.", pole: high }
+      - { key: B, text: "Ask how they'd like it structured before you start.", pole: low }
+
+  - id: au4v2
+    dimension: autonomy
+    difficulty_target: 0.9
+    reverse_keyed: true
+    prompt: "Jobs have frustrated you most when:"
+    options:
+      - { key: A, text: "Even on the most important work, you were expected to check in and get sign-off on the direction and the plan before starting -- not just the finer details.", pole: high }
+      - { key: B, text: "You were left to figure out something high-stakes entirely on your own, with no one available even once to sanity-check your read of it before you committed.", pole: low }
