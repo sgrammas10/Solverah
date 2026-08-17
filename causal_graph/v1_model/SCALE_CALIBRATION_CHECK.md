@@ -139,12 +139,46 @@ because the schema didn't exist yet to expose them:
    even when the vignette text says nothing about them. `anchors.json`'s own confidence bands
    describe exactly this case — "Almost nothing in the packet bears on this dimension. You are
    close to guessing" (0.1, Very low) — so the honest failure mode is a low-confidence near-guess
-   on the untargeted five, not an error. **The returned confidence value on the untargeted
+   on the untargeted five, not an error. ~~**The returned confidence value on the untargeted
    dimensions is itself a free diagnostic**: if a vignette written purely to target autonomy comes
    back High-confidence on collaboration too, that's evidence the vignette leaked signal across a
    dimension pair `anchors.json` explicitly warns is easy to conflate (autonomy/collaboration,
    pace/innovation are both called out by name in the `keep_distinct` field) — a sign to rewrite the
-   vignette narrower, not a result to keep.
+   vignette narrower, not a result to keep.~~
+
+   > **CORRECTED 2026-08-17, after rounds 1–3. The struck text names the wrong variable, and
+   > `run_vignette_probe.py` implemented it faithfully (`elif d.confidence >= 0.6`), so the error
+   > propagated from this spec into the instrument and from there into §5's finding.**
+   >
+   > **The diagnostic quantity is displacement off the neutral 0.5 band, not confidence.** A
+   > dimension the vignette is silent about should read 0.5; confidence describes how sure the
+   > scorer is of whatever it landed on, which is a different question from whether it landed
+   > somewhere it shouldn't have. Recomputed from the raw CSVs of all three rounds:
+   >
+   > * The confidence rule fired on collaboration-vignette → **autonomy**, which scored exactly
+   >   **0.5 — neutral — on every run of every round**. Nothing moved. It is not a bleed, and it
+   >   was not even consistent: round 1's three collaboration vignettes returned confidence
+   >   0.6 / 0.3 / 0.1 on that same 0.5. §5's "10/10 across two texts" describes one vignette's
+   >   confidence value generalized across three that disagreed. **Withdrawn.**
+   > * The confidence rule never fired on autonomy-vignette → **collaboration**, which displaced a
+   >   full band to **0.3 on 28 of 30 runs** at autonomy 0.5 and above, at confidence 0.1–0.3.
+   >   That is real contamination and it went unrecorded for three rounds. **Promoted.**
+   > * It likewise missed autonomy → **innovation**, which tracks the autonomy level monotonically
+   >   at the extremes (0.1 → 0.1, 0.9 → 0.7) on **19 of 20 runs** across two independently written
+   >   vignette sets. §5 dismissed this as "1/5, incidental." **Promoted.**
+   >
+   > A second, compounding gap: the probe logged `quotes_grounded`/`quotes_total` but discarded the
+   > **quote text**, which is the one datum that separates a vignette artifact (the cited phrase
+   > really is off-dimension evidence — rewrite the vignette) from an anchor defect (the cited
+   > phrase is on-target language that the off-target dimension's own band text also claims —
+   > rewrite the anchor). 630 scored rows were spent without it. Both are fixed in
+   > `run_vignette_probe.py`; see `ANCHOR_BLEED_FIX.md`.
+   >
+   > **The generalizable lesson, and it is the same shape as §2b's:** a detector that keys on the
+   > wrong variable does not fail loudly — it reports a confident finding about the thing it *can*
+   > see. `keep_distinct` correctly names autonomy/collaboration as the pair at risk; the
+   > instrument then confirmed a bleed on that pair *in the wrong direction* and everyone,
+   > including me, read it as corroboration.
 2. **Each vignette call is free data on the other five dimensions, not just the targeted one.**
    18 vignettes × n=5 runs × 6 dimensions is 540 (score, confidence) pairs from 90 API calls, not
    18. The 15 off-target readings per vignette (5 runs × 3 non-focal... actually 5 runs × 5
