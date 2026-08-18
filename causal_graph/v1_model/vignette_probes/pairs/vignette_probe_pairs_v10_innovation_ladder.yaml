@@ -1,0 +1,113 @@
+# vignette_probe_pairs_v10_innovation_ladder.yaml
+#
+# Validates the in1v2-in4v2 graduated-difficulty ladder (assessment_items_v2.yaml, ratified
+# 2026-08-18) against all five company bands.
+#
+# COMPANY SIDE -- 4 of 5 levels reuse already-scored vignettes verbatim, all measured with
+# ZERO variance:
+#   0.1 -> vignette_probe_pairs_v1.yaml, innovation/low                 (0.1, n=10, sd 0.0)
+#   0.5 -> vignette_probe_pairs_v1.yaml, innovation/mid                 (0.5, n=10, sd 0.0)
+#   0.7 -> vignette_probe_pairs_v2_boundary.yaml, innovation boundary_07 (0.7, n=5, sd 0.0)
+#   0.9 -> vignette_probe_pairs_v1.yaml, innovation/high                (0.9, n=10, sd 0.0)
+# NEW, needs one live run:
+#   0.3 -> written below against anchors.json innovation band 0.3 ("Leaning optimize": mostly
+#          improving known things; occasional new bets at the edges)
+#
+# PERSON SIDE -- Guttman prefix endorsement of the SUNK INVESTMENT ladder (something recent
+# that works badly -> a year-old process -> something the team relies on that works -> across
+# a career). Grading by sunk investment rather than by novelty is the structural answer to
+# bias-review finding 3's prestige skew: as the ladder climbs, the high pole stops meaning
+# "create" and starts meaning "discard working value," which carries its own cost and is not
+# self-evidently the impressive choice. At rung 4 the high pole is explicitly wasteful.
+#
+# WATCH IN RESULTS -- if innovation still shows a lean toward the high pole across bands after
+# this, the problem is the construct rather than the items, and that is worth knowing. Do not
+# quote a number from a single run either way.
+#
+# STATUS -- design coherence plus one new band's company-side precision. Not a validation that
+# real respondents follow the ordering.
+
+rubric_version_expected: v1-frozen-2026-08-15
+items_file_expected: assessment_items_v2.yaml
+form_version_expected: v2-2026-08-18
+
+dimensions:
+
+  innovation:
+    items: [in1v2, in2v2, in3v2, in4v2]
+    grading_variable: "sunk investment discarded"
+    pairs:
+
+    - level: "0.1"
+      target_band: 0.1
+      target_person: 0.0
+      cached_from: "vignette_probe_pairs_v1.yaml (innovation/low) -- do not re-run"
+      person_item_choices: { in1v2: A, in2v2: B, in3v2: B, in4v2: A }
+      person_vignette: >
+        When something I put together recently works but not well, I'll take another pass at
+        the parts that are weakest rather than start it over. A process that's been running a
+        year and does the job, even if nobody loves it, I'd smooth out the parts that annoy
+        people and leave the rest. And if the team relies on something that works well and
+        nobody's complaining, I'd leave it alone even if I'd thought of a fundamentally
+        different approach -- it's working. What's frustrated me most is things getting
+        rebuilt from scratch over and over, with work I'd already finished thrown away.
+
+    - level: "0.3"
+      target_band: 0.3
+      target_person: 0.25
+      person_item_choices: { in1v2: B, in2v2: B, in3v2: B, in4v2: A }
+      person_vignette: >
+        When something I put together recently works but not well, I'd rather start it over
+        with a different idea of how it should work than keep patching it. But a process
+        that's been running a year and does the job, I'd smooth out the parts that annoy
+        people and leave the rest. And if the team relies on something that works well with
+        nobody complaining, I'd leave it alone even having thought of a fundamentally
+        different approach. What's frustrated me most is things getting rebuilt from scratch
+        over and over, with work I'd already finished thrown away.
+      company_vignette: >
+        Most of the roadmap is improvements to things that already exist -- performance,
+        reliability, filling in gaps customers have asked about. There's a small allocation
+        each quarter for trying something genuinely new, usually run as a side project by one
+        or two people rather than as a main workstream. The engineering blog is mostly posts
+        about scaling and refining the existing platform, with the occasional piece on an
+        experiment that didn't ship.
+
+    - level: "0.5"
+      target_band: 0.5
+      target_person: 0.5
+      cached_from: "vignette_probe_pairs_v1.yaml (innovation/mid) -- do not re-run"
+      person_item_choices: { in1v2: B, in2v2: A, in3v2: B, in4v2: A }
+      person_vignette: >
+        When something I put together recently works but not well, I'd start it over with a
+        different idea of how it should work. A process that's been running a year and does
+        the job but nobody loves, I'd replace with something I think would work better. But
+        if the team relies on something that works well and nobody's complaining, I'd leave
+        it alone rather than throw it out to test a different approach. What's frustrated me
+        most is things getting rebuilt from scratch over and over, with work I'd already
+        finished thrown away.
+
+    - level: "0.7"
+      target_band: 0.7
+      target_person: 0.75
+      cached_from: "vignette_probe_pairs_v2_boundary.yaml (innovation boundary_07) -- do not re-run"
+      person_item_choices: { in1v2: B, in2v2: A, in3v2: A, in4v2: A }
+      person_vignette: >
+        Something recent that works but not well, I'd start over with a different idea. A
+        year-old process that does the job but nobody loves, I'd replace. And even when the
+        team relies on something that works well and nobody's complaining, if I'd thought of
+        a fundamentally different approach I'd push to try it, knowing we'd have to throw the
+        current one out to find out. That said, what's frustrated me is things getting
+        rebuilt from scratch over and over, with finished work thrown away.
+
+    - level: "0.9"
+      target_band: 0.9
+      target_person: 1.0
+      cached_from: "vignette_probe_pairs_v1.yaml (innovation/high) -- do not re-run"
+      person_item_choices: { in1v2: B, in2v2: A, in3v2: A, in4v2: B }
+      person_vignette: >
+        Something recent that works but not well, I'd start over with a different idea. A
+        year-old process that does the job, I'd replace with something better. Even when the
+        team relies on something that works and nobody's complaining, I'd push to try a
+        fundamentally different approach and accept throwing the current one out to find out.
+        What's actually frustrated me is the reverse: nothing could be rebuilt, so I kept
+        working around the same known problems because replacing them was never worth it.

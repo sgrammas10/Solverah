@@ -1,0 +1,141 @@
+# vignette_probe_pairs_v12_decision_ladder.yaml
+#
+# Validates the de1v2-de4v2 graduated-difficulty ladder (assessment_items_v2.yaml, ratified
+# 2026-08-18) against all five company bands.
+#
+# COMPANY SIDE -- ZERO cached coverage. Decision has never been probed in any round to date.
+# All five bands need a live run.
+#
+# PERSON SIDE -- Guttman prefix endorsement of the NOVELTY ladder: a call close to ones made
+# many times before -> a situation that rhymes but differs in a few details -> genuinely new
+# with thin data -> across a career. As the situation gets more unprecedented, accumulated
+# pattern-recognition gets objectively weaker, so continuing to rely on it means something
+# progressively more distinctive about the respondent.
+#
+# WHY NOVELTY AND NOT SPEED -- ASSESSMENT_ITEMS_BIAS_REVIEW.md proposed grading this dimension
+# by speed vs. information-sufficiency. Rejected during the v2 rewrite: that grades by
+# cost-of-being-wrong, which IS stakes, which IS autonomy's grading variable. Sharing it would
+# manufacture a decision<->autonomy person-side correlation out of the instrument's own
+# construction -- indistinguishable in pilot data from a real trait relationship. Design rule 1.
+#
+# PARTIAL CONSTRUCT NOTE -- milder than feedback's (see v11), but record it. anchors.json's
+# decision low pole is "taste, vision and experience... founder gut; trust your judgement." The
+# person-side low pole is deliberately NOT gut -- bias-review finding 2 showed that framing made
+# the data pole the defensible answer on every item regardless of disposition, so the v2 rewrite
+# made BOTH poles a kind of evidence: pattern-recognition from having seen the situation before
+# versus explicit measurement. check_assessment_items.py now BANS the word "gut" in item text;
+# anchors.json still uses it. The two sides therefore agree on the HIGH pole and differ in how
+# charitably they describe the LOW one. The company vignettes below are written on experience
+# and precedent rather than on taste or instinct, so the probe does not ask the scorer to
+# recognise a pole the person side cannot express. Unlike feedback's mismatch this is a
+# difference of framing rather than of axis, so results here remain interpretable.
+#
+# STATUS -- design coherence only. Not a validation that real respondents follow the ordering.
+# Per SOLVERAH_HANDOFF_2026-08-18.md sec.7, no number from a single run enters a handoff.
+
+rubric_version_expected: v1-frozen-2026-08-15
+items_file_expected: assessment_items_v2.yaml
+form_version_expected: v2-2026-08-18
+
+dimensions:
+
+  decision:
+    items: [de1v2, de2v2, de3v2, de4v2]
+    grading_variable: "novelty -- how unprecedented the situation is"
+    pairs:
+
+    - level: "0.1"
+      target_band: 0.1
+      target_person: 0.0
+      person_item_choices: { de1v2: A, de2v2: B, de3v2: B, de4v2: A }
+      person_vignette: >
+        When a call comes up that's close to ones I've made many times and it points the way
+        it usually does, I'll go with what the pattern has been without pulling the figures
+        up. When a situation rhymes with things I've seen but a few details differ, I'll
+        treat it as close enough to what I know and decide on that basis. Even when something
+        is genuinely new and the data that exists is thin, I'd reason it out from what I know
+        about how situations like it tend to behave. What's frustrated me is a call sitting
+        unmade while people waited on figures that were never going to arrive in a usable
+        form.
+      company_vignette: >
+        Calls here rest on the judgement of people who have been doing this a long time. The
+        founders are explicit that the company's direction comes from a point of view about
+        the market rather than from what the numbers currently say, and product decisions are
+        argued on the basis of experience rather than presented with supporting analysis.
+        There is reporting, but it is reviewed after the fact rather than consulted before a
+        decision. Nobody is asked to justify a call with a measurement.
+
+    - level: "0.3"
+      target_band: 0.3
+      target_person: 0.25
+      person_item_choices: { de1v2: B, de2v2: B, de3v2: B, de4v2: A }
+      person_vignette: >
+        When a call comes up that's close to ones I've made many times, I'll pull the figures
+        first even though I expect them to agree. But when a situation rhymes with things
+        I've seen and only a few details differ, I'll treat it as close enough to what I know
+        and decide on that. And when something is genuinely new with only thin data, I'd
+        reason it out from how situations like it tend to behave. What's frustrated me is a
+        call sitting unmade while people waited on figures that were never going to arrive in
+        a usable form.
+      company_vignette: >
+        Decisions are made by the people closest to the work, drawing on what they have seen
+        before, and then checked against the numbers before they go ahead. Analysis is
+        described internally as confirming a direction rather than choosing one -- if the
+        data disagrees with a strong view, the usual outcome is a conversation rather than a
+        reversal. Dashboards exist and are reviewed monthly, but no launch is gated on a
+        metric.
+
+    - level: "0.5"
+      target_band: 0.5
+      target_person: 0.5
+      person_item_choices: { de1v2: B, de2v2: A, de3v2: B, de4v2: A }
+      person_vignette: >
+        A call close to ones I've made many times, I'll pull the figures on first even though
+        I expect them to agree. When a situation rhymes with things I've seen but a few
+        details differ, I'll check the numbers on the parts that differ and go on experience
+        for the rest. When it's genuinely new and the data is thin, I'd reason it out from
+        how situations like it tend to behave. What's frustrated me is a call sitting unmade
+        while people waited on figures that were never going to arrive in a usable form.
+      company_vignette: >
+        Some decisions here are made on the numbers and some on the judgement of whoever owns
+        the area, and which one applies depends on the call. Bigger launches usually come
+        with analysis attached; day-to-day choices generally do not. Teams are trusted to
+        decide how much evidence a given decision warrants, and there is no standard the
+        whole company applies.
+
+    - level: "0.7"
+      target_band: 0.7
+      target_person: 0.75
+      person_item_choices: { de1v2: B, de2v2: A, de3v2: A, de4v2: A }
+      person_vignette: >
+        A familiar call, I'll pull the figures on first even expecting them to agree. A
+        situation that rhymes with what I've seen, I'll check the numbers on the parts that
+        differ and go on experience for the rest. And when something is genuinely new with
+        only thin data available, I'd work from the thin data and say plainly what it does
+        and doesn't cover, rather than reason it out from precedent. That said, what's
+        frustrated me is a call sitting unmade while people waited on figures that were never
+        going to arrive in a usable form.
+      company_vignette: >
+        Most decisions of any size are settled by a measurement. Teams run experiments as a
+        matter of course and the result is normally what determines whether something ships.
+        Where the data does not reach, people are expected to say so explicitly and then use
+        their own read to close the gap -- that is treated as a normal part of the process
+        rather than a failure of it. Internal write-ups lead with what was measured.
+
+    - level: "0.9"
+      target_band: 0.9
+      target_person: 1.0
+      person_item_choices: { de1v2: B, de2v2: A, de3v2: A, de4v2: B }
+      person_vignette: >
+        A familiar call, I'll pull the figures first anyway. A situation that rhymes with
+        what I've seen, I'll check the numbers on the parts that differ. Something genuinely
+        new with thin data, I'll work from the thin data and state plainly what it does and
+        doesn't cover. And what's actually frustrated me is the reverse: a call made on
+        somebody's read of it, with no way for anyone to check the reasoning after.
+      company_vignette: >
+        Nothing ships here without a metric behind it. Every change goes out as an experiment
+        and the readout decides whether it stays. Proposals are expected to state a
+        hypothesis and the measurement that would settle it, and a proposal without one is
+        sent back. The company describes itself as data-driven in its own recruiting
+        material, and internal decision records are structured around what was measured
+        rather than what was argued.

@@ -1,0 +1,109 @@
+# vignette_probe_pairs_v8_pace_ladder.yaml
+#
+# Validates the pa1v2-pa4v2 graduated-difficulty ladder (assessment_items_v2.yaml, ratified
+# 2026-08-18) against all five company bands. Same shape as
+# vignette_probe_pairs_v3_autonomy_ladder.yaml.
+#
+# COMPANY SIDE -- 4 of 5 levels reuse already-scored vignettes verbatim. Company scoring does
+# not depend on which person items exist, and these inputs have been measured with ZERO
+# variance, so re-spending API calls on them buys nothing:
+#   0.1 -> vignette_probe_pairs_v1.yaml, pace/low                (0.1, n=10, sd 0.0)
+#   0.5 -> vignette_probe_pairs_v1.yaml, pace/mid                (0.5, n=10, sd 0.0)
+#   0.7 -> vignette_probe_pairs_v2_boundary.yaml, pace boundary_07 (0.7, n=5, sd 0.0)
+#   0.9 -> vignette_probe_pairs_v1.yaml, pace/high               (0.9, n=10, sd 0.0)
+# NEW, needs one live run:
+#   0.3 -> written below against anchors.json pace band 0.3 ("Leaning steady": generally
+#          measured tempo with occasional pushes; deadlines exist but rarely dominate)
+#
+# PERSON SIDE -- Guttman prefix endorsement of the duration ladder (afternoon -> a week ->
+# a couple of months -> across a career). Verified offline by score_person_side.py against
+# assessment_items_v2.yaml BEFORE any company call, per the standing rule that a person-side
+# number which cannot reproduce its own stated derivation should not be compared to anything.
+#
+# STATUS -- this validates design coherence and, for the one new call, company-side precision
+# at the 0.3 band. It does NOT validate that real respondents' answers follow this difficulty
+# ordering; that needs a pilot. Per SOLVERAH_HANDOFF_2026-08-18.md sec.7, no number from a
+# single probe run enters a handoff as a result.
+
+rubric_version_expected: v1-frozen-2026-08-15
+items_file_expected: assessment_items_v2.yaml
+form_version_expected: v2-2026-08-18
+
+dimensions:
+
+  pace:
+    items: [pa1v2, pa2v2, pa3v2, pa4v2]
+    grading_variable: "duration the tempo must be sustained"
+    pairs:
+
+    - level: "0.1"
+      target_band: 0.1
+      target_person: 0.0
+      cached_from: "vignette_probe_pairs_v1.yaml (pace/low) -- do not re-run"
+      person_item_choices: { pa1v2: B, pa2v2: A, pa3v2: B, pa4v2: A }
+      person_vignette: >
+        An afternoon where several things all need turning around at once is fine
+        occasionally, but I'm glad when it's over -- I wouldn't ask for more of them. If a
+        push like that ran a full week, by partway through I'd be watching the calendar for
+        when it eases off. And if that turned out to be the team's normal state for a couple
+        of months, I'd be looking for ways to carve out slower stretches for myself rather
+        than settling into it. What's actually worn me down is a tempo that never dropped,
+        month after month, with no stretch I could exhale in.
+
+    - level: "0.3"
+      target_band: 0.3
+      target_person: 0.25
+      person_item_choices: { pa1v2: A, pa2v2: A, pa3v2: B, pa4v2: A }
+      person_vignette: >
+        An afternoon where several things need turning around quickly is a good afternoon --
+        I'd take more of those. But if the same push ran a full week rather than an
+        afternoon, partway through I'd be watching the calendar for when it eases off. If
+        that tempo turned out to be the normal state for a couple of months, I'd be looking
+        to carve out slower stretches for myself. What's worn me down is a tempo that never
+        dropped, month after month, with no stretch I could exhale in.
+      company_vignette: >
+        The team works to a fairly measured rhythm most weeks, with a push around the end of
+        a quarter or when a client date lands. Deadlines exist and people take them
+        seriously, but they don't set the pace of an ordinary week. Planning happens on a
+        monthly cycle and the roadmap is rarely reshuffled mid-month. A recent all-hands
+        described the last big crunch as unusual rather than as how the team normally
+        operates.
+
+    - level: "0.5"
+      target_band: 0.5
+      target_person: 0.5
+      cached_from: "vignette_probe_pairs_v1.yaml (pace/mid) -- do not re-run"
+      person_item_choices: { pa1v2: A, pa2v2: B, pa3v2: B, pa4v2: A }
+      person_vignette: >
+        An afternoon where several things need turning around quickly is a good afternoon --
+        I'd take more of them. If that push ran a full week, partway through I'd still be
+        running on it without particularly wanting it to stop. But if it turned out to be the
+        team's normal state for a couple of months straight, I'd start looking to carve out
+        slower stretches for myself. What's worn me down is a tempo that never dropped, month
+        after month, with no stretch I could exhale in.
+
+    - level: "0.7"
+      target_band: 0.7
+      target_person: 0.75
+      cached_from: "vignette_probe_pairs_v2_boundary.yaml (pace boundary_07) -- do not re-run"
+      person_item_choices: { pa1v2: A, pa2v2: B, pa3v2: A, pa4v2: A }
+      person_vignette: >
+        An afternoon where several things need turning around quickly is a good afternoon --
+        I'd take more of them. If that push ran a full week, I'd still be running on it
+        without particularly wanting it to stop. And if it turned out to be the normal state
+        for a couple of months, I'd have found I'd rather keep it that way than go back. What
+        has actually worn me down, though, is a tempo that never dropped at all, month after
+        month, with no stretch I could exhale in.
+
+    - level: "0.9"
+      target_band: 0.9
+      target_person: 1.0
+      cached_from: "vignette_probe_pairs_v1.yaml (pace/high) -- do not re-run"
+      person_item_choices: { pa1v2: A, pa2v2: B, pa3v2: A, pa4v2: B }
+      person_vignette: >
+        An afternoon where several things need turning around quickly is a good afternoon --
+        I'd take more of them. A full week of that and I'm still running on it without
+        wanting it to stop. If it's the team's normal state for a couple of months, I'd
+        rather keep it that way than go back. What's actually worn me down is the opposite:
+        long stretches where the work was there but nothing was urgent, and the days ran
+        together.

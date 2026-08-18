@@ -1,0 +1,164 @@
+# vignette_probe_pairs_v11_feedback_ladder.yaml
+#
+# Validates the fb1v2-fb4v2 graduated-difficulty ladder (assessment_items_v2.yaml, ratified
+# 2026-08-18) against all five company bands.
+#
+# ============================================================================
+# READ THIS BEFORE INTERPRETING ANY RESULT FROM THIS FILE.
+# CONSTRUCT MISMATCH between the person side and the company side. NEW, found while writing
+# this file, and it is not a defect in either artifact -- it is a desynchronisation between
+# two artifacts that were each independently improved.
+# ============================================================================
+# The company rubric (anchors.json, frozen v1-frozen-2026-08-15) grades feedback on FREQUENCY
+# and DIRECTNESS:
+#     0.1 "occasional and softened; harmony valued, conflict avoided"
+#     0.5 "normal mix of scheduled and ad-hoc feedback, moderate directness"
+#     0.9 "radical candor, constant unfiltered input, we tell it straight"
+#
+# The person-side ladder no longer grades directness at all. ASSESSMENT_ITEMS_BIAS_REVIEW.md
+# finding 3 showed that bluntness language was carrying valence rather than trait -- "unfiltered"
+# reads as tactless, "trusted you and stayed hands-off" reads as positive -- so the v2 rewrite
+# moved the axis to EXPOSURE: privacy and delay, i.e. WHEN and IN FRONT OF WHOM, not HOW HARSH.
+# check_assessment_items.py now BANS the word "unfiltered" in item text. anchors.json still uses
+# it as band 0.9's defining phrase.
+#
+# So the two sides overlap on one sub-axis and diverge on two:
+#     shared        timing / frequency  (scheduled-and-delayed vs. immediate-and-ad-hoc)
+#     company only  bluntness, candor, thickness of skin  -- no person-side counterpart
+#     person only   audience, public vs. private          -- no company-side counterpart
+#
+# CONSEQUENCE: the company vignettes below are written on the SHARED timing axis, and
+# deliberately avoid bluntness language so they do not measure something the person side
+# cannot express. That keeps the probe interpretable but means it exercises a NARROWER
+# construct than either the rubric or the items define.
+#
+# THEREFORE: a poor gap result on this dimension is NOT evidence the ladder failed. It is
+# equally consistent with the two sides measuring different things. Do not read it as a
+# person-side finding. The fix is a rubric change -- anchors_v3_PROPOSED.json is the right
+# vehicle, and it is currently stalled behind raters returning P-01-P-06, so this cannot be
+# resolved unilaterally. Recorded here rather than worked around silently.
+#
+# SEE ALSO design rule 6 in assessment_items_v2.yaml: feedback ALSO grades two variables on the
+# person side (fb1/fb2 delay, fb3 audience), with a pre-registered prediction that pilot data
+# will show an excess of the {endorse 1, endorse 2, decline 3, decline 4} pattern. That is a
+# separate issue from this one and neither masks the other.
+#
+# ============================================================================
+# COMPANY SIDE -- ZERO cached coverage. Feedback has never been probed in any round to date
+# (rounds 1, 2, 4 and 7 covered autonomy, pace, collaboration and innovation only). All five
+# bands need a live run. This is the largest single block of new API calls in the ladder set.
+#
+# PERSON SIDE -- Guttman prefix endorsement. Verified offline by score_person_side.py against
+# assessment_items_v2.yaml before any company call.
+#
+# STATUS -- design coherence only. Not a validation that real respondents follow the ordering.
+
+rubric_version_expected: v1-frozen-2026-08-15
+items_file_expected: assessment_items_v2.yaml
+form_version_expected: v2-2026-08-18
+construct_mismatch: true   # see header; consumed by nothing yet, present so it is greppable
+
+dimensions:
+
+  feedback:
+    items: [fb1v2, fb2v2, fb3v2, fb4v2]
+    grading_variable: "exposure -- privacy and delay of the feedback"
+    pairs:
+
+    - level: "0.1"
+      target_band: 0.1
+      target_person: 0.0
+      person_item_choices: { fb1v2: A, fb2v2: B, fb3v2: A, fb4v2: B }
+      person_vignette: >
+        If there's something small I could be doing better, I'd rather my manager mention it
+        next time we're already talking one-on-one than send it over the moment they notice.
+        If I've handed in work with a real problem in it, I'd rather find out once they've
+        been through all of it and can tell me in one go. If my work is being reviewed with
+        the team present and they've spotted something I got wrong, I'd rather they note it
+        privately afterwards than raise it in front of the whole group. The people I've found
+        hardest to work under are the ones who raised things the moment they saw them,
+        wherever I happened to be and whoever happened to be there.
+      company_vignette: >
+        Performance conversations happen twice a year on a set cycle, and managers are asked
+        to prepare them carefully rather than raise things as they come up. The handbook
+        tells managers to hold day-to-day observations until a scheduled one-to-one, and to
+        raise anything difficult in private. Team reviews are run as walkthroughs where
+        comments go to the author afterwards rather than being discussed in the room. New
+        joiners are told they will not be surprised by anything in a review.
+
+    - level: "0.3"
+      target_band: 0.3
+      target_person: 0.25
+      person_item_choices: { fb1v2: B, fb2v2: B, fb3v2: A, fb4v2: B }
+      person_vignette: >
+        If there's something small I could be doing better, I'd rather my manager send it
+        over as soon as they notice than wait for a scheduled slot. But if I've handed in
+        work with a real problem in it, I'd rather find out once they've been through all of
+        it and can tell me in one go. If my work is being reviewed with the team present, I'd
+        rather a mistake be noted privately afterwards than raised in front of the whole
+        group. The people I've found hardest to work under are the ones who raised things the
+        moment they saw them, wherever I was and whoever was there.
+      company_vignette: >
+        There are formal review cycles twice a year, and managers are also encouraged to pass
+        on small observations as they come up rather than saving everything. Anything
+        substantial, though, waits for a prepared conversation, and the guidance is explicit
+        that significant concerns are raised one-to-one rather than in a group setting. Team
+        critique sessions exist but are structured, with written comments collected
+        afterwards.
+
+    - level: "0.5"
+      target_band: 0.5
+      target_person: 0.5
+      person_item_choices: { fb1v2: B, fb2v2: A, fb3v2: A, fb4v2: B }
+      person_vignette: >
+        If there's something small I could be doing better, I'd rather hear it as soon as
+        they notice. And if I've handed in work with a real problem in it, I'd rather find
+        out straight away, before I've moved on to anything else. But if my work is being
+        reviewed with the team present, I'd still rather a mistake be noted privately
+        afterwards than said in the room. The people I've found hardest to work under are the
+        ones who raised things the moment they saw them, wherever I was and whoever was
+        there.
+      company_vignette: >
+        Feedback here is a normal mix. There are scheduled reviews, and there is also plenty
+        of day-to-day comment that happens as work goes by rather than waiting for a slot.
+        Some teams run open critique sessions; others send comments to the author privately.
+        There's no house rule about which, and it mostly comes down to the manager and the
+        team.
+
+    - level: "0.7"
+      target_band: 0.7
+      target_person: 0.75
+      person_item_choices: { fb1v2: B, fb2v2: A, fb3v2: B, fb4v2: B }
+      person_vignette: >
+        Something small I could be doing better, I'd rather hear as soon as they notice. A
+        real problem in work I've handed in, I'd rather hear straight away before I've moved
+        on. And if my work is being reviewed with the team present, I'd rather they say it
+        there in the room while everyone's looking at the same thing than note it privately
+        afterwards. That said, the people I've found hardest to work under are the ones who
+        raised things the moment they saw them, wherever I was and whoever was there.
+      company_vignette: >
+        Comment happens continuously rather than on a cycle -- work gets reacted to as it
+        appears, and waiting for a scheduled slot to raise something is unusual. Reviews are
+        run live with the whole team in the room and points are made there rather than
+        collected afterwards. Written guidance for new managers says not to sit on an
+        observation. Formal cycles still exist, but most of what people hear about their work
+        reaches them well before one.
+
+    - level: "0.9"
+      target_band: 0.9
+      target_person: 1.0
+      person_item_choices: { fb1v2: B, fb2v2: A, fb3v2: B, fb4v2: A }
+      person_vignette: >
+        Something small I could be doing better, I'd rather hear the moment they notice. A
+        real problem in something I've handed in, I want to know straight away. If my work is
+        being reviewed with the team there, say it in the room while everyone's looking at
+        the same thing. What I've actually found hardest is the opposite: people who never
+        told me where I stood until something formal came around, so I was guessing for
+        months at a time.
+      company_vignette: >
+        Nothing waits here. Work is commented on continuously and in the open -- the default
+        is to raise a point where the work is being discussed rather than take it aside
+        afterwards. Reviews are public by design and every project ends with an open session
+        in front of whoever is working on it. There are no scheduled feedback cycles at all;
+        the stated reason is that by the time one arrived, everything in it would be months
+        old.
