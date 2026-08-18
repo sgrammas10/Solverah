@@ -183,8 +183,35 @@ def check_file(path: Path, allow_superseded: bool) -> Report:
         print(f"  FAIL  {h}")
     r.chk(not hits, "none of the phrases the bias review flagged survive")
 
-    # ---- option length balance --------------------------------------------
-    print("\n-- option length balance (a much longer option draws the eye) --")
+
+    # ---- option length balance ACROSS a dimension (design rule 5) -----------
+    # Ratification decision D2, 2026-08-18. The per-item ratio check below catches the extreme
+    # case but is blind to a consistent small lean, which is what actually biases a dimension.
+    # Measured on assessment_items_v2_PROPOSED.yaml, DECISION leaned +15.2 chars toward the data
+    # pole (3 of 4 items, +36 on de1v2) -- the exact skew bias-review finding 2 was written to
+    # close, surviving in the length channel after the semantic rewrite removed it from the
+    # wording. Same class as the sec.3 positional-key defect: structural, invisible to a careful
+    # read of the item text, visible only by computing over the file.
+    print("\n-- option length balance across each dimension (design rule 5) --")
+    for dim in DIMS:
+        its = by_dim.get(dim, [])
+        if len(its) != 4:
+            continue
+        deltas = [len(next(o for o in i["options"] if o["pole"] == "high")["text"])
+                  - len(next(o for o in i["options"] if o["pole"] == "low")["text"])
+                  for i in its]
+        mean = sum(deltas) / 4
+        n_high = sum(1 for d in deltas if d > 0)
+        print(f"     {dim:<14} {deltas}  mean {mean:+.2f}  {n_high}/4 high-longer")
+        r.chk(abs(mean) <= 10.0,
+              f"{dim}: mean high-minus-low length {mean:+.2f}, |mean| <= 10 -- a consistent "
+              f"lean makes the longer pole draw the eye across the whole dimension")
+        r.chk(1 <= n_high <= 3,
+              f"{dim}: longer option is on the high pole in {n_high} of 4 items (need 1-3) -- "
+              f"4/4 or 0/4 is a dimension-wide positional-style bias in the length channel")
+
+    # ---- option length ratio within each item ------------------------------
+    print("\n-- option length ratio within each item --")
     rows = sorted(((max(len(o["text"]) for o in i["options"])
                     / min(len(o["text"]) for o in i["options"]), i["id"]) for i in items),
                   reverse=True)
