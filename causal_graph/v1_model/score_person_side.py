@@ -1,19 +1,24 @@
 """
 score_person_side.py
 
-Mechanically recomputes each vignette's person-side dimension score from
-assessment_items.yaml + the item_choices frozen in vignette_probes/pairs/vignette_probe_pairs_v1.yaml, and
-checks it against the target_person value recorded in that file.
+Mechanically recomputes each vignette's person-side dimension score from the active item
+file + the item_choices frozen in a vignette_probes/pairs/*.yaml, and checks it against the
+target_person value recorded in that file.
 
 No API needed -- this is pure arithmetic over local files, so it can (and should) be run
 and checked BEFORE any company-side LLM call happens, as an audit that the hand-scoring
 wasn't just asserted but is actually reproducible from the real scoring method
-(scoring.method: mean_pole in assessment_items.yaml).
+(scoring.method: mean_pole).
+
+An item file marked `status: superseded` is REFUSED unless --allow-superseded is passed;
+assessment_items.yaml has carried that status since 2026-08-18. --items now defaults to the
+v2 file. Structural validity of the item file itself is a separate gate --
+check_assessment_items.py / test_assessment_items.py -- which this script does not repeat.
 
 Usage:
     python score_person_side.py \
-        --pairs vignette_probes/pairs/vignette_probe_pairs_v1.yaml \
-        --items assessment_items.yaml
+        --pairs vignette_probes/pairs/vignette_probe_pairs_v3_autonomy_ladder.yaml \
+        --items assessment_items_v2_PROPOSED.yaml
 """
 
 from __future__ import annotations
@@ -25,11 +30,23 @@ from pathlib import Path
 import yaml
 
 
-def load_items(items_path: Path) -> dict:
+def load_items(items_path: Path, allow_superseded: bool = False) -> dict:
     data = yaml.safe_load(items_path.read_text(encoding="utf-8"))
+    # A retired item file must not be silently scoreable. assessment_items.yaml carries
+    # status: superseded as of 2026-08-18 (positional key imbalance + flat difficulty --
+    # see its header). Reproducing a historical probe run is the only legitimate reason to
+    # load it, and that has to be an explicit choice.
+    if data.get("status") == "superseded" and not allow_superseded:
+        raise SystemExit(
+            f"REFUSED: {items_path} is marked status: superseded"
+            + (f" (superseded_by: {data['superseded_by']})" if data.get("superseded_by") else "")
+            + ".\nScore against the current item file instead. Pass --allow-superseded only "
+              "to reproduce a historical run, and label any output as such."
+        )
     pole_values = data["scoring"]["pole_values"]
     by_id = {item["id"]: item for item in data["items"]}
-    return {"pole_values": pole_values, "by_id": by_id}
+    return {"pole_values": pole_values, "by_id": by_id,
+            "form_version": data.get("form_version"), "status": data.get("status")}
 
 
 def score_choices(choices: dict, items_index: dict) -> tuple[float, list[str]]:
@@ -52,11 +69,16 @@ def score_choices(choices: dict, items_index: dict) -> tuple[float, list[str]]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--pairs", default="vignette_probes/pairs/vignette_probe_pairs_v1.yaml")
-    ap.add_argument("--items", default="assessment_items.yaml")
+    ap.add_argument("--items", default="assessment_items_v2_PROPOSED.yaml")
+    ap.add_argument("--allow-superseded", action="store_true",
+                    help="load an item file marked status: superseded "
+                         "(historical reproduction only -- label the output as such)")
     args = ap.parse_args()
 
     pairs_doc = yaml.safe_load(Path(args.pairs).read_text(encoding="utf-8"))
-    items_index = load_items(Path(args.items))
+    items_index = load_items(Path(args.items), allow_superseded=args.allow_superseded)
+    print(f"items: {args.items}  form_version={items_index['form_version']!r}"
+          + ("   [SUPERSEDED -- historical reproduction]" if items_index["status"] == "superseded" else ""))
 
     mismatches = []
     total = 0
@@ -89,12 +111,12 @@ def main() -> int:
         for m in mismatches:
             print(f"  - {m}")
         print()
-        print("Fix vignette_probes/pairs/vignette_probe_pairs_v1.yaml (either the choices or the target) before "
+        print(f"Fix {args.pairs} (either the choices or the target) before "
               "running the company side -- a person-side number that doesn't match its own "
               "stated derivation shouldn't be compared against anything.")
         return 1
 
-    print(f"All {total} pairs' person-side scores are reproducible from assessment_items.yaml "
+    print(f"All {total} pairs' person-side scores are reproducible from {args.items} "
           f"and match their frozen target_person value. Safe to proceed to the company side.")
     return 0
 

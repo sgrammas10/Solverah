@@ -1,3 +1,38 @@
+# ############################################################################
+# ###  SUPERSEDED 2026-08-18 -- DO NOT SCORE AGAINST THIS FILE.            ###
+# ############################################################################
+#
+# Replaced by assessment_items_v2_PROPOSED.yaml. Retired, not deleted, because the frozen
+# vignette probe runs in vignette_probes/results/ were scored against these items and stop
+# being reproducible if it disappears. `status: superseded` below is machine-enforced:
+# check_assessment_items.py refuses this file, test_assessment_items.py asserts that it is
+# refused, and score_person_side.py errors on it unless --allow-superseded is passed.
+#
+# Two defects made it unusable, both structural rather than textual, and both invisible to
+# ASSESSMENT_ITEMS_BIAS_REVIEW.md's read of the item wording:
+#
+#   1. POSITIONAL KEY IMBALANCE. The high pole sits on option A in 4 of 4 items for
+#      autonomy, pace and feedback, and on B in 4 of 4 for decision. A respondent who
+#      simply picks the first option throughout scores 1.00 on three dimensions and 0.00
+#      on a fourth -- and does it with PERFECT internal consistency, which is the planned
+#      confidence measure. The model would then weight a fabricated extreme profile
+#      heavily instead of leaning on its prior, and in pilot data it would read as a real
+#      population of decisive, fast-paced, feedback-hungry respondents.
+#
+#   2. FLAT DIFFICULTY. Round 2's boundary probe found au1-au4 are all pitched at roughly
+#      the same intensity, so a 0.7-level respondent endorses all four and is forced to a
+#      1.0 person score against company evidence correctly scored 0.7. The other five
+#      dimensions were never probed but are built the same way (see e.g. co1/co2/co3,
+#      three restatements of one intensity). This is what the graduated-difficulty ladder
+#      replaces.
+#
+# NO DATA REMEDIATION IS REQUIRED. This file was never piloted; no real respondent data
+# exists. The only person_dimension_score rows anywhere are synthetic fixtures in
+# assemble_training_data.py (hardcoded 0.5, scoring_key_version='v1'). Any future rows
+# must carry scoring_key_version = the v2 form_version, so the two are separable by
+# construction rather than by memory.
+#
+# ============================================================================
 # assessment_items.yaml  --  Solverah person-side assessment (v1 DRAFT)
 # ============================================================================
 # Format: single-axis, forced-choice, behaviorally-anchored.
@@ -22,6 +57,9 @@
 # ============================================================================
 
 form_version: v1-draft
+status: superseded                        # machine-enforced -- see the header block
+superseded_by: v2-proposed-2026-08-18
+superseded_on: "2026-08-18"
 scoring:
   method: mean_pole
   pole_values: { low: 0.0, high: 1.0 }

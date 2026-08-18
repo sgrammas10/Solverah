@@ -49,7 +49,36 @@
 # not auto-reject).
 #
 # ---------------------------------------------------------------------------
-# DESIGN RULE 3 -- rung 4 is reverse-keyed, everywhere.
+# DESIGN RULE 3 -- item order within a dimension is RANDOMIZED at presentation.
+# ---------------------------------------------------------------------------
+# A graduated ladder shown in difficulty order is transparent to the respondent. The four
+# rungs read visibly as "a little", "somewhat", "quite", "extremely", so someone who wants
+# to look decisive does not have to guess which answers do it -- they endorse further down
+# the list. The resulting profile is perfectly Guttman-consistent, so the planned
+# confidence measure (internal consistency) comes out HIGH on a faked response set. That
+# is the same failure shape as design rule 2's positional straight-liner, arriving through
+# the ladder design instead of the key layout, and rule 2 does not close it.
+#
+# Mitigation: shuffle the four items of a dimension before display, seeded stably per
+# respondent so a resumed session does not reshuffle. Scoring is unaffected -- mean_pole is
+# order-invariant, and difficulty_target below preserves the true rung order for analysis.
+#
+# Deliberately NOT randomized: the A/B option order within an item. Three reasons.
+# (1) Design rule 2's 2/2 key balance already neutralizes positional bias at design time,
+#     and it does so deterministically rather than in expectation.
+# (2) The vignette probe files key their frozen choices by letter (person_item_choices:
+#     {au1v2: A, ...}); per-respondent option shuffling would make those unreproducible.
+# (3) A stored response of "chose A" becomes ambiguous unless the shuffle is persisted with
+#     it -- a real source of silent scoring corruption for no gain over (1).
+# If option order is ever randomized anyway, responses must be stored as the chosen POLE,
+# not the chosen letter, and every probe file has to be reworked. Not recommended.
+#
+# The fields under `presentation.never_display` must not reach the respondent's screen.
+# `id` matters more than it looks: the ids are sequential within a dimension (au1v2..au4v2),
+# so surfacing them re-leaks the difficulty order that the shuffle just hid.
+#
+# ---------------------------------------------------------------------------
+# DESIGN RULE 4 -- rung 4 is reverse-keyed, everywhere.
 # ---------------------------------------------------------------------------
 # Follows the POC (au4v2) and the v1 pattern (au4/pa4/co4/in4): the hardest rung uses a
 # frustration/dissatisfaction framing rather than a preference framing. This closes
@@ -92,9 +121,19 @@
 
 form_version: v2-proposed-2026-08-18
 supersedes: v1-draft
+status: proposed          # -> "active" only after ratification; nothing scores against a proposal
 scoring:
   method: mean_pole
   pole_values: { low: 0.0, high: 1.0 }
+
+# Presentation contract (design rule 3). Enforced by check_assessment_items.py, which fails
+# if this block is missing or weakened -- the shuffle is a correctness requirement, not a UI
+# preference, because without it the confidence measure can be gamed.
+presentation:
+  randomize_item_order_within_dimension: true
+  order_seed: respondent_id       # stable per respondent; a resumed session must not reshuffle
+  randomize_option_order: false   # intentional -- see design rule 3 for why
+  never_display: [id, difficulty_target, pole, reverse_keyed, grading_variables]
 
 # difficulty_target is a design annotation. It is NOT part of the runtime schema and is
 # not consumed by score_person_side.py -- it records which anchors.json band each rung was
