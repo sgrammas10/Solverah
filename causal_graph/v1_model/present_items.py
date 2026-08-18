@@ -70,7 +70,12 @@ DEFAULT_ITEMS_PATH = Path(__file__).resolve().parent / "assessment_items_v2.yaml
 # list is READ FROM THE YAML rather than hardcoded here -- the contract lives in one place, and a
 # field added there is redacted here without a code change. These are the minimum the contract is
 # required to contain; check_assessment_items.py fails the file if any is missing.
-REQUIRED_REDACTIONS = frozenset({"id", "difficulty_target", "pole"})
+#   `dimension` joined this list with design rule 7. Before interleaving, the grouping already
+#   revealed it; now that the grouping is gone, leaving the field on each item would hand back
+#   exactly what the interleave removes.
+REQUIRED_REDACTIONS = frozenset({"id", "dimension", "difficulty_target", "pole"})
+
+ITEMS_PER_DIMENSION = 4  # load-bearing: mean_pole over 4 reproduces build_model.PERSON_LATTICE
 
 _TOKEN_BYTES = 16  # 128 bits; collision-free across any realistic item count
 
@@ -138,6 +143,25 @@ def presentation_contract(doc: dict) -> dict:
             "stored as the chosen POLE rather than the letter, and every vignette probe file's "
             "person_item_choices would be invalid. See design rule 3 in the item YAML."
         )
+    # Design rule 7. Interleaving is a correctness requirement for the same reason rule 3 is:
+    # shown in dimension groups, a respondent can see which four items measure one thing and
+    # has an obvious pull toward answering them coherently -- which inflates the
+    # internal-consistency confidence measure on a LESS accurate profile.
+    if p.get("interleave_dimensions") is not True:
+        raise PresentationContractError(
+            "interleave_dimensions is not true. Serving items in dimension groups lets a "
+            "respondent see which four measure the same thing, and answering that group "
+            "'consistently' as self-presentation inflates the confidence measure. Rule 3's "
+            "within-dimension shuffle does not close this -- it leaves the block intact."
+        )
+    blocks = p.get("block_count")
+    if not isinstance(blocks, int) or blocks != ITEMS_PER_DIMENSION:
+        raise PresentationContractError(
+            f"block_count is {blocks!r}; it must equal {ITEMS_PER_DIMENSION}, the number of "
+            f"items per dimension. Each block holds exactly one item from every dimension, so "
+            f"the block count and the rung count are the same number by construction."
+        )
+
     never = set(p.get("never_display") or [])
     missing = REQUIRED_REDACTIONS - never
     if missing:
@@ -233,11 +257,40 @@ def build_form(
     for item in doc["items"]:
         by_dim.setdefault(item["dimension"], []).append(item)
 
-    token_map: dict[str, str] = {}
-    dimensions = []
     for dim, its in by_dim.items():
+        if len(its) != ITEMS_PER_DIMENSION:
+            raise PresentationContractError(
+                f"dimension {dim!r} has {len(its)} items, expected {ITEMS_PER_DIMENSION}. The "
+                f"interleave assumes every dimension contributes exactly one item per block."
+            )
+
+    # Design rule 7. Rule 3's per-dimension permutation decides WHICH rung lands in which
+    # block -- block b takes position b of it -- so the rung order stays hidden exactly as
+    # before. The order of dimensions WITHIN a block is then shuffled separately per block, so
+    # the dimension sequence does not repeat down the form either.
+    perm = {dim: _shuffled(its, respondent_id, dim) for dim, its in by_dim.items()}
+    dim_names = sorted(by_dim)  # sorted, not dict order: the seed must be the only variable
+
+    token_map: dict[str, str] = {}
+    blocks = []
+    prev_last: str | None = None
+    for b in range(ITEMS_PER_DIMENSION):
+        members = [perm[dim][b] for dim in dim_names]
+        ordered = _shuffled(members, respondent_id, f"\x01block{b}")
+
+        # Shuffling each block independently is not sufficient. A block can end on `pace` and
+        # the next begin on `pace`, putting two same-dimension items adjacent ACROSS THE SEAM
+        # -- precisely the adjacency rule 7 exists to prevent, and invisible to any per-block
+        # check. Repair deterministically by swapping the first two positions: every dimension
+        # appears exactly once per block, so the only member that can collide with prev_last
+        # is the one at index 0, and index 1 therefore cannot collide. One swap always fixes
+        # it and never creates a new collision.
+        if prev_last is not None and ordered[0]["dimension"] == prev_last:
+            ordered[0], ordered[1] = ordered[1], ordered[0]
+        prev_last = ordered[-1]["dimension"]
+
         rendered = []
-        for item in _shuffled(its, respondent_id, dim):
+        for item in ordered:
             tok = _token(respondent_id, item["id"], key)
             token_map[tok] = item["id"]
             rendered.append({
@@ -250,12 +303,14 @@ def build_form(
                     for o in item["options"]
                 ],
             })
-        dimensions.append({"dimension": dim, "items": rendered})
+        blocks.append({"block": b, "items": rendered})
 
     payload = {
         "form_version": doc["form_version"],
         "respondent_id": respondent_id,
-        "dimensions": dimensions,
+        # `blocks`, not `dimensions` -- design rule 7. A dimension-grouped payload would leak
+        # the grouping through its own shape no matter what the item fields say.
+        "blocks": blocks,
     }
     _assert_redacted(payload, never)
     return payload, token_map

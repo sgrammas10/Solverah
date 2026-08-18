@@ -99,8 +99,19 @@ def check_file(path: Path, allow_superseded: bool) -> Report:
               "transparent and consistency-based confidence is gameable)")
         r.chk(bool(p.get("order_seed")),
               "an order_seed is declared (a resumed session must not reshuffle)")
+        # Design rule 7, added 2026-08-18. Within-dimension shuffling hides the RUNG ORDER but
+        # not the GROUPING: shown as six blocks of four, a respondent sees which four items
+        # measure one thing, and answering that group coherently as self-presentation inflates
+        # the internal-consistency confidence measure on a LESS accurate profile.
+        r.chk(p.get("interleave_dimensions") is True,
+              "items are interleaved across dimensions (else the grouping is visible and "
+              "consistency-based confidence is gameable a second way)")
+        r.chk(p.get("block_count") == 4,
+              f"block_count is 4 -- one item per dimension per block; must equal the items "
+              f"per dimension, got {p.get('block_count')!r}")
+
         nd = set(p.get("never_display") or [])
-        for f in ("id", "difficulty_target", "pole"):
+        for f in ("id", "dimension", "difficulty_target", "pole"):
             r.chk(f in nd, f"'{f}' is in never_display "
                            + ("(sequential ids re-leak the rung order)" if f == "id" else ""))
         if p.get("randomize_option_order") is True:

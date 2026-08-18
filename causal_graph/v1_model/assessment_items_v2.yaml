@@ -218,6 +218,40 @@
 # paired, or reported as a pilot with no number quoted.
 #
 # ---------------------------------------------------------------------------
+# DESIGN RULE 7 -- items are INTERLEAVED across dimensions, not shown in dimension groups.
+# ---------------------------------------------------------------------------
+# DECIDED 2026-08-18. Rule 3 shuffles item order WITHIN a dimension, which hides the rung
+# order. It does not hide the GROUPING: shown as six blocks of four, a respondent can see
+# which four items measure the same thing.
+#
+# Why that is not merely cosmetic. The planned confidence measure is internal consistency. A
+# respondent who notices four questions are "about collaboration" has an obvious pull toward
+# answering them coherently -- presenting as a person with a settled view rather than
+# reporting four independent preferences. That inflates internal consistency, so confidence
+# comes out HIGH on a profile that is LESS accurate, not more. Exactly the failure shape of
+# rules 2 and 3: a fabrication that the confidence measure rewards. Rule 3 does not close it,
+# because within-dimension shuffling leaves the block intact.
+#
+# The scheme: 4 blocks of 6, each block holding exactly one item from every dimension.
+#   - which rung of a dimension lands in which block IS rule 3's per-dimension shuffle --
+#     block b takes position b of that dimension's permutation, so rung order stays hidden
+#   - the order of the six dimensions WITHIN a block is shuffled separately per respondent
+#     per block, so the dimension sequence does not repeat across blocks either
+# No two same-dimension items are ever adjacent, and the grouping is not recoverable.
+# Four visible chunks are retained deliberately: the form is taken voluntarily, and a fully
+# shuffled 24-question list with a topic change every question reads as disorganised. Progress
+# feel was worth keeping where it cost nothing.
+#
+# `dimension` is therefore in never_display. It was not before rule 7, because grouping already
+# revealed it; now that grouping is gone, leaving the field on each item would hand back
+# exactly what the interleave removes.
+#
+# CONSEQUENCE FOR THE PAYLOAD: present_items.build_form emits `blocks`, a flat ordered
+# structure, NOT `dimensions`. Scoring is unaffected -- mean_pole is order-invariant and the
+# server maps tokens back to item ids before scoring. Decided BEFORE the form UI exists,
+# deliberately: after it ships this is a payload contract change rather than an edit.
+#
+# ---------------------------------------------------------------------------
 # SCORING -- unchanged, and a hard constraint, not a preference.
 # ---------------------------------------------------------------------------
 # mean_pole over 4 items per dimension yields exactly {0.0, 0.25, 0.5, 0.75, 1.0}, which is
@@ -266,9 +300,11 @@ scoring:
 # preference, because without it the confidence measure can be gamed.
 presentation:
   randomize_item_order_within_dimension: true
+  interleave_dimensions: true     # design rule 7 -- see below; no two same-dimension items adjacent
+  block_count: 4                  # 4 blocks x 6 dimensions = 24 items, one per dimension per block
   order_seed: respondent_id       # stable per respondent; a resumed session must not reshuffle
   randomize_option_order: false   # intentional -- see design rule 3 for why
-  never_display: [id, difficulty_target, pole, reverse_keyed, grading_variables]
+  never_display: [id, dimension, difficulty_target, pole, reverse_keyed, grading_variables]
 
 # difficulty_target is a design annotation. It is NOT part of the runtime schema and is not
 # consumed by score_person_side.py -- it records which anchors.json band each rung was
