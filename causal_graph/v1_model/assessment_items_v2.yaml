@@ -33,12 +33,31 @@
 #       Guttman-consistent fake that the internal-consistency confidence measure scores HIGH.
 #       That is strictly worse than v1, which had no gradient to climb.
 #
-# STILL UNANSWERED, and it is a disclosure decision rather than a pricing one: whether the
-# employer ever sees an individual respondent's six dimension scores. If the answer is
-# "match result only," state that on the form itself -- it is the cheapest single
-# intervention available for honest responding and it costs one sentence. If the answer is
-# "employer sees the scores," the aspirational-answering pressure roughly doubles and rung 4
-# needs re-examining after all.
+# DISCLOSURE -- ANSWERED 2026-08-18. The employer NEVER sees an individual respondent's
+# answers or their six dimension scores. Scoped as a DURABLE data commitment, deliberately
+# written to stay true after employers eventually join the platform: if an employer ever needs
+# to see something, it is a match result, never the underlying scores. rung 4 therefore stays
+# as ratified -- no re-examination needed.
+#
+# Context: for the first several iterations there are no employers on the platform at all.
+# The company side of the match is the generated company-profile database, not signed-up
+# employers, so the commitment is trivially true today. That is exactly why it was scoped
+# durably NOW -- a promise about a party that does not yet exist is the easiest kind to make
+# and the hardest to unwind once users have answered under it.
+#
+# HONEST LIMIT ON WHAT THE DISCLOSURE BUYS. In a hiring context, "no employer sees this"
+# removes the incentive to soften. Here it removes much less, because the pressure was never
+# toward an employer -- it is toward the MATCHING ALGORITHM. A self-profiling user wants to be
+# matched to companies they find impressive, and privacy does not touch that at all. So the
+# form copy is framed on self-interest in accuracy rather than on privacy (answering as
+# someone you are not costs you the match, not your privacy), and DESIGN RULE 3'S SHUFFLE
+# REMAINS THE PRIMARY DEFENCE. Do not let the disclosure line be mistaken for a mitigation of
+# aspirational answering.
+#
+# ENFORCEMENT, not policy. The commitment above is worth exactly as much as the code that
+# makes it true. person_dimension_score rows must be unreachable from any employer-facing
+# endpoint, enforced in the data layer rather than by convention -- same argument as rule 3,
+# which sat as a specification nothing consumed until present_items.py was written.
 #
 # ---------------------------------------------------------------------------
 # RATIFICATION DECISIONS D1-D4 (2026-08-18)
