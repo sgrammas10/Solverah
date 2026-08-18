@@ -96,7 +96,7 @@ DIMENSIONS = ["autonomy", "pace", "collaboration", "feedback", "innovation", "de
 SCORE_BAND_VALUES = [0.1, 0.3, 0.5, 0.7, 0.9]
 CONFIDENCE_BAND_VALUES = [0.1, 0.3, 0.6, 0.9]
 
-OUTPUT_DIR = Path(__file__).parent
+OUTPUT_DIR = Path(__file__).parent / "results" / "scorer_variance_v2"
 
 
 def output_paths_for(packet_id: str, model: str) -> tuple[Path, Path]:

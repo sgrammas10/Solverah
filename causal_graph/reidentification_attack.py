@@ -77,7 +77,7 @@ TEMPERATURE = 1.0
 MAX_RETRIES = 5
 BACKOFF_BASE_SECONDS = 2.0
 
-OUTPUT_DIR = Path(__file__).parent
+OUTPUT_DIR = Path(__file__).parent / "results" / "reid_attack"
 
 
 def packet_path_for(packet_id: str) -> Path:

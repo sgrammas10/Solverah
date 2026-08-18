@@ -68,7 +68,8 @@ from scorer_variance_test_v2 import (  # noqa: E402
 from openai import OpenAI
 import os
 
-OUTPUT_DIR = Path(__file__).parent
+OUTPUT_DIR = Path(__file__).parent / "results" / "test1_blind_vs_identified"
+BLIND_DIR = Path(__file__).parent / "results" / "scorer_variance_v2"
 N_RUNS = 5
 
 GROUND_TRUTH = {
@@ -112,9 +113,9 @@ def existing_blind_csv_for(packet_id: str) -> Path:
     # P-01's first run predates the --packet/output-naming fix (08-17 handoff) and is a
     # deliberately-preserved "housekeeping fossil" with no model tag in the filename.
     if packet_id == "P-01":
-        candidates = [OUTPUT_DIR / "runs_v2_gpt55_P01.csv"]
+        candidates = [BLIND_DIR / "runs_v2_gpt55_P01.csv"]
     else:
-        candidates = [OUTPUT_DIR / f"runs_v2_{_model_tag(MODEL)}_{packet_id}.csv"]
+        candidates = [BLIND_DIR / f"runs_v2_{_model_tag(MODEL)}_{packet_id}.csv"]
     for c in candidates:
         if c.exists():
             return c

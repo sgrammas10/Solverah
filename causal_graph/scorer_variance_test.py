@@ -259,7 +259,7 @@ DIMENSIONS = [
     "decision",
 ]
 
-OUTPUT_DIR = Path(__file__).parent
+OUTPUT_DIR = Path(__file__).parent / "results" / "scorer_variance"
 RAW_DIR = OUTPUT_DIR / "raw"
 
 MAX_RETRIES = 5

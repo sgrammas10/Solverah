@@ -322,7 +322,7 @@ def test_call_with_retry_falls_back_when_reasoning_effort_rejected():
 # S1-6: DDL proposal is at least syntactically parseable
 # ---------------------------------------------------------------------------
 def test_scorer_run_ddl_parses_without_syntax_errors():
-    import sqlparse
+    sqlparse = pytest.importorskip("sqlparse")
     ddl_path = Path(__file__).parent / "v1_model" / "scorer_run_ddl_PROPOSED.sql"
     assert ddl_path.exists()
     sql = ddl_path.read_text(encoding="utf-8")
