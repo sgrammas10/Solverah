@@ -2,7 +2,7 @@
 run_vignette_probe.py
 
 Company-side half of the paired-vignette calibration probe (SCALE_CALIBRATION_CHECK.md).
-Scores each company vignette in vignette_probe_pairs_v1.yaml n=5 times via
+Scores each company vignette in vignette_probes/pairs/vignette_probe_pairs_v1.yaml n=5 times via
 scorer_pipeline.score_packet() -- the real S1-2 interface, pinned model/config, same
 mean-of-5 aggregator the real packets use (S1-3 locked decision) -- then compares the
 on-target dimension's mean score against that pair's frozen target_person value.
@@ -15,7 +15,7 @@ prints "safe to proceed" before spending API calls here.
 
 Usage:
     pip install openai python-dotenv pyyaml
-    python run_vignette_probe.py --pairs vignette_probe_pairs_v1.yaml --out vignette_probe_results.csv
+    python run_vignette_probe.py --pairs vignette_probes/pairs/vignette_probe_pairs_v1.yaml --out vignette_probes/results/vignette_probe_results.csv
 
 Expects OPENAI_API_KEY in the environment. Loaded the same way scorer_variance_test_v2.py
 loads it: explicitly from the Solverah repo-root .env (not just cwd or a bare OS env var),
@@ -145,8 +145,8 @@ def pack_quotes(quotes: list[str]) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pairs", default="vignette_probe_pairs_v1.yaml")
-    ap.add_argument("--out", default="vignette_probe_results.csv")
+    ap.add_argument("--pairs", default="vignette_probes/pairs/vignette_probe_pairs_v1.yaml")
+    ap.add_argument("--out", default="vignette_probes/results/vignette_probe_results.csv")
     ap.add_argument("--n", type=int, default=5, help="runs per vignette (locked mean-of-5 default)")
     ap.add_argument("--model", default=sp.MODEL)
     ap.add_argument(

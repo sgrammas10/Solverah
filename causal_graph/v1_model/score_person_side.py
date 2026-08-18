@@ -2,7 +2,7 @@
 score_person_side.py
 
 Mechanically recomputes each vignette's person-side dimension score from
-assessment_items.yaml + the item_choices frozen in vignette_probe_pairs_v1.yaml, and
+assessment_items.yaml + the item_choices frozen in vignette_probes/pairs/vignette_probe_pairs_v1.yaml, and
 checks it against the target_person value recorded in that file.
 
 No API needed -- this is pure arithmetic over local files, so it can (and should) be run
@@ -12,7 +12,7 @@ wasn't just asserted but is actually reproducible from the real scoring method
 
 Usage:
     python score_person_side.py \
-        --pairs vignette_probe_pairs_v1.yaml \
+        --pairs vignette_probes/pairs/vignette_probe_pairs_v1.yaml \
         --items assessment_items.yaml
 """
 
@@ -51,7 +51,7 @@ def score_choices(choices: dict, items_index: dict) -> tuple[float, list[str]]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pairs", default="vignette_probe_pairs_v1.yaml")
+    ap.add_argument("--pairs", default="vignette_probes/pairs/vignette_probe_pairs_v1.yaml")
     ap.add_argument("--items", default="assessment_items.yaml")
     args = ap.parse_args()
 
@@ -89,7 +89,7 @@ def main() -> int:
         for m in mismatches:
             print(f"  - {m}")
         print()
-        print("Fix vignette_probe_pairs_v1.yaml (either the choices or the target) before "
+        print("Fix vignette_probes/pairs/vignette_probe_pairs_v1.yaml (either the choices or the target) before "
               "running the company side -- a person-side number that doesn't match its own "
               "stated derivation shouldn't be compared against anything.")
         return 1
