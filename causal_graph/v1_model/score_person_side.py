@@ -18,7 +18,7 @@ check_assessment_items.py / test_assessment_items.py -- which this script does n
 Usage:
     python score_person_side.py \
         --pairs vignette_probes/pairs/vignette_probe_pairs_v3_autonomy_ladder.yaml \
-        --items assessment_items_v2_PROPOSED.yaml
+        --items assessment_items_v2.yaml
 """
 
 from __future__ import annotations
@@ -69,7 +69,7 @@ def score_choices(choices: dict, items_index: dict) -> tuple[float, list[str]]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--pairs", default="vignette_probes/pairs/vignette_probe_pairs_v1.yaml")
-    ap.add_argument("--items", default="assessment_items_v2_PROPOSED.yaml")
+    ap.add_argument("--items", default="assessment_items_v2.yaml")
     ap.add_argument("--allow-superseded", action="store_true",
                     help="load an item file marked status: superseded "
                          "(historical reproduction only -- label the output as such)")
