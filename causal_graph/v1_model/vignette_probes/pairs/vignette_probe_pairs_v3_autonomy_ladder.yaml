@@ -1,3 +1,10 @@
+# UPDATED 2026-08-18: person_item_choices letters remapped for au2v2 and au4v2, whose
+# option ORDER (not text) changed in assessment_items_v2_PROPOSED.yaml design rule 2
+# (key-position balance). Item wording, target_person values, person_vignette text and
+# all cached company-side results are unchanged and remain valid -- company scoring does
+# not depend on person-item option order. No API re-run is required for 0.1/0.5/0.7/0.9;
+# the 0.3 band still needs its one live call, exactly as before.
+#
 # vignette_probe_pairs_v3_autonomy_ladder.yaml
 #
 # Validates the au1v2-au4v2 graduated-difficulty item ladder (autonomy_items_v2_POC.yaml)
@@ -42,7 +49,7 @@ dimensions:
       target_band: 0.1
       target_person: 0.0
       cached_from: "vignette_probe_pairs_v1.yaml (autonomy/low) -- do not re-run"
-      person_item_choices: { au1v2: B, au2v2: B, au3v2: B, au4v2: B }
+      person_item_choices: { au1v2: B, au2v2: A, au3v2: B, au4v2: A }
       person_vignette: >
         Even for something routine that I've done plenty of times, I'll usually double
         check the expected approach before diving in, just to be safe. If I'm handed
@@ -63,7 +70,7 @@ dimensions:
     - level: "0.3"
       target_band: 0.3
       target_person: 0.25
-      person_item_choices: { au1v2: A, au2v2: B, au3v2: B, au4v2: B }
+      person_item_choices: { au1v2: A, au2v2: A, au3v2: B, au4v2: A }
       person_vignette: >
         For something routine I've done many times, I don't really see the point in
         double-checking the approach -- I'll just go ahead and do it my usual way. That
@@ -85,7 +92,7 @@ dimensions:
       target_band: 0.5
       target_person: 0.5
       cached_from: "vignette_probe_pairs_v1.yaml (autonomy/mid) -- do not re-run"
-      person_item_choices: { au1v2: A, au2v2: A, au3v2: B, au4v2: B }
+      person_item_choices: { au1v2: A, au2v2: B, au3v2: B, au4v2: A }
       person_vignette: >
         For something routine, I'll just handle it my usual way without checking in
         first. If I'm handed something new that's fairly low-risk, I'll go ahead and
@@ -108,7 +115,7 @@ dimensions:
       target_band: 0.7
       target_person: 0.75
       cached_from: "vignette_probe_pairs_v2_boundary.yaml (autonomy boundary_07) -- do not re-run"
-      person_item_choices: { au1v2: A, au2v2: A, au3v2: A, au4v2: B }
+      person_item_choices: { au1v2: A, au2v2: B, au3v2: A, au4v2: A }
       person_vignette: >
         For something routine, I'll just handle it my way without checking in. Handed
         something new that's fairly low-risk, I'll figure out my own approach as I go
@@ -131,7 +138,7 @@ dimensions:
       target_band: 0.9
       target_person: 1.0
       cached_from: "vignette_probe_pairs_v1.yaml (autonomy/high) -- do not re-run"
-      person_item_choices: { au1v2: A, au2v2: A, au3v2: A, au4v2: A }
+      person_item_choices: { au1v2: A, au2v2: B, au3v2: A, au4v2: B }
       person_vignette: >
         For something routine, I'll just handle it my way without checking in. Handed
         something new that's fairly low-risk, I'll figure out my own approach as I go.
