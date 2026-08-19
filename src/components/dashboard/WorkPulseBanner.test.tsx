@@ -22,10 +22,23 @@ describe("WorkPulseBanner", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the headline and CTA when wpl_completed is false", () => {
+  it("renders the headline and CTA when the current instrument is not completed", () => {
     renderBanner();
     expect(screen.getByText("Complete your Work Pulse")).toBeInTheDocument();
+    expect(screen.getByText(/24 quick either-or questions/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /start now/i })).toBeInTheDocument();
+  });
+
+  it("renders retake copy for a user who completed the ORIGINAL 12-question quiz", () => {
+    render(<WorkPulseBanner onDismiss={vi.fn()} retake />);
+    expect(screen.getByText("Work Pulse has been rebuilt")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /retake it now/i })).toBeInTheDocument();
+  });
+
+  it("retake CTA also navigates to /work-pulse", () => {
+    render(<WorkPulseBanner onDismiss={vi.fn()} retake />);
+    fireEvent.click(screen.getByRole("button", { name: /retake it now/i }));
+    expect(mockNavigate).toHaveBeenCalledWith("/work-pulse");
   });
 
   it("clicking the dismiss button calls onDismiss", () => {

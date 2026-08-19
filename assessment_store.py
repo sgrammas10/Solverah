@@ -37,7 +37,7 @@ import uuid
 
 from assessment_form import ScoredSubmission
 
-__all__ = ["persist_submission", "respondent_id_for_user"]
+__all__ = ["has_completed_assessment", "persist_submission", "respondent_id_for_user"]
 
 
 def respondent_id_for_user(user_id: int, secret: bytes | None = None) -> str:
@@ -110,3 +110,29 @@ def persist_submission(db, user_id: int, result: ScoredSubmission) -> str:
             existing.scored_at = db.func.now()
 
     return submission_id
+
+
+def has_completed_assessment(user_id: int) -> bool:
+    """True if this user has a sitting of the CURRENT instrument on record.
+
+    Keyed to the current scoring_key_version deliberately, not to "any submission ever".
+    Completion is a fact about an instrument, not about the user: when the item file or the
+    scoring method changes, every profile reverts to not-completed and the product re-prompts
+    (decided with Sebastian 2026-08-19 for the v1-WorkPulse -> v2 replacement, and the same
+    logic applies to any future v3). The old raw rows are not lost -- they stay append-only
+    per D-16 -- but a sitting of one instrument says nothing the next instrument may consume.
+
+    This is the read path the web layer must use for completion gating. Querying the
+    person-side tables from app.py directly fails tests/test_employer_visibility.py, and
+    adding app.py to that allowlist is explicitly the wrong fix (D-01).
+    """
+    from assessment_form import scoring_key_version
+    from model import PersonDimensionScore
+
+    return (
+        PersonDimensionScore.query.filter_by(
+            user_id=user_id,
+            scoring_key_version=scoring_key_version(),
+        ).first()
+        is not None
+    )

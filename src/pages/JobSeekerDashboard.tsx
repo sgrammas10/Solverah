@@ -5,7 +5,6 @@ import { User, FileText, Brain, Briefcase, TrendingUp } from 'lucide-react';
 import IntakePromptModal from '../components/IntakePromptModal';
 import WorkPulseBanner from '../components/dashboard/WorkPulseBanner';
 import WorkPulseUnlock from '../components/profile/WorkPulseUnlock';
-import { useWP } from '../hooks/useWP';
 
 const iconMap: Record<string, any> = { User, FileText, Brain, Briefcase, TrendingUp };
 
@@ -22,7 +21,6 @@ function JobSeekerDashboard() {
     );
   };
 
-  const { state: wpState } = useWP();
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [jobsPopupOpen, setJobsPopupOpen] = useState(false);
   const [intakeModalOpen, setIntakeModalOpen] = useState(false);
@@ -71,22 +69,22 @@ function JobSeekerDashboard() {
           </p>
         </div>
 
-        {/* Work Pulse — unlock card or prompt banner */}
-        {user?.wpl_completed ? (
+        {/* Work Pulse — completion card or prompt banner.
+            Gated on wp_v2_completed (the CURRENT 24-item instrument), not wpl_completed:
+            the original 12-question quiz was replaced 2026-08-19 and its sittings don't
+            feed the matching model, so previous completers are re-prompted (retake copy).
+            Their old narrative stays reachable from the Work Pulse page itself. */}
+        {user?.wp_v2_completed ? (
           <div className="mb-6">
-            <WorkPulseUnlock
-              archetype={wpState.cachedResult?.archetype}
-              narrativePreview={
-                wpState.cachedResult
-                  ? wpState.cachedResult.narrative.split(/\n\n+/).find((p) => p.trim())?.trim()
-                  : undefined
-              }
-            />
+            <WorkPulseUnlock />
           </div>
         ) : (
           user && !wplBannerDismissed && (
             <div className="mb-6">
-              <WorkPulseBanner onDismiss={() => setWplBannerDismissed(true)} />
+              <WorkPulseBanner
+                onDismiss={() => setWplBannerDismissed(true)}
+                retake={Boolean(user.wpl_completed)}
+              />
             </div>
           )
         )}

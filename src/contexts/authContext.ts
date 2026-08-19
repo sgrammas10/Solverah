@@ -38,6 +38,15 @@ export interface User {
   profileData?: ProfileData;
   wpl_completed: boolean;
   wpll_completed: boolean;
+  /**
+   * Completion of the CURRENT Work Pulse instrument (the 24-item person-side assessment
+   * that replaced the original 12-question quiz). Distinct from wpl_completed on purpose:
+   * the old flag marks the retired instrument and keeps its stored narrative reachable,
+   * while this one gates the live prompt/banner. Server-derived from the presence of a
+   * current-scoring-key submission -- never set optimistically from the client except via
+   * updateProfile immediately after a successful submit.
+   */
+  wp_v2_completed: boolean;
 }
 
 /**

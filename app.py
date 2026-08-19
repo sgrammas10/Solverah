@@ -1704,6 +1704,7 @@ def login():
             "profileData": user.profile_data or {},
             "wpl_completed": bool(user.intake and user.intake.wpl_completed_at),
             "wpll_completed": bool(user.intake and user.intake.wpll_completed_at),
+            "wp_v2_completed": _wp_v2_completed(user.id),
         }
     })
 
@@ -2019,6 +2020,7 @@ def profile():
             "csrfToken": get_jwt().get("csrf"),
             "wpl_completed": bool(user.intake and user.intake.wpl_completed_at),
             "wpll_completed": bool(user.intake and user.intake.wpll_completed_at),
+            "wp_v2_completed": _wp_v2_completed(user.id),
         })
 
     # Handle profile update (POST)
@@ -3668,6 +3670,24 @@ def path_suggestions():
 
 
 # ============================================================================
+def _wp_v2_completed(user_id: int) -> bool:
+    """Whether this user has completed the CURRENT Work Pulse instrument (the 24-item
+    person-side assessment). Read through assessment_store -- the only sanctioned read path
+    (D-01 / tests/test_employer_visibility.py).
+
+    Never allowed to break login or profile: this flag gates a banner, and a wrong False
+    re-shows a prompt to someone who already finished -- visible and recoverable -- while an
+    exception here would be an authentication outage. The error is logged, not swallowed.
+    """
+    from assessment_store import has_completed_assessment
+
+    try:
+        return has_completed_assessment(user_id)
+    except Exception as exc:  # noqa: BLE001 -- deliberate boundary, see docstring
+        app.logger.error("wp_v2_completed check failed for user %s: %s", user_id, exc)
+        return False
+
+
 # Person-side culture assessment (S-01)
 #
 # The two routes below are thin on purpose. Every correctness requirement -- the

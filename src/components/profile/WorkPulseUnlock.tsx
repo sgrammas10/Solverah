@@ -14,20 +14,20 @@ export default function WorkPulseUnlock({
   const hasData = Boolean(archetype && narrativePreview);
 
   if (!hasData) {
+    // The current (24-item) instrument has no results screen by design: returning scores
+    // hands a retaker a gradient to optimise against (D-15). Completion is the whole story.
     return (
       <div className="rounded-xl border border-forest-light bg-forest-pale px-5 py-4">
         <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-1">
           ✦ Work Pulse Complete
         </p>
         <p className="text-sm font-semibold text-ink-primary">
-          Work Pulse complete — view your results
+          Work Pulse complete — your answers now power your matching
         </p>
-        <Link
-          to="/work-pulse/results"
-          className="mt-2 inline-block text-sm font-semibold text-forest-dark hover:underline"
-        >
-          View full analysis →
-        </Link>
+        <p className="text-sm text-ink-secondary mt-0.5">
+          Nothing to check back on here: it works in the background as we line up the
+          environments where you'd do your best work.
+        </p>
       </div>
     );
   }

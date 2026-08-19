@@ -279,8 +279,8 @@ function App() {
                 }
               />
 
-              {/* Person-side culture assessment (S-01). Items are served per respondent --
-                  never bundled into the client -- so this route must stay authenticated. */}
+              {/* Legacy alias. The person-side assessment ships as Work Pulse at /work-pulse;
+                  AssessmentPage is now a redirect kept so pre-rename links don't break. */}
               <Route
                 path="/assessment"
                 element={

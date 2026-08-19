@@ -36,11 +36,15 @@ describe("WorkPulseUnlock", () => {
     expect(link).toHaveAttribute("href", "/work-pulse/results");
   });
 
-  it("renders the placeholder variant when archetype and narrativePreview are omitted", () => {
+  it("renders the completion variant, with NO results link, when props are omitted", () => {
+    // The no-data variant is the card for the CURRENT 24-item instrument, which has no
+    // results screen by design (D-15): completion is the whole story. A link here would
+    // promise a payoff the data layer deliberately withholds.
     render(<WorkPulseUnlock />);
-    expect(screen.getByText(/work pulse complete — view your results/i)).toBeInTheDocument();
-    const link = screen.getByRole("link", { name: /view full analysis/i });
-    expect(link).toHaveAttribute("href", "/work-pulse/results");
+    expect(
+      screen.getByText(/work pulse complete — your answers now power your matching/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link")).toBeNull();
     expect(screen.queryByText(ARCHETYPE)).not.toBeInTheDocument();
   });
 });
