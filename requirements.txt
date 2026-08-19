@@ -14,6 +14,7 @@ scikit-learn
 boto3
 psycopg2-binary
 python-dotenv
+PyYAML
 pdfminer.six
 python-docx
 resend
