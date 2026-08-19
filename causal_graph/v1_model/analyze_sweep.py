@@ -1,4 +1,10 @@
 import numpy as np, pandas as pd
+
+# The seeds rule (D-21, S-04) applied where the numbers are born. Every contrast below is
+# emitted as a Finding, so one that has not earned quoting prints its label and NOT its
+# number -- which is what a session copying from this console output would paste.
+from seed_discipline import Finding
+
 pd.set_option("display.width", 200)
 TRUTH = -2.0
 d = pd.read_csv("results/recovery_multiseed.csv")
@@ -28,19 +34,26 @@ CONTRASTS = [
     ("D_lattice_raw","B_lattice_snap","patch effect, data LATTICE"),
 ]
 print("\n=== PAIRED contrasts on |err|  (positive = second arm is BETTER/closer to truth) ===")
-print(f"{'contrast':<34} {'n':>6} {'mean d':>8} {'sd':>7} {'t':>7} {'signs':>7}")
-for a,b,lab in CONTRASTS:
+print("Emitted through seed_discipline.Finding: a contrast that does not clear D-21 prints")
+print("its label and no number. Per-n rows carry one draw per seed; the pooled row averages")
+print("each seed's difference ACROSS n first, because the same seed appearing at four n's is")
+print("four correlated observations, not four independent draws.\n")
+for a, b, lab in CONTRASTS:
     print(f"-- {lab}")
     for n in sorted(d.n.unique()):
         s = w.xs(n, level="n")
-        diff = (s[a] - s[b]).dropna()
-        t = diff.mean()/(diff.std(ddof=1)/np.sqrt(len(diff))) if diff.std(ddof=1)>0 else np.nan
-        pos = int((diff>0).sum())
-        print(f"{a+' vs '+b:<34} {n:>6} {diff.mean():>8.3f} {diff.std(ddof=1):>7.3f} {t:>7.2f} {pos:>4}/{len(diff)}")
-    # pooled across n
-    dd = (w[a]-w[b]).dropna()
-    t = dd.mean()/(dd.std(ddof=1)/np.sqrt(len(dd)))
-    print(f"{'  POOLED all n':<34} {'':>6} {dd.mean():>8.3f} {dd.std(ddof=1):>7.3f} {t:>7.2f} {int((dd>0).sum()):>4}/{len(dd)}\n")
+        joined = pd.concat([s[a], s[b]], axis=1).dropna()   # align draw-for-draw on seed
+        print("   ", Finding.paired_contrast(
+            f"{a} vs {b} @ n={n}", joined[a], joined[b], draw_kind="seed"))
+    # Pooled across n: collapse to ONE value per seed per arm first, so n_draws counts
+    # independent seeds. (The earlier version differenced all 20 (seed, n) cells and treated
+    # them as 20 independent draws, which overstates precision by reusing each seed 4x.)
+    sa = w[a].groupby(level="seed").mean()
+    sb = w[b].groupby(level="seed").mean()
+    joined = pd.concat([sa, sb], axis=1).dropna()
+    print("   ", Finding.paired_contrast(
+        f"{a} vs {b} POOLED over n", joined[a], joined[b], draw_kind="seed"))
+    print()
 
 # ---- rows-multiplier question ----
 print("=== rows-multiplier check: mean |err| by n, is there ANY n at which lattice matches uniform? ===")
