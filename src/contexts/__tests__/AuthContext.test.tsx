@@ -1,5 +1,5 @@
 import { render, screen, waitFor, act } from "@testing-library/react";
-import { AuthProvider } from "../AuthContext";
+import { AuthProvider } from "../AuthContext.tsx";
 import { useAuth } from "../useAuth";
 import type { AuthContextType } from "../authContext";
 
