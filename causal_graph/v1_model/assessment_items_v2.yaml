@@ -217,6 +217,45 @@
 # Analysis must be run per SOLVERAH_HANDOFF_2026-08-18.md sec.7 discipline -- multi-seed and
 # paired, or reported as a pilot with no number quoted.
 #
+# --- ADDENDUM, 2026-08-19 -- terminology correction, recorded BEFORE any pilot data ------
+# The prediction above stands unaltered and its original text is deliberately left as
+# written. This corrects two errors in how it is DESCRIBED, caught by checking the claim
+# against this file's own items (STATE S-18, D-17).
+#
+# 1. The predicted pattern is NOT a Guttman inconsistency. In rung order (difficulty 0.3
+#    -> 0.9, high pole = 1) the "immediately, but not in front of the team" respondent
+#    produces {1,1,0,0} -- one of the five valid prefixes {0000,1000,1100,1110,1111},
+#    which map exactly onto PERSON_LATTICE. It is the CANONICAL honest 0.5, sitting
+#    between rungs 2 and 3. It reads as an inconsistency only under an item-agreement
+#    consistency measure, which is REJECTED (D-17): on a graduated ladder, item agreement
+#    equals extremity -- every honest mid-lattice respondent in every dimension scores as
+#    maximally inconsistent. The adopted measure is the Guttman error count e (minimum
+#    flips to reach a valid prefix, e in {0,1,2} over 4 items), under which {1,1,0,0}
+#    carries e=0. So "reads as an INCONSISTENCY" and "non-prefix" above are wrong as
+#    written; the prediction's substance -- excess frequency of the named pattern -- holds.
+#
+# 2. The prediction SPLITS on fb4, which grades both variables. The immediate-but-private
+#    respondent must pick which aversion wins there (A, the withholder, pole high, vs. B,
+#    the anywhere-in-front-of-anyone giver, pole low), so the predicted signature is two
+#    cells, not one: {1,1,0,0} (e=0 -- a confidently WRONG 0.5) and {1,1,0,1} (e=1 --
+#    honest, flagged). The mirror preference ("in the room is fine, just not straight
+#    away") yields {0,0,1,0} / {0,0,1,1} -- genuinely non-prefix, and honest.
+#
+# CONSEQUENCES, binding (full text in STATE D-17 and S-18):
+#   - feedback's stored confidence stays NULL until this prediction is tested; the other
+#     five dimensions populate. Backfillable from raw assessment_response rows either way.
+#   - the test runs on raw response patterns and is never confidence-filtered or
+#     confidence-weighted -- cleaning low-e rows deletes the {1,1,0,1} and {0,0,1,x}
+#     evidence.
+#   - primary statistic: among respondents scoring 0.5 on a dimension, the fraction who
+#     arrived via {1,1,0,0}, feedback vs. each of the other five dimensions. Conditioning
+#     on the score controls for feedback simply having more moderates. Secondary cells,
+#     named now: {1,1,0,1}, {0,0,1,0}, {0,0,1,1}.
+#   - if the excess appears: feedback is two-factor (timing x audience) and the fix is
+#     instrument surgery, never a special-cased confidence formula. If it does not:
+#     exposure holds as one variable; backfill feedback's confidence like the other five.
+# ------------------------------------------------------------------------------------------
+#
 # ---------------------------------------------------------------------------
 # DESIGN RULE 7 -- items are INTERLEAVED across dimensions, not shown in dimension groups.
 # ---------------------------------------------------------------------------
