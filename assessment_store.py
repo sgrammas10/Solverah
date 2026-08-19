@@ -38,6 +38,7 @@ import uuid
 from assessment_form import ScoredSubmission
 
 __all__ = [
+    "get_dimension_confidences",
     "get_dimension_scores",
     "has_completed_assessment",
     "persist_submission",
@@ -98,19 +99,27 @@ def persist_submission(db, user_id: int, result: ScoredSubmission) -> str:
             dimension_key=dimension_key,
             scoring_key_version=result.scoring_key_version,
         ).first()
+        # D-17: confidence comes from the submission, indexed strictly -- a dimension the
+        # scorer scored but did not grade for confidence is a contract violation, not a
+        # default-to-NULL (D-07). None is a legitimate VALUE here for exactly one reason:
+        # CONFIDENCE_PENDING_DIMENSIONS (feedback, D-17(a)).
+        confidence = result.confidences[dimension_key]
         if existing is None:
             db.session.add(
                 PersonDimensionScore(
                     user_id=user_id,
                     dimension_key=dimension_key,
                     score=score,
-                    confidence=None,  # not measured yet; a placeholder would read as real
+                    confidence=confidence,
                     scoring_key_version=result.scoring_key_version,
                     submission_id=submission_id,
                 )
             )
         else:
             existing.score = score
+            # A retake refreshes confidence with the score -- a new sitting's score carrying
+            # the OLD sitting's e would attribute one submission's answer pattern to another.
+            existing.confidence = confidence
             existing.submission_id = submission_id
             existing.scored_at = db.func.now()
 
@@ -171,3 +180,26 @@ def get_dimension_scores(user_id: int) -> dict[str, float] | None:
     if not rows:
         return None
     return {r.dimension_key: r.score for r in rows}
+
+
+def get_dimension_confidences(user_id: int) -> dict[str, float | None] | None:
+    """The user's current stored confidences, {dimension_key: confidence_or_None}, or None
+    if no current profile exists. The sanctioned read for D-17 confidence, same doorway
+    logic as get_dimension_scores.
+
+    D-17's semantics bind every caller: confidence describes how well one ladder position
+    summarizes four answers -- low is never read as gaming, high is never read as honesty,
+    and a None value (feedback, pending S-18 per D-17(a) -- or any pre-S-31 row) is never
+    read as high. D-17(b): analyses upstream of S-18 may not filter or weight by these
+    values at all.
+    """
+    from assessment_form import scoring_key_version
+    from model import PersonDimensionScore
+
+    rows = PersonDimensionScore.query.filter_by(
+        user_id=user_id,
+        scoring_key_version=scoring_key_version(),
+    ).all()
+    if not rows:
+        return None
+    return {r.dimension_key: r.confidence for r in rows}

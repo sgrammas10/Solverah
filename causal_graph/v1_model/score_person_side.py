@@ -115,6 +115,107 @@ def score_all_dimensions(
     return {dim: score_choices(group, items_index)[0] for dim, group in sorted(by_dim.items())}
 
 
+# ---------------------------------------------------------------------------
+# D-17: person-side confidence = the Guttman error count e
+# ---------------------------------------------------------------------------
+# The five response patterns an honest ladder-climber can produce, in RUNG order
+# (easiest -> hardest). They map exactly onto build_model.PERSON_LATTICE.
+VALID_PREFIXES = ((0, 0, 0, 0), (1, 0, 0, 0), (1, 1, 0, 0), (1, 1, 1, 0), (1, 1, 1, 1))
+
+
+def guttman_error_count(pattern) -> int:
+    """e = minimum answer-flips from `pattern` to a valid Guttman prefix. e in {0, 1, 2}.
+
+    `pattern` is the four responses of ONE dimension, high pole = 1, in RUNG ORDER
+    (ascending difficulty_target) -- NOT in item-id order and NOT in the served order.
+    D-17's one-line justification: {1,1,0,0} and {0,1,0,1} both mean_pole to 0.5; the first
+    pins an honest respondent between rungs 2 and 3 (e=0), the second is indistinguishable
+    from coin-flipping (e=2). The score cannot tell them apart; e is exactly the
+    information it discards.
+    """
+    pattern = tuple(pattern)
+    if len(pattern) != ITEMS_PER_DIMENSION or any(v not in (0, 1) for v in pattern):
+        raise ValueError(
+            f"pattern must be {ITEMS_PER_DIMENSION} values of 0/1 in rung order, got "
+            f"{pattern!r}"
+        )
+    return min(sum(a != b for a, b in zip(pattern, p)) for p in VALID_PREFIXES)
+
+
+def confidence_from_error(e: int) -> float:
+    """The stored representation of e: 1 - e/2, i.e. {0: 1.0, 1: 0.5, 2: 0.0}.
+
+    Chosen because it is monotone, spans the stored confidence column's 0..1 CHECK range,
+    and is BIJECTIVE with e -- raw e is recoverable from any stored row, so this mapping
+    can be revised later by backfill from raw responses (D-16) without loss.
+    Semantics are D-17's, binding on every consumer: this describes how well a single
+    ladder position summarizes four answers. Low is never read as gaming; high is never
+    read as honesty.
+    """
+    if e not in (0, 1, 2):
+        raise ValueError(f"e must be 0, 1 or 2 over {ITEMS_PER_DIMENSION} items, got {e!r}")
+    return 1.0 - e / 2
+
+
+def error_counts_all_dimensions(
+    choices: dict, items_index: dict, *, items_per_dimension: int = ITEMS_PER_DIMENSION
+) -> dict:
+    """Given {item_id: chosen_key}, return {dimension: e} with e per guttman_error_count.
+
+    Rung order comes from each item's `difficulty_target`, ascending. That annotation is
+    design metadata everywhere else; HERE it is load-bearing -- D-17(c): reordering
+    difficulty_targets silently changes e for the same stored choices, which is why stored
+    confidence is only interpretable through scoring_key_version, and why this function
+    REFUSES an item file whose rung order is ambiguous (a missing or duplicated
+    difficulty_target within a dimension) rather than falling back to id order (D-07).
+
+    Same arity contract as score_all_dimensions: exactly four responses per dimension.
+    """
+    by_id = items_index["by_id"]
+    pole_values = items_index["pole_values"]
+
+    by_dim: dict[str, list] = {}
+    for item_id, chosen_key in choices.items():
+        item = by_id.get(item_id)
+        if item is None:
+            raise ValueError(f"Unknown item id {item_id!r} -- not in the active item file")
+        opt = next((o for o in item["options"] if o["key"] == chosen_key), None)
+        if opt is None:
+            raise ValueError(f"Item {item_id} has no option {chosen_key!r}")
+        difficulty = item.get("difficulty_target")
+        if difficulty is None:
+            raise ValueError(
+                f"Item {item_id} has no difficulty_target -- rung order is undefined, so e "
+                f"is undefined. Refusing to fall back to id order (D-07/D-17(c))."
+            )
+        bit = pole_values[opt["pole"]]
+        if bit not in (0, 0.0, 1, 1.0):
+            raise ValueError(
+                f"pole_values maps {opt['pole']!r} to {bit!r}; e is defined over binary "
+                f"poles only"
+            )
+        by_dim.setdefault(item["dimension"], []).append((difficulty, item_id, int(bit)))
+
+    wrong = {d: len(g) for d, g in by_dim.items() if len(g) != items_per_dimension}
+    if wrong:
+        raise ValueError(
+            f"expected exactly {items_per_dimension} responses per dimension (D-02); got "
+            f"{wrong}. e over any other count is not the D-17 measure. Refusing."
+        )
+
+    out = {}
+    for dim, group in sorted(by_dim.items()):
+        difficulties = [d for d, _, _ in group]
+        if len(set(difficulties)) != len(difficulties):
+            raise ValueError(
+                f"dimension {dim!r} has duplicated difficulty_target values "
+                f"{sorted(difficulties)} -- rung order is ambiguous, e is undefined (D-17(c))"
+            )
+        group.sort()  # ascending difficulty_target = rung order
+        out[dim] = guttman_error_count([bit for _, _, bit in group])
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--pairs", default="vignette_probes/pairs/vignette_probe_pairs_v1.yaml")

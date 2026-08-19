@@ -25,6 +25,8 @@ def _fake_submission(scoring_key_version: str):
         scoring_key_version=scoring_key_version,
         scores={d: 0.5 for d in dims},
         choices=choices,
+        # Shaped like the real thing: five graded dimensions, feedback None (D-17(a)).
+        confidences={d: (None if d == "feedback" else 1.0) for d in dims},
     )
 
 

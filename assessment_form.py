@@ -67,10 +67,16 @@ from present_items import (  # noqa: E402
     build_form,
     resolve_responses,
 )
-from score_person_side import load_items, score_all_dimensions  # noqa: E402
+from score_person_side import (  # noqa: E402
+    confidence_from_error,
+    error_counts_all_dimensions,
+    load_items,
+    score_all_dimensions,
+)
 
 __all__ = [
     "AssessmentError",
+    "CONFIDENCE_PENDING_DIMENSIONS",
     "PresentationContractError",
     "ScoredSubmission",
     "get_form",
@@ -82,6 +88,17 @@ __all__ = [
 # 6 dimensions x 4 items. Asserted against the built form rather than trusted, because a
 # client posting a short set is the one thing the token scheme does not already catch.
 EXPECTED_RESPONSE_COUNT = 24
+
+# D-17(a): feedback's stored confidence stays NULL pending S-18's outcome. Feedback's ladder
+# grades two variables (delay, then audience), so under two-factor structure prefix
+# conformity is wrong in BOTH directions for exactly the pre-registered rule-6 respondents:
+# {1,1,0,0} is a confidently-wrong 0.5 and {1,1,0,1} penalizes an honest answer. e is still
+# COMPUTABLE for feedback (error_counts_all_dimensions returns it; S-18's analysis runs on
+# raw rows anyway per D-17(b)) -- it just must not be STORED as if it meant what it means
+# elsewhere. If S-18 comes back null, remove feedback from this set and backfill from raw
+# responses (D-16). If S-18 confirms, the fix is instrument surgery, not a special-cased
+# formula.
+CONFIDENCE_PENDING_DIMENSIONS = frozenset({"feedback"})
 
 
 class AssessmentError(ValueError):
@@ -104,6 +121,11 @@ class ScoredSubmission:
     scoring_key_version: str
     scores: dict[str, float]
     choices: dict[str, str]
+    # D-17: per-dimension stored confidence -- confidence_from_error(e) for five dimensions,
+    # None for CONFIDENCE_PENDING_DIMENSIONS (feedback, per D-17(a)). Required, no default:
+    # a submission that silently persisted NULL confidence everywhere would be
+    # indistinguishable from the pre-S-31 rows it is supposed to improve on.
+    confidences: dict[str, float | None]
 
 
 def scoring_key_version(items_path: Path | str = DEFAULT_ITEMS_PATH) -> str:
@@ -192,12 +214,24 @@ def submit_form(
     items_index = load_items(Path(items_path))
     try:
         scores = score_all_dimensions(choices, items_index)
+        errors = error_counts_all_dimensions(choices, items_index)
     except ValueError as exc:
         raise AssessmentError(str(exc)) from exc
+
+    if set(errors) != set(scores):  # same grouping, same arity contract -- must agree
+        raise AssessmentError(
+            f"score and confidence disagree on the dimension set: "
+            f"{sorted(scores)} vs {sorted(errors)}"
+        )
+    confidences = {
+        dim: (None if dim in CONFIDENCE_PENDING_DIMENSIONS else confidence_from_error(e))
+        for dim, e in errors.items()
+    }
 
     return ScoredSubmission(
         form_version=items_index["form_version"],
         scoring_key_version=scoring_key_version(items_path),
         scores=scores,
         choices=choices,
+        confidences=confidences,
     )

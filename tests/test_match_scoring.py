@@ -261,6 +261,7 @@ def _fake_submission(scoring_key_version: str):
         scoring_key_version=scoring_key_version,
         scores={d: 0.25 * i for i, d in enumerate(DIMS[:5], 0)} | {"decision": 0.5},
         choices=choices,
+        confidences={d: (None if d == "feedback" else 1.0) for d in DIMS},
     )
 
 
