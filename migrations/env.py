@@ -4,6 +4,8 @@ import os
 import sys
 from pathlib import Path
 
+from logging.config import fileConfig
+
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
@@ -14,6 +16,13 @@ if str(PROJECT_ROOT) not in sys.path:
 from model import db
 
 config = context.config
+
+# S-38: without this, alembic.ini's [logger_alembic] section is never applied and every
+# migration runs silently -- success and no-op are indistinguishable from the output,
+# including during a deploy. alembic.ini has carried the full logging config all along;
+# this line is what was missing.
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
 
 database_url = os.environ.get("DATABASE_URL")
 if database_url:
