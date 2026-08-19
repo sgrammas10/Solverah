@@ -29,153 +29,29 @@ os.environ.setdefault("PYTENSOR_FLAGS", "cxx=")
 
 import numpy as np
 import pymc as pm
-import yaml
 import arviz as az
 
-MODEL_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# ---------------------------------------------------------------------------
-# Achievable-band lattices -- see lattice_gap_analysis.py, section A ("the pole
-# penalty"). Person-side answers come off a 4-item mean_pole ladder with 5 possible
-# values; env-side (company) scores are the mean of N_RUNS band draws from
-# {0.1, 0.3, 0.5, 0.7, 0.9} and can therefore never fall below 0.1 or above 0.9.
-# Deliberately duplicated here rather than imported from lattice_gap_analysis.py: that
-# script is a frozen, side-effect-executing analysis snapshot (importing it re-runs the
-# whole printed report), not a library. If BAND_VALUES or N_RUNS ever change, the two
-# copies have to be reconciled by hand -- that's a smaller risk than a production model
-# depending on an analysis script's module-level prints.
-# ---------------------------------------------------------------------------
-PERSON_LATTICE = np.array([0.0, 0.25, 0.5, 0.75, 1.0])
-BAND_VALUES = np.array([0.1, 0.3, 0.5, 0.7, 0.9])
-N_RUNS = 5
-
-
-def _company_lattice():
-    import itertools
-    vals = {round(float(np.mean(c)), 6)
-            for c in itertools.combinations_with_replacement(BAND_VALUES, N_RUNS)}
-    return np.array(sorted(vals))
-
-
-COMPANY_LATTICE = _company_lattice()
-
-
-def closest_achievable(value, lattice=COMPANY_LATTICE):
-    """Nearest value on `lattice` to `value` (elementwise; scalars, lists or arrays).
-    numpy-only -- never call this on a pytensor/pm.Data symbolic value (see fit_gap()).
-    """
-    value = np.asarray(value, dtype=float)
-    lattice = np.asarray(lattice, dtype=float)
-    return lattice[np.abs(value[..., None] - lattice).argmin(-1)]
-
-
-# ---------------------------------------------------------------------------
-# Load structure + numbers separately (the whole point of the split)
-# ---------------------------------------------------------------------------
-def load(cfg_path=None, pri_path=None):
-    cfg_path = cfg_path or os.path.join(MODEL_DIR, "solverah_model_config.yaml")
-    pri_path = pri_path or os.path.join(MODEL_DIR, "priors.yaml")
-    with open(cfg_path) as f:
-        cfg = yaml.safe_load(f)
-    with open(pri_path) as f:
-        pri = yaml.safe_load(f)
-    return cfg, pri
-
-
-def active(items):
-    return [x for x in items if x.get("active")]
-
-
-# ---------------------------------------------------------------------------
-# Deterministic Fit layer: signed gap
-# ---------------------------------------------------------------------------
-def fit_gap(person_score, env_score, snap_person=True):
-    """Signed gap, range -1..1.
-
-    snap_person=True (the fix, default): person_score is first replaced by its closest
-    achievable value on COMPANY_LATTICE. Without this, a person at either pole of their
-    own 5-point ladder is compared against an env scale that structurally cannot reach
-    past [0.1, 0.9] -- so even a PERFECTLY matched pole candidate carries a permanent
-    |gap| floor of ~0.10 per dimension that a mid-scale candidate never pays. Across six
-    dimensions that floor alone costs a decisive candidate 45% of their odds against an
-    identically well-matched mid candidate (lattice_gap_analysis.py, section A). A
-    mid-scale person's closest achievable value barely moves, so genuine gaps are not
-    inflated by this -- only the structural pole penalty is removed.
-
-    snap_person=False: raw signed difference, no correction. Required for pytensor/pm.Data
-    symbolic inputs inside build_model()'s pm.Model() context, where the snap has already
-    been applied in plain numpy before the value became pm.Data (closest_achievable() is
-    numpy-only and cannot run on a symbolic tensor). Also useful for reproducing the old,
-    unfixed behavior directly for comparison.
-    """
-    if snap_person:
-        person_score = closest_achievable(person_score)
-    return person_score - env_score
-
-
-# ---------------------------------------------------------------------------
-# Preprocess raw confounder values into what outcome_logit expects:
-#   continuous  -> standardized with a FIXED {mean, sd} from config (fixed,
-#                  not batch-computed, so a single-row prediction doesn't
-#                  divide by an undefined std, and fit-time/predict-time
-#                  scaling always agree)
-#   categorical -> integer level-index array (for indexing a per-level
-#                  weight vector)
-# Called from both build_model() and the synthetic-data generator in
-# sanity_check(), so the two can never apply different preprocessing.
-# ---------------------------------------------------------------------------
-def preprocess_conf(conf, cfg):
-    out = {}
-    for c in active(cfg["confounders"]):
-        if not c.get("measurable"):
-            continue
-        k = c["key"]
-        raw = conf[k]
-        if c.get("kind") == "categorical":
-            levels = c["levels"]
-            out[k] = np.array([levels.index(v) for v in raw], dtype="int64")
-        else:
-            scale = c["scale"]
-            out[k] = (np.asarray(raw, dtype=float) - scale["mean"]) / scale["sd"]
-    return out
-
-
-# ---------------------------------------------------------------------------
-# Outcome: logistic linear predictor built from config + weights
-#   person, env : dict {dim_key: array, length N}
-#   conf        : dict {confounder_key: array, length N} -- pre-processed
-#                 (see preprocess_conf); continuous = standardized value,
-#                 categorical = integer level index
-#   weights     : same nested shape as priors.yaml (intercept,
-#                 dimensions[k]["mag"/"dir"], confounders[k]) but every leaf
-#                 is a PyMC RV (inside a model) or a plain float/array (for
-#                 the synthetic data-generating process below) -- the
-#                 arithmetic here (+, -, *, abs, indexing) doesn't care which.
-# ---------------------------------------------------------------------------
-def outcome_logit(person, env, conf, cfg, weights, snap_person=True):
-    feats = cfg["settings"]["gap_features"]     # e.g. ["mag", "dir"]
-    z = weights["intercept"]
-
-    for d in active(cfg["dimensions"]):
-        k = d["key"]
-        g = fit_gap(person[k], env[k], snap_person=snap_person)
-        w = weights["dimensions"][k]
-        if "mag" in feats:
-            z += w["mag"] * abs(g)              # any mismatch hurts (symmetric)
-        if "dir" in feats:
-            z += w["dir"] * g                   # directional asymmetry
-
-    for c in active(cfg["confounders"]):
-        if not c.get("measurable"):
-            continue                            # unmeasurable -> not a term
-        k = c["key"]
-        w = weights["confounders"][k]
-        if c.get("kind") == "categorical":
-            z += w[conf[k]]                     # one weight per level
-        else:
-            z += w * conf.get(k, 0.0)
-
-    return z
+# The deterministic core -- lattices, gap correction, confounder preprocessing, and THE
+# linear predictor -- lives in match_core.py so the app can serve predictions without
+# importing PyMC (S-45 item 6, 2026-08-19). It is imported (not duplicated) here, and
+# re-exported under the original names so existing consumers (recovery_multiseed.py's
+# `import build_model as bm`, run_vignette_probe, analysis scripts) keep working
+# unchanged. Do NOT redefine any of these names in this file: two implementations of the
+# same formula is how they diverge, and tests/test_match_scoring.py asserts this file
+# does not grow its own copies.
+from match_core import (  # noqa: F401  (re-exports are the compatibility surface)
+    BAND_VALUES,
+    COMPANY_LATTICE,
+    MODEL_DIR,
+    N_RUNS,
+    PERSON_LATTICE,
+    active,
+    closest_achievable,
+    fit_gap,
+    load,
+    outcome_logit,
+    preprocess_conf,
+)
 
 
 def p_fit(person, env, conf, cfg, weights, snap_person=True):

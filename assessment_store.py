@@ -37,7 +37,12 @@ import uuid
 
 from assessment_form import ScoredSubmission
 
-__all__ = ["has_completed_assessment", "persist_submission", "respondent_id_for_user"]
+__all__ = [
+    "get_dimension_scores",
+    "has_completed_assessment",
+    "persist_submission",
+    "respondent_id_for_user",
+]
 
 
 def respondent_id_for_user(user_id: int, secret: bytes | None = None) -> str:
@@ -136,3 +141,33 @@ def has_completed_assessment(user_id: int) -> bool:
         ).first()
         is not None
     )
+
+
+def get_dimension_scores(user_id: int) -> dict[str, float] | None:
+    """The user's current dimension scores, {dimension_key: score}, or None.
+
+    THE sanctioned read for match scoring (decided with Sebastian 2026-08-19): the match
+    pipeline consumes a person's profile through this function, keeping the
+    test_employer_visibility.py allowlist closed -- match_scoring.py takes plain dicts
+    and never touches the person-side tables itself. What leaves this function is
+    already the full D-01-sensitive object, so every caller inherits D-01's constraint:
+    scores feed the model; they are never surfaced to an employer, and anything shown
+    anywhere is a match RESULT.
+
+    Keyed to the CURRENT scoring_key_version, same reasoning as
+    has_completed_assessment: scores from a superseded instrument are not comparable to
+    company scores calibrated against the current one. None means "no current profile"
+    -- an ordinary state (new user, or instrument changed), not an error. Consumers must
+    treat None as "cannot be matched yet", never as a zero/default profile (D-07);
+    match_core refuses a partial dimension dict for the same reason.
+    """
+    from assessment_form import scoring_key_version
+    from model import PersonDimensionScore
+
+    rows = PersonDimensionScore.query.filter_by(
+        user_id=user_id,
+        scoring_key_version=scoring_key_version(),
+    ).all()
+    if not rows:
+        return None
+    return {r.dimension_key: r.score for r in rows}
