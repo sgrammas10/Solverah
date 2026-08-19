@@ -52,6 +52,7 @@ import GuestQuizInsights from "./pages/GuestQuizInsights";
 import AgentChat from "./pages/AgentChat";
 import CareerIntakePage from "./pages/CareerIntakePage";
 import WorkPulsePage from "./pages/WorkPulsePage";
+import AssessmentPage from "./pages/AssessmentPage";
 import WorkPulseResultsPage from "./pages/WorkPulseResultsPage";
 import FocusTypePage from "./pages/FocusTypePage";
 import FocusTypeResultsPage from "./pages/FocusTypeResultsPage";
@@ -274,6 +275,17 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <QuizInsights />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Person-side culture assessment (S-01). Items are served per respondent --
+                  never bundled into the client -- so this route must stay authenticated. */}
+              <Route
+                path="/assessment"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
+                    <AssessmentPage />
                   </ProtectedRoute>
                 }
               />
