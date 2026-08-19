@@ -186,3 +186,96 @@ class IntakeSubmission(db.Model):
     resume_size_bytes = db.Column(db.Integer, nullable=False)
     status = db.Column(db.String(50), nullable=False, default="uploaded")
     created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# Person side of the culture-fit instrument (causal_graph/v1_model)
+# ---------------------------------------------------------------------------
+# These two tables are the minimum subset of causal_graph/v1_model/schema.sql needed to
+# persist a completed assessment. The rest of that file -- notably its own `company` table,
+# which collides with `Company` above -- is deliberately NOT migrated here; reconciling the
+# two schemas is its own piece of work (S-07).
+#
+# `person_id` in schema.sql is `user_id` here, referencing the application's User directly.
+# schema.sql's separate `person` table buys an indirection whose only justification is a
+# respondent who exists without an account, and the 2026-08-18 funnel decision rules that out:
+# the respondent is a signed-up user self-profiling after account creation. Adding the
+# indirection later is a migration; removing it later would be a data migration.
+
+
+class AssessmentResponse(db.Model):
+    """One raw answer to one person-side item. Append-only.
+
+    Raw responses are never updated or deleted, because the scoring key can change and a
+    stored score must stay re-derivable from what the respondent actually chose. A retake
+    writes a fresh set of rows under a new `submission_id` rather than overwriting.
+
+    `submission_id` has no counterpart in schema.sql and is an addition. Without it the only
+    way to recover which 24 rows constitute one sitting is to group by
+    (user_id, form_version, answered_at), which breaks on a retake inside the same second,
+    on clock skew between workers, and on any future partial-save feature. A submission is a
+    real entity; giving it an id is cheaper than inferring it forever.
+    """
+
+    __tablename__ = "assessment_response"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    submission_id = db.Column(db.String(36), nullable=False, index=True)
+    item_id = db.Column(db.String(64), nullable=False)
+    choice = db.Column(db.String(8), nullable=False)
+    form_version = db.Column(db.String(64), nullable=False)
+    answered_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+
+    __table_args__ = (
+        # One answer per item per submission. A duplicate would change mean_pole's
+        # denominator, which is the same class of silent corruption resolve_responses
+        # refuses at the token layer.
+        db.UniqueConstraint("submission_id", "item_id", name="uq_response_submission_item"),
+    )
+
+    user = db.relationship("User", backref="assessment_responses")
+
+
+class PersonDimensionScore(db.Model):
+    """Derived 0..1 score for one person on one dimension, under one scoring key.
+
+    NOT EMPLOYER-VISIBLE. D-01 commits that employers never see an individual's answers or
+    six dimension scores; if an employer ever sees anything it is a match result. That
+    commitment is enforced as a test rather than as a comment -- see S-02. This docstring is
+    a signpost, not the control.
+
+    `scoring_key_version` identifies the item file AND the scoring method together, because
+    a score is only comparable to another score derived from both. Changing either produces
+    a new key version and a new row rather than silently replacing the old value.
+    """
+
+    __tablename__ = "person_dimension_score"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    dimension_key = db.Column(db.String(32), nullable=False)
+    score = db.Column(db.Float, nullable=False)
+    # Internal consistency of the four items. Nullable because the confidence measure is not
+    # built yet -- a placeholder 1.0 would be indistinguishable from a real high-confidence
+    # result once stored, so the column stays honest about not knowing.
+    confidence = db.Column(db.Float, nullable=True)
+    scoring_key_version = db.Column(db.String(64), nullable=False)
+    # Which sitting produced the current value. The score row is updated in place on a retake
+    # under the same key version; this records which raw submission it came from.
+    submission_id = db.Column(db.String(36), nullable=False)
+    scored_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "user_id", "dimension_key", "scoring_key_version",
+            name="uq_pscore_person_dim_keyversion",
+        ),
+        db.CheckConstraint("score >= 0 AND score <= 1", name="ck_pscore_score_range"),
+        db.CheckConstraint(
+            "confidence IS NULL OR (confidence >= 0 AND confidence <= 1)",
+            name="ck_pscore_confidence_range",
+        ),
+    )
+
+    user = db.relationship("User", backref="dimension_scores")
