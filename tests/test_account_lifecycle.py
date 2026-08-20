@@ -41,20 +41,37 @@ def _register_and_login(client, monkeypatch, email="lifecycle@example.com",
 
 
 def _seed_assessment_rows(user_id):
-    """Plant assessment data so retention-after-deletion is actually testable."""
+    """Plant a sitting so retention-after-deletion is actually testable.
+
+    Written through assessment_store, not by constructing rows here. D-01 keeps the
+    person-side tables off-limits outside that module (tests/test_employer_visibility.py),
+    and a test that hand-builds the rows is also free to build ones the real write path
+    cannot produce — which is how this file first missed the NOT NULL submission_id that
+    persist_submission has always supplied.
+    """
     from app import app
-    from model import AssessmentResponse, PersonDimensionScore, db
+    from assessment_form import ScoredSubmission
+    from assessment_store import persist_submission
+    from model import db
 
     with app.app_context():
-        db.session.add(AssessmentResponse(
-            user_id=user_id, submission_id="sub-test-1", item_id="au1v2",
-            choice="A", form_version="v2-2026-08-18",
-        ))
-        db.session.add(PersonDimensionScore(
-            user_id=user_id, dimension_key="autonomy", score=0.75,
-            confidence=1.0, scoring_key_version="v2-2026-08-18+mean_pole",
+        persist_submission(db, user_id, ScoredSubmission(
+            form_version="v2-2026-08-18",
+            scoring_key_version="v2-2026-08-18+mean_pole",
+            scores={"autonomy": 0.75},
+            choices={"au1v2": "A"},
+            confidences={"autonomy": 1.0},
         ))
         db.session.commit()
+
+
+def _person_side(user_id):
+    """What the person-side tables still hold, read through the sanctioned doorway."""
+    from app import app
+    from assessment_store import export_person_side
+
+    with app.app_context():
+        return export_person_side(user_id)
 
 
 # ── Export ───────────────────────────────────────────────────────────────────
@@ -67,7 +84,7 @@ def test_export_returns_all_identified_data(client, monkeypatch):
     assert res.status_code == 200
     payload = res.get_json()
     assert payload["account"]["email"] == "lifecycle@example.com"
-    assert payload["assessment_responses"][0]["item_id"] == "au1v2"
+    assert payload["assessment_answers"][0]["item_id"] == "au1v2"
     assert payload["dimension_scores"][0]["dimension"] == "autonomy"
 
 
@@ -102,7 +119,7 @@ def test_delete_tombstones_user_and_purges_pii(client, monkeypatch):
     assert res.status_code == 200
 
     from app import app
-    from model import AssessmentResponse, PersonDimensionScore, User, db
+    from model import User, db
 
     with app.app_context():
         user = db.session.get(User, user_id)
@@ -115,9 +132,10 @@ def test_delete_tombstones_user_and_purges_pii(client, monkeypatch):
         # The old password can never verify again (not a bcrypt hash at all)
         assert user.password.startswith("!deleted!")
 
-        # THE decided reconciliation: research rows survive, de-identified
-        assert AssessmentResponse.query.filter_by(user_id=user_id).count() == 1
-        assert PersonDimensionScore.query.filter_by(user_id=user_id).count() == 1
+    # THE decided reconciliation: research rows survive, de-identified
+    surviving = _person_side(user_id)
+    assert len(surviving["answers"]) == 1
+    assert len(surviving["dimension_scores"]) == 1
 
 
 def test_delete_removes_dependent_personal_rows(client, monkeypatch):

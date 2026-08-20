@@ -38,6 +38,7 @@ import uuid
 from assessment_form import ScoredSubmission
 
 __all__ = [
+    "export_person_side",
     "get_dimension_confidences",
     "get_dimension_scores",
     "has_completed_assessment",
@@ -203,3 +204,58 @@ def get_dimension_confidences(user_id: int) -> dict[str, float | None] | None:
     if not rows:
         return None
     return {r.dimension_key: r.confidence for r in rows}
+
+
+def export_person_side(user_id: int) -> dict[str, list[dict]]:
+    """Every person-side row we hold for one user, as plain dicts.
+
+    THE doorway for account-rights requests -- GDPR/CCPA access, portability, and the
+    "what survives deletion" assertions that go with them. account_lifecycle.py calls
+    this instead of importing the models: an export endpoint is precisely the module
+    that would otherwise widen the tests/test_employer_visibility.py allowlist, and D-01
+    keeps that list closed. Adding account_lifecycle.py to ALLOWED is the wrong fix.
+
+    Deliberately NOT keyed to the current scoring_key_version, unlike
+    get_dimension_scores. Those reads answer "what can be consumed now", so a superseded
+    instrument correctly drops out. A subject-access request asks a different question --
+    what do you HOLD about me -- and a version filter there would silently return an
+    incomplete answer to a legal request (D-07: never degrade to a quiet default).
+
+    Returns plain dicts rather than ORM rows on purpose: the caller cannot navigate back
+    to the tables through the objects it was handed, so the doorway stays a doorway.
+    """
+    from model import AssessmentResponse, PersonDimensionScore
+
+    answers = (
+        AssessmentResponse.query.filter_by(user_id=user_id)
+        .order_by(AssessmentResponse.answered_at, AssessmentResponse.id)
+        .all()
+    )
+    scores = (
+        PersonDimensionScore.query.filter_by(user_id=user_id)
+        .order_by(PersonDimensionScore.dimension_key)
+        .all()
+    )
+    return {
+        "answers": [
+            {
+                "submission_id": a.submission_id,
+                "item_id": a.item_id,
+                "choice": a.choice,
+                "form_version": a.form_version,
+                "answered_at": a.answered_at.isoformat() if a.answered_at else None,
+            }
+            for a in answers
+        ],
+        "dimension_scores": [
+            {
+                "dimension": s.dimension_key,
+                "score": s.score,
+                "confidence": s.confidence,
+                "scoring_key_version": s.scoring_key_version,
+                "submission_id": s.submission_id,
+                "scored_at": s.scored_at.isoformat() if s.scored_at else None,
+            }
+            for s in scores
+        ],
+    }

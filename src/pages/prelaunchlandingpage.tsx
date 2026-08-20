@@ -135,9 +135,9 @@ function PrelaunchLandingPage() {
               {[
                 { stat: "Human-Led", label: "Every submission reviewed by a person, not an algorithm" },
                 { stat: "Context-First", label: "We read your full picture, not just your last title" },
-                {/* Claim aligned with practice 2026-08-20 (GAP-02): both halves are
-                    true and enforced — no data sales, and the employer-visibility
-                    test suite (D-01) guarantees the second half. */}
+                /* Claim aligned with practice 2026-08-20 (GAP-02): both halves are
+                   true and enforced — no data sales, and the employer-visibility
+                   test suite (D-01) guarantees the second half. */
                 { stat: "Private by Design", label: "Your data is never sold — and never shown to employers" },
               ].map(({ stat, label }) => (
                 <div key={stat} className="flex flex-col items-center text-center sm:px-8">

@@ -8,16 +8,19 @@ Implements the D-16 reconciliation decided by Sebastian on 2026-08-20
     governs scoring integrity (no silent edits to raw responses); it does not
     require keeping the link between responses and an identifiable person.
 
-Deletion strategy — "tombstone", chosen over hard row deletion so that
-``assessment_response.user_id``'s NOT NULL foreign key stays intact without a
-schema migration:
+Deletion strategy — "tombstone", chosen over hard row deletion so that the
+person-side tables' NOT NULL user_id foreign key stays intact without a schema
+migration:
 
     * The ``user`` row is kept but scrubbed of every personal field
       (email -> ``deleted-<id>@tombstone.invalid``, random unusable password
       hash, name/profile/tokens cleared, ``deleted_at`` marker inside
       ``profile_data``).
-    * ``AssessmentResponse`` / ``PersonDimensionScore`` rows survive, linked
-      only to the tombstone id — de-identified research data.
+    * The person-side response and dimension-score rows survive, linked only to
+      the tombstone id — de-identified research data. This module never touches
+      those two tables directly; it reads them through assessment_store, the
+      single auditable doorway D-01 keeps the allowlist closed around (see
+      tests/test_employer_visibility.py).
     * Everything else that contains personal content is destroyed:
       ``UserIntake`` (legacy quiz results + narratives), ``JobRecommendation``,
       ``ResumeParseCorrection`` (parsed resume content is PII),
@@ -39,11 +42,10 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required, unset_jwt_cookies
 from sqlalchemy import func
 
+from assessment_store import export_person_side
 from model import (
-    AssessmentResponse,
     IntakeSubmission,
     JobRecommendation,
-    PersonDimensionScore,
     ResumeParseCorrection,
     User,
     UserIntake,
@@ -57,6 +59,16 @@ _TOMBSTONE_DOMAIN = "tombstone.invalid"
 
 def _now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+
+def _current_user() -> User | None:
+    """The account behind the JWT.
+
+    The identity claim is the user's EMAIL — every ``create_access_token`` call in
+    app.py issues ``identity=user.email``. Parsing it as an id raised ValueError on
+    every authenticated call into this module.
+    """
+    return User.query.filter_by(email=get_jwt_identity()).first()
 
 
 def _collect_resume_keys(user: User, intakes: list[IntakeSubmission]) -> list[str]:
@@ -104,7 +116,7 @@ def _delete_r2_objects(keys: list[str]) -> list[str]:
 @jwt_required()
 def export_account_data():
     """GET /api/account/export — one JSON document of everything we hold."""
-    user = db.session.get(User, int(get_jwt_identity()))
+    user = _current_user()
     if user is None:
         return jsonify({"error": "User not found"}), 404
 
@@ -112,12 +124,7 @@ def export_account_data():
         func.lower(IntakeSubmission.email) == (user.email or "").lower()
     ).all()
     user_intake = UserIntake.query.filter_by(user_id=user.id).first()
-    responses = (
-        AssessmentResponse.query.filter_by(user_id=user.id)
-        .order_by(AssessmentResponse.answered_at)
-        .all()
-    )
-    scores = PersonDimensionScore.query.filter_by(user_id=user.id).all()
+    person_side = export_person_side(user.id)
     recommendations = JobRecommendation.query.filter_by(user_id=user.id).all()
 
     payload = {
@@ -157,25 +164,11 @@ def export_account_data():
             if user_intake
             else None
         ),
-        "assessment_responses": [
-            {
-                "submission_id": r.submission_id,
-                "item_id": r.item_id,
-                "choice": r.choice,
-                "form_version": r.form_version,
-                "answered_at": r.answered_at.isoformat() if r.answered_at else None,
-            }
-            for r in responses
-        ],
-        "dimension_scores": [
-            {
-                "dimension": s.dimension_key,
-                "score": s.score,
-                "confidence": s.confidence,
-                "scoring_key_version": s.scoring_key_version,
-            }
-            for s in scores
-        ],
+        # Keyed "assessment_answers" rather than after the table it comes from: the
+        # export is the subject's answers, and mirroring an internal table name into a
+        # public payload is how a schema detail becomes an API contract.
+        "assessment_answers": person_side["answers"],
+        "dimension_scores": person_side["dimension_scores"],
         "job_recommendations": [
             {"job_id": r.job_id, "score": r.score, "created_at": r.created_at.isoformat() if r.created_at else None}
             for r in recommendations
@@ -201,7 +194,7 @@ def delete_account():
     if data.get("confirm") != "DELETE":
         return jsonify({"error": 'Confirmation required: send {"confirm": "DELETE"}'}), 400
 
-    user = db.session.get(User, int(get_jwt_identity()))
+    user = _current_user()
     if user is None:
         return jsonify({"error": "User not found"}), 404
 
@@ -234,8 +227,9 @@ def delete_account():
     user.reset_token = None
     user.reset_sent_at = None
 
-    # 4. AssessmentResponse / PersonDimensionScore rows are deliberately kept —
-    #    de-identified via the tombstone (the decided D-16 reconciliation).
+    # 4. The person-side response and dimension-score rows are deliberately kept —
+    #    de-identified via the tombstone (the decided D-16 reconciliation). Nothing
+    #    to do here; that is the point of tombstoning instead of deleting the row.
 
     from app import log_audit_event  # noqa: PLC0415
 
