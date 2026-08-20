@@ -16,7 +16,7 @@ def _register_and_login(client, monkeypatch):
 
     client.post(
         "/api/register",
-        json={"email": "agent@example.com", "password": "Strongpass1!", "name": "Agent User", "role": "job-seeker"},
+        json={"email": "agent@example.com", "password": "Strongpass1!", "name": "Agent User", "role": "job-seeker", "terms_accepted": True},
     )
 
     # Confirm email so login succeeds

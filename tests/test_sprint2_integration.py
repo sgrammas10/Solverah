@@ -86,7 +86,7 @@ def test_sprint2_full_happy_path(client, monkeypatch):
 
     reg_res = client.post(
         "/api/register",
-        json={"email": email, "password": password, "name": "Sprint Two"},
+        json={"email": email, "password": password, "name": "Sprint Two", "terms_accepted": True},
     )
     assert reg_res.status_code == 201
 

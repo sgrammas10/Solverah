@@ -109,6 +109,12 @@ function AgentChat() {
         <div>
           <h1 className="font-display text-2xl font-bold text-ink-primary">Solverah AI</h1>
           <p className="text-sm text-ink-secondary mt-1">Your personal career assistant</p>
+          {/* AI-use disclosure (GAP-09, 2026-08-20): plain statement that this is
+              an AI, what it can see, and that it can be wrong. */}
+          <p className="text-xs text-ink-tertiary mt-1">
+            You're chatting with an AI. It uses your profile and resume to personalize
+            answers, and it can make mistakes — verify anything important.
+          </p>
         </div>
         {messages.length > 0 && (
           <button

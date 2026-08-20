@@ -43,7 +43,7 @@ def _register_and_login(client, monkeypatch, email="ft@example.com", password="S
     monkeypatch.setattr(app_module, "log_audit_event", lambda *a, **kw: None)
 
     client.post("/api/register", json={
-        "email": email, "password": password, "name": "FT User", "role": "job-seeker",
+        "email": email, "password": password, "name": "FT User", "role": "job-seeker", "terms_accepted": True,
     })
 
     from app import app

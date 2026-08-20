@@ -15,7 +15,7 @@ def _make_confirmed_user(client, monkeypatch):
     email = "reset@example.com"
     client.post(
         "/api/register",
-        json={"email": email, "password": "Strongpass1!", "name": "Reset User", "role": "job-seeker"},
+        json={"email": email, "password": "Strongpass1!", "name": "Reset User", "role": "job-seeker", "terms_accepted": True},
     )
 
     # Confirm email so the user can use password reset

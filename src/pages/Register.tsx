@@ -13,6 +13,7 @@ function Register() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -49,10 +50,14 @@ function Register() {
       setError('Password must contain a symbol');
       return;
     }
+    if (!termsAccepted) {
+      setError('Please confirm you are 16 or older and accept the Terms of Service and Privacy Policy');
+      return;
+    }
 
     setLoading(true);
     try {
-      await register(formData.email, formData.password, formData.name);
+      await register(formData.email, formData.password, formData.name, termsAccepted);
       navigate('/verify-email', {
         state: { email: formData.email, from: fromWpll ? 'wpll' : undefined },
       });
@@ -187,6 +192,28 @@ function Register() {
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+            </div>
+
+            <div className="flex items-start gap-2.5">
+              <input
+                id="termsAccepted"
+                name="termsAccepted"
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-cream-muted text-forest-dark focus:ring-2 focus:ring-forest-pale"
+              />
+              <label htmlFor="termsAccepted" className="text-sm text-ink-secondary leading-relaxed">
+                I am 16 or older and agree to the{' '}
+                <Link to="/terms" target="_blank" className="font-semibold text-forest-mid underline hover:text-forest-dark transition-colors">
+                  Terms of Service
+                </Link>{' '}
+                and{' '}
+                <Link to="/privacy" target="_blank" className="font-semibold text-forest-mid underline hover:text-forest-dark transition-colors">
+                  Privacy Policy
+                </Link>
+                .
+              </label>
             </div>
 
             <button

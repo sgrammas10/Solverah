@@ -62,6 +62,8 @@ import CompanyLensPage from "./pages/CompanyLensPage";
 import ManagerMatchPage from "./pages/ManagerMatchPage";
 import ManagerMatchResultsPage from "./pages/ManagerMatchResultsPage";
 import PathIntelligencePage from "./pages/PathIntelligencePage";
+import LegalPage from "./pages/LegalPage";
+import HowMatchingWorksPage from "./pages/HowMatchingWorksPage";
 
 /**
  * ProtectedRoute — Wraps a route element with authentication and role checks.
@@ -155,6 +157,10 @@ function App() {
               <Route path="/start" element={<CareerIntakePage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              {/* Legal + transparency (public) */}
+              <Route path="/privacy" element={<LegalPage doc="privacy" />} />
+              <Route path="/terms" element={<LegalPage doc="terms" />} />
+              <Route path="/how-matching-works" element={<HowMatchingWorksPage />} />
               <Route path="/verify-email" element={<ConfirmEmail />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/forgot-password/verify" element={<ForgotPasswordVerify />} />

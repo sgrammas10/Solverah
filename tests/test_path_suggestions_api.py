@@ -52,7 +52,7 @@ def _register_and_login(client, monkeypatch, email="paths@example.com", password
 
     client.post(
         "/api/register",
-        json={"email": email, "password": password, "name": "Path User", "role": "job-seeker"},
+        json={"email": email, "password": password, "name": "Path User", "role": "job-seeker", "terms_accepted": True},
     )
 
     from app import app

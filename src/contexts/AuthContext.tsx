@@ -144,17 +144,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return userData;
   };
 
-  // REGISTER — then user logs in normally
+  // REGISTER — then user logs in normally.
+  // termsAccepted: ToS/Privacy acceptance + 16+ attestation, required by the
+  // backend; the accepted TERMS_VERSION is recorded server-side as evidence.
   const register = async (
     email: string,
     password: string,
     name: string,
+    termsAccepted: boolean,
   ) => {
+    const { TERMS_VERSION } = await import("../data/legal");
     const res = await fetch(`${API_BASE}/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ email, password, name, role: "job-seeker" }),
+      body: JSON.stringify({
+        email,
+        password,
+        name,
+        role: "job-seeker",
+        terms_accepted: termsAccepted,
+        terms_version: TERMS_VERSION,
+      }),
     });
 
     const data = await res.json();

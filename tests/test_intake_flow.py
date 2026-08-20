@@ -15,7 +15,7 @@ def _register_and_confirm(client, monkeypatch, email="flow@example.com", passwor
 
     client.post(
         "/api/register",
-        json={"email": email, "password": password, "name": "Flow User", "role": "job-seeker"},
+        json={"email": email, "password": password, "name": "Flow User", "role": "job-seeker", "terms_accepted": True},
     )
 
     from app import app

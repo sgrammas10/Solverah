@@ -26,11 +26,23 @@ def init_rate_limiter(app) -> Limiter:
         The configured ``Limiter`` object (attach ``@limiter.limit(...)`` to
         individual routes that need stricter or looser bounds).
     """
+    import os
+
+    # memory:// counts per-process: with multiple gunicorn workers each worker
+    # keeps its own counters and every deploy resets them, so effective limits
+    # are N-workers times looser than configured. Set RATELIMIT_STORAGE_URI
+    # (e.g. a Render Redis URL) in production for real shared limits.
+    storage_uri = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
+    if storage_uri == "memory://" and os.environ.get("APP_ENV") == "production":
+        app.logger.warning(
+            "Rate limiting uses in-memory storage in production: limits are "
+            "per-worker and reset on deploy. Set RATELIMIT_STORAGE_URI."
+        )
     limiter = Limiter(
         get_remote_address,
         app=app,
         default_limits=["200 per day", "50 per hour"],
-        storage_uri="memory://",
+        storage_uri=storage_uri,
     )
 
     @limiter.request_filter

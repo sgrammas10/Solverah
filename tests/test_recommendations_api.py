@@ -13,7 +13,7 @@ def _register_and_login(client, monkeypatch):
 
     client.post(
         "/api/register",
-        json={"email": "recs@example.com", "password": "Strongpass1!", "name": "Recs User", "role": "job-seeker"},
+        json={"email": "recs@example.com", "password": "Strongpass1!", "name": "Recs User", "role": "job-seeker", "terms_accepted": True},
     )
 
     from app import app

@@ -35,11 +35,15 @@ async function fillAndSubmit({
   email = "test@example.com",
   password = "ValidPass123!",
   confirmPassword = "ValidPass123!",
+  acceptTerms = true,
 } = {}) {
   fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: name } });
   fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: email } });
   fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: password } });
   fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: confirmPassword } });
+  if (acceptTerms) {
+    fireEvent.click(screen.getByLabelText(/16 or older/i));
+  }
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: /create account/i }));
   });
@@ -84,6 +88,15 @@ describe("Register - validation", () => {
     await fillAndSubmit({ password: "NoSymbol12345678", confirmPassword: "NoSymbol12345678" });
     expect(screen.getByText(/symbol/i)).toBeInTheDocument();
   });
+
+  // GAP-01/GAP-05 (2026-08-20): registration requires ToS/privacy acceptance
+  // + 16+ attestation. This test fails if the checkbox gate is removed.
+  it("blocks submission and never calls register when terms are not accepted", async () => {
+    renderRegister();
+    await fillAndSubmit({ acceptTerms: false });
+    expect(screen.getByText(/16 or older and accept the Terms/i)).toBeInTheDocument();
+    expect(mocks.register).not.toHaveBeenCalled();
+  });
 });
 
 // ─── happy path ────────────────────────────────────────────────────────────────
@@ -96,7 +109,8 @@ describe("Register - happy path", () => {
     expect(mocks.register).toHaveBeenCalledWith(
       "test@example.com",
       "ValidPass123!",
-      "Test User"
+      "Test User",
+      true
     );
     expect(mocks.navigate).toHaveBeenCalledWith("/verify-email", {
       state: { email: "test@example.com", from: undefined },
@@ -158,6 +172,7 @@ describe("Register - loading state", () => {
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: "ValidPass123!" } });
     fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: "ValidPass123!" } });
+    fireEvent.click(screen.getByLabelText(/16 or older/i));
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /create account/i }));
     });

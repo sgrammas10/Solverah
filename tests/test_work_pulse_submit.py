@@ -51,7 +51,7 @@ def _register_and_login(client, monkeypatch, email="wp@example.com", password="S
 
     client.post(
         "/api/register",
-        json={"email": email, "password": password, "name": "WP User", "role": "job-seeker"},
+        json={"email": email, "password": password, "name": "WP User", "role": "job-seeker", "terms_accepted": True},
     )
 
     from app import app

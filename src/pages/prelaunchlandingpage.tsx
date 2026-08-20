@@ -135,7 +135,10 @@ function PrelaunchLandingPage() {
               {[
                 { stat: "Human-Led", label: "Every submission reviewed by a person, not an algorithm" },
                 { stat: "Context-First", label: "We read your full picture, not just your last title" },
-                { stat: "Private by Default", label: "Your data is yours — shared only with your consent" },
+                {/* Claim aligned with practice 2026-08-20 (GAP-02): both halves are
+                    true and enforced — no data sales, and the employer-visibility
+                    test suite (D-01) guarantees the second half. */}
+                { stat: "Private by Design", label: "Your data is never sold — and never shown to employers" },
               ].map(({ stat, label }) => (
                 <div key={stat} className="flex flex-col items-center text-center sm:px-8">
                   <span className="font-display text-3xl font-bold text-forest-dark mb-2">{stat}</span>
@@ -492,8 +495,9 @@ function PrelaunchLandingPage() {
           <div className="mx-auto max-w-7xl px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p className="text-xs text-[#888]">© {new Date().getFullYear()} Solverah. All rights reserved.</p>
             <div className="flex gap-6">
-              <a href="#" className="text-xs text-[#888] hover:text-white transition-colors">Privacy Policy</a>
-              <a href="#" className="text-xs text-[#888] hover:text-white transition-colors">Terms</a>
+              <a href="/privacy" className="text-xs text-[#888] hover:text-white transition-colors">Privacy Policy</a>
+              <a href="/terms" className="text-xs text-[#888] hover:text-white transition-colors">Terms</a>
+              <a href="/how-matching-works" className="text-xs text-[#888] hover:text-white transition-colors">How matching works</a>
             </div>
           </div>
           <div className="border-t border-white/5">

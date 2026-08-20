@@ -24,7 +24,7 @@ def _register_and_login(client, monkeypatch, email="lens@example.com", password=
     monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
     monkeypatch.setattr(app_module, "log_audit_event", _noop)
 
-    client.post("/api/register", json={"email": email, "password": password, "name": "Lens User"})
+    client.post("/api/register", json={"email": email, "password": password, "name": "Lens User", "terms_accepted": True})
 
     from app import app
     from model import User, db

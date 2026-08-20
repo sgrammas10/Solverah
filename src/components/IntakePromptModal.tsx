@@ -366,7 +366,7 @@ export default function IntakePromptModal({ open, hasIntakeSubmission, onClose, 
                   onChange={(e) => setPrivacyConsent(e.target.checked)}
                   className="mt-0.5 h-4 w-4 rounded border-cream-muted text-forest-mid focus:ring-forest-pale"
                 />
-                <span>I consent to Solverah securely storing my resume and contact information for early access review.</span>
+                <span>I consent to Solverah securely storing my resume and contact information for early access review, as described in the <a href="/privacy" target="_blank" rel="noreferrer" className="underline">Privacy Policy</a>.</span>
               </label>
 
               <label
