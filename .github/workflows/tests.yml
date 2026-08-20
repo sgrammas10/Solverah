@@ -26,6 +26,11 @@ jobs:
       - name: Run Tests
         run: npm test -- --run
 
+      # Supply-chain gate (GAP-07d): fail on known-vulnerable prod deps.
+      # continue-on-error stays false on purpose — a red audit is a real signal.
+      - name: Audit npm dependencies
+        run: npm audit --omit=dev --audit-level=high
+
   backend-tests:
     name: Backend (pytest)
     runs-on: ubuntu-latest
@@ -50,3 +55,9 @@ jobs:
           JWT_COOKIE_SECURE: "false"
           JWT_COOKIE_SAMESITE: Lax
         run: pytest --tb=short
+
+      # Supply-chain gate (GAP-07d): known CVEs in installed Python deps.
+      - name: Audit Python dependencies
+        run: |
+          pip install pip-audit
+          pip-audit

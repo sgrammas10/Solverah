@@ -1,9 +1,19 @@
 name: Run ZenSearch Scraper
 
+# ── PAUSED 2026-08-20 (GAP-12, Sebastian's decision) ─────────────────────────
+# The scheduled scrape of api.zensearch.jobs ran with a spoofed Referer, i.e.
+# outside the source's intended access terms, and committed the results to the
+# repo. Both stopped:
+#   * schedule trigger removed — the workflow no longer runs on its own;
+#   * manual dispatch is also inert until the '@vitalets/google-translate-api'
+#     dependency (removed from package.json the same day, also for ToS reasons)
+#     is restored, since the scraper imports it.
+# To resume: obtain permission from ZenSearch or replace the source (tracked in
+# the decision queue), restore the dependency, and re-add the schedule block:
+#   schedule:
+#     - cron: "0 0 */2 * *"
 on:
-  schedule:
-    - cron: "0 0 */2 * *"  # Runs at midnight every 2nd day
-  workflow_dispatch:        # Manual trigger for testing
+  workflow_dispatch:        # Manual trigger only — see pause note above
 
 jobs:
   scrape:
@@ -27,11 +37,11 @@ jobs:
       - name: Run Scraper
         run: node Scripts/zensearch/zensearch.js run  # Runs scraper directly
 
-      - name: Commit Results
-        run: |
-          git config --global user.name 'GitHub Action'
-          git config --global user.email 'action@github.com'
-          git add .
-          git commit -m "Auto-scraped job data [$(date)]" || echo "No changes to commit"
-          git push origin main  # Explicitly push changes
-
+      # Scraped data is no longer committed to the repo (GAP-07f/GAP-12):
+      # results stay in the runner's workspace as a build artifact only.
+      - name: Upload results as artifact (not committed)
+        uses: actions/upload-artifact@v4
+        with:
+          name: zensearch-results
+          path: zensearchData/
+          retention-days: 14
