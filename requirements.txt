@@ -21,3 +21,8 @@ resend
 openai
 pytest
 pytest-cov
+
+# Build/runtime tooling pinned for CVE remediation, not because the app
+# imports it: the GitHub runner ships setuptools 79.0.1, which pip-audit
+# flags as PYSEC-2026-3447 (fixed in 83.0.0).
+setuptools>=83.0.0
