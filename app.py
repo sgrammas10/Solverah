@@ -33,6 +33,11 @@ Key environment variables (required unless otherwise noted):
     EMAIL_FROM          — Sender address (defaults to no-reply@solverah.com).
     FLASK_ENV / APP_ENV / ENV — Set to "production" to enable HTTPS-only cookies
                                 and HSTS headers.
+    TRUSTED_PROXY_COUNT — Number of reverse proxies in front of the app, used
+                          to resolve the real client IP (default 1 in
+                          production, 0 otherwise). See ProxyFix below.
+    RATELIMIT_STORAGE_URI — Shared rate-limit backend (e.g. a Redis URL).
+                          Defaults to in-memory, which is per-worker only.
     MAX_LOGIN_ATTEMPTS  — Failed attempts before lockout (default 5).
     LOGIN_LOCKOUT_MINUTES — Lockout duration in minutes (default 15).
 """
@@ -50,6 +55,7 @@ from flask_jwt_extended import (
     get_csrf_token,
 )
 from flask_talisman import Talisman
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 import os
 import json
@@ -215,6 +221,81 @@ def _parse_bool_env(value, default: bool) -> bool:
 is_production = _is_production()
 
 
+# Trust the reverse proxy's X-Forwarded-* headers so request.remote_addr holds
+# the real client IP instead of the proxy's. Without this, everything behind
+# Render's edge shares a single address: rate limiting collapses into one
+# global bucket (so the per-IP auth limits below stop being per-IP) and the
+# audit log records the proxy on every event.
+#
+# TRUSTED_PROXY_COUNT must equal the number of proxies actually in front of
+# the app -- ProxyFix trusts that many entries from the right of
+# X-Forwarded-For. Setting it higher than reality lets a client spoof its own
+# IP by sending the header itself, which is worse than not trusting it at
+# all; 0 disables the middleware (correct for local runs with no proxy).
+# Render terminates at exactly one proxy, hence the production default of 1.
+# Add one per extra layer if you put e.g. Cloudflare in front.
+def _resolve_trusted_proxy_count(raw, production: bool) -> int:
+    """Decide how many forwarding hops to trust.
+
+    Args:
+        raw:        Raw TRUSTED_PROXY_COUNT value (may be None or blank).
+        production: Whether the app is running in production.
+
+    Returns:
+        Hop count to trust; 0 means do not read X-Forwarded-* at all.
+
+    Raises:
+        RuntimeError: If *raw* is set but is not a non-negative integer. This
+            fails the boot rather than guessing, because guessing high is a
+            spoofing hole and guessing low breaks rate limiting.
+    """
+    if raw is None or not raw.strip():
+        return 1 if production else 0
+    try:
+        count = int(raw)
+    except ValueError:
+        raise RuntimeError(
+            "TRUSTED_PROXY_COUNT must be a non-negative integer, got %r" % raw
+        )
+    if count < 0:
+        raise RuntimeError(
+            "TRUSTED_PROXY_COUNT must be a non-negative integer, got %r" % raw
+        )
+    return count
+
+
+def _apply_proxy_fix(flask_app, count: int) -> bool:
+    """Wrap *flask_app* so request.remote_addr reflects the real client.
+
+    Args:
+        flask_app: The Flask application to wrap.
+        count:     Number of trusted proxy hops; <= 0 applies nothing.
+
+    Returns:
+        True if the middleware was applied.
+    """
+    if count <= 0:
+        return False
+    # x_host/x_port/x_prefix stay 0 on purpose: trusting a forwarded Host would
+    # let an attacker poison absolute URLs we generate (password-reset links
+    # being the obvious target).
+    flask_app.wsgi_app = ProxyFix(
+        flask_app.wsgi_app,
+        x_for=count,
+        x_proto=count,
+        x_host=0,
+        x_port=0,
+        x_prefix=0,
+    )
+    return True
+
+
+_trusted_proxy_count = _resolve_trusted_proxy_count(
+    os.environ.get("TRUSTED_PROXY_COUNT"), is_production
+)
+_apply_proxy_fix(app, _trusted_proxy_count)
+
+
 # Flask-CORS 5.x: pass resources as a path pattern and all options at the top level.
 # Nesting options inside the resources dict (4.x style) silently produces no headers in 5.x.
 CORS(
@@ -257,6 +338,11 @@ Talisman(
 
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ["DATABASE_URL"]
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# Cap request bodies. Resumes go browser -> R2 directly and never transit
+# Flask, and no endpoint accepts multipart, so nothing legitimate comes close
+# to this; it exists so an unbounded JSON body cannot exhaust worker memory.
+app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024  # 2MB
 
 
 #Configuring secret keys for JWTs
@@ -3820,4 +3906,10 @@ def assessment_submit():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # The Werkzeug debugger exposes an interactive console that executes
+    # arbitrary code on any traceback, so it is opt-in via FLASK_DEBUG and
+    # bound to loopback rather than on by default.
+    app.run(
+        debug=_parse_bool_env(os.environ.get("FLASK_DEBUG"), False),
+        host="127.0.0.1",
+    )

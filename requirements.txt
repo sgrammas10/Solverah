@@ -1,28 +1,46 @@
-Flask
-Flask-Bcrypt
-requests
-Flask-JWT-Extended
-Flask-Cors
-Flask-Limiter
-Flask-SQLAlchemy
-Flask-Migrate
-flask-talisman
-gunicorn
-pandas
-numpy
-scikit-learn
-boto3
-psycopg2-binary
-python-dotenv
-PyYAML
-pdfminer.six
-python-docx
-resend
-openai
-pytest
-pytest-cov
+# Direct dependencies, pinned.
+#
+# Unpinned, every CI run and every deploy resolved to whatever was latest at
+# that moment, so a broken or compromised release would land with nothing in
+# the way -- and a new CVE could appear in a build that had changed nothing.
+# Versions below are the set pip resolved for the CI target (cp311,
+# manylinux2014_x86_64) and were checked against OSV with zero hits.
+#
+# Transitive dependencies are still unpinned. Closing that gap means a real
+# lock file -- `pip-compile` (pip-tools) from a requirements.in -- which is a
+# larger change than this one. The pip-audit gate in CI is the backstop: it
+# audits the whole installed environment, so a bad transitive version fails
+# the build rather than shipping quietly.
+#
+# Bumping a pin: change it here, let CI run pytest + pip-audit, and read both.
 
-# Build/runtime tooling pinned for CVE remediation, not because the app
-# imports it: the GitHub runner ships setuptools 79.0.1, which pip-audit
-# flags as PYSEC-2026-3447 (fixed in 83.0.0).
+Flask==3.1.3
+Flask-Bcrypt==1.0.1
+requests==2.34.2
+Flask-JWT-Extended==4.7.4
+Flask-Cors==6.0.5
+Flask-Limiter==4.1.1
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.1.0
+flask-talisman==1.1.0
+gunicorn==26.1.0
+pandas==2.3.2
+numpy==2.2.6
+scikit-learn==1.7.2
+boto3==1.43.76
+psycopg2-binary==2.9.12
+python-dotenv==1.2.3
+PyYAML==6.0.3
+pdfminer.six==20260107
+python-docx==1.2.0
+resend==2.37.0
+openai==3.3.1
+pytest==9.1.1
+pytest-cov==7.1.0
+
+# Not an application import: the GitHub runner ships setuptools 79.0.1, which
+# pip-audit flags as PYSEC-2026-3447 (fixed in 83.0.0). Note that setuptools
+# dropped the legacy `pkg_resources` module in 82.0.0, and every version that
+# fixes this CVE is past that point -- so there is no version that both patches
+# the CVE and keeps pkg_resources. Nothing in this project imports it.
 setuptools>=83.0.0
