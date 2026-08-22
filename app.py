@@ -1356,13 +1356,17 @@ def presign():
     s3 = get_s3_client()
     bucket = os.environ["S3_BUCKET_NAME"]
 
-    # Presigned PUT URL for direct browser upload
+    # Presigned PUT URL for direct browser upload.  ContentLength is part of
+    # the signature so the declared size is binding: a client that PUTs a body
+    # of any other length gets a signature mismatch from R2 instead of a
+    # silently accepted oversized object.
     url = s3.generate_presigned_url(
         ClientMethod="put_object",
         Params={
             "Bucket": bucket,
             "Key": object_key,
             "ContentType": mime,
+            "ContentLength": size,
         },
         ExpiresIn=10 * 60,  # 10 minutes
         HttpMethod="PUT",
@@ -2640,12 +2644,15 @@ def profile_resume_presign():
 
     s3 = get_s3_client()
     bucket = os.environ["S3_BUCKET_NAME"]
+    # ContentLength is signed for the same reason as the intake presign: it
+    # makes the declared size binding rather than advisory.
     url = s3.generate_presigned_url(
         ClientMethod="put_object",
         Params={
             "Bucket": bucket,
             "Key": object_key,
             "ContentType": mime,
+            "ContentLength": size,
         },
         ExpiresIn=10 * 60,
         HttpMethod="PUT",
