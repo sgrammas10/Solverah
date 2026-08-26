@@ -40,3 +40,14 @@ __pycache__/
 # Debug output
 scoring_debug.txt
 llm_debug.txt
+# Scratch / staging dirs that should never have been tracked
+_to_delete/
+_mutation_tmp/
+instance/
+.venv/
+venv/
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*

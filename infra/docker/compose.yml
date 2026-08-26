@@ -1,0 +1,127 @@
+# Local development stack.
+#
+#     docker compose -f infra/docker/compose.yml up
+#
+# Why this exists: the test suite currently runs on SQLite while production runs
+# on Postgres, so 560 passing tests are evidence about a database the product
+# does not use. JSON operators, constraint enforcement, isolation levels, CITEXT,
+# and partial indexes all differ. This stack makes running against real Postgres
+# the path of least resistance locally, which is the prerequisite for switching
+# CI over (docs/ARCHITECTURE.md, Phase 0).
+#
+# Everything here is disposable and credentials are deliberately trivial —
+# nothing in this file is a secret, and nothing in it should ever reach an
+# environment that holds real data.
+
+name: solverah
+
+services:
+  db:
+    # pgvector on top of Postgres 16: the target architecture indexes company
+    # culture vectors with HNSW rather than scanning every company in Python.
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: solverah
+      POSTGRES_PASSWORD: solverah
+      POSTGRES_DB: solverah
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # `pg_isready -U` avoids the false "ready" that plain pg_isready reports
+      # during the init scripts' temporary single-user startup.
+      test: ["CMD-SHELL", "pg_isready -U solverah -d solverah"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    # Shared backend for rate limiting. Without it, Flask-Limiter counts
+    # per-worker: configured limits are N-workers times looser and reset on
+    # every deploy.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    # Catches outbound mail locally so verification-code and password-reset
+    # flows are testable without sending real email through Resend.
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # web UI — http://localhost:8025
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  minio:
+    # S3-compatible stand-in for Cloudflare R2, so the presign/finalize resume
+    # upload flow can be exercised end to end offline.
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: solverah
+      MINIO_ROOT_PASSWORD: solverah-dev-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+    environment:
+      APP_ENV: development
+      LOG_FORMAT: console
+      LOG_LEVEL: DEBUG
+      DATABASE_URL: postgresql://solverah:solverah@db:5432/solverah
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: local-development-only-not-a-real-secret
+      JWT_COOKIE_SECURE: "false"
+      JWT_COOKIE_SAMESITE: Lax
+      TRUSTED_PROXY_COUNT: "0"
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY_ID: solverah
+      S3_SECRET_ACCESS_KEY: solverah-dev-secret
+      S3_BUCKET_NAME: solverah-resumes
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "5000:8000"
+    volumes:
+      # Bind-mounted for edit-reload. Production builds copy the source in.
+      - ../..:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command:
+      - gunicorn
+      - app:app
+      - --bind=0.0.0.0:8000
+      - --worker-class=gthread
+      - --workers=1
+      - --threads=4
+      - --reload
+      - --access-logfile=-
+
+volumes:
+  pgdata:
+  miniodata:

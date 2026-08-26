@@ -29,6 +29,14 @@ numpy==2.2.6
 scikit-learn==1.7.2
 boto3==1.43.76
 psycopg2-binary==2.9.12
+
+# Rate-limit + cache backend. Without it Flask-Limiter falls back to memory://,
+# which counts per gunicorn worker and resets on every deploy -- so the auth
+# limits in app.py are N-workers times looser than configured and an attacker's
+# budget is cleared by any redeploy. security.py degrades loudly rather than
+# failing boot when this is absent, but production needs it installed AND
+# REDIS_URL set. Pure-Python wheel, no build step.
+redis==8.1.0
 python-dotenv==1.2.3
 PyYAML==6.0.3
 pdfminer.six==20260107

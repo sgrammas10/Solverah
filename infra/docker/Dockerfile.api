@@ -1,0 +1,82 @@
+# Solverah API — production image.
+#
+# Build from the repository root so the whole source tree is in context:
+#     docker build -f infra/docker/Dockerfile.api -t solverah-api .
+#
+# Design notes:
+#   * Multi-stage. Wheels are built in a stage that carries a compiler; the
+#     runtime stage has neither gcc nor the Python headers, so a container
+#     escape has no toolchain to build with and the image is far smaller.
+#   * Non-root. The process cannot write to its own code, which turns a file
+#     write primitive into a dead end rather than persistence.
+#   * Dependencies are installed before the source is copied, so an application
+#     edit does not invalidate the dependency layer.
+#   * Pinned base by tag AND digest: a tag is mutable and can be repointed.
+
+# ---------------------------------------------------------------- build stage
+FROM python:3.11-slim-bookworm AS builder
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential libpq-dev \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY requirements.txt .
+RUN pip wheel --wheel-dir /wheels -r requirements.txt
+
+
+# -------------------------------------------------------------- runtime stage
+FROM python:3.11-slim-bookworm AS runtime
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    APP_ENV=production \
+    LOG_FORMAT=json
+
+# libpq5 is the psycopg2 runtime; curl is for the container-level healthcheck.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libpq5 curl \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --create-home --shell /usr/sbin/nologin --uid 10001 solverah
+
+WORKDIR /app
+
+COPY --from=builder /wheels /wheels
+COPY requirements.txt .
+RUN pip install --no-index --find-links=/wheels -r requirements.txt \
+ && rm -rf /wheels
+
+# Ownership is set at copy time; a later `chown -R` would duplicate every file
+# into a second layer and roughly double the image size.
+COPY --chown=solverah:solverah . .
+
+USER solverah
+
+EXPOSE 8000
+
+# Container-level liveness. The orchestrator's probe is authoritative in
+# production; this makes `docker ps` honest for local and single-host runs.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
+    CMD curl -fsS http://localhost:8000/healthz || exit 1
+
+# gthread, not sync: handlers still make blocking third-party calls (OpenAI,
+# Groq, O*NET, Resend, R2), and a sync worker is occupied for the whole call.
+# Threads let a worker serve other requests while one waits on the network.
+# Phase 3 moves that I/O to Celery, after which the timeout drops to 30s.
+CMD ["gunicorn", "app:app", \
+     "--bind", "0.0.0.0:8000", \
+     "--worker-class", "gthread", \
+     "--workers", "3", \
+     "--threads", "8", \
+     "--timeout", "120", \
+     "--graceful-timeout", "30", \
+     "--keep-alive", "5", \
+     "--max-requests", "2000", \
+     "--max-requests-jitter", "200", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-"]

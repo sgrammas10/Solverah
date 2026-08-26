@@ -57,6 +57,7 @@ from flask_jwt_extended import (
 from flask_talisman import Talisman
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+import logging
 import os
 import json
 import uuid
@@ -221,6 +222,63 @@ def _parse_bool_env(value, default: bool) -> bool:
 is_production = _is_production()
 
 
+# ---------------------------------------------------------------------------
+# Foundation: validated settings + structured logging.
+#
+# `Settings.from_env()` reads and validates the whole environment at once and
+# raises ConfigError listing every problem, rather than the current pattern of
+# scattered os.environ reads that fail one variable per restart.
+#
+# It is deliberately NON-FATAL here. This module is mid-migration (see
+# docs/ARCHITECTURE.md, Phase 0): app.py still reads os.environ directly for
+# most values, so a validation failure does not necessarily mean the app cannot
+# serve. Turning a strict config check fatal in the same change that introduces
+# it risks bricking a running deploy over a rule the deploy has never been held
+# to. The problems are logged at CRITICAL so they are impossible to miss, and
+# the check becomes fatal in Phase 1 when create_app() owns configuration.
+# ---------------------------------------------------------------------------
+from solverah.config import ConfigError, Settings  # noqa: E402
+from solverah.observability.logging import init_logging  # noqa: E402
+
+try:
+    settings = Settings.from_env()
+    _config_problems: list = []
+except ConfigError as _config_error:
+    settings = None
+    _config_problems = _config_error.problems
+
+init_logging(
+    level=os.environ.get("LOG_LEVEL", "INFO" if is_production else "DEBUG"),
+    fmt=os.environ.get("LOG_FORMAT", "json" if is_production else "console"),
+    service="api",
+    release=os.environ.get("RELEASE", "dev"),
+)
+
+if _config_problems:
+    logging.getLogger("solverah.config").critical(
+        "configuration_invalid",
+        extra={"event": "configuration_invalid", "problems": _config_problems},
+    )
+elif settings is not None:
+    for _warning in settings.warnings:
+        logging.getLogger("solverah.config").warning(
+            "configuration_warning",
+            extra={"event": "configuration_warning", "detail": _warning},
+        )
+
+
+def _engine_options() -> dict:
+    """Return SQLAlchemy engine options, degrading safely if config is invalid.
+
+    `pool_pre_ping` is the one option worth keeping even when the rest of the
+    configuration failed validation: without it a Postgres failover leaves the
+    pool full of dead connections and every request errors until they age out.
+    """
+    if settings is not None:
+        return settings.engine_options()
+    return {"pool_pre_ping": True}
+
+
 # Trust the reverse proxy's X-Forwarded-* headers so request.remote_addr holds
 # the real client IP instead of the proxy's. Without this, everything behind
 # Render's edge shares a single address: rate limiting collapses into one
@@ -339,6 +397,14 @@ Talisman(
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ["DATABASE_URL"]
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+# Connection-pool and statement-timeout policy. Left at SQLAlchemy's defaults the
+# app has no liveness check on checkout -- after a Postgres failover the pool
+# hands out dead connections and every request errors until they age out -- and
+# no server-side statement timeout, so one pathological query holds a worker
+# until gunicorn kills it at 120s. See solverah/config.py for the derivation and
+# the per-knob environment variables.
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = _engine_options()
+
 # Cap request bodies. Resumes go browser -> R2 directly and never transit
 # Flask, and no endpoint accepts multipart, so nothing legitimate comes close
 # to this; it exists so an unbounded JSON body cannot exhaust worker memory.
@@ -389,6 +455,45 @@ limiter = init_rate_limiter(app)
 from account_lifecycle import account_bp  # noqa: E402  (needs db initialized)
 
 app.register_blueprint(account_bp)
+
+
+# ---------------------------------------------------------------------------
+# Foundation wiring: correlation IDs, JSON error envelope, health probes.
+# ---------------------------------------------------------------------------
+from solverah.api.health import create_health_blueprint, database_check  # noqa: E402
+from solverah.errors import register_error_handlers  # noqa: E402
+from solverah.observability.logging import install_request_logging  # noqa: E402
+
+# Assigns every request an X-Request-Id (adopting a safe inbound one so an
+# edge-initiated trace stays joined up), echoes it on the response, and emits one
+# structured access line per request.
+install_request_logging(app)
+
+# Every failure now answers with RFC 9457 problem+json. Previously an unhandled
+# exception returned Werkzeug's HTML 500 page to a client calling res.json(),
+# which surfaced in the UI as "Unexpected response from server" instead of the
+# actual error. Handlers that already return {"error": ...} are untouched.
+register_error_handlers(app)
+
+# Liveness and readiness. /healthz checks nothing external on purpose: if it
+# checked the database, one database blip would fail liveness on every replica at
+# once and the orchestrator would restart the whole fleet.
+app.register_blueprint(
+    create_health_blueprint(
+        checks={"database": database_check(db)},
+        release=os.environ.get("RELEASE", "dev"),
+    )
+)
+
+# Probes reach the pod over plain HTTP inside the cluster; without this they get
+# a 301 from Talisman's force_https and the orchestrator reads that as unhealthy.
+for _health_endpoint in ("health.healthz", "health.readyz"):
+    app.view_functions[_health_endpoint].talisman_view_options = {"force_https": False}
+
+# Probes fire every few seconds and would otherwise consume the shared default
+# budget of 200/day, causing real traffic to be throttled.
+limiter.exempt(app.view_functions["health.healthz"])
+limiter.exempt(app.view_functions["health.readyz"])
 
 
 @app.post("/api/early-access-request")
