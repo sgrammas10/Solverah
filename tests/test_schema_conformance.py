@@ -38,9 +38,32 @@ from solverah.schemas.profile import (
 EMAIL = "conformance@example.com"
 PASSWORD = "Strongpass1!"
 
+#: Same literal the other person-side tests use. The secret has no default by
+#: design (D-05): `respondent_id_for_user` raises rather than falling back,
+#: because a default would make respondent ids -- and therefore the item-token
+#: salt and the shuffle seed -- identical across every deployment that forgot to
+#: set it.
+FORM_TOKEN_SECRET = "test-secret-not-a-real-one"
+
 
 def _noop(*_args, **_kwargs):
     return None
+
+
+@pytest.fixture(autouse=True)
+def _form_token_secret(monkeypatch):
+    """Supply the person-side form secret for every test in this module.
+
+    Autouse rather than per-test: it is read at call time inside
+    `assessment_store.respondent_id_for_user`, so any test that reaches an
+    assessment route needs it, and forgetting it produces a 500 that looks like
+    a handler bug rather than a missing variable.
+
+    This fixture is why the module is safe to run with no `.env` present, which
+    is how CI runs it -- `app.py` calls `load_dotenv()`, so a developer with a
+    populated `.env` gets this variable for free and cannot tell the difference.
+    """
+    monkeypatch.setenv("SOLVERAH_FORM_TOKEN_SECRET", FORM_TOKEN_SECRET)
 
 
 @pytest.fixture()

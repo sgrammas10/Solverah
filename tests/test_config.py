@@ -167,3 +167,79 @@ def test_settings_are_immutable():
 
     with pytest.raises(Exception):
         s.database_url = "postgresql://elsewhere/db"  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# .env suppression (SOLVERAH_IGNORE_DOTENV)
+#
+# app.py calls load_dotenv(), so a developer with a populated .env has every
+# variable in it available and CI -- which sets five and has no .env -- does
+# not. A test reaching code that reads anything else is green locally and red
+# on the runner. `make test-ci` sets this flag so the two agree.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("1", True), ("true", True), ("TRUE", True), ("  yes  ", True),
+        ("y", True), ("on", True),
+        ("0", False), ("false", False), ("no", False), ("off", False),
+        ("", False), ("   ", False), (None, False),
+        # Permissive by design: an unrecognised value means "off", which for
+        # this flag is the normal developer behaviour. Anything gating security
+        # uses the strict reader instead, which rejects "TRU" rather than
+        # silently treating it as False.
+        ("TRU", False), ("maybe", False),
+    ],
+)
+def test_is_truthy_truth_table(raw, expected):
+    from solverah.config import is_truthy
+
+    assert is_truthy(raw) is expected
+
+
+def test_app_guards_load_dotenv_behind_the_flag():
+    """Deleting the guard restores the failure mode it exists to prevent.
+
+    A source check rather than a behavioural one: app.py is imported once per
+    session and load_dotenv() has already run by the time any test executes, so
+    there is nothing left to observe at runtime.
+    """
+    import io as _io
+    import re
+
+    source = _io.open("app.py", encoding="utf-8").read()
+
+    assert "SOLVERAH_IGNORE_DOTENV" in source, "the .env guard is gone"
+    # The call must be conditional, not bare.
+    bare = re.search(r"^load_dotenv\(\)", source, re.MULTILINE)
+    assert bare is None, "load_dotenv() is called unconditionally"
+    assert re.search(
+        r"if not is_truthy\(os\.environ\.get\(IGNORE_DOTENV_VAR\)\):\s*\n\s+load_dotenv\(\)",
+        source,
+    ), "load_dotenv() is no longer guarded by IGNORE_DOTENV_VAR"
+
+
+def test_make_test_ci_sets_the_flag_and_the_ci_variables():
+    """`make test-ci` must stay an honest reproduction of the runner.
+
+    If CI's env block gains a variable and this target does not, the target
+    quietly stops matching and the gap it exists to close reopens.
+    """
+    import io as _io
+
+    makefile = _io.open("Makefile", encoding="utf-8").read()
+    recipe = makefile.split("test-ci:", 1)[1].split(".PHONY", 1)[0]
+
+    # Anchor on the backend job: "Run Tests" also names the frontend step, which
+    # runs npm and carries no env block.
+    workflow = _io.open(".github/workflows/tests.yml", encoding="utf-8").read()
+    backend_job = workflow.split("backend-tests:", 1)[1]
+    ci_env = backend_job.split("- name: Run Tests", 1)[1].split("run:", 1)[0]
+
+    assert "SOLVERAH_IGNORE_DOTENV=1" in recipe
+
+    for name in ("APP_ENV", "DATABASE_URL", "JWT_SECRET_KEY",
+                 "JWT_COOKIE_SECURE", "JWT_COOKIE_SAMESITE"):
+        assert name in ci_env, "CI no longer sets %s; update this test" % name
+        assert name in recipe, "make test-ci does not set %s, but CI does" % name

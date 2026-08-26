@@ -27,7 +27,7 @@ import os
 from dataclasses import dataclass, field
 from typing import List, Mapping, Optional, Sequence
 
-__all__ = ["ConfigError", "Settings"]
+__all__ = ["ConfigError", "Settings", "is_truthy"]
 
 
 class ConfigError(RuntimeError):
@@ -51,6 +51,22 @@ _FALSE_VALUES = frozenset({"0", "false", "no", "n", "off", ""})
 
 PRODUCTION_NAMES = frozenset({"production", "prod"})
 TESTING_NAMES = frozenset({"testing", "test"})
+
+
+def is_truthy(raw: Optional[str]) -> bool:
+    """Whether a raw environment value reads as true.
+
+    The permissive counterpart to :func:`_read_bool`, for flags where an
+    unrecognised value should simply mean "off" rather than being recorded as a
+    configuration problem.  Use it only for switches that cannot cause harm when
+    they fail closed -- ``SOLVERAH_IGNORE_DOTENV`` is the intended case, where
+    "off" means the normal developer behaviour.
+
+    Anything that gates security (``JWT_COOKIE_SECURE``) must keep using
+    :func:`_read_bool`, which rejects ``TRU`` rather than silently reading it as
+    False.
+    """
+    return (raw or "").strip().lower() in _TRUE_VALUES
 
 
 def _read_bool(env: Mapping[str, str], key: str, default: bool, problems: List[str]) -> bool:

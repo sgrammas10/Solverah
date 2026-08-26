@@ -38,7 +38,31 @@ import os
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# `solverah.config` is stdlib-only and imports nothing from this package, so it
+# is safe to read before .env is loaded. Importing anything else first would
+# not be: `solverah.infra.email` reads RESEND_API_KEY at module scope, so the
+# whole factory import below has to happen after load_dotenv().
+from solverah.config import is_truthy
+
+#: Set to 1/true/yes/on to skip loading `.env`.
+#:
+#: `.env` is a developer convenience, and it is one that hides bugs. CI sets
+#: exactly five variables and has no `.env` file, so a test that reaches code
+#: reading any other variable passes on a developer machine -- where `.env`
+#: silently supplies it -- and fails on the runner. That is not hypothetical:
+#: it is how `SOLVERAH_FORM_TOKEN_SECRET` got into a test that looked green
+#: locally and 500'd in CI.
+#:
+#: `make test-ci` sets this, which is what makes that target an honest
+#: reproduction of the runner rather than an approximation of it.
+#:
+#: Production never sets it: unset means load `.env` if present, which is the
+#: behaviour this has always had. A deployment has real environment variables
+#: and no `.env`, so the flag is irrelevant there either way.
+IGNORE_DOTENV_VAR = "SOLVERAH_IGNORE_DOTENV"
+
+if not is_truthy(os.environ.get(IGNORE_DOTENV_VAR)):
+    load_dotenv()
 
 # Re-exported for the tests that address them by name, and because
 # `_parse_bool_env` is used below. The underscore prefixes are preserved from
@@ -51,7 +75,7 @@ from solverah.factory import (  # noqa: E402
     create_app,
 )
 
-__all__ = ["app", "create_app"]
+__all__ = ["IGNORE_DOTENV_VAR", "app", "create_app"]
 
 #: The application. `gunicorn app:app`, `flask run`, and every test fixture
 #: address this name, so it stays module-level even though the factory is the

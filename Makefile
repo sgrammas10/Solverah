@@ -5,9 +5,16 @@
 #
 #   make help          list targets
 #   make dev           full local stack (Postgres + Redis + Mailpit + MinIO + API)
-#   make test          backend suite
+#   make test          backend suite (fast; uses your .env)
+#   make test-ci       backend suite as CI runs it (no .env)  <-- run before pushing
 #   make test-pg       backend suite against real Postgres  <-- the one that matters
 #   make check         everything CI runs, locally
+#
+# `test` and `test-ci` differ, and the difference is the point. app.py calls
+# load_dotenv(), so `make test` on a developer machine has every variable in
+# .env available; the runner has five and no .env. A test that reaches code
+# reading anything else is green here and red there. `test-ci` sets
+# SOLVERAH_IGNORE_DOTENV=1 so the two agree.
 
 .DEFAULT_GOAL := help
 COMPOSE := docker compose -f infra/docker/compose.yml
@@ -52,8 +59,18 @@ psql: ## Open psql against the local database
 
 # --------------------------------------------------------------------- checks
 .PHONY: test
-test: ## Backend tests (SQLite — fast, but not what production runs)
+test: ## Backend tests (SQLite, your .env — fast inner loop)
 	$(PYTHON) -m pytest -q
+
+.PHONY: test-ci
+test-ci: ## Backend tests exactly as CI runs them (ignores your .env)
+	APP_ENV=testing \
+	DATABASE_URL=sqlite:///test.db \
+	JWT_SECRET_KEY=test-secret \
+	JWT_COOKIE_SECURE=false \
+	JWT_COOKIE_SAMESITE=Lax \
+	SOLVERAH_IGNORE_DOTENV=1 \
+	  $(PYTHON) -m pytest --tb=short -q
 
 .PHONY: test-pg
 test-pg: dev-deps ## Backend tests against real Postgres
@@ -84,7 +101,7 @@ test-web: ## Frontend tests
 	npm test -- --run
 
 .PHONY: check
-check: test lint typecheck test-web audit ## Everything CI runs
+check: test-ci lint typecheck test-web audit ## Everything CI runs
 
 # ----------------------------------------------------------------- migrations
 .PHONY: migrate

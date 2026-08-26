@@ -60,6 +60,29 @@ frontend/         # React + TypeScript
 - Every bug fix must include a regression test that fails without the fix
 - Run the full test suite before marking any task complete
 
+**A green local suite is not a green CI suite.** `app.py` calls `load_dotenv()`, so a
+developer with a populated `.env` gets `SOLVERAH_FORM_TOKEN_SECRET`, `OPENAI_API_KEY`,
+`S3_*`, and the rest for free. CI sets only five variables (`APP_ENV`, `DATABASE_URL`,
+`JWT_SECRET_KEY`, `JWT_COOKIE_SECURE`, `JWT_COOKIE_SAMESITE`) and has no `.env` at all.
+A test that reaches code reading any other variable passes locally and fails on the
+runner.
+
+Before declaring a suite green, run it the way CI does:
+
+    mv .env .env.off && pytest --tb=short -q; mv .env.off .env
+
+Any test touching an assessment route needs the form-token secret supplied explicitly —
+it is read at call time in `assessment_store.respondent_id_for_user` and has **no
+default by design** (D-05):
+
+    @pytest.fixture(autouse=True)
+    def _form_token_secret(monkeypatch):
+        monkeypatch.setenv("SOLVERAH_FORM_TOKEN_SECRET", "test-secret-not-a-real-one")
+
+Do not move this into `tests/conftest.py`. `test_assessment_form.py` deliberately
+deletes the variable to prove the no-default rule holds, and a suite-wide default would
+make that test unable to fail.
+
 ## Agent Behavior
 
 **Plan mode default:**

@@ -162,10 +162,16 @@ describe("WorkPulsePage — completion", () => {
     expect(screen.queryByText(/previous analysis/i)).toBeNull();
   });
 
-  it("back-to-dashboard navigates from the completion state", () => {
+  it("back-to-dashboard navigates to the real dashboard route", () => {
+    // Regression: this asserted "/dashboard", which is not a registered route.
+    // App.tsx registers the dashboard at /job-seeker/dashboard, so the old target
+    // fell through to the `path="*"` catch-all and redirected to "/" — the public
+    // landing page, which renders its own logged-out nav. Finishing Work Pulse
+    // therefore looked like being signed out. The test passed because it asserted
+    // the literal string the component passed, never that the string was routable.
     mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: /back to dashboard/i }));
-    expect(mocks.navigate).toHaveBeenCalledWith("/dashboard", { replace: true });
+    expect(mocks.navigate).toHaveBeenCalledWith("/job-seeker/dashboard", { replace: true });
   });
 });

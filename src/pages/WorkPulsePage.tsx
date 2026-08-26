@@ -157,7 +157,7 @@ export default function WorkPulsePage() {
             </p>
             <button
               type="button"
-              onClick={() => navigate("/dashboard", { replace: true })}
+              onClick={() => navigate("/job-seeker/dashboard", { replace: true })}
               className="mt-2 inline-flex items-center bg-forest-dark text-white text-sm font-semibold px-6 py-3 rounded hover:bg-forest-mid transition-colors"
             >
               Back to dashboard
