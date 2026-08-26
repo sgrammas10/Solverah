@@ -47,8 +47,8 @@ def _noop(*_args, **_kwargs):
 
 def _register_and_login(client, monkeypatch, email="paths@example.com", password="Strongpass1!"):
     import app as app_module
-    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     client.post(
         "/api/register",
@@ -94,10 +94,10 @@ def _mock_scoring(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def clear_path_cache():
-    import app as app_module
-    app_module._path_suggestions_cache.clear()
+    from solverah.services import path_cache
+    path_cache.clear()
     yield
-    app_module._path_suggestions_cache.clear()
+    path_cache.clear()
 
 
 # ---------------------------------------------------------------------------

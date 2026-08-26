@@ -54,7 +54,7 @@ def _patch_openai(monkeypatch, response_payload: dict):
     mock_resp = MagicMock()
     mock_resp.choices = [mock_choice]
     mock_client.chat.completions.create.return_value = mock_resp
-    monkeypatch.setattr(app_module, "_get_openai_client", lambda: mock_client)
+    monkeypatch.setattr("solverah.infra.llm.get_openai_client", lambda: mock_client)
 
 
 def _noop(*_args, **_kwargs):
@@ -64,8 +64,8 @@ def _noop(*_args, **_kwargs):
 def test_sprint2_full_happy_path(client, monkeypatch):
     """Full Sprint 2 flow: anonymous WPLL → register → save → WP submit → profile complete."""
     import app as app_module
-    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     # ── Step 1: anonymous WPLL result ────────────────────────────────────────
     _patch_openai(monkeypatch, _WPLL_LLM_PAYLOAD)

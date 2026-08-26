@@ -1,0 +1,290 @@
+"""Real handler responses validate against their declared pydantic models.
+
+This is what stops the Phase 1a schemas from being decoration. They are
+descriptive, not enforced at runtime -- nothing rejects a request or reshapes a
+response -- so the only thing keeping them honest is a test that pushes an
+actual response through the actual model. Without it, `docs/openapi.json` is a
+document about an API that may or may not exist, and the typed client generated
+from it in Phase 4 would be wrong in ways the compiler would happily accept.
+
+Covered here: the endpoints reachable without stubbing an LLM provider. The
+LLM-backed ones (quiz insights, Work Pulse, ManagerMatch, the agent) already have
+provider-stubbed tests of their own in test_work_pulse_submit.py,
+test_manager_match_api.py, test_wpll_result.py, and test_agent_api.py; this file
+asserts the schema side for the rest and for the two response envelopes those
+share.
+"""
+
+import pytest
+
+from solverah.schemas import ProblemDetailResponse
+from solverah.schemas.assessments import AssessmentFormResponse
+from solverah.schemas.auth import (
+    LoginResponse,
+    LogoutResponse,
+    MessageResponse,
+    RegisterResponse,
+)
+from solverah.schemas.intelligence import RecommendationsResponse
+from solverah.schemas.matching import CompanyDetailResponse, CultureMatchesResponse
+from solverah.schemas.profile import (
+    CareerStatusResponse,
+    DashboardResponse,
+    ProfileReadResponse,
+    ProfileSaveResponse,
+    SkillProficiencyResponse,
+)
+
+EMAIL = "conformance@example.com"
+PASSWORD = "Strongpass1!"
+
+
+def _noop(*_args, **_kwargs):
+    return None
+
+
+@pytest.fixture()
+def auth(client, monkeypatch):
+    """A registered, confirmed, logged-in client plus its CSRF token."""
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
+
+    client.post(
+        "/api/v1/register",
+        json={"email": EMAIL, "password": PASSWORD, "name": "Conformance User",
+              "role": "job-seeker", "terms_accepted": True},
+    )
+
+    from app import app
+    from model import User, db
+
+    with app.app_context():
+        user = User.query.filter_by(email=EMAIL).first()
+        user.email_confirmed = True
+        user.confirmation_token = None
+        db.session.commit()
+
+    resp = client.post("/api/v1/login", json={"email": EMAIL, "password": PASSWORD})
+    assert resp.status_code == 200
+    return resp.get_json()["csrfToken"]
+
+
+# ── Auth ────────────────────────────────────────────────────────────────────
+
+
+def test_register_response_matches_schema(client, monkeypatch):
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
+
+    resp = client.post(
+        "/api/v1/register",
+        json={"email": "reg-schema@example.com", "password": PASSWORD,
+              "name": "Reg Schema", "terms_accepted": True},
+    )
+
+    assert resp.status_code == 201
+    RegisterResponse.model_validate(resp.get_json())
+
+
+def test_login_response_matches_schema(client, auth):
+    resp = client.post("/api/v1/login", json={"email": EMAIL, "password": PASSWORD})
+
+    assert resp.status_code == 200
+    LoginResponse.model_validate(resp.get_json())
+
+
+def test_logout_response_matches_schema(client, auth):
+    resp = client.post("/api/v1/logout")
+
+    assert resp.status_code == 200
+    LogoutResponse.model_validate(resp.get_json())
+
+
+def test_confirm_email_error_is_the_legacy_shape(client):
+    """Handler-raised failures still return {"error": ...}, not problem+json.
+
+    Phase 1a preserves that. The two shapes coexist -- which is why
+    src/utils/apiError.ts reads both -- and Phase 1b is where handlers move onto
+    solverah.errors.ApiError and the split closes.
+    """
+    resp = client.post("/api/v1/confirm-email", json={})
+
+    assert resp.status_code == 400
+    assert set(resp.get_json()) == {"error"}
+
+
+# ── Profile ─────────────────────────────────────────────────────────────────
+
+
+def test_profile_read_response_matches_schema(client, auth):
+    resp = client.get("/api/v1/profile")
+
+    assert resp.status_code == 200
+    ProfileReadResponse.model_validate(resp.get_json())
+
+
+def test_profile_save_response_matches_schema(client, auth):
+    resp = client.post(
+        "/api/v1/profile",
+        json={"profileData": {"summary": "Backend engineer.", "skills": ["Python"]}},
+        headers={"X-CSRF-TOKEN": auth},
+    )
+
+    assert resp.status_code == 200
+    ProfileSaveResponse.model_validate(resp.get_json())
+
+
+def test_career_status_response_matches_schema(client, auth):
+    resp = client.patch(
+        "/api/v1/profile/career-status",
+        json={"status": "employed"},
+        headers={"X-CSRF-TOKEN": auth},
+    )
+
+    assert resp.status_code == 200
+    CareerStatusResponse.model_validate(resp.get_json())
+
+
+def test_skill_proficiency_response_matches_schema(client, auth):
+    resp = client.patch(
+        "/api/v1/profile/skills/proficiency",
+        json={"skills": [{"name": "Python", "proficiency": "advanced"}]},
+        headers={"X-CSRF-TOKEN": auth},
+    )
+
+    assert resp.status_code == 200
+    SkillProficiencyResponse.model_validate(resp.get_json())
+
+
+def test_dashboard_response_matches_schema(client, auth):
+    resp = client.get("/api/v1/dashboard-data")
+
+    assert resp.status_code == 200
+    DashboardResponse.model_validate(resp.get_json())
+
+
+def test_dashboard_completion_is_a_percentage_string(client, auth):
+    """The field is "71%", not 71 -- the frontend renders it directly."""
+    body = DashboardResponse.model_validate(client.get("/api/v1/dashboard-data").get_json())
+
+    assert body.profileCompletion.endswith("%")
+    assert body.profileCompletion[:-1].isdigit()
+
+
+# ── Companies and matching ──────────────────────────────────────────────────
+
+
+def test_company_detail_response_matches_schema(client, auth):
+    from app import app
+    from model import Company, db
+
+    with app.app_context():
+        company = Company(name="Schema Co", slug="schema-co", profile_json={"overview": {}})
+        db.session.add(company)
+        db.session.commit()
+        company_id = company.id
+
+    resp = client.get("/api/v1/companies/%d" % company_id)
+
+    assert resp.status_code == 200
+    CompanyDetailResponse.model_validate(resp.get_json())
+
+
+def test_culture_matches_response_matches_schema(client, auth):
+    from app import app
+    from model import Company, User, db
+
+    with app.app_context():
+        db.session.add(Company(
+            name="Match Co", slug="match-co", profile_json={"overview": {"industry": "Tech"}},
+            pace="fast", work_environment="collaborative", empathy=0.5, creative_drive=0.5,
+            adaptability=0.5, futuristic=0.5, harmony=0.5, data_orientation=0.5,
+        ))
+        user = User.query.filter_by(email=EMAIL).first()
+        profile = dict(user.profile_data or {})
+        profile["culture_preferences"] = {
+            "empathy": 0.5, "creative_drive": 0.5, "adaptability": 0.5,
+            "futuristic": 0.5, "harmony": 0.5, "data_orientation": 0.5,
+            "pace": "fast", "work_environment": "collaborative",
+        }
+        user.profile_data = profile
+        db.session.commit()
+
+    resp = client.get("/api/v1/company-lens/matches")
+
+    assert resp.status_code == 200
+    CultureMatchesResponse.model_validate(resp.get_json())
+
+
+def test_best_and_worst_never_share_a_company(client, auth):
+    """With few companies the two lists partition the set rather than overlap."""
+    from app import app
+    from model import Company, User, db
+
+    with app.app_context():
+        for i in range(3):
+            db.session.add(Company(
+                name="Split Co %d" % i, slug="split-co-%d" % i, profile_json={"overview": {}},
+                pace="fast", work_environment="collaborative", empathy=i / 10,
+                creative_drive=0.5, adaptability=0.5, futuristic=0.5,
+                harmony=0.5, data_orientation=0.5,
+            ))
+        user = User.query.filter_by(email=EMAIL).first()
+        profile = dict(user.profile_data or {})
+        profile["culture_preferences"] = {
+            "empathy": 0.5, "creative_drive": 0.5, "adaptability": 0.5,
+            "futuristic": 0.5, "harmony": 0.5, "data_orientation": 0.5,
+            "pace": "fast", "work_environment": "collaborative",
+        }
+        user.profile_data = profile
+        db.session.commit()
+
+    body = CultureMatchesResponse.model_validate(
+        client.get("/api/v1/company-lens/matches?limit=5").get_json()
+    )
+
+    best = {entry.id for entry in body.best_fits}
+    worst = {entry.id for entry in body.worst_fits}
+    assert best & worst == set()
+
+
+# ── Recommendations and assessments ─────────────────────────────────────────
+
+
+def test_recommendations_responses_match_schema(client, auth):
+    get_resp = client.get("/api/v1/recommendations")
+    post_resp = client.post("/api/v1/recommendations", headers={"X-CSRF-TOKEN": auth}, json={})
+
+    assert get_resp.status_code == 200
+    assert post_resp.status_code == 200
+    RecommendationsResponse.model_validate(get_resp.get_json())
+    RecommendationsResponse.model_validate(post_resp.get_json())
+
+
+def test_assessment_form_response_matches_schema(client, auth):
+    resp = client.get("/api/v1/assessment/form")
+
+    assert resp.status_code == 200
+    AssessmentFormResponse.model_validate(resp.get_json())
+
+
+# ── Error envelopes ─────────────────────────────────────────────────────────
+
+
+def test_unhandled_404_is_a_problem_document(client):
+    """Phase 0's handlers, still in force and now declared as every operation's
+    `default` response in the generated contract."""
+    resp = client.get("/api/v1/no-such-route")
+
+    assert resp.status_code == 404
+    assert resp.mimetype == "application/problem+json"
+    ProblemDetailResponse.model_validate(resp.get_json())
+
+
+def test_problem_document_carries_the_request_id(client):
+    """The id is the only thing a user is given, and it is enough to find the trace."""
+    resp = client.get("/api/v1/no-such-route")
+    body = ProblemDetailResponse.model_validate(resp.get_json())
+
+    assert body.request_id
+    assert resp.headers["X-Request-Id"] == body.request_id

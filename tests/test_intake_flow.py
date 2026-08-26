@@ -9,9 +9,8 @@ def _noop(*_args, **_kwargs):
 
 def _register_and_confirm(client, monkeypatch, email="flow@example.com", password="FlowPass1!@#"):
     """Register a user and bypass email confirmation for testing."""
-    import app as app_module
-    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     client.post(
         "/api/register",

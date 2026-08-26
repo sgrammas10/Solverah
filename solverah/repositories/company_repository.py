@@ -1,20 +1,31 @@
-"""DB helpers for persisting and retrieving CompanyProfile objects.
+"""Reads and writes for the ``company`` table.
 
-Usage (inside a Flask app context):
+Formerly ``company_culture_LLM/store.py``, reached through the ``sys.path``
+injection ``app.py`` performed at import time.  It sits in ``repositories/``
+rather than ``packages/ml/`` because it imports SQLAlchemy: the culture *models*
+and *scoring* are pure and moved to :mod:`packages.ml.culture`, but persistence
+is application infrastructure.
 
-    from company_culture_LLM.store import upsert_company, get_company, all_companies
-    from company_culture_LLM.seed_company import google
+Usage (inside a Flask app context)::
 
-    upsert_company(google)
+    from solverah.repositories.company_repository import all_companies, get_company
+
     profile = get_company("google")
+
+Known scale limit, unchanged by Phase 1: :func:`all_companies` returns every
+row with ``profile_json`` attached, and the culture-matching service scores the
+whole set in process on every request.  That is P0-2 in docs/ARCHITECTURE.md and
+is fixed in Phase 2 with a vector index and a precomputed, cached match set.
+The query is at least in one place now, which is what makes that fix a local
+change.
 """
 
 from __future__ import annotations
 
 import re
 
-from company import CompanyProfile
 from model import Company, db
+from packages.ml.culture import CompanyProfile
 
 
 # ---------------------------------------------------------------------------
@@ -61,7 +72,7 @@ def upsert_company(profile: CompanyProfile) -> Company:
     row = Company.query.filter_by(slug=slug).first()
 
     culture_cols = _culture_columns(profile)
-    profile_dict = profile.dict()
+    profile_dict = profile.model_dump()
 
     if row is None:
         row = Company(
@@ -89,7 +100,7 @@ def get_company(slug_or_name: str) -> CompanyProfile | None:
     ).first()
     if row is None:
         return None
-    return CompanyProfile.parse_obj(row.profile_json)
+    return CompanyProfile.model_validate(row.profile_json)
 
 
 def all_companies() -> list[Company]:
@@ -100,3 +111,13 @@ def all_companies() -> list[Company]:
 def seed_all(profiles: list[CompanyProfile]) -> list[Company]:
     """Upsert a list of CompanyProfile objects. Useful for bulk seeding."""
     return [upsert_company(p) for p in profiles]
+
+
+def get_by_id(company_id: int):
+    """Return the company with this primary key, or None.
+
+    ``db.session.get`` rather than the legacy ``Query.get``, which SQLAlchemy 2.0
+    deprecates and which emitted a warning on every company-detail request.
+    Identical semantics: primary-key lookup, identity-map aware.
+    """
+    return db.session.get(Company, company_id)

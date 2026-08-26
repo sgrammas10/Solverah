@@ -21,7 +21,7 @@ from typing import Optional
 
 import numpy as np
 
-from company import CultureValues, Pace, PACE_TO_FLOAT
+from .company import CultureValues, Pace, PACE_TO_FLOAT
 
 DIMS = [
     "empathy",

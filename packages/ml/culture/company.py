@@ -7,8 +7,25 @@ culture-matching pipeline:
   * Parsed from Excel seed files by ``seed_from_generated_xlsx.py``.
   * Stored as a JSON blob in ``Company.profile_json`` with the 8 culture
     dimension columns promoted to indexed DB columns for fast scoring.
-  * Scored against a user's culture preferences by ``score.py`` and
+  * Scored against a user's culture preferences by ``scoring.py`` and
     ``similarity.py``.
+
+Pydantic v2
+-----------
+These models were written against pydantic v1 and are the reason the package was
+in the dependency tree at all -- unpinned, so the installed version was whatever
+something else dragged in.  Phase 1 pins v2, because v2 emits JSON Schema draft
+2020-12, which is the schema dialect OpenAPI 3.1 uses verbatim.  The v1 field
+declarations below were already valid v2; the only edits were making the two
+mutable defaults explicit ``default_factory`` calls, and the two call sites in
+the repository layer (``.dict()`` -> ``.model_dump()``, ``.parse_obj()`` ->
+``.model_validate()``).
+
+One v1/v2 behaviour change is worth knowing about here: v2 no longer coerces an
+``int`` into a ``str`` field.  ``pace`` is populated from a ``String`` column and
+from spreadsheet cells that are always text, so nothing in the current data
+path relies on that coercion -- but a numeric ``pace`` that used to become
+``"3"`` now raises, and the caller in the matching service skips the row.
 
 Culture dimensions
 ------------------
@@ -24,7 +41,7 @@ Two categorical axes:
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Pace(Enum):
@@ -86,7 +103,7 @@ class CultureValues(BaseModel):
     """
     culture_narrative_company: Optional[str] = None   # how the company describes its own culture
     culture_narrative_employees: Optional[str] = None  # how employees describe the culture
-    core_values: list[str] = []
+    core_values: list[str] = Field(default_factory=list)
     work_environment: Optional[str] = None
     pace: str
     empathy: float                              # 0.0 – 1.0
@@ -202,7 +219,7 @@ class CompanyProfile(BaseModel):
     table for efficient query-time scoring without JSON deserialization.
     """
     overview: CompanyOverview
-    executives: list[Executive] = []
+    executives: list[Executive] = Field(default_factory=list)
     culture: Optional[CultureValues] = None
     compensation: Optional[Compensation] = None
     interview: Optional[InterviewProcess] = None

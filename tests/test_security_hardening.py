@@ -34,10 +34,8 @@ class _RecordingS3:
 
 def test_intake_presign_signs_content_length(client, monkeypatch):
     """The declared size must be inside the signature, not just validated."""
-    import app as app_module
-
     fake = _RecordingS3()
-    monkeypatch.setattr(app_module, "get_s3_client", lambda: fake)
+    monkeypatch.setattr("solverah.infra.storage.get_s3_client", lambda: fake)
     monkeypatch.setenv("S3_BUCKET_NAME", "test-bucket")
 
     resp = client.post(
@@ -56,10 +54,8 @@ def test_intake_presign_signs_content_length(client, monkeypatch):
 
 def test_intake_presign_still_rejects_oversized_declaration(client, monkeypatch):
     """The pre-existing size ceiling must survive the signing change."""
-    import app as app_module
-
     fake = _RecordingS3()
-    monkeypatch.setattr(app_module, "get_s3_client", lambda: fake)
+    monkeypatch.setattr("solverah.infra.storage.get_s3_client", lambda: fake)
     monkeypatch.setenv("S3_BUCKET_NAME", "test-bucket")
 
     resp = client.post(

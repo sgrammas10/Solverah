@@ -1,4 +1,11 @@
-"""Transactional email utilities powered by the Resend API.
+"""Transactional email adapter, powered by the Resend API.
+
+Formerly ``email_utils.py`` at the repo root.  It is the single seam for
+outbound mail: services call ``email.send_confirmation_email(...)`` through the
+module rather than importing the function by name, so there is exactly one place
+to substitute in a test and exactly one place to swap when Phase 3 moves email
+onto the ``email`` Celery queue behind a transactional outbox.
+
 
 All functions in this module are thin wrappers around ``resend.Emails.send``.
 They raise ``EmailConfigError`` (a ``RuntimeError`` subclass) if the required

@@ -6,10 +6,9 @@ def _noop(*_args, **_kwargs):
 
 
 def test_register_success(client, monkeypatch):
-    import app as app_module
 
-    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     response = client.post(
         "/api/register",
@@ -28,10 +27,9 @@ def test_register_success(client, monkeypatch):
 
 
 def test_register_duplicate_email(client, monkeypatch):
-    import app as app_module
 
-    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     first = client.post(
         "/api/register",
@@ -62,10 +60,9 @@ def test_register_requires_terms_acceptance(client, monkeypatch):
 
     This test fails if the terms_accepted gate is removed from /api/register.
     """
-    import app as app_module
 
-    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     response = client.post(
         "/api/register",
@@ -88,10 +85,9 @@ def test_register_requires_terms_acceptance(client, monkeypatch):
 
 def test_register_records_acceptance_metadata(client, monkeypatch):
     """The accepted terms version + timestamp are stored as evidence of assent."""
-    import app as app_module
 
-    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     response = client.post(
         "/api/register",

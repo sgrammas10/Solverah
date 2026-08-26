@@ -1,251 +1,94 @@
-"""Account deletion and data export — GDPR/CCPA-style user rights endpoints.
+"""Account deletion and data export -- GDPR/CCPA-style user rights endpoints.
 
-Implements the D-16 reconciliation decided by Sebastian on 2026-08-20
-(recorded in Solverah_IP/compliance/ and STATE.md):
+Served at ``/api/v1/account/{export,delete}`` and, for the length of the
+frontend cutover, at ``/api/account/{export,delete}``.  Neither path, request
+body, nor response shape changed in Phase 1.
 
-    On account deletion, all PERSONAL information is erased, but assessment
-    response rows are RETAINED IN DE-IDENTIFIED FORM. D-16's append-only rule
-    governs scoring integrity (no silent edits to raw responses); it does not
-    require keeping the link between responses and an identifiable person.
-
-Deletion strategy — "tombstone", chosen over hard row deletion so that the
-person-side tables' NOT NULL user_id foreign key stays intact without a schema
-migration:
-
-    * The ``user`` row is kept but scrubbed of every personal field
-      (email -> ``deleted-<id>@tombstone.invalid``, random unusable password
-      hash, name/profile/tokens cleared, ``deleted_at`` marker inside
-      ``profile_data``).
-    * The person-side response and dimension-score rows survive, linked only to
-      the tombstone id — de-identified research data. This module never touches
-      those two tables directly; it reads them through assessment_store, the
-      single auditable doorway D-01 keeps the allowlist closed around (see
-      tests/test_employer_visibility.py).
-    * Everything else that contains personal content is destroyed:
-      ``UserIntake`` (legacy quiz results + narratives), ``JobRecommendation``,
-      ``ResumeParseCorrection`` (parsed resume content is PII),
-      ``IntakeSubmission`` rows matching the account email, and every resume
-      object in R2 (profile resume + intake resumes).
-    * ``AuditLog`` event rows are kept (they now point at the tombstone);
-      their IP/user-agent columns age out separately via retention_cleanup.py.
-
-Export returns one JSON document with every identified data class we hold,
-fulfilling access/portability requests without support tickets.
+The D-16 reconciliation these implement, the tombstone strategy, and the reason
+object storage is cleared before the database are all documented in
+``solverah/services/account_service.py``.
 """
 
 from __future__ import annotations
 
-import datetime
-import secrets
-
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required, unset_jwt_cookies
-from sqlalchemy import func
 
-from assessment_store import export_person_side
-from model import (
-    IntakeSubmission,
-    JobRecommendation,
-    ResumeParseCorrection,
-    User,
-    UserIntake,
-    db,
+from solverah.openapi import document
+from solverah.repositories import user_repository
+from solverah.schemas import LegacyError
+from solverah.schemas.account import (
+    AccountDeleteRequest,
+    AccountDeleteResponse,
+    AccountExportResponse,
 )
+from solverah.services import account_service
 
+__all__ = ["account_bp"]
+
+# The blueprint name is preserved from when this module lived at the repo root:
+# it is the first half of the endpoint name ("account_lifecycle.export_account_data"),
+# which Flask-Limiter uses as its storage key and the audit log records.
 account_bp = Blueprint("account_lifecycle", __name__)
 
-_TOMBSTONE_DOMAIN = "tombstone.invalid"
 
-
-def _now() -> str:
-    return datetime.datetime.now(datetime.timezone.utc).isoformat()
-
-
-def _current_user() -> User | None:
+def _current_user():
     """The account behind the JWT.
 
-    The identity claim is the user's EMAIL — every ``create_access_token`` call in
-    app.py issues ``identity=user.email``. Parsing it as an id raised ValueError on
+    The identity claim is the user's EMAIL -- every ``create_access_token`` call
+    issues ``identity=user.email``. Parsing it as an id raised ValueError on
     every authenticated call into this module.
     """
-    return User.query.filter_by(email=get_jwt_identity()).first()
+    return user_repository.find_by_email(get_jwt_identity())
 
 
-def _collect_resume_keys(user: User, intakes: list[IntakeSubmission]) -> list[str]:
-    """Every R2 object key that stores this person's resume bytes."""
-    keys = []
-    profile = user.profile_data or {}
-    if profile.get("resumeKey"):
-        keys.append(profile["resumeKey"])
-    for intake in intakes:
-        if intake.resume_key:
-            keys.append(intake.resume_key)
-    # De-dupe, preserve order
-    return list(dict.fromkeys(keys))
-
-
-def _delete_r2_objects(keys: list[str]) -> list[str]:
-    """Best-effort delete of resume objects. Returns keys that FAILED.
-
-    A failed R2 delete must not abort the DB-side erasure — but it must be
-    surfaced, because 'deleted' with a live resume object is a false claim
-    (D-07: never degrade to a silent safe default).
-    """
-    if not keys:
-        return []
-    # Imported lazily to avoid a circular import at module load; app.py is the
-    # only module that knows the R2 configuration.
-    from app import get_s3_client  # noqa: PLC0415
-    import os
-
-    failed = []
-    try:
-        s3 = get_s3_client()
-        bucket = os.environ["S3_BUCKET_NAME"]
-    except Exception:
-        return list(keys)  # R2 unreachable/unconfigured: report all as failed
-    for key in keys:
-        try:
-            s3.delete_object(Bucket=bucket, Key=key)
-        except Exception:
-            failed.append(key)
-    return failed
-
-
-@account_bp.get("/api/account/export")
+@document(
+    "Export every identified data class held for the authenticated user",
+    tags=["account"],
+    responses={200: AccountExportResponse, 404: LegacyError},
+    security=["accessTokenCookie"],
+)
+@account_bp.route("/account/export", methods=["GET"])
 @jwt_required()
 def export_account_data():
-    """GET /api/account/export — one JSON document of everything we hold."""
+    """GET /account/export - one JSON document of everything we hold."""
     user = _current_user()
     if user is None:
         return jsonify({"error": "User not found"}), 404
 
-    intakes = IntakeSubmission.query.filter(
-        func.lower(IntakeSubmission.email) == (user.email or "").lower()
-    ).all()
-    user_intake = UserIntake.query.filter_by(user_id=user.id).first()
-    person_side = export_person_side(user.id)
-    recommendations = JobRecommendation.query.filter_by(user_id=user.id).all()
-
-    payload = {
-        "exported_at": _now(),
-        "account": {
-            "id": user.id,
-            "email": user.email,
-            "name": user.name,
-            "role": user.role,
-            "email_confirmed": user.email_confirmed,
-        },
-        "profile": user.profile_data or {},
-        "intake_submissions": [
-            {
-                "id": i.id,
-                "first_name": i.first_name,
-                "last_name": i.last_name,
-                "email": i.email,
-                "state": i.state,
-                "phone": i.phone,
-                "linkedin_url": i.linkedin_url,
-                "portfolio_url": i.portfolio_url,
-                "resume_filename": i.resume_key.rsplit("/", 1)[-1] if i.resume_key else None,
-                "status": i.status,
-                "created_at": i.created_at.isoformat() if i.created_at else None,
-            }
-            for i in intakes
-        ],
-        "legacy_quiz": (
-            {
-                "wpll_answers": user_intake.wpll_answers,
-                "wpll_insight_text": user_intake.wpll_insight_text,
-                "wpl_answers": user_intake.wpl_answers,
-                "wpl_narrative": user_intake.wpl_narrative,
-                "wpl_result": user_intake.wpl_result,
-            }
-            if user_intake
-            else None
-        ),
-        # Keyed "assessment_answers" rather than after the table it comes from: the
-        # export is the subject's answers, and mirroring an internal table name into a
-        # public payload is how a schema detail becomes an API contract.
-        "assessment_answers": person_side["answers"],
-        "dimension_scores": person_side["dimension_scores"],
-        "job_recommendations": [
-            {"job_id": r.job_id, "score": r.score, "created_at": r.created_at.isoformat() if r.created_at else None}
-            for r in recommendations
-        ],
-    }
-
-    from app import log_audit_event  # noqa: PLC0415
-
-    log_audit_event(action="account_export", actor_user_id=user.id, resource="account")
-    db.session.commit()
-    return jsonify(payload), 200
+    result = account_service.export_account_data(user)
+    return jsonify(result.body), result.status
 
 
-@account_bp.post("/api/account/delete")
+@document(
+    "Erase personal data, retaining de-identified assessment rows",
+    tags=["account"],
+    request=AccountDeleteRequest,
+    responses={200: AccountDeleteResponse, 400: LegacyError, 404: LegacyError},
+    security=["accessTokenCookie", "csrfHeader"],
+)
+@account_bp.route("/account/delete", methods=["POST"])
 @jwt_required()
 def delete_account():
-    """POST /api/account/delete — erase personal data; keep de-identified research rows.
+    """POST /account/delete - erase personal data; keep de-identified research rows.
 
-    Body (JSON): {"confirm": "DELETE"} — explicit confirmation string so a
+    Body (JSON): {"confirm": "DELETE"} - explicit confirmation string so a
     stray click or replayed request cannot destroy an account.
     """
     data = request.get_json(silent=True) or {}
-    if data.get("confirm") != "DELETE":
-        return jsonify({"error": 'Confirmation required: send {"confirm": "DELETE"}'}), 400
+
+    # Confirmation is checked before the user lookup so an unconfirmed request
+    # gets the same 400 whether or not the JWT still maps to an account.
+    if data.get("confirm") != account_service.DELETE_CONFIRMATION:
+        result = account_service.delete_account(None, data.get("confirm"))
+        return jsonify(result.body), result.status
 
     user = _current_user()
     if user is None:
         return jsonify({"error": "User not found"}), 404
 
-    original_email_lower = (user.email or "").lower()
-    intakes = IntakeSubmission.query.filter(
-        func.lower(IntakeSubmission.email) == original_email_lower
-    ).all()
-
-    # 1. Resume bytes out of R2 first — object storage is the copy that would
-    #    otherwise be forgotten.
-    failed_keys = _delete_r2_objects(_collect_resume_keys(user, intakes))
-
-    # 2. Rows whose CONTENT is personal: destroy.
-    for intake in intakes:
-        db.session.delete(intake)
-    UserIntake.query.filter_by(user_id=user.id).delete()
-    JobRecommendation.query.filter_by(user_id=user.id).delete()
-    ResumeParseCorrection.query.filter_by(user_id=user.id).delete()
-
-    # 3. The user row: tombstone. Email keeps uniqueness; password becomes an
-    #    unusable random string (it is compared via bcrypt, so a non-bcrypt
-    #    value can never verify); every personal field is cleared.
-    user.email = f"deleted-{user.id}@{_TOMBSTONE_DOMAIN}"
-    user.password = f"!deleted!{secrets.token_hex(16)}"
-    user.name = None
-    user.profile_data = {"deleted_at": _now()}
-    user.email_confirmed = False
-    user.confirmation_token = None
-    user.confirmation_sent_at = None
-    user.reset_token = None
-    user.reset_sent_at = None
-
-    # 4. The person-side response and dimension-score rows are deliberately kept —
-    #    de-identified via the tombstone (the decided D-16 reconciliation). Nothing
-    #    to do here; that is the point of tombstoning instead of deleting the row.
-
-    from app import log_audit_event  # noqa: PLC0415
-
-    log_audit_event(
-        action="account_deleted",
-        actor_user_id=user.id,
-        resource="account",
-        metadata={"r2_delete_failures": len(failed_keys)},
-    )
-    db.session.commit()
-
-    resp = jsonify(
-        {
-            "message": "Account deleted. Assessment responses are retained in de-identified form.",
-            "r2_delete_failures": failed_keys,  # non-empty => surface, never hide (D-07)
-        }
-    )
-    unset_jwt_cookies(resp)
-    return resp, 200
+    result = account_service.delete_account(user, data.get("confirm"))
+    response = jsonify(result.body)
+    if result.clear_session:
+        unset_jwt_cookies(response)
+    return response, result.status

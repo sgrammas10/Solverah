@@ -33,7 +33,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
-from company import CultureValues, Pace, PACE_TO_FLOAT
+from .company import CultureValues, Pace, PACE_TO_FLOAT
 
 # ---------------------------------------------------------------------------
 # Defaults

@@ -12,8 +12,8 @@ def _noop(*_args, **_kwargs):
 
 def _register_and_login(client, monkeypatch, email="prefs@example.com", password="Strongpass1!"):
     import app as app_module
-    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     client.post(
         "/api/register",
@@ -42,10 +42,10 @@ VALID_PREFS = {
 
 @pytest.fixture(autouse=True)
 def clear_path_cache():
-    import app as app_module
-    app_module._path_suggestions_cache.clear()
+    from solverah.services import path_cache
+    path_cache.clear()
     yield
-    app_module._path_suggestions_cache.clear()
+    path_cache.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -78,6 +78,7 @@ def test_preferences_persisted_in_profile_data(client, monkeypatch):
 
     from app import app
     from model import User
+    from solverah.services import path_cache
     with app.app_context():
         user = User.query.filter_by(email="prefs@example.com").first()
         prefs = (user.profile_data or {}).get("path_preferences")
@@ -136,12 +137,13 @@ def test_save_preferences_invalidates_path_cache(client, monkeypatch):
     # Seed a fake cache entry for this user
     from app import app
     from model import User
+    from solverah.services import path_cache
     with app.app_context():
         user = User.query.filter_by(email="prefs@example.com").first()
-        app_module._path_suggestions_cache[user.id] = {"suggestions": [], "career_status": "employed", "generated_at": "2026-01-01T00:00:00Z"}
+        path_cache.store(user.id, {"suggestions": [], "career_status": "employed", "generated_at": "2026-01-01T00:00:00Z"})
         user_id = user.id
 
-    assert user_id in app_module._path_suggestions_cache
+    assert user_id in path_cache.snapshot()
 
     client.post(
         "/api/intelligence/path-preferences",
@@ -149,4 +151,4 @@ def test_save_preferences_invalidates_path_cache(client, monkeypatch):
         headers={"X-CSRF-TOKEN": csrf},
     )
 
-    assert user_id not in app_module._path_suggestions_cache
+    assert user_id not in path_cache.snapshot()

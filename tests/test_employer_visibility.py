@@ -182,8 +182,10 @@ def test_submit_response_carries_no_dimension_scores():
     """D-15. Even the respondent's own submit response omits the six scores -- returning them
     hands a retaker a gradient to optimise against. An employer-facing endpoint reusing this
     payload shape therefore cannot leak scores either."""
-    source = (REPO_ROOT / "app.py").read_text(encoding="utf-8")
-    start = source.index('@app.post("/api/assessment/submit")')
+    source = (REPO_ROOT / "solverah" / "api" / "v1" / "assessments.py").read_text(
+        encoding="utf-8"
+    )
+    start = source.index('@assessments_bp.route("/assessment/submit", methods=["POST"])')
     body = source[start : start + 4000]
 
     # The route returns submission_id / scoring_key_version / dimensions_scored -- a count, not

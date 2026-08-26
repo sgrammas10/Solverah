@@ -20,9 +20,8 @@ def _noop(*_args, **_kwargs):
 
 def register_and_login(client, monkeypatch, email="test@example.com", password="Strongpass1!"):
     """Register a user via HTTP (with email send stubbed), confirm, log in, return csrf token."""
-    import app as app_module
-    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     client.post(
         "/api/register",

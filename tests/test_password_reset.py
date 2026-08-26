@@ -8,9 +8,8 @@ def _noop(*_args, **_kwargs):
 
 def _make_confirmed_user(client, monkeypatch):
     """Register and confirm a user, returning their email."""
-    import app as app_module
-    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     email = "reset@example.com"
     client.post(
@@ -31,8 +30,7 @@ def _make_confirmed_user(client, monkeypatch):
 
 
 def test_request_reset_unknown_email_returns_404(client, monkeypatch):
-    import app as app_module
-    monkeypatch.setattr(app_module, "send_password_reset_email", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_password_reset_email", _noop)
 
     res = client.post("/api/request-password-reset", json={"email": "nobody@example.com"})
     assert res.status_code == 404
@@ -40,9 +38,8 @@ def test_request_reset_unknown_email_returns_404(client, monkeypatch):
 
 
 def test_request_reset_stores_token(client, monkeypatch):
-    import app as app_module
-    monkeypatch.setattr(app_module, "send_password_reset_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_password_reset_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     email = _make_confirmed_user(client, monkeypatch)
     res = client.post("/api/request-password-reset", json={"email": email})
@@ -58,9 +55,8 @@ def test_request_reset_stores_token(client, monkeypatch):
 
 
 def test_verify_reset_wrong_code(client, monkeypatch):
-    import app as app_module
-    monkeypatch.setattr(app_module, "send_password_reset_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_password_reset_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     email = _make_confirmed_user(client, monkeypatch)
     client.post("/api/request-password-reset", json={"email": email})
@@ -71,9 +67,8 @@ def test_verify_reset_wrong_code(client, monkeypatch):
 
 
 def test_verify_reset_expired_code(client, monkeypatch):
-    import app as app_module
-    monkeypatch.setattr(app_module, "send_password_reset_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_password_reset_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     email = _make_confirmed_user(client, monkeypatch)
     client.post("/api/request-password-reset", json={"email": email})
@@ -93,9 +88,8 @@ def test_verify_reset_expired_code(client, monkeypatch):
 
 
 def test_verify_reset_success_logs_in(client, monkeypatch):
-    import app as app_module
-    monkeypatch.setattr(app_module, "send_password_reset_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_password_reset_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     email = _make_confirmed_user(client, monkeypatch)
     client.post("/api/request-password-reset", json={"email": email})
@@ -114,9 +108,8 @@ def test_verify_reset_success_logs_in(client, monkeypatch):
 
 
 def test_verify_reset_clears_token(client, monkeypatch):
-    import app as app_module
-    monkeypatch.setattr(app_module, "send_password_reset_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_password_reset_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     email = _make_confirmed_user(client, monkeypatch)
     client.post("/api/request-password-reset", json={"email": email})
@@ -136,9 +129,8 @@ def test_verify_reset_clears_token(client, monkeypatch):
 
 
 def test_verify_reset_code_cannot_be_reused(client, monkeypatch):
-    import app as app_module
-    monkeypatch.setattr(app_module, "send_password_reset_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_password_reset_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     email = _make_confirmed_user(client, monkeypatch)
     client.post("/api/request-password-reset", json={"email": email})

@@ -46,8 +46,8 @@ def _noop(*_args, **_kwargs):
 
 def _register_and_login(client, monkeypatch, email="wp@example.com", password="Strongpass1!"):
     import app as app_module
-    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     client.post(
         "/api/register",
@@ -79,7 +79,7 @@ def _mock_openai(monkeypatch, response_json=None, raise_exc=None):
         mock_response = MagicMock()
         mock_response.choices = [mock_choice]
         mock_client.chat.completions.create.return_value = mock_response
-    monkeypatch.setattr(app_module, "_get_openai_client", lambda: mock_client)
+    monkeypatch.setattr("solverah.infra.llm.get_openai_client", lambda: mock_client)
     return mock_client
 
 

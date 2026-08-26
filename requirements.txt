@@ -43,6 +43,17 @@ pdfminer.six==20260107
 python-docx==1.2.0
 resend==2.37.0
 openai==3.3.1
+
+# Request/response schemas and the OpenAPI 3.1 document (see solverah/openapi.py).
+# v2 specifically: pydantic v2 emits JSON Schema draft 2020-12, which *is* the
+# schema dialect OpenAPI 3.1 uses, so the spec generator needs no translation
+# layer. v1 emitted draft-07 and would have needed one.
+#
+# Nothing in the tree pinned pydantic before this, yet company_culture_LLM
+# imported it -- so the installed version was whatever a transitive dependency
+# happened to drag in. openai==3.3.1 requires
+# `pydantic!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,<3,>=1.10.13`, which this satisfies.
+pydantic==2.13.4
 pytest==9.1.1
 pytest-cov==7.1.0
 
