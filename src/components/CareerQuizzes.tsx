@@ -5,6 +5,7 @@ import QuizInsightModal from "./QuizInsightModal";
 import { API_BASE } from "../utils/api";
 import { markGuestQuizCompleted, setPendingQuizSave } from "../utils/guestQuiz";
 import { useQuizInsight, type QuizInsight } from "../hooks/useQuizInsight";
+import { parseApiError } from "../utils/apiError";
 
 
 // Single quiz question type: numeric id, question text, and list of options
@@ -434,7 +435,7 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
             });
             const data = await res.json().catch(() => null);
             if (!res.ok) {
-              throw new Error(data?.error || "Failed to generate insights.");
+              throw parseApiError(res, data, "Failed to generate insights.");
             }
             setInsightResponse({
               overallSummary: data?.overallSummary || null,

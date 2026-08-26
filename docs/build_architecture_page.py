@@ -36,6 +36,7 @@ def inline(text):
 def _emphasis(escaped):
     escaped = re.sub(r"\[([^\]]+)\]\((https?://[^)\s]+)\)",
                      r'<a href="\2" target="_blank" rel="noopener noreferrer">\1</a>', escaped)
+    escaped = re.sub(r"~~([^~]+)~~", r"<del>\1</del>", escaped)
     escaped = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", escaped)
     escaped = re.sub(r"(?<![\w*])\*([^*\n]+)\*(?![\w*])", r"<em>\1</em>", escaped)
     return escaped
@@ -414,6 +415,7 @@ li::marker { color: var(--ink-3); }
 ol > li::marker { font-family: var(--mono); font-size: .85em; }
 
 strong { font-weight: 700; }
+del { color: var(--ink-3); text-decoration-color: var(--ink-3); }
 code {
   font-family: var(--mono); font-size: .855em;
   background: var(--sunken); border: 1px solid var(--line-soft);

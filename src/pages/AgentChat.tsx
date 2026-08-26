@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Send, MessageSquare } from 'lucide-react';
 import { useAuth } from '../contexts/useAuth';
+import { parseApiError } from '../utils/apiError';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -45,7 +46,7 @@ function AgentChat() {
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error((errData as any).error || 'Request failed');
+        throw parseApiError(response, errData, 'Request failed');
       }
 
       if (!response.body) throw new Error('No response body');

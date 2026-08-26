@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { API_BASE } from "../utils/api";
+import { parseApiError } from "../utils/apiError";
 
 export function useEarlyAccess() {
   const [isOpen, setIsOpen] = useState(false);
@@ -45,7 +46,7 @@ export function useEarlyAccess() {
           console.error("Failed to parse early-access response:", e);
           return {};
         });
-        setError(data?.error || "Could not send request. Please try again.");
+        setError(parseApiError(res, data, "Could not send request. Please try again.").message);
         return;
       }
       setIsOpen(false);

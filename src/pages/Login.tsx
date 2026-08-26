@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
 import { getPendingQuizSave, clearPendingQuizSave } from "../utils/guestQuiz";
 import { API_BASE } from "../utils/api";
+import { parseApiError } from "../utils/apiError";
 
 const INTAKE_STORAGE_KEY = 'solverah_intake';
 
@@ -42,7 +43,7 @@ function ResendConfirmation({ email }: { email: string }) {
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setStatus('error');
-        setMsg(data?.error || 'Failed to resend code');
+        setMsg(parseApiError(res, data, 'Failed to resend code').message);
         return;
       }
       navigate('/verify-email', { state: { email } });

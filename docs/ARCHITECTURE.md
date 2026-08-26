@@ -1139,10 +1139,27 @@ Expand/contract, one aggregate at a time, dual-write then backfill then cut over
 
 ### Phase 4 — Frontend restructure
 
-- TanStack Query + generated typed client; `AuthContext` reduced to identity.
-- Feature-sliced directories; ESLint boundary rule.
+Splits into work that is independent of the backend and work that is gated on the
+Phase 1 contract. Only the second group needs backend coordination.
+
+**Independent of every backend phase — startable immediately:**
+
 - Route-based code splitting; public routes decoupled from the session fetch.
-- Error boundaries; MSW; Playwright smoke suite; `size-limit` budget in CI.
+- Error boundaries; feature-sliced directories; ESLint boundary rule.
+- Design-system extraction into `shared/ui`.
+- Playwright smoke suite; `size-limit` budget in CI.
+- TanStack Query adoption against the *current* endpoints — a query hook does not
+  care whether the path is `/api/profile` or `/api/v1/me`; that is one constant.
+- ~~Problem Details error parsing~~ — **done 2026-08-22.** `src/utils/apiError.ts`
+  reads both the problem+json shape Phase 0 introduced and the legacy `{error}`
+  bodies `app.py` still returns, across 17 call sites. Without it the specific
+  message Phase 0 started sending was present in the response and discarded.
+
+**Gated on Phase 1:**
+
+- The *generated* typed client (there is no OpenAPI document until Phase 1).
+- MSW handlers generated from the contract — hand-write them in the meantime.
+- The `/api/*` → `/api/v1/*` path cutover.
 
 **Exit:** initial bundle under budget; no component owns a `loading` boolean for server data.
 
@@ -1159,8 +1176,21 @@ Expand/contract, one aggregate at a time, dual-write then backfill then cut over
 Phases 0 and 1 are prerequisites for everything else and carry near-zero product risk.
 Phase 2 is the highest-value and highest-risk work — it is what actually unblocks scale,
 and it is the phase that most deserves a full dual-write/verify/cutover discipline
-rather than a big-bang migration. Phase 4 can run in parallel with Phase 2 by a
-different person; it touches no backend code.
+rather than a big-bang migration.
+
+**Phase 1 is what decouples the frontend from the backend, so it is not something to
+route around.** Phase 4's independent group (above) can start today alongside anything.
+Its remainder cannot: the generated client needs Phase 1's OpenAPI document, and 13
+frontend files currently read the `profile_data` blob shape directly. Whether Phase 2
+disturbs those 13 files depends entirely on ordering — with Phase 1 done first, schemas
+sit at the API boundary and the storage decomposition never reaches the client; without
+it, the decomposition leaks into response shapes and those files churn twice. Phase 3
+has its own client-visible edge: resume-finalize, recommendations-refresh, and
+path-suggestions become `202` + poll or SSE, which changes the interaction model
+regardless of ordering.
+
+So: run Phase 4's independent group now, then Phase 1, and only then Phases 2/3 backend
+in parallel with the rest of Phase 4.
 
 ---
 

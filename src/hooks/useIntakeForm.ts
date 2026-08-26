@@ -20,6 +20,7 @@
  */
 import { FormEvent, useState } from "react";
 import { API_BASE } from "../utils/api";
+import { parseApiError } from "../utils/apiError";
 
 /** Overall submission lifecycle state. */
 export type SubmissionStatus = "idle" | "submitting" | "success" | "error";
@@ -102,7 +103,7 @@ export function useIntakeForm() {
         console.error("Failed to parse presign response:", e);
         return {};
       });
-      if (!presignRes.ok) throw new Error(presignData?.error || "Unable to start upload.");
+      if (!presignRes.ok) throw parseApiError(presignRes, presignData, "Unable to start upload.");
 
       const { submission_id, object_key, upload_url } = presignData as {
         submission_id?: string;
@@ -149,7 +150,7 @@ export function useIntakeForm() {
         console.error("Failed to parse finalize response:", e);
         return {};
       });
-      if (!finalizeRes.ok) throw new Error(finalizeData?.error || "Unable to submit right now.");
+      if (!finalizeRes.ok) throw parseApiError(finalizeRes, finalizeData, "Unable to submit right now.");
 
       setSubmissionStatus("success");
       setAccountModalOpen(true);
@@ -198,7 +199,7 @@ export function useIntakeForm() {
         console.error("Failed to parse create-account response:", e);
         return {};
       });
-      if (!response.ok) throw new Error(data?.error || "Unable to create account right now.");
+      if (!response.ok) throw parseApiError(response, data, "Unable to create account right now.");
       setAccountStep("success");
     } catch (error) {
       setAccountError(error instanceof Error ? error.message : "Unable to create account right now.");
@@ -234,7 +235,7 @@ export function useIntakeForm() {
         console.error("Failed to parse sign-in response:", e);
         return {};
       });
-      if (!response.ok) throw new Error(data?.error || "Unable to sign in right now.");
+      if (!response.ok) throw parseApiError(response, data, "Unable to sign in right now.");
       setAccountStep("success");
     } catch (error) {
       setAccountError(error instanceof Error ? error.message : "Unable to sign in right now.");

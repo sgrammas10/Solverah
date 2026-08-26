@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { API_BASE } from '../utils/api';
+import { parseApiError } from '../utils/apiError';
 
 const REDIRECT_DELAY_MS = 2000;
 import HeroNetworkAnimation from '../components/HeroNetworkAnimation';
@@ -40,7 +41,7 @@ export default function ConfirmEmail() {
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setStatus('error');
-        setMessage(data?.error || 'Verification failed. Please try again.');
+        setMessage(parseApiError(res, data, 'Verification failed. Please try again.').message);
         return;
       }
       setStatus('success');
@@ -76,7 +77,7 @@ export default function ConfirmEmail() {
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setResendStatus('error');
-        setResendMsg(data?.error || 'Failed to resend code.');
+        setResendMsg(parseApiError(res, data, 'Failed to resend code.').message);
         return;
       }
       setResendStatus('sent');

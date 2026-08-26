@@ -10,6 +10,7 @@ import QuizInsightModal from "./QuizInsightModal";
 import { API_BASE } from "../utils/api";
 import { markGuestQuizCompleted, setPendingQuizSave } from "../utils/guestQuiz";
 import { useQuizInsight } from "../hooks/useQuizInsight";
+import { parseApiError } from "../utils/apiError";
 
 
 /* ===========================================================
@@ -146,7 +147,7 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
             });
             const data = await res.json().catch(() => null);
             if (!res.ok) {
-              throw new Error(data?.error || "Failed to generate insights.");
+              throw parseApiError(res, data, "Failed to generate insights.");
             }
             setInsightResponse({
               overallSummary: data?.overallSummary || null,

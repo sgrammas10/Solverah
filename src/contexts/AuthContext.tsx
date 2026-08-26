@@ -21,6 +21,7 @@ import { useState, useEffect, ReactNode } from "react";
 
 import { AuthContext, ProfileData, User } from "./authContext";
 import { API_BASE } from "../utils/api";
+import { parseApiError } from "../utils/apiError";
 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -84,7 +85,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!res.ok) {
-      throw new Error(data?.error || data?.message || "Request failed");
+      // Throws an ApiError, which extends Error — existing `catch (e) { e.message }`
+      // call sites are unaffected and simply get a better message. Reads both the
+      // problem+json shape and the legacy {error} body; see utils/apiError.ts.
+      throw parseApiError(res, data);
     }
 
     if (data === null) {
@@ -128,9 +132,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ email, password }),
     });
 
-    const data = await res.json();
+    // Guarded: an unguarded res.json() throws a SyntaxError on any non-JSON
+    // error response (a proxy's HTML 502, an empty 429 body), which surfaces to
+    // the user as a parse error instead of the real reason.
+    const data = await res.json().catch(() => null);
     if (!res.ok) {
-      throw new Error(data.error || "Login failed");
+      throw parseApiError(res, data, "Login failed");
+    }
+    if (data === null) {
+      throw new Error("Unexpected response from server (no JSON body).");
     }
 
     const userData = data.user as User;
@@ -168,8 +178,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }),
     });
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Registration failed");
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw parseApiError(res, data, "Registration failed");
   };
 
   // LOGOUT — clears cookie on backend

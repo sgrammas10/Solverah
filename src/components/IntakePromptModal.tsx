@@ -2,6 +2,7 @@ import { FormEvent, useId, useState } from "react";
 import { X } from "lucide-react";
 import { API_BASE } from "../utils/api";
 import { useAuth } from "../contexts/useAuth";
+import { parseApiError } from "../utils/apiError";
 
 type Step = "prompt" | "form" | "success";
 
@@ -70,7 +71,7 @@ export default function IntakePromptModal({ open, hasIntakeSubmission, onClose, 
         body: JSON.stringify({ mime: resumeFile.type, size: resumeFile.size }),
       });
       const presignData = await presignRes.json().catch(() => ({}));
-      if (!presignRes.ok) throw new Error(presignData?.error || "Unable to start upload.");
+      if (!presignRes.ok) throw parseApiError(presignRes, presignData, "Unable to start upload.");
 
       const { submission_id, object_key, upload_url } = presignData as {
         submission_id: string;
