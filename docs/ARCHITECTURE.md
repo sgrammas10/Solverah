@@ -885,6 +885,19 @@ CREATE INDEX ix_match_user ON match_recommendations (user_id, shown_at DESC);
 -- rec_actions, outcome_appeals, outcomes_experienced: same partitioning treatment.
 ```
 
+**Item 5 partitions the existing tables in place, under their existing names.**
+The code today has `match_recommendation`, `rec_action`, `outcome_appeal`,
+`outcome_experienced`, and — 4.7 below — `audit_log`, all singular; the plural
+forms above are Part 4's target spelling, matching 4.1's two-key rule, and
+renaming to reach them is deferred, the same way 2c's `user` → `users` was its
+own contract-surface change rather than a side effect of another migration.
+Likewise the `public_id UUID` and `BIGINT GENERATED ALWAYS AS IDENTITY` columns
+above are Part 4's target shape, not item 5's: item 5 adds the partition key to
+each table's primary key and the composite foreign keys that follow from it, on
+the `INTEGER` ids and without a `public_id`, exactly as the tables are built
+today. See A17 for what item 5 actually does, including the one table this
+section lists that it does not touch.
+
 ### 4.7 Platform tables
 
 ```sql
@@ -940,6 +953,17 @@ Redis stream and drained by a worker — never a synchronous commit on a read.
 | `user_sessions` | 30 days past expiry | Nightly job |
 | `idempotency_keys` | 24 h | Nightly job |
 | Deleted users | 30-day grace, then purge | `retention_cleanup.py`, extended |
+
+The `audit_events` row above is target design — whole-row expiry via partition
+drop, once the table has been renamed and the retention job rebuilt to use it.
+What runs today, against `audit_log`, is `retention_cleanup.py`: a nightly
+`UPDATE` that nulls `ip_address` and `user_agent` once a row is older than
+`AUDIT_PII_DAYS` (365 days), leaving the row — `action`, `resource`,
+`event_metadata`, `created_at` — in place. That is a narrower policy, PII
+fields rather than the whole event, and partitioning does not replace it:
+dropping a partition would delete rows this job is deliberately keeping past
+their PII expiry. Partition drop is the mechanism for whole-row expiry; item 5
+does not change what `retention_cleanup.py` does to `audit_log` today.
 
 ---
 
@@ -1968,7 +1992,7 @@ in parallel with the rest of Phase 4.
 | A6 | Modular monolith, not microservices | One team. Service boundaries here would buy operational cost and distributed-transaction pain to solve a problem the product does not have. The layering makes extraction cheap later if it is ever warranted. | Microservices |
 | A7 | Refresh tokens in the database | Revocation, device management, and reuse detection are impossible with stateless JWTs alone. One indexed lookup per refresh (not per request) is an acceptable price. | Long-lived stateless JWT |
 | A8 | CI on Postgres, not SQLite | Tests that pass against a database the product does not run are not evidence. Landed 2026-08-27 and immediately caught 8 orphaned foreign keys SQLite had accepted for months. SQLite was kept briefly as a non-gating fast job; **retired the same day by Phase 2a** (A14). | Keep SQLite for speed |
-| A14 | Retire the SQLite job rather than make Part 4 portable | Part 4.3's tables need `DEFAULT uuidv7()`, identity columns, JSONB, `TEXT[]` and a GIN trigram index; the fixtures build the schema with `db.create_all()`, so the job could not reach a test. Making the defaults app-side reverses A13 for a container's benefit and permanently changes every table in Part 4. Skipping the new tables there leaves the fast job blind to the only thing that changed, which is the laxness A8 rules out. Phases 2c (pgvector/HNSW) and 2e (partitioning) are not expressible on SQLite under any option, so portability bought here is spent inside the same phase. The cost is real and named: ordinary breakage now surfaces in ~3 minutes rather than ~1. | App-side UUIDs; or skip the new tables on SQLite |
+| A14 | Retire the SQLite job rather than make Part 4 portable | Part 4.3's tables need `DEFAULT uuidv7()`, identity columns, JSONB, `TEXT[]` and a GIN trigram index; the fixtures build the schema with `db.create_all()`, so the job could not reach a test. Making the defaults app-side reverses A13 for a container's benefit and permanently changes every table in Part 4. Skipping the new tables there leaves the fast job blind to the only thing that changed, which is the laxness A8 rules out. Phase 2 item 4 (pgvector/HNSW, struck by A16) and item 5 (partitioning) are not expressible on SQLite under any option, so portability bought here is spent inside the same phase. The cost is real and named: ordinary breakage now surfaces in ~3 minutes rather than ~1. | App-side UUIDs; or skip the new tables on SQLite |
 | A15 | Optimistic locking with server-side retry, not a client-supplied version | `profiles.version` is compared and swapped inside the repository, and a losing writer re-reads and re-applies its own merge. Exposing the version in `ProfileDocument` and answering 409 would have been a contract change — 1b shipped a week earlier and the SPA does not send one. An If-Match becomes worth adding when a client actually wants to say "only if I still have what I read"; nothing does yet. | `version` in the envelope + 409 on conflict |
 | A13 | Pin CI Postgres to 18, matching Render, not to 16 | Part 4 defaults every `public_id` to `uuidv7()`, which exists only in Postgres 18+. Render was measured at 18.3, so a pg16 runner would fail migrations production accepts — divergence in the opposite direction, and the tempting workaround (generate ids in the app) would be a permanent change to every table made to satisfy a container. `tests/test_database_parity.py` asserts the floor. | `pgvector/pgvector:pg16` |
 | A9 | Collapsed routes keep one rate-limit bucket per discriminator | Five submit handlers at 5/min were five budgets; one handler is one, so finishing Work Pulse would have spent FocusType's allowance. The limit bounds provider spend, which is per call to a specific instrument — raising it to 25 buys any one instrument a 5× to fix a bucketing problem. | Raise the limit on the collapsed route |
@@ -1976,6 +2000,7 @@ in parallel with the rest of Phase 4.
 | A11 | Enforced request models ignore unknown keys rather than forbidding them | Handlers read fields with `data.get(...)` and ignore the rest, and live call sites send more than the schemas name. A 422 on a key the server was going to drop is the "worked yesterday" incident enforcement is supposed to prevent. Closed models still generate a strict client. | `extra="forbid"` on requests |
 | A12 | One route per collapsed group, but a response model per discriminator | The five assessments produce genuinely different payloads — `core` deliberately returns no dimension scores at all. A lowest-common-denominator envelope would have to be open enough to hold any of them, which makes it a document that promises nothing. | A shared result envelope |
 | A16 | Strike `company_culture_vectors`, pgvector and the HNSW index (Phase 2 item 4) rather than build them | **The index would rank the wrong quantity.** `culture_fit_score` is `max(0, 1 - |company - user|)` per axis (`packages/ml/culture/scoring.py:_score_numeric`) — L1 proximity, where a user at 0.5 and a company at 0.5 score 1.0 on that axis. Cosine measures the angle between whole vectors and is blind to that: it cannot distinguish "matches on every axis" from "is proportionally larger on every axis". Measured over the 2,071-company corpus, ranking by cosine reproduces 3 of the exact scorer's top 10 (recall@10 = 3/10), so an HNSW index would be a fast answer to a different question. **One of the eight dimensions is not a vector component at all.** `work_environment` is Jaccard over an open tag vocabulary, at weight 1.5 — joint-heaviest with `pace` — and set overlap has no fixed-width numeric encoding to put in a `vector(8)`. Any embedding of it changes the score before the index is reached. **There is no performance case either.** The corpus is 2,071 companies and the exact in-Python scan measures 34 ms; ANN exists to avoid scanning millions, and at this size the index build and the recall loss are both pure cost. **And the destination is not a nearest-neighbour problem.** The replacement for `culture_fit_score` is the causal Bayesian model (`match_scoring.py`): a per-pair logistic predictor with a signed directional feature and company-level confounders. It is evaluated per (user, company) pair against a fitted posterior, not looked up by distance — no ANN index serves it, however indexed. P0-2's full scan is still real and still open; the fix is precomputation and caching (Phase 3), not a different index. | Build the vectors and the HNSW index as specified |
+| A17 | Partition `audit_log`, `match_recommendation` and `rec_action` by range; leave `assessment_response` unpartitioned; widen the foreign keys into `match_recommendation` to a composite `(id, shown_at)` rather than drop them (Phase 2 item 5) | **Decided and dispatched 2026-08-27; implementation in flight — not landed.** The three tables partition on their own event time: `audit_log` on `created_at`, `match_recommendation` on `shown_at`, `rec_action` on `acted_at`. `assessment_response` is excluded even though Part 4.4 lists it as partitioned: it carries `UniqueConstraint(submission_id, item_id)` — one answer per item per submission — and Postgres requires the partition key in every unique constraint on a partitioned table, so partitioning it would force `answered_at` into that constraint. A constraint widened that way stops catching a genuine duplicate answer, and a duplicate is exactly the row `mean_pole`'s denominator cannot tolerate silently double-counting. `assessment_response` is also the lowest-volume of the four candidate tables, so the case for partitioning it was weakest to begin with. Partitioning `match_recommendation` forces its primary key from `id` to `(id, shown_at)` for the same reason — the partition key has to be in the key — which means a bare `id` no longer identifies a unique row. `rec_action`, `outcome_appeal` and `outcome_experienced` each carry a foreign key into `match_recommendation`, so each gained a `shown_at` column and a composite foreign key to `(id, shown_at)` rather than losing the constraint. All three feed the causal model, where a dangling `recommendation_id` is not a visible error — it is silent corruption of training data, a worse failure than the write friction of carrying a second column. `outcome_appeal` keeps its uniqueness on `recommendation_id` alone, not widened to match the new key: one appeal per recommendation is the rule, and widening would let two rows name the same recommendation under different `shown_at` values, only one of which can be about a real event. | Drop the foreign keys into `match_recommendation` instead of widening them, the precedent `audit_events`'s `actor_user_id` already sets in this document |
 
 ## Appendix B — What already works and is not being changed
 

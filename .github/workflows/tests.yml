@@ -186,11 +186,12 @@ jobs:
   #     production runs.
   #
   # Worth saying plainly: retiring is also the option that most easily keeps CI
-  # green, which is a reason to distrust it. It survives that anyway. Phases 2c
-  # (pgvector + HNSW) and 2e (declarative partitioning) are not expressible on
-  # SQLite under any of the three options, so portability bought here is spent
-  # inside the same phase — and A8 is that tests passing against a database the
-  # product does not run are not evidence.
+  # green, which is a reason to distrust it. It survives that anyway. Phase 2
+  # item 4 (pgvector + HNSW, struck by A16) and item 5 (declarative
+  # partitioning) are not expressible on SQLite under any of the three
+  # options, so portability bought here is spent inside the same phase — and
+  # A8 is that tests passing against a database the product does not run are
+  # not evidence.
   #
   # What is lost is real: the Postgres job takes ~3 minutes where SQLite took
   # under one, so ordinary breakage now surfaces later. The replacement is a
