@@ -12,10 +12,13 @@ None of that is allowed to reach the wire. This script and its pair,
     # after it
     python -m Scripts.verify_contract
 
-Both need `DATABASE_URL` pointing at a throwaway database. Both **destroy every
-object in it** -- the same `DROP SCHEMA public CASCADE` a fresh start requires --
-so the guard `tests/conftest.py` uses is imported and applied here rather than
-re-implemented, because a second copy of a safety check is a copy that drifts.
+Both **destroy every object** in the database they run against -- the same
+`DROP SCHEMA public CASCADE` a fresh start requires -- so the guard
+`tests/conftest.py` uses is imported and applied here rather than re-implemented,
+because a second copy of a safety check is a copy that drifts. Left alone they
+use `solverah_contract`, which is theirs alone; `DATABASE_URL` overrides it, and
+pointing that at the database another tool is using is the one way to get the
+2026-08-27 failure back.
 
 **Why raw text and not parsed JSON.** `json.loads(a) == json.loads(b)` is blind to
 key order, to `1` versus `1.0`, and to the whitespace a serializer emits. "Byte-identical"
@@ -77,6 +80,25 @@ PASSWORD = "Strongpass1!"
 #: so without it `/assessments/core/form` is a 500 on both sides of the diff --
 #: identical bytes proving nothing.
 FORM_TOKEN_SECRET = "test-secret-not-a-real-one"
+
+#: This script's own database -- not the suite's `solverah_test`, and not the
+#: `solverah` that `make dev` uses.
+#:
+#: `_reset_schema` below runs DROP SCHEMA public CASCADE. Until 2026-08-27 this
+#: script inherited its URL from `tests/conftest.py`'s setdefault, which was the
+#: dev database, which `make test-pg` also used: running a capture while a suite
+#: was in flight dropped the schema out from under it, and vice versa. What that
+#: produced was 132 collection errors naming `user_role` -- the first enum
+#: create_all emits, so the first object two racing processes collide on, and
+#: nothing at all to do with the phase it was blamed on for hours.
+#:
+#: setdefault, not a hard assignment: capturing against a scratch database is a
+#: reasonable thing to want, and DATABASE_URL is how you ask for it. The guard
+#: borrowed from conftest still refuses anything non-local either way.
+#:
+#: Created by infra/docker/initdb/02-lane-databases.sql on the stack's first
+#: start, on port 5433 -- see infra/docker/compose.yml for why not 5432.
+CONTRACT_DATABASE_URL = "postgresql://solverah:solverah@localhost:5433/solverah_contract"
 
 WPLL_ANSWERS = [
     {"question_id": "wpll-q%d" % i, "option_id": "wpll-q%d-c" % i} for i in range(1, 6)
@@ -249,6 +271,10 @@ def run_scenario() -> List[Dict[str, Any]]:
     """
     os.environ.setdefault("APP_ENV", "testing")
     os.environ.setdefault("SOLVERAH_IGNORE_DOTENV", "1")
+    # Before `_load_conftest_guard()`, which setdefaults the *suite's* database.
+    # Whichever runs first wins, and this script must not be the one that ends up
+    # dropping the schema the suite is using.
+    os.environ.setdefault("DATABASE_URL", CONTRACT_DATABASE_URL)
     # Set, not setdefault: the value seeds the shuffle and salts the item tokens,
     # so a different one in the shell would reorder `/assessments/core/form` and
     # make the two sides of the diff disagree for a reason that is not a change.

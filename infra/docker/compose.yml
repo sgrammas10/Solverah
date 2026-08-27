@@ -31,9 +31,45 @@ services:
       POSTGRES_PASSWORD: solverah
       POSTGRES_DB: solverah
     ports:
-      - "5432:5432"
+      # 5433 on the host, NOT 5432, and the reason is Windows rather than taste.
+      #
+      # A native Postgres service (postgresql-x64-18, StartType=Automatic) binds
+      # 0.0.0.0:5432 on at least one developer machine, and Windows lets Docker
+      # bind the same port rather than refusing. Both listeners then exist and the
+      # native one answers every connection: `docker compose ps db` reports
+      # healthy, `docker compose exec db psql` works, and every DATABASE_URL in
+      # this repo fails with `password authentication failed for user "solverah"`
+      # against a server that is not this container at all. Measured 2026-08-27.
+      #
+      # Moving the published port is the repo-side fix, and it is the one that
+      # holds: stopping the native service frees 5432 but it is set to start
+      # automatically, so the next installer repair silently puts the shadow back.
+      # What this does NOT do is close the class -- a native cluster on 5433 would
+      # shadow it exactly the same way, because the collision is Windows allowing
+      # two listeners on one port, not the number. tests/conftest.py names that
+      # case in its refusal so the next person reads minutes rather than hours.
+      #
+      # CI is deliberately left on 5432 (.github/workflows/tests.yml): the runner
+      # has one service container and nothing to collide with, and it sets
+      # DATABASE_URL explicitly rather than inheriting any default here.
+      - "5433:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # `/var/lib/postgresql`, NOT `/var/lib/postgresql/data`.
+      #
+      # This mounted the pre-18 path until 2026-08-27, and on the pg18 image the
+      # container could not start at all -- `solverah-db-1` went straight to
+      # Exited(1) with "PostgreSQL data in: /var/lib/postgresql/data (unused
+      # mount/volume)". 18 keeps its cluster in a major-version subdirectory
+      # (PGDATA=/var/lib/postgresql/18/docker) so that `pg_upgrade --link` does
+      # not have to cross a mount boundary, and it refuses to run rather than
+      # quietly ignore data sitting at the old location. The mount therefore goes
+      # one level up, over the whole directory, and the subdirectory comes along
+      # with it.
+      #
+      # A volume written under the old layout cannot be reused: `docker compose
+      # down && docker volume rm solverah_pgdata` before the first `up` on this
+      # file. Everything in it is disposable by construction.
+      - pgdata:/var/lib/postgresql
       - ./initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       # `pg_isready -U` avoids the false "ready" that plain pg_isready reports

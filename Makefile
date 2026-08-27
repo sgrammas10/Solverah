@@ -26,8 +26,22 @@
 COMPOSE := docker compose -f infra/docker/compose.yml
 PYTHON  := python
 
-# Matches the compose stack. Overridable: `make test-pg DATABASE_URL=...`
-DATABASE_URL ?= postgresql://solverah:solverah@localhost:5432/solverah
+# `solverah_test`, not the `solverah` that `make dev` runs on, and this is a
+# gate rather than a preference. `test-pg` runs a suite that calls db.drop_all();
+# until 2026-08-27 it defaulted to the same database as the dev stack and as
+# `python -m Scripts.capture_contract`, so any two of the three at once destroyed
+# each other's tables mid-run. The failure that produced said nothing about
+# sharing -- it was 132 collection errors naming `user_role` -- so the split is
+# the fix and tests/conftest.py's claim guard is what catches the rest.
+#
+# Created by infra/docker/initdb/02-lane-databases.sql on the stack's first
+# start. Keep in step with TEST_DATABASE_URL in tests/conftest.py.
+#
+# Port 5433, not 5432 -- the compose stack publishes there because a native
+# Windows Postgres service shadows 5432 on at least one machine. Reasoning in
+# infra/docker/compose.yml.
+# Overridable: `make test-pg DATABASE_URL=...`
+DATABASE_URL ?= postgresql://solverah:solverah@localhost:5433/solverah_test
 
 .PHONY: help
 help: ## Show this help

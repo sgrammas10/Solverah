@@ -1,6 +1,6 @@
 """Shared pytest fixtures, and the guards that make running them safe.
 
-Two defects lived here and both bit on 2026-08-26.
+Three defects lived here. Two bit on 2026-08-26.
 
 **The cleanup deleted the wrong file.** Teardown called ``os.remove("test.db")``,
 but ``DATABASE_URL=sqlite:///test.db`` is a *relative* path and Flask-SQLAlchemy
@@ -18,6 +18,18 @@ to run a migration, say -- and then ran ``pytest`` in that same terminal would
 drop every production table.  Nothing in the code stood between those two
 keystrokes.  :func:`_refuse_non_local_database` now does.
 
+**Nothing stopped two runs sharing one database.** ``setdefault``, the
+Makefile's ``DATABASE_URL ?=`` and ``Scripts/capture_contract.py`` all resolved
+to one URL, and two of the three drop the schema.  A suite failure reported on
+2026-08-27 as "920 passed, 36 failed, 132 errors, Phase 2d caused it" was two
+pytest processes on one database and nothing else; the same commit on its own
+database ran 1062 passed, 0 failed, 0 errors.  It read as a schema defect
+because every one of the 132 errors named ``user_role`` -- which is not evidence
+about any phase, only the first enum ``create_all`` emits, and so the first
+object two racing processes reach together.  The three defaults are now three
+databases, and :func:`_claim_database_or_refuse` catches the case the defaults
+cannot: two pytest processes inheriting the same one.
+
 **The default is Postgres as of 2026-08-27**, and the SQLite CI job is gone --
 see ``.github/workflows/tests.yml`` for the reasoning.  The SQLite branches
 below are kept rather than deleted: the guard has to keep accepting SQLite URLs
@@ -29,6 +41,28 @@ branch is the fix for a real bug that would come straight back if anyone points
 import os
 
 import pytest
+
+#: The database this suite owns, and owns alone.
+#:
+#: `solverah_test` rather than the `solverah` that `make dev` uses, because this
+#: file calls ``db.drop_all()`` and ``Scripts/capture_contract.py`` calls
+#: ``DROP SCHEMA public CASCADE``.  Until 2026-08-27 those two and ``make
+#: test-pg`` all defaulted to the same database, so running any two at once meant
+#: each tearing down the other's tables mid-run.  Splitting the default is what
+#: makes that impossible *between tools*; two pytest processes still inherit the
+#: same value, and :func:`_claim_database_or_refuse` is what stops those.
+#:
+#: Keep this in step with ``Makefile`` (``DATABASE_URL ?=``) and with
+#: ``infra/docker/initdb/02-lane-databases.sql``, which creates it.  CI never
+#: reaches this line -- it sets ``DATABASE_URL`` explicitly against a service
+#: container it is the only process on, and on 5432, because a runner has
+#: nothing to collide with.
+#:
+#: Port 5433 rather than 5432: a native Windows Postgres service shadows 5432 on
+#: at least one developer machine, and Windows lets both it and Docker bind the
+#: port instead of refusing.  The reasoning lives in ``infra/docker/compose.yml``
+#: and the failure it produces is named in the refusal below.
+TEST_DATABASE_URL = "postgresql://solverah:solverah@localhost:5433/solverah_test"
 
 os.environ.setdefault("APP_ENV", "testing")
 # The compose stack's database (infra/docker/compose.yml), not SQLite.
@@ -43,9 +77,9 @@ os.environ.setdefault("APP_ENV", "testing")
 # `docker compose -f infra/docker/compose.yml up db` is the whole setup. The
 # guard below still allows SQLite URLs, because it is a guard about *hosts* and
 # nothing is gained by narrowing it.
-os.environ.setdefault(
-    "DATABASE_URL", "postgresql://solverah:solverah@localhost:5432/solverah"
-)
+#
+# `solverah_test`, not `solverah` -- see TEST_DATABASE_URL above.
+os.environ.setdefault("DATABASE_URL", TEST_DATABASE_URL)
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 os.environ.setdefault("JWT_COOKIE_SECURE", "false")
 os.environ.setdefault("JWT_COOKIE_SAMESITE", "Lax")
@@ -108,6 +142,230 @@ def _refuse_non_local_database(raw_url: str) -> None:
 
 
 _refuse_non_local_database(os.environ["DATABASE_URL"])
+
+
+#: Extensions the schema needs in place before ``db.create_all()`` can run.
+#: Listed here rather than derived from the models so the refusal can name them.
+REQUIRED_EXTENSIONS = ("citext", "pg_trgm", "vector")
+
+#: Advisory-lock key this session claims for as long as it runs.
+#:
+#: Postgres scopes advisory locks to a database, so a constant is exactly right:
+#: two runs on ``solverah_test`` contend, a run on ``solverah_lane2`` does not.
+#: The value is arbitrary and only has to stay stable.
+DATABASE_CLAIM_LOCK = 0x5011E7A4
+
+#: How to get a database of your own. Printed by every refusal below, because a
+#: guard that stops you without telling you how to proceed is an obstacle.
+SETUP_STEPS = """\
+    docker compose -f infra/docker/compose.yml exec db \
+psql -U solverah -d postgres -c "CREATE DATABASE solverah_lane2 OWNER solverah"
+
+    docker compose -f infra/docker/compose.yml exec db \
+psql -U solverah -d solverah_lane2 \
+-c "CREATE EXTENSION IF NOT EXISTS citext" \
+-c "CREATE EXTENSION IF NOT EXISTS pg_trgm" \
+-c "CREATE EXTENSION IF NOT EXISTS vector"
+
+then point this run at it:
+
+    PowerShell:  $env:DATABASE_URL = \
+"postgresql://solverah:solverah@localhost:5433/solverah_lane2"
+    bash:        export \
+DATABASE_URL=postgresql://solverah:solverah@localhost:5433/solverah_lane2
+
+A *schema* is not enough, and that is the part that looks like it should work.
+Enum types live in pg_type, not in a schema: they outlive DROP SCHEMA public
+CASCADE. Two lanes sharing one database on separate search_paths still collide
+on `user_role`. It has to be a separate database."""
+
+
+def _claim_database_or_refuse(raw_url: str):
+    """Claim *raw_url*'s database for this session, or say who already holds it.
+
+    Nothing else in the stack notices that two runs are sharing a database, and
+    sharing one is not merely slow but wrong: the fixtures below call
+    ``create_all`` and ``drop_all``, so each run tears down the tables the other
+    is halfway through using.  On 2026-08-27 that cost hours, because of the
+    shape it takes -- 132 collection errors naming ``user_role``, which reads as
+    a schema defect and is not one.  ``user_role`` is only the first enum
+    ``create_all`` emits, and so the first object two racing processes meet on.
+
+    The claim is a session-level ``pg_try_advisory_lock``.  Deliberately the
+    *try* variant: waiting would turn a mistake into a hang, and the job here is
+    to say what is wrong, not to serialise two runs that should not both exist.
+
+    In CI this is a no-op nobody ever sees.  One process owns a dedicated
+    service container, so the lock is always free -- and the check needs no
+    environment variable of its own, which matters, because the runner sets five
+    and has no ``.env`` (CLAUDE.md).  A guard needing a sixth would pass on a
+    developer machine and fail the gate.
+
+    Args:
+        raw_url: The URL the suite is about to build its schema in.
+
+    Returns:
+        The open connection holding the claim.  The caller **must** keep it
+        open; closing it releases the claim.  ``None`` where the question does
+        not arise -- SQLite is a file per URL, and has no advisory locks.
+
+    Raises:
+        RuntimeError: If another process holds the claim, if the database cannot
+            be reached, or if it is missing an extension the schema needs.
+    """
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.engine import make_url
+    from sqlalchemy.pool import NullPool
+
+    url = make_url(raw_url)
+    if not url.get_backend_name().startswith("postgresql"):
+        return None
+
+    shown = url.render_as_string(hide_password=True)
+
+    # NullPool, and the connection is handed back rather than closed, because
+    # pg_try_advisory_lock is scoped to a *connection*.  Taken on a pooled one it
+    # is released the instant SQLAlchemy checks that connection back in, and this
+    # guard would then pass while guarding nothing.  (pg_advisory_xact_lock fails
+    # the same way one level down: the claim has to outlive every transaction the
+    # suite runs, not one of them.)
+    engine = create_engine(url, poolclass=NullPool)
+    try:
+        connection = engine.connect()
+    except Exception as exc:  # noqa: BLE001 - the drivers raise several of these
+        detail = str(exc).strip().splitlines()[0]
+
+        # An auth failure against a stack `docker compose ps` calls healthy is
+        # almost never a typo'd password -- the credentials are in compose.yml and
+        # nobody types them. It is the shadow case, and it is worth its own
+        # paragraph because every other signal says the database is fine: the
+        # container is healthy, `docker compose exec db psql` works, and only the
+        # published port is a lie. Measured 2026-08-27 on postgresql-x64-18.
+        shadow = ""
+        if "authentication" in detail or "password" in detail:
+            shadow = (
+                "That is an authentication failure, which here usually means "
+                "something OTHER\n"
+                "than the compose container answered. Windows lets a native "
+                "Postgres service\n"
+                "and Docker both bind one port rather than refusing the second, "
+                "and the native\n"
+                "one wins every connection -- so `docker compose ps db` reports "
+                "healthy and\n"
+                "`docker compose exec db psql` works while every URL in this repo "
+                "fails. It is\n"
+                "why the stack publishes 5433 and not 5432. Two commands settle "
+                "it:\n"
+                "\n"
+                "    Get-Service postgresql*                 # is a native one "
+                "running?\n"
+                "    netstat -ano | findstr :5433            # two PIDs on one "
+                "port?\n"
+                "\n"
+                "If that is what happened, stop the native service or republish "
+                "this stack on\n"
+                "a port nothing else holds. Otherwise --\n"
+                "\n"
+            )
+
+        raise RuntimeError(
+            "REFUSING TO RUN: cannot reach the test database.\n"
+            "\n"
+            "    %s\n"
+            "    %s\n"
+            "\n"
+            "%s"
+            "This suite has a database of its own, separate from the `solverah`\n"
+            "that `make dev` uses, because it drops every table it connects to.\n"
+            "Starting the stack creates it:\n"
+            "\n"
+            "    docker compose -f infra/docker/compose.yml up -d db\n"
+            "\n"
+            "On a volume created before 2026-08-27 that is not enough. initdb\n"
+            "runs only on a first-ever start, so\n"
+            "infra/docker/initdb/02-lane-databases.sql never ran there: either\n"
+            "`make clean` and start over, or create one by hand --\n"
+            "\n"
+            "%s\n" % (shown, detail, shadow, SETUP_STEPS)
+        ) from exc
+
+    try:
+        claimed = connection.execute(
+            text("SELECT pg_try_advisory_lock(:key)"), {"key": DATABASE_CLAIM_LOCK}
+        ).scalar()
+        # Ends the transaction execute() opened.  The lock is session-scoped and
+        # survives it -- which is the whole reason for the non-xact variant.
+        connection.rollback()
+
+        if not claimed:
+            raise RuntimeError(
+                "REFUSING TO RUN: ANOTHER PROCESS IS ALREADY USING THIS TEST\n"
+                "DATABASE.\n"
+                "\n"
+                "    %s\n"
+                "\n"
+                "Almost always a second `pytest`. `python -m\n"
+                "Scripts.capture_contract` and `make test-pg` land here too if\n"
+                "their defaults were overridden onto this database.\n"
+                "\n"
+                "This is not a queueing problem, so waiting is not the fix on\n"
+                "its own. The fixtures call db.create_all() and db.drop_all():\n"
+                "two runs delete each other's tables mid-test. And what that\n"
+                "looks like is NOT a message about sharing -- on 2026-08-27 it\n"
+                "was 132 collection errors, every one naming `user_role`, and\n"
+                "it was read as a Phase 2c schema defect for hours. `user_role`\n"
+                "is just the first enum create_all emits, and so the first\n"
+                "object two processes racing each other happen to meet on.\n"
+                "\n"
+                "Wait for the other run to finish, or take a database of your\n"
+                "own:\n"
+                "\n"
+                "%s\n" % (shown, SETUP_STEPS)
+            )
+
+        present = {
+            row[0]
+            for row in connection.execute(text("SELECT extname FROM pg_extension"))
+        }
+        connection.rollback()
+        missing = [name for name in REQUIRED_EXTENSIONS if name not in present]
+        if missing:
+            raise RuntimeError(
+                "REFUSING TO RUN: the test database is missing %s.\n"
+                "\n"
+                "    %s\n"
+                "\n"
+                "db.create_all() would fail on the first table that uses one,\n"
+                "in DDL that never mentions the extension by name. Extensions\n"
+                "are per-database, so creating the database is only half of it:\n"
+                "\n"
+                "%s\n" % (", ".join(missing), shown, SETUP_STEPS)
+            )
+    except Exception:
+        connection.close()  # releases the claim, if this call is what took it
+        raise
+
+    return connection
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _own_the_test_database():
+    """Hold this session's claim on the database, or stop the run explaining why.
+
+    ``pytest.exit`` rather than letting the RuntimeError out: an exception in a
+    session-scoped autouse fixture is re-reported as an error against every test
+    that requests it, and every test requests this one.  That is a thousand
+    copies of a paragraph whose entire job is to be read once.
+    """
+    try:
+        connection = _claim_database_or_refuse(os.environ["DATABASE_URL"])
+    except RuntimeError as exc:
+        pytest.exit(str(exc), returncode=1)
+
+    yield
+
+    if connection is not None:
+        connection.close()
 
 
 def _enforce_sqlite_foreign_keys() -> None:
