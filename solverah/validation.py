@@ -148,6 +148,14 @@ def _query_payload(request) -> Dict[str, Any]:
     return {key: request.args.get(key) for key in request.args}
 
 
+#: Methods with no defined request-body semantics.
+#:
+#: HEAD is here as well as GET because Flask synthesises it for every GET rule;
+#: a HEAD carries no body, so validating one would reject it the same way the
+#: preflight was being rejected.
+_BODYLESS_METHODS = frozenset({"GET", "HEAD"})
+
+
 def install_request_validation(app) -> None:
     """Install the ``before_request`` hook that enforces declared schemas.
 
@@ -163,6 +171,18 @@ def install_request_validation(app) -> None:
 
     @app.before_request
     def _enforce_declared_schemas():  # pragma: no cover - exercised via routes
+        # A CORS preflight carries no body by definition, is issued by the
+        # browser rather than the application, and never reaches the handler --
+        # Flask answers it from the url_map. Validating it means every enforced
+        # POST is rejected at 422 before the real request is ever sent, which
+        # does not look like a validation error to the client: it looks like the
+        # endpoint does not exist cross-origin. Login broke exactly this way.
+        #
+        # security.py exempts OPTIONS from rate limiting for the same reason;
+        # this is that exemption's other half.
+        if request.method == "OPTIONS":
+            return None
+
         spec = _spec_for(app, request.endpoint)
         if spec is None or not spec.enforce:
             return None
@@ -170,10 +190,10 @@ def install_request_validation(app) -> None:
         if spec.query is not None:
             _validate(spec.query, _query_payload(request), "query string")
 
-        # GET has no defined body semantics; everything else that declares one
-        # gets it checked, DELETE included -- `DELETE /me` carries the
-        # confirmation string that makes the deletion deliberate.
-        if request.method != "GET":
+        # GET and HEAD have no defined body semantics; everything else that
+        # declares one gets it checked, DELETE included -- `DELETE /me` carries
+        # the confirmation string that makes the deletion deliberate.
+        if request.method not in _BODYLESS_METHODS:
             payload = _body_payload(request)
             model = _request_model(spec, request.view_args or {}, payload)
             if model is not None:

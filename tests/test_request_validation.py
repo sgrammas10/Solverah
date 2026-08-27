@@ -288,3 +288,63 @@ def test_every_route_enforces_its_schema(client):
     )
 
     assert unenforced == []
+
+
+# ---------------------------------------------------------------------------
+# CORS preflight
+#
+# Regression, 2026-08-27: the hook guarded on `request.method != "GET"`, which
+# let OPTIONS through into body validation. A preflight carries no body, so it
+# validated as {} and was refused 422 for missing required fields. The browser
+# never sends the real request after a failed preflight, so every enforced POST
+# was unreachable cross-origin -- login included. It did not look like a
+# validation error in the UI; it looked like the API was down.
+# ---------------------------------------------------------------------------
+
+PREFLIGHT_HEADERS = {
+    "Origin": "http://localhost:5173",
+    "Access-Control-Request-Method": "POST",
+    "Access-Control-Request-Headers": "content-type,x-csrf-token",
+}
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/v1/auth/login",
+        "/api/v1/auth/register",
+        "/api/v1/intake/submissions",
+        "/api/v1/me/profile",
+    ],
+)
+def test_preflight_is_not_rejected_by_validation(client, path):
+    """A preflight must never be answered 422."""
+    resp = client.options(path, headers=PREFLIGHT_HEADERS)
+
+    assert resp.status_code != 422, (
+        "OPTIONS %s was refused by request validation; the browser will never "
+        "send the real request" % path
+    )
+    assert resp.status_code < 400, resp.status_code
+
+
+def test_preflight_carries_the_cors_headers_the_browser_needs(client):
+    resp = client.options("/api/v1/auth/login", headers=PREFLIGHT_HEADERS)
+
+    assert resp.headers.get("Access-Control-Allow-Origin") == "http://localhost:5173"
+
+
+def test_the_real_post_is_still_validated_after_a_preflight(client):
+    """Exempting OPTIONS must not exempt the request it precedes."""
+    client.options("/api/v1/auth/login", headers=PREFLIGHT_HEADERS)
+    resp = client.post("/api/v1/auth/login", json={})
+
+    assert resp.status_code == 422
+    assert resp.get_json()["type"].endswith("/validation")
+
+
+def test_head_is_not_body_validated(client):
+    """Flask synthesises HEAD for every GET rule; it carries no body either."""
+    resp = client.head("/api/v1/companies")
+
+    assert resp.status_code != 422
