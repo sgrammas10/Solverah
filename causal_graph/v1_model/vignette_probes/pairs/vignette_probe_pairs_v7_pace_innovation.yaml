@@ -1,0 +1,193 @@
+# vignette_probe_pairs_v7_pace_innovation.yaml
+#
+# PURPOSE: probe the SECOND dimension pair anchors.json's keep_distinct warns about --
+# pace <-> innovation -- which has never been examined despite being sitting in round-1
+# data since 2026-08-17. Found by re-analysing rounds 1+2 with the corrected
+# displacement-based detector. ZERO new API calls were needed to find it.
+#
+# WHAT THE EXISTING DATA ALREADY SHOWS (rounds 1+2, frozen anchors, recomputed):
+#
+#   pace vignette -> innovation:  11/20 runs displaced, ALL to 0.3 at confidence 0.3
+#       level low  -> innovation 0.3   5/5
+#       level mid  -> innovation 0.5   5/5   (correct)
+#       level high -> innovation 0.3   5/5
+#       level 0.7  -> innovation 0.5   4/5
+#     Note the shape: BOTH EXTREMES pull innovation down, the midpoint does not. That is
+#     not a coupling like autonomy->innovation was -- it is two different mechanisms
+#     landing on the same band, and they need separating:
+#       * pace-LOW  ("release cycles measured in quarters... real time in planning...
+#         calm") matches v1 innovation-0.1's "Operational excellence ... efficiency focus,
+#         mature offering" -- process-maturity vocabulary. THE v3 REWRITE REMOVED ALL OF
+#         IT, so this half may already be fixed for free.
+#       * pace-HIGH ("shipping first and REFINING later... SCALING faster than its
+#         processes") contains "refine" and "scale" verbatim from v1 innovation-0.1's
+#         "refine and scale existing product". v3 removed those words from the anchor too,
+#         but they are still in the VIGNETTE, so this half may need a vignette edit as
+#         well -- exactly the both-fixes-needed pattern rounds 4-6 established.
+#
+#   innovation vignette -> pace:  5/20, and this one IS monotone
+#       level low  -> pace 0.3   5/5
+#       level high -> pace 0.7   4/5 (+1 at Medium confidence, the only Medium in the set)
+#     Shared construct: pace-0.9 says "rapid ITERATION", innovation-0.7/0.9 say
+#     "EXPERIMENTATION encouraged" / "tolerance for failed experiments". Iterating and
+#     experimenting are near-synonyms in ordinary usage. Neither band was touched by v3,
+#     so no fix is predicted here -- this arm is expected to FAIL and is included so the
+#     failure is measured rather than assumed.
+#
+# THE RUN (30 calls, all vignettes reused verbatim from rounds 1-2 -- no new writing):
+#
+#   python run_vignette_probe.py --pairs vignette_probe_pairs_v7_pace_innovation.yaml \
+#          --anchors ../../../Solverah_IP/ground_truth/rater_app/anchors_v3_PROPOSED.json \
+#          --allow-rubric-mismatch --out vignette_probe_results_v7.csv
+#
+# PRE-REGISTERED PREDICTIONS, written before scoring:
+#   1. pace-low  -> innovation: FIXED by v3 alone (0.3 -> 0.5). The anchor words that
+#      matched it are gone and the vignette contains no innovation vocabulary.
+#   2. pace-high -> innovation: PARTIALLY fixed at best. "refining later" and "scaling
+#      faster" are still in the vignette; if it stays at 0.3 the vignette needs the same
+#      treatment the autonomy vignettes got in v4.
+#   3. innovation-low/high -> pace: NOT fixed. Nothing in v3 touches the
+#      iteration/experimentation overlap. If this comes back clean, prediction 3 is wrong
+#      and the mechanism is not what I think it is.
+#   4. On-target pace and innovation scores must stay at their round-1 values
+#      (0.1/0.5/0.9 and 0.1/0.5/0.9). v3 changed innovation's 0.1 and 0.3 band text, so
+#      **the innovation on-target column is a real test, not just a control** -- if
+#      innovation-low no longer scores 0.1 under v3, the rewrite broke the dimension it
+#      was meant to clean and v3 must not ship.
+#
+# Prediction 4 is the one that could kill the v3 proposal outright. It has not been
+# checked: rounds 5 and 6 only ever scored AUTONOMY vignettes under v3 anchors, so the
+# rewritten innovation bands have never been asked to score innovation evidence.
+#
+# person_item_choices / target_person are copied verbatim from vignette_probe_pairs_v1.yaml.
+# Run score_person_side.py --items assessment_items.yaml first (these are the ORIGINAL
+# v1 items, not the au*v2 ladder -- pace and innovation have no ladder yet).
+
+rubric_version_expected: v1-frozen-2026-08-15
+
+dimensions:
+
+  pace:
+    items: [pa1, pa2, pa3, pa4]
+    pairs:
+
+    - level: "low"
+      target_band: 0.1
+      target_person: 0.0
+      person_item_choices: { pa1: B, pa2: B, pa3: B, pa4: B }
+      cached_note: "verbatim from v1 pace/low (scored 0.1, n=5, zero variance)"
+      person_vignette: >
+        I do my best work at a steady, one-thing-at-a-time pace rather than juggling a bunch of
+        fast-moving things. If a project I'm mid-way through suddenly needed to ship a week
+        early, I'd push back and try to protect the original timeline rather than scramble to
+        make the new date. My natural rhythm is closer to a slow, consistent cadence than a
+        sprint-ship-iterate cycle. What's worn me down in past jobs has been a pace that never
+        let up -- nonstop urgency with no room to breathe.
+      company_vignette: >
+        Release cycles here are measured in quarters, not weeks, and the team spends real time
+        in planning before anything gets built. Reviews consistently describe the environment as
+        calm -- people mention actually using their PTO and rarely working past a normal day.
+        Nobody's chasing an urgent deadline this month; the roadmap looks basically the same as
+        it did six months ago.
+
+    - level: "mid"
+      target_band: 0.5
+      target_person: 0.5
+      person_item_choices: { pa1: A, pa2: B, pa3: B, pa4: A }
+      cached_note: "verbatim from v1 pace/mid (scored 0.5, n=5, zero variance) -- the CONTROL: already clean on innovation, must stay clean"
+      person_vignette: >
+        I actually thrive during the stretches where a lot is happening and turnarounds are
+        quick -- that's when I feel most in my element. That said, if a project I'm mid-way
+        through suddenly needed to ship a week early, I'd rather push to protect the timeline
+        than compress everything to hit an arbitrary new date. My natural rhythm leans toward a
+        steady, consistent cadence rather than constant sprint-ship-iterate cycles. What's worn
+        me down most in past roles hasn't been too much intensity -- it's been the opposite,
+        sitting around waiting for things to move.
+      company_vignette: >
+        Most quarters are pretty even-keeled, but a couple of times a year the team pushes hard
+        toward a launch with tighter hours and compressed timelines before things settle back
+        down. It's not the norm, but it's not rare either -- people expect an occasional crunch
+        mixed into an otherwise regular rhythm.
+
+    - level: "high"
+      target_band: 0.9
+      target_person: 1.0
+      person_item_choices: { pa1: A, pa2: A, pa3: A, pa4: A }
+      cached_note: "verbatim from v1 pace/high (scored 0.9, n=5, zero variance). Contains 'refining' and 'scaling' -- kept DELIBERATELY unedited so this run measures the anchor's contribution alone, per the one-variable-at-a-time discipline of rounds 4-6"
+      person_vignette: >
+        The stretches at work I've felt most in my element have been high-tempo, lots happening,
+        quick turnarounds -- that's when I do my best work. If a project I'm mid-way through
+        suddenly needed to ship a week early, I'd get energized by the push and go for it rather
+        than protect the original plan. My natural rhythm is closer to sprint, ship, iterate
+        than one long steady cadence. And what's worn me down most in past jobs has been the
+        opposite of too much intensity -- it's been sitting around waiting on things that moved
+        too slowly.
+      company_vignette: >
+        Releases go out multiple times a week, and the team talks openly about shipping first
+        and refining later. Several recent reviews mention long stretches of late nights around
+        launches and a general sense that the company is scaling faster than its processes can
+        keep up with. Deadlines here are treated as fixed; the work bends to fit them, not the
+        other way around.
+
+  innovation:
+    items: [in1, in2, in3, in4]
+    pairs:
+
+    - level: "low"
+      target_band: 0.1
+      target_person: 0.0
+      person_item_choices: { in1: A, in2: A, in3: A, in4: B }
+      cached_note: "verbatim from v1 innovation/low (scored 0.1 under FROZEN anchors). LOAD-BEARING for prediction 4: v3 rewrote this exact band"
+      person_vignette: >
+        I get more satisfaction from taking something that already works and making it run
+        better than from starting from a blank page. Handed a process that's functioning fine,
+        my instinct is to tune it, not to question whether it should exist at all. The projects
+        that have energized me most were ones with a clear, well-defined finish line, not
+        open-ended ones where I had to figure out the shape of the thing as I went. And what's
+        frustrated me most in past roles was when things kept shifting under me before anything
+        actually got finished.
+      company_vignette: >
+        The core product has been essentially the same for years, and most of the roadmap is
+        about shaving latency, fixing edge cases, and squeezing more efficiency out of what
+        already works. Leadership talks about the business as a mature, dependable engine rather
+        than something still being invented. Nobody on the team is working on anything that
+        doesn't already have a name and a shipped v1.
+
+    - level: "mid"
+      target_band: 0.5
+      target_person: 0.5
+      person_item_choices: { in1: B, in2: A, in3: B, in4: B }
+      cached_note: "verbatim from v1 innovation/mid (scored 0.5 under FROZEN anchors)"
+      person_vignette: >
+        I get real satisfaction from building something that didn't exist before -- there's
+        nothing quite like starting from nothing. That said, when I'm handed something that's
+        already working, my instinct is to tune and improve it rather than immediately question
+        whether it should exist at all. The projects that have energized me most have been the
+        open-ended ones, figuring out the shape of the work as I went rather than starting with
+        a clean finish line. What's frustrated me most in past roles has been the opposite of
+        too much stability -- it's been constant churn where nothing ever actually got finished.
+      company_vignette: >
+        Roughly half the team's time goes into hardening and scaling the existing product, and
+        the other half goes into a small incubator-style group exploring genuinely new ideas
+        that don't have a shipped version yet. Both tracks get real headcount and neither is
+        treated as the "real" job over the other.
+
+    - level: "high"
+      target_band: 0.9
+      target_person: 1.0
+      person_item_choices: { in1: B, in2: B, in3: B, in4: A }
+      cached_note: "verbatim from v1 innovation/high (scored 0.9 under FROZEN anchors). v3 did NOT touch the 0.9 band"
+      person_vignette: >
+        Building something that didn't exist before gives me way more satisfaction than
+        polishing something that already works. Handed a process that's running fine, my
+        instinct is to question whether it should even exist, not just tune it. The projects
+        that have energized me most were open-ended and ambiguous, figuring out the shape of
+        things as I went rather than starting with a clean finish line already drawn. And what's
+        frustrated me most in past jobs has been having no room to try new approaches -- being
+        boxed into doing things exactly one way with zero space to experiment.
+      company_vignette: >
+        The team's entire mandate is to build things that don't exist yet -- there's no legacy
+        product to maintain, just a string of experiments, most of which get killed within a
+        quarter. Leadership explicitly celebrated a recent project that failed outright, framing
+        the willingness to try it as more valuable than the failure itself. Nobody here is
+        optimizing anything; everyone's building from a blank page.

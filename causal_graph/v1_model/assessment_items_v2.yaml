@@ -1,0 +1,713 @@
+# assessment_items_v2.yaml
+# ============================================================================
+# RATIFIED 2026-08-18 by Sebastian, item by item, all 24 plus four cross-cutting
+# decisions (D1-D4 below). Supersedes assessment_items_v2_PROPOSED.yaml, which was in turn
+# a proposal over assessment_items.yaml (status: superseded, retired but not deleted).
+#
+# Extends the graduated-difficulty (Guttman-style) forced-choice ladder proven out in
+# autonomy_items_v2_POC.yaml to all six dimensions, bundles in the fixes from
+# ASSESSMENT_ITEMS_BIAS_REVIEW.md, and applies the ratification decisions recorded below.
+#
+# ---------------------------------------------------------------------------
+# FUNNEL CONTEXT -- settled 2026-08-18, closes SOLVERAH_HANDOFF_2026-08-18.md sec.6 / open 1a.
+# ---------------------------------------------------------------------------
+# This assessment is taken by a SIGNED-UP USER SELF-PROFILING AFTER ACCOUNT CREATION.
+# No employer is present at fill time. Paywall placement is undecided and does not affect
+# item design.
+#
+# What that settles: the rung-4 frustration framing is safe. The compression risk sec.6 was
+# gating on -- respondents softening answers about disliking past employers, under-endorsing
+# rung 4 across all six dimensions -- does not fire, because nobody who could act on the
+# answers is reading them.
+#
+# What it opens instead, and this is NOT smaller: self-profiling replaces one gaming
+# incentive with another. The candidate mid-application SOFTENS. The self-profiling user
+# ASPIRES -- answers as the person who gets matched to the job they want. That is precisely
+# the threat design rule 3 was written against.
+#
+#   ==> CONSEQUENCE: implementing the presentation shuffle in the form renderer is
+#       LAUNCH-BLOCKING, not "ready to build." Rule 3 is currently declared here and enforced
+#       AGAINST this file by check_assessment_items.py, but nothing CONSUMES it -- there is no
+#       person-side form UI in the repo reading `presentation:`. Ship the ladder in difficulty
+#       order and a self-presenting respondent walks straight down it, producing a perfectly
+#       Guttman-consistent fake that the internal-consistency confidence measure scores HIGH.
+#       That is strictly worse than v1, which had no gradient to climb.
+#
+# DISCLOSURE -- ANSWERED 2026-08-18. The employer NEVER sees an individual respondent's
+# answers or their six dimension scores. Scoped as a DURABLE data commitment, deliberately
+# written to stay true after employers eventually join the platform: if an employer ever needs
+# to see something, it is a match result, never the underlying scores. rung 4 therefore stays
+# as ratified -- no re-examination needed.
+#
+# Context: for the first several iterations there are no employers on the platform at all.
+# The company side of the match is the generated company-profile database, not signed-up
+# employers, so the commitment is trivially true today. That is exactly why it was scoped
+# durably NOW -- a promise about a party that does not yet exist is the easiest kind to make
+# and the hardest to unwind once users have answered under it.
+#
+# HONEST LIMIT ON WHAT THE DISCLOSURE BUYS. In a hiring context, "no employer sees this"
+# removes the incentive to soften. Here it removes much less, because the pressure was never
+# toward an employer -- it is toward the MATCHING ALGORITHM. A self-profiling user wants to be
+# matched to companies they find impressive, and privacy does not touch that at all. So the
+# form copy is framed on self-interest in accuracy rather than on privacy (answering as
+# someone you are not costs you the match, not your privacy), and DESIGN RULE 3'S SHUFFLE
+# REMAINS THE PRIMARY DEFENCE. Do not let the disclosure line be mistaken for a mitigation of
+# aspirational answering.
+#
+# ENFORCEMENT, not policy. The commitment above is worth exactly as much as the code that
+# makes it true. person_dimension_score rows must be unreachable from any employer-facing
+# endpoint, enforced in the data layer rather than by convention -- same argument as rule 3,
+# which sat as a specification nothing consumed until present_items.py was written.
+#
+# ---------------------------------------------------------------------------
+# RATIFICATION DECISIONS D1-D4 (2026-08-18)
+# ---------------------------------------------------------------------------
+# D1 -- rung 4 must not require an employment history.  APPLIED to au4v2, pa4v2, co4v2, fb4v2.
+#   A self-profiling user on a career platform is disproportionately a student, new grad or
+#   career-changer. Four of six rung-4 items previously required prior employment ("jobs have
+#   frustrated you", "roles that drained you", "the managers you've found hardest to work
+#   for"). Such a user can neither honestly endorse nor decline -- and the failure is
+#   ASYMMETRIC: an inapplicable rung 4 most likely gets declined, capping them at 0.75 -> band
+#   0.7. The instrument would then report that early-career users are systematically more
+#   moderate on four of six dimensions, which is a measurement artifact that reads as a
+#   finding about people. Fixed by situation-framing, following in4v2 and de4v2 which were
+#   already job-neutral. All four fixes were PROMPT-ONLY except fb4v2, where the feedback-giver
+#   is the item's actual subject and needed a substitute role ("the people you've worked
+#   under") rather than a deletion.
+#
+# D2 -- option length must balance ACROSS a dimension, not just within an item.  APPLIED.
+#   The gate checked per-item length ratio <= 2.0. It did not check whether, within a
+#   dimension, the longer option systematically sits on one pole. Longer options draw the eye
+#   and read as more considered. Measured on the proposal, DECISION leaned +15.2 chars toward
+#   the data pole (3 of 4 items, +36 on de1v2) -- the exact skew bias-review finding 2 was
+#   written to close, surviving in the length channel after the semantic rewrite removed it
+#   from the wording. Autonomy leaned -8.5 the other way, driven by au2v2's -39.
+#   Same shape as the sec.3 and sec.4 defects: structural, invisible to a careful read of the
+#   item text, visible only by computing over the file. Fixed in text AND added to
+#   check_assessment_items.py as a per-dimension rule, so the CLASS is closed rather than the
+#   instance -- see design rule 5.
+#
+# D3 -- feedback grades two variables; kept, with a PRE-REGISTERED prediction.  See rule 6.
+#
+# D4 -- autonomy's rung 3 was off-axis.  APPLIED to au3v2.
+#   Declared grading variable is stakes/scope, but the rungs read routine -> low-risk ->
+#   "tight deadline and no set process" -> high-stakes. Rung 3 was a step up in AMBIGUITY,
+#   not stakes, so the declared variable did not order rungs 2 and 3. This mattered more than
+#   the carried "au3v2 dimension leak" (open item 16) because autonomy is the one ladder with
+#   a probe behind it, and the probe validates against the same difficulty_target annotation
+#   that encoded the error -- its 5/5 PASS could not detect this. Rewritten onto dependency
+#   and visibility, which is genuine mid-stakes. This also CLOSES open item 16: the leak WAS
+#   "tight deadline and no set process", and it left with the premise.
+#
+# ---------------------------------------------------------------------------
+# PROBE CACHE -- INVALIDATED, must be re-run before any result is quoted.
+# ---------------------------------------------------------------------------
+# D1 + D2 + D4 change text in three of four autonomy items (au1v2, au2v2, au3v2), so all five
+# cached levels in vignette_probe_pairs_v3_autonomy_ladder.yaml are invalid. Note this
+# retired the standing argument for not touching au2v2 and au3v2 ("there is a probe behind
+# them", open item 17): D1 invalidated au4v2 regardless, so the re-run was happening anyway
+# and every other autonomy edit became free at the margin. Open item 17 is CLOSED -- au2v2's
+# ratio is now 1.10, down from exactly 2.00.
+#
+# Until that re-run completes, autonomy has NO empirical support, and neither does any other
+# dimension. Nothing in this file has been validated against real or simulated respondents.
+#
+# ---------------------------------------------------------------------------
+# DESIGN RULE 1 -- every dimension gets its OWN grading variable.
+# ---------------------------------------------------------------------------
+# A ladder needs something that gets harder as you climb. The obvious candidate is "stakes,"
+# and autonomy uses it. Using stakes for all six would make a risk-tolerant respondent climb
+# higher on EVERY ladder, manufacturing person-side cross-dimension correlation out of the
+# instrument's own construction -- indistinguishable in pilot data from the real trait
+# correlation -17d sec.4 finding 3 wants to measure.
+#
+#   autonomy       stakes / scope / expected check-in frequency
+#   pace           DURATION -- how long the tempo has to be sustained
+#   collaboration  COORDINATION COST -- how much of your own working time it consumes
+#   feedback       EXPOSURE -- privacy and delay (see rule 6: this is two variables)
+#   innovation     SUNK INVESTMENT -- how much working value gets discarded
+#   decision       NOVELTY -- how unprecedented the situation is
+#
+# ---------------------------------------------------------------------------
+# DESIGN RULE 2 -- option key positions are balanced 2/2 within every dimension.
+# ---------------------------------------------------------------------------
+# In assessment_items.yaml the high pole sat on option A in 4 of 4 items for autonomy, pace
+# and feedback, and on B in 4 of 4 for decision, so a positional straight-liner scored a
+# maximally extreme fabricated profile that the internal-consistency confidence measure
+# cannot flag -- those answers are perfectly consistent. Here every dimension is exactly two
+# A=high and two B=high, so straight-lining by position yields exactly 0.50 on all six:
+# harmless (midpoint, not extreme) and detectable. NOT proof -- a genuinely middling
+# respondent produces the identical vector, so it raises a review flag, never an auto-reject.
+#
+# ---------------------------------------------------------------------------
+# DESIGN RULE 3 -- item order within a dimension is RANDOMIZED at presentation.
+# ---------------------------------------------------------------------------
+# A graduated ladder shown in difficulty order is transparent: the four rungs read visibly as
+# "a little / somewhat / quite / extremely", so someone who wants to look decisive endorses
+# further down the list, and the result is perfectly Guttman-consistent -- confidence comes
+# out HIGH on a fake. Same failure shape as rule 2's positional straight-liner, arriving
+# through the ladder design rather than the key layout. Rule 2 does not close it.
+# Worth being explicit: the ladder redesign CREATED this. v1's flat items were not fakeable
+# this way because there was no visible gradient to climb. Still the right design; not free.
+#
+# See FUNNEL CONTEXT above for why this is now launch-blocking rather than a nice-to-have.
+#
+# Deliberately NOT randomized: A/B option order within an item. (1) Rule 2's 2/2 balance
+# already neutralizes positional bias, deterministically rather than in expectation.
+# (2) Probe files key frozen choices by letter; per-respondent shuffling makes them
+# unreproducible. (3) A stored "chose A" becomes ambiguous unless the shuffle is persisted
+# with it -- silent scoring corruption for no gain over (1). If ever done anyway: store the
+# chosen POLE, not the letter, and rework every probe file. The gate warns if the flag flips.
+#
+# `id` is in never_display for a non-obvious reason: ids are sequential within a dimension
+# (au1v2..au4v2), so surfacing them re-leaks the order the shuffle just hid.
+#
+# ---------------------------------------------------------------------------
+# DESIGN RULE 4 -- rung 4 is reverse-keyed, everywhere.
+# ---------------------------------------------------------------------------
+# The hardest rung uses a frustration framing rather than a preference framing. This closes
+# bias-review finding 1 (feedback and decision previously had zero reverse-keyed items).
+# Honestly: it breaks SEMANTIC acquiescence -- the pattern where the high option is always
+# the one describing what you want. It does not break POSITIONAL response bias; that is
+# rule 2's job. Per D1, rung 4 must also be answerable without an employment history.
+#
+# ---------------------------------------------------------------------------
+# DESIGN RULE 5 -- option length balances across a dimension.  (NEW, from D2)
+# ---------------------------------------------------------------------------
+# Within each dimension, the mean of (high-pole chars - low-pole chars) across the four items
+# must satisfy |mean| <= 10, and between 1 and 3 of the four items must have the longer
+# option on the high pole. Rationale in D2 above. Enforced by check_assessment_items.py.
+# Per-item ratio <= 2.0 is retained as a separate, weaker check -- it catches the extreme
+# case but is blind to a consistent small lean, which is what actually biases a dimension.
+#
+# Measured on this file:
+#   autonomy      +2.25   2/4 high-longer   (was -8.50, 1/4)
+#   pace          +3.25   2/4                (was -2.20, 2/4)
+#   collaboration +0.50   2/4                (was -5.80, 1/4)
+#   feedback      +8.25   3/4                (was  0.00, 2/4)
+#   innovation    +4.75   2/4                (was +9.00, 3/4)
+#   decision      -0.25   2/4                (was +15.20, 3/4)
+# Worst per-item ratio 1.36 (pa2v2), down from 2.00 (au2v2). Gate: 0 fail, 0 warn.
+#
+# ---------------------------------------------------------------------------
+# DESIGN RULE 6 -- feedback grades TWO variables. Kept deliberately, with a prediction.
+# ---------------------------------------------------------------------------
+# PRE-REGISTERED 2026-08-18, BEFORE any pilot data exists. Recorded here so it cannot be
+# retrofitted after seeing results.
+#
+# Feedback's declared grading variable is "exposure -- privacy and delay." That is two
+# variables, and the ladder switches between them mid-climb:
+#     fb1v2 (0.3)  DELAY     -- next 1:1 vs. as soon as they notice
+#     fb2v2 (0.5)  DELAY     -- after they've been through it vs. straight away
+#     fb3v2 (0.7)  AUDIENCE  -- privately after vs. in the room
+#     fb4v2 (0.9)  both
+# Guttman prefix-endorsement assumes ONE ordered dimension. "Tell me immediately, but not in
+# front of the team" is a coherent and common preference: it endorses rungs 1 and 2 and
+# declines rung 3. Under mean_pole that scores 0.5; under the confidence measure it reads as
+# an INCONSISTENCY on a respondent who answered honestly. Feedback is the only dimension of
+# the six that switches variables mid-climb; the other five were each checked and are
+# single-variable.
+#
+# PREDICTION: in pilot data, feedback will show a statistically excessive frequency of the
+# {endorse 1, endorse 2, decline 3, decline 4} response pattern relative to the other five
+# dimensions' analogous non-prefix patterns.
+#   - If it appears: feedback is a two-factor construct (timing x audience), which is a real
+#     finding about people and worth more than a clean ladder. Do not treat it as noise.
+#   - If it does not appear: the concern was unfounded, and exposure holds as one variable.
+# Analysis must be run per SOLVERAH_HANDOFF_2026-08-18.md sec.7 discipline -- multi-seed and
+# paired, or reported as a pilot with no number quoted.
+#
+# --- ADDENDUM, 2026-08-19 -- terminology correction, recorded BEFORE any pilot data ------
+# The prediction above stands unaltered and its original text is deliberately left as
+# written. This corrects two errors in how it is DESCRIBED, caught by checking the claim
+# against this file's own items (STATE S-18, D-17).
+#
+# 1. The predicted pattern is NOT a Guttman inconsistency. In rung order (difficulty 0.3
+#    -> 0.9, high pole = 1) the "immediately, but not in front of the team" respondent
+#    produces {1,1,0,0} -- one of the five valid prefixes {0000,1000,1100,1110,1111},
+#    which map exactly onto PERSON_LATTICE. It is the CANONICAL honest 0.5, sitting
+#    between rungs 2 and 3. It reads as an inconsistency only under an item-agreement
+#    consistency measure, which is REJECTED (D-17): on a graduated ladder, item agreement
+#    equals extremity -- every honest mid-lattice respondent in every dimension scores as
+#    maximally inconsistent. The adopted measure is the Guttman error count e (minimum
+#    flips to reach a valid prefix, e in {0,1,2} over 4 items), under which {1,1,0,0}
+#    carries e=0. So "reads as an INCONSISTENCY" and "non-prefix" above are wrong as
+#    written; the prediction's substance -- excess frequency of the named pattern -- holds.
+#
+# 2. The prediction SPLITS on fb4, which grades both variables. The immediate-but-private
+#    respondent must pick which aversion wins there (A, the withholder, pole high, vs. B,
+#    the anywhere-in-front-of-anyone giver, pole low), so the predicted signature is two
+#    cells, not one: {1,1,0,0} (e=0 -- a confidently WRONG 0.5) and {1,1,0,1} (e=1 --
+#    honest, flagged). The mirror preference ("in the room is fine, just not straight
+#    away") yields {0,0,1,0} / {0,0,1,1} -- genuinely non-prefix, and honest.
+#
+# CONSEQUENCES, binding (full text in STATE D-17 and S-18):
+#   - feedback's stored confidence stays NULL until this prediction is tested; the other
+#     five dimensions populate. Backfillable from raw assessment_response rows either way.
+#   - the test runs on raw response patterns and is never confidence-filtered or
+#     confidence-weighted -- cleaning low-e rows deletes the {1,1,0,1} and {0,0,1,x}
+#     evidence.
+#   - primary statistic: among respondents scoring 0.5 on a dimension, the fraction who
+#     arrived via {1,1,0,0}, feedback vs. each of the other five dimensions. Conditioning
+#     on the score controls for feedback simply having more moderates. Secondary cells,
+#     named now: {1,1,0,1}, {0,0,1,0}, {0,0,1,1}.
+#   - if the excess appears: feedback is two-factor (timing x audience) and the fix is
+#     instrument surgery, never a special-cased confidence formula. If it does not:
+#     exposure holds as one variable; backfill feedback's confidence like the other five.
+# ------------------------------------------------------------------------------------------
+#
+# ---------------------------------------------------------------------------
+# DESIGN RULE 7 -- items are INTERLEAVED across dimensions, not shown in dimension groups.
+# ---------------------------------------------------------------------------
+# DECIDED 2026-08-18. Rule 3 shuffles item order WITHIN a dimension, which hides the rung
+# order. It does not hide the GROUPING: shown as six blocks of four, a respondent can see
+# which four items measure the same thing.
+#
+# Why that is not merely cosmetic. The planned confidence measure is internal consistency. A
+# respondent who notices four questions are "about collaboration" has an obvious pull toward
+# answering them coherently -- presenting as a person with a settled view rather than
+# reporting four independent preferences. That inflates internal consistency, so confidence
+# comes out HIGH on a profile that is LESS accurate, not more. Exactly the failure shape of
+# rules 2 and 3: a fabrication that the confidence measure rewards. Rule 3 does not close it,
+# because within-dimension shuffling leaves the block intact.
+#
+# The scheme: 4 blocks of 6, each block holding exactly one item from every dimension.
+#   - which rung of a dimension lands in which block IS rule 3's per-dimension shuffle --
+#     block b takes position b of that dimension's permutation, so rung order stays hidden
+#   - the order of the six dimensions WITHIN a block is shuffled separately per respondent
+#     per block, so the dimension sequence does not repeat across blocks either
+# No two same-dimension items are ever adjacent, and the grouping is not recoverable.
+# Four visible chunks are retained deliberately: the form is taken voluntarily, and a fully
+# shuffled 24-question list with a topic change every question reads as disorganised. Progress
+# feel was worth keeping where it cost nothing.
+#
+# `dimension` is therefore in never_display. It was not before rule 7, because grouping already
+# revealed it; now that grouping is gone, leaving the field on each item would hand back
+# exactly what the interleave removes.
+#
+# CONSEQUENCE FOR THE PAYLOAD: present_items.build_form emits `blocks`, a flat ordered
+# structure, NOT `dimensions`. Scoring is unaffected -- mean_pole is order-invariant and the
+# server maps tokens back to item ids before scoring. Decided BEFORE the form UI exists,
+# deliberately: after it ships this is a payload contract change rather than an edit.
+#
+# ---------------------------------------------------------------------------
+# SCORING -- unchanged, and a hard constraint, not a preference.
+# ---------------------------------------------------------------------------
+# mean_pole over 4 items per dimension yields exactly {0.0, 0.25, 0.5, 0.75, 1.0}, which is
+# build_model.py's PERSON_LATTICE. Five items per dimension would silently invalidate that
+# constant and every lattice result in SOLVERAH_HANDOFF_2026-08-18.md sec.1. Four items per
+# dimension is LOAD-BEARING. Do not "just add one more."
+#
+#   endorses none        -> 0.00   (reads as band 0.1 after closest_achievable())
+#   endorses rung 1      -> 0.25   (band 0.3)
+#   endorses rungs 1-2   -> 0.50   (band 0.5)
+#   endorses rungs 1-3   -> 0.75   (band 0.7)
+#   endorses all four    -> 1.00   (band 0.9)
+#
+# ---------------------------------------------------------------------------
+# STATUS -- read before quoting anything from this file.
+# ---------------------------------------------------------------------------
+# Ratified means the DESIGN and WORDING are signed off. It does NOT mean validated. This is a
+# FACE-VALID instrument: no real respondent data exists, and nothing here demonstrates that
+# real people's answer patterns follow the difficulty ordering. Passing
+# check_assessment_items.py means the file is not structurally broken; it is not evidence the
+# instrument measures anything.
+#
+# Outstanding before pilot:
+#   - the presentation shuffle in the form renderer          (LAUNCH-BLOCKING, see funnel note)
+#   - vignette probe pair files for all six ladders          (autonomy's v3 cache is invalid)
+#   - the calibration probe on decision and feedback         (untested in every round to date)
+#   - the employer-visibility disclosure decision            (see funnel note)
+#   - whether an I-O psychology review is worth buying       (open item 11; not Julie's area --
+#     her involvement has been company-side, and person-side item design is psychometrics)
+# ============================================================================
+
+form_version: v2-2026-08-18
+supersedes: v1-draft
+status: active
+ratified:
+  date: 2026-08-18
+  by: Sebastian
+  scope: "all 24 items individually, plus cross-cutting decisions D1-D4"
+  note: "design and wording only -- no empirical validation, see STATUS above"
+scoring:
+  method: mean_pole
+  pole_values: { low: 0.0, high: 1.0 }
+
+# Presentation contract (design rule 3). Enforced by check_assessment_items.py, which fails
+# if this block is missing or weakened -- the shuffle is a correctness requirement, not a UI
+# preference, because without it the confidence measure can be gamed.
+presentation:
+  randomize_item_order_within_dimension: true
+  interleave_dimensions: true     # design rule 7 -- see below; no two same-dimension items adjacent
+  block_count: 4                  # 4 blocks x 6 dimensions = 24 items, one per dimension per block
+  order_seed: respondent_id       # stable per respondent; a resumed session must not reshuffle
+  randomize_option_order: false   # intentional -- see design rule 3 for why
+  never_display: [id, dimension, difficulty_target, pole, reverse_keyed, grading_variables]
+
+# difficulty_target is a design annotation. It is NOT part of the runtime schema and is not
+# consumed by score_person_side.py -- it records which anchors.json band each rung was
+# calibrated against, so a later reviewer can check the ladder without re-deriving it.
+grading_variables:
+  autonomy:      "stakes / scope / expected check-in frequency"
+  pace:          "duration the tempo must be sustained"
+  collaboration: "coordination cost in the respondent's own working time"
+  feedback:      "exposure -- privacy and delay of the feedback"
+  innovation:    "sunk investment discarded"
+  decision:      "novelty -- how unprecedented the situation is"
+
+items:
+
+  # ==========================================================================
+  # AUTONOMY (directed <-> self-directed)   grading: stakes / scope
+  # Ladder: routine task -> low-risk project -> others depend on it and it's visible ->
+  # high-stakes. Single-variable after D4; rung 3 previously graded ambiguity.
+  # ==========================================================================
+  - id: au1v2
+    dimension: autonomy
+    difficulty_target: 0.3
+    prompt: "You're given a routine task you've handled many times before, with no special instructions attached. You're more likely to:"
+    options:
+      - { key: A, text: "Just do it your usual way without checking in.", pole: high }
+      - { key: B, text: "Confirm the expected approach first.", pole: low }
+    # RATIFIED item 1. B trimmed from "Quickly confirm the expected approach first, just to be
+    # sure." (61) -- "quickly" and "just to be sure" were hedges adding length without meaning.
+    # Lean -15 -> +11, which offsets au2v2 and carries the dimension's rule 5 balance.
+
+  - id: au2v2
+    dimension: autonomy
+    difficulty_target: 0.5
+    prompt: "You're handed a new project that's fairly low-risk if something goes wrong. You're more likely to:"
+    options:
+      - { key: A, text: "Check your approach with your manager first.", pole: low }
+      - { key: B, text: "Figure out your own approach as you go.", pole: high }
+    # RATIFIED item 2. A trimmed from "Get your approach reviewed by your manager first, even
+    # though the risk is low." (78). "Even though the risk is low" restated the prompt, which
+    # already says fairly low-risk. Ratio 2.00 -> 1.10. CLOSES open item 17.
+
+  - id: au3v2
+    dimension: autonomy
+    difficulty_target: 0.7
+    prompt: "You're given a project that a few other teams are depending on, and people will notice if it goes wrong. You're more likely to:"
+    options:
+      - { key: A, text: "Set the direction yourself and keep people posted as you go.", pole: high }
+      - { key: B, text: "Agree the direction with your manager before you start.", pole: low }
+    # RATIFIED item 3, rewritten per D4. Was "a project with a tight deadline and no set
+    # process", which graded ambiguity and imported pace. Now grades stakes via dependency and
+    # visibility, sitting cleanly between au2v2's low-risk and au4v2's high-stakes.
+    # CLOSES open item 16 -- the dimension leak was that premise.
+
+  - id: au4v2
+    dimension: autonomy
+    difficulty_target: 0.9
+    reverse_keyed: true
+    prompt: "Looking back, what's frustrated you most was when:"
+    options:
+      - { key: A, text: "You were left to figure out something high-stakes entirely on your own, with no one available even once to sanity-check your read of it before you committed.", pole: low }
+      - { key: B, text: "Even on the most important work, you were expected to check in and get sign-off on the direction and the plan before starting -- not just the finer details.", pole: high }
+    # RATIFIED item 4. D1 prompt-only fix, from "Jobs have frustrated you most when:".
+    # Options untouched -- best-balanced pair in the file at 157/156.
+
+  # ==========================================================================
+  # PACE (steady <-> fast)   grading: DURATION the tempo must be sustained
+  # Ladder: an afternoon -> a week -> a couple of months -> across a career.
+  # The most cleanly monotone climb in the file.
+  # ==========================================================================
+  - id: pa1v2
+    dimension: pace
+    difficulty_target: 0.3
+    prompt: "A single afternoon comes up where several things need turning around quickly at once. Afterwards you'd say:"
+    options:
+      - { key: A, text: "That's a good afternoon -- you'd take more of them.", pole: high }
+      - { key: B, text: "That's fine occasionally, but you were glad when it was over.", pole: low }
+    # RATIFIED item 5 as written. Considered and rejected: retuning "several things at once"
+    # to pure tempo. Rung 1 needs a concrete, easy-to-picture scenario, and a fast afternoon
+    # is how tempo actually presents itself. Simultaneity confound accepted as minor.
+
+  - id: pa2v2
+    dimension: pace
+    difficulty_target: 0.5
+    prompt: "A push like that runs for a full week rather than an afternoon. Partway through, you're more likely to be:"
+    options:
+      - { key: A, text: "Watching the calendar for when it eases off.", pole: low }
+      - { key: B, text: "Still running on it without particularly wanting it to stop.", pole: high }
+    # RATIFIED item 6 as written. Closes bias-review finding 3 on pa2 (the old low pole was
+    # "protect the timeline and keep the quality bar" -- "quality bar" made low pace the
+    # conscientious answer) and finding 4's second confound (pace bundled with a
+    # quality-vs-speed values question, arguably conscientiousness rather than pace).
+
+  - id: pa3v2
+    dimension: pace
+    difficulty_target: 0.7
+    prompt: "That tempo turns out to be the normal state of the team -- it's been a couple of months and it hasn't let up. You'd more likely:"
+    options:
+      - { key: A, text: "Have found you'd rather keep it this way than go back.", pole: high }
+      - { key: B, text: "Be looking to carve out slower stretches for yourself.", pole: low }
+    # RATIFIED item 7, both poles reframed. Was A "Have settled into it and stopped noticing."
+    # -- that measured HABITUATION, not preference: someone who genuinely prefers a slower
+    # pace but adapted would answer it honestly and score as high-pace. Every other rung on
+    # this ladder asks what the respondent wants. Ratio 1.52 -> 1.02.
+
+  - id: pa4v2
+    dimension: pace
+    difficulty_target: 0.9
+    reverse_keyed: true
+    prompt: "Thinking about the stretches of work that wore you down, what actually did it was:"
+    options:
+      - { key: A, text: "A tempo that never dropped, month after month, with no stretch you could exhale in.", pole: low }
+      - { key: B, text: "Long stretches where the work was there but nothing was urgent, and the days ran together.", pole: high }
+    # RATIFIED item 8. D1 prompt-only fix, from "Thinking about the jobs that wore you down".
+    # "Stretches of work" covers a semester, an internship or a job equally AND reinforces the
+    # duration grading variable, so the substitution does double duty.
+
+  # ==========================================================================
+  # COLLABORATION (solo <-> collective)   grading: COORDINATION COST
+  # Ladder: one conversation -> a recurring hour -> an entire piece of work -> a whole role.
+  # ==========================================================================
+  - id: co1v2
+    dimension: collaboration
+    difficulty_target: 0.3
+    prompt: "You're starting a piece of work you could do on your own. You're more likely to:"
+    options:
+      - { key: A, text: "Just get going on it yourself.", pole: low }
+      - { key: B, text: "Talk it through with someone first.", pole: high }
+    # RATIFIED item 9, recast. Was "You're partway into a problem and you've hit something
+    # you're unsure about" -- that graded HELP-SEEKING WHEN STUCK, while rungs 2-4 grade
+    # coordination cost. Different traits: a collective-minded person can enjoy sitting with a
+    # hard problem, and a solo-minded person can ask fast to get back to working alone sooner.
+    # Off-axis in the same way au3v2 was. Also removes the "unsure about" framing, which made
+    # the collaborative option read as compensating for not knowing.
+
+  - id: co2v2
+    dimension: collaboration
+    difficulty_target: 0.5
+    prompt: "The team proposes a standing hour every day where everyone works through the current problem together. For you that would be:"
+    options:
+      - { key: A, text: "Worth the hour -- you'd get more out of it than you'd lose.", pole: high }
+      - { key: B, text: "An hour you'd rather have back for your own work.", pole: low }
+    # RATIFIED item 10 as written. The clearest expression of the grading variable in the set:
+    # an explicit, recurring, quantified cost in the respondent's own time.
+
+  - id: co3v2
+    dimension: collaboration
+    difficulty_target: 0.7
+    prompt: "A piece of work could either be split up and done separately, or done start-to-finish with someone else in the room the whole time. Same deadline either way. You'd pick:"
+    options:
+      - { key: A, text: "Split it up and sync at the end.", pole: low }
+      - { key: B, text: "Do the whole thing together.", pole: high }
+    # RATIFIED item 11 as written. "Same deadline either way" strips the efficiency confound so
+    # the answer can only be preference. CARRIED WATCH-ITEM: "in the room" assumes co-location
+    # and may read as unavailable to remote or hybrid respondents, adding trait-unrelated
+    # noise. Considered and not changed; revisit if pilot demographics skew remote.
+
+  - id: co4v2
+    dimension: collaboration
+    difficulty_target: 0.9
+    reverse_keyed: true
+    prompt: "The setups you've worked in that drained you most were the ones where:"
+    options:
+      - { key: A, text: "Weeks where you barely worked alongside anyone -- your part arrived, you did it, you passed it on.", pole: high }
+      - { key: B, text: "Almost never getting a stretch of the day that was yours, because the work was always happening in a group.", pole: low }
+    # RATIFIED item 12. D1 prompt-only fix, from "Looking back at roles that drained you".
+    # "Setups" means the arrangement of the work -- who you worked with and how -- which is
+    # collaboration's actual subject. Deliberately NOT "stretches of work": that is pa4v2's
+    # phrasing and duration is pace's grading variable, so borrowing it here would nudge
+    # toward the cross-dimension confound rule 1 exists to prevent.
+    # Keying note: A is the HIGH pole because it is isolation that frustrates the collective type.
+
+  # ==========================================================================
+  # FEEDBACK (sparse/gentle <-> frequent/blunt)   grading: EXPOSURE
+  # Closes bias-review finding 1 (feedback had zero reverse-keyed items) and finding 3 (fb3's
+  # low pole was "trusted you and stayed hands-off", strongly positive, against a high pole of
+  # "constant, unfiltered input" -- valence was doing the work, not the trait). The axis is now
+  # WHEN and IN FRONT OF WHOM, not HOW HARSH; bluntness language is removed throughout.
+  # SEE DESIGN RULE 6 -- this dimension grades two variables, kept with a pre-registered prediction.
+  # ==========================================================================
+  - id: fb1v2
+    dimension: feedback
+    difficulty_target: 0.3
+    prompt: "There's something small you could be doing better. You'd rather your manager:"
+    options:
+      - { key: A, text: "Mention it next time you're already talking one-on-one.", pole: low }
+      - { key: B, text: "Send it over as soon as they notice, without waiting for a scheduled slot.", pole: high }
+    # RATIFIED item 13 as written. Grades delay (rule 6). The +19 lean is offset within the
+    # dimension rather than accumulating, and rule 5 is a per-dimension test.
+    # Considered and rejected: genericizing "your manager" for respondents without one. This
+    # is a hypothetical preference rather than a memory, so D1's concern is weaker here.
+
+  - id: fb2v2
+    dimension: feedback
+    difficulty_target: 0.5
+    prompt: "You've just handed in a piece of work and there's a real problem with it. You'd rather find out:"
+    options:
+      - { key: A, text: "Straight away, before you've moved on to anything else.", pole: high }
+      - { key: B, text: "Once they've been through all of it, in one go.", pole: low }
+    # RATIFIED item 14, B neutralized. Was "Once they've had time to look properly and can give
+    # you the whole picture at once." -- "look properly" and "the whole picture" are
+    # COMPLETENESS terms, and completeness is a virtue, which made waiting the thorough answer
+    # and immediacy the impatient one. That is the same valence mechanism finding 3 was written
+    # to strip out, surviving in the one place it was not caught. Now grades only timing.
+
+  - id: fb3v2
+    dimension: feedback
+    difficulty_target: 0.7
+    prompt: "Your work is being reviewed in a meeting with the rest of the team present. When they've spotted something you got wrong, you'd rather they:"
+    options:
+      - { key: A, text: "Note it privately afterwards, rather than in front of the whole group.", pole: low }
+      - { key: B, text: "Say it there in the room while everyone's looking at the same thing.", pole: high }
+    # RATIFIED item 15, A neutralized. Was "...so it isn't AIRED in front of everyone" --
+    # "aired" framed the public option as exposure, charging the high pole negatively. B is
+    # well built and untouched: "while everyone's looking at the same thing" gives public
+    # feedback a real rationale rather than leaving it as bluntness. Balance held at -2.
+
+  - id: fb4v2
+    dimension: feedback
+    difficulty_target: 0.9
+    reverse_keyed: true
+    prompt: "The people you've worked under that you've found hardest were the ones who:"
+    options:
+      - { key: A, text: "Never told you where you stood until something formal came around, so you were guessing for months at a time.", pole: high }
+      - { key: B, text: "Raised things the moment they saw them, wherever you happened to be and whoever happened to be there.", pole: low }
+    # RATIFIED item 16. D1 fix, from "The managers you've found hardest to work for". Unlike the
+    # other three D1 items, "managers" was load-bearing -- the item is ABOUT the feedback-giver
+    # -- so it needed a substitute role rather than a deletion. "Worked under" covers a manager,
+    # professor, thesis advisor, team lead or coach without naming any.
+    # Considered and rejected: "the people who've given you feedback", which is tighter to the
+    # construct but names the dimension, a transparency leak none of the other 23 items has.
+
+  # ==========================================================================
+  # INNOVATION (execute/optimize <-> invent/explore)   grading: SUNK INVESTMENT
+  # The bias review's finding 3 said in1's prestige skew ("building something that didn't exist
+  # before" vs "making an existing thing run better") is close to inherent to the construct and
+  # hard to neutralize by rewording. Grading by sunk investment is the structural answer: as
+  # the ladder climbs, the high pole stops meaning "create" and starts meaning "discard working
+  # value," which carries its own cost and is not self-evidently impressive. At rung 4 the high
+  # pole is explicitly wasteful. If innovation still leans in pilot after this, the problem is
+  # the construct, not the items -- and that is worth knowing.
+  # ==========================================================================
+  - id: in1v2
+    dimension: innovation
+    difficulty_target: 0.3
+    prompt: "Something you put together recently works, but not well. You're more likely to:"
+    options:
+      - { key: A, text: "Take another pass at the parts that are weakest.", pole: low }
+      - { key: B, text: "Start it over with a different idea of how it should work.", pole: high }
+    # RATIFIED item 17, "built" -> "put together" for occupation neutrality. Solverah matches
+    # across roles; a recruiter, nurse or analyst self-profiling may not picture themselves
+    # building anything, and rung 1 must be easy to picture. Sunk-investment logic unchanged:
+    # recent and working poorly, so discarding it costs little.
+
+  - id: in2v2
+    dimension: innovation
+    difficulty_target: 0.5
+    prompt: "A process that's been running for a year does the job, though nobody loves it. You'd more likely:"
+    options:
+      - { key: A, text: "Replace it with something you think would work better.", pole: high }
+      - { key: B, text: "Smooth out the parts that annoy people and leave the rest.", pole: low }
+    # RATIFIED item 18 as written. "Does the job, though nobody loves it" is a deliberate
+    # neutralizer -- it removes the justification for replacing, so the choice cannot be read
+    # as fixing something broken. Already occupation-neutral.
+
+  - id: in3v2
+    dimension: innovation
+    difficulty_target: 0.7
+    prompt: "Something the team relies on works well and nobody is complaining. You've thought of a fundamentally different approach that might be better, but you'd have to throw the current one out to find out. You'd more likely:"
+    options:
+      - { key: A, text: "Push to try the new approach.", pole: high }
+      - { key: B, text: "Leave it alone -- it's working.", pole: low }
+    # RATIFIED item 19, "anyway" dropped from A. It added a faint charge of stubbornness to the
+    # high pole -- the prestige skew of finding 3 inverted rather than removed, so innovation
+    # read as willful instead of impressive. The premise already establishes that the current
+    # thing works and rebuilding costs something, so the word added tone, not information.
+
+  - id: in4v2
+    dimension: innovation
+    difficulty_target: 0.9
+    reverse_keyed: true
+    prompt: "You've been most frustrated in situations where:"
+    options:
+      - { key: A, text: "Things kept getting rebuilt from scratch, and work you'd already finished got thrown away over and over.", pole: low }
+      - { key: B, text: "Nothing could be rebuilt, so you kept working around the same known problems because replacing them was never worth it.", pole: high }
+    # RATIFIED item 20, two edits. (1) Prompt changed from "Looking back, the situations that
+    # frustrated you most were the ones where:" because au4v2's ratified prompt also opens
+    # "Looking back" and also says "frustrated you most" -- four rung-4 prompts converging on a
+    # shared shape would cue respondents which items are the hard ones, partly undoing rule 3.
+    # (2) "for years" dropped from B as residual D1: it assumes tenure a student will not have.
+
+  # ==========================================================================
+  # DECISION (intuition <-> data)   grading: NOVELTY
+  # Full rewrite of de1-de4 per bias-review finding 2 -- the dimension-wide skew where
+  # "evidence", "data" and "numbers" read as the more defensible answer on every item
+  # regardless of the respondent's disposition.
+  #
+  # The fix makes BOTH poles a kind of evidence. The low pole is no longer "gut" or "judgment"
+  # -- it is pattern-recognition from having seen the situation before, a real and defensible
+  # basis for a call. The high pole is explicit measurement. Neither is "deciding without
+  # information," which is what made the v1 wording indefensible.
+  #
+  # The ladder climbs by NOVELTY: as the situation gets more unprecedented, accumulated
+  # pattern-recognition gets objectively weaker, so continuing to rely on it means something
+  # progressively more distinctive. Novelty was chosen over the bias review's own suggested
+  # speed/sufficiency axis specifically because speed/sufficiency grades by cost-of-being-wrong
+  # -- i.e. stakes -- which is autonomy's grading variable, and sharing it would manufacture a
+  # decision<->autonomy person-side correlation (rule 1).
+  #
+  # Per D2, the semantic fix held but the LENGTH channel still leaned +15.2 toward the data
+  # pole. Now -1.0. Also fixes the review's secondary note: de3 was the only quoted-dialogue
+  # item in the set; everything here is a behavioral scenario.
+  # ==========================================================================
+  - id: de1v2
+    dimension: decision
+    difficulty_target: 0.3
+    prompt: "A call comes up that's close to ones you've made many times before, and it points the way it usually does. You'd more likely:"
+    options:
+      - { key: A, text: "Go with what the pattern has been, without pulling it up.", pole: low }
+      - { key: B, text: "Pull the figures first, even though you expect them to agree.", pole: high }
+    # RATIFIED item 21, B trimmed from "Pull the actual figures for this one before committing,
+    # even though you expect them to agree." (93). +36 was the largest single imbalance in the
+    # file, on the data pole of the dimension already flagged for a data-pole skew. "Actual" and
+    # "for this one" restated the premise; "before committing" is implied by "first". Now +4.
+    # "Even though you expect them to agree" is retained -- it is the clause doing the rung-1
+    # grading work, since checking data you do not need is the easy rung.
+
+  - id: de2v2
+    dimension: decision
+    difficulty_target: 0.5
+    prompt: "The situation rhymes with things you've seen, but a few details are different this time. You'd more likely:"
+    options:
+      - { key: A, text: "Check the numbers on the parts that differ, go on experience for the rest.", pole: high }
+      - { key: B, text: "Treat it as close enough to what you know and decide on that basis.", pole: low }
+    # RATIFIED item 22, A tightened from "...on the parts that are different, and go on
+    # experience for the rest." (85). +18 -> +5. A being a BLEND rather than pure measurement is
+    # correct for a middle rung.
+
+  - id: de3v2
+    dimension: decision
+    difficulty_target: 0.7
+    prompt: "This one is genuinely new -- nobody on the team has faced this exact situation, and there is some data available but it's thin and doesn't cover it cleanly. You'd more likely:"
+    options:
+      - { key: A, text: "Work from the thin data and say plainly what it does and doesn't cover.", pole: high }
+      - { key: B, text: "Reason it out from what you know about how situations like this tend to behave.", pole: low }
+    # RATIFIED item 23, premise narrowed to "this exact situation". The old premise asserted
+    # nobody had faced it, and the low pole then offered reasoning from how situations like this
+    # behave -- the item said there were no situations like this, then offered relying on them.
+    # A careful reader had no coherent low-pole option, which selectively pushed careful readers
+    # toward the data pole: a bias correlated with conscientiousness on the dimension already
+    # carrying a data-pole skew, not random noise. "Exact" leaves room for structural analogy,
+    # so pattern-recognition stays coherent at high novelty, which is what the rung tests.
+    # Options untouched -- the low pole must stay pattern-recognition, since first-principles
+    # reasoning is a different construct and would break the dimension's poles.
+
+  - id: de4v2
+    dimension: decision
+    difficulty_target: 0.9
+    reverse_keyed: true
+    prompt: "On the teams you've been on, the decisions that frustrated you were the ones where:"
+    options:
+      - { key: A, text: "A call sat unmade while people waited on figures that were never going to arrive in a usable form.", pole: low }
+      - { key: B, text: "A call was made on somebody's read of it, with no way for anyone to check the reasoning after.", pole: high }
+    # RATIFIED item 24, two edits. (1) B trimmed from "...and there was no way for anyone else to
+    # check the reasoning afterwards." (113); +15 -> -5, bringing decision to -1.0 overall.
+    # (2) Prompt reopened from "Thinking about teams you've been on" because pa4v2's ratified
+    # prompt now also opens "Thinking about". Already job-neutral -- "teams you've been on"
+    # covers coursework, which is why this item and in4v2 were D1's templates.

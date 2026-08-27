@@ -12,7 +12,7 @@ VALID_ANSWERS = [
     {"question_id": "wpll-q5", "option_id": "wpll-q5-a"},
 ]
 
-_ENDPOINT = "/api/work-pulse/lite-lite/result"
+_ENDPOINT = "/api/v1/assessments/wpll/submissions"
 
 
 def _mock_openai_completion(insight_text: str):
@@ -27,7 +27,7 @@ def test_wpll_result_llm_happy_path(client):
     expected = "Your responses show a fragmented work pattern with real sustainability costs. You're carrying more than the role probably acknowledges."
     completion = _mock_openai_completion(expected)
 
-    with patch("app._get_openai_client") as mock_factory:
+    with patch("solverah.infra.llm.get_openai_client") as mock_factory:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = completion
         mock_factory.return_value = mock_client
@@ -46,7 +46,7 @@ def test_wpll_result_llm_happy_path(client):
 
 
 def test_wpll_result_llm_exception_falls_back_to_rules(client):
-    with patch("app._get_openai_client") as mock_factory:
+    with patch("solverah.infra.llm.get_openai_client") as mock_factory:
         mock_factory.side_effect = RuntimeError("simulated API outage")
 
         res = client.post(
@@ -67,7 +67,7 @@ def test_wpll_result_malformed_llm_response_falls_back_to_rules(client):
     mock_completion = MagicMock()
     mock_completion.choices = [mock_choice]
 
-    with patch("app._get_openai_client") as mock_factory:
+    with patch("solverah.infra.llm.get_openai_client") as mock_factory:
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_completion
         mock_factory.return_value = mock_client
@@ -83,13 +83,16 @@ def test_wpll_result_malformed_llm_response_falls_back_to_rules(client):
     assert isinstance(body["insight_text"], str) and len(body["insight_text"]) > 0
 
 
-def test_wpll_result_missing_answers_returns_400(client):
+def test_wpll_result_missing_answers_returns_422(client):
     res = client.post(
         _ENDPOINT,
         data=json.dumps({}),
         content_type="application/json",
     )
-    assert res.status_code == 400
+    # `answers` is a required field of the declared schema, so this is refused
+    # before the handler runs -- 422 with the field named, not a bare 400.
+    assert res.status_code == 422
+    assert "answers" in {e["field"] for e in res.get_json()["errors"]}
 
 
 def test_wpll_result_empty_answers_returns_400(client):

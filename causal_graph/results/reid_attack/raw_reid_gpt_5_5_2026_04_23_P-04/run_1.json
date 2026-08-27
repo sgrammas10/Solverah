@@ -1,0 +1,61 @@
+{
+  "run_index": 1,
+  "timestamp": "2026-08-17T16:25:46.344517+00:00",
+  "model": "gpt-5.5-2026-04-23",
+  "requested_temperature": 1.0,
+  "temperature_honored": true,
+  "reasoning_effort": "medium",
+  "packet_id": "P-04",
+  "ground_truth_company": "R/GA",
+  "response": {
+    "id": "chatcmpl-EDuRR7f085EZgvUSjRfUrHq12Y3CG",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\"confidence\":\"high\",\"quoted_clues\":[\"global agency network\",\"parent of 23 years to a private equity firm\",\"has always been an outlier inside a holding company\",\"first global Chief Brand Officer\",\"acquisition of [an AI system design studio]\"],\"reasoning\":\"This matches R/GA very closely: a global creative/digital agency network that spent about 23 years inside IPG before being sold in early 2025 to private equity in a management-backed transaction. Trade-press language about being an \u201coutlier\u201d in the holding-company model and post-independence investments in AI/product development also aligns with R/GA\u2019s public repositioning.\",\"top_guess\":\"R/GA\"}",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": [],
+          "audio": null,
+          "function_call": null,
+          "tool_calls": null
+        }
+      }
+    ],
+    "created": 1786983933,
+    "model": "gpt-5.5-2026-04-23",
+    "object": "chat.completion",
+    "service_tier": "default",
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 667,
+      "prompt_tokens": 4790,
+      "total_tokens": 5457,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": 0,
+        "audio_tokens": 0,
+        "reasoning_tokens": 512,
+        "rejected_prediction_tokens": 0
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 0
+      }
+    }
+  },
+  "parsed": {
+    "confidence": "high",
+    "quoted_clues": [
+      "global agency network",
+      "parent of 23 years to a private equity firm",
+      "has always been an outlier inside a holding company",
+      "first global Chief Brand Officer",
+      "acquisition of [an AI system design studio]"
+    ],
+    "reasoning": "This matches R/GA very closely: a global creative/digital agency network that spent about 23 years inside IPG before being sold in early 2025 to private equity in a management-backed transaction. Trade-press language about being an \u201coutlier\u201d in the holding-company model and post-independence investments in AI/product development also aligns with R/GA\u2019s public repositioning.",
+    "top_guess": "R/GA"
+  }
+}

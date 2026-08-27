@@ -20,7 +20,7 @@ vi.mock("../../contexts/useAuth", () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.user = { name: "Ada Lovelace" };
-  mocks.fetchWithAuth.mockResolvedValue({ recommendations: [] });
+  mocks.fetchWithAuth.mockResolvedValue({ data: [], next_cursor: null });
 });
 
 function renderFeed() {
@@ -45,7 +45,7 @@ describe("Feed - happy path", () => {
   });
 
   it("shows 'Job recommendations coming soon' when no recommendations", async () => {
-    mocks.fetchWithAuth.mockResolvedValueOnce({ recommendations: [] });
+    mocks.fetchWithAuth.mockResolvedValueOnce({ data: [], next_cursor: null });
     renderFeed();
     await waitFor(() =>
       expect(screen.getByText(/Job recommendations coming soon/i)).toBeInTheDocument()
@@ -103,7 +103,7 @@ describe("Feed - search", () => {
 describe("Feed - job recommendations", () => {
   it("renders job listings when recommendations are returned", async () => {
     mocks.fetchWithAuth.mockResolvedValueOnce({
-      recommendations: [
+      data: [
         {
           ID: "1",
           Title: "Senior Frontend Engineer",

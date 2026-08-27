@@ -261,20 +261,19 @@ export function useProfileForm() {
 
     if (pendingResume) {
       try {
-        const finalized = await fetchWithAuth<{ profileData?: Partial<ProfileFormData> }>(
-          "/profile/resume/finalize",
+        const finalized = await fetchWithAuth<{ profile?: Partial<ProfileFormData> }>(
+          `/me/resumes/${pendingResume.resumeId}/complete`,
           {
             method: "POST",
             body: JSON.stringify({
-              object_key: pendingResume.objectKey,
               mime: pendingResume.mime,
               size: pendingResume.size,
               name: pendingResume.name,
             }),
           }
         );
-        if (finalized?.profileData) {
-          const normalized = normalizeProfileData(finalized.profileData);
+        if (finalized?.profile) {
+          const normalized = normalizeProfileData(finalized.profile);
           profileDataToSave = {
             ...profileDataToSave,
             ...normalized,
@@ -317,7 +316,7 @@ export function useProfileForm() {
     const modelPipeline = buildProfilePipeline();
     const stringified = JSON.stringify(modelPipeline);
     try {
-      await fetchWithAuth("/recommendations", {
+      await fetchWithAuth("/me/recommendations/refresh", {
         method: "POST",
         body: JSON.stringify({ profilePipeline: stringified }),
       });
@@ -498,20 +497,23 @@ export function useProfileForm() {
     setIsSaved(false);
     setIsUploadingResume(true);
     try {
-      const presign = await fetchWithAuth<{
-        object_key: string;
+      // The ticket hands back a resume_id, not a storage key -- see
+      // PendingResumeUpload in types/profile.ts for why that is the security
+      // improvement rather than a rename.
+      const ticket = await fetchWithAuth<{
+        resume_id: string;
         upload_url: string;
         max_bytes: number;
-      }>("/profile/resume/presign", {
+      }>("/me/resumes", {
         method: "POST",
         body: JSON.stringify({ mime: file.type, size: file.size }),
       });
-      await fetch(presign.upload_url, {
+      await fetch(ticket.upload_url, {
         method: "PUT",
         headers: { "Content-Type": file.type },
         body: file,
       });
-      setPendingResume({ objectKey: presign.object_key, mime: file.type, size: file.size, name: file.name });
+      setPendingResume({ resumeId: ticket.resume_id, mime: file.type, size: file.size, name: file.name });
       setFormData((prev) => ({
         ...prev,
         uploadedResume: { name: file.name, size: file.size, type: file.type },
@@ -530,7 +532,7 @@ export function useProfileForm() {
 
   const handleViewResume = async () => {
     try {
-      const data = await fetchWithAuth<{ url: string }>("/profile/resume-url", { method: "GET" });
+      const data = await fetchWithAuth<{ url: string }>("/me/resumes/current/download-url", { method: "GET" });
       if (data?.url) window.open(data.url, "_blank", "noopener,noreferrer");
     } catch (err) {
       console.error(err);

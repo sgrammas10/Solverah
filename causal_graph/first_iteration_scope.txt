@@ -1,0 +1,56 @@
+First iteration scope notes
+============================
+
+Autonomy / Pace / Feedback are a testing subset, not the full model.
+----------------------------------------------------------------------
+autonomy_fit_model.py currently wires up 3 interaction dimensions
+(Autonomy, Pace, Feedback) purely to prove the pipeline shape works.
+This is NOT the full set of dimensions the real product will eventually
+model -- it's a small stand-in so the graph structure, CPDs, and
+inference calls can be built and tested end-to-end before scaling up to
+the rest of the dimensions shown in the full causal graph.
+
+Fit_* interaction cells are un-reviewed hand guesses for now.
+----------------------------------------------------------------------
+The 4-cell hypothesis in each Fit_* CPD (e.g. "high-autonomy person under
+a controlling manager -> mostly Poor fit") has not been stress-tested
+with a domain-expert partner yet. That review is deferred -- not
+happening as part of this iteration. Values are a first-pass guess only.
+
+Root priors are staying at flat 50/50 for now.
+----------------------------------------------------------------------
+P_Autonomy, E_ManagerStyle, P_Pace, E_Pace, P_Feedback, E_Feedback are
+intentionally left at the uninformative 50/50 split rather than being
+tuned or reviewed right now. No real signal-to-prior mapping (from
+work_pulse / manager_match) is being built in this iteration either --
+that's future work once the base model itself is validated.
+
+No CPD-update / data-blending mechanism yet -- by design.
+----------------------------------------------------------------------
+There is no real user data yet, so there is nothing to blend the
+hand-elicited CPDs with. The plan (per cbm_notes.txt step 4 -- moving
+weight from hand-elicited priors toward observed outcomes via pgmpy's
+BayesianEstimator/MLE) is explicitly OUT of scope for this iteration.
+Priority right now is getting the base model built and working; the
+data-driven update path comes later, once real outcomes exist to learn
+from.
+
+Engagement compounding curve (poor_divisor/ceiling_high) is a guess too.
+----------------------------------------------------------------------
+compounding_engagement_values() in autonomy_fit_model.py models multiple
+Poor fits compounding via exponential decay in odds-space (odds divided
+by poor_divisor per Poor fit). The current poor_divisor=4.0 and
+ceiling_high=0.80 are placeholder starting values, not tuned against
+anything real. Will need to be revisited/adjusted over time once there's
+partner review and/or real engagement outcome data to check the curve
+against -- treat the steepness of this compounding as an open knob, not
+a settled decision.
+
+Sequencing for what comes after this iteration:
+----------------------------------------------------------------------
+- Wiring the model into the app (a real endpoint, mapping profile_data
+  into evidence, persisting query outputs) comes AFTER the base model is
+  complete.
+- Tests for this module come once the model has more substance (not
+  meaningful to lock down test expectations while values are still
+  placeholders).

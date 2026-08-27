@@ -19,8 +19,30 @@
  */
 import { useState, useEffect, ReactNode } from "react";
 
-import { AuthContext, ProfileData, User } from "./authContext";
+import { AuthContext, ProfileData, SessionResponse, User } from "./authContext";
 import { API_BASE } from "../utils/api";
+import { parseApiError } from "../utils/apiError";
+
+
+/**
+ * Assemble the `User` the app reads from the two resources that now serve it.
+ *
+ * GET /auth/session returns `{ user, csrf_token, flags }` and GET /me/profile
+ * returns `{ profile }`. Keeping the seam here rather than at every consumer is
+ * the point of splitting at the API boundary: the shape the components see is
+ * unchanged, so the endpoint redesign did not have to reach into them -- and
+ * when Phase 2 decomposes `profile_data` into columns, this is again the only
+ * place that has to know.
+ */
+function toUser(session: SessionResponse, profile?: ProfileData): User {
+  return {
+    ...(session.user as unknown as User),
+    profileData: profile ?? {},
+    wpl_completed: session.flags.wpl_completed,
+    wpll_completed: session.flags.wpll_completed,
+    wp_v2_completed: session.flags.wp_v2_completed,
+  } as User;
+}
 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -28,21 +50,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [csrfToken, setCsrfToken] = useState<string | null>(null);
 
-  // Restore session automatically using secure cookies
+  // Restore session automatically using secure cookies.
+  //
+  // Phase 1b split the endpoint this used to call. GET /profile returned
+  // identity, the whole profile_data blob, the CSRF token and three completion
+  // flags in one document, and committed an AuditLog row on the way out -- a
+  // write on the hottest read in the system, on every page load, for data the
+  // app shell does not render (P0-3).
+  //
+  // It is now two resources: GET /auth/session for identity, the CSRF token and
+  // the flags, which writes nothing; and GET /me/profile for the blob. They are
+  // issued together so a restore is still one round trip's latency rather than
+  // two.
+  //
+  // Fetching the profile here at all is transitional. It is on the boot path
+  // only because the `User` type still carries `profileData` and six components
+  // read it off the user object. When Phase 4 moves those onto their own
+  // queries, deleting the second request from this Promise.all is what finishes
+  // P0-3 on the client -- the split it needs has already happened.
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/profile`, {
-          method: "GET",
-          credentials: "include",
-        });
+        const [sessionRes, profileRes] = await Promise.all([
+          fetch(`${API_BASE}/auth/session`, { method: "GET", credentials: "include" }),
+          fetch(`${API_BASE}/me/profile`, { method: "GET", credentials: "include" }),
+        ]);
 
-        if (res.ok) {
-          const data = await res.json();
-          setUser(data as User);
+        if (sessionRes.ok) {
+          const session = await sessionRes.json();
+          // A failed profile read must not fail the restore: the session is
+          // valid either way, and a signed-in user with an empty profile is a
+          // recoverable state where a logged-out one is not.
+          const profile = profileRes.ok ? await profileRes.json() : null;
+          setUser(toUser(session, profile?.profile));
           // Read CSRF token from response body (cookie is inaccessible cross-origin)
-          if (data.csrfToken) {
-            setCsrfToken(data.csrfToken);
+          if (session.csrf_token) {
+            setCsrfToken(session.csrf_token);
           }
         } else {
           setUser(null);
@@ -84,7 +127,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!res.ok) {
-      throw new Error(data?.error || data?.message || "Request failed");
+      // Throws an ApiError, which extends Error — existing `catch (e) { e.message }`
+      // call sites are unaffected and simply get a better message. Reads both the
+      // problem+json shape and the legacy {error} body; see utils/apiError.ts.
+      throw parseApiError(res, data);
     }
 
     if (data === null) {
@@ -121,16 +167,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // LOGIN — backend sets an HttpOnly JWT cookie
   const login = async (email: string, password: string) => {
-    const res = await fetch(`${API_BASE}/login`, {
+    const res = await fetch(`${API_BASE}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({ email, password }),
     });
 
-    const data = await res.json();
+    // Guarded: an unguarded res.json() throws a SyntaxError on any non-JSON
+    // error response (a proxy's HTML 502, an empty 429 body), which surfaces to
+    // the user as a parse error instead of the real reason.
+    const data = await res.json().catch(() => null);
     if (!res.ok) {
-      throw new Error(data.error || "Login failed");
+      throw parseApiError(res, data, "Login failed");
+    }
+    if (data === null) {
+      throw new Error("Unexpected response from server (no JSON body).");
     }
 
     const userData = data.user as User;
@@ -144,27 +196,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return userData;
   };
 
-  // REGISTER — then user logs in normally
+  // REGISTER — then user logs in normally.
+  // termsAccepted: ToS/Privacy acceptance + 16+ attestation, required by the
+  // backend; the accepted TERMS_VERSION is recorded server-side as evidence.
   const register = async (
     email: string,
     password: string,
     name: string,
+    termsAccepted: boolean,
   ) => {
-    const res = await fetch(`${API_BASE}/register`, {
+    const { TERMS_VERSION } = await import("../data/legal");
+    const res = await fetch(`${API_BASE}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ email, password, name, role: "job-seeker" }),
+      body: JSON.stringify({
+        email,
+        password,
+        name,
+        role: "job-seeker",
+        terms_accepted: termsAccepted,
+        terms_version: TERMS_VERSION,
+      }),
     });
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Registration failed");
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw parseApiError(res, data, "Registration failed");
   };
 
   // LOGOUT — clears cookie on backend
   const logout = async () => {
     try {
-      await fetchWithAuth("/logout", { method: "POST" });
+      await fetchWithAuth("/auth/logout", { method: "POST" });
     } catch (e) {
       console.error(e);
     } finally {
@@ -174,24 +237,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
 
-  /** Refetch the full User object from the server and sync local state. */
+  /** Refetch the full User object and sync local state.
+   *
+   * Two requests since the Phase 1b split, for the reason in the restore effect
+   * above: identity and flags come from the session probe, the blob from the
+   * profile resource.
+   */
   const fetchProfile = async () => {
-    const data = await fetchWithAuth<User>("/profile", { method: "GET" });
-    setUser(data);
+    const [session, profile] = await Promise.all([
+      fetchWithAuth<SessionResponse>("/auth/session", { method: "GET" }),
+      fetchWithAuth<{ profile?: ProfileData }>("/me/profile", { method: "GET" }),
+    ]);
+    setUser(toUser(session, profile.profile));
   };
 
-  /** Fetch only the profileData portion of the user's profile. */
+  /** Fetch only the profileData portion of the user's profile.
+   *
+   * One request now rather than a whole user document -- this is what the split
+   * buys a caller that only wants the blob.
+   */
   const fetchProfileData = async () => {
-    const data = await fetchWithAuth<{ profileData?: ProfileData }>("/profile", { method: "GET" });
-    return { profileData: data.profileData };
+    const data = await fetchWithAuth<{ profile?: ProfileData }>("/me/profile", {
+      method: "GET",
+    });
+    return { profileData: data.profile };
   };
 
-  /** Persist updated profileData to the server (POST /api/profile). */
+  /** Persist updated profileData (PATCH /api/v1/me/profile).
+   *
+   * Still a merge, not a replace: the server folds these keys over the stored
+   * document. The return shape is adapted to `{ profileData }` so the callers
+   * that read it do not each need to know the wire name changed.
+   */
   const saveProfileData = async (profileData: ProfileData) => {
-    return await fetchWithAuth<{ profileData?: ProfileData }>("/profile", {
-      method: "POST",
-      body: JSON.stringify({ profileData }),
+    const data = await fetchWithAuth<{ profile?: ProfileData }>("/me/profile", {
+      method: "PATCH",
+      body: JSON.stringify({ profile: profileData }),
     });
+    return { profileData: data.profile };
   };
 
   /**

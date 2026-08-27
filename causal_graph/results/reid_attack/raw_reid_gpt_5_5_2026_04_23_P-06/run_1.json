@@ -1,0 +1,61 @@
+{
+  "run_index": 1,
+  "timestamp": "2026-08-17T16:26:45.268910+00:00",
+  "model": "gpt-5.5-2026-04-23",
+  "requested_temperature": 1.0,
+  "temperature_honored": true,
+  "reasoning_effort": "medium",
+  "packet_id": "P-06",
+  "ground_truth_company": "Raymond James",
+  "response": {
+    "id": "chatcmpl-EDuSPb5mXQu0CUXtR0E2wxcaarprC",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\"confidence\":\"high\",\"quoted_clues\":[\"client-first, integrity, independence and a conservative, long-term view\",\"fiscal year ended 2025-09-30\",\"Our 'associates' (which include our employee financial advisors\",\"zero cross-selling requirements\",\"financial advisors to take their client list with them\"],\"reasoning\":\"The values phrase and language around 'associates,' employee and independent financial advisors, conservative long-term culture, and a September 30 fiscal year strongly match Raymond James Financial. The advisor autonomy/free-agent framing and no cross-selling requirements are also characteristic of Raymond James' wealth-management positioning.\",\"top_guess\":\"Raymond James Financial, Inc.\"}",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": [],
+          "audio": null,
+          "function_call": null,
+          "tool_calls": null
+        }
+      }
+    ],
+    "created": 1786983993,
+    "model": "gpt-5.5-2026-04-23",
+    "object": "chat.completion",
+    "service_tier": "default",
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 582,
+      "prompt_tokens": 4868,
+      "total_tokens": 5450,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": 0,
+        "audio_tokens": 0,
+        "reasoning_tokens": 432,
+        "rejected_prediction_tokens": 0
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 0
+      }
+    }
+  },
+  "parsed": {
+    "confidence": "high",
+    "quoted_clues": [
+      "client-first, integrity, independence and a conservative, long-term view",
+      "fiscal year ended 2025-09-30",
+      "Our 'associates' (which include our employee financial advisors",
+      "zero cross-selling requirements",
+      "financial advisors to take their client list with them"
+    ],
+    "reasoning": "The values phrase and language around 'associates,' employee and independent financial advisors, conservative long-term culture, and a September 30 fiscal year strongly match Raymond James Financial. The advisor autonomy/free-agent framing and no cross-selling requirements are also characteristic of Raymond James' wealth-management positioning.",
+    "top_guess": "Raymond James Financial, Inc."
+  }
+}

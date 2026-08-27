@@ -1,0 +1,61 @@
+{
+  "run_index": 3,
+  "timestamp": "2026-08-17T16:25:35.302772+00:00",
+  "model": "gpt-5.5-2026-04-23",
+  "requested_temperature": 1.0,
+  "temperature_honored": true,
+  "reasoning_effort": "medium",
+  "packet_id": "P-03",
+  "ground_truth_company": "Akuna Capital",
+  "response": {
+    "id": "chatcmpl-EDuQhvwFzwqb5fy9vy7lhOpu45eo9",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\"confidence\":\"high\",\"quoted_clues\":[\"Own your impact on day one\",\"has no clients or external investors, we trade only with the company's capital\",\"offer top performers the opportunity to earn meaningful ownership in the firm\",\"short-term interest rate options\",\"Junior Developers at [the company] have the opportunity to use cutting-edge technology while working on high performance/low latency systems\"],\"reasoning\":\"The packet points to a Chicago-headquartered proprietary trading firm with no clients or outside investors, ownership opportunities, trading/tech integration, and specific STIR/short-end rates options roles. The careers-language and old junior developer wording strongly match TransMarket Group\u2019s public recruiting/culture materials, and the review profile also fits its reputation and Chicago lake-view office context.\",\"top_guess\":\"TransMarket Group\"}",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": [],
+          "audio": null,
+          "function_call": null,
+          "tool_calls": null
+        }
+      }
+    ],
+    "created": 1786983887,
+    "model": "gpt-5.5-2026-04-23",
+    "object": "chat.completion",
+    "service_tier": "default",
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 2936,
+      "prompt_tokens": 4312,
+      "total_tokens": 7248,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": 0,
+        "audio_tokens": 0,
+        "reasoning_tokens": 2733,
+        "rejected_prediction_tokens": 0
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 3840
+      }
+    }
+  },
+  "parsed": {
+    "confidence": "high",
+    "quoted_clues": [
+      "Own your impact on day one",
+      "has no clients or external investors, we trade only with the company's capital",
+      "offer top performers the opportunity to earn meaningful ownership in the firm",
+      "short-term interest rate options",
+      "Junior Developers at [the company] have the opportunity to use cutting-edge technology while working on high performance/low latency systems"
+    ],
+    "reasoning": "The packet points to a Chicago-headquartered proprietary trading firm with no clients or outside investors, ownership opportunities, trading/tech integration, and specific STIR/short-end rates options roles. The careers-language and old junior developer wording strongly match TransMarket Group\u2019s public recruiting/culture materials, and the review profile also fits its reputation and Chicago lake-view office context.",
+    "top_guess": "TransMarket Group"
+  }
+}

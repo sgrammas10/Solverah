@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Send, MessageSquare } from 'lucide-react';
 import { useAuth } from '../contexts/useAuth';
+import { parseApiError } from '../utils/apiError';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -37,7 +38,7 @@ function AgentChat() {
     abortControllerRef.current = controller;
 
     try {
-      const response = await streamFetch('/agent/chat', {
+      const response = await streamFetch('/agent/messages', {
         method: 'POST',
         body: JSON.stringify({ messages: nextMessages }),
         signal: controller.signal,
@@ -45,7 +46,7 @@ function AgentChat() {
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error((errData as any).error || 'Request failed');
+        throw parseApiError(response, errData, 'Request failed');
       }
 
       if (!response.body) throw new Error('No response body');
@@ -109,6 +110,12 @@ function AgentChat() {
         <div>
           <h1 className="font-display text-2xl font-bold text-ink-primary">Solverah AI</h1>
           <p className="text-sm text-ink-secondary mt-1">Your personal career assistant</p>
+          {/* AI-use disclosure (GAP-09, 2026-08-20): plain statement that this is
+              an AI, what it can see, and that it can be wrong. */}
+          <p className="text-xs text-ink-tertiary mt-1">
+            You're chatting with an AI. It uses your profile and resume to personalize
+            answers, and it can make mistakes — verify anything important.
+          </p>
         </div>
         {messages.length > 0 && (
           <button

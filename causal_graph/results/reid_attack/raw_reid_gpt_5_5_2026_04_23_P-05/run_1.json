@@ -1,0 +1,61 @@
+{
+  "run_index": 1,
+  "timestamp": "2026-08-17T16:26:20.900818+00:00",
+  "model": "gpt-5.5-2026-04-23",
+  "requested_temperature": 1.0,
+  "temperature_honored": true,
+  "reasoning_effort": "medium",
+  "packet_id": "P-05",
+  "ground_truth_company": "Doist",
+  "response": {
+    "id": "chatcmpl-EDuS43jtsTfqUItBQxAnQecQmfdTj",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\"confidence\":\"high\",\"quoted_clues\":[\"work from anywhere in the world\",\"Ambition\",\"Mastery\",\"Independence\",\"use our own product for our internal communication\"],\"reasoning\":\"The values named Ambition, Mastery, Independence, and Communication match Doist\u2019s published culture. The remote/asynchronous 40-hour workweek language also fits Doist, and the clue that employees use their own product instead of a common chat tool points to Twist, Doist\u2019s async communication app. Bootstrapped/independent and Android/iOS client engineering also align with Doist/Todoist.\",\"top_guess\":\"Doist\"}",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": [],
+          "audio": null,
+          "function_call": null,
+          "tool_calls": null
+        }
+      }
+    ],
+    "created": 1786983972,
+    "model": "gpt-5.5-2026-04-23",
+    "object": "chat.completion",
+    "service_tier": "default",
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 372,
+      "prompt_tokens": 2709,
+      "total_tokens": 3081,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": 0,
+        "audio_tokens": 0,
+        "reasoning_tokens": 231,
+        "rejected_prediction_tokens": 0
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 0
+      }
+    }
+  },
+  "parsed": {
+    "confidence": "high",
+    "quoted_clues": [
+      "work from anywhere in the world",
+      "Ambition",
+      "Mastery",
+      "Independence",
+      "use our own product for our internal communication"
+    ],
+    "reasoning": "The values named Ambition, Mastery, Independence, and Communication match Doist\u2019s published culture. The remote/asynchronous 40-hour workweek language also fits Doist, and the clue that employees use their own product instead of a common chat tool points to Twist, Doist\u2019s async communication app. Bootstrapped/independent and Android/iOS client engineering also align with Doist/Todoist.",
+    "top_guess": "Doist"
+  }
+}

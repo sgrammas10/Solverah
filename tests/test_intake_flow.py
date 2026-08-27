@@ -1,4 +1,4 @@
-"""Integration tests: full intake flow from registration through profile reflection."""
+"""Integration tests: full intake flow from registration through flags reflection."""
 
 import datetime
 
@@ -9,13 +9,12 @@ def _noop(*_args, **_kwargs):
 
 def _register_and_confirm(client, monkeypatch, email="flow@example.com", password="FlowPass1!@#"):
     """Register a user and bypass email confirmation for testing."""
-    import app as app_module
-    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     client.post(
-        "/api/register",
-        json={"email": email, "password": password, "name": "Flow User", "role": "job-seeker"},
+        "/api/v1/auth/register",
+        json={"email": email, "password": password, "name": "Flow User", "role": "job-seeker", "terms_accepted": True},
     )
 
     from app import app
@@ -28,12 +27,17 @@ def _register_and_confirm(client, monkeypatch, email="flow@example.com", passwor
 
 
 def _login(client, email, password):
-    resp = client.post("/api/login", json={"email": email, "password": password})
+    resp = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert resp.status_code == 200
     return resp.get_json()["csrfToken"]
 
 
+# `mode` is the discriminator on POST /api/v1/intake/claims, which Phase 1b
+# collapsed the four account-attachment endpoints onto. "session" is the one
+# with no submission behind it: an anonymous Work Pulse Lite-Lite session held
+# in sessionStorage, adopted onto the account that just signed in.
 SAMPLE_INTAKE = {
+    "mode": "session",
     "selected_statement_ids": ["dir-1", "sus-2"],
     "wpll_answers": [
         {"question_id": "wpll-q1", "option_id": "wpll-q1-c"},
@@ -50,7 +54,7 @@ def test_full_intake_flow_creates_user_intake_row(client, monkeypatch):
     email, pw = _register_and_confirm(client, monkeypatch)
     csrf = _login(client, email, pw)
     resp = client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json=SAMPLE_INTAKE,
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -71,20 +75,20 @@ def test_profile_reflects_wpll_completed_after_save(client, monkeypatch):
     csrf = _login(client, email, pw)
 
     # Before save
-    profile_before = client.get("/api/profile").get_json()
-    assert profile_before["wpll_completed"] is False
+    flags_before = client.get("/api/v1/auth/session").get_json()["flags"]
+    assert flags_before["wpll_completed"] is False
 
     # Save
     client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json=SAMPLE_INTAKE,
         headers={"X-CSRF-TOKEN": csrf},
     )
 
     # After save
-    profile_after = client.get("/api/profile").get_json()
-    assert profile_after["wpll_completed"] is True
-    assert profile_after["wpl_completed"] is False
+    flags_after = client.get("/api/v1/auth/session").get_json()["flags"]
+    assert flags_after["wpll_completed"] is True
+    assert flags_after["wpl_completed"] is False
 
 
 def test_second_save_upserts_not_duplicates(client, monkeypatch):
@@ -92,13 +96,13 @@ def test_second_save_upserts_not_duplicates(client, monkeypatch):
     csrf = _login(client, email, pw)
 
     client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json=SAMPLE_INTAKE,
         headers={"X-CSRF-TOKEN": csrf},
     )
     updated = {**SAMPLE_INTAKE, "selected_statement_ids": ["ldr-1"]}
     client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json=updated,
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -117,7 +121,7 @@ def test_second_save_preserves_wpll_completed_at(client, monkeypatch):
     csrf = _login(client, email, pw)
 
     client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json=SAMPLE_INTAKE,
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -130,7 +134,7 @@ def test_second_save_preserves_wpll_completed_at(client, monkeypatch):
 
     # Second save
     client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json=SAMPLE_INTAKE,
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -145,11 +149,11 @@ def test_wpl_completed_remains_false_until_sprint2_endpoint(client, monkeypatch)
     csrf = _login(client, email, pw)
 
     client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json=SAMPLE_INTAKE,
         headers={"X-CSRF-TOKEN": csrf},
     )
 
-    profile = client.get("/api/profile").get_json()
+    flags = client.get("/api/v1/auth/session").get_json()["flags"]
     # wpl_completed_at is only set by Sprint 2's /work-pulse/lite/submit
-    assert profile["wpl_completed"] is False
+    assert flags["wpl_completed"] is False

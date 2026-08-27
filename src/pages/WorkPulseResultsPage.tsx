@@ -21,7 +21,7 @@ export default function WorkPulseResultsPage() {
   const submitAnswers = useCallback(async () => {
     setFetchState("loading");
     try {
-      const data = await fetchWithAuth<WpApiResponse>("/work-pulse/submit", {
+      const data = await fetchWithAuth<WpApiResponse>("/assessments/work_pulse/submissions", {
         method: "POST",
         body: JSON.stringify({
           answers: state.answers.map((a) => ({
@@ -42,7 +42,7 @@ export default function WorkPulseResultsPage() {
   const fetchFromServer = useCallback(async () => {
     setFetchState("loading");
     try {
-      const data = await fetchWithAuth<WpApiResponse>("/work-pulse/results");
+      const data = await fetchWithAuth<WpApiResponse>("/me/assessments/work_pulse/result");
       setResult(data);
       setCachedResult(data);
       updateProfile({ wpl_completed: true });

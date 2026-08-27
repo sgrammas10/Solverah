@@ -52,6 +52,7 @@ import GuestQuizInsights from "./pages/GuestQuizInsights";
 import AgentChat from "./pages/AgentChat";
 import CareerIntakePage from "./pages/CareerIntakePage";
 import WorkPulsePage from "./pages/WorkPulsePage";
+import AssessmentPage from "./pages/AssessmentPage";
 import WorkPulseResultsPage from "./pages/WorkPulseResultsPage";
 import FocusTypePage from "./pages/FocusTypePage";
 import FocusTypeResultsPage from "./pages/FocusTypeResultsPage";
@@ -61,6 +62,8 @@ import CompanyLensPage from "./pages/CompanyLensPage";
 import ManagerMatchPage from "./pages/ManagerMatchPage";
 import ManagerMatchResultsPage from "./pages/ManagerMatchResultsPage";
 import PathIntelligencePage from "./pages/PathIntelligencePage";
+import LegalPage from "./pages/LegalPage";
+import HowMatchingWorksPage from "./pages/HowMatchingWorksPage";
 
 /**
  * ProtectedRoute — Wraps a route element with authentication and role checks.
@@ -154,6 +157,10 @@ function App() {
               <Route path="/start" element={<CareerIntakePage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              {/* Legal + transparency (public) */}
+              <Route path="/privacy" element={<LegalPage doc="privacy" />} />
+              <Route path="/terms" element={<LegalPage doc="terms" />} />
+              <Route path="/how-matching-works" element={<HowMatchingWorksPage />} />
               <Route path="/verify-email" element={<ConfirmEmail />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/forgot-password/verify" element={<ForgotPasswordVerify />} />
@@ -274,6 +281,17 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={["job-seeker"]}>
                     <QuizInsights />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Legacy alias. The person-side assessment ships as Work Pulse at /work-pulse;
+                  AssessmentPage is now a redirect kept so pre-rename links don't break. */}
+              <Route
+                path="/assessment"
+                element={
+                  <ProtectedRoute allowedRoles={["job-seeker"]}>
+                    <AssessmentPage />
                   </ProtectedRoute>
                 }
               />

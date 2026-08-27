@@ -42,12 +42,12 @@ def _noop(*_args, **_kwargs):
 
 def _register_and_login(client, monkeypatch, email="mm@example.com", password="Strongpass1!"):
     import app as app_module
-    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     client.post(
-        "/api/register",
-        json={"email": email, "password": password, "name": "MM User", "role": "job-seeker"},
+        "/api/v1/auth/register",
+        json={"email": email, "password": password, "name": "MM User", "role": "job-seeker", "terms_accepted": True},
     )
 
     from app import app
@@ -58,7 +58,7 @@ def _register_and_login(client, monkeypatch, email="mm@example.com", password="S
         user.confirmation_token = None
         db.session.commit()
 
-    resp = client.post("/api/login", json={"email": email, "password": password})
+    resp = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert resp.status_code == 200
     return resp.get_json()["csrfToken"]
 
@@ -75,7 +75,7 @@ def _mock_openai(monkeypatch, response_json=None, raise_exc=None):
         mock_response = MagicMock()
         mock_response.choices = [mock_choice]
         mock_client.chat.completions.create.return_value = mock_response
-    monkeypatch.setattr(app_module, "_get_openai_client", lambda: mock_client)
+    monkeypatch.setattr("solverah.infra.llm.get_openai_client", lambda: mock_client)
     return mock_client
 
 
@@ -86,7 +86,7 @@ def test_submit_happy_path(client, monkeypatch):
     _mock_openai(monkeypatch)
 
     res = client.post(
-        "/api/manager-match/submit",
+        "/api/v1/assessments/manager_match/submissions",
         json={"answers": MM_ANSWERS},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -106,7 +106,7 @@ def test_submit_persists_to_profile_data(client, monkeypatch):
     _mock_openai(monkeypatch)
 
     client.post(
-        "/api/manager-match/submit",
+        "/api/v1/assessments/manager_match/submissions",
         json={"answers": MM_ANSWERS},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -129,7 +129,7 @@ def test_submit_wrong_answer_count(client, monkeypatch):
     _mock_openai(monkeypatch)
 
     res = client.post(
-        "/api/manager-match/submit",
+        "/api/v1/assessments/manager_match/submissions",
         json={"answers": MM_ANSWERS[:14]},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -145,7 +145,7 @@ def test_submit_invalid_choice_value(client, monkeypatch):
     bad_answers[2]["choice"] = "x"
 
     res = client.post(
-        "/api/manager-match/submit",
+        "/api/v1/assessments/manager_match/submissions",
         json={"answers": bad_answers},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -158,7 +158,7 @@ def test_submit_malformed_llm_response(client, monkeypatch):
     _mock_openai(monkeypatch, response_json=malformed)
 
     res = client.post(
-        "/api/manager-match/submit",
+        "/api/v1/assessments/manager_match/submissions",
         json={"answers": MM_ANSWERS},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -167,7 +167,7 @@ def test_submit_malformed_llm_response(client, monkeypatch):
 
 def test_submit_unauthenticated(client):
     res = client.post(
-        "/api/manager-match/submit",
+        "/api/v1/assessments/manager_match/submissions",
         json={"answers": MM_ANSWERS},
     )
     assert res.status_code == 401
@@ -185,7 +185,7 @@ def test_get_results_happy_path(client, monkeypatch):
         user.profile_data = {"manager_match_result": {"archetype": "The Autonomist", "narrative": "test"}}
         db.session.commit()
 
-    res = client.get("/api/manager-match/results")
+    res = client.get("/api/v1/me/assessments/manager_match/result")
     assert res.status_code == 200
     body = res.get_json()
     assert body["archetype"] == "The Autonomist"
@@ -195,6 +195,6 @@ def test_get_results_happy_path(client, monkeypatch):
 def test_get_results_no_result(client, monkeypatch):
     _register_and_login(client, monkeypatch, email="mm_empty@example.com")
 
-    res = client.get("/api/manager-match/results")
+    res = client.get("/api/v1/me/assessments/manager_match/result")
     assert res.status_code == 404
     assert "No ManagerMatch result found" in res.get_json()["error"]

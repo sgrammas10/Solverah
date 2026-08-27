@@ -73,7 +73,7 @@ export default function ManagerMatchPage() {
     setPhase('submitting');
 
     try {
-      const data = await fetchWithAuth<MMResult>('/manager-match/submit', {
+      const data = await fetchWithAuth<MMResult>('/assessments/manager_match/submissions', {
         method: 'POST',
         body: JSON.stringify({
           answers: answers.map((a) => ({ question_id: a.questionId, choice: a.choice })),

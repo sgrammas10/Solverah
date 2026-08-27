@@ -10,6 +10,7 @@ import QuizInsightModal from "./QuizInsightModal";
 import { API_BASE } from "../utils/api";
 import { markGuestQuizCompleted, setPendingQuizSave } from "../utils/guestQuiz";
 import { useQuizInsight } from "../hooks/useQuizInsight";
+import { parseApiError } from "../utils/apiError";
 
 
 /* ===========================================================
@@ -139,14 +140,14 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
           });
           openInsight();
           try {
-            const res = await fetch(`${API_BASE}/quiz-insights-guest`, {
+            const res = await fetch(`${API_BASE}/intake/quiz-preview/insights`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(payload),
             });
             const data = await res.json().catch(() => null);
             if (!res.ok) {
-              throw new Error(data?.error || "Failed to generate insights.");
+              throw parseApiError(res, data, "Failed to generate insights.");
             }
             setInsightResponse({
               overallSummary: data?.overallSummary || null,
@@ -201,7 +202,7 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
             };
             openInsight();
             try {
-              const res = await fetchWithAuth("/quiz-insights", {
+              const res = await fetchWithAuth("/me/quiz-insights", {
                 method: "POST",
                 body: JSON.stringify(payload),
               });

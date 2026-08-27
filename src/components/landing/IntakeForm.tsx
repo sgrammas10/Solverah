@@ -230,7 +230,7 @@ export default function IntakeForm({
               className="mt-0.5 h-4 w-4 rounded border-cream-muted text-forest-mid focus:ring-forest-pale"
             />
             <span>
-              I consent to Solverah securely storing my resume and contact information for early access review.
+              I consent to Solverah securely storing my resume and contact information for early access review, as described in the <a href="/privacy" target="_blank" rel="noreferrer" className="underline">Privacy Policy</a>.
             </span>
           </label>
 

@@ -86,7 +86,7 @@ export default function PathIntelligencePage() {
     setFetchState("loading");
     try {
       const result = await fetchWithAuth<PathSuggestionsResponse>(
-        "/intelligence/path-suggestions"
+        "/me/path-suggestions"
       );
       setData(result);
       setFetchState("success");
@@ -112,8 +112,10 @@ export default function PathIntelligencePage() {
   const handleProficiencySave = async (levels: Record<string, string>) => {
     setProficiencySaving(true);
     try {
-      await fetchWithAuth("/profile/skills/proficiency", {
-        method: "PATCH",
+      // PUT, not PATCH: the write replaces the whole ratings map rather than
+      // merging into it, and Phase 1b made the verb match what happens.
+      await fetchWithAuth("/me/skills", {
+        method: "PUT",
         body: JSON.stringify({
           skills: Object.entries(levels).map(([name, proficiency]) => ({
             name,

@@ -1,0 +1,287 @@
+# vignette_probe_pairs_v1.yaml
+#
+# Paired-vignette probe pairs for SCALE_CALIBRATION_CHECK.md's cross-instrument agreement
+# test. Covers the four dimensions cleared to run now (autonomy, pace, collaboration,
+# innovation) per the calibration doc's "Recommended order" item 1. Decision and feedback
+# are deliberately NOT included here -- held per the same doc's item 2, pending the
+# bias-review item rewrites (ASSESSMENT_ITEMS_BIAS_REVIEW.md).
+#
+# FROZEN 2026-08-17b. Do not edit target_band, target_person, or *_vignette text after this
+# point without recording it as a dated amendment (same convention as this project's
+# handoff docs) -- the whole point of freezing is that nobody gets to reinterpret an
+# ambiguous vignette's "intended" level after seeing how the model scored it.
+#
+# Guardrails observed while writing these (see SCALE_CALIBRATION_CHECK.md):
+#   - No anchor/item wording reused verbatim -- paraphrased in the vignette's own words.
+#   - Each vignette tries to say as little as possible about the other five dimensions,
+#     to keep off-target confidence near the "almost nothing bears on this" floor.
+#   - person_item_choices are explicit (item_id -> chosen option key from
+#     assessment_items.yaml) so the person-side score is auditable, not just asserted --
+#     run score_person_side.py to recompute it mechanically from assessment_items.yaml
+#     and confirm it matches target_person below.
+#
+# Known caveats to weigh in if a result on these dimensions comes back ambiguous
+# (per ASSESSMENT_ITEMS_BIAS_REVIEW.md, even though these four are not held back):
+#   - au3 (autonomy) has a flagged confound risk with decision/risk-tolerance (Finding 4)
+#     -- not used as the sole swing item in any pair below, but present in all of them
+#     since only 4 autonomy items exist.
+#   - pa2 (pace) has a flagged desirability skew ("quality bar" language) and a confound
+#     risk with conscientiousness (Findings 3 & 4). Vignette wording below avoids
+#     "quality bar" language specifically to reduce this risk, but the underlying item
+#     itself is unchanged.
+#   - in1 (innovation) has a flagged desirability skew (building > optimizing reads as
+#     more prestigious) that the bias review calls "close to inherent to what the
+#     dimension measures" -- hardest of the three to fully avoid.
+#   These are real but smaller than decision's whole-dimension skew or feedback's
+#   structural reverse-keying gap, which is why these four still run now. If autonomy,
+#   pace, or innovation comes back with a systematic offset, check whether it's
+#   concentrated on au3/pa2/in1 specifically before concluding pure intensity mismatch.
+
+rubric_version_expected: v1-frozen-2026-08-15  # sanity-checked against anchors.json at run time
+
+dimensions:
+
+  autonomy:
+    items: [au1, au2, au3, au4]
+    pairs:
+
+    - level: low
+      target_band: 0.1
+      target_person: 0.0
+      person_item_choices: { au1: B, au2: B, au3: B, au4: B }
+      person_vignette: >
+        I like knowing exactly what's expected of me before I start. When I get a new
+        assignment, my first move is to ask my manager how they want it done rather than
+        guessing -- I'd rather double check than redo work later. If something urgent comes
+        up that's outside my usual scope, I'll wait to hear from my manager rather than make
+        the call myself, even if it slows things down a little. Honestly, the jobs that have
+        drained me most were the ones where I was just dropped into something with zero
+        direction and had to figure out what people even wanted from me.
+      company_vignette: >
+        Every task the team picks up comes from a detailed brief that spells out exactly how
+        to execute it, not just what's needed. Before anything ships, it passes through two
+        layers of manager review, and the internal wiki has a step-by-step playbook for
+        nearly every recurring task. New hires are told during onboarding that the fastest
+        way to get in trouble here is to skip a step in the playbook.
+
+    - level: mid
+      target_band: 0.5
+      target_person: 0.5
+      person_item_choices: { au1: A, au2: B, au3: A, au4: B }
+      person_vignette: >
+        Once I'm handed a new project, I like to sketch out my own plan and just run with
+        it -- I don't need someone walking me through each step to get moving. That said, I
+        do appreciate when my manager spells out clearly what's expected up front rather
+        than leaving me to guess at the goal itself. If a time-sensitive call comes up
+        that's technically outside my lane, I'll usually just make the decision on the spot
+        and tell my manager afterward rather than wait around for a green light. The jobs
+        that have frustrated me most weren't ones where I had too much freedom -- they were
+        the ones where I was handed almost nothing to go on and had to guess at what people
+        actually wanted.
+      company_vignette: >
+        Team leads set the quarter's priorities and the big milestones, but how each person
+        gets there is mostly up to them -- some follow a shared template, others don't. A
+        couple of workflows are documented, but plenty of day-to-day calls are made without
+        looping anyone in first. It really depends on the person and the project; there's no
+        single house style for how independent people are expected to be.
+
+    - level: high
+      target_band: 0.9
+      target_person: 1.0
+      person_item_choices: { au1: A, au2: A, au3: A, au4: A }
+      person_vignette: >
+        Give me the outcome you're after and get out of my way -- I'll figure out the path.
+        When I start something new, I map out my own plan and just get moving; I don't wait
+        around to be told the steps. If I'm doing my best work, it's because nobody spelled
+        out exactly how to do it, just what needed to happen. If a decision needs to be made
+        quickly and it's technically not mine to make, I'll make the call and tell my
+        manager after the fact rather than sit on it. And honestly, nothing frustrates me
+        faster than a job where every single step is dictated to me and I have zero room to
+        decide anything for myself.
+      company_vignette: >
+        People here are trusted to own their piece end to end -- nobody's checking in on how
+        you get to the result, only that you deliver it. There's no standard playbook
+        because the expectation is that everyone builds their own approach as they go. A
+        recent internal survey found that most employees couldn't recall the last time they
+        needed formal approval to change how they worked.
+
+  pace:
+    items: [pa1, pa2, pa3, pa4]
+    pairs:
+
+    - level: low
+      target_band: 0.1
+      target_person: 0.0
+      person_item_choices: { pa1: B, pa2: B, pa3: B, pa4: B }
+      person_vignette: >
+        I do my best work at a steady, one-thing-at-a-time pace rather than juggling a bunch
+        of fast-moving things. If a project I'm mid-way through suddenly needed to ship a
+        week early, I'd push back and try to protect the original timeline rather than
+        scramble to make the new date. My natural rhythm is closer to a slow, consistent
+        cadence than a sprint-ship-iterate cycle. What's worn me down in past jobs has been
+        a pace that never let up -- nonstop urgency with no room to breathe.
+      company_vignette: >
+        Release cycles here are measured in quarters, not weeks, and the team spends real
+        time in planning before anything gets built. Reviews consistently describe the
+        environment as calm -- people mention actually using their PTO and rarely working
+        past a normal day. Nobody's chasing an urgent deadline this month; the roadmap looks
+        basically the same as it did six months ago.
+
+    - level: mid
+      target_band: 0.5
+      target_person: 0.5
+      person_item_choices: { pa1: A, pa2: B, pa3: B, pa4: A }
+      person_vignette: >
+        I actually thrive during the stretches where a lot is happening and turnarounds are
+        quick -- that's when I feel most in my element. That said, if a project I'm mid-way
+        through suddenly needed to ship a week early, I'd rather push to protect the
+        timeline than compress everything to hit an arbitrary new date. My natural rhythm
+        leans toward a steady, consistent cadence rather than constant sprint-ship-iterate
+        cycles. What's worn me down most in past roles hasn't been too much intensity --
+        it's been the opposite, sitting around waiting for things to move.
+      company_vignette: >
+        Most quarters are pretty even-keeled, but a couple of times a year the team pushes
+        hard toward a launch with tighter hours and compressed timelines before things
+        settle back down. It's not the norm, but it's not rare either -- people expect an
+        occasional crunch mixed into an otherwise regular rhythm.
+
+    - level: high
+      target_band: 0.9
+      target_person: 1.0
+      person_item_choices: { pa1: A, pa2: A, pa3: A, pa4: A }
+      person_vignette: >
+        The stretches at work I've felt most in my element have been high-tempo, lots
+        happening, quick turnarounds -- that's when I do my best work. If a project I'm
+        mid-way through suddenly needed to ship a week early, I'd get energized by the push
+        and go for it rather than protect the original plan. My natural rhythm is closer to
+        sprint, ship, iterate than one long steady cadence. And what's worn me down most in
+        past jobs has been the opposite of too much intensity -- it's been sitting around
+        waiting on things that moved too slowly.
+      company_vignette: >
+        Releases go out multiple times a week, and the team talks openly about shipping
+        first and refining later. Several recent reviews mention long stretches of late
+        nights around launches and a general sense that the company is scaling faster than
+        its processes can keep up with. Deadlines here are treated as fixed; the work bends
+        to fit them, not the other way around.
+
+  collaboration:
+    items: [co1, co2, co3, co4]
+    pairs:
+
+    - level: low
+      target_band: 0.1
+      target_person: 0.0
+      person_item_choices: { co1: A, co2: A, co3: A, co4: B }
+      person_vignette: >
+        My best work happens when I can just close the door and focus without anyone
+        popping in. When something hard lands on my desk, my instinct is to sit with it
+        myself and think it through before bringing anyone else in. Give me an afternoon of
+        quiet, uninterrupted focus over a room full of people brainstorming any day. If I
+        had to name what's worn me out most in past roles, it'd be jobs that were
+        wall-to-wall meetings and group check-ins with barely any time to actually sit and
+        work.
+      company_vignette: >
+        Most people here work through their assigned piece independently and check in with
+        the wider team maybe once a week. Calendars are mostly clear -- there's an explicit
+        norm of protecting long blocks of uninterrupted time, and status gets shared over a
+        written doc rather than a meeting. New work usually gets assigned to a single person
+        to own, not spread across a group.
+
+    - level: mid
+      target_band: 0.5
+      target_person: 0.5
+      person_item_choices: { co1: B, co2: A, co3: B, co4: B }
+      person_vignette: >
+        When I'm stuck on something hard, I like to sit with it on my own first before
+        bringing it to anyone else -- I don't want to waste a group's time until I've got a
+        real question to ask. That said, once I've got a first pass done, I do my best work
+        bouncing it off a couple of people rather than polishing it alone in a corner. I'd
+        take an afternoon of energetic back-and-forth with the team over a quiet solo block
+        most days. What's worn me out most in past jobs has actually been constant meetings
+        and group check-ins eating into any real time to sit and think.
+      company_vignette: >
+        About half the team's work gets done solo and half gets worked through together --
+        some projects have a single owner who occasionally checks in with others, some get
+        built by a small group meeting a couple times a week. There isn't a house rule
+        either way; it tends to shift project by project.
+
+    - level: high
+      target_band: 0.9
+      target_person: 1.0
+      person_item_choices: { co1: B, co2: B, co3: B, co4: A }
+      person_vignette: >
+        I do my best work bouncing ideas off a group rather than sitting with something
+        alone. The second something hard lands on my plate, my first move is to pull a few
+        people into a room and think it through together rather than chew on it by myself.
+        Give me a room full of people working a problem together over a quiet afternoon any
+        day. And honestly, the roles that have drained me most were the ones where I was
+        left too isolated, working through everything on my own with nobody around to
+        bounce things off.
+      company_vignette: >
+        Nothing here gets built by one person working alone -- every project has a small
+        group attached to it from day one, and the team's calendar is dense with syncs and
+        joint working sessions. New hires are matched with a partner for their first several
+        weeks specifically so they're never working something through by themselves, and
+        it's common to hear people credit a win to "the team" rather than any one person.
+
+  innovation:
+    items: [in1, in2, in3, in4]
+    pairs:
+
+    - level: low
+      target_band: 0.1
+      target_person: 0.0
+      person_item_choices: { in1: A, in2: A, in3: A, in4: B }
+      person_vignette: >
+        I get more satisfaction from taking something that already works and making it run
+        better than from starting from a blank page. Handed a process that's functioning
+        fine, my instinct is to tune it, not to question whether it should exist at all. The
+        projects that have energized me most were ones with a clear, well-defined finish
+        line, not open-ended ones where I had to figure out the shape of the thing as I
+        went. And what's frustrated me most in past roles was when things kept shifting
+        under me before anything actually got finished.
+      company_vignette: >
+        The core product has been essentially the same for years, and most of the roadmap
+        is about shaving latency, fixing edge cases, and squeezing more efficiency out of
+        what already works. Leadership talks about the business as a mature, dependable
+        engine rather than something still being invented. Nobody on the team is working on
+        anything that doesn't already have a name and a shipped v1.
+
+    - level: mid
+      target_band: 0.5
+      target_person: 0.5
+      person_item_choices: { in1: B, in2: A, in3: B, in4: B }
+      person_vignette: >
+        I get real satisfaction from building something that didn't exist before -- there's
+        nothing quite like starting from nothing. That said, when I'm handed something
+        that's already working, my instinct is to tune and improve it rather than
+        immediately question whether it should exist at all. The projects that have
+        energized me most have been the open-ended ones, figuring out the shape of the work
+        as I went rather than starting with a clean finish line. What's frustrated me most
+        in past roles has been the opposite of too much stability -- it's been constant
+        churn where nothing ever actually got finished.
+      company_vignette: >
+        Roughly half the team's time goes into hardening and scaling the existing product,
+        and the other half goes into a small incubator-style group exploring genuinely new
+        ideas that don't have a shipped version yet. Both tracks get real headcount and
+        neither is treated as the "real" job over the other.
+
+    - level: high
+      target_band: 0.9
+      target_person: 1.0
+      person_item_choices: { in1: B, in2: B, in3: B, in4: A }
+      person_vignette: >
+        Building something that didn't exist before gives me way more satisfaction than
+        polishing something that already works. Handed a process that's running fine, my
+        instinct is to question whether it should even exist, not just tune it. The
+        projects that have energized me most were open-ended and ambiguous, figuring out the
+        shape of things as I went rather than starting with a clean finish line already
+        drawn. And what's frustrated me most in past jobs has been having no room to try new
+        approaches -- being boxed into doing things exactly one way with zero space to
+        experiment.
+      company_vignette: >
+        The team's entire mandate is to build things that don't exist yet -- there's no
+        legacy product to maintain, just a string of experiments, most of which get killed
+        within a quarter. Leadership explicitly celebrated a recent project that failed
+        outright, framing the willingness to try it as more valuable than the failure
+        itself. Nobody here is optimizing anything; everyone's building from a blank page.

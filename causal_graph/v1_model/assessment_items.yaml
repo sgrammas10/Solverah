@@ -1,0 +1,222 @@
+# ############################################################################
+# ###  SUPERSEDED 2026-08-18 -- DO NOT SCORE AGAINST THIS FILE.            ###
+# ############################################################################
+#
+# Replaced by assessment_items_v2_PROPOSED.yaml. Retired, not deleted, because the frozen
+# vignette probe runs in vignette_probes/results/ were scored against these items and stop
+# being reproducible if it disappears. `status: superseded` below is machine-enforced:
+# check_assessment_items.py refuses this file, test_assessment_items.py asserts that it is
+# refused, and score_person_side.py errors on it unless --allow-superseded is passed.
+#
+# Two defects made it unusable, both structural rather than textual, and both invisible to
+# ASSESSMENT_ITEMS_BIAS_REVIEW.md's read of the item wording:
+#
+#   1. POSITIONAL KEY IMBALANCE. The high pole sits on option A in 4 of 4 items for
+#      autonomy, pace and feedback, and on B in 4 of 4 for decision. A respondent who
+#      simply picks the first option throughout scores 1.00 on three dimensions and 0.00
+#      on a fourth -- and does it with PERFECT internal consistency, which is the planned
+#      confidence measure. The model would then weight a fabricated extreme profile
+#      heavily instead of leaning on its prior, and in pilot data it would read as a real
+#      population of decisive, fast-paced, feedback-hungry respondents.
+#
+#   2. FLAT DIFFICULTY. Round 2's boundary probe found au1-au4 are all pitched at roughly
+#      the same intensity, so a 0.7-level respondent endorses all four and is forced to a
+#      1.0 person score against company evidence correctly scored 0.7. The other five
+#      dimensions were never probed but are built the same way (see e.g. co1/co2/co3,
+#      three restatements of one intensity). This is what the graduated-difficulty ladder
+#      replaces.
+#
+# NO DATA REMEDIATION IS REQUIRED. This file was never piloted; no real respondent data
+# exists. The only person_dimension_score rows anywhere are synthetic fixtures in
+# assemble_training_data.py (hardcoded 0.5, scoring_key_version='v1'). Any future rows
+# must carry scoring_key_version = the v2 form_version, so the two are separable by
+# construction rather than by memory.
+#
+# ============================================================================
+# assessment_items.yaml  --  Solverah person-side assessment (v1 DRAFT)
+# ============================================================================
+# Format: single-axis, forced-choice, behaviorally-anchored.
+#   - Each item belongs to ONE dimension and offers TWO equally-legitimate
+#     options. One option loads on the LOW pole, the other on the HIGH pole.
+#   - "pole" is the PERSON's position it implies, not the option's surface tone.
+#   - Some items are reverse-keyed (the high-pole answer is phrased as the
+#     "negative experience" option) to break acquiescence / straight-lining.
+#
+# SCORING (maps to person_dimension_score in schema.sql):
+#   pole value: low -> 0, high -> 1
+#   dimension score = mean(pole_value of chosen option) over that dimension's
+#                     items  ->  a 0..1 score, directly comparable to the
+#                     company's 0..1 score on the same axis.
+#   confidence = internal consistency of the items (e.g. how often the person's
+#                answers agree across items of the same dimension). Low
+#                consistency -> low confidence -> the model leans on its prior.
+#
+# STATUS: these are DRAFTS. Per gate 2 ("neither pole is the right one"), any
+# item that pilot data shows a strong lean toward must be rewritten -- a lean
+# means the item smuggled in a socially-desirable answer. Bias-test before use.
+# ============================================================================
+
+form_version: v1-draft
+status: superseded                        # machine-enforced -- see the header block
+superseded_by: v2-proposed-2026-08-18
+superseded_on: "2026-08-18"
+scoring:
+  method: mean_pole
+  pole_values: { low: 0.0, high: 1.0 }
+
+items:
+  # -------------------------------------------------- AUTONOMY (directed<->self-directed)
+  - id: au1
+    dimension: autonomy
+    prompt: "You're handed a project with a tight deadline and no set process. You're more likely to:"
+    options:
+      - { key: A, text: "Map out your own approach and run with it, checking in only when needed.", pole: high }
+      - { key: B, text: "Ask how they'd like it structured before you start.", pole: low }
+  - id: au2
+    dimension: autonomy
+    prompt: "Thinking about past roles, you did your best work when:"
+    options:
+      - { key: A, text: "You were given the goal and left to figure out the how.", pole: high }
+      - { key: B, text: "Expectations and steps were spelled out clearly.", pole: low }
+  - id: au3
+    dimension: autonomy
+    prompt: "A time-sensitive decision comes up that's technically above your role. You:"
+    options:
+      - { key: A, text: "Make the call and let your manager know after.", pole: high }
+      - { key: B, text: "Hold until you can get their sign-off.", pole: low }
+  - id: au4
+    dimension: autonomy
+    prompt: "Jobs have frustrated you most when:"   # reverse-keyed
+    options:
+      - { key: A, text: "Every step was dictated and you had no room to decide.", pole: high }
+      - { key: B, text: "You were left with no guidance and had to guess what was wanted.", pole: low }
+
+  # -------------------------------------------------- PACE (steady<->fast)
+  - id: pa1
+    dimension: pace
+    prompt: "The stretches at work you've felt most in your element were:"
+    options:
+      - { key: A, text: "High-tempo, lots happening, quick turnarounds.", pole: high }
+      - { key: B, text: "Steady and focused, one thing at a time.", pole: low }
+  - id: pa2
+    dimension: pace
+    prompt: "A project you're mid-way through suddenly needs to ship a week early. You:"
+    options:
+      - { key: A, text: "Get energized by the push and go for it.", pole: high }
+      - { key: B, text: "Would rather protect the timeline and keep the quality bar.", pole: low }
+  - id: pa3
+    dimension: pace
+    prompt: "Your natural working rhythm is closer to:"
+    options:
+      - { key: A, text: "Sprint, ship, iterate.", pole: high }
+      - { key: B, text: "A consistent, sustainable cadence.", pole: low }
+  - id: pa4
+    dimension: pace
+    prompt: "You've gotten worn down by jobs when:"   # reverse-keyed
+    options:
+      - { key: A, text: "Things moved too slowly and you were waiting around.", pole: high }
+      - { key: B, text: "The pace was relentless and never let up.", pole: low }
+
+  # -------------------------------------------------- COLLABORATION (solo<->collective)
+  - id: co1
+    dimension: collaboration
+    prompt: "You've produced your best work when:"
+    options:
+      - { key: A, text: "Heads-down on your own.", pole: low }
+      - { key: B, text: "Bouncing ideas off a group.", pole: high }
+  - id: co2
+    dimension: collaboration
+    prompt: "Handed a hard problem, your first instinct is to:"
+    options:
+      - { key: A, text: "Go work it out alone first.", pole: low }
+      - { key: B, text: "Pull people into a room.", pole: high }
+  - id: co3
+    dimension: collaboration
+    prompt: "You'd take an afternoon of:"
+    options:
+      - { key: A, text: "Uninterrupted solo focus.", pole: low }
+      - { key: B, text: "Energetic team problem-solving.", pole: high }
+  - id: co4
+    dimension: collaboration
+    prompt: "You've felt most drained by roles that had:"   # reverse-keyed
+    options:
+      - { key: A, text: "Too much isolation, working on your own.", pole: high }
+      - { key: B, text: "Constant meetings and group work.", pole: low }
+
+  # -------------------------------------------------- FEEDBACK (sparse/gentle<->frequent/blunt)
+  - id: fb1
+    dimension: feedback
+    prompt: "The feedback that's actually helped you most has been:"
+    options:
+      - { key: A, text: "Direct and frequent, even when it stings.", pole: high }
+      - { key: B, text: "Occasional and delivered gently.", pole: low }
+  - id: fb2
+    dimension: feedback
+    prompt: "After you hand in work, you'd rather a manager:"
+    options:
+      - { key: A, text: "Tell you right away and bluntly what to fix.", pole: high }
+      - { key: B, text: "Give you space and only raise things if they matter.", pole: low }
+  - id: fb3
+    dimension: feedback
+    prompt: "You've clicked best with managers who:"
+    options:
+      - { key: A, text: "Gave constant, unfiltered input.", pole: high }
+      - { key: B, text: "Trusted you and stayed hands-off on critique.", pole: low }
+  - id: fb4
+    dimension: feedback
+    prompt: "Blunt critical feedback in a team setting feels:"
+    options:
+      - { key: A, text: "Fine -- that's how you get better.", pole: high }
+      - { key: B, text: "Like something you'd rather get privately and softly.", pole: low }
+
+  # -------------------------------------------------- INNOVATION (execute/optimize<->invent/explore)
+  - id: in1
+    dimension: innovation
+    prompt: "You get more satisfaction from:"
+    options:
+      - { key: A, text: "Making an existing thing run better.", pole: low }
+      - { key: B, text: "Building something that didn't exist before.", pole: high }
+  - id: in2
+    dimension: innovation
+    prompt: "Handed a process that already works, you're more likely to:"
+    options:
+      - { key: A, text: "Tune and optimize it.", pole: low }
+      - { key: B, text: "Question whether it should exist at all.", pole: high }
+  - id: in3
+    dimension: innovation
+    prompt: "The projects that energized you most were:"
+    options:
+      - { key: A, text: "Well-defined, with a clear finish line.", pole: low }
+      - { key: B, text: "Open-ended and ambiguous, figured out as you went.", pole: high }
+  - id: in4
+    dimension: innovation
+    prompt: "You've been most frustrated when:"   # reverse-keyed
+    options:
+      - { key: A, text: "There was no room to try new approaches.", pole: high }
+      - { key: B, text: "Everything kept changing and nothing got finished.", pole: low }
+
+  # -------------------------------------------------- DECISION (intuition<->data)
+  - id: de1
+    dimension: decision
+    prompt: "Facing a call with incomplete information, you tend to:"
+    options:
+      - { key: A, text: "Go with your read of the situation.", pole: low }
+      - { key: B, text: "Hold until you can pull the numbers.", pole: high }
+  - id: de2
+    dimension: decision
+    prompt: "The decisions you're proudest of were driven mostly by:"
+    options:
+      - { key: A, text: "Judgment and experience.", pole: low }
+      - { key: B, text: "Evidence and analysis.", pole: high }
+  - id: de3
+    dimension: decision
+    prompt: "When you push back on a teammate, you're more likely to say:"
+    options:
+      - { key: A, text: "\"My gut says this is the move.\"", pole: low }
+      - { key: B, text: "\"Let's look at what the data shows.\"", pole: high }
+  - id: de4
+    dimension: decision
+    prompt: "You trust a recommendation more when it comes with:"
+    options:
+      - { key: A, text: "A compelling rationale from someone experienced.", pole: low }
+      - { key: B, text: "The underlying numbers to back it up.", pole: high }

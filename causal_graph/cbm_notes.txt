@@ -1,0 +1,33 @@
+How the fit-prediction model works (high level, non-technical)
+
+1. We (the experts) write down a starting hypothesis for how each trait
+   pairing produces a fit -- e.g. "a high-autonomy person under a
+   controlling manager is probably a bad fit." This is written before any
+   real user has used the product. It's a best guess, not a measurement.
+
+2. When a person signs up, they take a short quiz that tells us their own
+   preferences (e.g. how much autonomy they want). Separately, we have a
+   profile of the company/manager they're being matched with. Neither of
+   these is a certainty -- they're both "here's what we currently believe,"
+   and that belief can be confident or unsure depending on how clear their
+   answers were.
+
+3. For any specific person + company pairing, we combine (1) the fixed
+   hypothesis with (2) that person's and that company's specific beliefs to
+   predict how well they'd fit, how engaged the person would likely be, and
+   what guidance to give (e.g. "proceed" vs "reconsider this match").
+
+4. Over time, as we get real outcome data back (how engaged people
+   actually turned out to be after being placed), we use that data to
+   gradually correct the original hypothesis instead of relying on the
+   expert guess forever. Early on, with only a little data, the guess still
+   carries most of the weight. As more real outcomes come in, the data
+   carries more and more weight, until eventually predictions are driven
+   almost entirely by real outcomes rather than the original hypothesis.
+
+Open problem, not yet solved: step 4 depends on being able to observe how
+someone is actually doing after they're placed. If people stop using
+Solverah once they've found a job, we have no way to collect that
+follow-up data. Need a plan for getting a post-placement signal (e.g. a
+periodic check-in, or a signal from the employer side) before step 4 is
+possible in practice.

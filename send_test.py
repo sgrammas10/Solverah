@@ -1,15 +1,39 @@
+"""Manual SMTP smoke test — run by hand, not part of the pytest suite.
+
+Every credential is read from the environment with no fallback on purpose.
+This script previously carried live Sendamatic credentials as
+``os.environ.get(...)`` defaults, which committed them to git history; the
+literals are gone and the values below must come from your shell or ``.env``.
+
+    SMTP_USER=... SMTP_PASSWORD=... EMAIL_FROM=... TEST_TO=... python send_test.py
+"""
+
 import os, ssl, smtplib
 from email.message import EmailMessage
 
+# Non-secret connection defaults; override via environment if the host changes.
 SMTP_HOST = os.environ.get("SMTP_HOST", "in.smtp.sendamatic.net")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
-SMTP_USER = os.environ.get("SMTP_USER", "26552679d3b55356bee4df15bf3bf306-737")  # set in environment
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "0468248b7eda4b83797fd09620b69334e9cb")  # set in environment
-EMAIL_FROM = os.environ.get("EMAIL_FROM", "no-reply@solverah.google.com")  # must be a verified sender
-TO = os.environ.get("TEST_TO", "will.gaca@gmail.com")
 
-if not (SMTP_USER and SMTP_PASSWORD and EMAIL_FROM):
-    raise SystemExit("Set SMTP_USER, SMTP_PASSWORD, and EMAIL_FROM in environment before running")
+SMTP_USER = os.environ.get("SMTP_USER")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
+EMAIL_FROM = os.environ.get("EMAIL_FROM")  # must be a verified sender
+TO = os.environ.get("TEST_TO")
+
+_missing = [
+    name
+    for name, value in (
+        ("SMTP_USER", SMTP_USER),
+        ("SMTP_PASSWORD", SMTP_PASSWORD),
+        ("EMAIL_FROM", EMAIL_FROM),
+        ("TEST_TO", TO),
+    )
+    if not value
+]
+if _missing:
+    raise SystemExit(
+        "Set %s in the environment before running" % ", ".join(_missing)
+    )
 
 msg = EmailMessage()
 msg["Subject"] = "SMTP test"

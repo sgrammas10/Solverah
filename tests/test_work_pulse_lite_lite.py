@@ -22,7 +22,7 @@ VALID_ANSWERS = [
 
 def test_lite_lite_result_returns_insight_and_locked_sections(client):
     res = client.post(
-        "/api/work-pulse/lite-lite/result",
+        "/api/v1/assessments/wpll/submissions",
         data=json.dumps({"answers": VALID_ANSWERS}),
         content_type="application/json",
     )
@@ -37,7 +37,7 @@ def test_lite_lite_result_returns_insight_and_locked_sections(client):
 def test_lite_lite_result_accepts_partial_answers(client):
     partial = VALID_ANSWERS[:3]
     res = client.post(
-        "/api/work-pulse/lite-lite/result",
+        "/api/v1/assessments/wpll/submissions",
         data=json.dumps({"answers": partial}),
         content_type="application/json",
     )
@@ -48,7 +48,7 @@ def test_lite_lite_result_accepts_partial_answers(client):
 
 def test_lite_lite_result_empty_answers_returns_400(client):
     res = client.post(
-        "/api/work-pulse/lite-lite/result",
+        "/api/v1/assessments/wpll/submissions",
         data=json.dumps({"answers": []}),
         content_type="application/json",
     )
@@ -58,7 +58,7 @@ def test_lite_lite_result_empty_answers_returns_400(client):
 def test_lite_lite_result_rejects_too_many_answers(client):
     too_many = VALID_ANSWERS + [{"question_id": "wpll-q1", "option_id": "wpll-q1-a"}]
     res = client.post(
-        "/api/work-pulse/lite-lite/result",
+        "/api/v1/assessments/wpll/submissions",
         data=json.dumps({"answers": too_many}),
         content_type="application/json",
     )
@@ -66,17 +66,24 @@ def test_lite_lite_result_rejects_too_many_answers(client):
 
 
 def test_lite_lite_result_rejects_non_list_answers(client):
+    """A wrong-typed field is refused by the schema, not by the handler.
+
+    422 rather than the 400 the handler used to answer with. Pydantic coerces
+    what is coercible -- "12" becomes 12 -- but a string is not a list of
+    answers under any reading, so this is a genuine rejection.
+    """
     res = client.post(
-        "/api/work-pulse/lite-lite/result",
+        "/api/v1/assessments/wpll/submissions",
         data=json.dumps({"answers": "not a list"}),
         content_type="application/json",
     )
-    assert res.status_code == 400
+    assert res.status_code == 422
+    assert "answers" in {error["field"] for error in res.get_json()["errors"]}
 
 
 def test_lite_lite_result_does_not_require_auth(client):
     res = client.post(
-        "/api/work-pulse/lite-lite/result",
+        "/api/v1/assessments/wpll/submissions",
         data=json.dumps({"answers": VALID_ANSWERS}),
         content_type="application/json",
     )

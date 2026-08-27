@@ -75,8 +75,10 @@ export default function PathPreferencesForm({ onComplete }: PathPreferencesFormP
     setSubmitting(true);
     setError(null);
     try {
-      await fetchWithAuth("/intelligence/path-preferences", {
-        method: "POST",
+      // PUT, not POST: all three preferences are written together and the
+      // write replaces whatever was stored.
+      await fetchWithAuth("/me/path-preferences", {
+        method: "PUT",
         body: JSON.stringify({ move_intent, seniority_intent, priority }),
       });
       updateProfileData({ path_preferences: { move_intent, seniority_intent, priority } });

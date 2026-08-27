@@ -1,0 +1,61 @@
+{
+  "run_index": 1,
+  "timestamp": "2026-08-17T16:23:47.996718+00:00",
+  "model": "gpt-5.5-2026-04-23",
+  "requested_temperature": 1.0,
+  "temperature_honored": true,
+  "reasoning_effort": "medium",
+  "packet_id": "P-03",
+  "ground_truth_company": "Akuna Capital",
+  "response": {
+    "id": "chatcmpl-EDuPeMoUQapMUNVXKLZnjF1tTA4pl",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\"confidence\":\"medium\",\"quoted_clues\":[\"Own your impact on day one\",\"has no clients or external investors, we trade only with the company's capital\",\"great coffee Bristo and a great view of the lake\",\"short-term interest rate options\",\"proprietary trading platform\"],\"reasoning\":\"The packet points to a private proprietary trading firm headquartered in Chicago, with lake views, a well-known internal coffee bar called \u201cBristo,\u201d strong trading/technology integration, options desks including short-term interest-rate options, and careers language around \u201cOwn your impact.\u201d These clues align best with Belvedere Trading, a Chicago-based proprietary trading firm whose careers/culture pages emphasize trading with firm capital and ownership opportunity.\",\"top_guess\":\"Belvedere Trading\"}",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": [],
+          "audio": null,
+          "function_call": null,
+          "tool_calls": null
+        }
+      }
+    ],
+    "created": 1786983822,
+    "model": "gpt-5.5-2026-04-23",
+    "object": "chat.completion",
+    "service_tier": "default",
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 157,
+      "prompt_tokens": 4312,
+      "total_tokens": 4469,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": 0,
+        "audio_tokens": 0,
+        "reasoning_tokens": 0,
+        "rejected_prediction_tokens": 0
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 0
+      }
+    }
+  },
+  "parsed": {
+    "confidence": "medium",
+    "quoted_clues": [
+      "Own your impact on day one",
+      "has no clients or external investors, we trade only with the company's capital",
+      "great coffee Bristo and a great view of the lake",
+      "short-term interest rate options",
+      "proprietary trading platform"
+    ],
+    "reasoning": "The packet points to a private proprietary trading firm headquartered in Chicago, with lake views, a well-known internal coffee bar called \u201cBristo,\u201d strong trading/technology integration, options desks including short-term interest-rate options, and careers language around \u201cOwn your impact.\u201d These clues align best with Belvedere Trading, a Chicago-based proprietary trading firm whose careers/culture pages emphasize trading with firm capital and ownership opportunity.",
+    "top_guess": "Belvedere Trading"
+  }
+}

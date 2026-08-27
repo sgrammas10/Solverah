@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { API_BASE } from '../utils/api';
+import { parseApiError } from '../utils/apiError';
 import HeroNetworkAnimation from '../components/HeroNetworkAnimation';
 
 export default function ForgotPassword() {
@@ -14,14 +15,14 @@ export default function ForgotPassword() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/request-password-reset`, {
+      const res = await fetch(`${API_BASE}/auth/password/forgot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error || 'Something went wrong. Please try again.');
+        setError(parseApiError(res, data, 'Something went wrong. Please try again.').message);
         return;
       }
       navigate('/forgot-password/verify', { state: { email: email.trim().toLowerCase() } });

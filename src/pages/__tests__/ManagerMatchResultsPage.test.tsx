@@ -117,7 +117,7 @@ describe("ManagerMatchResultsPage - fetch on mount", () => {
     mocks.fetchWithAuth.mockResolvedValueOnce(MOCK_RESULT);
     render(<ManagerMatchResultsPage />);
     await waitFor(() =>
-      expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/manager-match/results")
+      expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/me/assessments/manager_match/result")
     );
   });
 

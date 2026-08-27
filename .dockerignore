@@ -1,0 +1,43 @@
+# Build-context exclusions. Everything here either bloats the image, breaks
+# reproducibility, or must never be baked into a layer.
+
+# Secrets — an image layer is not a secret store, and layers are extractable
+# from any registry the image reaches.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+.git
+.github
+node_modules
+dist
+dist-ssr
+.vscode
+.idea
+
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.venv
+venv
+
+# Local databases and scratch state
+instance
+*.db
+*.sqlite
+_to_delete
+_mutation_tmp
+
+# Not needed at runtime
+tests
+src
+docs
+*.docx
+*.xlsx
+*.png
+llm_debug.txt
+scoring_debug.txt

@@ -34,7 +34,7 @@ export default function TeaserResult({
   const fetchInsight = useCallback(async () => {
     setFetchState("loading");
     try {
-      const response = await fetch(`${API_BASE}/work-pulse/lite-lite/result`, {
+      const response = await fetch(`${API_BASE}/assessments/wpll/submissions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

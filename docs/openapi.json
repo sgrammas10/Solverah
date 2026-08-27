@@ -1,0 +1,5970 @@
+{
+  "components": {
+    "schemas": {
+      "AccountDeleteRequest": {
+        "description": "Explicit confirmation, so a stray click cannot destroy an account.\n\n``confirm`` is declared **optional** even though the request is refused\nwithout it, and that is deliberate rather than an oversight.\n\nMaking it required would let the enforced schema reject an absent value with\n422 while the handler rejects a wrong value with 400 -- two refusal paths to\nthe same decision, on the one operation in the API that cannot be undone.\nA safety interlock on an irreversible action wants exactly one path, owned by\nthe code that performs the action, so that it cannot be relaxed by a change\nto a schema. Leaving it optional here means every non-``\"DELETE\"`` value --\nabsent, empty, misspelled, wrong type -- takes the same branch and gets the\nsame actionable message.\n\nThe field is still documented, so a generated client still knows to send it.",
+        "properties": {
+          "confirm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Must be the literal string \"DELETE\".",
+            "title": "Confirm"
+          }
+        },
+        "title": "AccountDeleteRequest",
+        "type": "object"
+      },
+      "AccountDeleteResponse": {
+        "additionalProperties": false,
+        "description": "Result of a tombstone deletion.\n\n``r2_delete_failures`` is deliberately part of the success body rather than\nbeing swallowed: reporting \"deleted\" while a resume object is still live in\nobject storage would be a false claim (D-07).",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "r2_delete_failures": {
+            "description": "Object keys that could not be removed from R2. Empty is the happy path.",
+            "items": {
+              "type": "string"
+            },
+            "title": "R2 Delete Failures",
+            "type": "array"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "AccountDeleteResponse",
+        "type": "object"
+      },
+      "AccountExportResponse": {
+        "additionalProperties": false,
+        "description": "Every identified data class held for the authenticated user.\n\n``profile`` is the raw ``users.profile_data`` blob, so it is typed as an open\nobject: its key set is genuinely per-user until Phase 2 decomposes it.",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/ExportedAccount"
+          },
+          "assessment_answers": {
+            "description": "The subject's own answers. Keyed by intent rather than after the table they come from, so an internal schema name does not become part of a public contract.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Assessment Answers",
+            "type": "array"
+          },
+          "dimension_scores": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Dimension Scores",
+            "type": "array"
+          },
+          "exported_at": {
+            "description": "ISO 8601 timestamp of this export.",
+            "title": "Exported At",
+            "type": "string"
+          },
+          "intake_submissions": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedIntakeSubmission"
+            },
+            "title": "Intake Submissions",
+            "type": "array"
+          },
+          "job_recommendations": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedJobRecommendation"
+            },
+            "title": "Job Recommendations",
+            "type": "array"
+          },
+          "legacy_quiz": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExportedLegacyQuiz"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "additionalProperties": true,
+            "description": "Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
+            "title": "Profile",
+            "type": "object"
+          }
+        },
+        "required": [
+          "exported_at",
+          "account"
+        ],
+        "title": "AccountExportResponse",
+        "type": "object"
+      },
+      "AgentChatMessage": {
+        "additionalProperties": true,
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "role": {
+            "description": "\"user\" or \"assistant\".",
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "AgentChatMessage",
+        "type": "object"
+      },
+      "AgentMessagesRequest": {
+        "description": "``POST /agent/messages``. The response is Server-Sent Events, not JSON.\n\nThe server prepends its own system message carrying RAG context assembled\nfrom the profile, the company network, and the user's resume text -- so a\nclient must not send a system message of its own expecting it to be\nhonoured.",
+        "properties": {
+          "messages": {
+            "description": "Full conversation history; must be non-empty.",
+            "items": {
+              "$ref": "#/components/schemas/AgentChatMessage"
+            },
+            "minItems": 1,
+            "title": "Messages",
+            "type": "array"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Groq model. Defaults to \"llama-3.1-8b-instant\".",
+            "title": "Model"
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "title": "AgentMessagesRequest",
+        "type": "object"
+      },
+      "AssessmentCatalogueEntry": {
+        "additionalProperties": false,
+        "description": "One instrument, with the caller's completion state against it.",
+        "properties": {
+          "completed": {
+            "title": "Completed",
+            "type": "boolean"
+          },
+          "has_form": {
+            "description": "Whether GET /assessments/{kind}/form serves items.",
+            "title": "Has Form",
+            "type": "boolean"
+          },
+          "has_result": {
+            "description": "Whether GET /me/assessments/{kind}/result can re-read a submission.",
+            "title": "Has Result",
+            "type": "boolean"
+          },
+          "kind": {
+            "description": "Path segment: core, work_pulse, wpll, focus_type, manager_match.",
+            "title": "Kind",
+            "type": "string"
+          },
+          "requires_auth": {
+            "description": "False only for the anonymous wpll teaser.",
+            "title": "Requires Auth",
+            "type": "boolean"
+          },
+          "scored_by": {
+            "description": "\"rules\" or \"llm\". An llm-scored instrument is unavailable when the provider is.",
+            "title": "Scored By",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "title",
+          "requires_auth",
+          "scored_by",
+          "has_form",
+          "has_result",
+          "completed"
+        ],
+        "title": "AssessmentCatalogueEntry",
+        "type": "object"
+      },
+      "AssessmentCatalogueResponse": {
+        "additionalProperties": false,
+        "description": "``GET /assessments`` -- the five instruments and where the caller stands.\n\nNot paginated. The set is a fixed five that changes when code changes, not a\nlist that grows with data, and a cursor over it would be ceremony.",
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AssessmentCatalogueEntry"
+            },
+            "title": "Data",
+            "type": "array"
+          }
+        },
+        "title": "AssessmentCatalogueResponse",
+        "type": "object"
+      },
+      "AssessmentFormResponse": {
+        "additionalProperties": true,
+        "description": "The person-side items, ordered for this respondent.\n\nThe payload carries ``blocks``, not ``dimensions``. The client renders it\nverbatim: it must not sort, group, re-shuffle, or reorder options. Ordering\nis server-authoritative because two independent PRNGs in two languages\ndiverging is silent, and a divergence corrupts a resumed session's ordering\nrather than raising (D-04).",
+        "properties": {
+          "blocks": {
+            "items": {},
+            "title": "Blocks",
+            "type": "array"
+          },
+          "form_version": {
+            "title": "Form Version",
+            "type": "string"
+          },
+          "respondent_id": {
+            "title": "Respondent Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "form_version",
+          "respondent_id"
+        ],
+        "title": "AssessmentFormResponse",
+        "type": "object"
+      },
+      "AssessmentSubmissionRequest": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AssessmentSubmitRequest"
+          },
+          {
+            "$ref": "#/components/schemas/WorkPulseSubmitRequest"
+          },
+          {
+            "$ref": "#/components/schemas/WpllSubmitRequest"
+          },
+          {
+            "$ref": "#/components/schemas/FocusTypeSubmitRequest"
+          },
+          {
+            "$ref": "#/components/schemas/ManagerMatchSubmitRequest"
+          }
+        ],
+        "description": "Documentation-only union of the five submission bodies.\n\nDo not validate against this. Union members here are open models, so\npydantic's smart matching will accept almost anything into the first one\nthat fits -- which is precisely why the route enforces\n:data:`SUBMISSION_REQUESTS` per kind rather than this.",
+        "title": "AssessmentSubmissionRequest"
+      },
+      "AssessmentSubmissionResponse": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AssessmentSubmitResponse"
+          },
+          {
+            "$ref": "#/components/schemas/WorkPulseResult"
+          },
+          {
+            "$ref": "#/components/schemas/WpllResultResponse"
+          },
+          {
+            "$ref": "#/components/schemas/FocusTypeResult"
+          },
+          {
+            "$ref": "#/components/schemas/ManagerMatchResult"
+          }
+        ],
+        "description": "Documentation-only union of the five submission results.\n\nWhich member comes back is determined by ``{kind}`` in the path, not by\nanything in the body, so this cannot be an OpenAPI discriminated union --\n3.1 keys a discriminator off a property of the payload, and the\ndiscriminator here is the URL. The union is the honest encoding of \"one of\nthese five, and the path tells you which\".",
+        "title": "AssessmentSubmissionResponse"
+      },
+      "AssessmentSubmitRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "responses": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Exactly 24 entries of {item_token: option_key}.",
+            "title": "Responses",
+            "type": "object"
+          }
+        },
+        "required": [
+          "responses"
+        ],
+        "title": "AssessmentSubmitRequest",
+        "type": "object"
+      },
+      "AssessmentSubmitResponse": {
+        "additionalProperties": false,
+        "description": "Deliberately does not carry the six dimension scores.\n\nThe documented threat to this instrument is aspirational answering by a user\nself-profiling for matching. Handing back the six numbers gives a retaking\nrespondent a gradient to optimise against -- it teaches the\nitem-to-dimension mapping that the shuffle and the interleave exist to hide.",
+        "properties": {
+          "dimensions_scored": {
+            "title": "Dimensions Scored",
+            "type": "integer"
+          },
+          "scoring_key_version": {
+            "title": "Scoring Key Version",
+            "type": "string"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "scoring_key_version",
+          "dimensions_scored"
+        ],
+        "title": "AssessmentSubmitResponse",
+        "type": "object"
+      },
+      "CareerStatusRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "description": "One of \"employed\", \"between_jobs\", \"first_job\".",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "CareerStatusRequest",
+        "type": "object"
+      },
+      "CareerStatusResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "career_status": {
+            "title": "Career Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "career_status"
+        ],
+        "title": "CareerStatusResponse",
+        "type": "object"
+      },
+      "CompanyDetailResponse": {
+        "additionalProperties": false,
+        "description": "One company's full stored research profile.\n\n``id`` is the integer primary key and appears in the URL, so this endpoint\nenumerates: an authenticated caller can walk the ids and read the whole\nnetwork. Part 4.2 replaces it with a UUID ``public_id``.\n\n``profile`` is the serialised ``CompanyProfile`` from\n:mod:`packages.ml.culture` -- open here because its optional sections vary\nby how much research a company has had.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Serialised CompanyProfile.",
+            "title": "Profile"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Slug"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "CompanyDetailResponse",
+        "type": "object"
+      },
+      "CompanyListEntry": {
+        "additionalProperties": false,
+        "description": "One company in the list.\n\nDeliberately not the full profile: the list ships the fields a card renders\nand ``GET /companies/{id}`` ships the rest. The endpoint this pattern\nreplaces had no list at all, so every screen that wanted several companies\nfetched the whole research document for each.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Industry"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Slug"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "CompanyListEntry",
+        "type": "object"
+      },
+      "CompanyListQuery": {
+        "description": "Query parameters for ``GET /companies``.",
+        "properties": {
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Opaque token from a previous next_cursor. Pass back unmodified.",
+            "title": "Cursor"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Exact industry match, case-insensitive.",
+            "title": "Industry"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Rows per page. Clamped to 1-100.",
+            "title": "Limit"
+          },
+          "q": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Case-insensitive substring of the name.",
+            "title": "Q"
+          }
+        },
+        "title": "CompanyListQuery",
+        "type": "object"
+      },
+      "CompanyListResponse": {
+        "additionalProperties": false,
+        "description": "A page of companies. ``next_cursor`` is null on the last page.",
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CompanyListEntry"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Pass as ?cursor= for the next page. Null means this was the last.",
+            "title": "Next Cursor"
+          }
+        },
+        "title": "CompanyListResponse",
+        "type": "object"
+      },
+      "ConfirmEmailRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "6-digit OTP from the registration email.",
+            "title": "Code",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "code"
+        ],
+        "title": "ConfirmEmailRequest",
+        "type": "object"
+      },
+      "CultureMatchEntry": {
+        "additionalProperties": true,
+        "description": "One scored company.\n\n``top_matching_dimensions`` and ``top_mismatching_dimensions`` are the two\nhighest- and two lowest-scoring dimensions, and ``fit_summary`` is the\nsentence built from them.",
+        "properties": {
+          "fit_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Fit Score"
+          },
+          "fit_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Fit Summary"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Industry"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Slug"
+          },
+          "top_matching_dimensions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Top Matching Dimensions",
+            "type": "array"
+          },
+          "top_mismatching_dimensions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Top Mismatching Dimensions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "CultureMatchEntry",
+        "type": "object"
+      },
+      "DashboardActivity": {
+        "additionalProperties": true,
+        "properties": {
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Icon"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Text"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Type"
+          }
+        },
+        "title": "DashboardActivity",
+        "type": "object"
+      },
+      "DashboardRecommendation": {
+        "additionalProperties": true,
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Action"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "href": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Href"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Priority"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          }
+        },
+        "title": "DashboardRecommendation",
+        "type": "object"
+      },
+      "DashboardResponse": {
+        "additionalProperties": false,
+        "description": "Job-seeker dashboard summary.\n\n``recentActivity`` and ``recommendations`` are static placeholders in the\ncurrent implementation; the three counts are live.",
+        "properties": {
+          "applications": {
+            "title": "Applications",
+            "type": "integer"
+          },
+          "hasIntakeSubmission": {
+            "title": "Hasintakesubmission",
+            "type": "boolean"
+          },
+          "jobMatches": {
+            "title": "Jobmatches",
+            "type": "integer"
+          },
+          "profileCompletion": {
+            "description": "Percentage with a literal \"%\", e.g. \"71%\".",
+            "title": "Profilecompletion",
+            "type": "string"
+          },
+          "recentActivity": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardActivity"
+            },
+            "title": "Recentactivity",
+            "type": "array"
+          },
+          "recommendations": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardRecommendation"
+            },
+            "title": "Recommendations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "profileCompletion",
+          "jobMatches",
+          "applications",
+          "hasIntakeSubmission"
+        ],
+        "title": "DashboardResponse",
+        "type": "object"
+      },
+      "EarlyAccessRequest": {
+        "additionalProperties": true,
+        "description": "Landing-page interest form.\n\nNot persisted -- the submission exists only as an email to\ninfo@solverah.com. A delivery failure loses the lead, which is why this is\nthe one intake endpoint that returns 500 rather than swallowing the error.",
+        "properties": {
+          "careerJourney": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Careerjourney"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "firstName": {
+            "title": "Firstname",
+            "type": "string"
+          },
+          "lastName": {
+            "title": "Lastname",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Phone"
+          },
+          "preferredContact": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Preferredcontact"
+          }
+        },
+        "required": [
+          "firstName",
+          "lastName",
+          "email"
+        ],
+        "title": "EarlyAccessRequest",
+        "type": "object"
+      },
+      "ExportedAccount": {
+        "additionalProperties": false,
+        "description": "Identity fields of the exporting user.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Email"
+          },
+          "email_confirmed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Email Confirmed"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Role"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "ExportedAccount",
+        "type": "object"
+      },
+      "ExportedIntakeSubmission": {
+        "additionalProperties": false,
+        "description": "One pre-launch intake submission matched to the account's email.",
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 timestamp.",
+            "title": "Created At"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Email"
+          },
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "First Name"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Name"
+          },
+          "linkedin_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Linkedin Url"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Phone"
+          },
+          "portfolio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Portfolio Url"
+          },
+          "resume_filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Basename of the stored object, not the R2 key. The key is an internal locator and exporting it would hand out a storage path.",
+            "title": "Resume Filename"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "State"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "ExportedIntakeSubmission",
+        "type": "object"
+      },
+      "ExportedJobRecommendation": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 timestamp.",
+            "title": "Created At"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Job Id"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Score"
+          }
+        },
+        "title": "ExportedJobRecommendation",
+        "type": "object"
+      },
+      "ExportedLegacyQuiz": {
+        "additionalProperties": true,
+        "description": "The pre-assessment-table quiz payloads held on ``UserIntake``.",
+        "properties": {
+          "wpl_answers": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Wpl Answers"
+          },
+          "wpl_narrative": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Wpl Narrative"
+          },
+          "wpl_result": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Wpl Result"
+          },
+          "wpll_answers": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Wpll Answers"
+          },
+          "wpll_insight_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Wpll Insight Text"
+          }
+        },
+        "title": "ExportedLegacyQuiz",
+        "type": "object"
+      },
+      "FocusTypeResult": {
+        "additionalProperties": true,
+        "properties": {
+          "archetype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Archetype"
+          },
+          "dimension_scores": {
+            "additionalProperties": true,
+            "title": "Dimension Scores",
+            "type": "object"
+          },
+          "recommendations": {
+            "items": {},
+            "title": "Recommendations",
+            "type": "array"
+          }
+        },
+        "title": "FocusTypeResult",
+        "type": "object"
+      },
+      "FocusTypeSubmitRequest": {
+        "additionalProperties": true,
+        "description": "Five scene payloads, scored deterministically -- no LLM on this path.",
+        "properties": {
+          "scene_1": {
+            "description": "Card IDs in priority order.",
+            "items": {},
+            "title": "Scene 1",
+            "type": "array"
+          },
+          "scene_2": {
+            "additionalProperties": true,
+            "description": "{\"now\": [], \"later\": [], \"ignore\": []}",
+            "title": "Scene 2",
+            "type": "object"
+          },
+          "scene_3": {
+            "additionalProperties": true,
+            "description": "Time split across deep_solo, planning, social, breaks, exploring.",
+            "title": "Scene 3",
+            "type": "object"
+          },
+          "scene_4": {
+            "additionalProperties": true,
+            "description": "{\"now\": [], \"tomorrow\": [], \"avg_decision_time_ms\": int}",
+            "title": "Scene 4",
+            "type": "object"
+          },
+          "scene_5": {
+            "description": "Block IDs in timeline order.",
+            "items": {},
+            "title": "Scene 5",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scene_1",
+          "scene_2",
+          "scene_3",
+          "scene_4",
+          "scene_5"
+        ],
+        "title": "FocusTypeSubmitRequest",
+        "type": "object"
+      },
+      "IdentityResponse": {
+        "additionalProperties": false,
+        "description": "``GET /me`` -- who the caller is, and nothing else.\n\nFour columns off ``users``. No ``profileData``: shipping the whole user\ndocument to render a nav bar is the god-endpoint problem, and the client\nthat wants the profile asks for the profile.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Email"
+          },
+          "email_confirmed": {
+            "description": "Address has been verified.",
+            "title": "Email Confirmed",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Role"
+          }
+        },
+        "required": [
+          "id",
+          "email_confirmed"
+        ],
+        "title": "IdentityResponse",
+        "type": "object"
+      },
+      "IdentityUpdateRequest": {
+        "description": "``PATCH /me``.\n\n``name`` is the only writable identity field, and the omissions are\ndeliberate rather than pending. Changing ``email`` has to re-run\nverification or it is an account-takeover primitive; ``role`` is a privilege\nboundary and is not something an account may grant itself.",
+        "properties": {
+          "name": {
+            "description": "Display name.",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "IdentityUpdateRequest",
+        "type": "object"
+      },
+      "IntakeClaimLinkRequest": {
+        "additionalProperties": true,
+        "description": "``mode: \"link\"`` -- file a submission while already signed in.\n\nSame body as a submission minus the email, which comes from the JWT.\nRecording the body's email instead would let a signed-in user file a\nsubmission under someone else's address.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Ignored. The submission is recorded against the JWT identity.",
+            "title": "Email"
+          },
+          "first_name": {
+            "title": "First Name",
+            "type": "string"
+          },
+          "info_opt_in": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Info Opt In"
+          },
+          "last_name": {
+            "title": "Last Name",
+            "type": "string"
+          },
+          "linkedin_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Must be an https://linkedin.com URL if present.",
+            "title": "Linkedin Url"
+          },
+          "mime": {
+            "title": "Mime",
+            "type": "string"
+          },
+          "mode": {
+            "const": "link",
+            "default": "link",
+            "title": "Mode",
+            "type": "string"
+          },
+          "object_key": {
+            "description": "Must be under intake/{submission_id}/.",
+            "title": "Object Key",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Phone"
+          },
+          "portfolio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Must be https:// if present.",
+            "title": "Portfolio Url"
+          },
+          "privacy_consent": {
+            "description": "Must be literal true.",
+            "title": "Privacy Consent",
+            "type": "boolean"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "object_key",
+          "mime",
+          "size",
+          "first_name",
+          "last_name",
+          "state",
+          "privacy_consent"
+        ],
+        "title": "IntakeClaimLinkRequest",
+        "type": "object"
+      },
+      "IntakeClaimRegisterRequest": {
+        "description": "``mode: \"register\"`` -- create a new account from a finished submission.\n\nThe account's email comes from the submission, never from this body: the\nsubmitter proved control of it by receiving nothing, but they did type it\ninto a form that is already recorded, and letting the claim body override it\nwould turn a guessed submission id into an account under any address.",
+        "properties": {
+          "mode": {
+            "const": "register",
+            "default": "register",
+            "title": "Mode",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "job-seeker",
+            "description": "Only \"job-seeker\" is accepted.",
+            "title": "Role"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "password"
+        ],
+        "title": "IntakeClaimRegisterRequest",
+        "type": "object"
+      },
+      "IntakeClaimRequest": {
+        "description": "Documentation-only union of the four claim bodies.\n\nDo not validate against this; the route enforces :data:`CLAIM_REQUESTS` per\nmode. Unlike the assessment union, this one *is* discriminated on a property\nof the payload, so a generated client can narrow it.",
+        "discriminator": {
+          "mapping": {
+            "link": "#/components/schemas/IntakeClaimLinkRequest",
+            "register": "#/components/schemas/IntakeClaimRegisterRequest",
+            "session": "#/components/schemas/IntakeClaimSessionRequest",
+            "sign_in": "#/components/schemas/IntakeClaimSignInRequest"
+          },
+          "propertyName": "mode"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IntakeClaimRegisterRequest"
+          },
+          {
+            "$ref": "#/components/schemas/IntakeClaimSignInRequest"
+          },
+          {
+            "$ref": "#/components/schemas/IntakeClaimLinkRequest"
+          },
+          {
+            "$ref": "#/components/schemas/IntakeClaimSessionRequest"
+          }
+        ],
+        "title": "IntakeClaimRequest"
+      },
+      "IntakeClaimResponse": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/IntakeCreateAccountResponse"
+          },
+          {
+            "$ref": "#/components/schemas/IntakeSignInResponse"
+          },
+          {
+            "$ref": "#/components/schemas/IntakeSaveToAccountResponse"
+          },
+          {
+            "$ref": "#/components/schemas/OkResponse"
+          }
+        ],
+        "description": "Documentation-only union of the four claim results.\n\n``register`` answers 201 and the rest answer 200, and the bodies differ:\ntwo carry a session (a JWT cookie plus a CSRF token), one carries the\nquiz-completion flag, one is a bare acknowledgement. Unifying the request\ndid not unify these, for the same reason it did not unify the five\nassessment results.",
+        "title": "IntakeClaimResponse"
+      },
+      "IntakeClaimSessionRequest": {
+        "description": "``mode: \"session\"`` -- adopt an anonymous Work Pulse Lite-Lite session.\n\nThe one mode with no submission behind it. Called right after login when\n``sessionStorage`` still holds answers from the ``/start`` flow.",
+        "properties": {
+          "mode": {
+            "const": "session",
+            "default": "session",
+            "title": "Mode",
+            "type": "string"
+          },
+          "selected_statement_ids": {
+            "items": {},
+            "title": "Selected Statement Ids",
+            "type": "array"
+          },
+          "wpll_answers": {
+            "description": "At most 5 items.",
+            "items": {
+              "$ref": "#/components/schemas/WpllAnswer"
+            },
+            "title": "Wpll Answers",
+            "type": "array"
+          },
+          "wpll_insight_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Wpll Insight Text"
+          }
+        },
+        "title": "IntakeClaimSessionRequest",
+        "type": "object"
+      },
+      "IntakeClaimSignInRequest": {
+        "description": "``mode: \"sign_in\"`` -- attach a submission to an existing account.\n\nThe email must match the one on the submission, so a submission cannot be\nattached to an unrelated account by guessing its id.",
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "mode": {
+            "const": "sign_in",
+            "default": "sign_in",
+            "title": "Mode",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "email",
+          "password"
+        ],
+        "title": "IntakeClaimSignInRequest",
+        "type": "object"
+      },
+      "IntakeCreateAccountResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/SummaryUser"
+          }
+        },
+        "required": [
+          "message",
+          "user"
+        ],
+        "title": "IntakeCreateAccountResponse",
+        "type": "object"
+      },
+      "IntakeFinalizeRequest": {
+        "additionalProperties": true,
+        "description": "Step 2 of 2. The server HEADs the object before recording the row.\n\nWithout that check a client could skip the upload entirely and still create\na submission pointing at a key that holds nothing.",
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "first_name": {
+            "title": "First Name",
+            "type": "string"
+          },
+          "last_name": {
+            "title": "Last Name",
+            "type": "string"
+          },
+          "linkedin_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Must be an https://linkedin.com URL if present.",
+            "title": "Linkedin Url"
+          },
+          "mime": {
+            "title": "Mime",
+            "type": "string"
+          },
+          "object_key": {
+            "description": "Must be under intake/{submission_id}/.",
+            "title": "Object Key",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Phone"
+          },
+          "portfolio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Must be https:// if present.",
+            "title": "Portfolio Url"
+          },
+          "privacy_consent": {
+            "description": "Must be literal true.",
+            "title": "Privacy Consent",
+            "type": "boolean"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "object_key",
+          "mime",
+          "size",
+          "first_name",
+          "last_name",
+          "email",
+          "state",
+          "privacy_consent"
+        ],
+        "title": "IntakeFinalizeRequest",
+        "type": "object"
+      },
+      "IntakePresignRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "mime": {
+            "description": "Must be PDF, DOC, or DOCX.",
+            "title": "Mime",
+            "type": "string"
+          },
+          "size": {
+            "description": "Exact byte count; bound into the signature.",
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mime",
+          "size"
+        ],
+        "title": "IntakePresignRequest",
+        "type": "object"
+      },
+      "IntakePresignResponse": {
+        "additionalProperties": false,
+        "description": "Step 1 of 2. The browser PUTs the file to ``upload_url``.\n\n``submission_id`` is a v4 UUID and is the only thing protecting an anonymous\nsubmission -- there is no account to authorise against, so the object key is\ndeliberately unguessable.",
+        "properties": {
+          "max_bytes": {
+            "title": "Max Bytes",
+            "type": "integer"
+          },
+          "object_key": {
+            "title": "Object Key",
+            "type": "string"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "upload_url": {
+            "description": "Presigned PUT URL, valid for 10 minutes.",
+            "title": "Upload Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "object_key",
+          "upload_url",
+          "max_bytes"
+        ],
+        "title": "IntakePresignResponse",
+        "type": "object"
+      },
+      "IntakeSaveToAccountResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "wpll_completed": {
+            "title": "Wpll Completed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "message",
+          "wpll_completed"
+        ],
+        "title": "IntakeSaveToAccountResponse",
+        "type": "object"
+      },
+      "IntakeSignInResponse": {
+        "additionalProperties": false,
+        "description": "Same envelope as a login: JWT in an HttpOnly cookie, CSRF token in the body.",
+        "properties": {
+          "csrfToken": {
+            "description": "Echo as X-CSRF-TOKEN on POST/PUT/PATCH/DELETE.",
+            "title": "Csrftoken",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/SummaryUser"
+          }
+        },
+        "required": [
+          "message",
+          "csrfToken",
+          "user"
+        ],
+        "title": "IntakeSignInResponse",
+        "type": "object"
+      },
+      "LegacyError": {
+        "additionalProperties": false,
+        "description": "The pre-Phase-1 error body: ``{\"error\": \"...\"}``.\n\nHandlers return this from their own explicit failure branches, and Phase 1a\nkeeps every one of them byte-for-byte.  It coexists with\n:class:`ProblemDetailResponse`, which is what the Phase 0 error handlers\nproduce for anything a handler did not catch itself.\n\nThe two shapes are why ``src/utils/apiError.ts`` reads both.  Phase 1b\ncollapses them by moving handlers onto ``solverah.errors.ApiError``.",
+        "properties": {
+          "error": {
+            "description": "Human-readable failure message.",
+            "title": "Error",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "LegacyError",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "LoginResponse": {
+        "additionalProperties": false,
+        "description": "Successful login. The JWT arrives as an HttpOnly cookie, not in the body.\n\n``csrfToken`` is the double-submit half of the scheme: the client stores it\nin memory and echoes it as ``X-CSRF-TOKEN`` on every state-changing request.\nAppendix B calls this scheme correct and preserved verbatim.",
+        "properties": {
+          "csrfToken": {
+            "description": "Echo as X-CSRF-TOKEN on POST/PUT/PATCH/DELETE.",
+            "title": "Csrftoken",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/SessionUser"
+          }
+        },
+        "required": [
+          "message",
+          "csrfToken",
+          "user"
+        ],
+        "title": "LoginResponse",
+        "type": "object"
+      },
+      "LogoutResponse": {
+        "additionalProperties": false,
+        "description": "Always ``{\"message\": \"logout successful\"}``.\n\nThe cookie is cleared with ``Set-Cookie`` on this response.  Note that the\nJWT itself remains valid until it expires -- clearing the cookie ends the\nbrowser session but cannot revoke the token, which is exactly what Part 5.3's\ndatabase-backed refresh tokens are for.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "LogoutResponse",
+        "type": "object"
+      },
+      "ManagerMatchAnswer": {
+        "additionalProperties": true,
+        "properties": {
+          "choice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "\"a\" or \"b\".",
+            "title": "Choice"
+          },
+          "question_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Question Id"
+          }
+        },
+        "title": "ManagerMatchAnswer",
+        "type": "object"
+      },
+      "ManagerMatchResult": {
+        "additionalProperties": true,
+        "description": "Deterministic scoring merged with the LLM-generated narrative.",
+        "properties": {
+          "archetype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Archetype"
+          },
+          "archetype_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Archetype Description"
+          },
+          "dimension_scores": {
+            "additionalProperties": true,
+            "title": "Dimension Scores",
+            "type": "object"
+          },
+          "narrative": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Narrative"
+          },
+          "red_flags": {
+            "items": {},
+            "title": "Red Flags",
+            "type": "array"
+          },
+          "what_to_look_for": {
+            "items": {},
+            "title": "What To Look For",
+            "type": "array"
+          }
+        },
+        "title": "ManagerMatchResult",
+        "type": "object"
+      },
+      "ManagerMatchSubmitRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "answers": {
+            "description": "Exactly 15 forced-choice answers.",
+            "items": {
+              "$ref": "#/components/schemas/ManagerMatchAnswer"
+            },
+            "title": "Answers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "title": "ManagerMatchSubmitRequest",
+        "type": "object"
+      },
+      "MatchesQuery": {
+        "description": "Query parameters for ``GET /me/matches``.",
+        "properties": {
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Opaque token from next_cursor.",
+            "title": "Cursor"
+          },
+          "lens": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Scoring lens. Only \"culture\" exists today.",
+            "title": "Lens"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Rows per page. Clamped to 1-100.",
+            "title": "Limit"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "\"best\" (default) ranks strongest fit first; \"worst\" ranks weakest first. The endpoint this replaces returned both halves in one body, which is why the parameter exists rather than the client paging to the end.",
+            "title": "Order"
+          }
+        },
+        "title": "MatchesQuery",
+        "type": "object"
+      },
+      "MatchesResponse": {
+        "additionalProperties": false,
+        "description": "A page of scored companies.\n\n``total_companies_scored`` is carried alongside the page because it is what\nthe UI puts in \"N companies scored\", and a client cannot derive it from a\npage. It is also the honest measure of P0-2: it counts the rows this request\npulled into Python and scored, every time, with no index and no cache.",
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CultureMatchEntry"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "lens": {
+            "description": "Which scoring lens produced these. Always \"culture\" today.",
+            "title": "Lens",
+            "type": "string"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Next Cursor"
+          },
+          "order": {
+            "description": "\"best\" or \"worst\".",
+            "title": "Order",
+            "type": "string"
+          },
+          "total_companies_scored": {
+            "title": "Total Companies Scored",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_companies_scored",
+          "lens",
+          "order"
+        ],
+        "title": "MatchesResponse",
+        "type": "object"
+      },
+      "MessageResponse": {
+        "additionalProperties": false,
+        "description": "A bare acknowledgement: ``{\"message\": \"...\"}``.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "MessageResponse",
+        "type": "object"
+      },
+      "OkResponse": {
+        "additionalProperties": false,
+        "description": "The bare acknowledgement several handlers return.",
+        "properties": {
+          "ok": {
+            "description": "Always true; the operation succeeded.",
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "OkResponse",
+        "type": "object"
+      },
+      "PasswordResetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "PasswordResetRequest",
+        "type": "object"
+      },
+      "PasswordResetVerifyRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "6-digit OTP from the reset email.",
+            "title": "Code",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "code"
+        ],
+        "title": "PasswordResetVerifyRequest",
+        "type": "object"
+      },
+      "PasswordResetVerifyResponse": {
+        "additionalProperties": false,
+        "description": "Passwordless sign-in result.\n\nSame envelope as :class:`LoginResponse` but with the summary user: this path\ndoes not return ``profileData`` or the assessment-completion flags, and the\ndifference is preserved rather than harmonised.",
+        "properties": {
+          "csrfToken": {
+            "description": "Echo as X-CSRF-TOKEN on POST/PUT/PATCH/DELETE.",
+            "title": "Csrftoken",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/SummaryUser"
+          }
+        },
+        "required": [
+          "message",
+          "csrfToken",
+          "user"
+        ],
+        "title": "PasswordResetVerifyResponse",
+        "type": "object"
+      },
+      "PathPreferencesDocument": {
+        "additionalProperties": false,
+        "description": "``GET|PUT /me/path-preferences`` -- the three career-search preferences.\n\nThe endpoint this replaces was write-only and answered ``{\"message\": ...}``,\nso a client had no way to read back what it had saved and had to keep its\nown copy or dig the values out of the profile blob. A resource that can be\nread is most of what the redesign is for.\n\nNull on every field means the user has not set them. The fields are optional\non the *response* and required on :class:`PathPreferencesPutRequest`,\nbecause \"not yet answered\" is a real state and \"answered with nothing\" is\nnot -- the scorer branches on all three.",
+        "properties": {
+          "move_intent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "\"stay_in_field\", \"adjacent\", or \"fresh_start\".",
+            "title": "Move Intent"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "\"pay_title\", \"interesting_work\", \"work_life_balance\", or \"learning_growth\".",
+            "title": "Priority"
+          },
+          "seniority_intent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "\"move_up\", \"stay_lateral\", or \"open\".",
+            "title": "Seniority Intent"
+          }
+        },
+        "title": "PathPreferencesDocument",
+        "type": "object"
+      },
+      "PathPreferencesPutRequest": {
+        "description": "``PUT /me/path-preferences``.\n\nPUT rather than POST: all three fields are written together and the write\nreplaces whatever was there, so the verb matches what happens. Each is\nvalidated against a closed set server-side -- the path scorer branches on\nthem, and an unrecognised value would silently change ranking rather than\nfail.",
+        "properties": {
+          "move_intent": {
+            "description": "\"stay_in_field\", \"adjacent\", or \"fresh_start\".",
+            "title": "Move Intent",
+            "type": "string"
+          },
+          "priority": {
+            "description": "\"pay_title\", \"interesting_work\", \"work_life_balance\", or \"learning_growth\".",
+            "title": "Priority",
+            "type": "string"
+          },
+          "seniority_intent": {
+            "description": "\"move_up\", \"stay_lateral\", or \"open\".",
+            "title": "Seniority Intent",
+            "type": "string"
+          }
+        },
+        "required": [
+          "move_intent",
+          "seniority_intent",
+          "priority"
+        ],
+        "title": "PathPreferencesPutRequest",
+        "type": "object"
+      },
+      "PathSuggestion": {
+        "additionalProperties": true,
+        "description": "One suggested O*NET occupation with its narrative.",
+        "properties": {
+          "match_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Match Score"
+          },
+          "onet_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Onet Code"
+          },
+          "profile_dimensions": {
+            "default": null,
+            "description": "Which parts of the profile drove the match.",
+            "title": "Profile Dimensions"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "why_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "LLM-generated rationale for this path.",
+            "title": "Why Text"
+          }
+        },
+        "title": "PathSuggestion",
+        "type": "object"
+      },
+      "PathSuggestionsResponse": {
+        "additionalProperties": false,
+        "description": "Scored and narrated career paths, cached per user.\n\nA 400 with ``career_status_not_set`` means the profile is missing a field\nthe scorer requires, and the client should prompt for it. A 500 means O*NET\nor the narrator failed, and the client should retry.",
+        "properties": {
+          "career_status": {
+            "title": "Career Status",
+            "type": "string"
+          },
+          "generated_at": {
+            "description": "ISO 8601 UTC, second precision.",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/PathSuggestion"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "career_status",
+          "generated_at"
+        ],
+        "title": "PathSuggestionsResponse",
+        "type": "object"
+      },
+      "ProblemDetailError": {
+        "additionalProperties": true,
+        "description": "One field-level entry inside a problem document's ``errors`` array.",
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Machine-readable reason.",
+            "title": "Code"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Offending field name.",
+            "title": "Field"
+          }
+        },
+        "title": "ProblemDetailError",
+        "type": "object"
+      },
+      "ProblemDetailResponse": {
+        "additionalProperties": true,
+        "description": "RFC 9457 problem document, as emitted by ``solverah.errors``.\n\nServed with ``Content-Type: application/problem+json``.  This is the body\nfor anything the handler did not answer itself: an unhandled exception, a\n404 on an unknown path, a 405, a 413 over ``MAX_CONTENT_LENGTH``, a 429 from\nthe limiter.",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Explanation of this occurrence.",
+            "title": "Detail"
+          },
+          "errors": {
+            "description": "Field-level detail, when applicable.",
+            "items": {
+              "$ref": "#/components/schemas/ProblemDetailError"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "instance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Path that produced it.",
+            "title": "Instance"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Correlation id, echoed as X-Request-Id. Quote it in bug reports.",
+            "title": "Request Id"
+          },
+          "status": {
+            "description": "HTTP status code, repeated in the body.",
+            "title": "Status",
+            "type": "integer"
+          },
+          "title": {
+            "description": "Short, stable summary of the problem type.",
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "description": "URI identifying the error class.",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status"
+        ],
+        "title": "ProblemDetailResponse",
+        "type": "object"
+      },
+      "ProfileDocument": {
+        "additionalProperties": false,
+        "description": "``GET|PATCH /me/profile`` -- the profile half, in an envelope.\n\nThe envelope is the point. Returning the blob bare would leave nowhere to\nput the ``version`` that P0-1's fix needs, and no way to add it later\nwithout colliding with a profile key of the same name.",
+        "properties": {
+          "profile": {
+            "additionalProperties": true,
+            "description": "Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
+            "title": "Profile",
+            "type": "object"
+          }
+        },
+        "title": "ProfileDocument",
+        "type": "object"
+      },
+      "ProfilePatchRequest": {
+        "description": "``PATCH /me/profile``.\n\nMerged over the stored document rather than replacing it, and filtered by\n``validators.clean_profile_data`` first -- an unrecognised key is dropped,\nnot rejected, which is why the inner object stays open.",
+        "properties": {
+          "profile": {
+            "additionalProperties": true,
+            "description": "Partial profile. Merged over the stored blob; unknown keys are stripped.",
+            "title": "Profile",
+            "type": "object"
+          }
+        },
+        "required": [
+          "profile"
+        ],
+        "title": "ProfilePatchRequest",
+        "type": "object"
+      },
+      "QuizInsight": {
+        "additionalProperties": true,
+        "properties": {
+          "combinedMeaning": {
+            "default": null,
+            "title": "Combinedmeaning"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Matches the quiz's key.",
+            "title": "Key"
+          },
+          "keyTakeaways": {
+            "default": null,
+            "title": "Keytakeaways"
+          },
+          "nextSteps": {
+            "default": null,
+            "title": "Nextsteps"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Summary"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          }
+        },
+        "title": "QuizInsight",
+        "type": "object"
+      },
+      "QuizInsightsRequest": {
+        "additionalProperties": false,
+        "description": "Quizzes to generate insights for.\n\nA quiz with no key, no title, or no answered items is discarded before the\nmodel is called; if that leaves nothing, the request is a 400.",
+        "properties": {
+          "quizGroup": {
+            "title": "Quizgroup",
+            "type": "string"
+          },
+          "quizzes": {
+            "items": {
+              "$ref": "#/components/schemas/QuizPayload"
+            },
+            "title": "Quizzes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "quizGroup",
+          "quizzes"
+        ],
+        "title": "QuizInsightsRequest",
+        "type": "object"
+      },
+      "QuizInsightsResponse": {
+        "additionalProperties": false,
+        "description": "Authenticated generation. Also written to ``profile_data.quizInsights``.",
+        "properties": {
+          "insights": {
+            "items": {
+              "$ref": "#/components/schemas/QuizInsight"
+            },
+            "title": "Insights",
+            "type": "array"
+          },
+          "overallInsight": {
+            "default": null,
+            "description": "Cross-quiz synthesis, when the model returns one.",
+            "title": "Overallinsight"
+          },
+          "quizGroup": {
+            "title": "Quizgroup",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quizGroup"
+        ],
+        "title": "QuizInsightsResponse",
+        "type": "object"
+      },
+      "QuizItem": {
+        "additionalProperties": false,
+        "properties": {
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "selected": {
+            "title": "Selected",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "selected"
+        ],
+        "title": "QuizItem",
+        "type": "object"
+      },
+      "QuizPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QuizItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "key": {
+            "description": "Echoed verbatim in the matching insight.",
+            "title": "Key",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "items"
+        ],
+        "title": "QuizPayload",
+        "type": "object"
+      },
+      "QuizPreviewInsightsResponse": {
+        "additionalProperties": false,
+        "description": "``POST /intake/quiz-preview/insights`` -- unauthenticated preview insights.\n\nSame body as the authenticated endpoint, minus persistence: nothing is\nwritten to any profile, because there is no account yet.",
+        "properties": {
+          "insights": {
+            "items": {
+              "$ref": "#/components/schemas/QuizInsight"
+            },
+            "title": "Insights",
+            "type": "array"
+          },
+          "overallSummary": {
+            "default": null,
+            "title": "Overallsummary"
+          },
+          "quizGroup": {
+            "title": "Quizgroup",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quizGroup"
+        ],
+        "title": "QuizPreviewInsightsResponse",
+        "type": "object"
+      },
+      "RecommendationsPage": {
+        "additionalProperties": false,
+        "description": "``GET /me/recommendations`` -- a page of job recommendations.\n\nCurrently always empty with a null cursor: the ML pipeline that produced\nthese was replaced by the AI agent and the Groq-backed replacement is not\nwired up. It is paginated anyway, and that is the point of doing it now --\nthe envelope is the contract, so the day it returns rows is not the day\nevery client changes.",
+        "properties": {
+          "data": {
+            "items": {},
+            "title": "Data",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Next Cursor"
+          }
+        },
+        "title": "RecommendationsPage",
+        "type": "object"
+      },
+      "RegisterRequest": {
+        "additionalProperties": true,
+        "description": "Body of ``POST /register``.\n\n``terms_accepted`` must be boolean ``true`` -- the handler compares with\n``is True``, so a truthy string is rejected. That is deliberate: consent\nevidence should not be satisfiable by accident (GAP-01/GAP-05).",
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "terms_accepted": {
+            "description": "Must be literal true. Recorded in profile_data as evidence of assent.",
+            "title": "Terms Accepted",
+            "type": "boolean"
+          },
+          "terms_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Version assented to; stored as \"unversioned\" when absent.",
+            "title": "Terms Version"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "terms_accepted"
+        ],
+        "title": "RegisterRequest",
+        "type": "object"
+      },
+      "RegisterResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/SummaryUser"
+          }
+        },
+        "required": [
+          "message",
+          "user"
+        ],
+        "title": "RegisterResponse",
+        "type": "object"
+      },
+      "ResendConfirmationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "ResendConfirmationRequest",
+        "type": "object"
+      },
+      "ResumeCompleteRequest": {
+        "description": "``POST /me/resumes/{resume_id}/complete`` -- the file is uploaded; parse it.",
+        "properties": {
+          "mime": {
+            "title": "Mime",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Original filename, for display.",
+            "title": "Name"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mime",
+          "size"
+        ],
+        "title": "ResumeCompleteRequest",
+        "type": "object"
+      },
+      "ResumeCompleteResponse": {
+        "additionalProperties": false,
+        "description": "The profile after the parsed resume was merged into it.\n\nParsing still runs inline, which is P0-6. Part 5.2 has this returning 202\nwith a job handle; it does not do that yet, and returning a 202 for work\nthat finished synchronously would be a lie the client would have to poll\nagainst. It becomes a 202 when Phase 3's queue exists.",
+        "properties": {
+          "profile": {
+            "additionalProperties": true,
+            "description": "Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
+            "title": "Profile",
+            "type": "object"
+          }
+        },
+        "title": "ResumeCompleteResponse",
+        "type": "object"
+      },
+      "ResumeDownloadResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "description": "Presigned GET URL, valid for 10 minutes.",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "ResumeDownloadResponse",
+        "type": "object"
+      },
+      "ResumeTicketRequest": {
+        "description": "``POST /me/resumes`` -- ask for somewhere to upload to.",
+        "properties": {
+          "mime": {
+            "description": "Must be PDF, DOC, or DOCX.",
+            "title": "Mime",
+            "type": "string"
+          },
+          "size": {
+            "description": "Exact byte count; bound into the signature.",
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mime",
+          "size"
+        ],
+        "title": "ResumeTicketRequest",
+        "type": "object"
+      },
+      "ResumeTicketResponse": {
+        "additionalProperties": false,
+        "description": "An upload ticket. The browser PUTs the file to ``upload_url`` itself.\n\n``resume_id`` replaces the raw ``object_key`` the superseded endpoint handed\nback, and that is a security improvement rather than cosmetics. Finalize\nused to accept a caller-supplied key and check it began with\n``profile/{your-id}/``; now the server rebuilds the key from the JWT\nidentity and this id, so there is no key for a caller to name at all.",
+        "properties": {
+          "max_bytes": {
+            "title": "Max Bytes",
+            "type": "integer"
+          },
+          "resume_id": {
+            "description": "Opaque id. Pass to /me/resumes/{id}/complete.",
+            "title": "Resume Id",
+            "type": "string"
+          },
+          "upload_url": {
+            "description": "Presigned PUT URL, valid for 10 minutes.",
+            "title": "Upload Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resume_id",
+          "upload_url",
+          "max_bytes"
+        ],
+        "title": "ResumeTicketResponse",
+        "type": "object"
+      },
+      "SendEmailFailureResponse": {
+        "additionalProperties": false,
+        "description": "The 500 body when Resend rejects a send.\n\nCarries ``detail`` on the resend path only, which is where the original\nhandler included it.",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Detail"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "SendEmailFailureResponse",
+        "type": "object"
+      },
+      "SessionFlags": {
+        "additionalProperties": false,
+        "description": "Per-user booleans the shell needs before it can decide what to render.\n\nThey live in their own object rather than at the top level so a flag can be\nadded without the client having to distinguish \"new flag\" from \"new identity\nfield\", and so the whole set can be cached under one key.",
+        "properties": {
+          "email_confirmed": {
+            "description": "Account has verified its address.",
+            "title": "Email Confirmed",
+            "type": "boolean"
+          },
+          "wp_v2_completed": {
+            "description": "Current 24-item person-side assessment completed.",
+            "title": "Wp V2 Completed",
+            "type": "boolean"
+          },
+          "wpl_completed": {
+            "description": "Legacy Work Pulse instrument completed.",
+            "title": "Wpl Completed",
+            "type": "boolean"
+          },
+          "wpll_completed": {
+            "description": "Work Pulse Lite-Lite completed.",
+            "title": "Wpll Completed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "email_confirmed",
+          "wpl_completed",
+          "wpll_completed",
+          "wp_v2_completed"
+        ],
+        "title": "SessionFlags",
+        "type": "object"
+      },
+      "SessionResponse": {
+        "additionalProperties": false,
+        "description": "``GET /auth/session`` -- the cheap session probe, and the fix for P0-3.\n\nThe endpoint it replaces on the app-boot path is ``GET /profile``, which\nreturned the entire user document *and* wrote an ``AuditLog`` row on every\nread.  Session restore fires on every page load, so the highest-volume table\nin the system was written synchronously on the hottest endpoint and a\nrequest that ought to be servable from a read replica took a write lock.\n\nThis returns identity, the CSRF token, and the flags -- no ``profileData``,\nno audit row, no commit.  A client that wants the profile asks\n``GET /me/profile`` for it, which is the whole point of the split.",
+        "properties": {
+          "csrf_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Echo as X-CSRF-TOKEN on POST/PUT/PATCH/DELETE.",
+            "title": "Csrf Token"
+          },
+          "flags": {
+            "$ref": "#/components/schemas/SessionFlags"
+          },
+          "user": {
+            "$ref": "#/components/schemas/SummaryUser"
+          }
+        },
+        "required": [
+          "user",
+          "flags"
+        ],
+        "title": "SessionResponse",
+        "type": "object"
+      },
+      "SessionUser": {
+        "additionalProperties": true,
+        "description": "The user object returned on a successful login.\n\n``profileData`` is the entire ``users.profile_data`` blob.  Shipping the\nwhole user document on every session restore is the god-endpoint problem\nPart 5.2 splits apart; it is documented here rather than quietly trimmed,\nbecause trimming it would break the frontend that reads it.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Email"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "profileData": {
+            "additionalProperties": true,
+            "description": "Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
+            "title": "Profiledata",
+            "type": "object"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Role"
+          },
+          "wp_v2_completed": {
+            "description": "Current 24-item Work Pulse assessment completed.",
+            "title": "Wp V2 Completed",
+            "type": "boolean"
+          },
+          "wpl_completed": {
+            "description": "Legacy Work Pulse instrument completed.",
+            "title": "Wpl Completed",
+            "type": "boolean"
+          },
+          "wpll_completed": {
+            "description": "Work Pulse Lite-Lite completed.",
+            "title": "Wpll Completed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "wpl_completed",
+          "wpll_completed",
+          "wp_v2_completed"
+        ],
+        "title": "SessionUser",
+        "type": "object"
+      },
+      "SkillRating": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "proficiency": {
+            "description": "One of \"beginner\", \"intermediate\", \"advanced\".",
+            "title": "Proficiency",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "proficiency"
+        ],
+        "title": "SkillRating",
+        "type": "object"
+      },
+      "SkillsPutRequest": {
+        "description": "``PUT /me/skills`` -- the full set of ratings.\n\nPUT, not PATCH: the handler writes the ratings it is given over the stored\nmap wholesale, so the verb matches what the write actually does.",
+        "properties": {
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/SkillRating"
+            },
+            "title": "Skills",
+            "type": "array"
+          }
+        },
+        "required": [
+          "skills"
+        ],
+        "title": "SkillsPutRequest",
+        "type": "object"
+      },
+      "SkillsResponse": {
+        "additionalProperties": false,
+        "description": "``GET|PUT /me/skills`` -- self-rated proficiencies.\n\n``skills_proficiency_confirmed`` is what stops the rating modal\nre-prompting; it is part of the resource because the client needs it to\ndecide whether to ask.",
+        "properties": {
+          "skill_levels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "skill name -> proficiency level.",
+            "title": "Skill Levels",
+            "type": "object"
+          },
+          "skills_proficiency_confirmed": {
+            "title": "Skills Proficiency Confirmed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "skills_proficiency_confirmed"
+        ],
+        "title": "SkillsResponse",
+        "type": "object"
+      },
+      "SummaryUser": {
+        "additionalProperties": false,
+        "description": "The identity fields returned where no profile payload is wanted.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Email"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Role"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "SummaryUser",
+        "type": "object"
+      },
+      "WorkPulseAnswer": {
+        "additionalProperties": true,
+        "properties": {
+          "option_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Option Id"
+          },
+          "question_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Question Id"
+          }
+        },
+        "title": "WorkPulseAnswer",
+        "type": "object"
+      },
+      "WorkPulseResult": {
+        "additionalProperties": true,
+        "description": "Work Pulse narrative result.\n\nPersisted to ``user_intake.wpl_result`` and returned verbatim by\n``GET /work-pulse/results``.",
+        "properties": {
+          "archetype": {
+            "title": "Archetype",
+            "type": "string"
+          },
+          "archetype_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Archetype Description"
+          },
+          "emerging_signals": {
+            "items": {},
+            "title": "Emerging Signals",
+            "type": "array"
+          },
+          "narrative": {
+            "title": "Narrative",
+            "type": "string"
+          }
+        },
+        "required": [
+          "narrative",
+          "archetype"
+        ],
+        "title": "WorkPulseResult",
+        "type": "object"
+      },
+      "WorkPulseSubmitRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "answers": {
+            "description": "Exactly 12 answers.",
+            "items": {
+              "$ref": "#/components/schemas/WorkPulseAnswer"
+            },
+            "title": "Answers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "title": "WorkPulseSubmitRequest",
+        "type": "object"
+      },
+      "WpllAnswer": {
+        "additionalProperties": true,
+        "properties": {
+          "option_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Option Id"
+          },
+          "question_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Question Id"
+          }
+        },
+        "title": "WpllAnswer",
+        "type": "object"
+      },
+      "WpllResultResponse": {
+        "additionalProperties": true,
+        "description": "The teaser insight plus the titles of the sections still locked.\n\nTwo shapes can come back on a 200: the LLM-generated one below, and the\ndeterministic rules-engine fallback when the provider call fails. Both carry\n``insight_text`` and ``locked_sections``, which is why the fallback is\ninvisible to the client -- and why it is safe here and nowhere else.",
+        "properties": {
+          "insight_text": {
+            "title": "Insight Text",
+            "type": "string"
+          },
+          "locked_sections": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Locked Sections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "insight_text",
+          "locked_sections"
+        ],
+        "title": "WpllResultResponse",
+        "type": "object"
+      },
+      "WpllSubmitRequest": {
+        "additionalProperties": false,
+        "description": "Anonymous Work Pulse Lite-Lite teaser.",
+        "properties": {
+          "answers": {
+            "description": "1-5 answers.",
+            "items": {
+              "$ref": "#/components/schemas/WorkPulseAnswer"
+            },
+            "title": "Answers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "title": "WpllSubmitRequest",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "accessTokenCookie": {
+        "description": "HttpOnly JWT set by POST /api/v1/login. Not readable by JavaScript, so it is paired with the CSRF header below on every state-changing method.",
+        "in": "cookie",
+        "name": "access_token_cookie",
+        "type": "apiKey"
+      },
+      "csrfHeader": {
+        "description": "Value of the csrf_access_token cookie, echoed by the client. Required on POST, PUT, PATCH, and DELETE.",
+        "in": "header",
+        "name": "X-CSRF-TOKEN",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "description": "PUT /me/skills - write the full set of proficiency ratings.\n\nPUT rather than the PATCH this replaces, because the write is a wholesale\nreplacement of the ratings map, not a merge into it. Also sets\nskills_proficiency_confirmed so the rating modal stops re-prompting.",
+    "title": "Solverah API",
+    "version": "1.0.0"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/agent/messages": {
+      "post": {
+        "description": "Responds with `text/event-stream`, not JSON: one `data: {\"chunk\": ...}` frame per token, then `data: {\"done\": true, \"model\": ...}`. A failure that happens mid-stream is delivered as a `data: {\"error\": ...}` frame on a 200, because the status line has already been sent.",
+        "operationId": "post_intelligence_agent_messages",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMessagesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Stream a chat turn from the AI agent",
+        "tags": [
+          "agent"
+        ]
+      }
+    },
+    "/api/v1/assessments": {
+      "get": {
+        "description": "GET /assessments - the five instruments and where this user stands.\n\nNew in Phase 1b. Without it a client has to hard-code the five kind keys and\nwork out completion from three unrelated places: user_intake timestamps, two\nprofile_data keys, and the person-side tables.",
+        "operationId": "get_assessments_assessment_catalogue",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentCatalogueResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "List the assessment catalogue with this user's completion state",
+        "tags": [
+          "assessments"
+        ]
+      }
+    },
+    "/api/v1/assessments/{kind}/form": {
+      "get": {
+        "description": "GET /assessments/{kind}/form - the items, ordered for this respondent.\n\nOnly `core` serves a form; the other four are rendered from definitions the\nclient ships with, and asking for theirs is a 404 rather than an empty\npayload that implies one might arrive.\n\nThe payload carries `blocks`, not `dimensions`. The client renders it\nverbatim: it must not sort, group, re-shuffle, or reorder options. Ordering\nis server-authoritative because two independent PRNGs in two languages\ndiverging is silent, and a divergence corrupts a resumed session's ordering\nrather than raising (D-04).",
+        "operationId": "get_assessments_assessment_kind_form",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentFormResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Fetch an assessment's items, ordered for this respondent",
+        "tags": [
+          "assessments"
+        ]
+      }
+    },
+    "/api/v1/assessments/{kind}/submissions": {
+      "post": {
+        "description": "Replaces the five submit handlers Phase 1a inherited. `{kind}` is one of `core`, `work_pulse`, `wpll`, `focus_type`, `manager_match`, and it selects both the request body and the response body -- the route is shared, the payloads are not. The `anyOf` on each is the union of the five real schemas; the path parameter says which member applies, which is why this cannot be an OpenAPI discriminated union (3.1 keys a discriminator off a property of the payload, not off the URL).\n\n`wpll` is the one kind that needs no JWT: it is the anonymous teaser on the pre-launch funnel. The other four require one, and CSRF with it.",
+        "operationId": "post_assessments_assessment_kind_submit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssessmentSubmissionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentSubmissionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Submit a completed assessment",
+        "tags": [
+          "assessments"
+        ]
+      }
+    },
+    "/api/v1/auth/email/verify": {
+      "post": {
+        "description": "POST /auth/email/verify - Verify the 6-digit OTP sent at registration.\n\nChecks that the code matches, has not expired (default 15 min window), and\nclears the token fields on success so the code cannot be reused.",
+        "operationId": "post_auth_verify_email",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmEmailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [],
+        "summary": "Verify the 6-digit code sent at registration",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/email/verify/resend": {
+      "post": {
+        "description": "POST /auth/email/verify/resend - Issue a fresh OTP for unconfirmed accounts.\n\nRegenerates and re-sends the 6-digit verification code. Rate-limited to 5\nper minute to prevent abuse.",
+        "operationId": "post_auth_resend_verification",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendConfirmationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendEmailFailureResponse"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [],
+        "summary": "Issue a fresh verification code for an unconfirmed account",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "description": "POST /auth/login - Authenticate a user and issue a JWT cookie.\n\nValidates credentials, enforces account lockout after MAX_LOGIN_ATTEMPTS\nconsecutive failures, and requires email confirmation before granting\naccess. On success, sets an HttpOnly JWT cookie and returns the CSRF token\nin the response body (so the frontend can attach it as X-CSRF-TOKEN on\nmutating requests).",
+        "operationId": "post_auth_login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "423": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [],
+        "summary": "Authenticate a user and issue a JWT cookie",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "description": "POST /auth/logout - Clear the JWT cookie server-side.\n\nFlask-JWT-Extended's unset_jwt_cookies removes the access-token cookie from\nthe response, effectively ending the session. The JWT itself stays valid\nuntil it expires -- clearing the cookie ends the browser session but cannot\nrevoke the token, which is what Part 5.3's database-backed refresh tokens\nare for.",
+        "operationId": "post_auth_logout",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [],
+        "summary": "Clear the JWT cookie",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/password/forgot": {
+      "post": {
+        "description": "POST /auth/password/forgot - Send a 6-digit OTP for passwordless login.",
+        "operationId": "post_auth_forgot_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [],
+        "summary": "Send a sign-in code to a confirmed account",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/password/reset": {
+      "post": {
+        "description": "POST /auth/password/reset - Validate OTP and issue a JWT.\n\nValidates the 6-digit OTP, clears it on success, and issues a JWT cookie\nplus CSRF token so the user is fully logged in without a password.",
+        "operationId": "post_auth_reset_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordResetVerifyResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [],
+        "summary": "Exchange a sign-in code for a session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "description": "POST /auth/register - Create a new user account.\n\nCreates the user with ``email_confirmed=False`` and sends a 6-digit OTP. The\nuser must confirm their email before they can log in. Profile data is\npre-seeded with a blank default profile appropriate for the given role.",
+        "operationId": "post_auth_register",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [],
+        "summary": "Create an account and send its verification code",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/session": {
+      "get": {
+        "description": "GET /auth/session - identity, CSRF token, and flags. Writes nothing.\n\nThis is the fix for P0-3. The frontend restored its session by calling\nGET /profile, which returned the entire profile_data blob and committed an\nAuditLog row on the way out -- a write on the hottest read in the system, on\nevery page load, for data the app shell does not render.\n\nThis answers the same question with four identity fields, the CSRF token,\nand four booleans, and it does not write. A client that needs the profile\nasks GET /me/profile, which is what splitting the god-endpoint bought.",
+        "operationId": "get_auth_session",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Probe the current session without loading the user document",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/companies": {
+      "get": {
+        "description": "GET /companies - one page of companies.\n\nNew in Phase 1b: there was no list endpoint, so a screen wanting several\ncompanies fetched the full research document for each one by id.\n\nPaginated with an opaque keyset cursor, never an offset (A5). Pass\nnext_cursor back as ?cursor= and stop when it comes back null. A cursor the\nserver did not mint is a 422, not a silent page one -- answering a garbled\ncursor with the first page is how a paging loop becomes an infinite one.",
+        "operationId": "get_companies_company_list",
+        "parameters": [
+          {
+            "description": "Opaque token from a previous next_cursor. Pass back unmodified.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "Rows per page. Clamped to 1-100.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Limit"
+            }
+          },
+          {
+            "description": "Case-insensitive substring of the name.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Q"
+            }
+          },
+          {
+            "description": "Exact industry match, case-insensitive.",
+            "in": "query",
+            "name": "industry",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Industry"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "List companies, filtered and paginated",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
+    "/api/v1/companies/{company_id}": {
+      "get": {
+        "description": "GET /companies/<company_id> - Return a company's full profile.",
+        "operationId": "get_companies_company_detail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Fetch a company's full research profile",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
+    "/api/v1/intake/claims": {
+      "post": {
+        "description": "Replaces `/intake/create-account`, `/intake/sign-in`, `/intake/link-account`, and `/intake/save-to-account`. All four answer the same question -- *this browser holds something anonymous, attach it to an account* -- and differ in which account and where the anonymous thing came from. `mode` is the discriminator and selects the request body, the response body, whether a JWT is required, and which rate-limit bucket the call lands in.\n\n`register` and `sign_in` are public: they are how a visitor *gets* a session, so requiring one would be circular. `link` and `session` require a JWT and the CSRF header with it.\n\nThis is `/intake/claims`, not Part 5.2's `/intake/submissions/{id}/claim`, because two of the four modes have no submission id -- `link` files a new submission rather than claiming an existing one, and `session` adopts a quiz session that was never a submission at all.",
+        "operationId": "post_intake_intake_claim",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntakeClaimRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeClaimResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeClaimResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "423": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [],
+        "summary": "Attach an anonymous submission or quiz session to an account",
+        "tags": [
+          "intake"
+        ]
+      }
+    },
+    "/api/v1/intake/early-access": {
+      "post": {
+        "description": "POST /intake/early-access - early-access interest form (no resume).\n\nForwards the details to info@solverah.com via Resend. Does not persist to\nthe database, which is a real gap: a mail outage loses the lead with only a\nlog line behind it. Phase 3's transactional outbox is what fixes it.",
+        "operationId": "post_intake_intake_early_access",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EarlyAccessRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [],
+        "summary": "Register interest from the landing-page modal",
+        "tags": [
+          "intake"
+        ]
+      }
+    },
+    "/api/v1/intake/quiz-preview/insights": {
+      "post": {
+        "description": "The unauthenticated half of the quiz-insights pair. Nothing is persisted, because there is no account yet.\n\nRate-limited per IP *and* under a global daily ceiling. The endpoint this replaces carried `1 per day` keyed on the IP alone, which behind corporate NAT or mobile CGNAT meant one preview per office per day and read to the user as a broken quiz rather than as a limit. See `solverah/api/v1/intelligence.py` for the full reasoning.",
+        "operationId": "post_intake_intake_quiz_preview_insights",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuizInsightsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizPreviewInsightsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [],
+        "summary": "Generate AI career insights for an unauthenticated preview",
+        "tags": [
+          "intake"
+        ]
+      }
+    },
+    "/api/v1/intake/resume-tickets": {
+      "post": {
+        "description": "Part 5.2 places this at `/intake/submissions/{id}/resume-ticket`, and it is here instead because the id does not exist yet when this is called. The ticket is what mints it: the flow is ticket -> browser uploads to R2 -> `POST /intake/submissions` commits the row, and no row exists until the last step. A path that takes the id would need either a draft row inserted before any validation ran, or a client-generated id -- and the id is the *only* thing protecting an anonymous submission, so it has to come from a server-side CSPRNG.",
+        "operationId": "post_intake_intake_resume_ticket",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntakePresignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakePresignResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [],
+        "summary": "Request an upload ticket for an anonymous resume submission",
+        "tags": [
+          "intake"
+        ]
+      }
+    },
+    "/api/v1/intake/submissions": {
+      "post": {
+        "description": "POST /intake/submissions - commit a submission after the resume upload.\n\nStep 2 of 2. Validates every field, HEADs the uploaded object to confirm it\nexists and matches the declared size and type, inserts the row, and sends an\ninternal notification.\n\nThe HEAD is not decoration. The ticket signs a ContentLength, so R2 rejects a\nbody of a different size -- but nothing stops a client skipping the upload\nentirely and calling this anyway. The check is what makes the row mean \"a\nresume of this size and type exists at this key\".",
+        "operationId": "post_intake_intake_create_submission",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntakeFinalizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [],
+        "summary": "Commit an intake submission after the resume upload",
+        "tags": [
+          "intake"
+        ]
+      }
+    },
+    "/api/v1/me": {
+      "delete": {
+        "description": "DELETE /me - erase personal data; keep de-identified research rows.\n\nBody (JSON): {\"confirm\": \"DELETE\"} - an explicit confirmation string, so a\nstray click or a replayed request cannot destroy an account.\n\nA body on DELETE is unusual and is the right place for this. It is not a\nsecret, so a query parameter would work, but a confirmation that travels in\nthe URL ends up in access logs, proxy caches, and browser history -- and an\nintermediary that strips the body fails this closed, with a 400, rather than\nopen.",
+        "operationId": "delete_me_delete_me",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDeleteResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Erase personal data, retaining de-identified assessment rows",
+        "tags": [
+          "me"
+        ]
+      },
+      "get": {
+        "description": "GET /me - identity only: id, email, name, role, confirmation state.\n\nNo profileData and no audit row. The client that needs the profile asks\nGET /me/profile for it; that is what splitting the god-endpoint bought.",
+        "operationId": "get_me_get_me",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Read the authenticated user's identity",
+        "tags": [
+          "me"
+        ]
+      },
+      "patch": {
+        "description": "PATCH /me - change the display name.\n\nName is the only writable identity field. Email is not, because changing it\nwithout re-verification is an account-takeover primitive; role is not,\nbecause an account granting itself a role is a privilege escalation.",
+        "operationId": "patch_me_patch_me",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentityUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Update the authenticated user's identity",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/assessments/{kind}/result": {
+      "get": {
+        "description": "`{kind}` selects the response shape, as on the submit route. Only `work_pulse`, `focus_type`, and `manager_match` store a re-readable result. `core` is absent by design rather than pending -- its scores are withheld from the submit response for a documented reason, and a read endpoint would be the same disclosure through another door.",
+        "operationId": "get_assessments_assessment_kind_result",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentSubmissionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Retrieve a stored assessment result",
+        "tags": [
+          "assessments"
+        ]
+      }
+    },
+    "/api/v1/me/career-status": {
+      "patch": {
+        "description": "PATCH /me/career-status - set career_status directly.\n\nA targeted request rather than a full profile save, so the onboarding modal\ncan record a status without the user filling in experience entries.",
+        "operationId": "patch_me_patch_my_career_status",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CareerStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CareerStatusResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Set the user's career status",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/dashboard": {
+      "get": {
+        "description": "GET /me/dashboard - profile completion, match count, application count.\n\nrecentActivity and recommendations are static placeholders until those\nfeatures exist; the three counts are live.",
+        "operationId": "get_me_get_my_dashboard",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Summary statistics for the job-seeker dashboard",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/export": {
+      "get": {
+        "description": "GET /me/export - one JSON document of everything we hold.",
+        "operationId": "get_me_export_me",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountExportResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Export every identified data class held for the authenticated user",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/matches": {
+      "get": {
+        "description": "Replaces `GET /company-lens/matches`, which returned two fixed-size slices -- `best_fits` and `worst_fits` -- in one body, with nothing reachable beyond them. `?order=worst` carries the second slice over: the two halves are now two directions through one paginated list.\n\nStill an O(all-companies) in-process scan that can commit a backfill on the read path (P0-2). The cursor is what lets Phase 2 fix that behind an unchanged contract; it is not itself the fix.",
+        "operationId": "get_companies_my_matches",
+        "parameters": [
+          {
+            "description": "Opaque token from next_cursor.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "Rows per page. Clamped to 1-100.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Limit"
+            }
+          },
+          {
+            "description": "Scoring lens. Only \"culture\" exists today.",
+            "in": "query",
+            "name": "lens",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Lens"
+            }
+          },
+          {
+            "description": "\"best\" (default) ranks strongest fit first; \"worst\" ranks weakest first. The endpoint this replaces returned both halves in one body, which is why the parameter exists rather than the client paging to the end.",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Order"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchesResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Rank companies by fit for the authenticated user",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
+    "/api/v1/me/path-preferences": {
+      "get": {
+        "description": "GET /me/path-preferences - the three saved preferences, or nulls.\n\nNew in Phase 1b: the endpoint this pairs with was write-only, so a client\nwanting to show the user their own answers had to keep a copy or read them\nout of the profile blob.",
+        "operationId": "get_intelligence_get_path_preferences",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathPreferencesDocument"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Read the user's career search preferences",
+        "tags": [
+          "me"
+        ]
+      },
+      "put": {
+        "description": "PUT /me/path-preferences - write all three preferences.\n\nPUT rather than the POST this replaces, because the write replaces the whole\nset rather than merging into it. Returns the saved document instead of\n`{\"message\": \"Preferences saved\"}`, so a client does not have to make a\nsecond call to see what it stored.\n\nEach value is checked against a closed set: the path scorer branches on all\nthree, so an unrecognised one would silently change ranking rather than fail.",
+        "operationId": "put_intelligence_put_path_preferences",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PathPreferencesPutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathPreferencesDocument"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Replace the user's career search preferences",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/path-suggestions": {
+      "get": {
+        "description": "GET /me/path-suggestions - scored and narrated career paths.\n\nCached per user; the cache is invalidated when Work Pulse results,\nexperience entries, or ManagerMatch results change.\n\nPart 5.2 has a cache miss answering 202 and enqueueing the work. It does not\nyet -- there is no queue until Phase 3, and a 202 for work that then runs\ninline would hand the client a job to poll that has already finished.",
+        "operationId": "get_intelligence_get_path_suggestions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathSuggestionsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Score and narrate career path suggestions",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/profile": {
+      "get": {
+        "description": "GET /me/profile - the profile blob, in an envelope.\n\nRecords a `read` audit event. Unlike the endpoint this replaces, that write\nis no longer on the session-restore path, which is what made it P0-3.",
+        "operationId": "get_me_get_my_profile",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileDocument"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Read the authenticated user's profile document",
+        "tags": [
+          "me"
+        ]
+      },
+      "patch": {
+        "description": "PATCH /me/profile - merge incoming keys into the stored profile.\n\nUnknown keys are stripped by clean_profile_data rather than rejected. Quiz\nresults merge at the sub-key level so existing entries survive. Edits are\ndiffed against the stored parser snapshot to record ResumeParseCorrection\nrows for anything the user changed after a resume upload.\n\nStill a read-modify-write of a whole JSON column (P0-1), and still without a\nversion to check. Phase 2 is what fixes that; the envelope this returns is\nwhere the version will go.",
+        "operationId": "patch_me_patch_my_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfilePatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileDocument"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Merge a partial profile over the stored document",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/quiz-insights": {
+      "post": {
+        "description": "POST /me/quiz-insights - generate and persist AI career insights.\n\nValidates and normalizes the quiz answers, calls OpenAI with a structured\nprompt, coerces the response to a canonical schema, and persists the result\ninto profile_data.quizInsights.",
+        "operationId": "post_intelligence_post_my_quiz_insights",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuizInsightsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizInsightsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Generate and persist AI career insights",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/recommendations": {
+      "get": {
+        "description": "GET /me/recommendations - a page of job recommendations.\n\nAlways empty today: the ML pipeline that produced these was replaced by the\nAI agent and the Groq-backed replacement is not wired up.\n\nPaginated anyway, and that is deliberate. The envelope is the contract, so\nthe day this starts returning rows is not the day every client changes.",
+        "operationId": "get_intelligence_get_my_recommendations",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationsPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "List persisted job recommendations",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/recommendations/refresh": {
+      "post": {
+        "description": "POST /me/recommendations/refresh - trigger recommendation generation.\n\nA no-op stub while the Groq-based flow is being built. Part 5.2 has this\nanswering 202 with a job handle; that arrives with Phase 3's queue, at which\npoint there is real work for the handle to refer to.",
+        "operationId": "post_intelligence_refresh_my_recommendations",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationsPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Trigger job recommendation generation",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/resumes": {
+      "post": {
+        "description": "POST /me/resumes - presign a PUT URL for a resume upload. Step 1 of 2.\n\nReturns a resume_id rather than the raw object key the superseded endpoint\nhanded back. The key is derived server-side from the JWT identity, so a\ncaller has no key to name and the finalize step has no prefix check to get\nwrong.",
+        "operationId": "post_me_post_my_resume_ticket",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeTicketRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeTicketResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Request an upload ticket for a new resume",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/resumes/{resume_id}/complete": {
+      "post": {
+        "description": "POST /me/resumes/{resume_id}/complete - parse the upload. Step 2 of 2.\n\nDownloads the object, runs the rule-based parser, and merges the parsed\nexperience, education, and skills into the profile. Stores a\n_parsedResumeSnapshot so later edits can be diffed against what the parser\nproduced (see ResumeParseCorrection).\n\nParsing runs inline, which is P0-6. Part 5.2 has this returning 202 with a\njob handle; it will, when Phase 3's queue exists. Returning one now for work\nthat finished synchronously would give the client something to poll that is\nalready done.",
+        "operationId": "post_me_post_my_resume_complete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resume_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeCompleteResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Parse an uploaded resume into the profile",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/resumes/{resume_id}/download-url": {
+      "get": {
+        "description": "GET /me/resumes/{resume_id}/download-url - short-lived presigned GET URL.\n\n`current` is a valid resume_id and means \"the resume on my profile\". The\nblob holds exactly one resumeKey, so until Phase 2 gives resumes their own\nrows that is the only one a client can name without having just uploaded it.",
+        "operationId": "get_me_get_my_resume_download_url",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resume_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeDownloadResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Presign a download URL for a stored resume",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/skills": {
+      "get": {
+        "description": "GET /me/skills - proficiency ratings and whether they are confirmed.\n\nNew in Phase 1b. The superseded endpoint was write-only, so the client had\nto read the whole profile document to find out what it had already saved.",
+        "operationId": "get_me_get_my_skills",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Read self-rated skill proficiencies",
+        "tags": [
+          "me"
+        ]
+      },
+      "put": {
+        "description": "PUT /me/skills - write the full set of proficiency ratings.\n\nPUT rather than the PATCH this replaces, because the write is a wholesale\nreplacement of the ratings map, not a merge into it. Also sets\nskills_proficiency_confirmed so the rating modal stops re-prompting.",
+        "operationId": "put_me_put_my_skills",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkillsPutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Replace self-rated skill proficiencies",
+        "tags": [
+          "me"
+        ]
+      }
+    }
+  }
+}

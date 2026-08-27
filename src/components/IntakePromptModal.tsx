@@ -2,6 +2,7 @@ import { FormEvent, useId, useState } from "react";
 import { X } from "lucide-react";
 import { API_BASE } from "../utils/api";
 import { useAuth } from "../contexts/useAuth";
+import { parseApiError } from "../utils/apiError";
 
 type Step = "prompt" | "form" | "success";
 
@@ -64,13 +65,13 @@ export default function IntakePromptModal({ open, hasIntakeSubmission, onClose, 
     setSubmitting(true);
     try {
       // Step 1: get presigned upload URL
-      const presignRes = await fetch(`${API_BASE}/intake/presign`, {
+      const presignRes = await fetch(`${API_BASE}/intake/resume-tickets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mime: resumeFile.type, size: resumeFile.size }),
       });
       const presignData = await presignRes.json().catch(() => ({}));
-      if (!presignRes.ok) throw new Error(presignData?.error || "Unable to start upload.");
+      if (!presignRes.ok) throw parseApiError(presignRes, presignData, "Unable to start upload.");
 
       const { submission_id, object_key, upload_url } = presignData as {
         submission_id: string;
@@ -87,9 +88,12 @@ export default function IntakePromptModal({ open, hasIntakeSubmission, onClose, 
       if (!putRes.ok) throw new Error("Resume upload failed. Please try again.");
 
       // Step 3: finalize and link to account
-      await fetchWithAuth("/intake/link-account", {
+      // Same endpoint as registration and sign-in, different mode: filing a
+      // submission as a user who is already signed in.
+      await fetchWithAuth("/intake/claims", {
         method: "POST",
         body: JSON.stringify({
+          mode: "link",
           submission_id,
           object_key,
           mime: resumeFile.type,
@@ -366,7 +370,7 @@ export default function IntakePromptModal({ open, hasIntakeSubmission, onClose, 
                   onChange={(e) => setPrivacyConsent(e.target.checked)}
                   className="mt-0.5 h-4 w-4 rounded border-cream-muted text-forest-mid focus:ring-forest-pale"
                 />
-                <span>I consent to Solverah securely storing my resume and contact information for early access review.</span>
+                <span>I consent to Solverah securely storing my resume and contact information for early access review, as described in the <a href="/privacy" target="_blank" rel="noreferrer" className="underline">Privacy Policy</a>.</span>
               </label>
 
               <label

@@ -46,12 +46,12 @@ def _noop(*_args, **_kwargs):
 
 def _register_and_login(client, monkeypatch, email="wp@example.com", password="Strongpass1!"):
     import app as app_module
-    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     client.post(
-        "/api/register",
-        json={"email": email, "password": password, "name": "WP User", "role": "job-seeker"},
+        "/api/v1/auth/register",
+        json={"email": email, "password": password, "name": "WP User", "role": "job-seeker", "terms_accepted": True},
     )
 
     from app import app
@@ -62,7 +62,7 @@ def _register_and_login(client, monkeypatch, email="wp@example.com", password="S
         user.confirmation_token = None
         db.session.commit()
 
-    resp = client.post("/api/login", json={"email": email, "password": password})
+    resp = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert resp.status_code == 200
     return resp.get_json()["csrfToken"]
 
@@ -79,7 +79,7 @@ def _mock_openai(monkeypatch, response_json=None, raise_exc=None):
         mock_response = MagicMock()
         mock_response.choices = [mock_choice]
         mock_client.chat.completions.create.return_value = mock_response
-    monkeypatch.setattr(app_module, "_get_openai_client", lambda: mock_client)
+    monkeypatch.setattr("solverah.infra.llm.get_openai_client", lambda: mock_client)
     return mock_client
 
 
@@ -90,7 +90,7 @@ def test_submit_returns_narrative_signals_and_archetype(client, monkeypatch):
     _mock_openai(monkeypatch)
 
     res = client.post(
-        "/api/work-pulse/submit",
+        "/api/v1/assessments/work_pulse/submissions",
         json={"answers": WP_ANSWERS},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -107,7 +107,7 @@ def test_submit_returns_archetype_description(client, monkeypatch):
     _mock_openai(monkeypatch)
 
     res = client.post(
-        "/api/work-pulse/submit",
+        "/api/v1/assessments/work_pulse/submissions",
         json={"answers": WP_ANSWERS},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -122,7 +122,7 @@ def test_submit_persists_answers_and_narrative(client, monkeypatch):
     _mock_openai(monkeypatch)
 
     client.post(
-        "/api/work-pulse/submit",
+        "/api/v1/assessments/work_pulse/submissions",
         json={"answers": WP_ANSWERS},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -145,7 +145,7 @@ def test_submit_rejects_fewer_than_12_answers(client, monkeypatch):
     _mock_openai(monkeypatch)
 
     res = client.post(
-        "/api/work-pulse/submit",
+        "/api/v1/assessments/work_pulse/submissions",
         json={"answers": WP_ANSWERS[:5]},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -159,7 +159,7 @@ def test_submit_rejects_more_than_12_answers(client, monkeypatch):
 
     too_many = WP_ANSWERS + [{"question_id": "wp-q1", "option_id": "wp-q1-a"}]
     res = client.post(
-        "/api/work-pulse/submit",
+        "/api/v1/assessments/work_pulse/submissions",
         json={"answers": too_many},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -167,21 +167,29 @@ def test_submit_rejects_more_than_12_answers(client, monkeypatch):
 
 
 def test_submit_rejects_missing_answers_key(client, monkeypatch):
+    """422 since Phase 1b: `answers` is a required field of the declared schema.
+
+    The handler's own "answers must be a list of exactly 12 items" check still
+    runs and still answers 400 -- for a body that *has* `answers` and gets the
+    count wrong. The two failures were one status before and are now
+    distinguishable, which is the point of enforcing.
+    """
     csrf = _register_and_login(client, monkeypatch)
 
     res = client.post(
-        "/api/work-pulse/submit",
+        "/api/v1/assessments/work_pulse/submissions",
         json={},
         headers={"X-CSRF-TOKEN": csrf},
     )
-    assert res.status_code == 400
+    assert res.status_code == 422
+    assert "answers" in {error["field"] for error in res.get_json()["errors"]}
 
 
 # ── Auth ─────────────────────────────────────────────────────────────────────
 
 def test_submit_requires_auth(client):
     res = client.post(
-        "/api/work-pulse/submit",
+        "/api/v1/assessments/work_pulse/submissions",
         json={"answers": WP_ANSWERS},
     )
     assert res.status_code == 401
@@ -194,7 +202,7 @@ def test_submit_returns_500_on_llm_exception(client, monkeypatch):
     _mock_openai(monkeypatch, raise_exc=RuntimeError("OpenAI down"))
 
     res = client.post(
-        "/api/work-pulse/submit",
+        "/api/v1/assessments/work_pulse/submissions",
         json={"answers": WP_ANSWERS},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -206,7 +214,7 @@ def test_submit_does_not_set_wpl_completed_at_on_llm_failure(client, monkeypatch
     _mock_openai(monkeypatch, raise_exc=RuntimeError("OpenAI down"))
 
     client.post(
-        "/api/work-pulse/submit",
+        "/api/v1/assessments/work_pulse/submissions",
         json={"answers": WP_ANSWERS},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -227,16 +235,16 @@ def test_profile_shows_wpl_completed_after_submit(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch)
     _mock_openai(monkeypatch)
 
-    before = client.get("/api/profile").get_json()
+    before = client.get("/api/v1/auth/session").get_json()["flags"]
     assert before["wpl_completed"] is False
 
     client.post(
-        "/api/work-pulse/submit",
+        "/api/v1/assessments/work_pulse/submissions",
         json={"answers": WP_ANSWERS},
         headers={"X-CSRF-TOKEN": csrf},
     )
 
-    after = client.get("/api/profile").get_json()
+    after = client.get("/api/v1/auth/session").get_json()["flags"]
     assert after["wpl_completed"] is True
 
 
@@ -254,7 +262,7 @@ def test_submit_creates_intake_row_when_none_exists(client, monkeypatch):
             "Expected no intake row before submission"
 
     res = client.post(
-        "/api/work-pulse/submit",
+        "/api/v1/assessments/work_pulse/submissions",
         json={"answers": WP_ANSWERS},
         headers={"X-CSRF-TOKEN": csrf},
     )

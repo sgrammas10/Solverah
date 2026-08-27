@@ -6,7 +6,6 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   user: null as any,
   fetchWithAuth: vi.fn(),
-  wpState: { answers: [] as any[], cachedResult: null as any },
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -16,10 +15,6 @@ vi.mock("react-router-dom", async (importOriginal) => {
 
 vi.mock("../../contexts/useAuth", () => ({
   useAuth: () => ({ user: mocks.user, fetchWithAuth: mocks.fetchWithAuth }),
-}));
-
-vi.mock("../../hooks/useWP", () => ({
-  useWP: () => ({ state: mocks.wpState }),
 }));
 
 vi.mock("../../components/IntakePromptModal", () => ({
@@ -32,8 +27,8 @@ vi.mock("../../components/IntakePromptModal", () => ({
 }));
 
 vi.mock("../../components/dashboard/WorkPulseBanner", () => ({
-  default: ({ onDismiss }: any) => (
-    <div data-testid="wp-banner">
+  default: ({ onDismiss, retake }: any) => (
+    <div data-testid="wp-banner" data-retake={String(Boolean(retake))}>
       <button onClick={onDismiss}>Dismiss Banner</button>
     </div>
   ),
@@ -45,8 +40,12 @@ vi.mock("../../components/profile/WorkPulseUnlock", () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.user = { name: "Ada Lovelace", profileComplete: true, wpl_completed: false };
-  mocks.wpState = { answers: [], cachedResult: null };
+  mocks.user = {
+    name: "Ada Lovelace",
+    profileComplete: true,
+    wpl_completed: false,
+    wp_v2_completed: false,
+  };
   mocks.fetchWithAuth.mockResolvedValue({
     profileCompletion: "60%",
     jobMatches: "12",
@@ -82,7 +81,7 @@ describe("JobSeekerDashboard - happy path", () => {
 
   it("fetches /dashboard-data on mount", async () => {
     renderJobSeekerDashboard();
-    await waitFor(() => expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/dashboard-data"));
+    await waitFor(() => expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/me/dashboard"));
   });
 });
 
@@ -90,7 +89,7 @@ describe("JobSeekerDashboard - happy path", () => {
 
 describe("JobSeekerDashboard - profile completion alert", () => {
   it("shows profile completion alert when profile is not complete", async () => {
-    mocks.user = { name: "Ada", profileComplete: false, wpl_completed: false };
+    mocks.user = { name: "Ada", profileComplete: false, wpl_completed: false, wp_v2_completed: false };
     renderJobSeekerDashboard();
     await waitFor(() =>
       expect(screen.getByText(/Complete your profile/i)).toBeInTheDocument()
@@ -98,7 +97,7 @@ describe("JobSeekerDashboard - profile completion alert", () => {
   });
 
   it("does not show profile completion alert when profile is complete", async () => {
-    mocks.user = { name: "Ada", profileComplete: true, wpl_completed: false };
+    mocks.user = { name: "Ada", profileComplete: true, wpl_completed: false, wp_v2_completed: false };
     renderJobSeekerDashboard();
     await waitFor(() => screen.getByText("60%"));
     expect(screen.queryByText(/Complete your profile/i)).toBeNull();
@@ -108,24 +107,36 @@ describe("JobSeekerDashboard - profile completion alert", () => {
 // ─── work pulse banner ────────────────────────────────────────────────────────
 
 describe("JobSeekerDashboard - work pulse banner", () => {
-  it("shows WPL banner when user has not completed WPL", async () => {
-    mocks.user = { name: "Ada", profileComplete: true, wpl_completed: false };
+  it("shows the banner when the current instrument is not completed", async () => {
+    mocks.user = { name: "Ada", profileComplete: true, wpl_completed: false, wp_v2_completed: false };
     renderJobSeekerDashboard();
     await waitFor(() => expect(screen.getByTestId("wp-banner")).toBeInTheDocument());
+    expect(screen.getByTestId("wp-banner")).toHaveAttribute("data-retake", "false");
   });
 
   it("banner can be dismissed", async () => {
-    mocks.user = { name: "Ada", profileComplete: true, wpl_completed: false };
+    mocks.user = { name: "Ada", profileComplete: true, wpl_completed: false, wp_v2_completed: false };
     renderJobSeekerDashboard();
     await waitFor(() => screen.getByTestId("wp-banner"));
     fireEvent.click(screen.getByText("Dismiss Banner"));
     expect(screen.queryByTestId("wp-banner")).toBeNull();
   });
 
-  it("shows WorkPulseUnlock when user has completed WPL", async () => {
-    mocks.user = { name: "Ada", profileComplete: true, wpl_completed: true };
+  it("RE-PROMPTS a user who only completed the ORIGINAL Work Pulse (retake copy)", async () => {
+    // The 12-question quiz was replaced 2026-08-19; old sittings don't feed the matching
+    // model, so wpl_completed alone must NOT hide the banner. Decided with Sebastian.
+    mocks.user = { name: "Ada", profileComplete: true, wpl_completed: true, wp_v2_completed: false };
+    renderJobSeekerDashboard();
+    await waitFor(() => expect(screen.getByTestId("wp-banner")).toBeInTheDocument());
+    expect(screen.getByTestId("wp-banner")).toHaveAttribute("data-retake", "true");
+    expect(screen.queryByTestId("wp-unlock")).toBeNull();
+  });
+
+  it("shows the completion card when the current instrument is completed", async () => {
+    mocks.user = { name: "Ada", profileComplete: true, wpl_completed: false, wp_v2_completed: true };
     renderJobSeekerDashboard();
     await waitFor(() => expect(screen.getByTestId("wp-unlock")).toBeInTheDocument());
+    expect(screen.queryByTestId("wp-banner")).toBeNull();
   });
 });
 

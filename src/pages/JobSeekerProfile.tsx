@@ -31,7 +31,7 @@ function CareerStatusModal({ onDismiss }: CareerStatusModalProps) {
   const handleSelect = async (status: "between_jobs" | "first_job") => {
     setLoading(true);
     try {
-      await fetchWithAuth("/profile/career-status", {
+      await fetchWithAuth("/me/career-status", {
         method: "PATCH",
         body: JSON.stringify({ status }),
       });

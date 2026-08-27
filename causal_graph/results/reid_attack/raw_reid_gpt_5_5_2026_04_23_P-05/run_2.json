@@ -1,0 +1,61 @@
+{
+  "run_index": 2,
+  "timestamp": "2026-08-17T16:26:28.281373+00:00",
+  "model": "gpt-5.5-2026-04-23",
+  "requested_temperature": 1.0,
+  "temperature_honored": true,
+  "reasoning_effort": "medium",
+  "packet_id": "P-05",
+  "ground_truth_company": "Doist",
+  "response": {
+    "id": "chatcmpl-EDuSBkPtPZWK4NjS2GAVmQtQdxkHN",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\"confidence\":\"high\",\"quoted_clues\":[\"\\\"[Company team members] can work from anywhere in the world. We never place restrictions on locations.\\\"\",\"\\\"Ambition\\\"\",\"\\\"Mastery\\\"\",\"\\\"Independence\\\"\",\"\\\"we are async-first and use our own product for our internal communication\\\"\"],\"reasoning\":\"These are distinctive Doist culture/value phrases: globally unrestricted remote work, explicit 40-hour-week language, and the core values Ambition, Mastery, Independence, and Communication. The packet also says the company is async-first and uses its own product instead of Slack, matching Doist\u2019s Twist/Todoist ecosystem and bootstrapped remote-first identity.\",\"top_guess\":\"Doist\"}",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": [],
+          "audio": null,
+          "function_call": null,
+          "tool_calls": null
+        }
+      }
+    ],
+    "created": 1786983979,
+    "model": "gpt-5.5-2026-04-23",
+    "object": "chat.completion",
+    "service_tier": "default",
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 457,
+      "prompt_tokens": 2709,
+      "total_tokens": 3166,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": 0,
+        "audio_tokens": 0,
+        "reasoning_tokens": 299,
+        "rejected_prediction_tokens": 0
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 1792
+      }
+    }
+  },
+  "parsed": {
+    "confidence": "high",
+    "quoted_clues": [
+      "\"[Company team members] can work from anywhere in the world. We never place restrictions on locations.\"",
+      "\"Ambition\"",
+      "\"Mastery\"",
+      "\"Independence\"",
+      "\"we are async-first and use our own product for our internal communication\""
+    ],
+    "reasoning": "These are distinctive Doist culture/value phrases: globally unrestricted remote work, explicit 40-hour-week language, and the core values Ambition, Mastery, Independence, and Communication. The packet also says the company is async-first and uses its own product instead of Slack, matching Doist\u2019s Twist/Todoist ecosystem and bootstrapped remote-first identity.",
+    "top_guess": "Doist"
+  }
+}

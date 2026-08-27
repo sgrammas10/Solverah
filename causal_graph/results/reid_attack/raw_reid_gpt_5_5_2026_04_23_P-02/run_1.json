@@ -1,0 +1,61 @@
+{
+  "run_index": 1,
+  "timestamp": "2026-08-17T16:23:32.533083+00:00",
+  "model": "gpt-5.5-2026-04-23",
+  "requested_temperature": 1.0,
+  "temperature_honored": true,
+  "reasoning_effort": "medium",
+  "packet_id": "P-02",
+  "ground_truth_company": "Best Buy",
+  "response": {
+    "id": "chatcmpl-EDuPNFxjI6BIaqNd4XwVHxdpA1QTv",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\"confidence\":\"high\",\"quoted_clues\":[\"our purpose is to enrich lives through technology\",\"large consumer electronics retailer\",\"Consultation Agent, in-store technical services\",\"Product Flow Associate\",\"services [a major consumer hardware brand]'s products\"],\"reasoning\":\"The phrase \u201cenrich lives through technology\u201d is Best Buy\u2019s stated purpose. The store roles also match Best Buy terminology: Sales Advisor, Product Flow Associate, Consultation Agent/Geek Squad-style in-store technical services, carrier services, and servicing a major hardware brand\u2019s products. The references to store layouts, house brands, marketplace/ads, and a female CEO stepping down also fit Best Buy.\",\"top_guess\":\"Best Buy\"}",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": [],
+          "audio": null,
+          "function_call": null,
+          "tool_calls": null
+        }
+      }
+    ],
+    "created": 1786983805,
+    "model": "gpt-5.5-2026-04-23",
+    "object": "chat.completion",
+    "service_tier": "default",
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 230,
+      "prompt_tokens": 4711,
+      "total_tokens": 4941,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": 0,
+        "audio_tokens": 0,
+        "reasoning_tokens": 80,
+        "rejected_prediction_tokens": 0
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 0
+      }
+    }
+  },
+  "parsed": {
+    "confidence": "high",
+    "quoted_clues": [
+      "our purpose is to enrich lives through technology",
+      "large consumer electronics retailer",
+      "Consultation Agent, in-store technical services",
+      "Product Flow Associate",
+      "services [a major consumer hardware brand]'s products"
+    ],
+    "reasoning": "The phrase \u201cenrich lives through technology\u201d is Best Buy\u2019s stated purpose. The store roles also match Best Buy terminology: Sales Advisor, Product Flow Associate, Consultation Agent/Geek Squad-style in-store technical services, carrier services, and servicing a major hardware brand\u2019s products. The references to store layouts, house brands, marketplace/ads, and a female CEO stepping down also fit Best Buy.",
+    "top_guess": "Best Buy"
+  }
+}

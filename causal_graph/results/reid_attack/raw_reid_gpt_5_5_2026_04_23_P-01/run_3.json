@@ -1,0 +1,61 @@
+{
+  "run_index": 3,
+  "timestamp": "2026-08-17T16:23:27.346832+00:00",
+  "model": "gpt-5.5-2026-04-23",
+  "requested_temperature": 1.0,
+  "temperature_honored": true,
+  "reasoning_effort": "medium",
+  "packet_id": "P-01",
+  "ground_truth_company": "Oscar Health",
+  "response": {
+    "id": "chatcmpl-EDuPHXtarbzlDdbfNDAwcohpMj4Vm",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\"confidence\":\"high\",\"quoted_clues\":[\"first health insurance company built around a full stack technology platform\",\"make a frustrating healthcare system easier, more human and better\",\"No genius without grit\",\"Care Guide\",\"Collaborate with colleagues, Experts, and Leads\"],\"reasoning\":\"The wording matches Oscar Health\u2019s public positioning almost exactly: a tech-first/full-stack health insurer whose mission is to make healthcare easier and more human. The values phrases and operations terms like Care Guide and Experts are also strongly associated with Oscar\u2019s member-service model. The public 10-K and recent insurer profitability/layoff context fit Oscar Health, Inc.\",\"top_guess\":\"Oscar Health\"}",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": [],
+          "audio": null,
+          "function_call": null,
+          "tool_calls": null
+        }
+      }
+    ],
+    "created": 1786983799,
+    "model": "gpt-5.5-2026-04-23",
+    "object": "chat.completion",
+    "service_tier": "default",
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 310,
+      "prompt_tokens": 4256,
+      "total_tokens": 4566,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": 0,
+        "audio_tokens": 0,
+        "reasoning_tokens": 165,
+        "rejected_prediction_tokens": 0
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 3840
+      }
+    }
+  },
+  "parsed": {
+    "confidence": "high",
+    "quoted_clues": [
+      "first health insurance company built around a full stack technology platform",
+      "make a frustrating healthcare system easier, more human and better",
+      "No genius without grit",
+      "Care Guide",
+      "Collaborate with colleagues, Experts, and Leads"
+    ],
+    "reasoning": "The wording matches Oscar Health\u2019s public positioning almost exactly: a tech-first/full-stack health insurer whose mission is to make healthcare easier and more human. The values phrases and operations terms like Care Guide and Experts are also strongly associated with Oscar\u2019s member-service model. The public 10-K and recent insurer profitability/layoff context fit Oscar Health, Inc.",
+    "top_guess": "Oscar Health"
+  }
+}

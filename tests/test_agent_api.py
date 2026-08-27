@@ -11,12 +11,12 @@ def _register_and_login(client, monkeypatch):
     """Register a user, confirm email, log in, and return (client, csrf_token)."""
     import app as app_module
 
-    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     client.post(
-        "/api/register",
-        json={"email": "agent@example.com", "password": "Strongpass1!", "name": "Agent User", "role": "job-seeker"},
+        "/api/v1/auth/register",
+        json={"email": "agent@example.com", "password": "Strongpass1!", "name": "Agent User", "role": "job-seeker", "terms_accepted": True},
     )
 
     # Confirm email so login succeeds
@@ -30,7 +30,7 @@ def _register_and_login(client, monkeypatch):
         db.session.commit()
 
     resp = client.post(
-        "/api/login",
+        "/api/v1/auth/login",
         json={"email": "agent@example.com", "password": "Strongpass1!"},
     )
     assert resp.status_code == 200
@@ -52,7 +52,7 @@ def _mock_llm_streaming(monkeypatch, reply_text="I can help with that."):
 
     mock_client = MagicMock()
     mock_client.chat.completions.create.return_value = iter(chunks)
-    monkeypatch.setattr(app_module, "_get_agent_client", lambda: mock_client)
+    monkeypatch.setattr("solverah.infra.llm.get_agent_client", lambda: mock_client)
     return mock_client
 
 
@@ -69,7 +69,7 @@ def _parse_sse(data: bytes) -> list[dict]:
 
 
 def test_agent_chat_unauthenticated(client):
-    resp = client.post("/api/agent/chat", json={"messages": [{"role": "user", "content": "hi"}]})
+    resp = client.post("/api/v1/agent/messages", json={"messages": [{"role": "user", "content": "hi"}]})
     assert resp.status_code == 401
 
 
@@ -78,12 +78,16 @@ def test_agent_chat_missing_messages(client, monkeypatch):
     _mock_llm_streaming(monkeypatch)
 
     resp = client.post(
-        "/api/agent/chat",
+        "/api/v1/agent/messages",
         json={},
         headers={"X-CSRF-TOKEN": csrf},
     )
-    assert resp.status_code == 400
-    assert "messages" in resp.get_json()["error"]
+    # 422, not the 400 the handler used to answer with. Phase 1b turned the
+    # declared schema into an enforced one, so a missing required field is
+    # rejected before the handler runs and reported as a problem document with
+    # the offending field named -- which the hand-written 400 could not do.
+    assert resp.status_code == 422
+    assert "messages" in {e["field"] for e in resp.get_json()["errors"]}
 
 
 def test_agent_chat_empty_messages(client, monkeypatch):
@@ -91,11 +95,13 @@ def test_agent_chat_empty_messages(client, monkeypatch):
     _mock_llm_streaming(monkeypatch)
 
     resp = client.post(
-        "/api/agent/chat",
+        "/api/v1/agent/messages",
         json={"messages": []},
         headers={"X-CSRF-TOKEN": csrf},
     )
-    assert resp.status_code == 400
+    # An empty history is a schema violation now (`min_length=1`), not a
+    # hand-rolled check inside the handler.
+    assert resp.status_code == 422
 
 
 def test_agent_chat_success(client, monkeypatch):
@@ -103,7 +109,7 @@ def test_agent_chat_success(client, monkeypatch):
     mock_client = _mock_llm_streaming(monkeypatch, reply_text="Here are some career tips.")
 
     resp = client.post(
-        "/api/agent/chat",
+        "/api/v1/agent/messages",
         json={"messages": [{"role": "user", "content": "What should I focus on?"}], "model": "test-model"},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -130,7 +136,7 @@ def test_agent_chat_custom_model(client, monkeypatch):
     _mock_llm_streaming(monkeypatch)
 
     resp = client.post(
-        "/api/agent/chat",
+        "/api/v1/agent/messages",
         json={"messages": [{"role": "user", "content": "hi"}], "model": "mistral"},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -151,10 +157,10 @@ def test_agent_chat_groq_unavailable(client, monkeypatch):
 
     mock_client = MagicMock()
     mock_client.chat.completions.create.side_effect = _raise_connection
-    monkeypatch.setattr(app_module, "_get_agent_client", lambda: mock_client)
+    monkeypatch.setattr("solverah.infra.llm.get_agent_client", lambda: mock_client)
 
     resp = client.post(
-        "/api/agent/chat",
+        "/api/v1/agent/messages",
         json={"messages": [{"role": "user", "content": "hi"}]},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -162,24 +168,25 @@ def test_agent_chat_groq_unavailable(client, monkeypatch):
 
 
 def test_fetch_resume_text_caches_s3_result(monkeypatch):
-    import app as app_module
+    from solverah.services import agent_service
 
     # Isolate cache state for this test
-    monkeypatch.setattr(app_module, "_resume_cache", {})
+    monkeypatch.setattr("solverah.services.agent_service._resume_cache", {})
     monkeypatch.setenv("S3_BUCKET_NAME", "test-bucket")
 
     mock_s3 = MagicMock()
     mock_s3.get_object.return_value = {"Body": MagicMock(read=lambda: b"resume bytes")}
-    monkeypatch.setattr(app_module, "get_s3_client", lambda: mock_s3)
-    monkeypatch.setattr(app_module, "_extract_resume_text", lambda _path, _mime: "Extracted resume text")
+    monkeypatch.setattr("solverah.infra.storage.get_s3_client", lambda: mock_s3)
+    monkeypatch.setattr("solverah.services.resume_service.extract_resume_text",
+                        lambda _path, _mime: "Extracted resume text")
 
     profile = {
         "resumeKey": "users/1/resume.pdf",
         "uploadedResume": {"type": "application/pdf"},
     }
 
-    first = app_module._fetch_resume_text(profile)
-    second = app_module._fetch_resume_text(profile)
+    first = agent_service.fetch_resume_text(profile)
+    second = agent_service.fetch_resume_text(profile)
 
     assert first == "Extracted resume text"
     assert second == "Extracted resume text"
@@ -191,10 +198,11 @@ def test_agent_chat_includes_resume_in_context(client, monkeypatch):
 
     csrf = _register_and_login(client, monkeypatch)
     mock_client = _mock_llm_streaming(monkeypatch)
-    monkeypatch.setattr(app_module, "_fetch_resume_text", lambda _: "Worked at Acme Corp as engineer.")
+    monkeypatch.setattr("solverah.services.agent_service.fetch_resume_text",
+                        lambda _: "Worked at Acme Corp as engineer.")
 
     client.post(
-        "/api/agent/chat",
+        "/api/v1/agent/messages",
         json={"messages": [{"role": "user", "content": "Review my resume"}]},
         headers={"X-CSRF-TOKEN": csrf},
     )

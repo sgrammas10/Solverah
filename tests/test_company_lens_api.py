@@ -1,4 +1,16 @@
-"""Tests for GET /api/company-lens/matches."""
+"""Tests for GET /api/v1/me/matches.
+
+Phase 1b replaced `GET /company-lens/matches`, which returned two fixed-size
+slices -- `best_fits` and `worst_fits` -- in a single body and could show
+nothing past them. The replacement is a cursor-paginated ranking that `?order=`
+reads from either end, so both halves are still reachable and either can be
+walked as deep as the caller wants.
+
+One guarantee did not survive the change and its replacement is documented
+below: the old endpoint partitioned at the midpoint so a company could never
+appear in both slices. A paginated ranking cannot do that, and the
+de-duplication moved to the screen that renders both ends at once.
+"""
 
 import pytest
 
@@ -20,11 +32,10 @@ def _noop(*_args, **_kwargs):
 
 
 def _register_and_login(client, monkeypatch, email="lens@example.com", password="Strongpass1!"):
-    import app as app_module
-    monkeypatch.setattr(app_module, "send_confirmation_email", _noop)
-    monkeypatch.setattr(app_module, "log_audit_event", _noop)
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
-    client.post("/api/register", json={"email": email, "password": password, "name": "Lens User"})
+    client.post("/api/v1/auth/register", json={"email": email, "password": password, "name": "Lens User", "terms_accepted": True})
 
     from app import app
     from model import User, db
@@ -34,7 +45,7 @@ def _register_and_login(client, monkeypatch, email="lens@example.com", password=
         user.confirmation_token = None
         db.session.commit()
 
-    resp = client.post("/api/login", json={"email": email, "password": password})
+    resp = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert resp.status_code == 200
     return resp.get_json()["csrfToken"]
 
@@ -77,21 +88,22 @@ def _seed_companies(count):
 
 # ── Happy path ────────────────────────────────────────────────────────────────
 
-def test_matches_returns_best_and_worst(client, monkeypatch):
+def test_matches_returns_both_ends_of_the_ranking(client, monkeypatch):
+    """Two directions through one list, where there used to be two slices."""
     csrf = _register_and_login(client, monkeypatch)
     _set_culture_prefs("lens@example.com", USER_PREFS)
     _seed_companies(10)
 
-    resp = client.get("/api/company-lens/matches?limit=3")
-    assert resp.status_code == 200
-    body = resp.get_json()
+    best = client.get("/api/v1/me/matches?order=best&limit=3")
+    worst = client.get("/api/v1/me/matches?order=worst&limit=3")
 
-    assert "best_fits" in body
-    assert "worst_fits" in body
-    assert body["total_companies_scored"] == 10
-    assert body["limit"] == 3
-    assert len(body["best_fits"]) == 3
-    assert len(body["worst_fits"]) == 3
+    assert best.status_code == 200
+    assert worst.status_code == 200
+    assert best.get_json()["total_companies_scored"] == 10
+    assert len(best.get_json()["data"]) == 3
+    assert len(worst.get_json()["data"]) == 3
+    # There is more past the first page, unlike the endpoint this replaced.
+    assert best.get_json()["next_cursor"] is not None
 
 
 def test_matches_response_shape(client, monkeypatch):
@@ -99,11 +111,10 @@ def test_matches_response_shape(client, monkeypatch):
     _set_culture_prefs("shape@example.com", USER_PREFS)
     _seed_companies(6)
 
-    resp = client.get("/api/company-lens/matches?limit=2")
-    assert resp.status_code == 200
-    body = resp.get_json()
+    best = client.get("/api/v1/me/matches?order=best&limit=2").get_json()
+    worst = client.get("/api/v1/me/matches?order=worst&limit=2").get_json()
 
-    for entry in body["best_fits"] + body["worst_fits"]:
+    for entry in best["data"] + worst["data"]:
         assert "id" in entry
         assert "name" in entry
         assert "slug" in entry
@@ -123,39 +134,43 @@ def test_matches_best_fits_sorted_descending(client, monkeypatch):
     _set_culture_prefs("sort@example.com", USER_PREFS)
     _seed_companies(10)
 
-    resp = client.get("/api/company-lens/matches?limit=5")
+    resp = client.get("/api/v1/me/matches?order=best&limit=5")
     body = resp.get_json()
 
-    scores = [e["fit_score"] for e in body["best_fits"]]
-    assert scores == sorted(scores, reverse=True), "best_fits must be sorted by fit_score descending"
+    scores = [e["fit_score"] for e in body["data"]]
+    assert scores == sorted(scores, reverse=True), "order=best must rank strongest fit first"
 
 
 # ── limit param ───────────────────────────────────────────────────────────────
 
-def test_limit_3_returns_3_in_each_group(client, monkeypatch):
+def test_limit_bounds_the_page(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch, email="limit3@example.com")
     _set_culture_prefs("limit3@example.com", USER_PREFS)
     _seed_companies(10)
 
-    resp = client.get("/api/company-lens/matches?limit=3")
+    resp = client.get("/api/v1/me/matches?order=best&limit=3")
+
     assert resp.status_code == 200
-    body = resp.get_json()
-    assert len(body["best_fits"]) == 3
-    assert len(body["worst_fits"]) == 3
-    assert body["limit"] == 3
+    assert len(resp.get_json()["data"]) == 3
 
 
-def test_default_limit_is_5(client, monkeypatch):
+def test_an_absent_limit_takes_the_pagination_default(client, monkeypatch):
+    """The default moved from 5 to the shared pagination default.
+
+    5 was "how many fit in each of two lists on one screen" -- a layout decision
+    that had leaked into the API. A paginated list's default is a page size, and
+    it is now the same one every list in this API uses.
+    """
     csrf = _register_and_login(client, monkeypatch, email="deflimit@example.com")
     _set_culture_prefs("deflimit@example.com", USER_PREFS)
     _seed_companies(12)
 
-    resp = client.get("/api/company-lens/matches")
+    resp = client.get("/api/v1/me/matches")
+
     assert resp.status_code == 200
-    body = resp.get_json()
-    assert body["limit"] == 5
-    assert len(body["best_fits"]) == 5
-    assert len(body["worst_fits"]) == 5
+    # All 12 fit inside one default-sized page, so there is no second one.
+    assert len(resp.get_json()["data"]) == 12
+    assert resp.get_json()["next_cursor"] is None
 
 
 # ── Missing culture_preferences ───────────────────────────────────────────────
@@ -164,25 +179,34 @@ def test_missing_culture_preferences_returns_400(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch, email="noprefs@example.com")
     # Do not set culture_preferences
 
-    resp = client.get("/api/company-lens/matches")
+    resp = client.get("/api/v1/me/matches")
     assert resp.status_code == 400
     assert "culture preferences" in resp.get_json()["error"].lower()
 
 
 # ── Fewer companies than 2*limit ──────────────────────────────────────────────
 
-def test_no_company_in_both_lists_when_few_companies(client, monkeypatch):
+def test_the_two_orders_are_one_ranking_read_from_both_ends(client, monkeypatch):
+    """Where the old "never in both lists" guarantee went.
+
+    The endpoint this replaced partitioned at the midpoint when there were few
+    companies, so one could not appear in both slices. A paginated ranking
+    cannot do that -- it walks a list, it does not carve one -- so with few
+    companies the two orders genuinely overlap, and they are the same ranking
+    reversed.
+
+    The de-duplication moved to the screen that renders both ends at once
+    (src/pages/CompanyLensPage.tsx), which is where a presentation decision
+    belongs. Asserted here is the property the API does guarantee.
+    """
     csrf = _register_and_login(client, monkeypatch, email="few@example.com")
     _set_culture_prefs("few@example.com", USER_PREFS)
-    _seed_companies(3)  # fewer than 2*5=10
+    _seed_companies(3)
 
-    resp = client.get("/api/company-lens/matches?limit=5")
-    assert resp.status_code == 200
-    body = resp.get_json()
+    best = client.get("/api/v1/me/matches?order=best&limit=5").get_json()["data"]
+    worst = client.get("/api/v1/me/matches?order=worst&limit=5").get_json()["data"]
 
-    best_ids = {e["id"] for e in body["best_fits"]}
-    worst_ids = {e["id"] for e in body["worst_fits"]}
-    assert best_ids.isdisjoint(worst_ids), "No company should appear in both best_fits and worst_fits"
+    assert [e["id"] for e in worst] == [e["id"] for e in reversed(best)]
 
 
 def test_total_companies_scored_reflects_all_valid_companies(client, monkeypatch):
@@ -190,7 +214,7 @@ def test_total_companies_scored_reflects_all_valid_companies(client, monkeypatch
     _set_culture_prefs("total@example.com", USER_PREFS)
     _seed_companies(4)
 
-    resp = client.get("/api/company-lens/matches?limit=5")
+    resp = client.get("/api/v1/me/matches?limit=5")
     body = resp.get_json()
     assert body["total_companies_scored"] == 4
 
@@ -198,5 +222,5 @@ def test_total_companies_scored_reflects_all_valid_companies(client, monkeypatch
 # ── Unauthenticated ───────────────────────────────────────────────────────────
 
 def test_unauthenticated_returns_401(client):
-    resp = client.get("/api/company-lens/matches")
+    resp = client.get("/api/v1/me/matches")
     assert resp.status_code == 401

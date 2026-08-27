@@ -32,7 +32,7 @@ export default function ManagerMatchResultsPage() {
   const fetchFromServer = useCallback(async () => {
     setFetchState("loading");
     try {
-      const data = await fetchWithAuth<MMResult>("/manager-match/results");
+      const data = await fetchWithAuth<MMResult>("/me/assessments/manager_match/result");
       setResult(data);
       setCachedResult(data);
       setFetchState("success");

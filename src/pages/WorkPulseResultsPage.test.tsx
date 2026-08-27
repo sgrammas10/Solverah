@@ -160,6 +160,6 @@ describe("WorkPulseResultsPage", () => {
       expect(screen.getByText("Structured Deep Thinker")).toBeInTheDocument()
     );
     expect(mocks.navigate).not.toHaveBeenCalled();
-    expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/work-pulse/results");
+    expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/me/assessments/work_pulse/result");
   });
 });

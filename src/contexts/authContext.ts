@@ -28,7 +28,42 @@ export type ProfileData = Record<string, unknown> & {
   quizInsights?: Record<string, unknown>;
 };
 
-/** Authenticated user data returned by GET /api/profile and POST /api/login. */
+/**
+ * Body of `GET /api/v1/auth/session` -- the cheap session probe.
+ *
+ * Phase 1b split `GET /api/profile` into this and `GET /api/v1/me/profile`. The
+ * old endpoint returned the whole user document *and* committed an audit row on
+ * every page load; this one answers what the app shell actually needs -- who you
+ * are, the CSRF token, and four booleans -- and writes nothing.
+ *
+ * `csrf_token` is snake_case here and `csrfToken` on the login response. That is
+ * the wire, not a typo: the login envelope predates Phase 1b and is preserved
+ * verbatim because changing it is a separate client-visible break.
+ */
+export interface SessionResponse {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: "job-seeker";
+  };
+  csrf_token: string | null;
+  flags: {
+    email_confirmed: boolean;
+    wpl_completed: boolean;
+    wpll_completed: boolean;
+    wp_v2_completed: boolean;
+  };
+}
+
+/**
+ * Authenticated user data the app reads.
+ *
+ * Assembled by `toUser()` in AuthContext.tsx from the session probe and the
+ * profile resource, and returned whole by `POST /api/v1/auth/login`. Keeping
+ * this shape stable across the Phase 1b endpoint split is deliberate: the
+ * redesign stopped at the API boundary rather than reaching into components.
+ */
 export interface User {
   id: string;
   email: string;
@@ -38,6 +73,15 @@ export interface User {
   profileData?: ProfileData;
   wpl_completed: boolean;
   wpll_completed: boolean;
+  /**
+   * Completion of the CURRENT Work Pulse instrument (the 24-item person-side assessment
+   * that replaced the original 12-question quiz). Distinct from wpl_completed on purpose:
+   * the old flag marks the retired instrument and keeps its stored narrative reachable,
+   * while this one gates the live prompt/banner. Server-derived from the presence of a
+   * current-scoring-key submission -- never set optimistically from the client except via
+   * updateProfile immediately after a successful submit.
+   */
+  wp_v2_completed: boolean;
 }
 
 /**
@@ -55,7 +99,7 @@ export interface AuthContextType {
   login: (email: string, password: string) => Promise<User>;
   /** Set auth state directly from a login response (e.g. OTP-based login). */
   loginWithData: (user: User, csrfToken: string) => void;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  register: (email: string, password: string, name: string, termsAccepted: boolean) => Promise<void>;
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   fetchWithAuth: <T = any>(endpoint: string, options?: RequestInit) => Promise<T>;

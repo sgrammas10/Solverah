@@ -1,0 +1,163 @@
+# vignette_probe_pairs_v3_autonomy_ladder.yaml
+#
+# UPDATED 2026-08-18 (second revision of the day) for the RATIFIED assessment_items_v2.yaml.
+#
+# ============================================================================
+# CORRECTIONS TO THE EARLIER 2026-08-18 REVISION OF THIS FILE. It made two claims that are
+# wrong, and a third that was overstated. Recorded rather than quietly fixed.
+# ============================================================================
+# WRONG 1 -- "the 0.3 band still needs its one live call." It does not. It has been run:
+#   autonomy level 0.3 is on-target 0.3, n=15, sd 0.0, across
+#   vignette_probe_results_v3.csv, _v5.csv and _v6_combined.csv. All five autonomy bands are
+#   measured. There is no outstanding autonomy API call.
+#
+# WRONG 2 -- "all five cached levels are invalid" (asserted after ratification changed item
+#   text). They are not. Only `company_vignette` is ever sent to the scorer
+#   (run_vignette_probe.py line ~211); `person_vignette` is documentation and is read by
+#   nothing. Company vignettes did not change, so every cached company result stands. And the
+#   ratification preserved every item's A/B pole assignment, so `person_item_choices` letters
+#   are unchanged too -- score_person_side.py reproduces all five targets against the ratified
+#   file with no edits.
+#
+# OVERSTATED 3 -- "autonomy now has no empirical support." Its COMPANY-side precision is
+#   measured at all five bands with zero variance. What it lacks -- along with every other
+#   dimension -- is evidence that real respondents' answers follow the difficulty ordering.
+#   That was always true and is not a consequence of ratification.
+#
+# WHAT ACTUALLY NEEDED FIXING: the `person_vignette` prose, because it paraphrases item
+# wording and au3v2 was REWRITTEN during ratification (decision D4). The old premise was "a
+# project with a tight deadline and no set process," which graded AMBIGUITY rather than stakes
+# and imported pace -- the dimension leak carried as open item 16. The ratified premise grades
+# stakes through dependency and visibility. Every vignette below that described a tight
+# deadline has been rewritten. au1v2 and au2v2 were trimmed (D2 length balance) with meaning
+# unchanged, and au4v2's prompt was situation-framed (D1); the prose is updated to match.
+# ============================================================================
+#
+# Validates the au1v2-au4v2 graduated-difficulty ladder against all five company bands.
+#
+# COMPANY SIDE -- all five levels cached, none need re-running:
+#   0.1 -> vignette_probe_pairs_v1.yaml, autonomy/low                (0.1, n=15, sd 0.0)
+#   0.3 -> this file, run in round 3                                 (0.3, n=15, sd 0.0)
+#   0.5 -> vignette_probe_pairs_v1.yaml, autonomy/mid                (0.5, n=15, sd 0.0)
+#   0.7 -> vignette_probe_pairs_v2_boundary.yaml, autonomy boundary_07 (0.7, n=15, sd 0.0)
+#   0.9 -> vignette_probe_pairs_v1.yaml, autonomy/high               (0.9, n=15, sd 0.0)
+#
+# STATUS -- design coherence and company-side precision, both established. NOT a validation
+# that real respondents follow the difficulty ordering; that needs a pilot.
+
+rubric_version_expected: v1-frozen-2026-08-15
+items_file_expected: assessment_items_v2.yaml
+form_version_expected: v2-2026-08-18
+
+dimensions:
+
+  autonomy:
+    items: [au1v2, au2v2, au3v2, au4v2]
+    grading_variable: "stakes / scope / expected check-in frequency"
+    pairs:
+
+    - level: "0.1"
+      target_band: 0.1
+      target_person: 0.0
+      cached_from: "vignette_probe_pairs_v1.yaml (autonomy/low) -- do not re-run"
+      person_item_choices: { au1v2: B, au2v2: A, au3v2: B, au4v2: A }
+      person_vignette: >
+        Even for something routine I've done plenty of times, I'll confirm the expected
+        approach before diving in. Handed something new but fairly low-risk, I'd still check
+        my approach with my manager rather than just go. And on a project a few other teams
+        are depending on, where people will notice if it goes wrong, I'd agree the direction
+        with my manager before starting rather than set it myself. Honestly, even on the most
+        important work I've never minded getting sign-off on the direction and the plan --
+        what's actually frustrated me is being left to figure out something high-stakes
+        entirely on my own, with nobody available even once to sanity-check my read of it.
+      company_vignette: >
+        Every task the team picks up comes from a detailed brief that spells out exactly
+        how to execute it, not just what's needed. Before anything ships, it passes
+        through two layers of manager review, and the internal wiki has a step-by-step
+        playbook for nearly every recurring task. New hires are told during onboarding
+        that the fastest way to get in trouble here is to skip a step in the playbook.
+
+    - level: "0.3"
+      target_band: 0.3
+      target_person: 0.25
+      cached_from: "this file, round 3 -- scored 0.3, n=15, sd 0.0. Do not re-run."
+      person_item_choices: { au1v2: A, au2v2: A, au3v2: B, au4v2: A }
+      person_vignette: >
+        For something routine I've done many times, I don't see the point in double-checking
+        -- I'll just do it my usual way. If it's something new, though, even at fairly low
+        risk, I'd check my approach with my manager first. And on a project a few other teams
+        are depending on, where people will notice if it goes wrong, I'd agree the direction
+        with my manager before starting. Even on the most important work I've never minded
+        checking in and getting sign-off before starting -- what's frustrated me is being
+        left to figure out something high-stakes completely on my own with no one around to
+        sanity-check it.
+      company_vignette: >
+        Managers set the overall direction and priorities for each project, and people
+        have some say in exactly how they execute within that frame, but the frame
+        itself isn't up for negotiation. A few day-to-day tactical calls are left to the
+        individual, though anything touching the bigger picture goes through a manager
+        first.
+
+    - level: "0.5"
+      target_band: 0.5
+      target_person: 0.5
+      cached_from: "vignette_probe_pairs_v1.yaml (autonomy/mid) -- do not re-run"
+      person_item_choices: { au1v2: A, au2v2: B, au3v2: B, au4v2: A }
+      person_vignette: >
+        For something routine, I'll just handle it my usual way without checking in. Handed
+        something new that's fairly low-risk, I'll figure out my own approach as I go rather
+        than get it checked first. But on a project a few other teams are depending on, where
+        people will notice if it goes wrong, I'd still agree the direction with my manager
+        before starting. And even on the most important work I've never really minded getting
+        sign-off on the plan -- what's frustrated me more is being left completely on my own
+        on something high-stakes with no one to sanity-check my read of it, even once.
+      company_vignette: >
+        Team leads set the quarter's priorities and the big milestones, but how each
+        person gets there is mostly up to them -- some follow a shared template, others
+        don't. A couple of workflows are documented, but plenty of day-to-day calls are
+        made without looping anyone in first. It really depends on the person and the
+        project; there's no single house style for how independent people are expected
+        to be.
+
+    - level: "0.7"
+      target_band: 0.7
+      target_person: 0.75
+      cached_from: "vignette_probe_pairs_v2_boundary.yaml (autonomy boundary_07) -- do not re-run"
+      person_item_choices: { au1v2: A, au2v2: B, au3v2: A, au4v2: A }
+      person_vignette: >
+        For something routine, I'll just handle it my way without checking in. Handed
+        something new that's fairly low-risk, I'll figure out my own approach as I go. And on
+        a project a few other teams are depending on, where people will notice if it goes
+        wrong, I'd set the direction myself and keep people posted as I go rather than agree
+        it up front. That said, even on the most important work I've never really minded
+        getting sign-off on the direction before I start -- what's actually frustrated me is
+        being left entirely on my own on something high-stakes without anyone available even
+        once to sanity-check my read of the situation.
+      company_vignette: >
+        Each person on the team is responsible for the outcome they're assigned, and
+        they largely choose how to get there, though a manager still signs off before
+        anything major goes out. Job postings talk about people owning their area and
+        being judged on results rather than on following a specific process. A recent
+        internal memo mentioned wanting to give people more room to decide how they
+        work, without describing it as a finished shift yet.
+
+    - level: "0.9"
+      target_band: 0.9
+      target_person: 1.0
+      cached_from: "vignette_probe_pairs_v1.yaml (autonomy/high) -- do not re-run"
+      person_item_choices: { au1v2: A, au2v2: B, au3v2: A, au4v2: B }
+      person_vignette: >
+        For something routine, I'll just handle it my way without checking in. Handed
+        something new that's fairly low-risk, I'll figure out my own approach as I go. On a
+        project a few other teams are depending on, where people will notice if it goes
+        wrong, I'll set the direction myself and keep people posted. And looking back, what's
+        frustrated me most is that even on the most important work I was still expected to
+        check in and get sign-off on the direction and the plan before starting, not just the
+        finer details -- I'd rather be trusted to run with my own read on something
+        high-stakes.
+      company_vignette: >
+        People here are trusted to own their piece end to end -- nobody's checking in on
+        how you get to the result, only that you deliver it. There's no standard
+        playbook because the expectation is that everyone builds their own approach as
+        they go. A recent internal survey found that most employees couldn't recall the
+        last time they needed formal approval to change how they worked.

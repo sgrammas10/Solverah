@@ -99,7 +99,7 @@ describe("ForgotPasswordVerify - happy path", () => {
     renderForgotPasswordVerify("user@example.com");
     await submitCode("654321");
     expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("/verify-password-reset"),
+      expect.stringContaining("/auth/password/reset"),
       expect.objectContaining({ method: "POST" })
     );
     const [, options] = mockFetch.mock.calls[0];

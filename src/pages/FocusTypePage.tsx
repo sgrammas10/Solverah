@@ -97,7 +97,7 @@ export default function FocusTypePage() {
       setPhase("submitting");
 
       try {
-        const result = await fetchWithAuth<FocusTypeResult>("/focus-type/submit", {
+        const result = await fetchWithAuth<FocusTypeResult>("/assessments/focus_type/submissions", {
           method: "POST",
           body: JSON.stringify(payloads),
         });

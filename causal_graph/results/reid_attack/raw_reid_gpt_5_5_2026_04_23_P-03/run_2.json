@@ -1,0 +1,61 @@
+{
+  "run_index": 2,
+  "timestamp": "2026-08-17T16:24:48.312784+00:00",
+  "model": "gpt-5.5-2026-04-23",
+  "requested_temperature": 1.0,
+  "temperature_honored": true,
+  "reasoning_effort": "medium",
+  "packet_id": "P-03",
+  "ground_truth_company": "Akuna Capital",
+  "response": {
+    "id": "chatcmpl-EDuPjcHrOCFfn6Pd6qZS0fiEdBvyd",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\"confidence\":\"high\",\"quoted_clues\":[\"no clients or external investors\",\"trade only with the company's capital\",\"Junior Developers at [the company]\",\"high performance/low latency systems\",\"rescinded offers in January 2023\"],\"reasoning\":\"This points to a Chicago-based proprietary/options trading firm with no outside capital or clients, heavy junior trader/developer recruiting, low-latency trading technology, and a known early-2023 offer-rescission/layoff period. The wording around junior developers and the mix of trading/technology/quant roles fits Akuna Capital especially well.\",\"top_guess\":\"Akuna Capital\"}",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": [],
+          "audio": null,
+          "function_call": null,
+          "tool_calls": null
+        }
+      }
+    ],
+    "created": 1786983827,
+    "model": "gpt-5.5-2026-04-23",
+    "object": "chat.completion",
+    "service_tier": "default",
+    "system_fingerprint": null,
+    "usage": {
+      "completion_tokens": 3743,
+      "prompt_tokens": 4312,
+      "total_tokens": 8055,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": 0,
+        "audio_tokens": 0,
+        "reasoning_tokens": 3567,
+        "rejected_prediction_tokens": 0
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 3840
+      }
+    }
+  },
+  "parsed": {
+    "confidence": "high",
+    "quoted_clues": [
+      "no clients or external investors",
+      "trade only with the company's capital",
+      "Junior Developers at [the company]",
+      "high performance/low latency systems",
+      "rescinded offers in January 2023"
+    ],
+    "reasoning": "This points to a Chicago-based proprietary/options trading firm with no outside capital or clients, heavy junior trader/developer recruiting, low-latency trading technology, and a known early-2023 offer-rescission/layoff period. The wording around junior developers and the mix of trading/technology/quant roles fits Akuna Capital especially well.",
+    "top_guess": "Akuna Capital"
+  }
+}

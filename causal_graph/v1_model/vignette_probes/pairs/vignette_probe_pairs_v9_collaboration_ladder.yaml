@@ -1,0 +1,114 @@
+# vignette_probe_pairs_v9_collaboration_ladder.yaml
+#
+# Validates the co1v2-co4v2 graduated-difficulty ladder (assessment_items_v2.yaml, ratified
+# 2026-08-18) against all five company bands.
+#
+# COMPANY SIDE -- 4 of 5 levels reuse already-scored vignettes verbatim, all measured with
+# ZERO variance:
+#   0.1 -> vignette_probe_pairs_v1.yaml, collaboration/low                 (0.1, n=5, sd 0.0)
+#   0.5 -> vignette_probe_pairs_v1.yaml, collaboration/mid                 (0.5, n=5, sd 0.0)
+#   0.7 -> vignette_probe_pairs_v2_boundary.yaml, collaboration boundary_07 (0.7, n=5, sd 0.0)
+#   0.9 -> vignette_probe_pairs_v1.yaml, collaboration/high                (0.9, n=5, sd 0.0)
+# NEW, needs one live run:
+#   0.3 -> written below against anchors.json collaboration band 0.3 ("Leaning solo": mostly
+#          individual work with periodic syncs; collaboration is coordination, not
+#          co-production)
+#
+# PERSON SIDE -- Guttman prefix endorsement of the coordination-cost ladder (one conversation
+# -> a recurring daily hour -> an entire piece of work -> a whole role).
+#
+# NOTE ON co1v2 -- this item was RECAST during ratification. The v2 proposal graded rung 1 by
+# help-seeking when stuck ("you've hit something you're unsure about"), which is a different
+# trait from coordination cost: a collective-minded person can enjoy sitting with a hard
+# problem, and a solo-minded person can ask quickly to get back to working alone sooner. The
+# ratified item grades the smallest real coordination cost instead -- one unprompted
+# conversation at the start of work you could do alone. Any vignette written against the old
+# wording is stale.
+#
+# STATUS -- design coherence plus one new band's company-side precision. Not a validation that
+# real respondents follow the ordering.
+
+rubric_version_expected: v1-frozen-2026-08-15
+items_file_expected: assessment_items_v2.yaml
+form_version_expected: v2-2026-08-18
+
+dimensions:
+
+  collaboration:
+    items: [co1v2, co2v2, co3v2, co4v2]
+    grading_variable: "coordination cost in the respondent's own working time"
+    pairs:
+
+    - level: "0.1"
+      target_band: 0.1
+      target_person: 0.0
+      cached_from: "vignette_probe_pairs_v1.yaml (collaboration/low) -- do not re-run"
+      person_item_choices: { co1v2: A, co2v2: B, co3v2: A, co4v2: B }
+      person_vignette: >
+        Starting a piece of work I could do on my own, I'll just get going on it myself
+        rather than talk it through with someone first. A standing hour every day where
+        everyone works the current problem together is an hour I'd rather have back for my
+        own work. Given the choice between splitting a piece of work up or doing the whole
+        thing start-to-finish with someone else in the room, same deadline either way, I'd
+        split it up and sync at the end. What has actually drained me is almost never
+        getting a stretch of the day that was mine, because the work was always happening
+        in a group.
+
+    - level: "0.3"
+      target_band: 0.3
+      target_person: 0.25
+      person_item_choices: { co1v2: B, co2v2: B, co3v2: A, co4v2: B }
+      person_vignette: >
+        Starting a piece of work I could do on my own, I'd usually talk it through with
+        someone first. But a standing hour every day where everyone works the current
+        problem together is an hour I'd rather have back for my own work. Given the choice
+        between splitting a piece of work up or doing the whole thing with someone else in
+        the room the whole time, I'd split it up and sync at the end. What has drained me is
+        almost never getting a stretch of the day that was mine, because the work was always
+        happening in a group.
+      company_vignette: >
+        People here own their own areas and do most of the actual work heads-down. There's a
+        standing sync twice a week where everyone says what they're on and flags anything
+        that needs another pair of hands, and handoffs between areas are documented in the
+        tracker rather than worked out in a room. Pairing happens occasionally when something
+        crosses two areas, but it's arranged ad hoc rather than being how work normally gets
+        made.
+
+    - level: "0.5"
+      target_band: 0.5
+      target_person: 0.5
+      cached_from: "vignette_probe_pairs_v1.yaml (collaboration/mid) -- do not re-run"
+      person_item_choices: { co1v2: B, co2v2: A, co3v2: A, co4v2: B }
+      person_vignette: >
+        Starting a piece of work I could do on my own, I'd talk it through with someone
+        first. A standing hour every day where everyone works the current problem together
+        would be worth the hour -- I'd get more out of it than I'd lose. But given the choice
+        between splitting a piece of work up or doing the whole thing start-to-finish with
+        someone else in the room, I'd still split it up and sync at the end. What has drained
+        me is almost never getting a stretch of the day that was mine, because the work was
+        always happening in a group.
+
+    - level: "0.7"
+      target_band: 0.7
+      target_person: 0.75
+      cached_from: "vignette_probe_pairs_v2_boundary.yaml (collaboration boundary_07) -- do not re-run"
+      person_item_choices: { co1v2: B, co2v2: A, co3v2: B, co4v2: B }
+      person_vignette: >
+        Starting a piece of work I could do on my own, I'd talk it through with someone
+        first. A standing daily hour working the current problem together would be worth the
+        hour. And given the choice, I'd do a whole piece of work start-to-finish with someone
+        else in the room rather than split it up and sync at the end. That said, what has
+        drained me is almost never getting a stretch of the day that was mine, because the
+        work was always happening in a group.
+
+    - level: "0.9"
+      target_band: 0.9
+      target_person: 1.0
+      cached_from: "vignette_probe_pairs_v1.yaml (collaboration/high) -- do not re-run"
+      person_item_choices: { co1v2: B, co2v2: A, co3v2: B, co4v2: A }
+      person_vignette: >
+        Starting a piece of work I could do on my own, I'd talk it through with someone
+        first. A standing daily hour working the current problem together is worth the hour.
+        Given the choice, I'd do the whole thing start-to-finish with someone else in the
+        room. And what has actually drained me is the opposite of too much company: weeks
+        where I barely worked alongside anyone -- my part arrived, I did it, I passed it on.

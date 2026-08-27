@@ -1,0 +1,190 @@
+# vignette_probe_pairs_v4_bleed_diagnostic.yaml
+#
+# PURPOSE: settle whether the cross-dimension bleed measured across rounds 1-3 is a
+# vignette-writing artifact or an anchors.json defect. It is not a calibration probe --
+# the on-target verdict is a control here, not the result.
+#
+# WHAT IS BEING TESTED
+#   autonomy -> collaboration : autonomy vignettes at 0.5 and above pulled collaboration
+#                               down to 0.3 on 28 of 30 runs (rounds 1, 2 and 3).
+#   autonomy -> innovation    : innovation tracked the autonomy level at the extremes
+#                               (0.1 -> 0.1, 0.9 -> 0.7) on 19 of 20 runs across two
+#                               independently written vignette sets.
+#   Neither was caught at the time because run_vignette_probe.py's leakage detector
+#   triggered on off-target CONFIDENCE >= 0.6 rather than on displacement off the
+#   neutral 0.5 band. Both bleeds ran at confidence 0.1-0.3 and were invisible to it.
+#   (SCALE_CALIBRATION_CHECK.md §5's "collaboration -> autonomy, 10/10" is the artifact
+#   of that same bug: those readings were all exactly 0.5, i.e. nothing moved.)
+#
+# THE TWO ARMS -- run BOTH, they are not alternatives:
+#
+#   ARM A (this file, frozen anchors) -- isolates the VIGNETTE contribution.
+#       python run_vignette_probe.py --pairs vignette_probe_pairs_v4_bleed_diagnostic.yaml \
+#              --out vignette_probe_results_v4_armA.csv
+#     The company vignettes below are the v1/v2/v3 autonomy vignettes with incidental
+#     off-dimension vocabulary removed and NOTHING ELSE changed -- same band targets,
+#     same autonomy intensity, same person-side item choices. If the bleed disappears
+#     here, the vignettes were leaking and anchors.json needs no change.
+#
+#   ARM B (v3 vignettes, proposed anchors) -- isolates the ANCHOR contribution.
+#       python run_vignette_probe.py --pairs vignette_probe_pairs_v3_autonomy_ladder.yaml \
+#              --anchors ../../../Solverah_IP/ground_truth/rater_app/anchors_v2_PROPOSED.json \
+#              --allow-rubric-mismatch --out vignette_probe_results_v4_armB.csv
+#     Identical vignette text to round 3, scored against the proposed anchor rewrite. If
+#     the bleed disappears here, the anchors were the cause and the rewrite is the fix.
+#
+#   Expected, stated before scoring so it can be wrong: MIXED. The 0.5 vignette contains
+#   the phrase "without looping anyone in first", which is a genuine statement about
+#   meeting density and therefore real collaboration evidence -- Arm A should fix that
+#   one. The 0.7 and 0.9 vignettes contain no meeting or pairing language at all; their
+#   only overlap with Collaboration is the word "own", which Collaboration's 0.1 band
+#   claims ("Individual ownership") in direct contradiction of Collaboration's own
+#   keep_distinct -- Arm B should be required for those. If Arm A alone clears every
+#   level, the anchor rewrite is unnecessary and should be dropped rather than shipped.
+#
+# WHAT IS DELIBERATELY *NOT* CHANGED HERE
+#   Person-side item choices and target_person values are copied verbatim from
+#   vignette_probe_pairs_v3_autonomy_ladder.yaml. score_person_side.py must still
+#   reproduce them exactly against autonomy_items_v2_POC.yaml before any call is spent.
+#   The point of this run is the OFF-target columns; if the on-target column moves off
+#   round 3's 0.1/0.3/0.5/0.7/0.9 then a vignette edit below changed autonomy intensity
+#   too, which is a defect in this file and invalidates the arm.
+#
+# COST: 25 calls for Arm A, 25 for Arm B. Arm B re-runs vignettes already scored under
+# the frozen anchors, and that repetition is the point -- it is the A/B control.
+
+rubric_version_expected: v1-frozen-2026-08-15
+
+dimensions:
+
+  autonomy:
+    items: [au1v2, au2v2, au3v2, au4v2]
+    pairs:
+
+    - level: "0.1"
+      target_band: 0.1
+      target_person: 0.0
+      person_item_choices: { au1v2: B, au2v2: B, au3v2: B, au4v2: B }
+      edit_from_v3: >
+        "spells out exactly how to execute it" -> "spells out exactly how the work is to
+        be done". "Execute" is the literal name of Innovation's low pole
+        ("Execute / optimize"), so a directed-work vignette matches that pole by pure
+        lexical accident. Also dropped "recurring task", whose routineness reads as
+        Innovation's 0.1 "mature offering / refine what exists". Autonomy content --
+        prescribed method, two approval layers, mandatory playbook -- is untouched.
+      person_vignette: >
+        Even for something routine that I've done plenty of times, I'll usually double
+        check the expected approach before diving in, just to be safe. If I'm handed
+        something new but pretty low-risk, I'd still rather get my plan looked at before
+        I start rather than just wing it based on my own read. Handed a project with a
+        tight deadline and no set process, my instinct is to ask how they want it
+        structured rather than guess. And honestly, even on the most important work,
+        I've never minded getting sign-off on the direction and the plan before starting
+        -- what actually frustrates me is being left to figure out something high-stakes
+        entirely on my own with nobody around to sanity-check my read of it.
+      company_vignette: >
+        Every task the team picks up comes from a detailed brief that spells out exactly
+        how the work is to be done, not just what's needed. Before anything ships, it
+        passes through two layers of manager review, and the internal wiki has a
+        step-by-step playbook for nearly every job the team handles. New hires are told
+        during onboarding that the fastest way to get in trouble here is to skip a step
+        in the playbook.
+
+    - level: "0.3"
+      target_band: 0.3
+      target_person: 0.25
+      person_item_choices: { au1v2: A, au2v2: B, au3v2: B, au4v2: B }
+      edit_from_v3: >
+        "some say in exactly how they execute within that frame" -> "some say in exactly
+        how they carry it out within that frame", same Innovation low-pole collision as
+        the 0.1 level. Round 3 showed no reproducible bleed at this level, so this edit
+        is a consistency measure rather than a fix; if it moves the 0.3 result at all,
+        that is itself informative about how sensitive the scorer is to single words.
+      person_vignette: >
+        For routine work I've done before, I'll just go ahead using my own judgement
+        about the approach. Anything genuinely new, even low-risk, I'd rather run my
+        plan past someone first. With a tight deadline and no set process I'd ask how
+        they want it structured, and on the highest-stakes work I want the direction
+        signed off before I start.
+      company_vignette: >
+        Managers set the overall direction and priorities for each project, and people
+        have some say in exactly how they carry it out within that frame, but the frame
+        itself isn't up for negotiation. A few day-to-day tactical calls are left to the
+        individual, though anything touching the bigger picture goes through a manager
+        first.
+
+    - level: "0.5"
+      target_band: 0.5
+      target_person: 0.5
+      person_item_choices: { au1v2: A, au2v2: A, au3v2: B, au4v2: B }
+      edit_from_v3: >
+        THE LOAD-BEARING EDIT OF ARM A. Removed "plenty of day-to-day calls are made
+        without looping anyone in first" -- that is a statement about how often people
+        consult each other, i.e. genuine meeting-density evidence, which is exactly what
+        Collaboration's keep_distinct says belongs to Collaboration. Round 3 scored
+        collaboration 0.3 on 5/5 runs at this level. Replaced with a decision-rights
+        phrasing carrying the same autonomy weight and no interaction claim. Also
+        "some follow a shared template, others don't" kept, since template use is a
+        method fact, not an interaction fact.
+      person_vignette: >
+        Routine work I handle my own way without checking first, and something new but
+        low-risk I'll also just take a run at using my own judgement. Once a deadline is
+        tight and there's no established process, though, I'd want to agree the approach
+        with someone, and on the highest-stakes calls I want explicit sign-off.
+      company_vignette: >
+        Team leads set the quarter's priorities and the big milestones, but how each
+        person gets there is mostly up to them -- some follow a shared template, others
+        don't. A couple of workflows are documented, and plenty of day-to-day method
+        calls sit with whoever is doing the work rather than needing approval. It really
+        depends on the person and the project; there's no single house style for how
+        much latitude people are expected to take.
+
+    - level: "0.7"
+      target_band: 0.7
+      target_person: 0.75
+      person_item_choices: { au1v2: A, au2v2: A, au3v2: A, au4v2: B }
+      edit_from_v3: >
+        ARM B's key case. Left DELIBERATELY UNCHANGED except for removing "owning their
+        area" -> "deciding how their area runs". The v3 text's only overlap with
+        Collaboration was ownership vocabulary; if collaboration still displaces to 0.3
+        here under the frozen anchors even with the word removed, the cause is the
+        anchor's semantics rather than the token, and only Arm B can fix it. Keeping
+        "responsible for the outcome they're assigned" intentionally -- that is the
+        autonomy 0.7 anchor's own construct and must survive the edit.
+      person_vignette: >
+        Routine work, new-but-low-risk work, and even a tight-deadline project with no
+        set process -- I'll decide the approach myself and get on with it. The one place
+        I still want sign-off is the genuinely high-stakes call where being wrong is
+        expensive.
+      company_vignette: >
+        Each person on the team is responsible for the outcome they're assigned, and
+        they largely choose how to get there, though a manager still signs off before
+        anything major goes out. Job postings talk about people deciding how their area
+        runs and being judged on results rather than on following a specific process. A
+        recent internal memo mentioned wanting to give people more room to decide how
+        they work, without describing it as a finished shift yet.
+
+    - level: "0.9"
+      target_band: 0.9
+      target_person: 1.0
+      person_item_choices: { au1v2: A, au2v2: A, au3v2: A, au4v2: A }
+      edit_from_v3: >
+        "trusted to own their piece end to end" -> "trusted to decide how their piece
+        gets done end to end", and "everyone builds their own approach as they go" ->
+        "everyone sets their own method as they go". The first removes the ownership
+        token Collaboration's 0.1 band claims; the second removes "builds ... their own
+        approach", which reads as Innovation's 0.7 "experimentation encouraged" even
+        though it is a statement about method latitude. Round 3 displaced BOTH
+        collaboration (0.3, 5/5) and innovation (0.7, 4/5) at this level -- it is the
+        only level where both bleeds fire, so it is the sharpest single test in the file.
+      person_vignette: >
+        Routine or new, low-risk or high-stakes, tight deadline or not -- I decide the
+        approach and go. I don't want sign-off on method even when the call is a big
+        one; being handed the outcome and left to work out the how is the arrangement I
+        do my best work under.
+      company_vignette: >
+        People here are trusted to decide how their piece gets done end to end -- nobody's
+        checking in on the method, only that the result lands. There's no standard
+        playbook because the expectation is that everyone sets their own method as they
+        go. A recent internal survey found that most employees couldn't recall the last
+        time they needed formal approval to change how they worked.
