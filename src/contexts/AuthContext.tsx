@@ -210,7 +210,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // it does not pay for a request the sign-in already answered.
     const { user: userData, profile } = splitLoginUser(data.user);
     setUser(userData);
-    seedProfileCache(queryClient, profile);
+    // Guarded for the same reason loginWithData is: `splitLoginUser` hands back
+    // `undefined` when the envelope carried no profileData, and seeding that
+    // writes the empty document into the cache -- resolved rather than missing
+    // -- which suppresses the first real fetch for the whole staleTime window.
+    // The password envelope does carry the field today; correctness here must
+    // not depend on it continuing to.
+    if (profile) {
+      seedProfileCache(queryClient, profile);
+    }
 
     // Read CSRF token from response body (cookie is inaccessible cross-origin)
     if (data.csrfToken) {
@@ -302,13 +310,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * Still a merge, not a replace: the server folds these keys over the stored
    * document. The server's copy of the result replaces the cache, so anything
    * the write allowlist dropped or normalised is what consumers see next.
+   *
+   * `data.profile ?? {}` used to make that write unconditional, which is the
+   * same conflation the login path had: a *missing* `profile` key is the
+   * response failing to carry the document, not the document being empty, and
+   * writing `{}` for it would replace a good cached copy with an empty one and
+   * mark it fresh for the staleTime window. A *present* `{}` is a different
+   * statement -- the server describing the document it just wrote -- so that
+   * value is written through, and an object is truthy, so the check below keeps
+   * it. When nothing usable came back the cache is invalidated instead: the
+   * PATCH landed, so the cached copy is out of date either way, and a refetch
+   * gets the truth rather than this function guessing at it.
+   *
+   * Truthiness rather than `!== undefined` because a `null` would otherwise be
+   * written as cache data. `ProfileData` is not nullable, so every consumer
+   * spreading or indexing the document would throw on it.
    */
   const saveProfileData = async (profileData: ProfileData) => {
     const data = await fetchWithAuth<{ profile?: ProfileData }>("/me/profile", {
       method: "PATCH",
       body: JSON.stringify({ profile: profileData }),
     });
-    queryClient.setQueryData<ProfileData>(profileKeys.document(), data.profile ?? {});
+    if (data.profile) {
+      queryClient.setQueryData<ProfileData>(profileKeys.document(), data.profile);
+    } else {
+      await queryClient.invalidateQueries({ queryKey: profileKeys.all });
+    }
     return { profileData: data.profile };
   };
 

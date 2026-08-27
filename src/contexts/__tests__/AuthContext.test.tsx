@@ -3,7 +3,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "../AuthContext.tsx";
 import { useAuth } from "../useAuth";
 import type { AuthContextType, ProfileData } from "../authContext";
-import { profileKeys } from "../../hooks/useProfile";
+import { profileKeys, useProfile } from "../../hooks/useProfile";
+import { createQueryClient } from "../../utils/queryClient";
 
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch as any;
@@ -54,7 +55,12 @@ function cachedProfile(): ProfileData | undefined {
 
 // Renders AuthProvider and waits for the loading phase to finish.
 // Returns the captured context value once the Probe component mounts.
-async function mountAuth(sessionResponse: { ok: boolean; data?: any; profile?: any }) {
+async function mountAuth(sessionResponse: {
+  ok: boolean;
+  data?: any;
+  profile?: any;
+  client?: QueryClient;
+}) {
   // One response: the session probe. The restore no longer fetches the profile.
   mockFetch.mockResolvedValueOnce({
     ok: sessionResponse.ok,
@@ -63,7 +69,14 @@ async function mountAuth(sessionResponse: { ok: boolean; data?: any; profile?: a
 
   // Retries off and gcTime zero: a test asserting on a rejected query should see
   // the failure on the first attempt rather than after the default backoff.
-  currentClient = new QueryClient({
+  //
+  // `client` overrides that for the cases where those defaults are the wrong
+  // instrument. gcTime zero collects an observer-less cache entry on the next
+  // macrotask, so a test that asserts on cached data across an extra await is
+  // racing the collector; and staleTime zero refetches even a seeded query,
+  // which hides the suppression the seed guard exists to prevent. Those pass
+  // `createQueryClient()` -- the client the app actually runs on.
+  currentClient = sessionResponse.client ?? new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
   if (sessionResponse.profile !== undefined) {
@@ -417,5 +430,171 @@ describe("AuthProvider - logout drops the cached profile", () => {
 
     // A second sign-in on this tab must not see the first user's document.
     expect(cachedProfile()).toBeUndefined();
+  });
+});
+
+
+// -- login without a profile document -----------------------------------------
+
+describe("AuthProvider - login when the envelope carries no profileData", () => {
+  /**
+   * `splitLoginUser` returns `undefined` for a user envelope with no
+   * profileData, and `seedProfileCache` turns `undefined` into the empty
+   * document. That is a resolved cache entry, not a missing one, so the query
+   * is fresh for the whole staleTime window and the first real fetch never
+   * goes out -- consumers that branch on the document (FocusTypeResultsPage,
+   * PathIntelligencePage) navigate away from results that exist on the server.
+   *
+   * `POST /auth/login` folds profileData in today, so this is latent. It stops
+   * being latent the moment `auth_service` stops folding it in, which is why
+   * this asserts the guard rather than the envelope.
+   */
+  it("leaves the cached document unseeded rather than resolving it empty", async () => {
+    // The app's client, not the gcTime-zero default: an unguarded seed writes
+    // `{}` and gcTime zero would collect it before the assertion runs, so the
+    // test would pass against the very bug it is here to catch.
+    const ctx = await mountAuth({ ok: false, client: createQueryClient() });
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        user: {
+          id: "2", email: "ada@example.com", name: "Ada", role: "job-seeker",
+          profileComplete: false,
+        },
+        csrfToken: "tok-login",
+      }),
+    });
+
+    await act(async () => { await ctx.login("ada@example.com", "password123"); });
+
+    // `undefined`, not `{}`. Only the former makes useProfile() fetch.
+    expect(cachedProfile()).toBeUndefined();
+  });
+
+  /**
+   * The consequence, end to end.
+   *
+   * Built on `createQueryClient()` rather than the bare client `mountAuth`
+   * makes: the suppression is staleTime-dependent, and TanStack's default of
+   * zero would refetch even a seeded query, hiding the bug this guards.
+   */
+  it("lets useProfile fetch the document under the app's real staleTime", async () => {
+    const client = createQueryClient();
+
+    // Restore fails -- nobody is signed in, so useProfile stays disabled until
+    // login() sets the user.
+    mockFetch.mockResolvedValueOnce({ ok: false, json: () => Promise.resolve({}) });
+
+    const ctxRef = { current: null as AuthContextType | null };
+
+    function Probe() {
+      ctxRef.current = useAuth();
+      const { data } = useProfile();
+      return <span data-testid="ready">{data ? JSON.stringify(data) : "no-data"}</span>;
+    }
+
+    render(
+      <QueryClientProvider client={client}>
+        <AuthProvider><Probe /></AuthProvider>
+      </QueryClientProvider>
+    );
+    await waitFor(() => screen.getByTestId("ready"));
+
+    // A login envelope with no profileData: the shape this path sees if the
+    // response stops carrying the field.
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        user: { id: "2", email: "ada@example.com", name: "Ada", role: "job-seeker" },
+        csrfToken: "tok-login",
+      }),
+    });
+    // ...and the GET useProfile must then make to get the real document.
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ profile: { firstName: "Ada", skills: ["Python"] } }),
+    });
+
+    await act(async () => {
+      await ctxRef.current!.login("ada@example.com", "password123");
+    });
+
+    // Seeding `{}` would leave this reading "{}" for 60s and never request it.
+    await waitFor(() => {
+      expect(screen.getByTestId("ready").textContent).toContain("Ada");
+    });
+
+    const urls = mockFetch.mock.calls.map((call: any[]) => String(call[0]));
+    expect(urls.some((url) => url.includes("/me/profile"))).toBe(true);
+  });
+});
+
+// -- saveProfileData writes back the server's copy ----------------------------
+
+describe("AuthProvider - saveProfileData and the cache", () => {
+  it("replaces the cached document with the server's copy of the merge", async () => {
+    const ctx = await mountAuth({
+      ok: true,
+      data: sessionBody(),
+      profile: { firstName: "Ada" },
+      client: createQueryClient(),
+    });
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ profile: { firstName: "Ada", lastName: "Lovelace" } }),
+    });
+
+    await act(async () => { await ctx.saveProfileData({ lastName: "Lovelace" } as any); });
+
+    // The server's copy, so anything the write allowlist dropped or normalised
+    // is what consumers see next.
+    expect(cachedProfile()).toEqual({ firstName: "Ada", lastName: "Lovelace" });
+  });
+
+  it("writes through a present-but-empty document", async () => {
+    const ctx = await mountAuth({
+      ok: true,
+      data: sessionBody(),
+      profile: { firstName: "Ada" },
+      client: createQueryClient(),
+    });
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ profile: {} }),
+    });
+
+    await act(async () => { await ctx.saveProfileData({} as any); });
+
+    // A present `{}` is the server describing the document it just wrote, not a
+    // response that failed to carry one. It is authoritative.
+    expect(cachedProfile()).toEqual({});
+  });
+
+  it("does not clobber the cached document when the response carries no profile", async () => {
+    const ctx = await mountAuth({
+      ok: true,
+      data: sessionBody(),
+      profile: { firstName: "Ada", skills: ["Python"] },
+      client: createQueryClient(),
+    });
+
+    // No `profile` key at all: the envelope failed to carry the document. That
+    // is not the same statement as "the document is empty".
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({}),
+    });
+
+    await act(async () => { await ctx.saveProfileData({ lastName: "Lovelace" } as any); });
+
+    // Left alone and invalidated, rather than overwritten with `{}` and marked
+    // fresh -- the next reader refetches instead of rendering an empty profile.
+    expect(cachedProfile()).toEqual({ firstName: "Ada", skills: ["Python"] });
+    expect(
+      currentClient.getQueryState(profileKeys.document())?.isInvalidated
+    ).toBe(true);
   });
 });
