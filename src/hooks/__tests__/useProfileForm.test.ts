@@ -5,14 +5,15 @@ import {
   useProfileForm,
 } from "../useProfileForm";
 import { useAuth } from "../../contexts/useAuth";
+import { useProfile } from "../useProfile";
 
 vi.mock("../../contexts/useAuth");
+vi.mock("../useProfile");
 
 const mockAuth = {
   user: null as any,
   updateProfile: vi.fn(),
   updateProfileData: vi.fn(),
-  fetchProfileData: vi.fn(),
   saveProfileData: vi.fn(),
   fetchWithAuth: vi.fn(),
   login: vi.fn(),
@@ -21,12 +22,20 @@ const mockAuth = {
   fetchProfile: vi.fn(),
 };
 
+/** The profile document the query hands back. Set per test before rendering. */
+let mockProfile: Record<string, unknown> | undefined = {};
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(useAuth).mockReturnValue(mockAuth as any);
-  mockAuth.fetchProfileData.mockResolvedValue({ profileData: null });
   mockAuth.saveProfileData.mockResolvedValue({});
   mockAuth.fetchWithAuth.mockResolvedValue({});
+  // The hook loads the document through useProfile() rather than by calling
+  // fetchProfileData() on mount -- one source for the form, not two racing ones.
+  mockProfile = {};
+  vi.mocked(useProfile).mockImplementation(
+    () => ({ data: mockProfile, isSuccess: true }) as any
+  );
 });
 
 // ─── buildDefaultProfile ──────────────────────────────────────────────────────

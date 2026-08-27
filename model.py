@@ -13,19 +13,36 @@ Notes:
 - `created_at` fields default to the database server timestamp via `db.func.now()`.
 """
 
+import datetime
+
 from sqlalchemy import DDL, JSON
 from sqlalchemy import event as sa_event
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, CITEXT, JSONB, UUID
+from sqlalchemy.ext.hybrid import hybrid_property
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
+
+#: Part 4.2's `user_role`, spelled the way the system already spells it.
+#:
+#: Part 4.2 writes these as `('job_seeker','recruiter','admin')`. The value
+#: stored, transmitted and gated on today is `job-seeker`, and `src/App.tsx`
+#: gates fifteen routes on `allowedRoles={["job-seeker"]}`, so an underscored
+#: enum would make every protected route reject every user. The tidier SQL
+#: spelling is a wire change and lands with the frontend, not with a rename.
+USER_ROLES = ("job-seeker", "recruiter", "admin")
+
+#: Part 4.2's `user_status`, unchanged. Nothing reads it yet; it is maintained at
+#: the two transitions that already exist in code -- confirmation and tombstoning
+#: -- so the column is true rather than permanently 'pending'.
+USER_STATUSES = ("pending", "active", "suspended", "deleted")
 
 
 class JobRecommendation(db.Model):
     """Represents a scored job recommendation generated for a specific user."""
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     job_id = db.Column(db.Integer, nullable=False)
     score = db.Column(db.Float, nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
@@ -34,26 +51,159 @@ class JobRecommendation(db.Model):
 
 
 class User(db.Model):
-    """Application user record, including auth credentials and profile metadata."""
+    """Application user record, including auth credentials and profile metadata.
 
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(200), nullable=False)
-    name = db.Column(db.String(120))
-    role = db.Column(db.String(50))
+    Part 4.2, as of Phase 2c. The table is `users`: `user` is a reserved word and
+    was quoted in every generated statement (P1-8's first bullet).
+
+    Two shapes here differ from what the API publishes, and both are adapted
+    before anything reaches a response:
+
+    * `email_confirmed_at` is an instant; the wire still publishes
+      `email_confirmed` as a boolean. The derivation is the hybrid below rather
+      than four edits in four serializers, because the same question is asked by
+      callers that are not serializers -- the login gate in `auth_service`, the
+      tombstone in `account_repository`. One derivation cannot disagree with
+      itself.
+    * `public_id` exists and is indexed, and appears in no response and no route.
+      Part 4.1 intends it for URLs and payloads with integer ids never leaving the
+      database, which is right and is a breaking change to every client, so it is
+      its own phase. `tests/test_users_table.py` asserts it stays off the wire.
+    """
+
+    __tablename__ = "users"
+
+    # `BY DEFAULT`, not Part 4.1's `ALWAYS`. `ALWAYS` rejects an explicit id
+    # without `OVERRIDING SYSTEM VALUE`, and `tests/conftest.py::seed_user`
+    # inserts one deliberately -- several tests assert behaviour about a specific
+    # user id. `BY DEFAULT` keeps that fixture ORM-shaped and costs nothing in
+    # production, where nothing supplies an id. The sequence is still the
+    # database's, which is the part that mattered.
+    id = db.Column(db.BigInteger, db.Identity(always=False), primary_key=True)
+    public_id = db.Column(
+        UUID(as_uuid=True), nullable=False, server_default=db.text("uuidv7()")
+    )
+    # CITEXT, so `find_by_email` is case-insensitive in the database rather than
+    # by every caller remembering to lower-case first. Uniqueness is the partial
+    # index in __table_args__, not a column constraint.
+    #
+    # Part 4.2 also declares `email_normalized` for dot/plus-folded dedupe. It is
+    # deliberately absent: folding dots is correct for Gmail and wrong for most
+    # other providers, so a global fold would reject `a.b@fastmail.com` as a
+    # duplicate of `ab@fastmail.com`. Scoping the fold to the domains where it
+    # holds is a product rule with a list to maintain, and it belongs with the
+    # signup flow rather than with a rename.
+    email = db.Column(CITEXT, nullable=False)
+    password_hash = db.Column(db.Text, nullable=False)
+    name = db.Column(db.Text)
+    role = db.Column(
+        db.Enum(*USER_ROLES, name="user_role"),
+        nullable=False,
+        default="job-seeker",
+        server_default="job-seeker",
+    )
+    status = db.Column(
+        db.Enum(*USER_STATUSES, name="user_status"),
+        nullable=False,
+        default="pending",
+        server_default="pending",
+    )
+    #: Not read or written since Phase 2a; kept one release so a rollback is a
+    #: redeploy. The drop is the next release's migration.
     profile_data = db.Column(JSON, default=dict)
 
-    # Email confirmation fields
-    email_confirmed = db.Column(db.Boolean, nullable=False, default=False)
+    # Email confirmation.
+    #
+    # `confirmation_token` and `confirmation_sent_at` are absent from Part 4.2,
+    # which assumes a separate token store alongside `user_sessions`. Neither
+    # exists yet and both columns are live behind `POST /auth/email/verify`, so
+    # they are carried forward rather than dropped -- deleting a live column
+    # because the target diagram does not draw it is deleting a feature by
+    # omission. They move when the token table lands.
+    email_confirmed_at = db.Column(db.DateTime(timezone=True))
     confirmation_token = db.Column(db.String(64), nullable=True, index=True)
-    confirmation_sent_at = db.Column(db.DateTime, nullable=True)
+    confirmation_sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
-    # Password reset via OTP
+    # Password reset via OTP. Carried forward for the same reason.
     reset_token = db.Column(db.String(64), nullable=True)
-    reset_sent_at = db.Column(db.DateTime, nullable=True)
+    reset_sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
-    failed_login_attempts = db.Column(db.Integer, nullable=False, default=0)
-    locked_until = db.Column(db.DateTime)
+    #: Declared by Part 4.2 and not yet maintained. The row that knows a login
+    #: happened is `user_sessions`, which this phase does not create; writing it
+    #: from the login handler would put a write on the login path for a column
+    #: nothing reads.
+    last_login_at = db.Column(db.DateTime(timezone=True))
+    failed_login_count = db.Column(db.SmallInteger, nullable=False, default=0)
+    # TIMESTAMPTZ, where this was `timestamp without time zone`. `domain.utcnow()`
+    # is timezone-aware, so `locked_until > utcnow()` in the login path compared a
+    # naive value against an aware one and raised TypeError the moment a lockout
+    # was actually in force.
+    locked_until = db.Column(db.DateTime(timezone=True))
+
+    #: Part 4.1 rule 4. Enforced by `version_id_col` below, not decorative: every
+    #: UPDATE carries `AND version = <the value read>` and a losing writer raises
+    #: StaleDataError instead of silently overwriting.
+    version = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    #: Never set by this phase. `account_repository.tombstone_user` still frees a
+    #: deleted account's address by rewriting it, so the partial index below
+    #: behaves exactly like the full unique constraint it replaces. Adopting
+    #: soft-delete is a deletion-policy change, not a schema one.
+    deleted_at = db.Column(db.DateTime(timezone=True))
+
+    __mapper_args__ = {"version_id_col": version}
+
+    __table_args__ = (
+        db.Index("uq_users_public_id", "public_id", unique=True),
+        db.Index(
+            "uq_users_email",
+            "email",
+            unique=True,
+            postgresql_where=db.text("deleted_at IS NULL"),
+        ),
+        db.Index(
+            "ix_users_status",
+            "status",
+            postgresql_where=db.text("deleted_at IS NULL"),
+        ),
+    )
+
+    @hybrid_property
+    def email_confirmed(self) -> bool:
+        """Whether this address has been verified.
+
+        The storage is an instant and the wire is a boolean. Reading the boolean
+        from the instant here, once, is what keeps `GET /me` and
+        `GET /auth/session` byte-identical without four serializers each deriving
+        it their own way.
+        """
+        return self.email_confirmed_at is not None
+
+    @email_confirmed.inplace.setter
+    def _email_confirmed_setter(self, value: bool) -> None:
+        """Assigning True stamps the instant; assigning False clears it.
+
+        Re-assigning True leaves an existing instant alone. `confirm_email` sets
+        it once, but a caller that sets it twice means "this is confirmed", not
+        "it was confirmed again just now", and overwriting would quietly move a
+        recorded fact forward.
+        """
+        if value:
+            if self.email_confirmed_at is None:
+                self.email_confirmed_at = datetime.datetime.now(datetime.timezone.utc)
+        else:
+            self.email_confirmed_at = None
+
+    @email_confirmed.inplace.expression
+    @classmethod
+    def _email_confirmed_expression(cls):
+        """So `filter(User.email_confirmed)` means the same thing in SQL."""
+        return cls.email_confirmed_at.isnot(None)
 
 
 class UserIntake(db.Model):
@@ -65,7 +215,7 @@ class UserIntake(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(
-        db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True
+        db.Integer, db.ForeignKey("users.id"), nullable=False, unique=True
     )
     # Screen 1: statement selections
     selected_statement_ids = db.Column(JSON, nullable=False, default=list)
@@ -94,7 +244,7 @@ class AuditLog(db.Model):
     """Tracks user/system actions for auditing, security monitoring, and debugging."""
 
     id = db.Column(db.Integer, primary_key=True)
-    actor_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    actor_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     action = db.Column(db.String(50), nullable=False)
     resource = db.Column(db.String(100), nullable=False)
     ip_address = db.Column(db.String(64))
@@ -116,7 +266,7 @@ class ResumeParseCorrection(db.Model):
     __tablename__ = "resume_parse_correction"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     resume_key = db.Column(db.String(500), nullable=False)
     field = db.Column(db.String(50), nullable=False)  # "experience", "education", or "skills"
     parsed_value = db.Column(JSON, nullable=True)   # what the parser originally produced
@@ -227,7 +377,7 @@ class AssessmentResponse(db.Model):
     __tablename__ = "assessment_response"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     submission_id = db.Column(db.String(36), nullable=False, index=True)
     item_id = db.Column(db.String(64), nullable=False)
     choice = db.Column(db.String(8), nullable=False)
@@ -260,7 +410,7 @@ class PersonDimensionScore(db.Model):
     __tablename__ = "person_dimension_score"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     dimension_key = db.Column(db.String(32), nullable=False)
     score = db.Column(db.Float, nullable=False)
     # Internal consistency of the four items. Nullable because the confidence measure is not
@@ -435,7 +585,7 @@ class MatchRecommendation(db.Model):
     __tablename__ = "match_recommendation"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False, index=True)
     model_run_id = db.Column(db.Integer, db.ForeignKey("model_run.id"), nullable=True)
     p_fit = db.Column(db.Float, nullable=True)
@@ -519,7 +669,7 @@ class OutcomeExperienced(db.Model):
     __tablename__ = "outcome_experienced"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
     recommendation_id = db.Column(
         db.Integer, db.ForeignKey("match_recommendation.id"), nullable=True
@@ -591,7 +741,7 @@ class Profile(db.Model):
 
     user_id = db.Column(
         db.BigInteger,
-        db.ForeignKey("user.id", ondelete="CASCADE"),
+        db.ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
     )
     headline = db.Column(db.Text)
@@ -638,7 +788,7 @@ class ProfileExperience(db.Model):
         UUID(as_uuid=True), nullable=False, server_default=db.text("uuidv7()")
     )
     user_id = db.Column(
-        db.BigInteger, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+        db.BigInteger, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     company_name = db.Column(db.Text, nullable=False)
     title = db.Column(db.Text, nullable=False)
@@ -676,7 +826,7 @@ class ProfileEducation(db.Model):
         UUID(as_uuid=True), nullable=False, server_default=db.text("uuidv7()")
     )
     user_id = db.Column(
-        db.BigInteger, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+        db.BigInteger, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     institution = db.Column(db.Text, nullable=False)
     degree = db.Column(db.Text)
@@ -740,7 +890,7 @@ class ProfileSkill(db.Model):
 
     user_id = db.Column(
         db.BigInteger,
-        db.ForeignKey("user.id", ondelete="CASCADE"),
+        db.ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
     )
     skill_id = db.Column(db.BigInteger, db.ForeignKey("skills.id"), primary_key=True)
@@ -781,7 +931,7 @@ class Resume(db.Model):
         UUID(as_uuid=True), nullable=False, server_default=db.text("uuidv7()")
     )
     user_id = db.Column(
-        db.BigInteger, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+        db.BigInteger, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     object_key = db.Column(db.Text, nullable=False)
     #: Nullable, unlike Part 4.3. A blob that recorded `resumeKey` without an
@@ -807,15 +957,21 @@ class Resume(db.Model):
 # Attached per table rather than declared once because a trigger is DDL and has
 # to be emitted after the table it fires on -- for `db.create_all()` in the tests
 # and for the migration alike.
-for _phase2a_table in (
+#
+# `users` joins the list in Phase 2c. P1-8's fourth bullet is that several tables
+# have an `updated_at` with only a `server_default`, which never fires on UPDATE
+# and makes the column a second `created_at`. That is fixed here for this table;
+# the remaining ones are named in P1-8 and are not this phase's.
+for _triggered_table in (
+    User.__table__,
     Profile.__table__,
     ProfileExperience.__table__,
     ProfileEducation.__table__,
     ProfileSkill.__table__,
 ):
     sa_event.listen(
-        _phase2a_table,
+        _triggered_table,
         "after_create",
-        DDL(_updated_at_trigger(_phase2a_table.name)).execute_if(dialect="postgresql"),
+        DDL(_updated_at_trigger(_triggered_table.name)).execute_if(dialect="postgresql"),
     )
-del _phase2a_table
+del _triggered_table

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   fetchWithAuth: vi.fn(),
   user: null as any,
+  profile: {} as Record<string, unknown>,
   setCachedResult: vi.fn(),
   mmState: {
     cachedResult: null as MMResult | null,
@@ -31,6 +32,14 @@ vi.mock("../../hooks/useMM", () => ({
   }),
 }));
 
+// The stored result comes from the profile query rather than off `user`.
+vi.mock("../../hooks/useProfile", () => ({
+  // The query hook, resolved. `isLoading: false` is the point: consumers
+  // branch on it, and a mock that omitted it would report undefined --
+  // falsy, so the branches would run, but by accident rather than intent.
+  useProfile: () => ({ data: mocks.profile, isLoading: false }),
+}));
+
 const MOCK_RESULT: MMResult = {
   archetype: "The Autonomist",
   archetype_description: "You do your best work with clear goals and minimal oversight.",
@@ -48,6 +57,7 @@ const MOCK_RESULT: MMResult = {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.user = null;
+  mocks.profile = {};
   mocks.mmState = { cachedResult: null };
 });
 
@@ -129,8 +139,8 @@ describe("ManagerMatchResultsPage - fetch on mount", () => {
     );
   });
 
-  it("uses profileData result when no cached result but profileData has manager_match_result", async () => {
-    mocks.user = { profileData: { manager_match_result: MOCK_RESULT } };
+  it("uses the cached profile result when useMM has none", async () => {
+    mocks.profile = { manager_match_result: MOCK_RESULT };
     render(<ManagerMatchResultsPage />);
     expect(screen.getByRole("heading", { name: "The Autonomist" })).toBeInTheDocument();
     expect(mocks.fetchWithAuth).not.toHaveBeenCalled();

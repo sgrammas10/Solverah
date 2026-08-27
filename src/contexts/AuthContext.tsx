@@ -18,26 +18,28 @@
  *   of children to prevent flicker on protected routes.
  */
 import { useState, useEffect, ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { AuthContext, ProfileData, SessionResponse, User } from "./authContext";
+import { profileKeys, seedProfileCache } from "../hooks/useProfile";
 import { API_BASE } from "../utils/api";
 import { parseApiError } from "../utils/apiError";
 
 
 /**
- * Assemble the `User` the app reads from the two resources that now serve it.
+ * Assemble the `User` the app reads from the session probe alone.
  *
- * GET /auth/session returns `{ user, csrf_token, flags }` and GET /me/profile
- * returns `{ profile }`. Keeping the seam here rather than at every consumer is
- * the point of splitting at the API boundary: the shape the components see is
- * unchanged, so the endpoint redesign did not have to reach into them -- and
- * when Phase 2 decomposes `profile_data` into columns, this is again the only
- * place that has to know.
+ * GET /auth/session returns `{ user, csrf_token, flags }`, and as of Phase 4a
+ * that is the whole of it. This function is the seam the Phase 1b endpoint
+ * split left behind: because the shape components saw was assembled here, the
+ * redesign did not have to reach into them, and neither does this one. The
+ * profile document it used to fold in now lives in its own query -- see
+ * `hooks/useProfile.ts` -- so the boot path no longer has to wait on data the
+ * app shell does not render.
  */
-function toUser(session: SessionResponse, profile?: ProfileData): User {
+function toUser(session: SessionResponse): User {
   return {
     ...(session.user as unknown as User),
-    profileData: profile ?? {},
     wpl_completed: session.flags.wpl_completed,
     wpll_completed: session.flags.wpll_completed,
     wp_v2_completed: session.flags.wp_v2_completed,
@@ -45,44 +47,54 @@ function toUser(session: SessionResponse, profile?: ProfileData): User {
 }
 
 
+/**
+ * Strip the profile document off a login response's user envelope.
+ *
+ * `POST /auth/login` still returns `profileData` inside `user` -- the wire is
+ * unchanged and deliberately so. It simply is not part of the `User` the app
+ * holds any more, so it is split out here and seeded into the query cache
+ * instead of being carried in auth state.
+ */
+function splitLoginUser(
+  raw: User & { profileData?: ProfileData },
+): { user: User; profile: ProfileData | undefined } {
+  const { profileData, ...rest } = raw;
+  return { user: rest, profile: profileData };
+}
+
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [csrfToken, setCsrfToken] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   // Restore session automatically using secure cookies.
   //
-  // Phase 1b split the endpoint this used to call. GET /profile returned
-  // identity, the whole profile_data blob, the CSRF token and three completion
-  // flags in one document, and committed an AuditLog row on the way out -- a
-  // write on the hottest read in the system, on every page load, for data the
-  // app shell does not render (P0-3).
+  // One request. Phase 1b split the endpoint this used to call -- GET /profile
+  // returned identity, the whole profile_data blob, the CSRF token and three
+  // completion flags in one document, and committed an AuditLog row on the way
+  // out, a write on the hottest read in the system on every page load, for data
+  // the app shell does not render (P0-3). That split produced GET /auth/session,
+  // which writes nothing.
   //
-  // It is now two resources: GET /auth/session for identity, the CSRF token and
-  // the flags, which writes nothing; and GET /me/profile for the blob. They are
-  // issued together so a restore is still one round trip's latency rather than
-  // two.
-  //
-  // Fetching the profile here at all is transitional. It is on the boot path
-  // only because the `User` type still carries `profileData` and six components
-  // read it off the user object. When Phase 4 moves those onto their own
-  // queries, deleting the second request from this Promise.all is what finishes
-  // P0-3 on the client -- the split it needs has already happened.
+  // The blob kept riding along in a Promise.all here for one reason: the `User`
+  // type carried `profileData` and six components read it off the user object.
+  // Phase 4a moved those onto `useProfile()`, so the second request is gone and
+  // P0-3 is finished on the client. Anything that wants the document now asks
+  // for it, on the screen that renders it, and gets a cached answer if another
+  // screen already did.
   useEffect(() => {
     (async () => {
       try {
-        const [sessionRes, profileRes] = await Promise.all([
-          fetch(`${API_BASE}/auth/session`, { method: "GET", credentials: "include" }),
-          fetch(`${API_BASE}/me/profile`, { method: "GET", credentials: "include" }),
-        ]);
+        const sessionRes = await fetch(`${API_BASE}/auth/session`, {
+          method: "GET",
+          credentials: "include",
+        });
 
         if (sessionRes.ok) {
           const session = await sessionRes.json();
-          // A failed profile read must not fail the restore: the session is
-          // valid either way, and a signed-in user with an empty profile is a
-          // recoverable state where a logged-out one is not.
-          const profile = profileRes.ok ? await profileRes.json() : null;
-          setUser(toUser(session, profile?.profile));
+          setUser(toUser(session));
           // Read CSRF token from response body (cookie is inaccessible cross-origin)
           if (session.csrf_token) {
             setCsrfToken(session.csrf_token);
@@ -161,8 +173,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const loginWithData = (userData: User, token: string) => {
-    setUser(userData);
+    const { user: identity, profile } = splitLoginUser(userData);
+    setUser(identity);
     setCsrfToken(token);
+    // OTP sign-in returns the summary user, which carries no profileData (see
+    // PasswordResetVerifyResponse). Seeding `undefined` would pin an empty
+    // document into the cache and suppress the first real fetch, so only a
+    // response that actually carried one writes through.
+    if (profile) {
+      seedProfileCache(queryClient, profile);
+    }
   };
 
   // LOGIN — backend sets an HttpOnly JWT cookie
@@ -185,8 +205,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Unexpected response from server (no JSON body).");
     }
 
-    const userData = data.user as User;
+    // The login envelope still carries the profile document. It goes to the
+    // query cache rather than into auth state, so the first screen that renders
+    // it does not pay for a request the sign-in already answered.
+    const { user: userData, profile } = splitLoginUser(data.user);
     setUser(userData);
+    seedProfileCache(queryClient, profile);
 
     // Read CSRF token from response body (cookie is inaccessible cross-origin)
     if (data.csrfToken) {
@@ -233,47 +257,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setUser(null);
       setCsrfToken(null);
+      // The cached profile document belongs to the session that just ended. It
+      // must not survive into the next sign-in on this tab.
+      queryClient.removeQueries({ queryKey: profileKeys.all });
     }
   };
 
 
-  /** Refetch the full User object and sync local state.
+  /** Refetch identity and flags, and mark the profile document stale.
    *
-   * Two requests since the Phase 1b split, for the reason in the restore effect
-   * above: identity and flags come from the session probe, the blob from the
-   * profile resource.
+   * One request now. The session probe is the only source of what `User` holds;
+   * the document is refetched by whichever mounted `useProfile()` needs it,
+   * which is nobody on a screen that does not render it.
    */
   const fetchProfile = async () => {
-    const [session, profile] = await Promise.all([
-      fetchWithAuth<SessionResponse>("/auth/session", { method: "GET" }),
-      fetchWithAuth<{ profile?: ProfileData }>("/me/profile", { method: "GET" }),
-    ]);
-    setUser(toUser(session, profile.profile));
+    const session = await fetchWithAuth<SessionResponse>("/auth/session", { method: "GET" });
+    setUser(toUser(session));
+    await queryClient.invalidateQueries({ queryKey: profileKeys.all });
   };
 
-  /** Fetch only the profileData portion of the user's profile.
+  /** Read the profile document, through the cache.
    *
-   * One request now rather than a whole user document -- this is what the split
-   * buys a caller that only wants the blob.
+   * Kept on the context for the four quiz components that read-modify-write the
+   * document imperatively inside a submit handler, where a hook cannot be
+   * called. `fetchQuery` -- not a bare fetch -- so those callers share the same
+   * cached copy as every `useProfile()` consumer instead of opening a second,
+   * invisible one.
    */
   const fetchProfileData = async () => {
-    const data = await fetchWithAuth<{ profile?: ProfileData }>("/me/profile", {
-      method: "GET",
+    const profile = await queryClient.fetchQuery<ProfileData>({
+      queryKey: profileKeys.document(),
+      queryFn: async () => {
+        const data = await fetchWithAuth<{ profile?: ProfileData }>("/me/profile", {
+          method: "GET",
+        });
+        return data.profile ?? {};
+      },
     });
-    return { profileData: data.profile };
+    return { profileData: profile };
   };
 
   /** Persist updated profileData (PATCH /api/v1/me/profile).
    *
    * Still a merge, not a replace: the server folds these keys over the stored
-   * document. The return shape is adapted to `{ profileData }` so the callers
-   * that read it do not each need to know the wire name changed.
+   * document. The server's copy of the result replaces the cache, so anything
+   * the write allowlist dropped or normalised is what consumers see next.
    */
   const saveProfileData = async (profileData: ProfileData) => {
     const data = await fetchWithAuth<{ profile?: ProfileData }>("/me/profile", {
       method: "PATCH",
       body: JSON.stringify({ profile: profileData }),
     });
+    queryClient.setQueryData<ProfileData>(profileKeys.document(), data.profile ?? {});
     return { profileData: data.profile };
   };
 
@@ -286,14 +321,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /**
-   * Shallow-merge partial profileData into the in-memory User.
-   * Useful for updating quiz results or other profile fields after a save
-   * without re-fetching the entire profile.
+   * Shallow-merge partial profileData into the cached document.
+   *
+   * Same contract as before -- a merge, no round trip -- but the target is the
+   * query cache rather than a field on `User`. That is what keeps this working
+   * across the move: FocusTypePage still writes its result here on submit, and
+   * FocusTypeResultsPage still finds it, now via `useProfile()`.
    */
   const updateProfileData = (profileData: ProfileData) => {
-    setUser((prev) =>
-      prev ? { ...prev, profileData: { ...(prev.profileData || {}), ...profileData } } : prev
-    );
+    queryClient.setQueryData<ProfileData>(profileKeys.document(), (prev) => ({
+      ...(prev ?? {}),
+      ...profileData,
+    }));
   };
 
 

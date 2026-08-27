@@ -58,7 +58,7 @@ def _make_user(email="keep@example.com", profile=None):
     from model import User, db
     from solverah.repositories import profile_repository
 
-    user = User(email=email, password="x")
+    user = User(email=email, password_hash="x")
     db.session.add(user)
     # Flushed rather than committed so the profile write below has an id to
     # hang rows off; both land in the one commit at the end.

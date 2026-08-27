@@ -1,7 +1,9 @@
 import { render, screen, waitFor, act } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "../AuthContext.tsx";
 import { useAuth } from "../useAuth";
-import type { AuthContextType } from "../authContext";
+import type { AuthContextType, ProfileData } from "../authContext";
+import { profileKeys } from "../../hooks/useProfile";
 
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch as any;
@@ -35,25 +37,38 @@ function sessionBody(overrides: Record<string, any> = {}) {
 /**
  * Index of the first fetch a test makes after the restore has settled.
  *
- * The restore issues two requests, so anything a test does afterwards starts at
- * call 2. Named rather than written as a literal because getting it wrong reads
- * as an assertion about the wrong request.
+ * Phase 4a took the restore down to a single request -- the profile document
+ * moved to its own query -- so anything a test does afterwards starts at call 1.
+ * Named rather than written as a literal because getting it wrong reads as an
+ * assertion about the wrong request.
  */
-const FIRST_CALL_AFTER_RESTORE = 2;
+const FIRST_CALL_AFTER_RESTORE = 1;
+
+/** The client the most recent `mountAuth` rendered with, for cache assertions. */
+let currentClient: QueryClient;
+
+/** Whatever is cached under the profile document key right now. */
+function cachedProfile(): ProfileData | undefined {
+  return currentClient.getQueryData<ProfileData>(profileKeys.document());
+}
 
 // Renders AuthProvider and waits for the loading phase to finish.
 // Returns the captured context value once the Probe component mounts.
 async function mountAuth(sessionResponse: { ok: boolean; data?: any; profile?: any }) {
-  // Two responses, in the order Promise.all invokes them: the session probe,
-  // then the profile resource.
+  // One response: the session probe. The restore no longer fetches the profile.
   mockFetch.mockResolvedValueOnce({
     ok: sessionResponse.ok,
     json: () => Promise.resolve(sessionResponse.data ?? {}),
   });
-  mockFetch.mockResolvedValueOnce({
-    ok: sessionResponse.ok,
-    json: () => Promise.resolve({ profile: sessionResponse.profile ?? {} }),
+
+  // Retries off and gcTime zero: a test asserting on a rejected query should see
+  // the failure on the first attempt rather than after the default backoff.
+  currentClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
+  if (sessionResponse.profile !== undefined) {
+    currentClient.setQueryData(profileKeys.document(), sessionResponse.profile);
+  }
 
   const ctxRef = { current: null as AuthContextType | null };
 
@@ -64,9 +79,11 @@ async function mountAuth(sessionResponse: { ok: boolean; data?: any; profile?: a
   }
 
   render(
-    <AuthProvider>
-      <Probe />
-    </AuthProvider>
+    <QueryClientProvider client={currentClient}>
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 
   await waitFor(() => screen.getByTestId("ready"));
@@ -117,7 +134,11 @@ describe("AuthProvider - session restore", () => {
       return <span data-testid="ready" />;
     }
 
-    render(<AuthProvider><Probe /></AuthProvider>);
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <AuthProvider><Probe /></AuthProvider>
+      </QueryClientProvider>
+    );
     await waitFor(() => screen.getByTestId("ready"));
     expect(ctxRef.current!.user).toBeNull();
   });
@@ -276,7 +297,7 @@ describe("AuthProvider - optimistic updates", () => {
     expect(ctx.user?.profileComplete).toBe(true);
   });
 
-  it("updateProfileData merges new profile data", async () => {
+  it("updateProfileData merges into the cached profile document", async () => {
     const ctx = await mountAuth({
       ok: true,
       data: sessionBody(),
@@ -285,7 +306,116 @@ describe("AuthProvider - optimistic updates", () => {
 
     act(() => { ctx.updateProfileData({ lastName: "Lovelace" } as any); });
 
-    expect((ctx.user?.profileData as any)?.lastName).toBe("Lovelace");
-    expect((ctx.user?.profileData as any)?.firstName).toBe("Ada");
+    // The merge target moved from `user.profileData` to the query cache in
+    // Phase 4a. The contract is otherwise unchanged: a shallow merge that
+    // preserves keys it was not given.
+    expect((cachedProfile() as any)?.lastName).toBe("Lovelace");
+    expect((cachedProfile() as any)?.firstName).toBe("Ada");
+  });
+});
+
+// -- The boot path ------------------------------------------------------------
+
+describe("AuthProvider - session restore issues one request", () => {
+  /**
+   * The exit condition for Phase 4a, asserted directly.
+   *
+   * The restore used to Promise.all the session probe with GET /me/profile,
+   * because `User` carried `profileData` and six components read it off the user
+   * object. Both are gone, and this fails if either comes back: the second
+   * request was a read of data the app shell does not render, on the critical
+   * path of every page load (P0-3).
+   */
+  it("calls /auth/session and nothing else", async () => {
+    await mountAuth({ ok: true, data: sessionBody() });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(String(mockFetch.mock.calls[0][0])).toContain("/auth/session");
+  });
+
+  it("does not fetch the profile document on boot", async () => {
+    await mountAuth({ ok: true, data: sessionBody() });
+
+    const urls = mockFetch.mock.calls.map((call: any[]) => String(call[0]));
+    expect(urls.some((url) => url.includes("/me/profile"))).toBe(false);
+  });
+
+  it("leaves the profile cache untouched by the restore", async () => {
+    await mountAuth({ ok: true, data: sessionBody() });
+
+    // Nothing seeded it, and boot must not: the document is fetched by the
+    // screens that render it, through useProfile().
+    expect(cachedProfile()).toBeUndefined();
+  });
+});
+
+// -- login seeds the profile cache --------------------------------------------
+
+describe("AuthProvider - login and the profile cache", () => {
+  /**
+   * `POST /auth/login` still returns the profile document inside its user
+   * envelope (SessionUser in solverah/schemas/auth.py). Dropping the boot fetch
+   * would only move that request to the first screen that renders the document
+   * unless the login response is written through to the cache.
+   */
+  it("seeds the cached profile document from the login response", async () => {
+    const ctx = await mountAuth({ ok: false });
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        user: {
+          id: "2", email: "ada@example.com", name: "Ada", role: "job-seeker",
+          profileComplete: false,
+          profileData: { firstName: "Ada", skills: ["Python"] },
+        },
+        csrfToken: "tok-login",
+      }),
+    });
+
+    await act(async () => { await ctx.login("ada@example.com", "password123"); });
+
+    expect(cachedProfile()).toEqual({ firstName: "Ada", skills: ["Python"] });
+  });
+
+  it("keeps profileData off the User object", async () => {
+    const ctx = await mountAuth({ ok: false });
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        user: {
+          id: "2", email: "ada@example.com", name: "Ada", role: "job-seeker",
+          profileComplete: false,
+          profileData: { firstName: "Ada" },
+        },
+        csrfToken: "tok-login",
+      }),
+    });
+
+    let returned: any;
+    await act(async () => { returned = await ctx.login("ada@example.com", "password123"); });
+
+    expect(returned).not.toHaveProperty("profileData");
+    expect(ctx.user).not.toHaveProperty("profileData");
+  });
+});
+
+// -- logout clears cached server state -----------------------------------------
+
+describe("AuthProvider - logout drops the cached profile", () => {
+  it("removes the profile document so it cannot outlive the session", async () => {
+    const ctx = await mountAuth({
+      ok: true,
+      data: sessionBody(),
+      profile: { firstName: "Ada" },
+    });
+    expect(cachedProfile()).toEqual({ firstName: "Ada" });
+
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) });
+    await act(async () => { await ctx.logout(); });
+
+    // A second sign-in on this tab must not see the first user's document.
+    expect(cachedProfile()).toBeUndefined();
   });
 });

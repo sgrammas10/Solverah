@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   fetchWithAuth: vi.fn(),
   updateProfileData: vi.fn(),
   user: null as any,
+  profile: {} as Record<string, unknown>,
   locationState: null as any,
 }));
 
@@ -21,6 +22,14 @@ vi.mock("../../contexts/useAuth", () => ({
     updateProfileData: mocks.updateProfileData,
     user: mocks.user,
   }),
+}));
+
+// The saved result comes from the profile query now, not off `user`.
+vi.mock("../../hooks/useProfile", () => ({
+  // The query hook, resolved. `isLoading: false` is the point: consumers
+  // branch on it, and a mock that omitted it would report undefined --
+  // falsy, so the branches would run, but by accident rather than intent.
+  useProfile: () => ({ data: mocks.profile, isLoading: false }),
 }));
 
 vi.mock("../../components/focustype/Scene1", () => ({
@@ -52,6 +61,7 @@ vi.mock("../../components/focustype/Scene5", () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.user = null;
+  mocks.profile = {};
   mocks.locationState = null;
 });
 
@@ -67,13 +77,11 @@ function renderFocusTypePage(state?: object) {
 
 describe("FocusTypePage - navigation guard", () => {
   it("redirects to /focus-type/results when user already has a saved result", async () => {
-    mocks.user = {
-      profileData: {
-        focus_type_result: {
-          archetype: "Deep Diver",
-          dimension_scores: {},
-          recommendations: [],
-        },
+    mocks.profile = {
+      focus_type_result: {
+        archetype: "Deep Diver",
+        dimension_scores: {},
+        recommendations: [],
       },
     };
     renderFocusTypePage();
@@ -86,10 +94,8 @@ describe("FocusTypePage - navigation guard", () => {
   });
 
   it("does not redirect when retake=true even with saved result", async () => {
-    mocks.user = {
-      profileData: {
-        focus_type_result: { archetype: "Deep Diver", dimension_scores: {}, recommendations: [] },
-      },
+    mocks.profile = {
+      focus_type_result: { archetype: "Deep Diver", dimension_scores: {}, recommendations: [] },
     };
     renderFocusTypePage({ retake: true });
     await waitFor(() => expect(screen.getByText(/Discover how you actually focus/i)).toBeInTheDocument());

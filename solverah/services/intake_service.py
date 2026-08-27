@@ -254,7 +254,7 @@ def create_account(
 
     new_user = User(
         email=intake.email.lower(),
-        password=hashed_pw,
+        password_hash=hashed_pw,
         name=full_name,
         role=role,
         email_confirmed=False,
@@ -328,15 +328,15 @@ def sign_in(data: Dict[str, Any], *, check_password) -> IntakeResult:
     if user.locked_until and user.locked_until > auth_domain.utcnow():
         return _error(423, "Account locked. Try again later.")
 
-    if not check_password(user.password, password):
-        user.failed_login_attempts += 1
-        if user.failed_login_attempts >= MAX_LOGIN_ATTEMPTS:
+    if not check_password(user.password_hash, password):
+        user.failed_login_count += 1
+        if user.failed_login_count >= MAX_LOGIN_ATTEMPTS:
             user.locked_until = auth_domain.lockout_until(LOGIN_LOCKOUT_MINUTES)
-            user.failed_login_attempts = 0
+            user.failed_login_count = 0
         db.session.commit()
         return _error(401, "Invalid credentials")
 
-    user.failed_login_attempts = 0
+    user.failed_login_count = 0
     user.locked_until = None
 
     if not getattr(user, "email_confirmed", False):

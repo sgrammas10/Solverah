@@ -1,20 +1,20 @@
-"""Reads and writes for the ``user`` table.
+"""Reads and writes for the ``users`` table.
 
 Every query against ``User`` that used to sit inline in a handler lives here.
-Collecting them is what makes the Phase 2 changes to this table -- renaming it to
-``users``, adding ``public_id``/``status``/``version``, moving to a ``citext``
-email column -- a change to one file rather than a search across 4,000 lines.
+Collecting them is what made Phase 2c -- renaming the table to ``users``, adding
+``public_id``/``status``/``version``, moving to a ``citext`` email column -- a
+change to one file rather than a search across 4,000 lines.
 
-Two things the current shape gets wrong, carried forward unchanged because
-Phase 1a does not alter behaviour:
+Both things this file previously called out as wrong are fixed as of Phase 2c
+(2026-08-27):
 
-* Lookups are ``filter_by(email=...)`` against a case-sensitive column, so every
-  caller has to remember to lower-case first.  Phase 2's ``citext`` column and
-  its partial unique index remove that footgun; until then
-  :func:`find_by_email` does the normalising in one place so no caller can
-  forget.
-* The table is literally named ``user``, a reserved word in Postgres, so it is
-  quoted in every generated statement.
+* The email column is ``CITEXT``, so a lookup is case-insensitive in the database
+  rather than by every caller remembering to lower-case first.
+  :func:`find_by_email` still normalises, and deliberately: registration stores a
+  lower-cased address, and having the read agree with the write costs one
+  ``.lower()`` and removes the question of which of the two is authoritative.
+* The table is ``users``.  ``user`` is a reserved word and was quoted in every
+  generated statement (P1-8's first bullet).
 """
 
 from __future__ import annotations

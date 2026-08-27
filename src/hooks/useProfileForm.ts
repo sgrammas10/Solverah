@@ -17,6 +17,7 @@
  */
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/useAuth";
+import { useProfile } from "./useProfile";
 import { ProfileFormData, PendingResumeUpload, SkillLevel, Certification } from "../types/profile";
 
 // Per-collection limits enforced in the UI to prevent unreasonably large profiles.
@@ -107,10 +108,15 @@ export function useProfileForm() {
     user,
     updateProfile,
     updateProfileData,
-    fetchProfileData,
     saveProfileData,
     fetchWithAuth,
   } = useAuth();
+
+  // The profile document, from the query rather than off `user`. This hook used
+  // to do both -- read `user.profileData` in one effect and call
+  // fetchProfileData() in another, racing to populate the same form state from
+  // two copies of the same document. One source now.
+  const { data: profile, isSuccess: profileLoaded } = useProfile();
 
   const [formData, setFormData] = useState<ProfileFormData>(() =>
     buildDefaultProfile(user ?? undefined)
@@ -149,46 +155,46 @@ export function useProfileForm() {
     return () => clearInterval(timer);
   }, [isUploadingResume]);
 
-  // Sync form when user context updates
+  // Populate the form from the fetched document.
+  //
+  // Gated on isSuccess rather than on `profile` being truthy: while the query is
+  // still in flight `profile` is undefined, and treating that as "no profile"
+  // is what would blank a populated form for one render on every mount.
   useEffect(() => {
-    if (user?.profileData) {
+    if (!profileLoaded) return;
+    if (profile && Object.keys(profile).length > 0) {
       setFormData((curr) => ({
         ...curr,
-        ...(user.profileData as Partial<ProfileFormData>),
+        ...normalizeProfileData(profile as Partial<ProfileFormData>),
       }));
     } else {
       setFormData(buildDefaultProfile(user ?? undefined));
     }
-  }, [user]);
+  }, [profile, profileLoaded, user]);
 
-  // Load profile from backend on mount
+  // Backfill identity from the session for a document that does not carry it.
+  //
+  // `normalizeProfileData` writes `undefined` for every key the document is
+  // missing, so a stored profile with no firstName blanks the one the session
+  // knows. `||` rather than `??`: an empty string is the same nothing as
+  // undefined here, and both should fall back.
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        if (fetchProfileData) {
-          const data = await fetchProfileData();
-          if (data?.profileData) {
-            setFormData((curr) => ({
-              ...curr,
-              ...normalizeProfileData(data.profileData as Partial<ProfileFormData>),
-            }));
-          } else {
-            setFormData(buildDefaultProfile(user ?? undefined));
-          }
-        }
-      } catch (err) {
-        console.error("Error loading profile:", err);
-      }
-    };
-    loadProfile();
-  }, [fetchProfileData, user]);
+    if (!user) return;
+    const defaults = buildDefaultProfile(user);
+    setFormData((curr) => ({
+      ...curr,
+      firstName: curr.firstName || defaults.firstName,
+      lastName: curr.lastName || defaults.lastName,
+      email: curr.email || defaults.email,
+    }));
+  }, [user]);
 
   // Mark resume as uploaded if profile has one
   useEffect(() => {
-    if ((user?.profileData as any)?.uploadedResume) {
+    if ((profile as any)?.uploadedResume) {
       setResumeUploaded(true);
     }
-  }, [user?.profileData]);
+  }, [profile]);
 
   // Warn before leaving with unsaved changes
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/useAuth";
+import { useProfile } from "../hooks/useProfile";
 import type { PathSuggestionsResponse } from "../types/pathIntelligence";
 import PathSuggestionList from "../components/PathIntelligence/PathSuggestionList";
 import PathPreferencesForm from "../components/PathIntelligence/PathPreferencesForm";
@@ -67,13 +68,14 @@ function CareerStatusOnboardingPrompt() {
 
 export default function PathIntelligencePage() {
   const navigate = useNavigate();
-  const { fetchWithAuth, user } = useAuth();
+  const { fetchWithAuth } = useAuth();
+  const { data: profile, isLoading: profileLoading } = useProfile();
   const experience =
-    (user?.profileData?.experience as Array<{ position?: string }> | undefined) ?? [];
+    (profile?.experience as Array<{ position?: string }> | undefined) ?? [];
   const currentTitle = experience[0]?.position ?? null;
-  const userSkills = (user?.profileData?.["skills"] as string[] | undefined) ?? [];
-  const skillLevels = (user?.profileData?.["skill_levels"] as Record<string, string> | undefined) ?? {};
-  const proficiencyConfirmed = user?.profileData?.["skills_proficiency_confirmed"] as boolean | undefined;
+  const userSkills = (profile?.["skills"] as string[] | undefined) ?? [];
+  const skillLevels = (profile?.["skill_levels"] as Record<string, string> | undefined) ?? {};
+  const proficiencyConfirmed = profile?.["skills_proficiency_confirmed"] as boolean | undefined;
 
   const [fetchState, setFetchState] = useState<FetchState>("loading");
   const [data, setData] = useState<PathSuggestionsResponse | null>(null);
@@ -102,12 +104,12 @@ export default function PathIntelligencePage() {
   }, [fetchWithAuth]);
 
   const proceedAfterProficiency = useCallback(() => {
-    if (!user?.profileData?.path_preferences) {
+    if (!profile?.path_preferences) {
       setFetchState("needs_preferences");
     } else {
       fetchSuggestions();
     }
-  }, [user, fetchSuggestions]);
+  }, [profile, fetchSuggestions]);
 
   const handleProficiencySave = async (levels: Record<string, string>) => {
     setProficiencySaving(true);
@@ -139,18 +141,24 @@ export default function PathIntelligencePage() {
   };
 
   useEffect(() => {
+    // Every branch below reads the profile document. Running before it arrives
+    // would see no skills and no path_preferences and send a user who has both
+    // to the preferences form -- the failure this gate exists to prevent.
+    if (profileLoading) return;
     if (!hasFiredRef.current) {
       hasFiredRef.current = true;
       if (userSkills.length > 0 && proficiencyConfirmed !== true) {
         setShowProficiencyModal(true);
         // Don't set fetchState here — modal controls what happens next
-      } else if (!user?.profileData?.path_preferences) {
+      } else if (!profile?.path_preferences) {
         setFetchState("needs_preferences");
       } else {
         fetchSuggestions();
       }
     }
-  }, []); // intentionally runs once on mount; hasFiredRef guards against Strict Mode double-fire
+  // Runs once the profile settles; hasFiredRef guards against Strict Mode's
+  // double-invoke and against a later re-render firing it again.
+  }, [profileLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>

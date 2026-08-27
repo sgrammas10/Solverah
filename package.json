@@ -7,6 +7,7 @@
         "dev": "vite",
         "build": "vite build",
         "lint": "eslint .",
+        "type-check": "tsc -b",
         "preview": "vite preview",
         "test": "vitest"
     },
@@ -14,6 +15,7 @@
         "@dnd-kit/core": "^6.3.1",
         "@dnd-kit/sortable": "^10.0.0",
         "@dnd-kit/utilities": "^3.2.2",
+        "@tanstack/react-query": "^5.62.0",
         "@types/node": "^24.3.0",
         "json2csv": "^6.0.0-alpha.2",
         "lucide-react": "^0.344.0",

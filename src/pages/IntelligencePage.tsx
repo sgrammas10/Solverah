@@ -5,6 +5,7 @@ import { useWP } from "../hooks/useWP";
 import type { WpApiResponse } from "../hooks/useWP";
 import { useAuth } from "../contexts/useAuth";
 import { useProfileForm } from "../hooks/useProfileForm";
+import { useProfile } from "../hooks/useProfile";
 import AssessmentsTab from "../components/profile/AssessmentsTab";
 import type { FocusTypeResult } from "./FocusTypePage";
 import { useMM } from "../hooks/useMM";
@@ -45,9 +46,10 @@ export default function IntelligencePage() {
 
   const { state: mmState } = useMM();
 
-  const focusTypeResult = user?.profileData?.focus_type_result as FocusTypeResult | undefined;
+  const { data: profile, isLoading: profileLoading } = useProfile();
+  const focusTypeResult = profile?.focus_type_result as FocusTypeResult | undefined;
   const managerMatchResult =
-    mmState.cachedResult ?? (user?.profileData?.manager_match_result as MMResult | undefined);
+    mmState.cachedResult ?? (profile?.manager_match_result as MMResult | undefined);
 
   const fetchFromServer = useCallback(async () => {
     setFetchState("loading");
@@ -71,7 +73,11 @@ export default function IntelligencePage() {
   // Re-runs when wpl_completed flips true (e.g. user navigated here mid-submission via the header)
   }, [user?.wpl_completed]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (fetchState === "loading") {
+  // profileLoading joins the existing gate rather than getting its own branch:
+  // the FocusType and ManagerMatch cards below render straight off the document,
+  // and showing "Start FocusType" to someone who has finished it -- for the one
+  // render before the query resolves -- is a worse artefact than a spinner.
+  if (fetchState === "loading" || profileLoading) {
     return (
       <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
         <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />

@@ -24,9 +24,11 @@
  */
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { useAuth } from "./contexts/useAuth";
 import Header from "./components/Header";
+import { createQueryClient } from "./utils/queryClient";
 
 // Quiz Components
 import CareerQuizzes from "./components/CareerQuizzes";
@@ -143,9 +145,20 @@ function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * The app's query client.
+ *
+ * Created once at module scope rather than inside App: a client rebuilt on
+ * render would throw the cache away on every re-render, which defeats the
+ * point. It sits outside AuthProvider because AuthProvider itself reaches for
+ * it -- login seeds the profile document into the cache and logout clears it.
+ */
+const queryClient = createQueryClient();
+
 function App() {
   return (
-    <AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
       <Router>
         <AppShell>
           <Routes>
@@ -401,7 +414,8 @@ function App() {
             </Routes>
         </AppShell>
       </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

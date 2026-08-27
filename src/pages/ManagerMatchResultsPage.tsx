@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMM } from "../hooks/useMM";
 import type { MMResult } from "../hooks/useMM";
 import { useAuth } from "../contexts/useAuth";
+import { useProfile } from "../hooks/useProfile";
 
 type FetchState = "loading" | "error" | "success";
 
@@ -21,7 +22,8 @@ function bandLabel(score: number): string {
 
 export default function ManagerMatchResultsPage() {
   const navigate = useNavigate();
-  const { fetchWithAuth, user } = useAuth();
+  const { fetchWithAuth } = useAuth();
+  const { data: profile, isLoading: profileLoading } = useProfile();
   const { state, setCachedResult } = useMM();
 
   const hasCached = state.cachedResult !== null;
@@ -48,8 +50,12 @@ export default function ManagerMatchResultsPage() {
 
   useEffect(() => {
     if (hasCached) return;
+    // Wait for the profile query before deciding. Reading it mid-flight would
+    // see no stored result and fall straight through to the server fetch --
+    // correct, but a request the cached document would have answered.
+    if (profileLoading) return;
 
-    const profileResult = user?.profileData?.manager_match_result as MMResult | undefined;
+    const profileResult = profile?.manager_match_result as MMResult | undefined;
     if (profileResult) {
       setCachedResult(profileResult);
       setResult(profileResult);
@@ -61,7 +67,9 @@ export default function ManagerMatchResultsPage() {
       hasFiredRef.current = true;
       fetchFromServer();
     }
-  }, []); // intentionally runs once on mount
+  // Runs once the profile settles; hasFiredRef guards the server fetch against
+  // a second pass and against Strict Mode's double-invoke.
+  }, [profileLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (fetchState === "loading") {
     return (

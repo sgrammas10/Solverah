@@ -4,7 +4,7 @@ import FocusTypeResultsPage from "../FocusTypeResultsPage";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
-  user: null as any,
+  profile: {} as Record<string, unknown>,
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -19,13 +19,18 @@ vi.mock("react-router-dom", async (importOriginal) => {
   };
 });
 
-vi.mock("../../contexts/useAuth", () => ({
-  useAuth: () => ({ user: mocks.user }),
+// The page reads the document from the profile query; it no longer touches
+// the auth context at all.
+vi.mock("../../hooks/useProfile", () => ({
+  // The query hook, resolved. `isLoading: false` is the point: consumers
+  // branch on it, and a mock that omitted it would report undefined --
+  // falsy, so the branches would run, but by accident rather than intent.
+  useProfile: () => ({ data: mocks.profile, isLoading: false }),
 }));
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.user = null;
+  mocks.profile = {};
 });
 
 const MOCK_RESULT = {
@@ -80,11 +85,11 @@ describe("FocusTypeResultsPage - happy path", () => {
   });
 });
 
-// ─── happy path (from user profileData) ───────────────────────────────────────
+// ─── happy path (from the profile query) ──────────────────────────────────────
 
-describe("FocusTypeResultsPage - result from profileData", () => {
-  it("renders archetype from user.profileData when no location state", () => {
-    mocks.user = { profileData: { focus_type_result: MOCK_RESULT } };
+describe("FocusTypeResultsPage - result from the profile query", () => {
+  it("renders archetype from the cached profile when no location state", () => {
+    mocks.profile = { focus_type_result: MOCK_RESULT };
     renderWithState(undefined);
     expect(screen.getByText("Deep Diver")).toBeInTheDocument();
   });
@@ -93,7 +98,7 @@ describe("FocusTypeResultsPage - result from profileData", () => {
 // ─── navigation guard ─────────────────────────────────────────────────────────
 
 describe("FocusTypeResultsPage - navigation guard", () => {
-  it("redirects to /focus-type when no result and no profileData", () => {
+  it("redirects to /focus-type when no result and no cached profile", () => {
     mocks.user = null;
     renderWithState(undefined);
     expect(mocks.navigate).toHaveBeenCalledWith("/focus-type", { replace: true });

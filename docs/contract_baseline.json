@@ -1,0 +1,235 @@
+[
+  {
+    "step": "register",
+    "method": "POST",
+    "path": "/api/v1/auth/register",
+    "status": 201,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"message\":\"registered\",\"user\":{\"email\":\"contract-primary@example.test\",\"id\":1,\"name\":\"Contract User\",\"role\":\"job-seeker\"}}\n"
+  },
+  {
+    "step": "register-duplicate",
+    "method": "POST",
+    "path": "/api/v1/auth/register",
+    "status": 400,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"User already exists\"}\n"
+  },
+  {
+    "step": "register-second",
+    "method": "POST",
+    "path": "/api/v1/auth/register",
+    "status": 201,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"message\":\"registered\",\"user\":{\"email\":\"contract-unconfirmed@example.test\",\"id\":2,\"name\":\"Unconfirmed User\",\"role\":\"job-seeker\"}}\n"
+  },
+  {
+    "step": "login-before-confirmation",
+    "method": "POST",
+    "path": "/api/v1/auth/login",
+    "status": 403,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"Email not confirmed. Please check your inbox or use the resend option.\"}\n"
+  },
+  {
+    "step": "verify-email-wrong-code",
+    "method": "POST",
+    "path": "/api/v1/auth/email/verify",
+    "status": 400,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"invalid code\"}\n"
+  },
+  {
+    "step": "verify-email",
+    "method": "POST",
+    "path": "/api/v1/auth/email/verify",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"message\":\"email confirmed\"}\n"
+  },
+  {
+    "step": "login-wrong-password",
+    "method": "POST",
+    "path": "/api/v1/auth/login",
+    "status": 401,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"Invalid credentials\"}\n"
+  },
+  {
+    "step": "login",
+    "method": "POST",
+    "path": "/api/v1/auth/login",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token"
+    ],
+    "body": "{\"csrfToken\":\"<CSRF>\",\"message\":\"login successful\",\"user\":{\"email\":\"contract-primary@example.test\",\"id\":1,\"name\":\"Contract User\",\"profileData\":{\"certifications\":[],\"education\":[],\"email\":\"contract-primary@example.test\",\"experience\":[],\"firstName\":\"Contract\",\"lastName\":\"User\",\"legal_acceptance\":{\"accepted_at\":\"<TS>\",\"age_16_plus_attested\":true,\"terms_version\":\"unversioned\"},\"linkedinUrl\":\"\",\"location\":\"\",\"performanceReviews\":[],\"phone\":\"\",\"primaryLocation\":\"\",\"psychometricResults\":{\"communication\":{\"completed\":false,\"percentile\":null,\"score\":null},\"creativity\":{\"completed\":false,\"percentile\":null,\"score\":null},\"leadership\":{\"completed\":false,\"percentile\":null,\"score\":null},\"problemSolving\":{\"completed\":false,\"percentile\":null,\"score\":null},\"teamwork\":{\"completed\":false,\"percentile\":null,\"score\":null}},\"secondaryLocations\":[],\"skill_levels\":{},\"skills\":[],\"summary\":\"\"},\"role\":\"job-seeker\",\"wp_v2_completed\":false,\"wpl_completed\":false,\"wpll_completed\":false}}\n"
+  },
+  {
+    "step": "session",
+    "method": "GET",
+    "path": "/api/v1/auth/session",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"csrf_token\":\"<CSRF>\",\"flags\":{\"email_confirmed\":true,\"wp_v2_completed\":false,\"wpl_completed\":false,\"wpll_completed\":false},\"user\":{\"email\":\"contract-primary@example.test\",\"id\":1,\"name\":\"Contract User\",\"role\":\"job-seeker\"}}\n"
+  },
+  {
+    "step": "me",
+    "method": "GET",
+    "path": "/api/v1/me",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"email\":\"contract-primary@example.test\",\"email_confirmed\":true,\"id\":1,\"name\":\"Contract User\",\"role\":\"job-seeker\"}\n"
+  },
+  {
+    "step": "me-profile-empty",
+    "method": "GET",
+    "path": "/api/v1/me/profile",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"profile\":{\"certifications\":[],\"education\":[],\"email\":\"contract-primary@example.test\",\"experience\":[],\"firstName\":\"Contract\",\"lastName\":\"User\",\"legal_acceptance\":{\"accepted_at\":\"<TS>\",\"age_16_plus_attested\":true,\"terms_version\":\"unversioned\"},\"linkedinUrl\":\"\",\"location\":\"\",\"performanceReviews\":[],\"phone\":\"\",\"primaryLocation\":\"\",\"psychometricResults\":{\"communication\":{\"completed\":false,\"percentile\":null,\"score\":null},\"creativity\":{\"completed\":false,\"percentile\":null,\"score\":null},\"leadership\":{\"completed\":false,\"percentile\":null,\"score\":null},\"problemSolving\":{\"completed\":false,\"percentile\":null,\"score\":null},\"teamwork\":{\"completed\":false,\"percentile\":null,\"score\":null}},\"secondaryLocations\":[],\"skill_levels\":{},\"skills\":[],\"summary\":\"\"}}\n"
+  },
+  {
+    "step": "patch-me",
+    "method": "PATCH",
+    "path": "/api/v1/me",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"email\":\"contract-primary@example.test\",\"email_confirmed\":true,\"id\":1,\"name\":\"Renamed User\",\"role\":\"job-seeker\"}\n"
+  },
+  {
+    "step": "patch-me-profile",
+    "method": "PATCH",
+    "path": "/api/v1/me/profile",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"profile\":{\"career_status\":\"employed\",\"certifications\":[\"AWS SAA\"],\"education\":[{\"degree\":\"BS\",\"endDate\":\"2018\",\"field\":\"Computer Science\",\"gpa\":\"3.8\",\"id\":2,\"school\":\"State University\"}],\"email\":\"contract-primary@example.test\",\"experience\":[{\"company\":\"Acme\",\"description\":\"Built things.\",\"endDate\":\"Present\",\"id\":1,\"startDate\":\"2019-01-01\",\"title\":\"Engineer\"}],\"firstName\":\"Contract\",\"lastName\":\"User\",\"legal_acceptance\":{\"accepted_at\":\"<TS>\",\"age_16_plus_attested\":true,\"terms_version\":\"unversioned\"},\"linkedinUrl\":\"https://example.test/in/contract\",\"location\":\"Austin, TX\",\"performanceReviews\":[],\"phone\":\"\",\"primaryLocation\":\"\",\"psychometricResults\":{\"communication\":{\"completed\":false,\"percentile\":null,\"score\":null},\"creativity\":{\"completed\":false,\"percentile\":null,\"score\":null},\"leadership\":{\"completed\":false,\"percentile\":null,\"score\":null},\"problemSolving\":{\"completed\":false,\"percentile\":null,\"score\":null},\"teamwork\":{\"completed\":false,\"percentile\":null,\"score\":null}},\"secondaryLocations\":[],\"skill_levels\":{},\"skills\":[\"Python\",\"Node.js\",\"C++\"],\"skills_proficiency_confirmed\":false,\"summary\":\"A profile that exercises every promoted column.\"}}\n"
+  },
+  {
+    "step": "patch-career-status",
+    "method": "PATCH",
+    "path": "/api/v1/me/career-status",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"career_status\":\"employed\"}\n"
+  },
+  {
+    "step": "get-skills-before-rating",
+    "method": "GET",
+    "path": "/api/v1/me/skills",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"skill_levels\":{},\"skills_proficiency_confirmed\":false}\n"
+  },
+  {
+    "step": "put-skills",
+    "method": "PUT",
+    "path": "/api/v1/me/skills",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"skill_levels\":{\"Node.js\":\"intermediate\",\"Python\":\"advanced\"},\"skills_proficiency_confirmed\":true}\n"
+  },
+  {
+    "step": "get-skills",
+    "method": "GET",
+    "path": "/api/v1/me/skills",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"skill_levels\":{\"Node.js\":\"intermediate\",\"Python\":\"advanced\"},\"skills_proficiency_confirmed\":true}\n"
+  },
+  {
+    "step": "me-after-write",
+    "method": "GET",
+    "path": "/api/v1/me",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"email\":\"contract-primary@example.test\",\"email_confirmed\":true,\"id\":1,\"name\":\"Renamed User\",\"role\":\"job-seeker\"}\n"
+  },
+  {
+    "step": "me-profile-after-write",
+    "method": "GET",
+    "path": "/api/v1/me/profile",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"profile\":{\"career_status\":\"employed\",\"certifications\":[\"AWS SAA\"],\"education\":[{\"degree\":\"BS\",\"endDate\":\"2018\",\"field\":\"Computer Science\",\"gpa\":\"3.8\",\"id\":2,\"school\":\"State University\"}],\"email\":\"contract-primary@example.test\",\"experience\":[{\"company\":\"Acme\",\"description\":\"Built things.\",\"endDate\":\"Present\",\"id\":1,\"startDate\":\"2019-01-01\",\"title\":\"Engineer\"}],\"firstName\":\"Contract\",\"lastName\":\"User\",\"legal_acceptance\":{\"accepted_at\":\"<TS>\",\"age_16_plus_attested\":true,\"terms_version\":\"unversioned\"},\"linkedinUrl\":\"https://example.test/in/contract\",\"location\":\"Austin, TX\",\"performanceReviews\":[],\"phone\":\"\",\"primaryLocation\":\"\",\"psychometricResults\":{\"communication\":{\"completed\":false,\"percentile\":null,\"score\":null},\"creativity\":{\"completed\":false,\"percentile\":null,\"score\":null},\"leadership\":{\"completed\":false,\"percentile\":null,\"score\":null},\"problemSolving\":{\"completed\":false,\"percentile\":null,\"score\":null},\"teamwork\":{\"completed\":false,\"percentile\":null,\"score\":null}},\"secondaryLocations\":[],\"skill_levels\":{\"Node.js\":\"intermediate\",\"Python\":\"advanced\"},\"skills\":[\"Python\",\"Node.js\",\"C++\"],\"skills_proficiency_confirmed\":true,\"summary\":\"A profile that exercises every promoted column.\"}}\n"
+  },
+  {
+    "step": "session-after-write",
+    "method": "GET",
+    "path": "/api/v1/auth/session",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"csrf_token\":\"<CSRF>\",\"flags\":{\"email_confirmed\":true,\"wp_v2_completed\":false,\"wpl_completed\":false,\"wpll_completed\":false},\"user\":{\"email\":\"contract-primary@example.test\",\"id\":1,\"name\":\"Renamed User\",\"role\":\"job-seeker\"}}\n"
+  },
+  {
+    "step": "dashboard",
+    "method": "GET",
+    "path": "/api/v1/me/dashboard",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"applications\":0,\"hasIntakeSubmission\":false,\"jobMatches\":0,\"profileCompletion\":\"100%\",\"recentActivity\":[{\"icon\":\"Brain\",\"text\":\"Complete your leadership assessment\",\"time\":\"1 day ago\",\"type\":\"assessment\"}],\"recommendations\":[{\"action\":\"Take Assessment\",\"description\":\"Boost visibility\",\"href\":\"/job-seeker/profile#assessments\",\"priority\":\"high\",\"title\":\"Complete Psychometric Assessment\"},{\"action\":\"Update Profile\",\"description\":\"Update your experience section\",\"href\":\"/job-seeker/profile#experience\",\"priority\":\"medium\",\"title\":\"Add Recent Experience\"}]}\n"
+  },
+  {
+    "step": "export",
+    "method": "GET",
+    "path": "/api/v1/me/export",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"account\":{\"email\":\"contract-primary@example.test\",\"email_confirmed\":true,\"id\":1,\"name\":\"Renamed User\",\"role\":\"job-seeker\"},\"assessment_answers\":[],\"dimension_scores\":[],\"exported_at\":\"<TS>\",\"intake_submissions\":[],\"job_recommendations\":[],\"legacy_quiz\":null,\"profile\":{\"career_status\":\"employed\",\"certifications\":[\"AWS SAA\"],\"education\":[{\"degree\":\"BS\",\"endDate\":\"2018\",\"field\":\"Computer Science\",\"gpa\":\"3.8\",\"id\":2,\"school\":\"State University\"}],\"email\":\"contract-primary@example.test\",\"experience\":[{\"company\":\"Acme\",\"description\":\"Built things.\",\"endDate\":\"Present\",\"id\":1,\"startDate\":\"2019-01-01\",\"title\":\"Engineer\"}],\"firstName\":\"Contract\",\"lastName\":\"User\",\"legal_acceptance\":{\"accepted_at\":\"<TS>\",\"age_16_plus_attested\":true,\"terms_version\":\"unversioned\"},\"linkedinUrl\":\"https://example.test/in/contract\",\"location\":\"Austin, TX\",\"performanceReviews\":[],\"phone\":\"\",\"primaryLocation\":\"\",\"psychometricResults\":{\"communication\":{\"completed\":false,\"percentile\":null,\"score\":null},\"creativity\":{\"completed\":false,\"percentile\":null,\"score\":null},\"leadership\":{\"completed\":false,\"percentile\":null,\"score\":null},\"problemSolving\":{\"completed\":false,\"percentile\":null,\"score\":null},\"teamwork\":{\"completed\":false,\"percentile\":null,\"score\":null}},\"secondaryLocations\":[],\"skill_levels\":{\"Node.js\":\"intermediate\",\"Python\":\"advanced\"},\"skills\":[\"Python\",\"Node.js\",\"C++\"],\"skills_proficiency_confirmed\":true,\"summary\":\"A profile that exercises every promoted column.\"}}\n"
+  },
+  {
+    "step": "login-unconfirmed",
+    "method": "POST",
+    "path": "/api/v1/auth/login",
+    "status": 403,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"Email not confirmed. Please check your inbox or use the resend option.\"}\n"
+  },
+  {
+    "step": "logout",
+    "method": "POST",
+    "path": "/api/v1/auth/logout",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "csrf_refresh_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"message\":\"logout successful\"}\n"
+  },
+  {
+    "step": "session-after-logout",
+    "method": "GET",
+    "path": "/api/v1/auth/session",
+    "status": 401,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"msg\":\"Missing cookie \\\"access_token_cookie\\\"\"}\n"
+  }
+]

@@ -5,9 +5,8 @@ import PathIntelligencePage from "../PathIntelligencePage";
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   fetchWithAuth: vi.fn(),
-  user: {
-    profileData: { path_preferences: { move_type: "stay_in_field" } },
-  } as Record<string, unknown>,
+  user: {} as Record<string, unknown>,
+  profile: { path_preferences: { move_type: "stay_in_field" } } as Record<string, unknown>,
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -22,8 +21,17 @@ vi.mock("../../contexts/useAuth", () => ({
   useAuth: () => ({ fetchWithAuth: mocks.fetchWithAuth, user: mocks.user }),
 }));
 
+// Experience, skills and path preferences come from the profile query now.
+vi.mock("../../hooks/useProfile", () => ({
+  // The query hook, resolved. `isLoading: false` is the point: consumers
+  // branch on it, and a mock that omitted it would report undefined --
+  // falsy, so the branches would run, but by accident rather than intent.
+  useProfile: () => ({ data: mocks.profile, isLoading: false }),
+}));
+
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.profile = { path_preferences: { move_type: "stay_in_field" } };
 });
 
 function renderPage() {
@@ -98,26 +106,22 @@ describe("PathIntelligencePage - skill proficiency modal", () => {
   });
 
   it("shows proficiency modal on first PI visit when skills are unrated", () => {
-    mocks.user = {
-      profileData: {
-        path_preferences: { move_type: "stay_in_field" },
-        skills: ["React", "Python"],
-        skills_proficiency_confirmed: false,
-      },
-    } as Record<string, unknown>;
+    mocks.profile = {
+      path_preferences: { move_type: "stay_in_field" },
+      skills: ["React", "Python"],
+      skills_proficiency_confirmed: false,
+    };
 
     renderPage();
     expect(screen.getByText("Rate your skills")).toBeInTheDocument();
   });
 
   it("skip closes modal and shows nudge banner after results load", async () => {
-    mocks.user = {
-      profileData: {
-        path_preferences: { move_type: "stay_in_field" },
-        skills: ["React"],
-        skills_proficiency_confirmed: false,
-      },
-    } as Record<string, unknown>;
+    mocks.profile = {
+      path_preferences: { move_type: "stay_in_field" },
+      skills: ["React"],
+      skills_proficiency_confirmed: false,
+    };
     mocks.fetchWithAuth.mockResolvedValueOnce({
       suggestions: [],
       career_status: "employed",
@@ -134,13 +138,11 @@ describe("PathIntelligencePage - skill proficiency modal", () => {
   });
 
   it("saving ratings PATCHes proficiency then re-fetches suggestions", async () => {
-    mocks.user = {
-      profileData: {
-        path_preferences: { move_type: "stay_in_field" },
-        skills: ["React"],
-        skills_proficiency_confirmed: false,
-      },
-    } as Record<string, unknown>;
+    mocks.profile = {
+      path_preferences: { move_type: "stay_in_field" },
+      skills: ["React"],
+      skills_proficiency_confirmed: false,
+    };
     mocks.fetchWithAuth
       .mockResolvedValueOnce({ skills_proficiency_confirmed: true, skill_levels: {} })
       .mockResolvedValueOnce({ suggestions: [], career_status: "employed" });

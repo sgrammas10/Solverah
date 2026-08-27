@@ -128,7 +128,7 @@ def register(
     code = domain.generate_verification_code()
     new_user = User(
         email=email,
-        password=hashed_pw,
+        password_hash=hashed_pw,
         name=name,
         role=role,
         email_confirmed=False,
@@ -202,17 +202,17 @@ def login(*, email: str, password: str, check_password, wp_v2_completed) -> Auth
     if user and user.locked_until and user.locked_until > domain.utcnow():
         return _error(423, "Account locked. Try again later.")
 
-    if not user or not check_password(user.password, password):
+    if not user or not check_password(user.password_hash, password):
         if user:
-            user.failed_login_attempts += 1
-            if user.failed_login_attempts >= MAX_LOGIN_ATTEMPTS:
+            user.failed_login_count += 1
+            if user.failed_login_count >= MAX_LOGIN_ATTEMPTS:
                 user.locked_until = domain.lockout_until(LOGIN_LOCKOUT_MINUTES)
-                user.failed_login_attempts = 0
+                user.failed_login_count = 0
             db.session.commit()
         return _error(401, "Invalid credentials")
 
     # Reset failed attempts and clear lockout
-    user.failed_login_attempts = 0
+    user.failed_login_count = 0
     user.locked_until = None
     db.session.commit()
 
@@ -266,6 +266,10 @@ def confirm_email(*, email: str, code: str) -> AuthResult:
         return _error(400, "invalid code")
 
     user.email_confirmed = True
+    # Phase 2c's `users.status`. Nothing reads it yet, and it is maintained here
+    # rather than left at its 'pending' default because a status column that is
+    # always 'pending' is not a column, it is a lie with a name.
+    user.status = "active"
     user.confirmation_token = None
     user.confirmation_sent_at = None
     db.session.commit()

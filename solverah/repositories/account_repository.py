@@ -86,7 +86,7 @@ def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_passwor
     Does not commit.
     """
     user.email = "deleted-%s@%s" % (user.id, tombstone_domain)
-    user.password = dead_password
+    user.password_hash = dead_password
     user.name = None
     # Replaces the whole profile document with the tombstone, which also drops
     # every experience, education, skill and resume row the user had: the write
@@ -96,6 +96,13 @@ def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_passwor
     # erased here without anyone having to remember to come back.
     profile_repository.update_document(user.id, lambda _existing: {"deleted_at": now_iso})
     user.email_confirmed = False
+    # `users.status`, added in Phase 2c. `users.deleted_at` is deliberately *not*
+    # set: the address is still freed by the rewrite above, so the partial unique
+    # index `uq_users_email ... WHERE deleted_at IS NULL` keeps behaving like the
+    # full constraint it replaced. Turning this into a real soft-delete is a
+    # deletion-policy change and needs every user query to grow a filter it does
+    # not have yet.
+    user.status = "deleted"
     user.confirmation_token = None
     user.confirmation_sent_at = None
     user.reset_token = None

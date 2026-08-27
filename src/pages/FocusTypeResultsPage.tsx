@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
-import { useAuth } from "../contexts/useAuth";
+import { useProfile } from "../hooks/useProfile";
 import type { FocusTypeResult } from "./FocusTypePage";
 
 const ARCHETYPE_DESCRIPTIONS: Record<string, string> = {
@@ -23,10 +23,25 @@ const DIMENSION_LABELS: Record<string, string> = {
 export default function FocusTypeResultsPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { data: profile, isLoading } = useProfile();
   const result =
     (location.state as { result?: FocusTypeResult } | null)?.result ??
-    (user?.profileData?.focus_type_result as FocusTypeResult | undefined);
+    (profile?.focus_type_result as FocusTypeResult | undefined);
+
+  // The redirect below must not fire against a document still in flight. Before
+  // Phase 4a the profile was always already loaded here, because the boot path
+  // had fetched it; now it is a query, and an un-arrived document looks exactly
+  // like a user who has never taken FocusType. `isLoading` rather than
+  // `isPending`: a disabled query (signed out) is pending forever and would
+  // spin instead of redirecting.
+  if (!result && isLoading) {
+    return (
+      <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
+        <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
+        <p className="text-sm text-ink-secondary">Loading your result…</p>
+      </div>
+    );
+  }
 
   if (!result) {
     return <Navigate to="/focus-type" replace />;

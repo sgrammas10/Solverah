@@ -59,10 +59,16 @@ export interface SessionResponse {
 /**
  * Authenticated user data the app reads.
  *
- * Assembled by `toUser()` in AuthContext.tsx from the session probe and the
- * profile resource, and returned whole by `POST /api/v1/auth/login`. Keeping
- * this shape stable across the Phase 1b endpoint split is deliberate: the
- * redesign stopped at the API boundary rather than reaching into components.
+ * Assembled by `toUser()` in AuthContext.tsx from the session probe alone.
+ * `POST /api/v1/auth/login` still returns the profile document inside its user
+ * envelope -- the wire is unchanged -- but AuthContext splits it out and seeds
+ * it into the query cache rather than carrying it here.
+ *
+ * `profileData` was a field on this type until Phase 4a, and its removal is the
+ * point of that phase: because six components read the document off `user`, the
+ * boot path had to fetch it before the shell could render, on every page load,
+ * for data the shell does not display (P0-3). It is now its own query --
+ * `hooks/useProfile.ts` -- fetched by the screens that actually render it.
  */
 export interface User {
   id: string;
@@ -70,7 +76,6 @@ export interface User {
   name: string;
   role: "job-seeker";
   profileComplete: boolean;
-  profileData?: ProfileData;
   wpl_completed: boolean;
   wpll_completed: boolean;
   /**
@@ -108,7 +113,8 @@ export interface AuthContextType {
   saveProfileData: (profileData: ProfileData) => Promise<{ profileData?: ProfileData } | null>;
   /** Optimistically update the in-memory user object without a server round-trip. */
   updateProfile: (updates: Partial<User>) => void;
-  /** Merge partial profileData into the in-memory user without a server round-trip. */
+  /** Merge partial profileData into the cached profile document, no round-trip.
+   *  Since Phase 4a the target is the query cache, not a field on `User`. */
   updateProfileData: (profileData: ProfileData) => void;
 }
 

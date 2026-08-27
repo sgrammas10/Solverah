@@ -133,7 +133,7 @@ def test_delete_tombstones_user_and_purges_pii(client, monkeypatch):
         assert user.confirmation_token is None
         assert user.reset_token is None
         # The old password can never verify again (not a bcrypt hash at all)
-        assert user.password.startswith("!deleted!")
+        assert user.password_hash.startswith("!deleted!")
 
     # THE decided reconciliation: research rows survive, de-identified
     surviving = _person_side(user_id)

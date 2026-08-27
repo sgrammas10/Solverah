@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/useAuth";
+import { useProfile } from "../hooks/useProfile";
 import Scene1 from "../components/focustype/Scene1";
 import Scene2 from "../components/focustype/Scene2";
 import Scene3 from "../components/focustype/Scene3";
@@ -76,14 +77,15 @@ export default function FocusTypePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const isRetake = (location.state as { retake?: boolean } | null)?.retake === true;
-  const { fetchWithAuth, updateProfileData, user } = useAuth();
+  const { fetchWithAuth, updateProfileData } = useAuth();
+  const { data: profile, isLoading: profileLoading } = useProfile();
 
   const [phase, setPhase] = useState<Phase>("intro");
   const [currentScene, setCurrentScene] = useState(1);
   const [scenePayloads, setScenePayloads] = useState<ScenePayloads>({});
   const hasFiredRef = useRef(false);
 
-  const savedResult = user?.profileData?.focus_type_result as FocusTypeResult | undefined;
+  const savedResult = profile?.focus_type_result as FocusTypeResult | undefined;
   useEffect(() => {
     if (savedResult && !isRetake) {
       navigate("/focus-type/results", { replace: true, state: { result: savedResult } });
@@ -148,6 +150,18 @@ export default function FocusTypePage() {
             Try again
           </button>
         </div>
+      </div>
+    );
+  }
+
+  // ── Waiting on the profile document ──
+  // A user who has already taken FocusType is redirected by the effect above,
+  // but only once the document arrives. Rendering the intro in the meantime
+  // would flash "Begin" at someone about to be sent to their results.
+  if (phase === "intro" && profileLoading) {
+    return (
+      <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
+        <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
       </div>
     );
   }
