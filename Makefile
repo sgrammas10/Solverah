@@ -5,23 +5,22 @@
 #
 #   make help          list targets
 #   make dev           full local stack (Postgres + Redis + Mailpit + MinIO + API)
-#   make test          backend suite (fast; uses your .env)
-#   make test-ci       the SQLite CI job (no .env) -- early signal, NOT the gate
-#   make test-pg       the Postgres CI job  <-- the gate; run before pushing
+#   make test          backend suite against the local database, using your .env
+#   make test-pg       the CI job exactly (no .env)  <-- the gate; run before pushing
 #   make check         everything CI runs, locally
 #   make db-snapshot   pre-migration database snapshot (Phase 2 rollback)
 #
-# `test` and `test-ci` differ, and the difference is the point. app.py calls
+# `test` and `test-pg` differ, and the difference is the point. app.py calls
 # load_dotenv(), so `make test` on a developer machine has every variable in
 # .env available; the runner has five and no .env. A test that reaches code
-# reading anything else is green here and red there. `test-ci` and `test-pg`
-# both set SOLVERAH_IGNORE_DOTENV=1 so they agree with the runner.
+# reading anything else is green here and red there. `test-pg` sets
+# SOLVERAH_IGNORE_DOTENV=1 so it agrees with the runner, which is why it is the
+# one `check` runs and the one to run before pushing.
 #
-# `test-ci` and `test-pg` differ too, and that difference is newer. CI grew a
-# second backend job on 2026-08-27: Postgres is the gate, SQLite is fast
-# non-gating signal. Where the two disagree, Postgres is right -- so `check`
-# runs `test-pg`. The move cost 8 test failures on day one, every one a foreign
-# key SQLite had never enforced.
+# There was a `test-ci` here, pairing with a SQLite CI job. Both are gone as of
+# 2026-08-27 (Phase 2a): the Part 4.3 profile tables cannot be created on SQLite,
+# so the job could not reach a test. Reasoning in .github/workflows/tests.yml.
+# Both targets now need the compose database -- `make dev-deps` starts it.
 
 .DEFAULT_GOAL := help
 COMPOSE := docker compose -f infra/docker/compose.yml
@@ -66,21 +65,11 @@ psql: ## Open psql against the local database
 
 # --------------------------------------------------------------------- checks
 .PHONY: test
-test: ## Backend tests (SQLite, your .env — fast inner loop)
+test: ## Backend tests against the local database, using your .env (fast inner loop)
 	$(PYTHON) -m pytest -q
 
-.PHONY: test-ci
-test-ci: ## Backend tests exactly as CI runs them (ignores your .env)
-	APP_ENV=testing \
-	DATABASE_URL=sqlite:///test.db \
-	JWT_SECRET_KEY=test-secret \
-	JWT_COOKIE_SECURE=false \
-	JWT_COOKIE_SAMESITE=Lax \
-	SOLVERAH_IGNORE_DOTENV=1 \
-	  $(PYTHON) -m pytest --tb=short -q
-
 .PHONY: test-pg
-test-pg: dev-deps ## Backend tests against real Postgres — reproduces the CI gate
+test-pg: dev-deps ## Backend tests exactly as CI runs them — reproduces the gate
 	@echo "Waiting for Postgres..."
 	@until $(COMPOSE) exec -T db pg_isready -U solverah -d solverah >/dev/null 2>&1; do sleep 1; done
 	APP_ENV=testing \

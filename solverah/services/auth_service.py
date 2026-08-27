@@ -16,7 +16,7 @@ Known issues carried forward, not fixed here:
   per IP *and* per email; the per-IP half is currently the blanket
   ``@limiter.limit("5 per minute")`` on the route, which is per-worker until
   Redis is wired up (P0-5).
-* :func:`login` returns the entire ``profile_data`` blob, so session restore
+* :func:`login` returns the entire profile document, so session restore
   ships the whole user document.  That is the god-endpoint problem Part 5.2
   splits into ``GET /auth/session`` plus ``GET /me/profile``.
 * Email is sent inline, so a Resend outage holds a worker (P0-6).  Phase 3 moves
@@ -32,7 +32,7 @@ from typing import Any, Dict, Optional
 from model import User, db
 from solverah.domain import auth as domain
 from solverah.infra import email as email_infra
-from solverah.repositories import user_repository
+from solverah.repositories import profile_repository, user_repository
 from solverah.services import audit
 
 __all__ = [
@@ -104,7 +104,7 @@ def register(
 
     # Terms/privacy acceptance + 16+ eligibility attestation are required at
     # registration (GAP-01/GAP-05, 2026-08-20). The acceptance record -- version
-    # + timestamp -- is stored in profile_data below as evidence of assent.
+    # + timestamp -- is stored in the profile document below as evidence of assent.
     if terms_accepted is not True:
         return _error(400, "You must accept the Terms of Service and Privacy Policy")
 
@@ -131,12 +131,17 @@ def register(
         password=hashed_pw,
         name=name,
         role=role,
-        profile_data=profile_data,
         email_confirmed=False,
         confirmation_token=code,
         confirmation_sent_at=domain.utcnow(),
     )
     user_repository.add(new_user)
+    # The profile is rows in six tables now, and rows need the user's id. The
+    # flush gets one without committing, so the user and their profile still
+    # land in one transaction -- a user row with no profile would be an account
+    # that cannot be read.
+    db.session.flush()
+    profile_repository.update_document(new_user.id, lambda _existing: profile_data)
     db.session.commit()
 
     return AuthResult(
@@ -227,7 +232,7 @@ def login(*, email: str, password: str, check_password, wp_v2_completed) -> Auth
                 "email": user.email,
                 "name": user.name,
                 "role": user.role,
-                "profileData": user.profile_data or {},
+                "profileData": profile_repository.load_document(user.id),
                 "wpl_completed": bool(user.intake and user.intake.wpl_completed_at),
                 "wpll_completed": bool(user.intake and user.intake.wpll_completed_at),
                 "wp_v2_completed": wp_v2_completed(user.id),

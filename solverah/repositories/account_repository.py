@@ -18,6 +18,7 @@ from typing import List
 
 from sqlalchemy import func
 
+from solverah.repositories import profile_repository
 from model import (
     IntakeSubmission,
     JobRecommendation,
@@ -87,7 +88,13 @@ def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_passwor
     user.email = "deleted-%s@%s" % (user.id, tombstone_domain)
     user.password = dead_password
     user.name = None
-    user.profile_data = {"deleted_at": now_iso}
+    # Replaces the whole profile document with the tombstone, which also drops
+    # every experience, education, skill and resume row the user had: the write
+    # path rebuilds the child tables from the document it is given, and this
+    # document has none of them. Going through `update_document` rather than
+    # deleting the rows by hand means a field added to the profile in future is
+    # erased here without anyone having to remember to come back.
+    profile_repository.update_document(user.id, lambda _existing: {"deleted_at": now_iso})
     user.email_confirmed = False
     user.confirmation_token = None
     user.confirmation_sent_at = None

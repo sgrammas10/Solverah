@@ -13,7 +13,9 @@ Notes:
 - `created_at` fields default to the database server timestamp via `db.func.now()`.
 """
 
-from sqlalchemy import JSON
+from sqlalchemy import DDL, JSON
+from sqlalchemy import event as sa_event
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
@@ -536,3 +538,284 @@ class OutcomeExperienced(db.Model):
     user = db.relationship("User", backref="experienced_outcomes")
     company = db.relationship("Company", backref="experienced_outcomes")
     recommendation = db.relationship("MatchRecommendation", backref="experienced_outcomes")
+
+
+# ---------------------------------------------------------------------------
+# Phase 2a -- profile_data, decomposed (docs/ARCHITECTURE.md Part 4.3)
+# ---------------------------------------------------------------------------
+#
+# `User.profile_data` above is no longer read or written by anything. It is kept
+# for one release so a rollback is a redeploy rather than a restore
+# (docs/RUNBOOK_DATABASE_ROLLBACK.md); the column is dropped in the next one.
+#
+# These tables are Postgres-only and deliberately so. `DEFAULT uuidv7()`, JSONB,
+# `TEXT[]`, identity columns and the trigram index are what Part 4 specifies, and
+# Render runs Postgres 18.3 where all five work. See docs/ARCHITECTURE.md Phase 2
+# for why the SQLite CI job was retired rather than these being watered down.
+
+
+def _updated_at_trigger(table_name: str) -> str:
+    """DDL keeping ``updated_at`` current without the application's help.
+
+    Part 4.1 principle 5. It is not stylistic: the profile write path issues a
+    Core UPDATE built column-by-column from an optimistic-lock comparison, and
+    any column that write forgets is a column that silently stops being
+    maintained. A trigger cannot be forgotten.
+    """
+    return """
+    CREATE OR REPLACE FUNCTION solverah_set_updated_at() RETURNS trigger AS $BODY$
+    BEGIN
+        NEW.updated_at = now();
+        RETURN NEW;
+    END;
+    $BODY$ LANGUAGE plpgsql;
+
+    DROP TRIGGER IF EXISTS trg_%(table)s_updated_at ON %(table)s;
+    CREATE TRIGGER trg_%(table)s_updated_at
+        BEFORE UPDATE ON %(table)s
+        FOR EACH ROW EXECUTE FUNCTION solverah_set_updated_at();
+    """ % {"table": table_name}
+
+
+class Profile(db.Model):
+    """One row per user: the promoted scalar profile fields, plus the remainder.
+
+    `extra` is the open-ended remainder and is still a JSON document, so it still
+    has P0-1's read-modify-write shape. `version` is what makes that safe: every
+    write is a compare-and-swap against the value it read, and a writer that
+    loses re-reads and re-merges rather than overwriting. Decomposition alone
+    would not have fixed the lost update -- see tests/test_profile_concurrency.py.
+    """
+
+    __tablename__ = "profiles"
+
+    user_id = db.Column(
+        db.BigInteger,
+        db.ForeignKey("user.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    headline = db.Column(db.Text)
+    summary = db.Column(db.Text)
+    location_state = db.Column(db.Text)
+    location_city = db.Column(db.Text)
+    phone = db.Column(db.Text)
+    linkedin_url = db.Column(db.Text)
+    portfolio_url = db.Column(db.Text)
+    career_status = db.Column(db.Text)
+    #: 0-100, maintained by the service on every write. The dashboard still
+    #: computes its percentage from the assembled document rather than reading
+    #: this, so the two cannot disagree on the request path; the column exists so
+    #: "how many profiles are more than 80% complete" is a query rather than a
+    #: full scan of a JSON column. tests/test_profile_decomposition.py asserts
+    #: the two agree.
+    completeness = db.Column(db.SmallInteger, nullable=False, default=0)
+    extra = db.Column(JSONB, nullable=False, default=dict)
+    version = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    user = db.relationship("User", backref=db.backref("profile", uselist=False))
+
+
+class ProfileExperience(db.Model):
+    """One role from the profile's ``experience`` array.
+
+    `extra` holds the entry keys with no column: the frontend's list `id`, and
+    any date the user typed as free text ("2020 - 2022", "Present"). Part 4.3
+    does not list it; without it the only entries that could become rows would be
+    the ones whose dates happen to be ISO, which is almost none of them, and the
+    decomposition would decompose nothing.
+    """
+
+    __tablename__ = "profile_experiences"
+
+    id = db.Column(db.BigInteger, db.Identity(always=True), primary_key=True)
+    public_id = db.Column(
+        UUID(as_uuid=True), nullable=False, server_default=db.text("uuidv7()")
+    )
+    user_id = db.Column(
+        db.BigInteger, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+    )
+    company_name = db.Column(db.Text, nullable=False)
+    title = db.Column(db.Text, nullable=False)
+    start_date = db.Column(db.Date)
+    end_date = db.Column(db.Date)
+    is_current = db.Column(db.Boolean, nullable=False, default=False)
+    description = db.Column(db.Text)
+    source = db.Column(db.Text, nullable=False, default="user")
+    ordinal = db.Column(db.SmallInteger, nullable=False, default=0)
+    extra = db.Column(JSONB, nullable=False, default=dict)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.Index("ix_experiences_user", "user_id", "ordinal"),
+        db.Index("uq_experiences_public_id", "public_id", unique=True),
+    )
+
+
+class ProfileEducation(db.Model):
+    """One entry from the profile's ``education`` array.
+
+    Same shape as ProfileExperience, and `extra` is here for the same reason --
+    plus ``gpa``, which the parser emits and Part 4.3 has no column for.
+    """
+
+    __tablename__ = "profile_educations"
+
+    id = db.Column(db.BigInteger, db.Identity(always=True), primary_key=True)
+    public_id = db.Column(
+        UUID(as_uuid=True), nullable=False, server_default=db.text("uuidv7()")
+    )
+    user_id = db.Column(
+        db.BigInteger, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+    )
+    institution = db.Column(db.Text, nullable=False)
+    degree = db.Column(db.Text)
+    field_of_study = db.Column("field", db.Text)
+    start_date = db.Column(db.Date)
+    end_date = db.Column(db.Date)
+    source = db.Column(db.Text, nullable=False, default="user")
+    ordinal = db.Column(db.SmallInteger, nullable=False, default=0)
+    extra = db.Column(JSONB, nullable=False, default=dict)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.Index("ix_educations_user", "user_id", "ordinal"),
+        db.Index("uq_educations_public_id", "public_id", unique=True),
+    )
+
+
+class Skill(db.Model):
+    """The canonical skill dimension. One row per `solverah.domain.skills.slugify`.
+
+    `label` is first-writer-wins: whoever creates the row names it, and every
+    later spelling that slugifies the same way is appended to `aliases`. That
+    keeps what people actually typed without letting capitalisation fork the
+    dimension, and gives the trigram index below something real to search.
+    """
+
+    __tablename__ = "skills"
+
+    id = db.Column(db.BigInteger, db.Identity(always=True), primary_key=True)
+    slug = db.Column(db.Text, nullable=False, unique=True)
+    label = db.Column(db.Text, nullable=False)
+    onet_element_id = db.Column(db.Text)
+    aliases = db.Column(ARRAY(db.Text), nullable=False, server_default=db.text("'{}'"))
+
+    __table_args__ = (
+        db.Index(
+            "ix_skills_trgm",
+            "label",
+            postgresql_using="gin",
+            postgresql_ops={"label": "gin_trgm_ops"},
+        ),
+    )
+
+
+class ProfileSkill(db.Model):
+    """One skill claimed by one user.
+
+    `label` is the raw text *this* user wrote, which is not the same thing as
+    `Skill.label`: two users can type "Python" and "python" and must each get
+    their own spelling back. `ordinal` is the position in the document's
+    ``skills`` array, and NULL means the skill was rated but never listed --
+    a state the blob could represent, so one the rows have to.
+    """
+
+    __tablename__ = "profile_skills"
+
+    user_id = db.Column(
+        db.BigInteger,
+        db.ForeignKey("user.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    skill_id = db.Column(db.BigInteger, db.ForeignKey("skills.id"), primary_key=True)
+    label = db.Column(db.Text, nullable=False)
+    proficiency = db.Column(db.SmallInteger)
+    ordinal = db.Column(db.SmallInteger)
+    years = db.Column(db.Numeric(4, 1))
+    source = db.Column(db.Text, nullable=False, default="user")
+    updated_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.Index("ix_profile_skills_skill", "skill_id"),
+        db.CheckConstraint(
+            "proficiency IS NULL OR (proficiency >= 1 AND proficiency <= 5)",
+            name="ck_profile_skills_proficiency_range",
+        ),
+    )
+
+    skill = db.relationship("Skill")
+
+
+class Resume(db.Model):
+    """The resume object on a user's profile.
+
+    One row per user today, because the blob held exactly one ``resumeKey`` and
+    `retention_cleanup` deletes object-storage keys no row references. Keeping
+    superseded uploads here would quietly stop them from ever being swept, which
+    is a retention change rather than a storage change. The index is on
+    (user_id, created_at DESC) so history is a data change when it arrives.
+    """
+
+    __tablename__ = "resumes"
+
+    id = db.Column(db.BigInteger, db.Identity(always=True), primary_key=True)
+    public_id = db.Column(
+        UUID(as_uuid=True), nullable=False, server_default=db.text("uuidv7()")
+    )
+    user_id = db.Column(
+        db.BigInteger, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+    )
+    object_key = db.Column(db.Text, nullable=False)
+    #: Nullable, unlike Part 4.3. A blob that recorded `resumeKey` without an
+    #: `uploadedResume` sub-document has no MIME type to carry over, and NULL
+    #: says that where an invented "application/octet-stream" would not.
+    mime = db.Column(db.Text)
+    #: 0 means "not recorded", for the same reason.
+    size_bytes = db.Column(db.Integer, nullable=False, default=0)
+    status = db.Column(db.Text, nullable=False, default="stored")
+    parser_version = db.Column(db.Text)
+    parsed_at = db.Column(db.DateTime(timezone=True))
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.Index("ix_resumes_user", "user_id", db.text("created_at DESC")),
+        db.Index("uq_resumes_public_id", "public_id", unique=True),
+    )
+
+
+# `updated_at` is the database's job, not the application's (Part 4.1 rule 5).
+# Attached per table rather than declared once because a trigger is DDL and has
+# to be emitted after the table it fires on -- for `db.create_all()` in the tests
+# and for the migration alike.
+for _phase2a_table in (
+    Profile.__table__,
+    ProfileExperience.__table__,
+    ProfileEducation.__table__,
+    ProfileSkill.__table__,
+):
+    sa_event.listen(
+        _phase2a_table,
+        "after_create",
+        DDL(_updated_at_trigger(_phase2a_table.name)).execute_if(dialect="postgresql"),
+    )
+del _phase2a_table

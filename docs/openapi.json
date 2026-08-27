@@ -46,7 +46,7 @@
       },
       "AccountExportResponse": {
         "additionalProperties": false,
-        "description": "Every identified data class held for the authenticated user.\n\n``profile`` is the raw ``users.profile_data`` blob, so it is typed as an open\nobject: its key set is genuinely per-user until Phase 2 decomposes it.",
+        "description": "Every identified data class held for the authenticated user.\n\n``profile`` is the profile document -- ``profiles`` and its child tables\nsince Phase 2a, the ``users.profile_data`` blob before it, and byte-identical\neither way. It stays typed as an open object because the keys that have not\nbeen promoted to columns yet still vary per user.",
         "properties": {
           "account": {
             "$ref": "#/components/schemas/ExportedAccount"
@@ -100,7 +100,7 @@
           },
           "profile": {
             "additionalProperties": true,
-            "description": "Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
+            "description": "The profile document. Assembled from the profile tables since Phase 2a; open-ended because the unpromoted keys genuinely vary per user.",
             "title": "Profile",
             "type": "object"
           }
@@ -2485,11 +2485,11 @@
       },
       "ProfileDocument": {
         "additionalProperties": false,
-        "description": "``GET|PATCH /me/profile`` -- the profile half, in an envelope.\n\nThe envelope is the point. Returning the blob bare would leave nowhere to\nput the ``version`` that P0-1's fix needs, and no way to add it later\nwithout colliding with a profile key of the same name.",
+        "description": "``GET|PATCH /me/profile`` -- the profile half, in an envelope.\n\nThe envelope is the point. Returning the document bare would leave nowhere\nto put a ``version`` and no way to add one later without colliding with a\nprofile key of the same name.\n\nP0-1 is fixed as of Phase 2a and ``version`` is *not* here yet, which is\ndeliberate: the fix is server-side compare-and-swap on ``profiles.version``,\nand it needs no cooperation from the client. Exposing the version becomes\nworth doing when a client wants to say \"write this only if you still have\nwhat I read\" -- an If-Match, not a field.",
         "properties": {
           "profile": {
             "additionalProperties": true,
-            "description": "Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
+            "description": "The profile document. Assembled from the profile tables since Phase 2a; open-ended because the unpromoted keys genuinely vary per user.",
             "title": "Profile",
             "type": "object"
           }
@@ -2502,7 +2502,7 @@
         "properties": {
           "profile": {
             "additionalProperties": true,
-            "description": "Partial profile. Merged over the stored blob; unknown keys are stripped.",
+            "description": "Partial profile. Merged over the stored document; unknown keys are stripped.",
             "title": "Profile",
             "type": "object"
           }
@@ -2594,7 +2594,7 @@
       },
       "QuizInsightsResponse": {
         "additionalProperties": false,
-        "description": "Authenticated generation. Also written to ``profile_data.quizInsights``.",
+        "description": "Authenticated generation. Also written to the profile's ``quizInsights``.",
         "properties": {
           "insights": {
             "items": {
@@ -2742,7 +2742,7 @@
             "type": "string"
           },
           "terms_accepted": {
-            "description": "Must be literal true. Recorded in profile_data as evidence of assent.",
+            "description": "Must be literal true. Recorded on the profile as evidence of assent.",
             "title": "Terms Accepted",
             "type": "boolean"
           },
@@ -2838,7 +2838,7 @@
         "properties": {
           "profile": {
             "additionalProperties": true,
-            "description": "Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
+            "description": "The profile document. Assembled from the profile tables since Phase 2a; open-ended because the unpromoted keys genuinely vary per user.",
             "title": "Profile",
             "type": "object"
           }
@@ -3003,7 +3003,7 @@
       },
       "SessionUser": {
         "additionalProperties": true,
-        "description": "The user object returned on a successful login.\n\n``profileData`` is the entire ``users.profile_data`` blob.  Shipping the\nwhole user document on every session restore is the god-endpoint problem\nPart 5.2 splits apart; it is documented here rather than quietly trimmed,\nbecause trimming it would break the frontend that reads it.",
+        "description": "The user object returned on a successful login.\n\n``profileData`` is the entire profile document.  Shipping the whole user\ndocument on every session restore is the god-endpoint problem Part 5.2\nsplits apart; it is documented here rather than quietly trimmed, because\ntrimming it would break the frontend that reads it.\n\nPhase 2a changed where it comes from -- six tables rather than one JSON\ncolumn -- and changed nothing about what it contains, which is why this\nmodel did not move.",
         "properties": {
           "email": {
             "anyOf": [
@@ -3035,7 +3035,7 @@
           },
           "profileData": {
             "additionalProperties": true,
-            "description": "Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
+            "description": "The profile document. Assembled from the profile tables since Phase 2a; open-ended because the unpromoted keys genuinely vary per user.",
             "title": "Profiledata",
             "type": "object"
           },

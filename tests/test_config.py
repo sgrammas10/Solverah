@@ -228,14 +228,15 @@ CI_VARIABLES = (
     "JWT_COOKIE_SAMESITE",
 )
 
-# Each backend CI job and the make target that reproduces it. There are two as of
-# 2026-08-27: Postgres is the gate, SQLite is fast non-gating signal. Both are listed
-# because a target that has drifted from its job is a target that lies, and it does not
-# matter which of the two it is -- the SQLite one is exactly where a false green hurts
-# most, since it is the one people run while waiting.
+# Each backend CI job and the make target that reproduces it. One, as of Phase 2a:
+# the `backend-tests-sqlite` job and its `test-ci` target were retired on 2026-08-27
+# because the Part 4.3 profile tables cannot be created on SQLite at all.
+#
+# The pairing is still worth asserting with a single entry in it. A target that has
+# drifted from its job is a target that lies, and `make test-pg` is now the only way
+# to find out what CI will say without pushing.
 BACKEND_JOBS = (
     ("backend-tests-postgres:", "test-pg:"),
-    ("backend-tests-sqlite:", "test-ci:"),
 )
 
 
@@ -276,25 +277,45 @@ def test_make_targets_reproduce_the_ci_backend_jobs(job_anchor, target_anchor):
         )
 
 
-def test_the_postgres_job_is_the_gate_and_sqlite_cannot_fail_the_build():
-    """The two backend jobs are not peers, and the workflow has to say so.
+def test_the_postgres_job_is_the_gate_and_is_the_only_backend_job():
+    """Postgres decides, and nothing runs beside it that could disagree.
 
-    A SQLite job that can fail the build is a SQLite job that can *block* on a defect
-    the real database does not have -- and, worse, one people fix by making the code
-    accommodate SQLite. It runs for speed; Postgres decides.
+    This used to assert that the SQLite job carried `continue-on-error: true`, so a
+    database the product does not run on could not block a build -- or, worse, get
+    "fixed" by making the code accommodate it. Phase 2a retired that job, so the
+    assertion inverts: there must not be a second backend job at all.
+
+    A non-gating backend job is not forbidden forever. What is forbidden is one that
+    reappears without the reasoning in .github/workflows/tests.yml being revisited,
+    which is what this failing would mean.
     """
     import io as _io
 
     workflow = _io.open(".github/workflows/tests.yml", encoding="utf-8").read()
 
-    sqlite_job = workflow.split("backend-tests-sqlite:", 1)[1]
-    assert "continue-on-error: true" in sqlite_job.split("steps:", 1)[0], (
-        "The SQLite job can fail the build. It is early signal, not the gate — "
-        "set continue-on-error: true."
+    jobs = _yaml_jobs(workflow)
+    backend_jobs = [name for name in jobs if name.startswith("backend-tests")]
+    assert backend_jobs == ["backend-tests-postgres"], (
+        "Backend CI jobs are %s. A second one needs the trade-off in "
+        ".github/workflows/tests.yml revisited, not this test updated." % backend_jobs
     )
 
-    postgres_job = workflow.split("backend-tests-postgres:", 1)[1].split("\n  backend-tests-sqlite:", 1)[0]
-    assert "continue-on-error" not in postgres_job.split("steps:", 1)[0], (
+    postgres_job = jobs["backend-tests-postgres"]
+    assert "continue-on-error" not in postgres_job, (
         "The Postgres job is the gate; it must be able to fail the build."
     )
-    assert "pgvector/pgvector:pg" in postgres_job, "the Postgres service container is gone"
+    assert "pgvector/pgvector:pg" in _io.open(
+        ".github/workflows/tests.yml", encoding="utf-8"
+    ).read(), "the Postgres service container is gone"
+
+
+def _yaml_jobs(workflow: str) -> dict:
+    """The workflow's jobs, parsed rather than string-split.
+
+    The retired job left a forty-line comment block behind that still contains the
+    words "backend-tests-sqlite", and a `.split()` on that string would find it.
+    Parsing is what tells a job apart from a note about a job.
+    """
+    import yaml
+
+    return yaml.safe_load(workflow)["jobs"]

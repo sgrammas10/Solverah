@@ -45,8 +45,27 @@ PASSWORD = "Strongpass1!"
 FORM_TOKEN_SECRET = "test-secret-not-a-real-one"
 
 
+#: A complete preference vector, matching the seeded companies exactly so the
+#: scorer has something to rank rather than nothing to score.
+CULTURE_PREFERENCES = {
+    "empathy": 0.5, "creative_drive": 0.5, "adaptability": 0.5,
+    "futuristic": 0.5, "harmony": 0.5, "data_orientation": 0.5,
+    "pace": "fast", "work_environment": "collaborative",
+}
+
+
 def _noop(*_args, **_kwargs):
     return None
+
+
+def _give_culture_preferences(user_id):
+    """Put a preference vector on the profile. Does not commit."""
+    from solverah.repositories import profile_repository
+
+    profile_repository.update_document(
+        user_id,
+        lambda existing: {**existing, "culture_preferences": CULTURE_PREFERENCES},
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -241,13 +260,7 @@ def test_matches_response_matches_schema(client, auth):
             adaptability=0.5, futuristic=0.5, harmony=0.5, data_orientation=0.5,
         ))
         user = User.query.filter_by(email=EMAIL).first()
-        profile = dict(user.profile_data or {})
-        profile["culture_preferences"] = {
-            "empathy": 0.5, "creative_drive": 0.5, "adaptability": 0.5,
-            "futuristic": 0.5, "harmony": 0.5, "data_orientation": 0.5,
-            "pace": "fast", "work_environment": "collaborative",
-        }
-        user.profile_data = profile
+        _give_culture_preferences(user.id)
         db.session.commit()
 
     resp = client.get("/api/v1/me/matches")
@@ -277,13 +290,7 @@ def test_a_page_of_matches_never_repeats_a_company(client, auth):
                 harmony=0.5, data_orientation=0.5,
             ))
         user = User.query.filter_by(email=EMAIL).first()
-        profile = dict(user.profile_data or {})
-        profile["culture_preferences"] = {
-            "empathy": 0.5, "creative_drive": 0.5, "adaptability": 0.5,
-            "futuristic": 0.5, "harmony": 0.5, "data_orientation": 0.5,
-            "pace": "fast", "work_environment": "collaborative",
-        }
-        user.profile_data = profile
+        _give_culture_preferences(user.id)
         db.session.commit()
 
     body = MatchesResponse.model_validate(

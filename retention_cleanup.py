@@ -41,8 +41,9 @@ def _referenced_resume_keys(db, IntakeSubmission, ResumeParseCorrection, User) -
     this sweep delete a live resume:
       * ``IntakeSubmission.resume_key`` — the intake flow's column;
       * ``ResumeParseCorrection.resume_key`` — retained parser training data;
-      * ``User.profile_data`` JSON — both the active ``resumeKey`` and the
-        ``_parsedResumeSnapshot.resumeKey`` used for correction diffing.
+      * the profile tables — the ``resumes`` row, and the
+        ``_parsedResumeSnapshot.resumeKey`` inside ``profiles.extra`` that
+        correction diffing needs long after the resume itself was replaced.
 
     Returns:
         Set of object keys that must never be deleted.
@@ -54,14 +55,9 @@ def _referenced_resume_keys(db, IntakeSubmission, ResumeParseCorrection, User) -
     for (key,) in db.session.query(ResumeParseCorrection.resume_key).all():
         if key:
             keys.add(key)
-    for (profile,) in db.session.query(User.profile_data).all():
-        if not isinstance(profile, dict):
-            continue
-        if profile.get("resumeKey"):
-            keys.add(profile["resumeKey"])
-        snapshot = profile.get("_parsedResumeSnapshot")
-        if isinstance(snapshot, dict) and snapshot.get("resumeKey"):
-            keys.add(snapshot["resumeKey"])
+    from solverah.repositories import profile_repository
+
+    keys |= profile_repository.referenced_resume_keys()
     return keys
 
 

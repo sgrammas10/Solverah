@@ -119,13 +119,17 @@ def test_delete_tombstones_user_and_purges_pii(client, monkeypatch):
 
     from app import app
     from model import User, db
+    from solverah.repositories import profile_repository
 
     with app.app_context():
         user = db.session.get(User, user_id)
         # Personal fields gone
         assert user.email == f"deleted-{user_id}@tombstone.invalid"
         assert user.name is None
-        assert set(user.profile_data.keys()) == {"deleted_at"}
+        # The profile document is the tombstone and nothing else, which also
+        # means no experience, education, skill or resume rows survive -- the
+        # write path rebuilds those from the document it is handed.
+        assert set(profile_repository.load_document(user_id).keys()) == {"deleted_at"}
         assert user.confirmation_token is None
         assert user.reset_token is None
         # The old password can never verify again (not a bcrypt hash at all)

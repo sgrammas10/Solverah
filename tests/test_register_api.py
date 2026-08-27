@@ -108,10 +108,11 @@ def test_register_records_acceptance_metadata(client, monkeypatch):
 
     from app import app
     from model import User
+    from solverah.repositories import profile_repository
 
     with app.app_context():
         user = User.query.filter_by(email="acceptance@example.com").first()
-        record = (user.profile_data or {}).get("legal_acceptance")
+        record = profile_repository.load_document(user.id).get("legal_acceptance")
         assert record is not None
         assert record["terms_version"] == "v0.9-draft-2026-08-20"
         assert record["accepted_at"]

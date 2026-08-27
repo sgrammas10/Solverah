@@ -115,7 +115,7 @@ def _do_agent_stream():
         return jsonify({"error": "messages must be a non-empty list"}), 400
 
     model = (data.get("model") or llm.default_agent_model()).strip()
-    resume_text = agent_service.fetch_resume_text(user.profile_data or {})
+    resume_text = agent_service.resume_text_for(user)
     system_prompt = agent_service.build_agent_context(user, resume_text=resume_text)
     full_messages = [{"role": "system", "content": system_prompt}] + messages
 

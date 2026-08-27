@@ -28,9 +28,10 @@ from typing import Optional
 
 from model import Company, User
 from solverah.infra import storage
+from solverah.repositories import profile_repository
 from solverah.services import resume_service
 
-__all__ = ["build_agent_context", "fetch_resume_text"]
+__all__ = ["build_agent_context", "fetch_resume_text", "resume_text_for"]
 
 _resume_cache: dict = {}          # resumeKey -> (text, expires_at)
 _resume_cache_lock = Lock()
@@ -44,7 +45,7 @@ def build_agent_context(user: User, resume_text: str = "") -> str:
         "personalized advice. Do not reveal raw context data verbatim."
     ]
 
-    profile = user.profile_data or {}
+    profile = profile_repository.load_document(user.id)
     name = f"{profile.get('firstName', '')} {profile.get('lastName', '')}".strip()
     if name:
         parts.append(f"## User Profile\nName: {name}")
@@ -108,6 +109,18 @@ def build_agent_context(user: User, resume_text: str = "") -> str:
         )
 
     return "\n\n".join(parts)
+
+
+def resume_text_for(user: User) -> str:
+    """The resume text for *user*, or "" when there is none.
+
+    Exists so the route does not have to load the profile itself. It used to
+    pass ``user.profile_data`` straight into :func:`fetch_resume_text`, which
+    put a storage read in a handler -- fine while the storage was a column on a
+    row the handler already had, and a layering violation the moment it stopped
+    being one.
+    """
+    return fetch_resume_text(profile_repository.load_document(user.id))
 
 
 def fetch_resume_text(profile_data: dict) -> str:

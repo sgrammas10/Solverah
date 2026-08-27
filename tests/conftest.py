@@ -17,6 +17,13 @@ keeps whatever ``DATABASE_URL`` is already in the shell, and the fixture calls
 to run a migration, say -- and then ran ``pytest`` in that same terminal would
 drop every production table.  Nothing in the code stood between those two
 keystrokes.  :func:`_refuse_non_local_database` now does.
+
+**The default is Postgres as of 2026-08-27**, and the SQLite CI job is gone --
+see ``.github/workflows/tests.yml`` for the reasoning.  The SQLite branches
+below are kept rather than deleted: the guard has to keep accepting SQLite URLs
+because ``test_conftest_safety.py`` asserts on them directly, and the teardown
+branch is the fix for a real bug that would come straight back if anyone points
+``DATABASE_URL`` at a file again.
 """
 
 import os
@@ -24,7 +31,21 @@ import os
 import pytest
 
 os.environ.setdefault("APP_ENV", "testing")
-os.environ.setdefault("DATABASE_URL", "sqlite:///test.db")
+# The compose stack's database (infra/docker/compose.yml), not SQLite.
+#
+# It was `sqlite:///test.db` until 2026-08-27. Phase 2a's tables cannot be
+# created on SQLite -- `DEFAULT uuidv7()`, identity columns, JSONB, `TEXT[]` and
+# a GIN trigram index between them -- so `db.create_all()` fails there before any
+# test runs. A default that cannot work is worse than one that needs a container
+# running: the failure it produces talks about DDL rather than about the missing
+# database.
+#
+# `docker compose -f infra/docker/compose.yml up db` is the whole setup. The
+# guard below still allows SQLite URLs, because it is a guard about *hosts* and
+# nothing is gained by narrowing it.
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql://solverah:solverah@localhost:5432/solverah"
+)
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 os.environ.setdefault("JWT_COOKIE_SECURE", "false")
 os.environ.setdefault("JWT_COOKIE_SAMESITE", "Lax")
@@ -99,10 +120,11 @@ def _enforce_sqlite_foreign_keys() -> None:
     suite ran on SQLite and all eight failed the hour CI moved to Postgres
     (2026-08-27).  The rows were orphans on both databases.  Only one of the two said so.
 
-    The SQLite job is kept for speed, and a fast job that is *laxer* than the gate is
-    worse than no fast job: it reports green on precisely the defects the gate exists
-    to catch, so the first real signal arrives minutes later from the slower run.  This
-    listener closes that gap -- both jobs now enforce the same integrity rules.
+    The SQLite job this was written for is retired (2026-08-27, Phase 2a -- the new
+    profile tables cannot be created on SQLite at all).  The listener stays, because it
+    is what makes a SQLite ``DATABASE_URL`` merely *limited* rather than actively
+    misleading: anyone who points one at a file for a quick run on the subset of tests
+    that still work there gets the same integrity rules as the gate, not laxer ones.
     """
     from sqlalchemy import event
     from sqlalchemy.engine import Engine

@@ -31,7 +31,7 @@ from solverah.domain import intake as domain
 from solverah.infra import email as email_infra
 from solverah.infra import storage
 from solverah.infra.storage import ALLOWED_MIME, MAX_BYTES
-from solverah.repositories import intake_repository, user_repository
+from solverah.repositories import intake_repository, profile_repository, user_repository
 from solverah.services import audit, resume_service
 
 __all__ = [
@@ -257,12 +257,15 @@ def create_account(
         password=hashed_pw,
         name=full_name,
         role=role,
-        profile_data=profile_data,
         email_confirmed=False,
         confirmation_token=token,
         confirmation_sent_at=auth_domain.utcnow(),
     )
     db.session.add(new_user)
+    # Flushed for its id, not committed: the user and their profile land in one
+    # transaction. See the same note in auth_service.register.
+    db.session.flush()
+    profile_repository.update_document(new_user.id, lambda _existing: profile_data)
 
     intake.status = "account_created"
     db.session.commit()
@@ -342,7 +345,9 @@ def sign_in(data: Dict[str, Any], *, check_password) -> IntakeResult:
         )
 
     intake_profile = resume_service.build_profile_from_intake(intake)
-    user.profile_data = {**(user.profile_data or {}), **intake_profile}
+    profile_repository.update_document(
+        user.id, lambda existing: {**existing, **intake_profile}
+    )
 
     full_name = ("%s %s" % (intake.first_name, intake.last_name)).strip()
     if full_name:
@@ -402,7 +407,9 @@ def link_account(user: User, current_email: str, data: Dict[str, Any]) -> Intake
     intake = intake_repository.find_submission(fields.submission_id)
     if intake:
         intake_profile = resume_service.build_profile_from_intake(intake)
-        user.profile_data = {**(user.profile_data or {}), **intake_profile}
+        profile_repository.update_document(
+            user.id, lambda existing: {**existing, **intake_profile}
+        )
         full_name = ("%s %s" % (fields.first_name, fields.last_name)).strip()
         if full_name:
             user.name = full_name

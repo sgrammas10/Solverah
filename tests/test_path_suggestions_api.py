@@ -71,11 +71,12 @@ def _register_and_login(client, monkeypatch, email="paths@example.com", password
 def _set_profile(email: str, extra: dict):
     from app import app
     from model import User, db
+    from solverah.repositories import profile_repository
     with app.app_context():
         user = User.query.filter_by(email=email).first()
-        profile = dict(user.profile_data or {})
-        profile.update(extra)
-        user.profile_data = profile
+        profile_repository.update_document(
+            user.id, lambda existing: {**existing, **extra}
+        )
         db.session.commit()
 
 

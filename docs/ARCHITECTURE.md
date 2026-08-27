@@ -1,6 +1,6 @@
 # Solverah — System Architecture
 
-**Status:** Target architecture v2 · **Owner:** Engineering · **Last revised:** 2026-08-26
+**Status:** Target architecture v2 · **Owner:** Engineering · **Last revised:** 2026-08-27
 
 This document is the source of truth for how Solverah is built and where it is going.
 Part 1 audits what exists today. Parts 2–7 define the target. Part 8 is the migration
@@ -49,6 +49,23 @@ Consequences:
 - **Unbounded growth.** No schema means no size ceiling on a hot-path row.
 
 This is the single largest scale blocker in the system.
+
+**Resolved 2026-08-27** (Phase 2a). The blob is decomposed into `profiles`,
+`profile_experiences`, `profile_educations`, `skills`, `profile_skills` and
+`resumes`, and no service or repository reads `users.profile_data` any more.
+
+Worth separating the two halves of the fix, because only one of them is the
+decomposition. Splitting `experience` into rows stops two writers clobbering each
+other's *lists*. It does nothing for two writers touching two scalar fields —
+those still land in one row, `profiles.extra` for the keys not yet promoted to
+columns. What closes that is `profiles.version`: every write is a compare-and-swap
+against the version it read, and a writer that loses re-reads and re-applies its
+own merge rather than overwriting. `tests/test_profile_concurrency.py` forces the
+interleaving deterministically and failed on the code that preceded this.
+
+Still open, and deliberately: `profiles.extra` is a JSON document and the keys in
+it are still unindexable. Part 4.3's model is that each promotion out of `extra`
+is its own follow-up migration, and what 2a promoted is listed there.
 
 #### P0-2 · Culture matching is an O(all-companies) in-process scan
 
@@ -125,8 +142,17 @@ onto a Postgres service container. Eight failed on the first run, and all eight 
 same defect: child rows inserted against a `user_id` no `user` row had. SQLite's foreign
 keys are off by default and are a per-connection pragma, so every foreign key in the
 schema had been decoration for the entire life of the test suite. The tests now seed the
-parent row, and conftest turns the pragma on so the surviving SQLite job cannot report
-green on that class again.
+parent row, and conftest turns the pragma on so a SQLite run cannot report green on that
+class again.
+
+**The SQLite job is retired as of Phase 2a** (2026-08-27). Part 4.3's tables use five
+things SQLite cannot express — `DEFAULT uuidv7()`, identity columns, JSONB, `TEXT[]`,
+and a GIN trigram index — and the fixtures build the schema with `db.create_all()`, so
+the job could not reach a single test. The alternative, making those defaults
+application-side for portability, is the one this document already ruled out on a
+measurement of the real database (A13), and it would be a permanent change to every
+table in Part 4 bought to satisfy a container. `tests/conftest.py` now defaults
+`DATABASE_URL` to the compose stack's Postgres.
 
 #### P1-10 · API surface
 
@@ -484,6 +510,123 @@ CREATE INDEX ix_resumes_user ON resumes (user_id, created_at DESC);
 
 `profiles.extra` exists so the migration lands without data loss — anything not yet
 promoted to a column rides there, and each promotion is a follow-up migration.
+
+#### As built · **2026-08-27**
+
+Shipped as `migrations/versions/20260827_decompose_profile_data.py`. Five things
+differ from the SQL above, each because the round trip demanded it.
+
+**Three added columns.** `profile_experiences.extra`, `profile_educations.extra`,
+and `profile_skills.label`.
+
+The two `extra` columns are the same idea as `profiles.extra`, one level down. The
+blob's dates are free text — the parser writes `"endDate": "2019 - 2020"` and the
+UI writes `"Present"` — so a `DATE` column fits almost none of them. Without a
+per-row remainder the only entries that could become rows would be the ones whose
+dates happen to be ISO, and the decomposition would decompose almost nothing.
+They also hold the frontend's list `id` and education's `gpa`, neither of which
+has a column.
+
+`profile_skills.label` is the raw text *that user* typed. It is not
+`skills.label`, which is the canonical spelling: two users can write "Python" and
+"python", they resolve to one dimension row, and each must read back their own
+capitalisation. Reassembling from the canonical label would hand the second user
+the first user's spelling.
+
+**`profile_skills.ordinal`**, nullable. `skills` in the document is an ordered
+array and the primary key `(user_id, skill_id)` is a set, so order has to be
+stored. NULL means "rated but not listed" — a state `skill_levels` could
+represent, so one the rows have to.
+
+**`resumes.mime` is nullable and `size_bytes` defaults to 0.** A blob holding a
+`resumeKey` with no `uploadedResume` sub-document has no MIME type to carry over,
+and NULL says that where an invented `application/octet-stream` would not.
+
+**`resumes` holds one row per user, not a history.** `retention_cleanup` deletes
+object-storage keys no row references, so keeping superseded uploads would stop
+them ever being reclaimed — a retention change smuggled in with a storage change.
+The index is `(user_id, created_at DESC)` so history is a data change when
+`POST /me/resumes` is ready to keep it.
+
+#### What 2a promoted, and what it did not
+
+Promoted to columns or child tables: `summary`, `phone`, `linkedinUrl`,
+`career_status`, `experience[]`, `education[]`, `skills[]`, `skill_levels`,
+`resumeKey`. Everything else rides in `profiles.extra` — `firstName`, `lastName`,
+`email`, `location`, `primaryLocation`, `secondaryLocations`, `certifications`,
+`performanceReviews`, `psychometricResults`, `quizResults`, `_quizSummary`,
+`quizInsights`, `applications`, `uploadedResume`, `_parsedResumeSnapshot`,
+`legal_acceptance`, `path_preferences`, `culture_preferences`,
+`focus_type_result`, `manager_match_result`, `skills_proficiency_confirmed`.
+
+`headline`, `location_state`, `location_city` and `portfolio_url` are declared
+above and are left NULL. There is no headline and no portfolio URL in the
+document at all; `location` and `primaryLocation` are one free-text field that
+may hold a state, a city, or "Austin, TX", and splitting it means guessing. A
+guess written into a column is indistinguishable from a fact once it is there.
+That promotion is gated on the frontend collecting city and state separately.
+
+#### The promotion rule
+
+One rule, and it is what makes `GET /me/profile` byte-identical:
+
+> A key is promoted to a column only when its value fits that column exactly.
+> Anything else rides in `extra` verbatim. A NULL column means the key was
+> absent; a key in `extra` means it was present with that value.
+
+So `"phone": ""` promotes and returns `""`; `"phone": null` does not promote,
+rides in `extra`, and returns `null`; an absent `phone` leaves the column NULL and
+the key absent. Three states stay three states, which a nullable column alone
+cannot do. Lists apply the rule at list level rather than per entry: if any
+`experience` entry is not decomposable, the whole key rides in `extra`, because
+half in rows and half in a blob would make the assembled order a coin toss.
+
+`assemble(decompose(d)) == d` for every `d`, including malformed ones — a
+migration that quietly repairs bad data has changed data it was not asked to
+change. `tests/test_profile_decomposition.py` holds the corpus.
+
+#### Skill normalisation
+
+`skills.slug` is `solverah/domain/skills.py::slugify`: NFKD normalise, drop
+combining marks, casefold, substitute symbols, then reduce every remaining run of
+non-alphanumerics to `-`.
+
+It collapses **case** (`Python` = `python` = `PYTHON`), **separator and
+punctuation** (`Node.js` = `Node JS` = `node-js` = `node_js`), **whitespace runs**
+(`  machine   learning ` = `machine-learning`), and **diacritics** (`Café` =
+`Cafe`).
+
+The symbol substitution — `++`→`pp`, `#`→`sharp`, leading `.`→`dot` — runs
+*before* punctuation is stripped, and that ordering is the whole reason it exists.
+Strip first and `C`, `C++` and `C#` all reduce to `c`: three unrelated skills in
+one row, and every profile claiming one claims all three. They are generic
+character rules, not a list of language names, so `F#` and `.tmux` behave without
+anyone having thought about them.
+
+It does **not** collapse near-duplicates by meaning. `JS` and `JavaScript` stay
+two rows, as do `React`/`React.js`, `k8s`/`Kubernetes`, `Postgres`/`PostgreSQL`.
+Merging those needs a curated dictionary, and inventing one inside a storage
+migration would change which skills a profile matches on — a scoring change
+wearing a schema change's clothes. `skills.aliases` and the trigram index on
+`skills.label` exist so that curation can land later as data.
+
+`skills.label` is first-writer-wins; later spellings that slugify the same way are
+appended to `aliases`.
+
+#### Carried over, not dual-written
+
+The migration creates the tables and decomposes every existing `profile_data` in
+one pass. There is no dual-write window and no reconciliation loop, because there
+is nothing at this scale to reconcile: production is tester accounts and companies
+reseed from `docs/company_profiles_in_db.xlsx`. A blob that will not decompose is
+carried into `profiles.extra` verbatim rather than skipped — `extra` assembles
+back to exactly what it holds, so "did not decompose" costs indexability, never
+data.
+
+`users.profile_data` is **not dropped**. Nothing reads or writes it; it stays one
+more release so a rollback is a redeploy rather than a restore. The runbook exists
+and has been walked, but exercising it costs downtime and this costs a column. The
+drop is the next release's migration.
 
 ### 4.4 Assessments
 
@@ -1370,13 +1513,66 @@ the live system rather than assumed:
 Expand/contract, one aggregate at a time, dual-write then backfill then cut over:
 
 1. `users` (rename from `user`, add `public_id`, `status`, `version`).
-2. `profiles` + `profile_experiences` + `profile_educations` + `profile_skills`
-   — dual-write from `profile_data`, backfill, verify, then stop reading the blob.
+2. **Phase 2a · done 2026-08-27.** `profiles` + `profile_experiences` +
+   `profile_educations` + `skills` + `profile_skills` + `resumes`.
 3. `assessment_*` unification.
 4. `company_culture_vectors` + pgvector + HNSW.
 5. Partition `audit_events`, `assessment_responses`, `match_recommendations`, `rec_actions`.
 
 **Exit:** no query reads `profile_data`; culture matching is index-backed.
+
+#### Phase 2a — decomposing `profile_data` · **done 2026-08-27**
+
+Ran ahead of the `users` rename rather than after it, which is why the new tables
+reference `user.id` and not `users.id`. The rename is orthogonal to this and
+sequencing it first would have meant two schema changes landing on the same
+release for no gain.
+
+**What it is not.** It is a storage change and not a contract change. `GET
+/me/profile`, `GET /auth/session`, `PATCH /me/profile`, `PUT /me/skills`, `GET
+/me/dashboard` and `GET /me/export` return the same bytes they returned before —
+verified by capturing every response on both sides of the change and diffing
+them, with only the CSRF token and two timestamps masked. `docs/openapi.json`
+regenerated with no change to a single path, schema or status code; the only diff
+is prose in four `description` strings that said the blob was still the storage.
+No frontend file was touched. `AuthContext.toUser()` was the documented seam and
+it held.
+
+**What it cost.** `load_document` is five queries where the blob was zero — the
+blob rode along on the user row the handler had already loaded. That lands on
+`GET /me/profile`, not on the boot path, which is `GET /auth/session` and touches
+none of it. Phase 3's cache is where this gets paid back.
+
+**Left for a follow-up, on purpose.**
+
+- `public_id` on an experience or education row is not a stable handle. Writes are
+  delete-then-insert, because a profile save has always replaced these lists
+  wholesale and the document carries no stable per-entry identity — the
+  frontend's list `id` is `Date.now()` for a new row and an array index for a
+  parsed one. It becomes a handle when Part 5.2's `/me/experiences` lands and an
+  entry is addressed individually.
+- `profile_experiences.source` is always `'user'`. The document records no
+  per-entry provenance; the parser can write `'parsed'` directly once Phase 3
+  moves parsing off the request path.
+- `profiles.completeness` is maintained on write and the dashboard still computes
+  its percentage from the assembled document. That is deliberate — a read-time
+  computation cannot drift — and the column is there so "how many profiles are
+  more than 80% complete" is a query rather than a scan of a JSON column. A test
+  asserts the two agree.
+
+**Two pre-existing defects found while verifying this, neither fixed here.**
+
+- `alembic_version.version_num` is `VARCHAR(32)` and the revision id
+  `20260203_add_email_confirmation_to_user` is 39 characters, so `flask db
+  upgrade` cannot build a database from scratch. It has been true since February
+  and nothing caught it because no test runs the migration chain — the fixtures
+  use `db.create_all()`. It does not affect deploying to an existing database,
+  whose `alembic_version` already holds a shorter id and whose next value
+  (`20260827_profile_tables`, 23 characters) fits.
+- `make migrate-check` (`flask db check`) already reported drift before this
+  phase: `company_slug_key` versus `ix_company_slug`, and
+  `ix_resume_parse_correction_user_id`. The six tables added here contribute
+  nothing to that diff.
 
 ### Phase 3 — Async and caching
 
@@ -1468,7 +1664,9 @@ in parallel with the rest of Phase 4.
 | A5 | Cursor pagination, never offset | `OFFSET 100000` scans 100k rows and skews under concurrent writes. | Offset/limit |
 | A6 | Modular monolith, not microservices | One team. Service boundaries here would buy operational cost and distributed-transaction pain to solve a problem the product does not have. The layering makes extraction cheap later if it is ever warranted. | Microservices |
 | A7 | Refresh tokens in the database | Revocation, device management, and reuse detection are impossible with stateless JWTs alone. One indexed lookup per refresh (not per request) is an acceptable price. | Long-lived stateless JWT |
-| A8 | CI on Postgres, not SQLite | Tests that pass against a database the product does not run are not evidence. Landed 2026-08-27 and immediately caught 8 orphaned foreign keys SQLite had accepted for months. SQLite is kept as a non-gating fast job, with `PRAGMA foreign_keys=ON` so it cannot be laxer than the gate. | Keep SQLite for speed |
+| A8 | CI on Postgres, not SQLite | Tests that pass against a database the product does not run are not evidence. Landed 2026-08-27 and immediately caught 8 orphaned foreign keys SQLite had accepted for months. SQLite was kept briefly as a non-gating fast job; **retired the same day by Phase 2a** (A14). | Keep SQLite for speed |
+| A14 | Retire the SQLite job rather than make Part 4 portable | Part 4.3's tables need `DEFAULT uuidv7()`, identity columns, JSONB, `TEXT[]` and a GIN trigram index; the fixtures build the schema with `db.create_all()`, so the job could not reach a test. Making the defaults app-side reverses A13 for a container's benefit and permanently changes every table in Part 4. Skipping the new tables there leaves the fast job blind to the only thing that changed, which is the laxness A8 rules out. Phases 2c (pgvector/HNSW) and 2e (partitioning) are not expressible on SQLite under any option, so portability bought here is spent inside the same phase. The cost is real and named: ordinary breakage now surfaces in ~3 minutes rather than ~1. | App-side UUIDs; or skip the new tables on SQLite |
+| A15 | Optimistic locking with server-side retry, not a client-supplied version | `profiles.version` is compared and swapped inside the repository, and a losing writer re-reads and re-applies its own merge. Exposing the version in `ProfileDocument` and answering 409 would have been a contract change — 1b shipped a week earlier and the SPA does not send one. An If-Match becomes worth adding when a client actually wants to say "only if I still have what I read"; nothing does yet. | `version` in the envelope + 409 on conflict |
 | A13 | Pin CI Postgres to 18, matching Render, not to 16 | Part 4 defaults every `public_id` to `uuidv7()`, which exists only in Postgres 18+. Render was measured at 18.3, so a pg16 runner would fail migrations production accepts — divergence in the opposite direction, and the tempting workaround (generate ids in the app) would be a permanent change to every table made to satisfy a container. `tests/test_database_parity.py` asserts the floor. | `pgvector/pgvector:pg16` |
 | A9 | Collapsed routes keep one rate-limit bucket per discriminator | Five submit handlers at 5/min were five budgets; one handler is one, so finishing Work Pulse would have spent FocusType's allowance. The limit bounds provider spend, which is per call to a specific instrument — raising it to 25 buys any one instrument a 5× to fix a bucketing problem. | Raise the limit on the collapsed route |
 | A10 | Schema enforcement in a `before_request` hook, not in `@document` | `@document` sits above `@bp.route`, which registers the object it is handed — a wrapper written there never runs. That exact ordering made every `@limiter.limit` in the old `app.py` inert. Resolving the spec from `request.endpoint` makes declaration order irrelevant. | A wrapping decorator |

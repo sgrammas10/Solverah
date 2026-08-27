@@ -38,7 +38,7 @@ from assessment_store import export_person_side
 from model import IntakeSubmission, User, db
 from solverah.domain import auth as auth_domain
 from solverah.infra import storage
-from solverah.repositories import account_repository
+from solverah.repositories import account_repository, profile_repository
 from solverah.services import audit
 
 __all__ = [
@@ -77,7 +77,7 @@ def _now() -> str:
 def collect_resume_keys(user: User, intakes: List[IntakeSubmission]) -> List[str]:
     """Every R2 object key that stores this person's resume bytes."""
     keys = []
-    profile = user.profile_data or {}
+    profile = profile_repository.load_document(user.id)
     if profile.get("resumeKey"):
         keys.append(profile["resumeKey"])
     for intake in intakes:
@@ -128,7 +128,7 @@ def export_account_data(user: User) -> AccountResult:
             "role": user.role,
             "email_confirmed": user.email_confirmed,
         },
-        "profile": user.profile_data or {},
+        "profile": profile_repository.load_document(user.id),
         "intake_submissions": [
             {
                 "id": i.id,

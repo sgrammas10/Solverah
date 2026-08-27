@@ -6,19 +6,25 @@ The behaviour of every function below is unchanged from the handlers in
 :mod:`solverah.repositories.profile_repository`, and object storage sits behind
 :mod:`solverah.services.resume_service`.
 
-Two defects are carried forward deliberately, both recorded in
-docs/ARCHITECTURE.md:
+One defect is carried forward deliberately and one is gone.
 
 * :func:`read_profile` writes an ``AuditLog`` row and commits **on every read**
-  (P0-3).  Session restore fires it on every page load, so the highest-volume
-  table in the system is written synchronously on the hottest endpoint, and a
-  request that ought to be servable from a read replica takes a write lock.
-* :func:`save_profile` is a read-modify-write of a whole JSON column (P0-1).
-  Two concurrent writers both read, both merge, and the second commit discards
-  the first with no error. There is no version column to check.
+  (P0-3).  Still true of this deliberate read of a personal-data document, and
+  no longer true of the boot path -- Phase 1b moved session restore onto
+  ``GET /auth/session``, which comes nowhere near this module.
+* :func:`save_profile` was a read-modify-write of a whole JSON column (P0-1).
+  Two concurrent writers both read, both merged, and the second commit discarded
+  the first with no error.  **Fixed in Phase 2a.**  Every write below now hands a
+  pure merge function to
+  :func:`solverah.repositories.profile_repository.update_document`, which applies
+  it under a compare-and-swap on ``profiles.version`` and re-applies it against a
+  fresh read when another writer got there first.
 
-Neither is fixed here, because fixing either changes observable behaviour and
-this batch's contract is that it does not.
+The shapes returned below are unchanged, deliberately and to the byte.  What was
+``user.profile_data`` is now assembled from six tables and no caller -- the SPA
+included -- can tell.  ``tests/test_profile_decomposition.py`` is what keeps that
+true, and ``tests/test_profile_concurrency.py`` is what proves the fix above is
+a fix rather than a rearrangement.
 """
 
 from __future__ import annotations
@@ -92,7 +98,7 @@ def read_profile(user: User, csrf_token: Optional[str], wp_v2_completed) -> Prof
             "email": user.email,
             "name": user.name,
             "role": user.role,
-            "profileData": user.profile_data or {},
+            "profileData": profile_repository.load_document(user.id),
             "csrfToken": csrf_token,
             "wpl_completed": bool(user.intake and user.intake.wpl_completed_at),
             "wpll_completed": bool(user.intake and user.intake.wpll_completed_at),
@@ -111,17 +117,30 @@ def save_profile(user: User, raw_profile_data: Any, clean_profile_data) -> Profi
             has nothing to do with the service layer.
     """
     profile_data = clean_profile_data(raw_profile_data)
-    existing = user.profile_data or {}
 
-    merged = domain.merge_profile(existing, profile_data)
+    # Filled in by the merge below. The merge runs once per attempt -- again on
+    # every lost compare-and-swap -- so the corrections are *collected* there and
+    # written here, after exactly one attempt has succeeded. Writing them inside
+    # would write them once per attempt.
+    pending: Dict[str, Any] = {"resume_key": None, "corrections": []}
 
-    # Any field the user changed from what the parser produced is recorded in
-    # resume_parse_correction for training-data analysis.
-    resume_key, corrections = domain.resume_field_corrections(existing, profile_data)
-    if resume_key and corrections:
-        profile_repository.record_resume_corrections(user.id, resume_key, corrections)
+    def merge(existing: Dict[str, Any]) -> Dict[str, Any]:
+        # Any field the user changed from what the parser produced is recorded
+        # in resume_parse_correction for training-data analysis. Diffed against
+        # the *freshly read* `existing`, which is what makes it right on a retry
+        # and would not have been had it closed over a document read earlier.
+        resume_key, corrections = domain.resume_field_corrections(existing, profile_data)
+        pending["resume_key"] = resume_key
+        pending["corrections"] = corrections
+        return domain.merge_profile(existing, profile_data)
 
-    profile_repository.save_profile_data(user, merged)
+    document = profile_repository.update_document(user.id, merge)
+
+    if pending["resume_key"] and pending["corrections"]:
+        profile_repository.record_resume_corrections(
+            user.id, pending["resume_key"], pending["corrections"]
+        )
+
     audit.log_audit_event(
         action="update",
         actor_user_id=user.id,
@@ -140,7 +159,7 @@ def save_profile(user: User, raw_profile_data: Any, clean_profile_data) -> Profi
         status=200,
         body={
             "message": "Profile updated successfully",
-            "profileData": user.profile_data,
+            "profileData": document,
         },
     )
 
@@ -150,9 +169,9 @@ def set_career_status(user: User, status: Any) -> ProfileResult:
     if status not in domain.CAREER_STATUSES:
         return _error(400, "invalid_status")
 
-    profile_data = dict(user.profile_data or {})
-    profile_data["career_status"] = status
-    profile_repository.save_profile_data(user, profile_data)
+    profile_repository.update_document(
+        user.id, lambda existing: {**existing, "career_status": status}
+    )
     db.session.commit()
 
     return ProfileResult(status=200, body={"career_status": status})
@@ -164,14 +183,23 @@ def set_skill_proficiency(user: User, skills: Any) -> ProfileResult:
     if problem:
         return _error(400, problem)
 
-    profile_data, skill_levels = domain.apply_skill_levels(user.profile_data, skills)
-    profile_repository.save_profile_data(user, profile_data)
+    written: Dict[str, str] = {}
+
+    def apply(existing: Dict[str, Any]) -> Dict[str, Any]:
+        updated, skill_levels = domain.apply_skill_levels(existing, skills)
+        # Rewritten once per attempt; what survives is what the attempt that
+        # actually committed produced.
+        written.clear()
+        written.update(skill_levels)
+        return updated
+
+    profile_repository.update_document(user.id, apply)
     db.session.commit()
     path_cache.invalidate(user.id)
 
     return ProfileResult(
         status=200,
-        body={"skills_proficiency_confirmed": True, "skill_levels": skill_levels},
+        body={"skills_proficiency_confirmed": True, "skill_levels": dict(written)},
     )
 
 
@@ -200,16 +228,17 @@ def finish_resume_upload(
         resume_name=name or None,
     )
 
-    existing = user.profile_data or {}
-    merged = {**existing, **profile_updates}
-    merged["_parsedResumeSnapshot"] = resume_service.snapshot_of(object_key, profile_updates)
+    snapshot = resume_service.snapshot_of(object_key, profile_updates)
 
-    profile_repository.save_profile_data(user, merged)
+    def merge(existing: Dict[str, Any]) -> Dict[str, Any]:
+        return {**existing, **profile_updates, "_parsedResumeSnapshot": snapshot}
+
+    document = profile_repository.update_document(user.id, merge)
     db.session.commit()
 
     return ProfileResult(
         status=200,
-        body={"message": "Resume processed", "profileData": user.profile_data},
+        body={"message": "Resume processed", "profileData": document},
     )
 
 
@@ -252,7 +281,7 @@ def dashboard_data(user: User, email: str) -> ProfileResult:
     ``recentActivity`` and ``recommendations`` are static placeholders; the
     counts are live. Preserved as-is so the dashboard renders identically.
     """
-    profile = user.profile_data or {}
+    profile = profile_repository.load_document(user.id)
 
     applications = (
         len(profile.get("applications", [])) if "applications" in profile else 0
@@ -338,7 +367,9 @@ def read_profile_document(user: User) -> ProfileResult:
         metadata={"target_user_id": user.id},
     )
     db.session.commit()
-    return ProfileResult(status=200, body={"profile": user.profile_data or {}})
+    return ProfileResult(
+        status=200, body={"profile": profile_repository.load_document(user.id)}
+    )
 
 
 def patch_profile(user: User, profile: Any, clean_profile_data) -> ProfileResult:
@@ -353,12 +384,12 @@ def patch_profile(user: User, profile: Any, clean_profile_data) -> ProfileResult
     result = save_profile(user, profile, clean_profile_data)
     if not result.ok:
         return result
-    return ProfileResult(status=200, body={"profile": user.profile_data or {}})
+    return ProfileResult(status=200, body={"profile": result.body["profileData"]})
 
 
 def read_skills(user: User) -> ProfileResult:
     """Self-rated proficiencies, and whether the user has confirmed them."""
-    profile = user.profile_data or {}
+    profile = profile_repository.load_document(user.id)
     return ProfileResult(
         status=200,
         body={
@@ -384,9 +415,12 @@ def read_skills(user: User) -> ProfileResult:
 # key to name and no prefix to get wrong. This is the one place in Phase 1b
 # where the redesign closes something rather than moving it.
 
-#: Path segment meaning "whatever resume is on my profile". The blob holds
-#: exactly one ``resumeKey``; Phase 2's ``resumes`` table is what makes an id
-#: here address one of several.
+#: Path segment meaning "whatever resume is on my profile". Phase 2a gave
+#: resumes their own table, but one row per user: `resumes` replaces the current
+#: row rather than accumulating history, because `retention_cleanup` sweeps
+#: object keys no row references and keeping superseded uploads would stop them
+#: being reclaimed. An id here addresses one of several the release history
+#: arrives.
 CURRENT_RESUME = "current"
 
 
@@ -417,7 +451,8 @@ def resolve_resume_key(user: User, resume_id: str, mime: Optional[str] = None) -
     own prefix -- an id belonging to another user produces a key under *this*
     user's prefix, which does not exist, rather than reaching theirs.
     """
-    stored = (user.profile_data or {}).get("resumeKey")
+    resume = profile_repository.current_resume(user.id)
+    stored = resume.object_key if resume is not None else None
     if resume_id == CURRENT_RESUME:
         return stored or None
 
@@ -448,7 +483,7 @@ def complete_resume_upload(
     )
     if not result.ok:
         return result
-    return ProfileResult(status=200, body={"profile": user.profile_data or {}})
+    return ProfileResult(status=200, body={"profile": result.body["profileData"]})
 
 
 def resume_download_url_by_id(user: User, resume_id: str) -> ProfileResult:

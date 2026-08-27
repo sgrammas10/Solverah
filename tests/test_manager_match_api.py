@@ -101,7 +101,7 @@ def test_submit_happy_path(client, monkeypatch):
     assert isinstance(body["archetype_description"], str) and len(body["archetype_description"]) > 0
 
 
-def test_submit_persists_to_profile_data(client, monkeypatch):
+def test_submit_persists_to_the_profile_document(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch, email="mm_persist@example.com")
     _mock_openai(monkeypatch)
 
@@ -113,11 +113,12 @@ def test_submit_persists_to_profile_data(client, monkeypatch):
 
     from app import app
     from model import User
+    from solverah.repositories import profile_repository
     with app.app_context():
         user = User.query.filter_by(email="mm_persist@example.com").first()
-        assert user.profile_data is not None
-        assert "manager_match_result" in user.profile_data
-        stored = user.profile_data["manager_match_result"]
+        document = profile_repository.load_document(user.id)
+        assert "manager_match_result" in document
+        stored = document["manager_match_result"]
         assert stored["archetype"] is not None
         assert "narrative" in stored
 
@@ -180,9 +181,15 @@ def test_get_results_happy_path(client, monkeypatch):
 
     from app import app
     from model import User, db
+    from solverah.repositories import profile_repository
     with app.app_context():
         user = User.query.filter_by(email="mm_get@example.com").first()
-        user.profile_data = {"manager_match_result": {"archetype": "The Autonomist", "narrative": "test"}}
+        profile_repository.update_document(
+            user.id,
+            lambda _existing: {
+                "manager_match_result": {"archetype": "The Autonomist", "narrative": "test"}
+            },
+        )
         db.session.commit()
 
     res = client.get("/api/v1/me/assessments/manager_match/result")

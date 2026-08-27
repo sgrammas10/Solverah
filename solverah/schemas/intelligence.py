@@ -146,7 +146,7 @@ class QuizInsight(SolverahModel):
 
 
 class QuizInsightsResponse(SolverahModel):
-    """Authenticated generation. Also written to ``profile_data.quizInsights``."""
+    """Authenticated generation. Also written to the profile's ``quizInsights``."""
 
     quizGroup: str
     overallInsight: Any = Field(

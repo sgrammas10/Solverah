@@ -32,7 +32,7 @@ from typing import Any, Dict, List, Optional
 from model import User, db
 from solverah.domain import auth as auth_domain
 from solverah.infra import llm
-from solverah.repositories import assessment_repository
+from solverah.repositories import assessment_repository, profile_repository
 from solverah.services import assessment_prompts, path_cache
 
 __all__ = [
@@ -60,7 +60,7 @@ WORK_PULSE_ANSWER_COUNT = 12
 MANAGER_MATCH_ANSWER_COUNT = 15
 WPLL_MAX_ANSWERS = 5
 
-#: Result keys inside the ``profile_data`` blob.
+#: Result keys inside the profile document (``profiles.extra`` since 2a).
 FOCUS_TYPE_KEY = "focus_type_result"
 MANAGER_MATCH_KEY = "manager_match_result"
 
@@ -187,9 +187,10 @@ def submit_work_pulse(user: User, answers: Any, logger) -> AssessmentResult:
     intake.wpl_answers = answers
     intake.wpl_completed_at = auth_domain.utcnow()
 
-    profile = dict(user.profile_data or {})
-    profile["culture_preferences"] = derive_culture_preferences(answers)
-    user.profile_data = profile
+    preferences = derive_culture_preferences(answers)
+    profile_repository.update_document(
+        user.id, lambda existing: {**existing, "culture_preferences": preferences}
+    )
 
     db.session.commit()
 

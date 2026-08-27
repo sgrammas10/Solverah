@@ -320,7 +320,7 @@ class TestFocusTypeEndpoint:
         assert isinstance(body["archetype"], str) and body["archetype"]
         assert isinstance(body["recommendations"], list) and body["recommendations"]
 
-    def test_result_persisted_to_profile_data(self, client, monkeypatch):
+    def test_result_persisted_to_the_profile_document(self, client, monkeypatch):
         csrf = _register_and_login(client, monkeypatch, email="persist@example.com")
         client.post(
             "/api/v1/assessments/focus_type/submissions",
@@ -330,10 +330,12 @@ class TestFocusTypeEndpoint:
 
         from app import app
         from model import User
+        from solverah.repositories import profile_repository
         with app.app_context():
             user = User.query.filter_by(email="persist@example.com").first()
-            assert "focus_type_result" in (user.profile_data or {})
-            saved = user.profile_data["focus_type_result"]
+            document = profile_repository.load_document(user.id)
+            assert "focus_type_result" in document
+            saved = document["focus_type_result"]
             assert "archetype" in saved
             assert "dimension_scores" in saved
 

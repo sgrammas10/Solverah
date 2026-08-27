@@ -29,7 +29,7 @@ from model import User, db
 from packages.ml.culture import CultureValues, culture_fit_score
 from solverah import pagination
 from solverah.domain import matching as domain
-from solverah.repositories import company_repository
+from solverah.repositories import company_repository, profile_repository
 
 __all__ = [
     "DEFAULT_LENS",
@@ -98,7 +98,7 @@ def resolve_culture_preferences(user: User) -> Optional[dict]:
     users who completed Work Pulse before ``culture_preferences`` was written at
     submit time; those accounts have the answers but not the derived vector.
     """
-    profile = user.profile_data or {}
+    profile = profile_repository.load_document(user.id)
     user_prefs = profile.get("culture_preferences")
     if user_prefs:
         return user_prefs
@@ -112,9 +112,9 @@ def resolve_culture_preferences(user: User) -> Optional[dict]:
         return None
 
     user_prefs = derive_culture_preferences(intake.wpl_answers)
-    profile = dict(profile)
-    profile["culture_preferences"] = user_prefs
-    user.profile_data = profile
+    profile_repository.update_document(
+        user.id, lambda existing: {**existing, "culture_preferences": user_prefs}
+    )
     db.session.commit()
     return user_prefs
 

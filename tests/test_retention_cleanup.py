@@ -56,9 +56,14 @@ def _sweep(objects):
 
 def _make_user(email="keep@example.com", profile=None):
     from model import User, db
+    from solverah.repositories import profile_repository
 
-    user = User(email=email, password="x", profile_data=profile or {})
+    user = User(email=email, password="x")
     db.session.add(user)
+    # Flushed rather than committed so the profile write below has an id to
+    # hang rows off; both land in the one commit at the end.
+    db.session.flush()
+    profile_repository.update_document(user.id, lambda _existing: profile or {})
     db.session.commit()
     return user
 

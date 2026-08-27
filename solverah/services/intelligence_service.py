@@ -1,7 +1,7 @@
 """Career-path preferences and O*NET-backed path suggestions.
 
 ``path_suggestions`` was the single largest handler in ``app.py`` -- roughly 190
-lines that read eleven different keys out of ``profile_data``, assembled two
+lines that read eleven different keys out of the profile document, assembled two
 dataclasses from them, called the scorer and the narrator, and shaped a payload.
 Most of that length is the extraction, so that is what comes out first:
 :func:`build_user_profile` and :func:`build_user_context` are pure functions of
@@ -28,6 +28,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from model import User, db
 from solverah.infra import llm
+from solverah.repositories import profile_repository
 from solverah.services import path_cache
 
 __all__ = [
@@ -94,13 +95,14 @@ def save_path_preferences(user: User, data: Dict[str, Any]) -> IntelligenceResul
     if priority not in PATH_PRIORITIES:
         return _error(400, "Invalid priority")
 
-    profile = dict(user.profile_data or {})
-    profile["path_preferences"] = {
+    preferences = {
         "move_intent": move_intent,
         "seniority_intent": seniority_intent,
         "priority": priority,
     }
-    user.profile_data = profile
+    profile_repository.update_document(
+        user.id, lambda existing: {**existing, "path_preferences": preferences}
+    )
     db.session.commit()
 
     path_cache.invalidate(user.id)
@@ -236,7 +238,7 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
     if cached is not None:
         return IntelligenceResult(status=200, body=cached)
 
-    profile = user.profile_data or {}
+    profile = profile_repository.load_document(user.id)
     career_status = profile.get("career_status")
     if not career_status:
         # Try to derive from experience before giving up, and persist it so
@@ -245,9 +247,10 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
         career_status = derive_career_status(profile)
         if not career_status:
             return _error(400, "career_status_not_set")
-        updated = dict(profile)
-        updated["career_status"] = career_status
-        user.profile_data = updated
+        derived = career_status
+        profile = profile_repository.update_document(
+            user.id, lambda existing: {**existing, "career_status": derived}
+        )
         db.session.commit()
 
     user_profile = build_user_profile(profile, user.intake, career_status)
@@ -312,10 +315,10 @@ def read_path_preferences(user: User) -> IntelligenceResult:
     New in Phase 1b. The endpoint this pairs with was write-only, so a client
     that wanted to show the user their own answers had to either keep a copy or
     read them out of the profile blob -- which is exactly the coupling to
-    ``profile_data``'s shape that putting schemas at the API boundary exists to
-    stop.
+    the profile document's shape that putting schemas at the API boundary exists
+    to stop.
     """
-    saved = (user.profile_data or {}).get("path_preferences") or {}
+    saved = profile_repository.load_document(user.id).get("path_preferences") or {}
     return IntelligenceResult(
         status=200,
         body={
