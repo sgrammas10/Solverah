@@ -58,3 +58,10 @@ backups/
 
 # TypeScript incremental build info (`tsc -b` drops these at the repo root)
 *.tsbuildinfo
+
+# Playwright (tests/e2e). Reports and traces are per-run artifacts; the browser
+# binaries live in the user-level ms-playwright cache, not in the repo.
+test-results/
+playwright-report/
+blob-report/
+.playwright/
