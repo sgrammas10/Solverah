@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 export default function LandingNav() {
   const [scrolled, setScrolled] = useState(false);
@@ -26,9 +27,9 @@ export default function LandingNav() {
       }}
     >
       <div className="mx-auto max-w-7xl px-6 h-16 flex items-center justify-between">
-        <a href="/" className="font-display text-2xl font-bold text-forest-dark tracking-tight">
+        <Link to="/" className="font-display text-2xl font-bold text-forest-dark tracking-tight">
           Solverah
-        </a>
+        </Link>
 
         <nav className="hidden md:flex items-center gap-8" aria-label="Primary navigation">
           {navLinks.map(({ label, href }) => (
@@ -43,18 +44,18 @@ export default function LandingNav() {
         </nav>
 
         <div className="hidden md:flex items-center gap-3">
-          <a
-            href="/login"
+          <Link
+            to="/login"
             className="text-[15px] font-medium text-ink-primary px-4 py-2 rounded hover:text-forest-mid transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
           >
             Sign In
-          </a>
-          <a
-            href="/register"
+          </Link>
+          <Link
+            to="/start"
             className="bg-forest-dark text-white font-semibold text-[15px] px-6 py-2.5 rounded hover:bg-forest-mid transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
           >
             Get Started
-          </a>
+          </Link>
         </div>
 
         <button
@@ -81,19 +82,19 @@ export default function LandingNav() {
               {label}
             </a>
           ))}
-          <a
-            href="/login"
+          <Link
+            to="/login"
             className="block text-base font-medium text-ink-primary hover:text-forest-mid transition-colors"
           >
             Sign In
-          </a>
-          <a
-            href="/register"
+          </Link>
+          <Link
+            to="/start"
             onClick={() => setMobileMenuOpen(false)}
             className="block w-full bg-forest-dark text-white font-semibold text-sm px-6 py-3 rounded hover:bg-forest-mid transition-colors text-center"
           >
             Get Started
-          </a>
+          </Link>
         </div>
       )}
     </header>
