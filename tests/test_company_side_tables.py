@@ -106,13 +106,13 @@ def test_full_graph_inserts(client, seed_user):
         db.session.add(rec)
         db.session.flush()
 
-        db.session.add(RecAction(recommendation_id=rec.id, action="viewed"))
+        db.session.add(RecAction(recommendation=rec, action="viewed"))
         db.session.add(
-            OutcomeAppeal(recommendation_id=rec.id, fit_yes=True, channel="onsite")
+            OutcomeAppeal(recommendation=rec, fit_yes=True, channel="onsite")
         )
         db.session.add(
             OutcomeExperienced(
-                user_id=1, company_id=company.id, recommendation_id=rec.id, working_scale=4
+                user_id=1, company_id=company.id, recommendation=rec, working_scale=4
             )
         )
         db.session.commit()
@@ -252,11 +252,11 @@ def test_funnel_action_vocab_enforced(client, seed_user):
         rec = MatchRecommendation(user_id=1, company_id=company.id)
         db.session.add(rec)
         db.session.flush()
-        db.session.add(RecAction(recommendation_id=rec.id, action="applied"))
+        db.session.add(RecAction(recommendation=rec, action="applied"))
         db.session.commit()
 
         with pytest.raises(IntegrityError):
-            db.session.add(RecAction(recommendation_id=rec.id, action="ghosted"))
+            db.session.add(RecAction(recommendation=rec, action="ghosted"))
             db.session.commit()
         db.session.rollback()
 
@@ -275,13 +275,13 @@ def test_outcome_appeal_is_one_per_recommendation(client, seed_user):
         db.session.add(rec)
         db.session.flush()
         db.session.add(
-            OutcomeAppeal(recommendation_id=rec.id, fit_yes=False, channel="email")
+            OutcomeAppeal(recommendation=rec, fit_yes=False, channel="email")
         )
         db.session.commit()
 
         with pytest.raises(IntegrityError):
             db.session.add(
-                OutcomeAppeal(recommendation_id=rec.id, fit_yes=True, channel="onsite")
+                OutcomeAppeal(recommendation=rec, fit_yes=True, channel="onsite")
             )
             db.session.commit()
         db.session.rollback()

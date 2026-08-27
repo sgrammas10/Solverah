@@ -241,16 +241,46 @@ class UserIntake(db.Model):
 
 
 class AuditLog(db.Model):
-    """Tracks user/system actions for auditing, security monitoring, and debugging."""
+    """Tracks user/system actions for auditing, security monitoring, and debugging.
 
-    id = db.Column(db.Integer, primary_key=True)
+    RANGE-partitioned on ``created_at`` (Phase 2, item 5).  This is the
+    highest-volume table in the system -- ``GET /api/profile`` writes a row on
+    every read, so session restore appends one per page load -- and it is the
+    only one of the three partitioned tables with a live writer today
+    (``solverah/services/audit.py``).  Partitioning is what lets old months be
+    detached and dropped in constant time instead of scanned and deleted.
+
+    The declaration lives *here* rather than only in the migration because
+    ``tests/conftest.py`` builds its schema with ``db.create_all()`` and never
+    runs the migration chain.  A partition scheme declared only in Alembic would
+    be invisible to every test in the suite, which is the same as not having
+    tested it.
+
+    ``created_at`` joins the primary key because Postgres requires the partition
+    key to be part of every unique constraint on a partitioned table -- the
+    planner has to be able to prove uniqueness without reading the other
+    partitions.  ``id`` therefore needs ``autoincrement=True`` stated outright:
+    SQLAlchemy only infers a serial column for a *single*-column integer key and
+    would otherwise hand this table a plain, non-defaulted ``id``.
+
+    The foreign key to ``users`` stays.  Postgres has supported outgoing foreign
+    keys from partitioned tables since 12, so there is nothing to trade away
+    here; dropping it to decouple the table from identity storage is a separate
+    decision with its own migration.
+    """
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     actor_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     action = db.Column(db.String(50), nullable=False)
     resource = db.Column(db.String(100), nullable=False)
     ip_address = db.Column(db.String(64))
     user_agent = db.Column(db.String(300))
     event_metadata = db.Column("metadata", JSON, default=dict)
-    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+    created_at = db.Column(
+        db.DateTime, server_default=db.func.now(), nullable=False, primary_key=True
+    )
+
+    __table_args__ = {"postgresql_partition_by": "RANGE (created_at)"}
 
     actor = db.relationship("User", backref="audit_logs")
 
@@ -768,11 +798,23 @@ class MatchRecommendation(db.Model):
     already exists and means something else. What was shown is recorded even when the user
     does nothing with it -- the selection effect (the collider) is only visible if the
     un-acted-on rows exist.
+
+    RANGE-partitioned on ``shown_at`` (Phase 2, item 5), which forces the primary key
+    from ``id`` to ``(id, shown_at)``: Postgres will not accept a unique constraint on a
+    partitioned table unless it contains the partition key.
+
+    That widening is why three other tables carry a ``shown_at`` of their own.  A plain
+    reference to ``id`` is no longer a reference to anything unique, so ``rec_action``,
+    ``outcome_appeal`` and ``outcome_experienced`` each hold the parent's ``shown_at``
+    beside its id and point at both.  Dropping those foreign keys would have been the
+    smaller change and the wrong one -- all three feed the causal model, where a dangling
+    recommendation reference is not an error anyone sees but training data that is quietly
+    wrong.
     """
 
     __tablename__ = "match_recommendation"
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False, index=True)
     model_run_id = db.Column(db.Integer, db.ForeignKey("model_run.id"), nullable=True)
@@ -782,7 +824,9 @@ class MatchRecommendation(db.Model):
     rank = db.Column(db.Integer, nullable=True)
     is_exploration = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     channel = db.Column(db.String(16), nullable=False, default="onsite", server_default="onsite")
-    shown_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+    shown_at = db.Column(
+        db.DateTime, server_default=db.func.now(), nullable=False, primary_key=True
+    )
 
     __table_args__ = (
         db.CheckConstraint("p_fit IS NULL OR (p_fit >= 0 AND p_fit <= 1)", name="ck_mrec_pfit_range"),
@@ -793,6 +837,7 @@ class MatchRecommendation(db.Model):
             "p_fit_high IS NULL OR (p_fit_high >= 0 AND p_fit_high <= 1)", name="ck_mrec_pfit_high_range"
         ),
         db.CheckConstraint("channel IN ('onsite', 'email')", name="ck_mrec_channel_vocab"),
+        {"postgresql_partition_by": "RANGE (shown_at)"},
     )
 
     user = db.relationship("User", backref="match_recommendations")
@@ -803,16 +848,27 @@ class MatchRecommendation(db.Model):
 class RecAction(db.Model):
     """Funnel events against a shown recommendation. 'A match formed' (hired+accepted) is the
     collider the outcome data is conditioned on; capturing the full funnel is what lets the
-    model SEE that selection instead of being silently biased by it."""
+    model SEE that selection instead of being silently biased by it.
+
+    RANGE-partitioned on ``acted_at`` (Phase 2, item 5) -- its own event time, not the
+    parent's.  ``shown_at`` here is a copy of ``match_recommendation.shown_at``, carried so
+    the foreign key can name the parent's full ``(id, shown_at)`` key; the two timestamps
+    mean different things and are not interchangeable.
+
+    Assigning ``rec_action.recommendation`` populates both columns, so ORM callers see no
+    change.  Code that sets ``recommendation_id`` as a bare integer must now set
+    ``shown_at`` alongside it, and the database rejects it if the pair does not exist.
+    """
 
     __tablename__ = "rec_action"
 
-    id = db.Column(db.Integer, primary_key=True)
-    recommendation_id = db.Column(
-        db.Integer, db.ForeignKey("match_recommendation.id"), nullable=False, index=True
-    )
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    recommendation_id = db.Column(db.Integer, nullable=False, index=True)
+    shown_at = db.Column(db.DateTime, nullable=False)
     action = db.Column(db.String(16), nullable=False)
-    acted_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+    acted_at = db.Column(
+        db.DateTime, server_default=db.func.now(), nullable=False, primary_key=True
+    )
 
     __table_args__ = (
         db.CheckConstraint(
@@ -820,6 +876,12 @@ class RecAction(db.Model):
             "'offered', 'hired', 'accepted', 'declined')",
             name="ck_raction_action_vocab",
         ),
+        db.ForeignKeyConstraint(
+            ["recommendation_id", "shown_at"],
+            ["match_recommendation.id", "match_recommendation.shown_at"],
+            name="fk_raction_recommendation",
+        ),
+        {"postgresql_partition_by": "RANGE (acted_at)"},
     )
 
     recommendation = db.relationship("MatchRecommendation", backref="actions")
@@ -828,20 +890,33 @@ class RecAction(db.Model):
 class OutcomeAppeal(db.Model):
     """APPEAL outcome: fast, abundant, biased toward appearance ("did this fit what you
     wanted?"). Kept in its own table, never conflated with experienced fit -- the two
-    outcomes are separate on purpose (schema.sql design principle 4)."""
+    outcomes are separate on purpose (schema.sql design principle 4).
+
+    Not partitioned; it carries ``shown_at`` only because its parent is (Phase 2, item 5)
+    and the foreign key has to name ``match_recommendation``'s full ``(id, shown_at)`` key.
+
+    The uniqueness stays on ``recommendation_id`` *alone*.  One appeal per recommendation
+    is the rule, and widening the constraint to ``(recommendation_id, shown_at)`` would
+    quietly retire it: two rows naming the same recommendation with different ``shown_at``
+    values would both be accepted, and only one of them can be about a real event.
+    """
 
     __tablename__ = "outcome_appeal"
 
     id = db.Column(db.Integer, primary_key=True)
-    recommendation_id = db.Column(
-        db.Integer, db.ForeignKey("match_recommendation.id"), nullable=False, unique=True
-    )
+    recommendation_id = db.Column(db.Integer, nullable=False, unique=True)
+    shown_at = db.Column(db.DateTime, nullable=False)
     fit_yes = db.Column(db.Boolean, nullable=False)
     channel = db.Column(db.String(16), nullable=False)
     responded_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
 
     __table_args__ = (
         db.CheckConstraint("channel IN ('onsite', 'email')", name="ck_oappeal_channel_vocab"),
+        db.ForeignKeyConstraint(
+            ["recommendation_id", "shown_at"],
+            ["match_recommendation.id", "match_recommendation.shown_at"],
+            name="fk_oappeal_recommendation",
+        ),
     )
 
     recommendation = db.relationship("MatchRecommendation", backref=db.backref("appeal", uselist=False))
@@ -852,6 +927,12 @@ class OutcomeExperienced(db.Model):
 
     `working_scale` is ordinal 1..5 (1=bad .. 5=great). The model outcome node trained on
     this is OrderedLogistic, NOT Bernoulli -- see S-06 before wiring it into build_model.
+
+    Not partitioned; ``shown_at`` is here for the same reason as on ``outcome_appeal``
+    (Phase 2, item 5).  It is nullable because ``recommendation_id`` is: a placement can be
+    recorded without a recommendation that led to it.  Both columns are NULL together, and
+    a composite foreign key with any NULL member is not checked, which is what keeps that
+    case legal while a *stated* recommendation still has to exist.
     """
 
     __tablename__ = "outcome_experienced"
@@ -859,9 +940,8 @@ class OutcomeExperienced(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
-    recommendation_id = db.Column(
-        db.Integer, db.ForeignKey("match_recommendation.id"), nullable=True
-    )
+    recommendation_id = db.Column(db.Integer, nullable=True)
+    shown_at = db.Column(db.DateTime, nullable=True)
     started_at = db.Column(db.Date, nullable=True)
     checkin_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
     working_scale = db.Column(db.SmallInteger, nullable=False)
@@ -870,6 +950,11 @@ class OutcomeExperienced(db.Model):
     __table_args__ = (
         db.CheckConstraint(
             "working_scale >= 1 AND working_scale <= 5", name="ck_oexp_working_scale_range"
+        ),
+        db.ForeignKeyConstraint(
+            ["recommendation_id", "shown_at"],
+            ["match_recommendation.id", "match_recommendation.shown_at"],
+            name="fk_oexp_recommendation",
         ),
     )
 
@@ -1163,3 +1248,47 @@ for _triggered_table in (
         DDL(_updated_at_trigger(_triggered_table.name)).execute_if(dialect="postgresql"),
     )
 del _triggered_table
+
+
+#: The tables `db.create_all()` emits as partitioned parents, and the suffix their
+#: catch-all partition gets. Derived from the models rather than restated, so a
+#: fourth partitioned table cannot be added without one appearing here too.
+PARTITIONED_TABLES = tuple(
+    table
+    for table in db.metadata.sorted_tables
+    if table.dialect_options.get("postgresql", {}).get("partition_by")
+)
+
+DEFAULT_PARTITION_SUFFIX = "_default"
+
+# A partitioned parent with no partitions accepts no rows. Every insert fails with
+# "no partition of relation ... found for row", and `db.create_all()` creates only
+# the parent -- so without this, the three tables above would be created and then
+# reject everything written to them. `audit_log` alone is written on every
+# authenticated request, which is the whole suite plus `Scripts/capture_contract.py`.
+#
+# One DEFAULT partition per table, not a month-by-month generator. DEFAULT accepts
+# every timestamp, so there is no range to keep ahead of and no gap for a row to
+# fall through -- including the far-future and far-past values tests use precisely
+# because they are implausible. A generator would prove nothing extra here and
+# would need maintaining as the clock moves.
+#
+# This is a schema-build concern, not a test fixture, which is why it lives beside
+# the models instead of in `tests/conftest.py`: two callers build schemas from this
+# metadata (the suite and the contract-capture script) and a step either of them
+# can forget is a step that will be forgotten. Production never reaches this code
+# -- its schema comes from `flask db upgrade`, and the migration creates real
+# monthly partitions alongside a DEFAULT that catches the gaps.
+#
+# `after_create` for the same reason the `updated_at` triggers above use it: the
+# partition is DDL that has to follow the table it attaches to.
+for _partitioned_table in PARTITIONED_TABLES:
+    sa_event.listen(
+        _partitioned_table,
+        "after_create",
+        DDL(
+            'CREATE TABLE IF NOT EXISTS "%s%s" PARTITION OF "%s" DEFAULT'
+            % (_partitioned_table.name, DEFAULT_PARTITION_SUFFIX, _partitioned_table.name)
+        ).execute_if(dialect="postgresql"),
+    )
+del _partitioned_table
