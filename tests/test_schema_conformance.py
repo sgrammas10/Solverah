@@ -25,14 +25,13 @@ from solverah.schemas.auth import (
     MessageResponse,
     RegisterResponse,
 )
-from solverah.schemas.intelligence import RecommendationsResponse
-from solverah.schemas.matching import CompanyDetailResponse, CultureMatchesResponse
+from solverah.schemas.intelligence import RecommendationsPage
+from solverah.schemas.matching import CompanyDetailResponse, MatchesResponse
 from solverah.schemas.profile import (
     CareerStatusResponse,
     DashboardResponse,
-    ProfileReadResponse,
-    ProfileSaveResponse,
-    SkillProficiencyResponse,
+    ProfileDocument,
+    SkillsResponse,
 )
 
 EMAIL = "conformance@example.com"
@@ -73,7 +72,7 @@ def auth(client, monkeypatch):
     monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     client.post(
-        "/api/v1/register",
+        "/api/v1/auth/register",
         json={"email": EMAIL, "password": PASSWORD, "name": "Conformance User",
               "role": "job-seeker", "terms_accepted": True},
     )
@@ -87,7 +86,7 @@ def auth(client, monkeypatch):
         user.confirmation_token = None
         db.session.commit()
 
-    resp = client.post("/api/v1/login", json={"email": EMAIL, "password": PASSWORD})
+    resp = client.post("/api/v1/auth/login", json={"email": EMAIL, "password": PASSWORD})
     assert resp.status_code == 200
     return resp.get_json()["csrfToken"]
 
@@ -100,7 +99,7 @@ def test_register_response_matches_schema(client, monkeypatch):
     monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     resp = client.post(
-        "/api/v1/register",
+        "/api/v1/auth/register",
         json={"email": "reg-schema@example.com", "password": PASSWORD,
               "name": "Reg Schema", "terms_accepted": True},
     )
@@ -110,27 +109,45 @@ def test_register_response_matches_schema(client, monkeypatch):
 
 
 def test_login_response_matches_schema(client, auth):
-    resp = client.post("/api/v1/login", json={"email": EMAIL, "password": PASSWORD})
+    resp = client.post("/api/v1/auth/login", json={"email": EMAIL, "password": PASSWORD})
 
     assert resp.status_code == 200
     LoginResponse.model_validate(resp.get_json())
 
 
 def test_logout_response_matches_schema(client, auth):
-    resp = client.post("/api/v1/logout")
+    resp = client.post("/api/v1/auth/logout")
 
     assert resp.status_code == 200
     LogoutResponse.model_validate(resp.get_json())
 
 
-def test_confirm_email_error_is_the_legacy_shape(client):
-    """Handler-raised failures still return {"error": ...}, not problem+json.
+def test_a_schema_failure_is_a_problem_document(client):
+    """An empty body fails the schema, so it answers in the RFC 9457 shape.
 
-    Phase 1a preserves that. The two shapes coexist -- which is why
-    src/utils/apiError.ts reads both -- and Phase 1b is where handlers move onto
-    solverah.errors.ApiError and the split closes.
+    Phase 1a had this returning the handler's own `{"error": ...}` on a 400,
+    because the schemas were descriptive and the handler did the checking.
+    Enforcing them moved this particular failure in front of the handler.
     """
-    resp = client.post("/api/v1/confirm-email", json={})
+    resp = client.post("/api/v1/auth/email/verify", json={})
+
+    assert resp.status_code == 422
+    assert resp.mimetype == "application/problem+json"
+    assert {error["field"] for error in resp.get_json()["errors"]} == {"email", "code"}
+
+
+def test_a_handler_raised_error_is_still_the_legacy_shape(client):
+    """The two error shapes still coexist, and `src/utils/apiError.ts` reads both.
+
+    A body that satisfies the schema reaches the handler, and the handler's own
+    refusals are unchanged -- they are business rules, not shape checks. Phase 2
+    is where these move onto `solverah.errors.ApiError` and the split closes;
+    doing it in the same change that enforced the schemas would have made every
+    error body move at once.
+    """
+    resp = client.post(
+        "/api/v1/auth/email/verify", json={"email": "nobody@example.com", "code": "000000"}
+    )
 
     assert resp.status_code == 400
     assert set(resp.get_json()) == {"error"}
@@ -140,26 +157,26 @@ def test_confirm_email_error_is_the_legacy_shape(client):
 
 
 def test_profile_read_response_matches_schema(client, auth):
-    resp = client.get("/api/v1/profile")
+    resp = client.get("/api/v1/me/profile")
 
     assert resp.status_code == 200
-    ProfileReadResponse.model_validate(resp.get_json())
+    ProfileDocument.model_validate(resp.get_json())
 
 
-def test_profile_save_response_matches_schema(client, auth):
-    resp = client.post(
-        "/api/v1/profile",
-        json={"profileData": {"summary": "Backend engineer.", "skills": ["Python"]}},
+def test_profile_patch_response_matches_schema(client, auth):
+    resp = client.patch(
+        "/api/v1/me/profile",
+        json={"profile": {"summary": "Backend engineer.", "skills": ["Python"]}},
         headers={"X-CSRF-TOKEN": auth},
     )
 
     assert resp.status_code == 200
-    ProfileSaveResponse.model_validate(resp.get_json())
+    ProfileDocument.model_validate(resp.get_json())
 
 
 def test_career_status_response_matches_schema(client, auth):
     resp = client.patch(
-        "/api/v1/profile/career-status",
+        "/api/v1/me/career-status",
         json={"status": "employed"},
         headers={"X-CSRF-TOKEN": auth},
     )
@@ -168,19 +185,19 @@ def test_career_status_response_matches_schema(client, auth):
     CareerStatusResponse.model_validate(resp.get_json())
 
 
-def test_skill_proficiency_response_matches_schema(client, auth):
-    resp = client.patch(
-        "/api/v1/profile/skills/proficiency",
+def test_skills_response_matches_schema(client, auth):
+    resp = client.put(
+        "/api/v1/me/skills",
         json={"skills": [{"name": "Python", "proficiency": "advanced"}]},
         headers={"X-CSRF-TOKEN": auth},
     )
 
     assert resp.status_code == 200
-    SkillProficiencyResponse.model_validate(resp.get_json())
+    SkillsResponse.model_validate(resp.get_json())
 
 
 def test_dashboard_response_matches_schema(client, auth):
-    resp = client.get("/api/v1/dashboard-data")
+    resp = client.get("/api/v1/me/dashboard")
 
     assert resp.status_code == 200
     DashboardResponse.model_validate(resp.get_json())
@@ -188,7 +205,7 @@ def test_dashboard_response_matches_schema(client, auth):
 
 def test_dashboard_completion_is_a_percentage_string(client, auth):
     """The field is "71%", not 71 -- the frontend renders it directly."""
-    body = DashboardResponse.model_validate(client.get("/api/v1/dashboard-data").get_json())
+    body = DashboardResponse.model_validate(client.get("/api/v1/me/dashboard").get_json())
 
     assert body.profileCompletion.endswith("%")
     assert body.profileCompletion[:-1].isdigit()
@@ -213,7 +230,7 @@ def test_company_detail_response_matches_schema(client, auth):
     CompanyDetailResponse.model_validate(resp.get_json())
 
 
-def test_culture_matches_response_matches_schema(client, auth):
+def test_matches_response_matches_schema(client, auth):
     from app import app
     from model import Company, User, db
 
@@ -233,14 +250,21 @@ def test_culture_matches_response_matches_schema(client, auth):
         user.profile_data = profile
         db.session.commit()
 
-    resp = client.get("/api/v1/company-lens/matches")
+    resp = client.get("/api/v1/me/matches")
 
     assert resp.status_code == 200
-    CultureMatchesResponse.model_validate(resp.get_json())
+    MatchesResponse.model_validate(resp.get_json())
 
 
-def test_best_and_worst_never_share_a_company(client, auth):
-    """With few companies the two lists partition the set rather than overlap."""
+def test_a_page_of_matches_never_repeats_a_company(client, auth):
+    """The pagination property that replaced the old partition guarantee.
+
+    `GET /company-lens/matches` returned two fixed slices and partitioned them at
+    the midpoint so a company could not appear in both. `/me/matches` is one
+    ranking read in one direction, so the property worth asserting is that a
+    page does not repeat a row -- which is what a keyset cursor over a total
+    ordering guarantees and an offset over a shifting list does not.
+    """
     from app import app
     from model import Company, User, db
 
@@ -262,30 +286,40 @@ def test_best_and_worst_never_share_a_company(client, auth):
         user.profile_data = profile
         db.session.commit()
 
-    body = CultureMatchesResponse.model_validate(
-        client.get("/api/v1/company-lens/matches?limit=5").get_json()
+    body = MatchesResponse.model_validate(
+        client.get("/api/v1/me/matches?limit=5").get_json()
     )
 
-    best = {entry.id for entry in body.best_fits}
-    worst = {entry.id for entry in body.worst_fits}
-    assert best & worst == set()
+    ids = [entry.id for entry in body.data]
+    assert len(ids) == len(set(ids))
+    assert body.total_companies_scored == 3
 
 
 # ── Recommendations and assessments ─────────────────────────────────────────
 
 
 def test_recommendations_responses_match_schema(client, auth):
-    get_resp = client.get("/api/v1/recommendations")
-    post_resp = client.post("/api/v1/recommendations", headers={"X-CSRF-TOKEN": auth}, json={})
+    """The list and the refresh trigger are two paths now, not one path twice.
 
-    assert get_resp.status_code == 200
-    assert post_resp.status_code == 200
-    RecommendationsResponse.model_validate(get_resp.get_json())
-    RecommendationsResponse.model_validate(post_resp.get_json())
+    They were `GET` and `POST` on `/recommendations`; Part 5.2 splits them into
+    `/me/recommendations` and `/me/recommendations/refresh`, because "read the
+    list" and "go compute a new one" are different operations that will want
+    different limits, different caching, and -- once Phase 3 has a queue -- a
+    `202` on only one of them.
+    """
+    listed = client.get("/api/v1/me/recommendations")
+    refreshed = client.post(
+        "/api/v1/me/recommendations/refresh", headers={"X-CSRF-TOKEN": auth}, json={}
+    )
+
+    assert listed.status_code == 200
+    assert refreshed.status_code == 200
+    RecommendationsPage.model_validate(listed.get_json())
+    RecommendationsPage.model_validate(refreshed.get_json())
 
 
 def test_assessment_form_response_matches_schema(client, auth):
-    resp = client.get("/api/v1/assessment/form")
+    resp = client.get("/api/v1/assessments/core/form")
 
     assert resp.status_code == 200
     AssessmentFormResponse.model_validate(resp.get_json())

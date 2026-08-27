@@ -33,6 +33,21 @@ logger = logging.getLogger("solverah.security")
 DEFAULT_LIMITS = ["200 per day", "50 per hour"]
 MEMORY_STORAGE = "memory://"
 
+#: Fixed key for a limit that is global rather than per-caller. See
+#: ``GUEST_INSIGHTS_GLOBAL_LIMIT`` below for the one place this is used and why.
+GLOBAL_RATE_LIMIT_KEY = "global"
+
+
+def global_rate_limit_key() -> str:
+    """Key function for a limit shared by every caller.
+
+    Flask-Limiter keys on the remote address by default, which is what makes a
+    limit per-caller. Returning a constant makes one bucket for the whole
+    deployment -- which is the point when the thing being bounded is spend
+    rather than abuse by any individual.
+    """
+    return GLOBAL_RATE_LIMIT_KEY
+
 
 def resolve_storage_uri(env=None) -> str:
     """Return the rate-limit storage URI implied by the environment.
@@ -190,3 +205,60 @@ def _skip_when_testing() -> bool:
     merely skipped.
     """
     return bool(current_app.config.get("TESTING"))
+
+
+# ---------------------------------------------------------------------------
+# Guest quiz-preview insights (Phase 1b -- the outstanding 1a follow-up)
+# ---------------------------------------------------------------------------
+#
+# The endpoint had ``@limiter.limit("1 per day")``, keyed on the remote IP, and
+# a docstring saying it existed to cap OpenAI spend.  Both halves of that are
+# worth taking seriously and they pull in different directions.
+#
+# **Why the old limit had to go.**  ``1 per day per IP`` is not one preview per
+# person.  Behind corporate NAT it is one preview per *office*; behind mobile
+# CGNAT it is one per *carrier segment*, which can be tens of thousands of
+# subscribers.  The second person to try gets a 429 having done nothing, on the
+# unauthenticated top of the pre-launch funnel, with no account and no way to
+# tell a limit from a fault.  It does not read as rate limiting.  It reads as a
+# broken quiz, and the visitor leaves.
+#
+# **Why it cannot simply be loosened.**  Every call is a paid OpenAI request
+# with no account behind it, so a per-IP limit alone bounds nothing that matters:
+# spend scales with the number of distinct IPs, which is the one quantity an
+# abuser controls freely.  Loosening per-IP without a second control converts a
+# usability bug into an unbounded bill.
+#
+# **The shape that solves both.**  Two limits doing two different jobs:
+#
+#   * a *per-IP* limit sized for a human, generous enough that a shared address
+#     is not a single-user address; and
+#   * a *global* ceiling sized to a spend budget, which is the control that
+#     actually caps the bill.
+#
+# The trade is explicit and worth stating plainly: a global ceiling means a
+# determined abuser can exhaust the day's budget and leave real visitors seeing
+# 429s.  That is a worse failure than throttling them individually -- and it is
+# still the right trade here, because the alternative failure is an unbounded
+# invoice, and because the per-IP limit means exhausting the global budget takes
+# many distinct addresses rather than one.
+#
+# **A caveat that is not optional.**  A global ceiling is only a ceiling if the
+# counter is shared.  On ``memory://`` it is per-worker, so N workers means N
+# times the budget and a deploy resets it -- that is P0-5, and it makes this
+# control decorative in exactly the deployment where it matters.  Set
+# ``REDIS_URL`` before relying on the number below.
+#
+# The numbers are policy, not architecture. They are named here so tuning them
+# is a one-line change with the reasoning attached, rather than a magic number
+# in a decorator.
+
+#: Per-IP allowance. Sized for a human filling in a short quiz, with enough
+#: headroom that a shared NAT gateway is not a one-visitor address.
+GUEST_INSIGHTS_PER_IP_LIMIT = "5 per hour;20 per day"
+
+#: Global daily ceiling across every caller -- the control that bounds spend.
+#: At current model pricing a short insight is well under a cent, so this is a
+#: low-single-digit dollars per day worst case. Requires shared storage; see
+#: the caveat above.
+GUEST_INSIGHTS_GLOBAL_LIMIT = "500 per day"

@@ -8,15 +8,28 @@ is where that gets settled.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, RootModel
 
 from . import OkResponse, SolverahModel
 from .auth import SummaryUser
+from .intelligence import QuizInsightsGuestResponse
 
 __all__ = [
+    "CLAIM_LIMITS",
+    "CLAIM_REQUIRES_AUTH",
+    "CLAIM_REQUESTS",
+    "STRICTEST_CLAIM_LIMIT",
     "EarlyAccessRequest",
+    "IntakeClaimEnvelope",
+    "IntakeClaimLinkRequest",
+    "IntakeClaimRegisterRequest",
+    "IntakeClaimRequest",
+    "IntakeClaimResponse",
+    "IntakeClaimSessionRequest",
+    "IntakeClaimSignInRequest",
+    "QuizPreviewInsightsResponse",
     "IntakeCreateAccountRequest",
     "IntakeCreateAccountResponse",
     "IntakeFinalizeRequest",
@@ -172,3 +185,186 @@ class IntakeSaveToAccountRequest(SolverahModel):
 class IntakeSaveToAccountResponse(SolverahModel):
     message: str
     wpll_completed: bool
+
+
+# ===========================================================================
+# Phase 1b -- POST /intake/claims
+# ===========================================================================
+#
+# Part 5.2 collapses four account-attachment endpoints into one ``claim`` with
+# a ``mode`` discriminator.  The four were ``/intake/create-account``,
+# ``/intake/sign-in``, ``/intake/link-account``, and ``/intake/save-to-account``,
+# and they are all answers to the same question: *this browser is holding
+# something anonymous -- attach it to an account.*  What differed was which
+# account and where the anonymous thing came from.
+#
+# One thing the doc's framing understates and the code makes plain: the four
+# are less symmetric than "four copies of one branch" suggests.  ``link`` files
+# a *new* submission for someone already signed in rather than claiming an
+# existing one, and ``session`` has no submission at all -- it adopts an
+# anonymous Work Pulse Lite-Lite session held in ``sessionStorage``.  That is
+# why the route is ``POST /intake/claims`` and not Part 5.2's
+# ``/intake/submissions/{id}/claim``: two of the four modes have no submission
+# id to put in the path, and inventing one would mean either a fabricated id or
+# two endpoints again.
+#
+# The models below are a discriminated union on ``mode``, so a client gets a
+# real 422 naming the field it got wrong rather than a generic one.
+
+
+class IntakeClaimEnvelope(SolverahModel):
+    """The discriminator, and the fallback when it is missing or unrecognised.
+
+    Validating an unknown mode against this produces
+    ``{"field": "mode", "code": "literal_error"}``, which tells a client what is
+    wrong and what the alternatives are. Validating it against one of the four
+    concrete models would report every field of an arbitrarily chosen mode as
+    missing, which tells them nothing.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    mode: Literal["register", "sign_in", "link", "session"] = Field(
+        description=(
+            '"register" creates an account from a submission; "sign_in" attaches '
+            'one to an existing account; "link" files a submission as an already '
+            'signed-in user; "session" adopts an anonymous quiz session.'
+        )
+    )
+
+
+class IntakeClaimRegisterRequest(IntakeClaimEnvelope):
+    """``mode: "register"`` -- create a new account from a finished submission.
+
+    The account's email comes from the submission, never from this body: the
+    submitter proved control of it by receiving nothing, but they did type it
+    into a form that is already recorded, and letting the claim body override it
+    would turn a guessed submission id into an account under any address.
+    """
+
+    mode: Literal["register"] = "register"
+    submission_id: str
+    password: str
+    role: Optional[str] = Field(
+        default="job-seeker", description='Only "job-seeker" is accepted.'
+    )
+
+
+class IntakeClaimSignInRequest(IntakeClaimEnvelope):
+    """``mode: "sign_in"`` -- attach a submission to an existing account.
+
+    The email must match the one on the submission, so a submission cannot be
+    attached to an unrelated account by guessing its id.
+    """
+
+    mode: Literal["sign_in"] = "sign_in"
+    submission_id: str
+    email: str
+    password: str
+
+
+class IntakeClaimLinkRequest(IntakeClaimEnvelope, IntakeFinalizeRequest):
+    """``mode: "link"`` -- file a submission while already signed in.
+
+    Same body as a submission minus the email, which comes from the JWT.
+    Recording the body's email instead would let a signed-in user file a
+    submission under someone else's address.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    mode: Literal["link"] = "link"
+    email: Optional[str] = Field(
+        default=None,
+        description="Ignored. The submission is recorded against the JWT identity.",
+    )
+    info_opt_in: Optional[bool] = None
+
+
+class IntakeClaimSessionRequest(IntakeClaimEnvelope):
+    """``mode: "session"`` -- adopt an anonymous Work Pulse Lite-Lite session.
+
+    The one mode with no submission behind it. Called right after login when
+    ``sessionStorage`` still holds answers from the ``/start`` flow.
+    """
+
+    mode: Literal["session"] = "session"
+    selected_statement_ids: List[Any] = Field(default_factory=list)
+    wpll_answers: List[WpllAnswer] = Field(
+        default_factory=list, description="At most 5 items."
+    )
+    wpll_insight_text: Optional[str] = None
+
+
+class IntakeClaimRequest(RootModel):
+    """Documentation-only union of the four claim bodies.
+
+    Do not validate against this; the route enforces :data:`CLAIM_REQUESTS` per
+    mode. Unlike the assessment union, this one *is* discriminated on a property
+    of the payload, so a generated client can narrow it.
+    """
+
+    root: Union[
+        IntakeClaimRegisterRequest,
+        IntakeClaimSignInRequest,
+        IntakeClaimLinkRequest,
+        IntakeClaimSessionRequest,
+    ] = Field(discriminator="mode")
+
+
+class IntakeClaimResponse(RootModel):
+    """Documentation-only union of the four claim results.
+
+    ``register`` answers 201 and the rest answer 200, and the bodies differ:
+    two carry a session (a JWT cookie plus a CSRF token), one carries the
+    quiz-completion flag, one is a bare acknowledgement. Unifying the request
+    did not unify these, for the same reason it did not unify the five
+    assessment results.
+    """
+
+    root: Union[
+        IntakeCreateAccountResponse,
+        IntakeSignInResponse,
+        IntakeSaveToAccountResponse,
+        OkResponse,
+    ]
+
+
+#: ``mode`` -> the body that mode accepts. This is what is enforced.
+CLAIM_REQUESTS: Dict[str, type] = {
+    "register": IntakeClaimRegisterRequest,
+    "sign_in": IntakeClaimSignInRequest,
+    "link": IntakeClaimLinkRequest,
+    "session": IntakeClaimSessionRequest,
+}
+
+#: ``mode`` -> whether a JWT is required. ``register`` and ``sign_in`` are how
+#: an anonymous visitor gets one, so requiring it there would be circular.
+CLAIM_REQUIRES_AUTH: Dict[str, bool] = {
+    "register": False,
+    "sign_in": False,
+    "link": True,
+    "session": True,
+}
+
+#: ``mode`` -> rate limit, preserved exactly from the four separate handlers.
+#: Collapsing the routes merges their buckets unless something is done about it,
+#: and these were not all the same number to begin with.
+CLAIM_LIMITS: Dict[str, str] = {
+    "register": "5 per minute",
+    "sign_in": "5 per minute",
+    "link": "5 per minute",
+    "session": "10 per minute",
+}
+
+#: What an unrecognised mode gets: the strictest of the four. A client that
+#: cannot name a valid mode should not be able to probe faster than one that can.
+STRICTEST_CLAIM_LIMIT = "5 per minute"
+
+
+class QuizPreviewInsightsResponse(QuizInsightsGuestResponse):
+    """``POST /intake/quiz-preview/insights`` -- unauthenticated preview insights.
+
+    Same body as the authenticated endpoint, minus persistence: nothing is
+    written to any profile, because there is no account yet.
+    """

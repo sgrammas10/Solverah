@@ -61,7 +61,7 @@ describe("SearchResults - loading state", () => {
 describe("SearchResults - empty state", () => {
   it("shows no results message when no jobs match the query", async () => {
     mocks.fetchWithAuth.mockResolvedValueOnce({
-      recommendations: [
+      data: [
         { ID: "1", Title: "Java Engineer", Company: "Corp", RoleDescription: "Java stuff", score: 0.5 },
       ],
     });
@@ -72,7 +72,7 @@ describe("SearchResults - empty state", () => {
   });
 
   it("shows no results when recommendations list is empty", async () => {
-    mocks.fetchWithAuth.mockResolvedValueOnce({ recommendations: [] });
+    mocks.fetchWithAuth.mockResolvedValueOnce({ data: [], next_cursor: null });
     renderSearchResults("anything");
     await waitFor(() =>
       expect(screen.getByText(/No results found for/i)).toBeInTheDocument()
@@ -84,7 +84,7 @@ describe("SearchResults - empty state", () => {
 
 describe("SearchResults - happy path", () => {
   it("shows results heading with query", async () => {
-    mocks.fetchWithAuth.mockResolvedValueOnce({ recommendations: MOCK_JOBS });
+    mocks.fetchWithAuth.mockResolvedValueOnce({ data: MOCK_JOBS, next_cursor: null });
     renderSearchResults("react");
     await waitFor(() =>
       expect(screen.getByRole("heading", { name: /search results for/i })).toBeInTheDocument()
@@ -92,7 +92,7 @@ describe("SearchResults - happy path", () => {
   });
 
   it("renders matching job titles", async () => {
-    mocks.fetchWithAuth.mockResolvedValueOnce({ recommendations: MOCK_JOBS });
+    mocks.fetchWithAuth.mockResolvedValueOnce({ data: MOCK_JOBS, next_cursor: null });
     renderSearchResults("react");
     await waitFor(() =>
       expect(screen.getByText("Senior React Developer")).toBeInTheDocument()
@@ -100,7 +100,7 @@ describe("SearchResults - happy path", () => {
   });
 
   it("filters by title match", async () => {
-    mocks.fetchWithAuth.mockResolvedValueOnce({ recommendations: MOCK_JOBS });
+    mocks.fetchWithAuth.mockResolvedValueOnce({ data: MOCK_JOBS, next_cursor: null });
     renderSearchResults("python");
     await waitFor(() =>
       expect(screen.getByText("Python Backend Engineer")).toBeInTheDocument()
@@ -109,7 +109,7 @@ describe("SearchResults - happy path", () => {
   });
 
   it("shows all results when query is empty (returns all jobs)", async () => {
-    mocks.fetchWithAuth.mockResolvedValueOnce({ recommendations: MOCK_JOBS });
+    mocks.fetchWithAuth.mockResolvedValueOnce({ data: MOCK_JOBS, next_cursor: null });
     renderSearchResults("");
     await waitFor(() =>
       expect(screen.getByText("Senior React Developer")).toBeInTheDocument()
@@ -124,7 +124,7 @@ describe("SearchResults - expand/collapse", () => {
   it("shows 'View more' when description is long, clicking expands it", async () => {
     const longDesc = "A".repeat(300);
     mocks.fetchWithAuth.mockResolvedValueOnce({
-      recommendations: [
+      data: [
         { ID: "1", Title: "React Dev", Company: "Co", RoleDescription: longDesc, score: 0.9, Link: "#" },
       ],
     });
@@ -149,7 +149,7 @@ describe("SearchResults - pagination", () => {
       score: 0.8,
       Link: "#",
     }));
-    mocks.fetchWithAuth.mockResolvedValueOnce({ recommendations: manyJobs });
+    mocks.fetchWithAuth.mockResolvedValueOnce({ data: manyJobs, next_cursor: null });
     renderSearchResults("react");
     await waitFor(() => screen.getByRole("button", { name: /next/i }));
     expect(screen.getByRole("button", { name: /next/i })).toBeInTheDocument();

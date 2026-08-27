@@ -15,11 +15,28 @@ interface CompanyMatch {
   fit_summary: string;
 }
 
-interface MatchesResponse {
-  best_fits: CompanyMatch[];
-  worst_fits: CompanyMatch[];
+/**
+ * One page of `GET /api/v1/me/matches`.
+ *
+ * Phase 1b replaced `GET /company-lens/matches`, which returned two fixed-size
+ * slices -- `best_fits` and `worst_fits` -- in a single body with nothing
+ * reachable beyond them. The list is now cursor-paginated in one direction at a
+ * time, so `?order=best` and `?order=worst` are two walks through one ranking
+ * and either can be continued past the first page.
+ */
+interface MatchesPage {
+  data: CompanyMatch[];
+  next_cursor: string | null;
   total_companies_scored: number;
-  limit: number;
+  lens: string;
+  order: string;
+}
+
+/** Both ends of the ranking, as this screen renders them. */
+interface MatchesView {
+  best: CompanyMatch[];
+  worst: CompanyMatch[];
+  total_companies_scored: number;
 }
 
 const DIM_LABELS: Record<string, string> = {
@@ -149,7 +166,7 @@ export default function CompanyLensPage() {
   const { fetchWithAuth } = useAuth();
 
   const [fetchState, setFetchState] = useState<FetchState>("loading");
-  const [data, setData] = useState<MatchesResponse | null>(null);
+  const [data, setData] = useState<MatchesView | null>(null);
   const [limit, setLimit] = useState(5);
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
 
@@ -157,10 +174,27 @@ export default function CompanyLensPage() {
     async (lim: number) => {
       setFetchState("loading");
       try {
-        const res = await fetchWithAuth<MatchesResponse>(
-          `/company-lens/matches?limit=${lim}`
-        );
-        setData(res);
+        // Two requests where there was one: the endpoint no longer returns
+        // both ends of the ranking in a single body. They are issued together,
+        // so this is still one round trip's latency.
+        const [best, worst] = await Promise.all([
+          fetchWithAuth<MatchesPage>(`/me/matches?order=best&limit=${lim}`),
+          fetchWithAuth<MatchesPage>(`/me/matches?order=worst&limit=${lim}`),
+        ]);
+        // Drop from the weak end anything already shown at the strong end.
+        //
+        // The endpoint this replaced partitioned at the midpoint whenever there
+        // were at most 2*limit companies, so a company could never appear in
+        // both lists. A paginated list cannot do that -- it walks a ranking, it
+        // does not carve one -- so the screen has to. Filtering rather than
+        // slicing at a computed midpoint means no overlap regardless of how the
+        // two page sizes and the total relate.
+        const shownAsBest = new Set(best.data.map((match) => match.id));
+        setData({
+          best: best.data,
+          worst: worst.data.filter((match) => !shownAsBest.has(match.id)),
+          total_companies_scored: best.total_companies_scored,
+        });
         setFetchState("success");
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
@@ -317,7 +351,7 @@ export default function CompanyLensPage() {
             Companies that match how you work
           </h2>
           <div className={viewMode === "card" ? "space-y-3" : "space-y-1.5"}>
-            {data.best_fits.map((match) =>
+            {data.best.map((match) =>
               viewMode === "card" ? (
                 <MatchCard key={match.id} match={match} accent="forest" />
               ) : (
@@ -344,7 +378,7 @@ export default function CompanyLensPage() {
             Companies worth understanding before committing
           </h2>
           <div className={viewMode === "card" ? "space-y-3" : "space-y-1.5"}>
-            {data.worst_fits.map((match) =>
+            {data.worst.map((match) =>
               viewMode === "card" ? (
                 <MatchCard key={match.id} match={match} accent="amber" />
               ) : (

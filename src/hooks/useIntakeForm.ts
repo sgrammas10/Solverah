@@ -94,7 +94,7 @@ export function useIntakeForm() {
       let mime: string | null = null;
       let size: number | null = null;
 
-      const presignRes = await fetch(`${API_BASE}/intake/presign`, {
+      const presignRes = await fetch(`${API_BASE}/intake/resume-tickets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mime: resumeFile.type, size: resumeFile.size }),
@@ -127,7 +127,7 @@ export function useIntakeForm() {
       mime = resumeFile.type;
       size = resumeFile.size;
 
-      const finalizeRes = await fetch(`${API_BASE}/intake/finalize`, {
+      const finalizeRes = await fetch(`${API_BASE}/intake/submissions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -190,10 +190,18 @@ export function useIntakeForm() {
     setAccountAction("create");
     setAccountError("");
     try {
-      const response = await fetch(`${API_BASE}/intake/create-account`, {
+      // `/intake/claims` replaces the four account-attachment endpoints; `mode`
+      // selects which one this is. Registering a new account from a finished
+      // submission -- the email comes from the submission, never from here.
+      const response = await fetch(`${API_BASE}/intake/claims`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submission_id: submissionId, password: accountPassword, role: "job-seeker" }),
+        body: JSON.stringify({
+          mode: "register",
+          submission_id: submissionId,
+          password: accountPassword,
+          role: "job-seeker",
+        }),
       });
       const data = await response.json().catch((e) => {
         console.error("Failed to parse create-account response:", e);
@@ -225,11 +233,18 @@ export function useIntakeForm() {
     setAccountAction("signin");
     setAccountError("");
     try {
-      const response = await fetch(`${API_BASE}/intake/sign-in`, {
+      // Same endpoint, different mode: attaching the submission to an account
+      // that already exists.
+      const response = await fetch(`${API_BASE}/intake/claims`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ submission_id: submissionId, email: signInEmail.trim(), password: signInPassword }),
+        body: JSON.stringify({
+          mode: "sign_in",
+          submission_id: submissionId,
+          email: signInEmail.trim(),
+          password: signInPassword,
+        }),
       });
       const data = await response.json().catch((e) => {
         console.error("Failed to parse sign-in response:", e);

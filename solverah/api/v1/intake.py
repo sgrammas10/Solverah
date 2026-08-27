@@ -20,14 +20,29 @@ from flask_jwt_extended import (
     get_jwt_identity,
     jwt_required,
     set_access_cookies,
+    verify_jwt_in_request,
 )
 
+from security import (
+    GUEST_INSIGHTS_GLOBAL_LIMIT,
+    GUEST_INSIGHTS_PER_IP_LIMIT,
+    global_rate_limit_key,
+)
 from solverah.extensions import bcrypt, limiter
 from solverah.openapi import document
 from solverah.repositories import user_repository
 from solverah.schemas import LegacyError, OkResponse
+from solverah.schemas.intelligence import QuizInsightsRequest
 from solverah.schemas.intake import (
+    CLAIM_LIMITS,
+    CLAIM_REQUESTS,
+    CLAIM_REQUIRES_AUTH,
+    STRICTEST_CLAIM_LIMIT,
     EarlyAccessRequest,
+    IntakeClaimEnvelope,
+    IntakeClaimRequest,
+    IntakeClaimResponse,
+    QuizPreviewInsightsResponse,
     IntakeCreateAccountRequest,
     IntakeCreateAccountResponse,
     IntakeFinalizeRequest,
@@ -39,7 +54,7 @@ from solverah.schemas.intake import (
     IntakeSignInRequest,
     IntakeSignInResponse,
 )
-from solverah.services import intake_service
+from solverah.services import insight_service, intake_service
 from validators import validate_password
 
 __all__ = ["intake_bp"]
@@ -47,6 +62,19 @@ __all__ = ["intake_bp"]
 intake_bp = Blueprint("intake", __name__)
 
 _AUTHENTICATED_WRITE = ["accessTokenCookie", "csrfHeader"]
+
+#: Rate-limit buckets, shared between each superseded handler and its
+#: replacement for the length of the cutover. ``shared_limit`` rather than
+#: ``limit(scope=...)``: the latter keys as ``"{endpoint}:{scope}"``, which
+#: sub-divides one endpoint's bucket instead of joining two.
+_SCOPE_PRESIGN = "intake:resume-ticket"
+_SCOPE_FINALIZE = "intake:submission"
+_SCOPE_GUEST_INSIGHTS = "intake:quiz-preview-insights"
+_SCOPE_GUEST_INSIGHTS_GLOBAL = "intake:quiz-preview-insights:global"
+
+#: Namespace for a claim's bucket, completed with the ``mode``. See
+#: ``_claim_scope`` for why the mode has to be in the key.
+CLAIM_SCOPE_PREFIX = "intake:claim:"
 
 
 def _respond(result: intake_service.IntakeResult):
@@ -74,19 +102,63 @@ def _require_json():
     return data, None
 
 
+def _claim_mode() -> str:
+    """The ``mode`` on the current claim body, or "" when there is none.
+
+    Read from the parsed JSON, which Flask caches on the request, so the two
+    rate-limit callables and the handler all see one parse.
+    """
+    payload = request.get_json(silent=True)
+    if isinstance(payload, dict):
+        mode = payload.get("mode")
+        if isinstance(mode, str):
+            return mode
+    return ""
+
+
+def _claim_scope(_endpoint: str) -> str:
+    """Rate-limit bucket for one claim, keyed by mode.
+
+    The same decision the collapsed assessment route forces, for the same
+    reason. Four handlers were four buckets; one handler is one bucket unless
+    the mode is put in the key. Without this, a visitor who tried to sign in and
+    then registered would be spending one allowance across two operations -- and
+    an attacker probing ``sign_in`` would consume the budget of the endpoint
+    that creates accounts.
+
+    ``shared_limit`` rather than ``limit(scope=...)``: the latter builds its key
+    as ``"{endpoint}:{scope}"``, which sub-divides this endpoint's bucket but
+    would not join it to the superseded handler's for the length of the cutover.
+    """
+    return "%s%s" % (CLAIM_SCOPE_PREFIX, _claim_mode() or "unknown")
+
+
+def _claim_limit() -> str:
+    """The limit for the mode being claimed.
+
+    Per-mode because the four were not all the same number: three ran at 5 per
+    minute and ``save-to-account`` at 10. An unrecognised mode gets the
+    strictest of them -- a client that cannot name a valid mode should not be
+    able to probe faster than one that can.
+    """
+    return CLAIM_LIMITS.get(_claim_mode(), STRICTEST_CLAIM_LIMIT)
+
+
 @document(
     "Register interest from the landing-page modal",
     tags=["intake"],
     request=EarlyAccessRequest,
     responses={200: OkResponse, 400: LegacyError, 500: LegacyError},
     security=[],
+    enforce=True,
 )
-@intake_bp.route("/early-access-request", methods=["POST"])
-def early_access_request():
-    """POST /early-access-request - Early-access interest form (no resume).
+@intake_bp.route("/intake/early-access", methods=["POST"])
+def intake_early_access():
+    """POST /intake/early-access - early-access interest form (no resume).
 
-    Accepts a lightweight JSON body from the landing-page modal and forwards the
-    details to info@solverah.com via Resend. Does not persist to the database.
+    Forwards the details to info@solverah.com via Resend. Does not persist to
+    the database, which is a real gap: a mail outage loses the lead with only a
+    log line behind it. Phase 3's transactional outbox is what fixes it.
     """
     return _respond(
         intake_service.early_access_request(
@@ -96,25 +168,33 @@ def early_access_request():
 
 
 @document(
-    "Presign an upload URL for an anonymous resume submission",
+    "Request an upload ticket for an anonymous resume submission",
     tags=["intake"],
     request=IntakePresignRequest,
     responses={200: IntakePresignResponse, 400: LegacyError},
     security=[],
+    enforce=True,
+    description=(
+        "Part 5.2 places this at `/intake/submissions/{id}/resume-ticket`, and "
+        "it is here instead because the id does not exist yet when this is "
+        "called. The ticket is what mints it: the flow is ticket -> browser "
+        "uploads to R2 -> `POST /intake/submissions` commits the row, and no "
+        "row exists until the last step. A path that takes the id would need "
+        "either a draft row inserted before any validation ran, or a "
+        "client-generated id -- and the id is the *only* thing protecting an "
+        "anonymous submission, so it has to come from a server-side CSPRNG."
+    ),
 )
-@intake_bp.route("/intake/presign", methods=["POST"])
-@limiter.limit("10 per minute")
-def presign():
-    """POST /intake/presign - Generate a presigned S3 PUT URL for resume upload.
+@intake_bp.route("/intake/resume-tickets", methods=["POST"])
+@limiter.shared_limit("10 per minute", scope=_SCOPE_PRESIGN)
+def intake_resume_ticket():
+    """POST /intake/resume-tickets - presign a PUT URL and mint a submission id.
 
-    Step 1 of 2 in the intake flow. The client sends the file's MIME type and
-    size; the server validates both, generates a UUID-based object key, and
-    returns a short-lived presigned PUT URL for direct browser-to-R2 upload.
+    Step 1 of 2. The client sends the file's MIME type and size; the server
+    validates both, generates a UUID-based object key, and returns a short-lived
+    presigned PUT URL for a direct browser-to-R2 upload.
     """
-    data, error = _require_json()
-    if error:
-        return error
-
+    data = request.get_json(silent=True) or {}
     return _respond(
         intake_service.presign(
             mime=(data.get("mime") or "").strip(),
@@ -129,59 +209,37 @@ def presign():
     request=IntakeFinalizeRequest,
     responses={200: OkResponse, 400: LegacyError},
     security=[],
+    enforce=True,
 )
-@intake_bp.route("/intake/finalize", methods=["POST"])
-@limiter.limit("20 per minute")
-def finalize():
-    """POST /intake/finalize - Commit an intake submission after resume upload.
+@intake_bp.route("/intake/submissions", methods=["POST"])
+@limiter.shared_limit("20 per minute", scope=_SCOPE_FINALIZE)
+def intake_create_submission():
+    """POST /intake/submissions - commit a submission after the resume upload.
 
-    Step 2 of 2. The client provides personal details and the object key from
-    the presign step. The server validates all fields, verifies the uploaded
-    object exists in R2 and matches the declared size and type, inserts the row,
-    and sends an internal notification email.
+    Step 2 of 2. Validates every field, HEADs the uploaded object to confirm it
+    exists and matches the declared size and type, inserts the row, and sends an
+    internal notification.
+
+    The HEAD is not decoration. The ticket signs a ContentLength, so R2 rejects a
+    body of a different size -- but nothing stops a client skipping the upload
+    entirely and calling this anyway. The check is what makes the row mean "a
+    resume of this size and type exists at this key".
     """
-    data, error = _require_json()
-    if error:
-        return error
-
-    return _respond(intake_service.finalize(data, current_app.logger))
+    return _respond(intake_service.finalize(request.get_json(silent=True) or {},
+                                            current_app.logger))
 
 
 @document(
-    "Register a new account from an intake submission",
+    "Attach an anonymous submission or quiz session to an account",
     tags=["intake"],
-    request=IntakeCreateAccountRequest,
-    responses={201: IntakeCreateAccountResponse, 400: LegacyError, 404: LegacyError},
-    security=[],
-)
-@intake_bp.route("/intake/create-account", methods=["POST"])
-@limiter.limit("5 per minute")
-def intake_create_account():
-    """POST /intake/create-account - Register a new account from an intake submission.
-
-    Looks up the intake record by submission_id, validates the chosen password,
-    creates a User row with email_confirmed=False, and sends a verification
-    email. The intake record's status is updated to "account_created".
-    """
-    data, error = _require_json()
-    if error:
-        return error
-
-    return _respond(
-        intake_service.create_account(
-            data,
-            hash_password=bcrypt.generate_password_hash,
-            validate_password=validate_password,
-        )
-    )
-
-
-@document(
-    "Sign in and attach an intake submission to an existing account",
-    tags=["intake"],
-    request=IntakeSignInRequest,
+    request=IntakeClaimRequest,
+    request_for=lambda _view_args, payload: CLAIM_REQUESTS.get(
+        (payload or {}).get("mode") if isinstance(payload, dict) else None,
+        IntakeClaimEnvelope,
+    ),
     responses={
-        200: IntakeSignInResponse,
+        200: IntakeClaimResponse,
+        201: IntakeClaimResponse,
         400: LegacyError,
         401: LegacyError,
         403: LegacyError,
@@ -189,79 +247,98 @@ def intake_create_account():
         423: LegacyError,
     },
     security=[],
+    enforce=True,
+    description=(
+        "Replaces `/intake/create-account`, `/intake/sign-in`, "
+        "`/intake/link-account`, and `/intake/save-to-account`. All four answer "
+        "the same question -- *this browser holds something anonymous, attach "
+        "it to an account* -- and differ in which account and where the "
+        "anonymous thing came from. `mode` is the discriminator and selects the "
+        "request body, the response body, whether a JWT is required, and which "
+        "rate-limit bucket the call lands in.\n\n"
+        "`register` and `sign_in` are public: they are how a visitor *gets* a "
+        "session, so requiring one would be circular. `link` and `session` "
+        "require a JWT and the CSRF header with it.\n\n"
+        "This is `/intake/claims`, not Part 5.2's "
+        "`/intake/submissions/{id}/claim`, because two of the four modes have "
+        "no submission id -- `link` files a new submission rather than claiming "
+        "an existing one, and `session` adopts a quiz session that was never a "
+        "submission at all."
+    ),
 )
-@intake_bp.route("/intake/sign-in", methods=["POST"])
-@limiter.limit("5 per minute")
-def intake_sign_in():
-    """POST /intake/sign-in - Sign in and attach an intake submission to an account.
+@intake_bp.route("/intake/claims", methods=["POST"])
+@limiter.shared_limit(_claim_limit, scope=_claim_scope)
+def intake_claim():
+    """POST /intake/claims - attach anonymous intake data to an account.
 
-    Used when the user already has an account and returns through the intake
-    flow. After successful authentication, the intake's parsed profile data is
-    merged (intake values win on conflict) into the user's existing profile.
-    The intake status is updated to "account_linked".
+    The mode is validated before this runs (`enforce=True` against the
+    per-mode model), so by here it is one of the four and its required fields
+    are present.
     """
-    data, error = _require_json()
-    if error:
-        return error
+    data = request.get_json(silent=True) or {}
+    mode = data.get("mode")
 
-    return _respond(
-        intake_service.sign_in(data, check_password=bcrypt.check_password_hash)
-    )
+    if CLAIM_REQUIRES_AUTH.get(mode):
+        # Not @jwt_required(): two of the four modes are deliberately public.
+        # verify_jwt_in_request() is the same function the decorator calls, so
+        # the cookie lookup, the signature check, and -- on a POST -- the CSRF
+        # check are identical.
+        verify_jwt_in_request()
 
+    if mode == "register":
+        return _respond(
+            intake_service.create_account(
+                data,
+                hash_password=bcrypt.generate_password_hash,
+                validate_password=validate_password,
+            )
+        )
 
-@document(
-    "Persist an anonymous quiz session onto the authenticated account",
-    tags=["intake"],
-    request=IntakeSaveToAccountRequest,
-    responses={200: IntakeSaveToAccountResponse, 400: LegacyError, 404: LegacyError},
-    security=_AUTHENTICATED_WRITE,
-)
-@intake_bp.route("/intake/save-to-account", methods=["POST"])
-@limiter.limit("10 per minute")
-@jwt_required()
-def intake_save_to_account():
-    """POST /intake/save-to-account - Persist anonymous WPLL session data to the account.
-
-    Called by the frontend immediately after login when sessionStorage contains
-    intake data from the /start flow. Creates the user_intake row on first call;
-    upserts on subsequent calls (preserves wpl_* fields if already set).
-    """
-    user = user_repository.find_by_email(get_jwt_identity())
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    return _respond(
-        intake_service.save_to_account(user, request.get_json(silent=True) or {})
-    )
-
-
-@document(
-    "Submit the intake form as an already-authenticated user",
-    tags=["intake"],
-    request=IntakeLinkAccountRequest,
-    responses={200: OkResponse, 400: LegacyError, 404: LegacyError},
-    security=_AUTHENTICATED_WRITE,
-)
-@intake_bp.route("/intake/link-account", methods=["POST"])
-@limiter.limit("5 per minute")
-@jwt_required()
-def intake_link_account():
-    """POST /intake/link-account - Submit the intake form for an authenticated user.
-
-    Records the submission against the JWT identity, verifies the upload, then
-    merges the parsed resume into the user's profile.
-    """
-    from flask import abort
+    if mode == "sign_in":
+        return _respond(
+            intake_service.sign_in(data, check_password=bcrypt.check_password_hash)
+        )
 
     current_email = get_jwt_identity()
     user = user_repository.find_by_email(current_email)
     if user is None:
-        # first_or_404() in the original; the 404 handler turns it into a
-        # problem document, so the shape the client sees is unchanged.
-        abort(404)
+        return jsonify({"error": "User not found"}), 404
 
-    data, error = _require_json()
-    if error:
-        return error
+    if mode == "link":
+        return _respond(intake_service.link_account(user, current_email, data))
 
-    return _respond(intake_service.link_account(user, current_email, data))
+    return _respond(intake_service.save_to_account(user, data))
+
+
+@document(
+    "Generate AI career insights for an unauthenticated preview",
+    tags=["intake"],
+    request=QuizInsightsRequest,
+    responses={200: QuizPreviewInsightsResponse, 400: LegacyError, 500: LegacyError},
+    security=[],
+    enforce=True,
+    description=(
+        "The unauthenticated half of the quiz-insights pair. Nothing is "
+        "persisted, because there is no account yet.\n\n"
+        "Rate-limited per IP *and* under a global daily ceiling. The endpoint "
+        "this replaces carried `1 per day` keyed on the IP alone, which behind "
+        "corporate NAT or mobile CGNAT meant one preview per office per day and "
+        "read to the user as a broken quiz rather than as a limit. See "
+        "`solverah/api/v1/intelligence.py` for the full reasoning."
+    ),
+)
+@intake_bp.route("/intake/quiz-preview/insights", methods=["POST"])
+@limiter.shared_limit(GUEST_INSIGHTS_GLOBAL_LIMIT, scope=_SCOPE_GUEST_INSIGHTS_GLOBAL,
+                      key_func=global_rate_limit_key)
+@limiter.shared_limit(GUEST_INSIGHTS_PER_IP_LIMIT, scope=_SCOPE_GUEST_INSIGHTS)
+def intake_quiz_preview_insights():
+    """POST /intake/quiz-preview/insights - AI insights for an anonymous preview.
+
+    Same generation path as the authenticated endpoint; the result is returned
+    and not stored.
+    """
+    return _respond(
+        insight_service.generate_for_guest(
+            request.get_json(silent=True) or {}, current_app.logger
+        )
+    )

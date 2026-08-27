@@ -11,7 +11,7 @@ def test_register_success(client, monkeypatch):
     monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     response = client.post(
-        "/api/register",
+        "/api/v1/auth/register",
         json={
             "email": "valid@example.com",
             "password": "Strongpass1!",
@@ -32,7 +32,7 @@ def test_register_duplicate_email(client, monkeypatch):
     monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     first = client.post(
-        "/api/register",
+        "/api/v1/auth/register",
         json={
             "email": "dup@example.com",
             "password": "Strongpass1!",
@@ -43,7 +43,7 @@ def test_register_duplicate_email(client, monkeypatch):
     assert first.status_code == 201
 
     second = client.post(
-        "/api/register",
+        "/api/v1/auth/register",
         json={
             "email": "dup@example.com",
             "password": "Strongpass1!",
@@ -65,7 +65,7 @@ def test_register_requires_terms_acceptance(client, monkeypatch):
     monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     response = client.post(
-        "/api/register",
+        "/api/v1/auth/register",
         json={
             "email": "noterms@example.com",
             "password": "Strongpass1!",
@@ -73,8 +73,12 @@ def test_register_requires_terms_acceptance(client, monkeypatch):
             "role": "job-seeker",
         },
     )
-    assert response.status_code == 400
-    assert "Terms" in response.get_json()["error"]
+    # 422 rather than the handler's 400: an absent `terms_accepted` is a schema
+    # violation, and Phase 1b enforces the schema before the handler runs. The
+    # distinction is worth keeping -- sending it as literal `false` is a
+    # business-rule refusal and still answers 400, which the test below covers.
+    assert response.status_code == 422
+    assert "terms_accepted" in {e["field"] for e in response.get_json()["errors"]}
 
     from app import app
     from model import User
@@ -90,7 +94,7 @@ def test_register_records_acceptance_metadata(client, monkeypatch):
     monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     response = client.post(
-        "/api/register",
+        "/api/v1/auth/register",
         json={
             "email": "acceptance@example.com",
             "password": "Strongpass1!",

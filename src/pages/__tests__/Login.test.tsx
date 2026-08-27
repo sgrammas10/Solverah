@@ -213,11 +213,14 @@ describe("Login - from=wpll intake save", () => {
     await submitForm();
 
     expect(mockFetchWithAuth).toHaveBeenCalledWith(
-      "/intake/save-to-account",
+      "/intake/claims",
       expect.objectContaining({ method: "POST" })
     );
     const callArgs = mockFetchWithAuth.mock.calls[0][1];
     const body = JSON.parse(callArgs.body);
+    // `mode` is the discriminator that picks which of the four collapsed
+    // account-attachment operations this is. Without it the request is a 422.
+    expect(body.mode).toBe("session");
     expect(body.selected_statement_ids).toEqual(["dir-1", "sus-1"]);
     expect(body.wpll_answers[0].question_id).toBe("wpll-q1");
     expect(body.wpll_answers[0].option_id).toBe("wpll-q1-c");
@@ -274,7 +277,7 @@ describe("Login - from=wpll intake save", () => {
     await submitForm();
 
     expect(mockFetchWithAuth).not.toHaveBeenCalledWith(
-      "/intake/save-to-account",
+      "/intake/claims",
       expect.anything()
     );
   });
@@ -291,7 +294,7 @@ describe("Login - from=wpll intake save", () => {
     await submitForm();
 
     expect(mockFetchWithAuth).not.toHaveBeenCalledWith(
-      "/intake/save-to-account",
+      "/intake/claims",
       expect.anything()
     );
   });

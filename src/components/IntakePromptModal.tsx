@@ -65,7 +65,7 @@ export default function IntakePromptModal({ open, hasIntakeSubmission, onClose, 
     setSubmitting(true);
     try {
       // Step 1: get presigned upload URL
-      const presignRes = await fetch(`${API_BASE}/intake/presign`, {
+      const presignRes = await fetch(`${API_BASE}/intake/resume-tickets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mime: resumeFile.type, size: resumeFile.size }),
@@ -88,9 +88,12 @@ export default function IntakePromptModal({ open, hasIntakeSubmission, onClose, 
       if (!putRes.ok) throw new Error("Resume upload failed. Please try again.");
 
       // Step 3: finalize and link to account
-      await fetchWithAuth("/intake/link-account", {
+      // Same endpoint as registration and sign-in, different mode: filing a
+      // submission as a user who is already signed in.
+      await fetchWithAuth("/intake/claims", {
         method: "POST",
         body: JSON.stringify({
+          mode: "link",
           submission_id,
           object_key,
           mime: resumeFile.type,

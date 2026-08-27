@@ -34,6 +34,7 @@ __all__ = [
     "IntelligenceResult",
     "PATH_PRIORITIES",
     "MOVE_INTENTS",
+    "read_path_preferences",
     "SENIORITY_INTENTS",
     "build_user_context",
     "build_user_profile",
@@ -303,3 +304,23 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
 
     path_cache.store(user.id, payload)
     return IntelligenceResult(status=200, body=payload)
+
+
+def read_path_preferences(user: User) -> IntelligenceResult:
+    """The three saved preferences, or nulls when the user has not set them.
+
+    New in Phase 1b. The endpoint this pairs with was write-only, so a client
+    that wanted to show the user their own answers had to either keep a copy or
+    read them out of the profile blob -- which is exactly the coupling to
+    ``profile_data``'s shape that putting schemas at the API boundary exists to
+    stop.
+    """
+    saved = (user.profile_data or {}).get("path_preferences") or {}
+    return IntelligenceResult(
+        status=200,
+        body={
+            "move_intent": saved.get("move_intent"),
+            "seniority_intent": saved.get("seniority_intent"),
+            "priority": saved.get("priority"),
+        },
+    )

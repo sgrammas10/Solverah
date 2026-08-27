@@ -36,7 +36,15 @@ from solverah.repositories import assessment_repository
 from solverah.services import assessment_prompts, path_cache
 
 __all__ = [
+    "ASSESSMENT_KINDS",
+    "AssessmentKind",
     "AssessmentResult",
+    "KINDS_BY_KEY",
+    "catalogue",
+    "find_kind",
+    "form",
+    "result",
+    "submit",
     "MANAGER_MATCH_ANSWER_COUNT",
     "WORK_PULSE_ANSWER_COUNT",
     "WPLL_MAX_ANSWERS",
@@ -353,3 +361,181 @@ def person_side_form(user: User, logger) -> AssessmentResult:
         # difficulty order produces data that looks fine and is not (D-07).
         logger.error("assessment form unservable: %s", exc)
         return _error(500, "Assessment is temporarily unavailable")
+
+
+# ===========================================================================
+# Phase 1b -- one route, five instruments
+# ===========================================================================
+#
+# Part 5.2 collapses five near-identical submit handlers into
+# ``POST /assessments/{kind}/submissions``.  The registry below is what the
+# ``{kind}`` discriminator resolves against, and the shape of it is the point:
+# the five differ in a scorer, a prompt, a storage key, and whether they need a
+# JWT, and nothing else.  Adding assessment #6 is an entry here.
+#
+# What is emphatically **not** unified is the result.  The five produce
+# genuinely different payloads -- a narrative and an archetype, six dimension
+# scores, a teaser sentence with locked section titles, a submission id with no
+# scores at all -- and flattening them into a lowest-common-denominator envelope
+# would throw away the part each instrument exists to produce.  Each kind keeps
+# its own response model; the route is what is shared, not the shape.
+#
+# ``core``'s response is the sharpest example of why. It deliberately withholds
+# the six dimension scores, because handing them back gives a retaking
+# respondent a gradient to optimise against and teaches the item-to-dimension
+# mapping the shuffle and interleave exist to hide. A "uniform" result envelope
+# with a ``scores`` field would have quietly undone that.
+
+#: Result keys the two blob-stored instruments write to.
+_RESULT_KEYS = {
+    "focus_type": FOCUS_TYPE_KEY,
+    "manager_match": MANAGER_MATCH_KEY,
+}
+
+
+@dataclass(frozen=True)
+class AssessmentKind:
+    """One instrument, and everything the unified route needs to know about it.
+
+    Attributes:
+        key: The ``{kind}`` path segment.
+        title: Human-readable name, for the catalogue.
+        requires_auth: Whether a JWT is required. ``wpll`` is the only one that
+            does not: it is the anonymous teaser on the pre-launch funnel and
+            has no account to attach to yet.
+        scored_by: ``"rules"`` or ``"llm"``. Carried because it is what decides
+            whether a provider outage makes the instrument unavailable, and the
+            catalogue is the honest place to say so.
+        has_form: Whether the server serves the items. Only ``core`` does; the
+            other four are rendered from definitions the client already holds.
+        has_result: Whether a completed submission can be re-read later.
+    """
+
+    key: str
+    title: str
+    requires_auth: bool
+    scored_by: str
+    has_form: bool
+    has_result: bool
+
+
+ASSESSMENT_KINDS = (
+    AssessmentKind("core", "Culture Assessment", True, "rules", True, False),
+    AssessmentKind("work_pulse", "Work Pulse", True, "llm", False, True),
+    AssessmentKind("wpll", "Work Pulse Lite-Lite", False, "llm", False, False),
+    AssessmentKind("focus_type", "FocusType", True, "rules", False, True),
+    AssessmentKind("manager_match", "ManagerMatch", True, "llm", False, True),
+)
+
+KINDS_BY_KEY = {kind.key: kind for kind in ASSESSMENT_KINDS}
+
+
+def find_kind(key: str) -> Optional[AssessmentKind]:
+    """The instrument named *key*, or None when nothing is."""
+    return KINDS_BY_KEY.get(key)
+
+
+def submit(kind: AssessmentKind, user: Optional[User], data: Dict[str, Any], logger) -> AssessmentResult:
+    """Route a submission to the instrument that scores it.
+
+    Dispatch is explicit rather than a callable stashed on the registry entry,
+    because the five signatures genuinely differ -- three take a bare answers
+    list, one takes the whole payload, one takes no user -- and a uniform
+    adapter would be five wrappers pretending to be one.
+    """
+    if kind.key == "core":
+        return submit_person_side(user, data.get("responses"))
+    if kind.key == "work_pulse":
+        return submit_work_pulse(user, data.get("answers"), logger)
+    if kind.key == "wpll":
+        return wpll_insight(data.get("answers", []))
+    if kind.key == "focus_type":
+        return submit_focus_type(user, data)
+    if kind.key == "manager_match":
+        return submit_manager_match(user, data.get("answers"), logger)
+    return _error(404, "Unknown assessment")
+
+
+def form(kind: AssessmentKind, user: User, logger) -> AssessmentResult:
+    """The server-ordered items for *kind*.
+
+    Only ``core`` has them. The other four are rendered from question
+    definitions that ship with the client, and a 404 is the truthful answer for
+    a form that does not exist rather than an empty one that implies it might.
+    """
+    if kind.key == "core":
+        return person_side_form(user, logger)
+    return _error(404, "%s has no server-served form" % kind.key)
+
+
+def result(kind: AssessmentKind, user: User) -> AssessmentResult:
+    """The stored result for *kind*, or a 404.
+
+    ``core`` is absent on purpose, not pending. Its scores are withheld from the
+    submit response for a documented reason -- an aspirational respondent
+    optimising against a visible gradient -- and a read endpoint that handed
+    them back would be the same disclosure through a different door.
+    """
+    if kind.key == "work_pulse":
+        return get_work_pulse_result(user)
+    if kind.key == "manager_match":
+        return get_manager_match_result(user)
+    if kind.key == "focus_type":
+        stored = assessment_repository.get_profile_result(user, FOCUS_TYPE_KEY)
+        if stored is None:
+            return _error(404, "No FocusType result found")
+        return AssessmentResult(status=200, body=stored)
+    return _error(404, "%s does not store a retrievable result" % kind.key)
+
+
+def catalogue(user: User) -> AssessmentResult:
+    """Every instrument, with this user's completion state against each.
+
+    New in Phase 1b, and the thing that makes ``{kind}`` discoverable: without
+    it a client has to hard-code the five keys and work out completion from
+    three unrelated places -- ``user_intake`` timestamps, two blob keys, and the
+    person-side tables.
+    """
+    return AssessmentResult(
+        status=200,
+        body={
+            "data": [
+                {
+                    "kind": kind.key,
+                    "title": kind.title,
+                    "requires_auth": kind.requires_auth,
+                    "scored_by": kind.scored_by,
+                    "has_form": kind.has_form,
+                    "has_result": kind.has_result,
+                    "completed": _is_completed(kind, user),
+                }
+                for kind in ASSESSMENT_KINDS
+            ]
+        },
+    )
+
+
+def _is_completed(kind: AssessmentKind, user: User) -> bool:
+    """Whether *user* has finished *kind*.
+
+    Four storage locations for five instruments, which is the schema problem
+    Part 4.4's ``assessment_*`` unification exists to end. Reading them in one
+    place is as far as Phase 1b goes.
+    """
+    if kind.key == "core":
+        from assessment_store import has_completed_assessment
+
+        try:
+            return bool(has_completed_assessment(user.id))
+        except Exception:  # noqa: BLE001 -- a catalogue must not fail a page load
+            return False
+
+    if kind.key in _RESULT_KEYS:
+        return assessment_repository.get_profile_result(user, _RESULT_KEYS[kind.key]) is not None
+
+    intake = assessment_repository.find_user_intake(user.id)
+    if intake is None:
+        return False
+    if kind.key == "work_pulse":
+        return intake.wpl_completed_at is not None
+    return intake.wpll_completed_at is not None

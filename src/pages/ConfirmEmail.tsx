@@ -32,7 +32,7 @@ export default function ConfirmEmail() {
     setStatus('submitting');
     setMessage('');
     try {
-      const res = await fetch(`${API_BASE}/confirm-email`, {
+      const res = await fetch(`${API_BASE}/auth/email/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code: trimmed }),
@@ -69,7 +69,7 @@ export default function ConfirmEmail() {
     setResendStatus('sending');
     setResendMsg('');
     try {
-      const res = await fetch(`${API_BASE}/resend-confirmation`, {
+      const res = await fetch(`${API_BASE}/auth/email/verify/resend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

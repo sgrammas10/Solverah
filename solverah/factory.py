@@ -38,7 +38,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import timedelta
-from typing import Any, List, Mapping, Optional, Tuple
+from typing import Any, Mapping, Optional, Tuple
 
 from flask import Flask
 from flask_cors import CORS
@@ -52,19 +52,29 @@ from solverah.config import ConfigError, Settings
 from solverah.errors import register_error_handlers
 from solverah.extensions import bcrypt, db, jwt, limiter, migrate
 from solverah.observability.logging import init_logging, install_request_logging
+from solverah.validation import install_request_validation
 
 __all__ = [
     "LEGACY_PREFIX",
     "V1_PREFIX",
     "create_app",
-    "register_legacy_aliases",
 ]
 
-#: Canonical prefix.  Every v1 rule is registered here.
+#: Canonical prefix.  Every rule in the API is registered here, and it is the
+#: only prefix the application serves.
 V1_PREFIX = "/api/v1"
 
-#: Unversioned prefix the deployed frontend still calls.  See
-#: :func:`register_legacy_aliases`.
+#: The unversioned prefix the API served through the Phase 1 cutover.
+#:
+#: ``register_legacy_aliases`` bound every ``/api/v1/x`` rule to ``/api/x`` as
+#: well -- a second URL rule on the *same endpoint*, never a redirect, so that
+#: one Flask-Limiter bucket covered both and a preflighted cross-origin POST did
+#: not have to survive a 308.  Phase 1b moved the frontend onto the versioned
+#: paths and removed the aliases; nothing serves this prefix now.
+#:
+#: The constant remains because CORS still matches on it -- ``r"/api/*"`` covers
+#: ``/api/v1/...`` -- and because ``tests/test_v1_aliasing.py`` asserts the
+#: unversioned paths are gone rather than trusting that they are.
 LEGACY_PREFIX = "/api"
 
 
@@ -318,53 +328,6 @@ def _init_extensions(app: Flask) -> None:
     init_rate_limiter(app, limiter=limiter)
 
 
-def register_legacy_aliases(app: Flask) -> List[str]:
-    """Serve every ``/api/v1/x`` rule at ``/api/x`` as well.
-
-    The deployed frontend calls the unversioned paths.  Until it is cut over
-    (Phase 4), both must work.
-
-    This adds a **second URL rule bound to the same endpoint and the same view
-    function** -- not a redirect.  A 308 would look tidier and is wrong here for
-    two reasons:
-
-      * Every authenticated write sends ``X-CSRF-TOKEN``, which makes it a
-        non-simple cross-origin request, which means the browser preflights it.
-        Redirect handling across a preflighted request is not uniform between
-        browsers, and a redirected POST that loses its credential context fails
-        in a way that is invisible server-side.
-      * A redirect doubles the round trips on the hottest paths for the whole
-        length of the cutover.
-
-    Binding the same *endpoint* rather than registering each blueprint a second
-    time under a second prefix is also deliberate.  Flask-Limiter composes its
-    storage key from the endpoint name, so two endpoints for one handler means
-    two independent buckets: ``POST /api/login`` and ``POST /api/v1/login``
-    would each get the configured 5-per-minute allowance and an attacker would
-    get 10.  One endpoint means one bucket, and one ``limiter.exempt()`` target.
-
-    Observability does not suffer.  The access log records ``path`` (what was
-    actually called) next to ``route`` (the rule that matched), so legacy
-    traffic stays countable and the cutover stays measurable.
-
-    Returns:
-        The legacy paths added, sorted -- for logging and for tests.
-    """
-    added: List[str] = []
-    for rule in list(app.url_map.iter_rules()):
-        if not rule.rule.startswith(V1_PREFIX + "/"):
-            continue
-        legacy_path = LEGACY_PREFIX + rule.rule[len(V1_PREFIX):]
-        app.add_url_rule(
-            legacy_path,
-            endpoint=rule.endpoint,
-            view_func=app.view_functions[rule.endpoint],
-            methods=sorted(rule.methods - {"HEAD", "OPTIONS"}),
-        )
-        added.append(legacy_path)
-    return sorted(added)
-
-
 def _register_platform_blueprints(app: Flask) -> None:
     """Health probes plus their Talisman and rate-limit exemptions."""
     # Liveness and readiness. /healthz checks nothing external on purpose: if it
@@ -399,9 +362,9 @@ def create_app(config: Optional[Mapping[str, Any]] = None) -> Flask:
             nothing.
 
     Returns:
-        A fully wired ``Flask`` app.  Handlers still defined at ``app.py`` module
-        scope attach themselves after this returns -- that is the strangler seam,
-        and it shrinks with every batch moved into ``solverah/api/v1/``.
+        A fully wired ``Flask`` app.  Every route it serves is declared in
+        ``solverah/api/v1/``; the strangler seam that let handlers attach at
+        ``app.py`` module scope closed when Phase 1b removed the last of them.
     """
     is_production = _is_production()
     settings, config_problems = _load_settings()
@@ -449,9 +412,15 @@ def create_app(config: Optional[Mapping[str, Any]] = None) -> Flask:
     # are untouched.
     register_error_handlers(app)
 
+    # Routes declared with @document(..., enforce=True) get their request body
+    # and query string validated before the handler runs. Installed here, after
+    # the limiter's own before_request, so a flood of malformed bodies is
+    # refused by the limiter rather than parsed one at a time. See
+    # solverah/validation.py for why this is a hook and not a decorator.
+    install_request_validation(app)
+
     _register_platform_blueprints(app)
     register_v1_blueprints(app, url_prefix=V1_PREFIX)
-    register_legacy_aliases(app)
 
     app.extensions["solverah_settings"] = settings
     app.extensions["solverah_is_production"] = is_production

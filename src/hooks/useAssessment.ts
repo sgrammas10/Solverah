@@ -103,7 +103,7 @@ export function useAssessment() {
 
     (async () => {
       try {
-        const form = await fetchWithAuth<AssessmentForm>("/assessment/form");
+        const form = await fetchWithAuth<AssessmentForm>("/assessments/core/form");
         if (cancelled) return;
 
         const fetched = flattenItems(form);
@@ -173,7 +173,7 @@ export function useAssessment() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const result = await fetchWithAuth<AssessmentSubmitResponse>("/assessment/submit", {
+      const result = await fetchWithAuth<AssessmentSubmitResponse>("/assessments/core/submissions", {
         method: "POST",
         body: JSON.stringify({ responses }),
       });

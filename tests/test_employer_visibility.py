@@ -185,7 +185,11 @@ def test_submit_response_carries_no_dimension_scores():
     source = (REPO_ROOT / "solverah" / "api" / "v1" / "assessments.py").read_text(
         encoding="utf-8"
     )
-    start = source.index('@assessments_bp.route("/assessment/submit", methods=["POST"])')
+    # Phase 1b collapsed the five submit handlers onto one route; `core` is the
+    # kind that carries this instrument.
+    start = source.index(
+        '@assessments_bp.route("/assessments/<kind>/submissions", methods=["POST"])'
+    )
     body = source[start : start + 4000]
 
     # The route returns submission_id / scoring_key_version / dimensions_scored -- a count, not

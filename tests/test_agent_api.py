@@ -15,7 +15,7 @@ def _register_and_login(client, monkeypatch):
     monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     client.post(
-        "/api/register",
+        "/api/v1/auth/register",
         json={"email": "agent@example.com", "password": "Strongpass1!", "name": "Agent User", "role": "job-seeker", "terms_accepted": True},
     )
 
@@ -30,7 +30,7 @@ def _register_and_login(client, monkeypatch):
         db.session.commit()
 
     resp = client.post(
-        "/api/login",
+        "/api/v1/auth/login",
         json={"email": "agent@example.com", "password": "Strongpass1!"},
     )
     assert resp.status_code == 200
@@ -69,7 +69,7 @@ def _parse_sse(data: bytes) -> list[dict]:
 
 
 def test_agent_chat_unauthenticated(client):
-    resp = client.post("/api/agent/chat", json={"messages": [{"role": "user", "content": "hi"}]})
+    resp = client.post("/api/v1/agent/messages", json={"messages": [{"role": "user", "content": "hi"}]})
     assert resp.status_code == 401
 
 
@@ -78,12 +78,16 @@ def test_agent_chat_missing_messages(client, monkeypatch):
     _mock_llm_streaming(monkeypatch)
 
     resp = client.post(
-        "/api/agent/chat",
+        "/api/v1/agent/messages",
         json={},
         headers={"X-CSRF-TOKEN": csrf},
     )
-    assert resp.status_code == 400
-    assert "messages" in resp.get_json()["error"]
+    # 422, not the 400 the handler used to answer with. Phase 1b turned the
+    # declared schema into an enforced one, so a missing required field is
+    # rejected before the handler runs and reported as a problem document with
+    # the offending field named -- which the hand-written 400 could not do.
+    assert resp.status_code == 422
+    assert "messages" in {e["field"] for e in resp.get_json()["errors"]}
 
 
 def test_agent_chat_empty_messages(client, monkeypatch):
@@ -91,11 +95,13 @@ def test_agent_chat_empty_messages(client, monkeypatch):
     _mock_llm_streaming(monkeypatch)
 
     resp = client.post(
-        "/api/agent/chat",
+        "/api/v1/agent/messages",
         json={"messages": []},
         headers={"X-CSRF-TOKEN": csrf},
     )
-    assert resp.status_code == 400
+    # An empty history is a schema violation now (`min_length=1`), not a
+    # hand-rolled check inside the handler.
+    assert resp.status_code == 422
 
 
 def test_agent_chat_success(client, monkeypatch):
@@ -103,7 +109,7 @@ def test_agent_chat_success(client, monkeypatch):
     mock_client = _mock_llm_streaming(monkeypatch, reply_text="Here are some career tips.")
 
     resp = client.post(
-        "/api/agent/chat",
+        "/api/v1/agent/messages",
         json={"messages": [{"role": "user", "content": "What should I focus on?"}], "model": "test-model"},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -130,7 +136,7 @@ def test_agent_chat_custom_model(client, monkeypatch):
     _mock_llm_streaming(monkeypatch)
 
     resp = client.post(
-        "/api/agent/chat",
+        "/api/v1/agent/messages",
         json={"messages": [{"role": "user", "content": "hi"}], "model": "mistral"},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -154,7 +160,7 @@ def test_agent_chat_groq_unavailable(client, monkeypatch):
     monkeypatch.setattr("solverah.infra.llm.get_agent_client", lambda: mock_client)
 
     resp = client.post(
-        "/api/agent/chat",
+        "/api/v1/agent/messages",
         json={"messages": [{"role": "user", "content": "hi"}]},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -196,7 +202,7 @@ def test_agent_chat_includes_resume_in_context(client, monkeypatch):
                         lambda _: "Worked at Acme Corp as engineer.")
 
     client.post(
-        "/api/agent/chat",
+        "/api/v1/agent/messages",
         json={"messages": [{"role": "user", "content": "Review my resume"}]},
         headers={"X-CSRF-TOKEN": csrf},
     )

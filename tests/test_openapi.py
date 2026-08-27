@@ -4,9 +4,10 @@ These are the tests that stop the Phase 1 restructure from rotting:
 
   * Every ``/api/v1`` route is documented -- an undocumented route fails the
     build, so a handler cannot be added without a schema.
-  * Every ``/api/v1`` route is also served unversioned, on the *same endpoint* --
-    which is what keeps rate-limit buckets shared, and what keeps a preflighted
-    cross-origin POST off a redirect.
+  * No ``/api/v1`` route is served unversioned any more.  Phase 1a bound each
+    one to an ``/api/...`` alias so the deployed frontend kept working; Phase 1b
+    cut the frontend over and removed them, and a survivor would be an
+    undocumented URL supported forever by accident.
   * The committed ``docs/openapi.json`` matches what the app generates, so the
     frontend can generate a typed client from the file in the repo without
     booting the API and without silently working from a stale contract.
@@ -64,65 +65,45 @@ def test_build_raises_rather_than_emitting_a_partial_document(flask_app, monkeyp
     assert view is flask_app.view_functions[rule.endpoint]  # nothing was mutated
 
 
-# ── Legacy aliasing ─────────────────────────────────────────────────────────
+# ── The aliases are gone ────────────────────────────────────────────────────
+#
+# Through Phase 1a this section asserted the opposite: that every /api/v1 rule
+# was also served unversioned, on the same endpoint, so that one Flask-Limiter
+# bucket covered both and a preflighted cross-origin POST never met a redirect.
+# Phase 1b moved the frontend onto the versioned paths and removed the aliases,
+# so the invariant flipped -- an unversioned rule surviving would be an
+# undocumented URL supported forever by accident.
+#
+# tests/test_v1_aliasing.py checks the same thing over the wire. This is the
+# url_map half.
 
 
-def test_every_v1_route_has_an_unversioned_alias(flask_app):
-    """The deployed frontend calls /api/...; both must work until it cuts over."""
+def test_no_v1_route_has_an_unversioned_alias(flask_app):
     rules = {r.rule for r in flask_app.url_map.iter_rules()}
-    missing = [
+    surviving = sorted(
         LEGACY_PREFIX + r.rule[len(V1_PREFIX):]
         for r in _v1_rules(flask_app)
-        if LEGACY_PREFIX + r.rule[len(V1_PREFIX):] not in rules
-    ]
+        if LEGACY_PREFIX + r.rule[len(V1_PREFIX):] in rules
+    )
 
-    assert missing == []
+    assert surviving == []
+
+
+def test_the_document_records_no_legacy_paths(flask_app):
+    """`x-legacy-path` was the cutover's measurement, and the cutover is done.
+
+    Leaving it in the document would advertise URLs that 404, which is worse
+    than not mentioning them: a generated client could be built against one.
+    """
+    doc = build_openapi(flask_app)
+
+    carrying = sorted(p for p, ops in doc["paths"].items() if "x-legacy-path" in ops)
+
+    assert carrying == []
 
 
 def _methods(rule):
     return frozenset(rule.methods - {"HEAD", "OPTIONS"})
-
-
-def _endpoints_by_path_and_method(flask_app):
-    """(path, method) -> endpoint.
-
-    Keyed on the method too because path alone is not unique: /recommendations
-    carries a GET and a POST bound to two different handlers.
-    """
-    index = {}
-    for rule in flask_app.url_map.iter_rules():
-        for method in _methods(rule):
-            index[(rule.rule, method)] = rule.endpoint
-    return index
-
-
-def test_alias_shares_the_endpoint_not_just_the_path(flask_app):
-    """Two endpoints for one handler would mean two rate-limit buckets.
-
-    Flask-Limiter composes its storage key from the endpoint name. Registering
-    each blueprint a second time under /api would give POST /api/login and
-    POST /api/v1/login separate 5-per-minute allowances -- an attacker would get
-    10. Binding one endpoint to two rules is what avoids that.
-    """
-    index = _endpoints_by_path_and_method(flask_app)
-
-    for rule in _v1_rules(flask_app):
-        legacy = LEGACY_PREFIX + rule.rule[len(V1_PREFIX):]
-        for method in _methods(rule):
-            assert index.get((legacy, method)) == rule.endpoint, (legacy, method)
-
-
-def test_alias_is_not_a_redirect(flask_app):
-    """A 308 on a preflighted cross-origin POST is unreliable; aliases are not one."""
-    index = _endpoints_by_path_and_method(flask_app)
-
-    for rule in _v1_rules(flask_app):
-        legacy = LEGACY_PREFIX + rule.rule[len(V1_PREFIX):]
-        for method in _methods(rule):
-            assert (
-                flask_app.view_functions[index[(legacy, method)]]
-                is flask_app.view_functions[rule.endpoint]
-            )
 
 
 # ── Operation-level coverage ────────────────────────────────────────────────
@@ -280,13 +261,6 @@ def test_documented_paths_are_only_the_versioned_ones(flask_app):
 
     assert all(path.startswith(V1_PREFIX + "/") for path in doc["paths"])
 
-
-def test_legacy_paths_are_recorded_so_the_cutover_is_measurable(flask_app):
-    doc = build_openapi(flask_app)
-
-    for path, operations in doc["paths"].items():
-        expected = LEGACY_PREFIX + path[len(V1_PREFIX):]
-        assert operations.get("x-legacy-path") == expected, path
 
 
 # ── Committed artefact ──────────────────────────────────────────────────────

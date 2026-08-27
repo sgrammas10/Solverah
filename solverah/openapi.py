@@ -24,20 +24,24 @@ is the headline change from 3.0.  ``models_json_schema`` even takes the
 ``ref_template`` that points ``$ref``s at ``#/components/schemas/``.  So the
 generator is a walk over ``app.url_map`` plus a dict.
 
-What this module deliberately does not do
------------------------------------------
-It does not validate requests or responses at runtime.  Phase 1a's contract is
-that paths, request bodies, and response bodies are byte-for-byte what they were
--- only the ``/api/v1`` prefix is added.  A validation layer that rejects a body
-the old handler accepted, or reshapes an error, would break that silently.  The
-models here are *descriptive*, and ``tests/test_openapi.py`` plus the per-
-resource tests are what stop them from drifting into fiction: they assert that
-real responses from real handlers validate against the declared models.
+Requests are enforced; responses are not
+----------------------------------------
+Phase 1b added ``enforce=True``.  A route carrying it has its request body
+validated against ``request`` and its query string against ``query`` before the
+handler runs, and a mismatch answers 422 in the Problem Details shape Part 5.1
+specifies.  The enforcement does **not** live in this decorator -- see
+:mod:`solverah.validation` for why a ``before_request`` hook is the only
+placement that cannot be defeated by writing the decorators in the wrong order.
 
-Phase 1b, which is where request/response shapes are allowed to change, is where
-:func:`document` grows an ``enforce=True`` mode that raises
-``solverah.errors.ValidationError`` -- and that already routes through the
-Problem Details handler, which is the shape Part 5.1 specifies.
+Responses are still not validated, and deliberately so.  That was the single
+thing that ruled spectree out: turning a response mismatch into a 500 is a live
+grenade pointed at every hand-written response dict.  ``tests/test_schema_conformance.py``
+pushes real responses through the declared models instead, which catches drift
+without being able to take an endpoint down.
+
+The superseded Phase 1a handlers keep ``enforce`` off for as long as they exist.
+Enforcing a schema on a route that is about to be deleted buys nothing and can
+only break a client that has not finished moving off it.
 
 Usage::
 
@@ -89,7 +93,6 @@ DEFAULT_OUTPUT = Path(__file__).resolve().parent.parent / "docs" / "openapi.json
 _SPEC_ATTR = "__solverah_openapi__"
 
 _ATTACHED_PREFIX = "/api/v1"
-_LEGACY_PREFIX = "/api"
 
 # Werkzeug converter -> (JSON Schema type, format).  Anything not listed is
 # documented as a string, which is what Werkzeug's default converter accepts.
@@ -120,6 +123,21 @@ class RouteSpec:
         security: Security scheme names; empty list means the route is public.
         deprecated: Marks the operation deprecated in the document.
         operation_id: Overrides the derived ``tag_functionname`` id.
+        enforce: When True, ``solverah.validation`` validates the request body
+            against *request* and the query string against *query* before the
+            handler runs, answering a mismatch with a 422 problem document.
+            When False the models are descriptive only -- which is what every
+            Phase 1a route was, and what the superseded ones stay until they
+            are deleted.
+        request_for: ``(view_args, payload) -> model``, for a route whose body
+            shape depends on a discriminator.  Two routes need it and they
+            discriminate on different things, which is why it receives both:
+            ``POST /assessments/{kind}/submissions`` keys off a path parameter,
+            and ``POST /intake/claims`` keys off ``mode`` in the body.  In both
+            cases *request* documents the union of the shapes and this picks
+            the one that actually applies.  Enforcing the union instead would
+            accept a Work Pulse body on the FocusType path -- which is most of
+            the value of enforcing at all.
     """
 
     summary: str
@@ -132,6 +150,8 @@ class RouteSpec:
     security: Optional[Tuple[str, ...]] = None
     deprecated: bool = False
     operation_id: Optional[str] = None
+    enforce: bool = False
+    request_for: Optional[Any] = None
 
 
 def document(
@@ -146,6 +166,8 @@ def document(
     security: Optional[Sequence[str]] = None,
     deprecated: bool = False,
     operation_id: Optional[str] = None,
+    enforce: bool = False,
+    request_for=None,
 ):
     """Attach an OpenAPI operation description to a view function.
 
@@ -171,6 +193,8 @@ def document(
         security=tuple(security) if security is not None else None,
         deprecated=deprecated,
         operation_id=operation_id,
+        enforce=enforce,
+        request_for=request_for,
     )
 
     def decorator(func):
@@ -273,41 +297,32 @@ def _collect_models(specs: Iterable[RouteSpec]) -> List[Tuple[Type[BaseModel], s
     return list(seen.values())
 
 
-def _canonical_rules(app) -> List[Tuple[Any, str, Optional[str]]]:
-    """Every versioned rule, paired with its templated path and legacy alias.
+def _canonical_rules(app) -> List[Tuple[Any, str]]:
+    """Every versioned rule, paired with its templated OpenAPI path.
 
-    ``register_legacy_aliases`` binds ``/api/x`` to the same endpoint as
-    ``/api/v1/x``, so iterating the map yields both.  The versioned path is the
-    one that gets documented; the legacy one is recorded as ``x-legacy-path`` so
-    the document says out loud which URLs are on their way out, and so the
-    frontend cutover has something to diff against.
+    Through the Phase 1 cutover this also resolved each rule's unversioned alias
+    and recorded it as ``x-legacy-path``, so the document said out loud which
+    URLs were on their way out and the frontend migration had something to diff
+    against.  Phase 1b finished that migration and removed the aliases, so there
+    is nothing left to record: every path the API serves is a supported one.
 
     Rules are keyed by ``(path, endpoint)``, not by path alone.  One path can
-    carry two endpoints: ``/recommendations`` has a GET and a POST bound to
-    different handlers, and keying on the path dropped whichever came second --
-    an operation silently missing from the contract.
+    carry two endpoints -- ``/me`` has a GET, a PATCH, and a DELETE bound to
+    three handlers -- and keying on the path dropped whichever came second, an
+    operation silently missing from the contract.
     """
     versioned: Dict[Tuple[str, str], Any] = {}
-    legacy: Dict[str, str] = {}
 
     for rule in app.url_map.iter_rules():
         if rule.rule.startswith(_ATTACHED_PREFIX + "/"):
             versioned.setdefault((rule.rule, rule.endpoint), rule)
-        elif rule.rule.startswith(_LEGACY_PREFIX + "/"):
-            legacy[rule.endpoint] = rule.rule
 
-    results = []
-    for (_raw_path, endpoint), rule in versioned.items():
-        legacy_rule = legacy.get(endpoint)
-        results.append(
-            (
-                rule,
-                # Werkzeug writes converters as <int:company_id>; OpenAPI wants
-                # {company_id}, with the type carried by the parameter object.
-                _openapi_path(rule.rule),
-                _openapi_path(legacy_rule) if legacy_rule else None,
-            )
-        )
+    results = [
+        # Werkzeug writes converters as <int:company_id>; OpenAPI wants
+        # {company_id}, with the type carried by the parameter object.
+        (rule, _openapi_path(rule.rule))
+        for (_raw_path, _endpoint), rule in versioned.items()
+    ]
     results.sort(key=lambda item: item[1])
     return results
 
@@ -344,12 +359,12 @@ def build_openapi(
 
     undocumented = []
     entries = []
-    for rule, path, legacy_path in rules:
+    for rule, path in rules:
         spec = route_spec(app.view_functions[rule.endpoint])
         if spec is None:
             undocumented.append("%s (%s)" % (path, rule.endpoint))
             continue
-        entries.append((rule, path, legacy_path, spec))
+        entries.append((rule, path, spec))
 
     if undocumented:
         raise RuntimeError(
@@ -357,7 +372,7 @@ def build_openapi(
             "missing from the contract: %s" % ", ".join(sorted(undocumented))
         )
 
-    specs = [entry[3] for entry in entries]
+    specs = [entry[2] for entry in entries]
     models = _collect_models(specs)
     models.append((PROBLEM_RESPONSE_MODEL, "serialization"))
 
@@ -369,10 +384,8 @@ def build_openapi(
     schemas = definitions.get("$defs", {})
 
     paths: Dict[str, Dict[str, Any]] = {}
-    for rule, path, legacy_path, spec in entries:
+    for rule, path, spec in entries:
         operations = paths.setdefault(path, {})
-        if legacy_path:
-            operations["x-legacy-path"] = legacy_path
 
         parameters = _path_parameters(rule)
         if spec.query is not None:
@@ -390,7 +403,11 @@ def build_openapi(
                 operation["description"] = description
             if parameters:
                 operation["parameters"] = parameters
-            if spec.request is not None and method not in {"GET", "DELETE"}:
+            # OpenAPI 3.1 permits a body on DELETE, and ``DELETE /me`` needs
+            # one: the confirmation string is what stops a stray click or a
+            # replayed request destroying an account. Only GET is excluded,
+            # where a body has no defined semantics.
+            if spec.request is not None and method != "GET":
                 operation["requestBody"] = {
                     "required": spec.request_required,
                     "content": _json_content(key_map[(spec.request, "validation")]),

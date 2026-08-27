@@ -71,7 +71,7 @@ def test_sprint2_full_happy_path(client, monkeypatch):
     _patch_openai(monkeypatch, _WPLL_LLM_PAYLOAD)
 
     wpll_res = client.post(
-        "/api/work-pulse/lite-lite/result",
+        "/api/v1/assessments/wpll/submissions",
         json={"answers": WPLL_ANSWERS},
     )
     assert wpll_res.status_code == 200
@@ -85,7 +85,7 @@ def test_sprint2_full_happy_path(client, monkeypatch):
     email, password = "sprint2@example.com", "Sprint2Pass1!"
 
     reg_res = client.post(
-        "/api/register",
+        "/api/v1/auth/register",
         json={"email": email, "password": password, "name": "Sprint Two", "terms_accepted": True},
     )
     assert reg_res.status_code == 201
@@ -97,19 +97,20 @@ def test_sprint2_full_happy_path(client, monkeypatch):
         user.email_confirmed = True
         db.session.commit()
 
-    login_res = client.post("/api/login", json={"email": email, "password": password})
+    login_res = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert login_res.status_code == 200
     csrf = login_res.get_json()["csrfToken"]
 
     # Both flags are False before any intake data is saved
-    profile_initial = client.get("/api/profile").get_json()
-    assert profile_initial["wpll_completed"] is False
-    assert profile_initial["wpl_completed"] is False
+    flags_initial = client.get("/api/v1/auth/session").get_json()["flags"]
+    assert flags_initial["wpll_completed"] is False
+    assert flags_initial["wpl_completed"] is False
 
     # ── Step 3: save WPLL data to account ───────────────────────────────────
     save_res = client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json={
+            "mode": "session",
             "selected_statement_ids": ["dir-1", "sus-2"],
             "wpll_answers": WPLL_ANSWERS,
             "wpll_insight_text": captured_insight,
@@ -119,15 +120,15 @@ def test_sprint2_full_happy_path(client, monkeypatch):
     assert save_res.status_code == 200
     assert save_res.get_json()["wpll_completed"] is True
 
-    profile_after_save = client.get("/api/profile").get_json()
-    assert profile_after_save["wpll_completed"] is True
-    assert profile_after_save["wpl_completed"] is False  # WP not done yet
+    flags_after_save = client.get("/api/v1/auth/session").get_json()["flags"]
+    assert flags_after_save["wpll_completed"] is True
+    assert flags_after_save["wpl_completed"] is False  # WP not done yet
 
     # ── Step 4: complete Work Pulse ──────────────────────────────────────────
     _patch_openai(monkeypatch, _WP_LLM_PAYLOAD)
 
     wp_res = client.post(
-        "/api/work-pulse/submit",
+        "/api/v1/assessments/work_pulse/submissions",
         json={"answers": WP_ANSWERS},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -138,9 +139,9 @@ def test_sprint2_full_happy_path(client, monkeypatch):
     assert len(wp_body["emerging_signals"]) >= 1
 
     # ── Step 5: profile reflects both flags True ──────────────────────────────
-    profile_final = client.get("/api/profile").get_json()
-    assert profile_final["wpl_completed"] is True
-    assert profile_final["wpll_completed"] is True
+    flags_final = client.get("/api/v1/auth/session").get_json()["flags"]
+    assert flags_final["wpl_completed"] is True
+    assert flags_final["wpll_completed"] is True
 
     # Confirm intake row holds full data for both phases
     from model import UserIntake

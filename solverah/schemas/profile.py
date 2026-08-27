@@ -21,68 +21,21 @@ from . import SolverahModel
 
 __all__ = [
     "CareerStatusRequest",
+    "IdentityResponse",
+    "IdentityUpdateRequest",
+    "ProfileDocument",
+    "ProfilePatchRequest",
+    "ResumeCompleteRequest",
+    "ResumeCompleteResponse",
+    "ResumeDownloadResponse",
+    "ResumeTicketRequest",
+    "ResumeTicketResponse",
+    "SkillsPutRequest",
+    "SkillsResponse",
     "CareerStatusResponse",
     "DashboardResponse",
-    "ProfileReadResponse",
-    "ProfileSaveRequest",
-    "ProfileSaveResponse",
-    "ResumeFinalizeRequest",
-    "ResumeFinalizeResponse",
-    "ResumePresignRequest",
-    "ResumePresignResponse",
-    "ResumeUrlResponse",
-    "SkillProficiencyRequest",
-    "SkillProficiencyResponse",
     "SkillRating",
 ]
-
-
-class ProfileReadResponse(SolverahModel):
-    """``GET /profile`` -- the entire user document.
-
-    Note ``csrfToken``: the read doubles as the client's way of recovering a
-    CSRF token after a page reload, since the token is held in memory and the
-    JWT cookie is HttpOnly. That is the reason this endpoint is on the app-boot
-    path at all, and Part 5.2's ``GET /auth/session`` is what replaces it.
-    """
-
-    model_config = ConfigDict(extra="allow")
-
-    id: int
-    email: Optional[str] = None
-    name: Optional[str] = None
-    role: Optional[str] = None
-    profileData: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
-    )
-    csrfToken: Optional[str] = Field(
-        default=None, description="Echo as X-CSRF-TOKEN on state-changing methods."
-    )
-    wpl_completed: bool
-    wpll_completed: bool
-    wp_v2_completed: bool
-
-
-class ProfileSaveRequest(SolverahModel):
-    """``POST /profile``.
-
-    Keys inside ``profileData`` are filtered server-side by
-    ``validators.clean_profile_data`` -- an unknown key is dropped, not
-    rejected, so the model is open here to match.
-    """
-
-    model_config = ConfigDict(extra="allow")
-
-    profileData: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Partial profile. Merged over the stored blob; unknown keys are stripped.",
-    )
-
-
-class ProfileSaveResponse(SolverahModel):
-    message: str
-    profileData: Dict[str, Any] = Field(default_factory=dict)
 
 
 class CareerStatusRequest(SolverahModel):
@@ -98,61 +51,6 @@ class SkillRating(SolverahModel):
     proficiency: str = Field(
         description='One of "beginner", "intermediate", "advanced".'
     )
-
-
-class SkillProficiencyRequest(SolverahModel):
-    skills: List[SkillRating]
-
-
-class SkillProficiencyResponse(SolverahModel):
-    """Confirming proficiencies also stops the rating modal re-prompting."""
-
-    skills_proficiency_confirmed: bool
-    skill_levels: Dict[str, str] = Field(
-        default_factory=dict, description="skill name -> proficiency level."
-    )
-
-
-class ResumeUrlResponse(SolverahModel):
-    url: str = Field(description="Presigned GET URL, valid for 10 minutes.")
-
-
-class ResumePresignRequest(SolverahModel):
-    mime: str = Field(description="Must be PDF, DOC, or DOCX.")
-    size: int = Field(description="Exact byte count; bound into the signature.")
-
-
-class ResumePresignResponse(SolverahModel):
-    """Step 1 of the two-step upload. The browser PUTs to ``upload_url``.
-
-    ``size`` from the request is signed into the URL as ``ContentLength``, so a
-    client that declares 1 KB and uploads a gigabyte is rejected by R2 rather
-    than trusted by us.
-    """
-
-    object_key: str = Field(description="Pass back to /profile/resume/finalize.")
-    upload_url: str = Field(description="Presigned PUT URL, valid for 10 minutes.")
-    max_bytes: int
-
-
-class ResumeFinalizeRequest(SolverahModel):
-    object_key: str = Field(
-        description="Key from the presign step. Must be under profile/{your-user-id}/."
-    )
-    mime: str
-    size: int
-    name: Optional[str] = Field(default=None, description="Original filename, for display.")
-
-
-class ResumeFinalizeResponse(SolverahModel):
-    """Step 2. Parsing runs inline, which is P0-6.
-
-    Part 5.2 turns this into a 202 with a job handle once Phase 3's queue
-    exists; the response shape below is the synchronous one it replaces.
-    """
-
-    message: str
-    profileData: Dict[str, Any] = Field(default_factory=dict)
 
 
 class DashboardActivity(SolverahModel):
@@ -187,3 +85,155 @@ class DashboardResponse(SolverahModel):
     recentActivity: List[DashboardActivity] = Field(default_factory=list)
     recommendations: List[DashboardRecommendation] = Field(default_factory=list)
     hasIntakeSubmission: bool
+
+
+# ===========================================================================
+# Phase 1b -- the /me/* resources
+# ===========================================================================
+#
+# Part 5.2 splits ``GET|POST /profile`` into an identity resource and a profile
+# resource.  The shapes below are what that split produces.
+#
+# A note on P0-1, recorded here because this is where the split lands.  The
+# blob is still the storage -- Phase 2 decomposes it, not this phase -- so
+# ``PATCH /me/profile`` remains a read-modify-write of a whole JSON column with
+# no version column to check.  Splitting the endpoint makes that *temporarily
+# worse* in one specific way: a client that used to send one ``POST /profile``
+# now sends ``PATCH /me`` and ``PATCH /me/profile``, so a failure between them
+# leaves identity and profile out of step, and two concurrent editors have two
+# windows to lose an update in rather than one.  That is accepted, not
+# overlooked.  ``ProfileDocument`` carries the envelope the fix needs: Phase 2
+# adds ``version`` to it and ``If-Match`` to the request, and neither is a
+# client-visible break because the envelope already exists.
+
+
+class IdentityResponse(SolverahModel):
+    """``GET /me`` -- who the caller is, and nothing else.
+
+    Four columns off ``users``. No ``profileData``: shipping the whole user
+    document to render a nav bar is the god-endpoint problem, and the client
+    that wants the profile asks for the profile.
+    """
+
+    id: int
+    email: Optional[str] = None
+    name: Optional[str] = None
+    role: Optional[str] = None
+    email_confirmed: bool = Field(description="Address has been verified.")
+
+
+class IdentityUpdateRequest(SolverahModel):
+    """``PATCH /me``.
+
+    ``name`` is the only writable identity field, and the omissions are
+    deliberate rather than pending. Changing ``email`` has to re-run
+    verification or it is an account-takeover primitive; ``role`` is a privilege
+    boundary and is not something an account may grant itself.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    name: str = Field(min_length=1, max_length=255, description="Display name.")
+
+
+class ProfileDocument(SolverahModel):
+    """``GET|PATCH /me/profile`` -- the profile half, in an envelope.
+
+    The envelope is the point. Returning the blob bare would leave nowhere to
+    put the ``version`` that P0-1's fix needs, and no way to add it later
+    without colliding with a profile key of the same name.
+    """
+
+    profile: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
+    )
+
+
+class ProfilePatchRequest(SolverahModel):
+    """``PATCH /me/profile``.
+
+    Merged over the stored document rather than replacing it, and filtered by
+    ``validators.clean_profile_data`` first -- an unrecognised key is dropped,
+    not rejected, which is why the inner object stays open.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    profile: Dict[str, Any] = Field(
+        description="Partial profile. Merged over the stored blob; unknown keys are stripped."
+    )
+
+
+class SkillsResponse(SolverahModel):
+    """``GET|PUT /me/skills`` -- self-rated proficiencies.
+
+    ``skills_proficiency_confirmed`` is what stops the rating modal
+    re-prompting; it is part of the resource because the client needs it to
+    decide whether to ask.
+    """
+
+    skills_proficiency_confirmed: bool
+    skill_levels: Dict[str, str] = Field(
+        default_factory=dict, description="skill name -> proficiency level."
+    )
+
+
+class SkillsPutRequest(SolverahModel):
+    """``PUT /me/skills`` -- the full set of ratings.
+
+    PUT, not PATCH: the handler writes the ratings it is given over the stored
+    map wholesale, so the verb matches what the write actually does.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    skills: List[SkillRating]
+
+
+class ResumeTicketRequest(SolverahModel):
+    """``POST /me/resumes`` -- ask for somewhere to upload to."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    mime: str = Field(description="Must be PDF, DOC, or DOCX.")
+    size: int = Field(description="Exact byte count; bound into the signature.")
+
+
+class ResumeTicketResponse(SolverahModel):
+    """An upload ticket. The browser PUTs the file to ``upload_url`` itself.
+
+    ``resume_id`` replaces the raw ``object_key`` the superseded endpoint handed
+    back, and that is a security improvement rather than cosmetics. Finalize
+    used to accept a caller-supplied key and check it began with
+    ``profile/{your-id}/``; now the server rebuilds the key from the JWT
+    identity and this id, so there is no key for a caller to name at all.
+    """
+
+    resume_id: str = Field(description="Opaque id. Pass to /me/resumes/{id}/complete.")
+    upload_url: str = Field(description="Presigned PUT URL, valid for 10 minutes.")
+    max_bytes: int
+
+
+class ResumeCompleteRequest(SolverahModel):
+    """``POST /me/resumes/{resume_id}/complete`` -- the file is uploaded; parse it."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    mime: str
+    size: int
+    name: Optional[str] = Field(default=None, description="Original filename, for display.")
+
+
+class ResumeCompleteResponse(ProfileDocument):
+    """The profile after the parsed resume was merged into it.
+
+    Parsing still runs inline, which is P0-6. Part 5.2 has this returning 202
+    with a job handle; it does not do that yet, and returning a 202 for work
+    that finished synchronously would be a lie the client would have to poll
+    against. It becomes a 202 when Phase 3's queue exists.
+    """
+
+
+class ResumeDownloadResponse(SolverahModel):
+    url: str = Field(description="Presigned GET URL, valid for 10 minutes.")

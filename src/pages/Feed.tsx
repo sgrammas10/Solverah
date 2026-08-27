@@ -158,10 +158,16 @@ function JobRecommendations() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetchWithAuth<{ recommendations: any[] }>("/recommendations", {
-          method: "GET",
-        });
-        setJobs(res.recommendations ?? []);
+        // Paginated since Phase 1b: `{ data, next_cursor }`. The list is always
+        // empty today -- the ML pipeline behind it was replaced by the agent and
+        // the Groq-backed successor is not wired up -- so there is no cursor to
+        // follow yet. Reading `data` now means the day it returns rows is not
+        // the day this file changes.
+        const res = await fetchWithAuth<{ data: any[]; next_cursor: string | null }>(
+          "/me/recommendations",
+          { method: "GET" }
+        );
+        setJobs(res.data ?? []);
       } catch (err) {
         console.error("Failed to load recommendations", err);
         setJobs([]);

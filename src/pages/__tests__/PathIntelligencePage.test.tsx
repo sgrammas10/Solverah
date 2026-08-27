@@ -150,13 +150,13 @@ describe("PathIntelligencePage - skill proficiency modal", () => {
 
     await waitFor(() =>
       expect(mocks.fetchWithAuth).toHaveBeenCalledWith(
-        "/profile/skills/proficiency",
-        expect.objectContaining({ method: "PATCH" })
+        "/me/skills",
+        expect.objectContaining({ method: "PUT" })
       )
     );
     await waitFor(() =>
       expect(mocks.fetchWithAuth).toHaveBeenCalledWith(
-        "/intelligence/path-suggestions"
+        "/me/path-suggestions"
       )
     );
   });

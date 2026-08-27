@@ -26,6 +26,8 @@ __all__ = [
     "RegisterResponse",
     "ResendConfirmationRequest",
     "SendEmailFailureResponse",
+    "SessionFlags",
+    "SessionResponse",
     "SessionUser",
     "SummaryUser",
 ]
@@ -162,3 +164,45 @@ class PasswordResetVerifyResponse(SolverahModel):
     message: str
     csrfToken: str = Field(description="Echo as X-CSRF-TOKEN on POST/PUT/PATCH/DELETE.")
     user: SummaryUser
+
+
+# ---------------------------------------------------------------------------
+# Phase 1b -- GET /auth/session
+# ---------------------------------------------------------------------------
+
+class SessionFlags(SolverahModel):
+    """Per-user booleans the shell needs before it can decide what to render.
+
+    They live in their own object rather than at the top level so a flag can be
+    added without the client having to distinguish "new flag" from "new identity
+    field", and so the whole set can be cached under one key.
+    """
+
+    email_confirmed: bool = Field(description="Account has verified its address.")
+    wpl_completed: bool = Field(description="Legacy Work Pulse instrument completed.")
+    wpll_completed: bool = Field(description="Work Pulse Lite-Lite completed.")
+    wp_v2_completed: bool = Field(
+        description="Current 24-item person-side assessment completed."
+    )
+
+
+class SessionResponse(SolverahModel):
+    """``GET /auth/session`` -- the cheap session probe, and the fix for P0-3.
+
+    The endpoint it replaces on the app-boot path is ``GET /profile``, which
+    returned the entire user document *and* wrote an ``AuditLog`` row on every
+    read.  Session restore fires on every page load, so the highest-volume table
+    in the system was written synchronously on the hottest endpoint and a
+    request that ought to be servable from a read replica took a write lock.
+
+    This returns identity, the CSRF token, and the flags -- no ``profileData``,
+    no audit row, no commit.  A client that wants the profile asks
+    ``GET /me/profile`` for it, which is the whole point of the split.
+    """
+
+    user: SummaryUser
+    csrf_token: Optional[str] = Field(
+        default=None,
+        description="Echo as X-CSRF-TOKEN on POST/PUT/PATCH/DELETE.",
+    )
+    flags: SessionFlags

@@ -29,7 +29,7 @@ export function useEarlyAccess() {
     setIsSubmitting(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/early-access-request`, {
+      const res = await fetch(`${API_BASE}/intake/early-access`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

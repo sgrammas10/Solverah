@@ -115,7 +115,7 @@ describe("ForgotPassword - initial render", () => {
     renderForgotPassword();
     await submitEmail();
     expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("/request-password-reset"),
+      expect.stringContaining("/auth/password/forgot"),
       expect.objectContaining({ method: "POST" })
     );
   });

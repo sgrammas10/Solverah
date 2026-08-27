@@ -8,8 +8,8 @@ Everything it used to hold now lives under ``solverah/``:
 
     solverah/factory.py       create_app(): Flask, ProxyFix, CORS, Talisman,
                               config, extensions, error handlers, health probes,
-                              blueprint registration, legacy path aliases.
-    solverah/api/v1/          the 38 route handlers, grouped by resource.
+                              blueprint registration.
+    solverah/api/v1/          every route handler, grouped by resource.
     solverah/services/        business logic; owns the transaction boundary.
     solverah/repositories/    every database query.
     solverah/domain/          pure rules: validation, merges, ranking, scoring.
@@ -21,11 +21,11 @@ Everything it used to hold now lives under ``solverah/``:
 See docs/ARCHITECTURE.md Part 3 for the layering rules and Part 8 for where this
 sits in the migration.
 
-Every route is served at two paths for the duration of the frontend cutover: the
-canonical ``/api/v1/...`` and the unversioned ``/api/...`` the deployed SPA still
-calls.  They are the same endpoint and the same view function, not a redirect --
-see ``register_legacy_aliases`` for why that distinction matters to a
-CORS-preflighted POST and to rate-limit accounting.
+Every route is served at ``/api/v1/...`` and nowhere else.  Phase 1a served each
+one at an unversioned ``/api/...`` alias as well so the deployed SPA kept working
+while the versioned paths became canonical; Phase 1b cut the frontend over and
+removed them.  ``tests/test_v1_aliasing.py`` asserts they are gone rather than
+assuming it.
 
 Environment variables are read and validated by ``solverah/config.py``; run the
 app with an incomplete environment and it logs every problem at CRITICAL in one

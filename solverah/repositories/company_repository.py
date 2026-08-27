@@ -121,3 +121,23 @@ def get_by_id(company_id: int):
     Identical semantics: primary-key lookup, identity-map aware.
     """
     return db.session.get(Company, company_id)
+
+
+def search_companies(q: str | None = None) -> list[Company]:
+    """Companies matching *q*, ordered by ``(name, id)``.
+
+    The ordering is the pagination contract, not a display preference: it is
+    unique -- ``name`` is unique in the schema and ``id`` breaks any tie a
+    future non-unique name would introduce -- which is what makes a keyset
+    cursor over it stable.
+
+    ``q`` is pushed into SQL. Filtering by industry is not, because industry
+    lives inside ``profile_json`` rather than in a column, so the service does
+    it in Python after the fetch. That is a scan and it is called out where it
+    happens; Phase 4.5 promotes ``industry`` to an indexed column and the filter
+    moves down here with it.
+    """
+    query = Company.query
+    if q:
+        query = query.filter(Company.name.ilike("%%%s%%" % q))
+    return query.order_by(Company.name, Company.id).all()

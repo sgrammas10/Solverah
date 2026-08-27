@@ -9,7 +9,12 @@ from pydantic import ConfigDict, Field
 from . import SolverahModel
 
 __all__ = [
+    "AgentChatMessage",
     "AgentChatRequest",
+    "AgentMessagesRequest",
+    "PathPreferencesDocument",
+    "PathPreferencesPutRequest",
+    "RecommendationsPage",
     "PathPreferencesRequest",
     "PathPreferencesResponse",
     "PathSuggestion",
@@ -161,3 +166,86 @@ class QuizInsightsGuestResponse(SolverahModel):
     quizGroup: str
     overallSummary: Any = None
     insights: List[QuizInsight] = Field(default_factory=list)
+
+
+# ===========================================================================
+# Phase 1b
+# ===========================================================================
+
+
+class PathPreferencesDocument(SolverahModel):
+    """``GET|PUT /me/path-preferences`` -- the three career-search preferences.
+
+    The endpoint this replaces was write-only and answered ``{"message": ...}``,
+    so a client had no way to read back what it had saved and had to keep its
+    own copy or dig the values out of the profile blob. A resource that can be
+    read is most of what the redesign is for.
+
+    Null on every field means the user has not set them. The fields are optional
+    on the *response* and required on :class:`PathPreferencesPutRequest`,
+    because "not yet answered" is a real state and "answered with nothing" is
+    not -- the scorer branches on all three.
+    """
+
+    move_intent: Optional[str] = Field(
+        default=None, description='"stay_in_field", "adjacent", or "fresh_start".'
+    )
+    seniority_intent: Optional[str] = Field(
+        default=None, description='"move_up", "stay_lateral", or "open".'
+    )
+    priority: Optional[str] = Field(
+        default=None,
+        description='"pay_title", "interesting_work", "work_life_balance", or "learning_growth".',
+    )
+
+
+class PathPreferencesPutRequest(SolverahModel):
+    """``PUT /me/path-preferences``.
+
+    PUT rather than POST: all three fields are written together and the write
+    replaces whatever was there, so the verb matches what happens. Each is
+    validated against a closed set server-side -- the path scorer branches on
+    them, and an unrecognised value would silently change ranking rather than
+    fail.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    move_intent: str = Field(description='"stay_in_field", "adjacent", or "fresh_start".')
+    seniority_intent: str = Field(description='"move_up", "stay_lateral", or "open".')
+    priority: str = Field(
+        description='"pay_title", "interesting_work", "work_life_balance", or "learning_growth".'
+    )
+
+
+class RecommendationsPage(SolverahModel):
+    """``GET /me/recommendations`` -- a page of job recommendations.
+
+    Currently always empty with a null cursor: the ML pipeline that produced
+    these was replaced by the AI agent and the Groq-backed replacement is not
+    wired up. It is paginated anyway, and that is the point of doing it now --
+    the envelope is the contract, so the day it returns rows is not the day
+    every client changes.
+    """
+
+    data: List[Any] = Field(default_factory=list)
+    next_cursor: Optional[str] = Field(default=None)
+
+
+class AgentMessagesRequest(SolverahModel):
+    """``POST /agent/messages``. The response is Server-Sent Events, not JSON.
+
+    The server prepends its own system message carrying RAG context assembled
+    from the profile, the company network, and the user's resume text -- so a
+    client must not send a system message of its own expecting it to be
+    honoured.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    messages: List[AgentChatMessage] = Field(
+        min_length=1, description="Full conversation history; must be non-empty."
+    )
+    model: Optional[str] = Field(
+        default=None, description='Groq model. Defaults to "llama-3.1-8b-instant".'
+    )

@@ -140,7 +140,7 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
           });
           openInsight();
           try {
-            const res = await fetch(`${API_BASE}/quiz-insights-guest`, {
+            const res = await fetch(`${API_BASE}/intake/quiz-preview/insights`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(payload),
@@ -202,7 +202,7 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
             };
             openInsight();
             try {
-              const res = await fetchWithAuth("/quiz-insights", {
+              const res = await fetchWithAuth("/me/quiz-insights", {
                 method: "POST",
                 body: JSON.stringify(payload),
               });

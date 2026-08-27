@@ -11,7 +11,7 @@ def _register_and_login(client, monkeypatch, email="detail@example.com", passwor
     monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
     monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
-    client.post("/api/register", json={"email": email, "password": password, "name": "Detail User", "terms_accepted": True})
+    client.post("/api/v1/auth/register", json={"email": email, "password": password, "name": "Detail User", "terms_accepted": True})
 
     from app import app
     from model import User, db
@@ -21,7 +21,7 @@ def _register_and_login(client, monkeypatch, email="detail@example.com", passwor
         user.confirmation_token = None
         db.session.commit()
 
-    resp = client.post("/api/login", json={"email": email, "password": password})
+    resp = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert resp.status_code == 200
     return resp.get_json()["csrfToken"]
 
@@ -63,7 +63,7 @@ def test_happy_path_returns_200_with_profile(client, monkeypatch):
     _register_and_login(client, monkeypatch)
     company_id = _seed_company()
 
-    resp = client.get(f"/api/companies/{company_id}")
+    resp = client.get(f"/api/v1/companies/{company_id}")
     assert resp.status_code == 200
     body = resp.get_json()
     assert body["id"] == company_id
@@ -76,10 +76,10 @@ def test_happy_path_returns_200_with_profile(client, monkeypatch):
 def test_unknown_id_returns_404(client, monkeypatch):
     _register_and_login(client, monkeypatch, email="notfound@example.com")
 
-    resp = client.get("/api/companies/99999")
+    resp = client.get("/api/v1/companies/99999")
     assert resp.status_code == 404
 
 
 def test_unauthenticated_returns_401(client):
-    resp = client.get("/api/companies/1")
+    resp = client.get("/api/v1/companies/1")
     assert resp.status_code == 401

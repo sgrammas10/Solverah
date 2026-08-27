@@ -82,7 +82,7 @@ describe("useAssessment", () => {
     const { result } = renderHook(() => useAssessment());
 
     await waitFor(() => expect(result.current.items).not.toBeNull());
-    expect(fetchWithAuth).toHaveBeenCalledWith("/assessment/form");
+    expect(fetchWithAuth).toHaveBeenCalledWith("/assessments/core/form");
     expect(result.current.items!.map((i) => i.token)).toEqual(SERVED_ORDER);
     expect(result.current.items!.map((i) => i.token)).not.toEqual(ALPHABETICAL);
   });
@@ -182,7 +182,7 @@ describe("useAssessment", () => {
     });
 
     const [endpoint, options] = fetchWithAuth.mock.calls[1];
-    expect(endpoint).toBe("/assessment/submit");
+    expect(endpoint).toBe("/assessments/core/submissions");
     expect(options.method).toBe("POST");
     const body = JSON.parse(options.body);
     expect(Object.keys(body.responses)).toHaveLength(24);

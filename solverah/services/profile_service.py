@@ -32,14 +32,22 @@ from solverah.repositories import profile_repository
 from solverah.services import audit, path_cache, resume_service
 
 __all__ = [
+    "CURRENT_RESUME",
     "ProfileResult",
+    "complete_resume_upload",
     "dashboard_data",
+    "patch_profile",
+    "read_identity",
+    "read_profile_document",
+    "read_skills",
+    "resolve_resume_key",
+    "resume_download_url_by_id",
+    "resume_upload_ticket",
+    "update_identity",
     "read_profile",
-    "resume_download_url",
     "save_profile",
     "set_career_status",
     "set_skill_proficiency",
-    "start_resume_upload",
     "finish_resume_upload",
 ]
 
@@ -171,33 +179,6 @@ def set_skill_proficiency(user: User, skills: Any) -> ProfileResult:
 # Resume
 # ---------------------------------------------------------------------------
 
-def resume_download_url(user: User) -> ProfileResult:
-    """Presign a short-lived GET URL for the user's stored resume."""
-    resume_key = (user.profile_data or {}).get("resumeKey")
-    if not resume_key:
-        return _error(404, "No resume on file")
-
-    try:
-        url = resume_service.download_url(resume_key)
-    except Exception:  # noqa: BLE001 -- storage detail must not reach the client
-        return _error(500, "Unable to generate resume URL")
-
-    return ProfileResult(status=200, body={"url": url})
-
-
-def start_resume_upload(user: User, mime: str, size: int, max_bytes: int) -> ProfileResult:
-    """Step 1 of 2: hand back a presigned PUT URL scoped to this user."""
-    object_key = resume_service.object_key_for_user(user.id, mime)
-    url = resume_service.presign_upload(object_key, mime, size)
-    return ProfileResult(
-        status=200,
-        body={
-            "object_key": object_key,
-            "upload_url": url,
-            "max_bytes": max_bytes,
-        },
-    )
-
 
 def finish_resume_upload(
     user: User, object_key: str, mime: str, size: int, name: str
@@ -288,3 +269,197 @@ def dashboard_data(user: User, email: str) -> ProfileResult:
             "hasIntakeSubmission": profile_repository.has_intake_submission(email),
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 1b -- the /me/* split
+# ---------------------------------------------------------------------------
+#
+# ``read_profile`` above answers "who are you AND what is your profile" in one
+# call, which is what made it the app-boot endpoint and what made P0-3 expensive.
+# The functions below answer the two halves separately.
+#
+# The audit write stays on the profile half and is gone from the identity half,
+# and that is the actual fix rather than a cosmetic one. Reading a personal-data
+# document is an event worth recording; reading a name to render a nav bar is
+# not, and it was the second one firing on every page load that put a write on
+# the hottest read in the system. Session restore now goes to
+# ``GET /auth/session``, which touches neither.
+
+def read_identity(user: User) -> ProfileResult:
+    """Identity fields only. No blob, no audit row, no commit."""
+    return ProfileResult(
+        status=200,
+        body={
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+            "email_confirmed": bool(getattr(user, "email_confirmed", False)),
+        },
+    )
+
+
+def update_identity(user: User, name: Any) -> ProfileResult:
+    """Write the one identity field an account may change about itself.
+
+    Email is absent because changing it without re-verification is an
+    account-takeover primitive, and role because an account granting itself a
+    role is a privilege escalation. Neither is an oversight to be filled in
+    later by whoever needs it next.
+    """
+    cleaned = (name or "").strip()
+    if not cleaned:
+        return _error(400, "name is required")
+
+    user.name = cleaned
+    audit.log_audit_event(
+        action="update",
+        actor_user_id=user.id,
+        resource="identity",
+        metadata={"updated_fields": ["name"], "target_user_id": user.id},
+    )
+    db.session.commit()
+    return read_identity(user)
+
+
+def read_profile_document(user: User) -> ProfileResult:
+    """The profile blob in its envelope, and record that it was read.
+
+    Still writes an ``AuditLog`` row, unlike the identity read. That is
+    deliberate: this is a deliberate read of a personal-data document and the
+    trail is worth its cost, whereas the same write on the session-restore path
+    was P0-3. What changed is that session restore no longer comes through here.
+    """
+    audit.log_audit_event(
+        action="read",
+        actor_user_id=user.id,
+        resource="profile",
+        metadata={"target_user_id": user.id},
+    )
+    db.session.commit()
+    return ProfileResult(status=200, body={"profile": user.profile_data or {}})
+
+
+def patch_profile(user: User, profile: Any, clean_profile_data) -> ProfileResult:
+    """Merge a partial profile over the stored document.
+
+    Identical merge semantics to :func:`save_profile`, including the parser-
+    correction diffing -- only the envelope differs. Read that function's
+    docstring for the P0-1 caveat, which this shares in full: it is a
+    read-modify-write of a whole JSON column and the second of two concurrent
+    commits discards the first without an error.
+    """
+    result = save_profile(user, profile, clean_profile_data)
+    if not result.ok:
+        return result
+    return ProfileResult(status=200, body={"profile": user.profile_data or {}})
+
+
+def read_skills(user: User) -> ProfileResult:
+    """Self-rated proficiencies, and whether the user has confirmed them."""
+    profile = user.profile_data or {}
+    return ProfileResult(
+        status=200,
+        body={
+            "skills_proficiency_confirmed": bool(
+                profile.get("skills_proficiency_confirmed")
+            ),
+            "skill_levels": profile.get("skill_levels") or {},
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Resumes, addressed by id rather than by object key
+# ---------------------------------------------------------------------------
+#
+# The superseded pair took a caller-supplied ``object_key`` and defended itself
+# with a ``profile/{your-id}/`` prefix check. That check was correct and load-
+# bearing -- without it a caller could name any key in the bucket and have its
+# contents parsed into their own profile, another user's resume included.
+#
+# Addressing by id removes the need for the check rather than repeating it. The
+# server rebuilds the key from the JWT identity and the id, so a caller has no
+# key to name and no prefix to get wrong. This is the one place in Phase 1b
+# where the redesign closes something rather than moving it.
+
+#: Path segment meaning "whatever resume is on my profile". The blob holds
+#: exactly one ``resumeKey``; Phase 2's ``resumes`` table is what makes an id
+#: here address one of several.
+CURRENT_RESUME = "current"
+
+
+def _resume_id_of(resume_key: str) -> Optional[str]:
+    """The id segment of ``profile/{user_id}/{id}/resume.{ext}``, or None."""
+    parts = (resume_key or "").split("/")
+    if len(parts) >= 4 and parts[0] == "profile":
+        return parts[2]
+    return None
+
+
+def resume_upload_ticket(user: User, mime: str, size: int, max_bytes: int) -> ProfileResult:
+    """Step 1 of 2: an upload ticket scoped to this user by construction."""
+    object_key = resume_service.object_key_for_user(user.id, mime)
+    resume_id = _resume_id_of(object_key)
+    url = resume_service.presign_upload(object_key, mime, size)
+    return ProfileResult(
+        status=200,
+        body={"resume_id": resume_id, "upload_url": url, "max_bytes": max_bytes},
+    )
+
+
+def resolve_resume_key(user: User, resume_id: str, mime: Optional[str] = None) -> Optional[str]:
+    """The storage key for *resume_id*, or None when it names nothing.
+
+    ``current`` resolves to whatever is on the profile. Any other value is
+    rebuilt from the caller's own id, so it can only ever address the caller's
+    own prefix -- an id belonging to another user produces a key under *this*
+    user's prefix, which does not exist, rather than reaching theirs.
+    """
+    stored = (user.profile_data or {}).get("resumeKey")
+    if resume_id == CURRENT_RESUME:
+        return stored or None
+
+    if not resume_id or "/" in resume_id:
+        return None
+
+    if mime is None:
+        # A read: only the stored resume can be addressed, because the
+        # extension is part of the key and is not knowable from the id alone.
+        if stored and _resume_id_of(stored) == resume_id:
+            return stored
+        return None
+
+    ext = resume_service.MIME_EXTENSIONS.get(mime, "bin")
+    return "profile/%s/%s/resume.%s" % (user.id, resume_id, ext)
+
+
+def complete_resume_upload(
+    user: User, resume_id: str, mime: str, size: int, name: str
+) -> ProfileResult:
+    """Step 2 of 2: parse the uploaded resume and merge it into the profile."""
+    object_key = resolve_resume_key(user, resume_id, mime=mime)
+    if not object_key:
+        return _error(404, "Resume not found")
+
+    result = finish_resume_upload(
+        user, object_key=object_key, mime=mime, size=size, name=name
+    )
+    if not result.ok:
+        return result
+    return ProfileResult(status=200, body={"profile": user.profile_data or {}})
+
+
+def resume_download_url_by_id(user: User, resume_id: str) -> ProfileResult:
+    """Presign a short-lived GET URL for one of the caller's resumes."""
+    object_key = resolve_resume_key(user, resume_id)
+    if not object_key:
+        return _error(404, "No resume on file")
+
+    try:
+        url = resume_service.download_url(object_key)
+    except Exception:  # noqa: BLE001 -- storage detail must not reach the client
+        return _error(500, "Unable to generate resume URL")
+
+    return ProfileResult(status=200, body={"url": url})

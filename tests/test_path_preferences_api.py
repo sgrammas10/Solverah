@@ -16,7 +16,7 @@ def _register_and_login(client, monkeypatch, email="prefs@example.com", password
     monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     client.post(
-        "/api/register",
+        "/api/v1/auth/register",
         json={"email": email, "password": password, "name": "Prefs User", "role": "job-seeker", "terms_accepted": True},
     )
 
@@ -28,7 +28,7 @@ def _register_and_login(client, monkeypatch, email="prefs@example.com", password
         user.confirmation_token = None
         db.session.commit()
 
-    resp = client.post("/api/login", json={"email": email, "password": password})
+    resp = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert resp.status_code == 200
     return resp.get_json()["csrfToken"]
 
@@ -53,25 +53,30 @@ def clear_path_cache():
 # ---------------------------------------------------------------------------
 
 def test_unauthenticated_returns_401(client):
-    resp = client.post("/api/intelligence/path-preferences", json=VALID_PREFS)
+    resp = client.put("/api/v1/me/path-preferences", json=VALID_PREFS)
     assert resp.status_code == 401
 
 
 def test_happy_path_returns_200(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch)
-    resp = client.post(
-        "/api/intelligence/path-preferences",
+    resp = client.put(
+        "/api/v1/me/path-preferences",
         json=VALID_PREFS,
         headers={"X-CSRF-TOKEN": csrf},
     )
     assert resp.status_code == 200
-    assert resp.get_json()["message"] == "Preferences saved"
+    # The saved document comes back, not `{"message": "Preferences saved"}`.
+    # The endpoint this replaced was write-only, so a client that wanted to show
+    # the user their own answers had to keep a copy or dig them out of the
+    # profile blob -- which is the coupling to profile_data's shape that putting
+    # schemas at the API boundary exists to stop.
+    assert resp.get_json() == VALID_PREFS
 
 
 def test_preferences_persisted_in_profile_data(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch)
-    client.post(
-        "/api/intelligence/path-preferences",
+    client.put(
+        "/api/v1/me/path-preferences",
         json=VALID_PREFS,
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -87,8 +92,8 @@ def test_preferences_persisted_in_profile_data(client, monkeypatch):
 
 def test_invalid_move_intent_returns_400(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch)
-    resp = client.post(
-        "/api/intelligence/path-preferences",
+    resp = client.put(
+        "/api/v1/me/path-preferences",
         json={**VALID_PREFS, "move_intent": "sideways"},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -98,8 +103,8 @@ def test_invalid_move_intent_returns_400(client, monkeypatch):
 
 def test_invalid_seniority_intent_returns_400(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch)
-    resp = client.post(
-        "/api/intelligence/path-preferences",
+    resp = client.put(
+        "/api/v1/me/path-preferences",
         json={**VALID_PREFS, "seniority_intent": "unknown"},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -109,8 +114,8 @@ def test_invalid_seniority_intent_returns_400(client, monkeypatch):
 
 def test_invalid_priority_returns_400(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch)
-    resp = client.post(
-        "/api/intelligence/path-preferences",
+    resp = client.put(
+        "/api/v1/me/path-preferences",
         json={**VALID_PREFS, "priority": "vibes"},
         headers={"X-CSRF-TOKEN": csrf},
     )
@@ -118,15 +123,21 @@ def test_invalid_priority_returns_400(client, monkeypatch):
     assert "priority" in resp.get_json()["error"]
 
 
-def test_missing_field_returns_400(client, monkeypatch):
+def test_missing_field_returns_422(client, monkeypatch):
+    """422 since Phase 1b: an absent field is a schema violation.
+
+    A *present but unrecognised* value is still 400 -- that is a business rule
+    about which values the path scorer branches on, and the three tests above
+    cover it. The two failures were one status before and are now told apart.
+    """
     csrf = _register_and_login(client, monkeypatch)
-    # move_intent missing (None is not in valid set)
-    resp = client.post(
-        "/api/intelligence/path-preferences",
+    resp = client.put(
+        "/api/v1/me/path-preferences",
         json={"seniority_intent": "move_up", "priority": "pay_title"},
         headers={"X-CSRF-TOKEN": csrf},
     )
-    assert resp.status_code == 400
+    assert resp.status_code == 422
+    assert "move_intent" in {error["field"] for error in resp.get_json()["errors"]}
 
 
 def test_save_preferences_invalidates_path_cache(client, monkeypatch):
@@ -145,8 +156,8 @@ def test_save_preferences_invalidates_path_cache(client, monkeypatch):
 
     assert user_id in path_cache.snapshot()
 
-    client.post(
-        "/api/intelligence/path-preferences",
+    client.put(
+        "/api/v1/me/path-preferences",
         json=VALID_PREFS,
         headers={"X-CSRF-TOKEN": csrf},
     )

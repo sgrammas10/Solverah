@@ -39,7 +39,7 @@ def test_intake_presign_signs_content_length(client, monkeypatch):
     monkeypatch.setenv("S3_BUCKET_NAME", "test-bucket")
 
     resp = client.post(
-        "/api/intake/presign",
+        "/api/v1/intake/resume-tickets",
         json={"mime": "application/pdf", "size": 1234},
     )
 
@@ -59,7 +59,7 @@ def test_intake_presign_still_rejects_oversized_declaration(client, monkeypatch)
     monkeypatch.setenv("S3_BUCKET_NAME", "test-bucket")
 
     resp = client.post(
-        "/api/intake/presign",
+        "/api/v1/intake/resume-tickets",
         json={"mime": "application/pdf", "size": 11 * 1024 * 1024},
     )
 
@@ -147,7 +147,7 @@ def test_max_content_length_is_configured():
 def test_oversized_body_is_rejected(client):
     """Flask must refuse the body before any handler allocates it."""
     resp = client.post(
-        "/api/intake/presign",
+        "/api/v1/intake/resume-tickets",
         data=b"x" * (3 * 1024 * 1024),
         content_type="application/json",
     )

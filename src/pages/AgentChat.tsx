@@ -38,7 +38,7 @@ function AgentChat() {
     abortControllerRef.current = controller;
 
     try {
-      const response = await streamFetch('/agent/chat', {
+      const response = await streamFetch('/agent/messages', {
         method: 'POST',
         body: JSON.stringify({ messages: nextMessages }),
         signal: controller.signal,

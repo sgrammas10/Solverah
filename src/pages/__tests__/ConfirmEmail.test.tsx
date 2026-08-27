@@ -114,7 +114,7 @@ describe("ConfirmEmail - happy path", () => {
     renderConfirmEmail({ email: "user@example.com" });
     await submitCode("654321");
     expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("/confirm-email"),
+      expect.stringContaining("/auth/email/verify"),
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ email: "user@example.com", code: "654321" }),

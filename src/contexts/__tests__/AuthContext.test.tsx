@@ -10,12 +10,49 @@ beforeEach(() => {
   mockFetch.mockReset();
 });
 
+/**
+ * A `GET /api/v1/auth/session` body.
+ *
+ * Phase 1b split `GET /api/profile` into the session probe and `/me/profile`.
+ * The probe answers identity, the CSRF token and the completion flags, and
+ * writes nothing -- the old endpoint returned the whole user document and
+ * committed an audit row on every page load (P0-3).
+ */
+function sessionBody(overrides: Record<string, any> = {}) {
+  return {
+    user: { id: "1", email: "ada@example.com", name: "Ada", role: "job-seeker" },
+    csrf_token: null,
+    flags: {
+      email_confirmed: true,
+      wpl_completed: false,
+      wpll_completed: false,
+      wp_v2_completed: false,
+    },
+    ...overrides,
+  };
+}
+
+/**
+ * Index of the first fetch a test makes after the restore has settled.
+ *
+ * The restore issues two requests, so anything a test does afterwards starts at
+ * call 2. Named rather than written as a literal because getting it wrong reads
+ * as an assertion about the wrong request.
+ */
+const FIRST_CALL_AFTER_RESTORE = 2;
+
 // Renders AuthProvider and waits for the loading phase to finish.
 // Returns the captured context value once the Probe component mounts.
-async function mountAuth(sessionResponse: { ok: boolean; data?: any }) {
+async function mountAuth(sessionResponse: { ok: boolean; data?: any; profile?: any }) {
+  // Two responses, in the order Promise.all invokes them: the session probe,
+  // then the profile resource.
   mockFetch.mockResolvedValueOnce({
     ok: sessionResponse.ok,
     json: () => Promise.resolve(sessionResponse.data ?? {}),
+  });
+  mockFetch.mockResolvedValueOnce({
+    ok: sessionResponse.ok,
+    json: () => Promise.resolve({ profile: sessionResponse.profile ?? {} }),
   });
 
   const ctxRef = { current: null as AuthContextType | null };
@@ -43,10 +80,10 @@ async function mountAuth(sessionResponse: { ok: boolean; data?: any }) {
 // ─── Session restore ──────────────────────────────────────────────────────────
 
 describe("AuthProvider - session restore", () => {
-  it("sets user from a successful profile fetch", async () => {
+  it("sets user from a successful session probe", async () => {
     const ctx = await mountAuth({
       ok: true,
-      data: { id: "1", email: "ada@example.com", name: "Ada", role: "job-seeker", profileComplete: false },
+      data: sessionBody(),
     });
     expect(ctx.user?.email).toBe("ada@example.com");
   });
@@ -54,18 +91,18 @@ describe("AuthProvider - session restore", () => {
   it("stores the CSRF token from the response body", async () => {
     const ctx = await mountAuth({
       ok: true,
-      data: { id: "1", email: "ada@example.com", name: "Ada", role: "job-seeker", profileComplete: false, csrfToken: "tok-abc" },
+      data: sessionBody({ csrf_token: "tok-abc" }),
     });
     // We verify CSRF is stored by checking it gets attached to a subsequent POST
     mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ ok: true }) });
     await act(async () => {
       await ctx.fetchWithAuth("/some-endpoint", { method: "POST" });
     });
-    const postHeaders = mockFetch.mock.calls[1][1].headers;
+    const postHeaders = mockFetch.mock.calls[FIRST_CALL_AFTER_RESTORE][1].headers;
     expect(postHeaders["X-CSRF-TOKEN"]).toBe("tok-abc");
   });
 
-  it("sets user to null when the profile fetch fails", async () => {
+  it("sets user to null when the session probe fails", async () => {
     const ctx = await mountAuth({ ok: false, data: { error: "Unauthorized" } });
     expect(ctx.user).toBeNull();
   });
@@ -129,7 +166,7 @@ describe("AuthProvider - logout", () => {
   it("clears user and CSRF token on successful logout", async () => {
     const ctx = await mountAuth({
       ok: true,
-      data: { id: "1", email: "ada@example.com", name: "Ada", role: "job-seeker", profileComplete: false, csrfToken: "tok-abc" },
+      data: sessionBody({ csrf_token: "tok-abc" }),
     });
 
     // Mock the logout POST
@@ -143,7 +180,7 @@ describe("AuthProvider - logout", () => {
   it("still clears user even when the logout request fails", async () => {
     const ctx = await mountAuth({
       ok: true,
-      data: { id: "1", email: "ada@example.com", name: "Ada", role: "job-seeker", profileComplete: false },
+      data: sessionBody(),
     });
 
     mockFetch.mockRejectedValueOnce(new Error("Network error"));
@@ -160,7 +197,7 @@ describe("AuthProvider - fetchWithAuth", () => {
   it("attaches X-CSRF-TOKEN header on POST requests", async () => {
     const ctx = await mountAuth({
       ok: true,
-      data: { id: "1", email: "a@b.com", name: "A", role: "job-seeker", profileComplete: false, csrfToken: "csrf-123" },
+      data: sessionBody({ user: { id: "1", email: "a@b.com", name: "A", role: "job-seeker" }, csrf_token: "csrf-123" }),
     });
 
     mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ ok: true }) });
@@ -169,23 +206,23 @@ describe("AuthProvider - fetchWithAuth", () => {
       await ctx.fetchWithAuth("/save", { method: "POST" });
     });
 
-    const headers = mockFetch.mock.calls[1][1].headers;
+    const headers = mockFetch.mock.calls[FIRST_CALL_AFTER_RESTORE][1].headers;
     expect(headers["X-CSRF-TOKEN"]).toBe("csrf-123");
   });
 
   it("does not attach X-CSRF-TOKEN on GET requests", async () => {
     const ctx = await mountAuth({
       ok: true,
-      data: { id: "1", email: "a@b.com", name: "A", role: "job-seeker", profileComplete: false, csrfToken: "csrf-123" },
+      data: sessionBody({ user: { id: "1", email: "a@b.com", name: "A", role: "job-seeker" }, csrf_token: "csrf-123" }),
     });
 
     mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ data: "ok" }) });
 
     await act(async () => {
-      await ctx.fetchWithAuth("/profile", { method: "GET" });
+      await ctx.fetchWithAuth("/me/profile", { method: "GET" });
     });
 
-    const headers = mockFetch.mock.calls[1][1].headers;
+    const headers = mockFetch.mock.calls[FIRST_CALL_AFTER_RESTORE][1].headers;
     expect(headers["X-CSRF-TOKEN"]).toBeUndefined();
   });
 
@@ -221,7 +258,7 @@ describe("AuthProvider - fetchWithAuth", () => {
 
     await act(async () => { await ctx.fetchWithAuth("/anything"); });
 
-    expect(mockFetch.mock.calls[1][1].credentials).toBe("include");
+    expect(mockFetch.mock.calls[FIRST_CALL_AFTER_RESTORE][1].credentials).toBe("include");
   });
 });
 
@@ -231,7 +268,7 @@ describe("AuthProvider - optimistic updates", () => {
   it("updateProfile patches the in-memory user", async () => {
     const ctx = await mountAuth({
       ok: true,
-      data: { id: "1", email: "ada@example.com", name: "Ada", role: "job-seeker", profileComplete: false },
+      data: sessionBody(),
     });
 
     act(() => { ctx.updateProfile({ profileComplete: true }); });
@@ -242,7 +279,8 @@ describe("AuthProvider - optimistic updates", () => {
   it("updateProfileData merges new profile data", async () => {
     const ctx = await mountAuth({
       ok: true,
-      data: { id: "1", email: "ada@example.com", name: "Ada", role: "job-seeker", profileComplete: false, profileData: { firstName: "Ada" } },
+      data: sessionBody(),
+      profile: { firstName: "Ada" },
     });
 
     act(() => { ctx.updateProfileData({ lastName: "Lovelace" } as any); });

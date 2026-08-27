@@ -51,7 +51,7 @@ def _register_and_login(client, monkeypatch, email="paths@example.com", password
     monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     client.post(
-        "/api/register",
+        "/api/v1/auth/register",
         json={"email": email, "password": password, "name": "Path User", "role": "job-seeker", "terms_accepted": True},
     )
 
@@ -63,7 +63,7 @@ def _register_and_login(client, monkeypatch, email="paths@example.com", password
         user.confirmation_token = None
         db.session.commit()
 
-    resp = client.post("/api/login", json={"email": email, "password": password})
+    resp = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert resp.status_code == 200
     return resp.get_json()["csrfToken"]
 
@@ -105,13 +105,13 @@ def clear_path_cache():
 # ---------------------------------------------------------------------------
 
 def test_unauthenticated_returns_401(client):
-    resp = client.get("/api/intelligence/path-suggestions")
+    resp = client.get("/api/v1/me/path-suggestions")
     assert resp.status_code == 401
 
 
 def test_missing_career_status_returns_400(client, monkeypatch):
     _register_and_login(client, monkeypatch)
-    resp = client.get("/api/intelligence/path-suggestions")
+    resp = client.get("/api/v1/me/path-suggestions")
     assert resp.status_code == 400
     body = resp.get_json()
     assert body["error"] == "career_status_not_set"
@@ -128,7 +128,7 @@ def test_happy_path_returns_correct_shape(client, monkeypatch):
     })
     mock_score, mock_narrative = _mock_scoring(monkeypatch)
 
-    resp = client.get("/api/intelligence/path-suggestions")
+    resp = client.get("/api/v1/me/path-suggestions")
     assert resp.status_code == 200
     body = resp.get_json()
 
@@ -155,10 +155,10 @@ def test_second_call_returns_cached_response(client, monkeypatch):
     _set_profile("paths_cache@example.com", {"career_status": "between_jobs"})
     mock_score, _ = _mock_scoring(monkeypatch)
 
-    resp1 = client.get("/api/intelligence/path-suggestions")
+    resp1 = client.get("/api/v1/me/path-suggestions")
     assert resp1.status_code == 200
 
-    resp2 = client.get("/api/intelligence/path-suggestions")
+    resp2 = client.get("/api/v1/me/path-suggestions")
     assert resp2.status_code == 200
 
     assert mock_score.call_count == 1

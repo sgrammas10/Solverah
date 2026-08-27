@@ -52,7 +52,7 @@ export default function IntelligencePage() {
   const fetchFromServer = useCallback(async () => {
     setFetchState("loading");
     try {
-      const data = await fetchWithAuth<WpApiResponse>("/work-pulse/results");
+      const data = await fetchWithAuth<WpApiResponse>("/me/assessments/work_pulse/result");
       setResult(data);
       setCachedResult(data);
       setFetchState("success");

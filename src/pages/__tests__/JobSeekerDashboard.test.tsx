@@ -81,7 +81,7 @@ describe("JobSeekerDashboard - happy path", () => {
 
   it("fetches /dashboard-data on mount", async () => {
     renderJobSeekerDashboard();
-    await waitFor(() => expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/dashboard-data"));
+    await waitFor(() => expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/me/dashboard"));
   });
 });
 

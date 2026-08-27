@@ -12,7 +12,7 @@ VALID_ANSWERS = [
     {"question_id": "wpll-q5", "option_id": "wpll-q5-a"},
 ]
 
-_ENDPOINT = "/api/work-pulse/lite-lite/result"
+_ENDPOINT = "/api/v1/assessments/wpll/submissions"
 
 
 def _mock_openai_completion(insight_text: str):
@@ -83,13 +83,16 @@ def test_wpll_result_malformed_llm_response_falls_back_to_rules(client):
     assert isinstance(body["insight_text"], str) and len(body["insight_text"]) > 0
 
 
-def test_wpll_result_missing_answers_returns_400(client):
+def test_wpll_result_missing_answers_returns_422(client):
     res = client.post(
         _ENDPOINT,
         data=json.dumps({}),
         content_type="application/json",
     )
-    assert res.status_code == 400
+    # `answers` is a required field of the declared schema, so this is refused
+    # before the handler runs -- 422 with the field named, not a bare 400.
+    assert res.status_code == 422
+    assert "answers" in {e["field"] for e in res.get_json()["errors"]}
 
 
 def test_wpll_result_empty_answers_returns_400(client):

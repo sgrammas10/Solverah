@@ -24,7 +24,7 @@ def register_and_login(client, monkeypatch, email="test@example.com", password="
     monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
     client.post(
-        "/api/register",
+        "/api/v1/auth/register",
         json={"email": email, "password": password, "name": "Test", "role": "job-seeker", "terms_accepted": True},
     )
 
@@ -36,7 +36,7 @@ def register_and_login(client, monkeypatch, email="test@example.com", password="
         user.confirmation_token = None
         db.session.commit()
 
-    resp = client.post("/api/login", json={"email": email, "password": password})
+    resp = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert resp.status_code == 200
     return resp.get_json()["csrfToken"]
 
@@ -44,8 +44,9 @@ def register_and_login(client, monkeypatch, email="test@example.com", password="
 def test_save_to_account_creates_intake_row(client, monkeypatch):
     csrf = register_and_login(client, monkeypatch)
     res = client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json={
+            "mode": "session",
             "selected_statement_ids": STATEMENT_IDS,
             "wpll_answers": WPLL_ANSWERS,
             "wpll_insight_text": "Some insight text.",
@@ -62,8 +63,9 @@ def test_save_to_account_upserts_on_second_call(client, monkeypatch):
     csrf = register_and_login(client, monkeypatch)
 
     client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json={
+            "mode": "session",
             "selected_statement_ids": ["stmt-1"],
             "wpll_answers": WPLL_ANSWERS,
             "wpll_insight_text": "First insight.",
@@ -71,8 +73,9 @@ def test_save_to_account_upserts_on_second_call(client, monkeypatch):
         headers={"X-CSRF-TOKEN": csrf},
     )
     res = client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json={
+            "mode": "session",
             "selected_statement_ids": ["stmt-2", "stmt-3"],
             "wpll_answers": WPLL_ANSWERS[:3],
             "wpll_insight_text": "Updated insight.",
@@ -94,8 +97,9 @@ def test_save_to_account_preserves_wpl_completed_at_on_upsert(client, monkeypatc
     csrf = register_and_login(client, monkeypatch)
 
     client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json={
+            "mode": "session",
             "selected_statement_ids": STATEMENT_IDS,
             "wpll_answers": WPLL_ANSWERS,
         },
@@ -112,8 +116,9 @@ def test_save_to_account_preserves_wpl_completed_at_on_upsert(client, monkeypatc
         db.session.commit()
 
     client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json={
+            "mode": "session",
             "selected_statement_ids": STATEMENT_IDS,
             "wpll_answers": WPLL_ANSWERS,
         },
@@ -128,8 +133,9 @@ def test_save_to_account_preserves_wpl_completed_at_on_upsert(client, monkeypatc
 
 def test_save_to_account_requires_auth(client):
     res = client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json={
+            "mode": "session",
             "selected_statement_ids": STATEMENT_IDS,
             "wpll_answers": WPLL_ANSWERS,
         },
@@ -141,8 +147,9 @@ def test_save_to_account_rejects_too_many_answers(client, monkeypatch):
     csrf = register_and_login(client, monkeypatch)
     too_many = WPLL_ANSWERS + [{"question_id": "wpll-q1", "option_id": "wpll-q1-a"}]
     res = client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json={
+            "mode": "session",
             "selected_statement_ids": STATEMENT_IDS,
             "wpll_answers": too_many,
         },
@@ -154,8 +161,9 @@ def test_save_to_account_rejects_too_many_answers(client, monkeypatch):
 def test_save_to_account_accepts_empty_answers(client, monkeypatch):
     csrf = register_and_login(client, monkeypatch)
     res = client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json={
+            "mode": "session",
             "selected_statement_ids": [],
             "wpll_answers": [],
         },
@@ -168,19 +176,20 @@ def test_save_to_account_accepts_empty_answers(client, monkeypatch):
 def test_profile_response_includes_wpl_flags(client, monkeypatch):
     csrf = register_and_login(client, monkeypatch)
 
-    before = client.get("/api/profile").get_json()
+    before = client.get("/api/v1/auth/session").get_json()["flags"]
     assert before["wpll_completed"] is False
     assert before["wpl_completed"] is False
 
     client.post(
-        "/api/intake/save-to-account",
+        "/api/v1/intake/claims",
         json={
+            "mode": "session",
             "selected_statement_ids": STATEMENT_IDS,
             "wpll_answers": WPLL_ANSWERS,
         },
         headers={"X-CSRF-TOKEN": csrf},
     )
 
-    after = client.get("/api/profile").get_json()
+    after = client.get("/api/v1/auth/session").get_json()["flags"]
     assert after["wpll_completed"] is True
     assert after["wpl_completed"] is False

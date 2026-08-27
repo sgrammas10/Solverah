@@ -35,7 +35,7 @@ function ResendConfirmation({ email }: { email: string }) {
     setStatus('sending');
     setMsg('');
     try {
-      const res = await fetch(`${API_BASE}/resend-confirmation`, {
+      const res = await fetch(`${API_BASE}/auth/email/verify/resend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -90,9 +90,13 @@ function Login() {
       const pendingIntake = getPendingIntakeSave();
       if (pendingIntake && loggedInUser.role === 'job-seeker' && fetchWithAuth) {
         try {
-          await fetchWithAuth('/intake/save-to-account', {
+          // One `claim` replaces the four account-attachment endpoints; `mode`
+          // selects which. This is the anonymous quiz session held in
+          // sessionStorage being adopted onto the account just signed in to.
+          await fetchWithAuth('/intake/claims', {
             method: 'POST',
             body: JSON.stringify({
+              mode: 'session',
               selected_statement_ids: pendingIntake.selectedStatementIds,
               wpll_answers: pendingIntake.wpllAnswers.map(
                 (a: { questionId: string; optionId: string }) => ({
@@ -112,11 +116,11 @@ function Login() {
       const pending = getPendingQuizSave();
       if (pending && loggedInUser.role === 'job-seeker' && fetchWithAuth) {
         try {
-          await fetchWithAuth('/profile', {
-            method: 'POST',
-            body: JSON.stringify({ profileData: { quizResults: pending.quizResults } }),
+          await fetchWithAuth('/me/profile', {
+            method: 'PATCH',
+            body: JSON.stringify({ profile: { quizResults: pending.quizResults } }),
           });
-          await fetchWithAuth('/quiz-insights', {
+          await fetchWithAuth('/me/quiz-insights', {
             method: 'POST',
             body: JSON.stringify(pending.quizPayload),
           });

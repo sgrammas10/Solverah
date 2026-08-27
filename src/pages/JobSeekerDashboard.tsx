@@ -30,7 +30,7 @@ function JobSeekerDashboard() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const data = await fetchWithAuth('/dashboard-data');
+        const data = await fetchWithAuth('/me/dashboard');
         setDashboardData(data);
         const completionPct = parseInt(data.profileCompletion ?? '0', 10);
         if (completionPct < 50) {

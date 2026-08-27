@@ -41,7 +41,7 @@ def _register_and_login(client, monkeypatch, email="ft@example.com", password="S
     monkeypatch.setattr("solverah.infra.email.send_confirmation_email", lambda *a, **kw: None)
     monkeypatch.setattr("solverah.services.audit.log_audit_event", lambda *a, **kw: None)
 
-    client.post("/api/register", json={
+    client.post("/api/v1/auth/register", json={
         "email": email, "password": password, "name": "FT User", "role": "job-seeker", "terms_accepted": True,
     })
 
@@ -53,7 +53,7 @@ def _register_and_login(client, monkeypatch, email="ft@example.com", password="S
         user.confirmation_token = None
         db.session.commit()
 
-    resp = client.post("/api/login", json={"email": email, "password": password})
+    resp = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert resp.status_code == 200
     return resp.get_json()["csrfToken"]
 
@@ -308,7 +308,7 @@ class TestFocusTypeEndpoint:
     def test_valid_payload_returns_200_with_all_keys(self, client, monkeypatch):
         csrf = _register_and_login(client, monkeypatch)
         res = client.post(
-            "/api/focus-type/submit",
+            "/api/v1/assessments/focus_type/submissions",
             json=DEEP_DIVER_PAYLOAD,
             headers={"X-CSRF-TOKEN": csrf},
         )
@@ -323,7 +323,7 @@ class TestFocusTypeEndpoint:
     def test_result_persisted_to_profile_data(self, client, monkeypatch):
         csrf = _register_and_login(client, monkeypatch, email="persist@example.com")
         client.post(
-            "/api/focus-type/submit",
+            "/api/v1/assessments/focus_type/submissions",
             json=DEEP_DIVER_PAYLOAD,
             headers={"X-CSRF-TOKEN": csrf},
         )
@@ -337,26 +337,31 @@ class TestFocusTypeEndpoint:
             assert "archetype" in saved
             assert "dimension_scores" in saved
 
-    def test_missing_scene_returns_400(self, client, monkeypatch):
+    def test_missing_scene_returns_422(self, client, monkeypatch):
         csrf = _register_and_login(client, monkeypatch, email="missing@example.com")
         payload = {k: v for k, v in DEEP_DIVER_PAYLOAD.items() if k != "scene_3"}
         res = client.post(
-            "/api/focus-type/submit",
+            "/api/v1/assessments/focus_type/submissions",
             json=payload,
             headers={"X-CSRF-TOKEN": csrf},
         )
-        assert res.status_code == 400
-        assert "scene_3" in res.get_json()["error"]
+        assert res.status_code == 422
+        assert "scene_3" in {error["field"] for error in res.get_json()["errors"]}
 
     def test_unauthenticated_returns_401(self, client):
-        res = client.post("/api/focus-type/submit", json=DEEP_DIVER_PAYLOAD)
+        res = client.post("/api/v1/assessments/focus_type/submissions", json=DEEP_DIVER_PAYLOAD)
         assert res.status_code == 401
 
-    def test_all_scenes_missing_returns_400(self, client, monkeypatch):
+    def test_all_scenes_missing_returns_422(self, client, monkeypatch):
         csrf = _register_and_login(client, monkeypatch, email="empty@example.com")
         res = client.post(
-            "/api/focus-type/submit",
+            "/api/v1/assessments/focus_type/submissions",
             json={},
             headers={"X-CSRF-TOKEN": csrf},
         )
-        assert res.status_code == 400
+        # 422 with every missing scene named, rather than the single 400 the
+        # handler used to build by hand. The five scenes are required fields of
+        # the declared schema, and Phase 1b made the schema enforcing.
+        assert res.status_code == 422
+        missing = {error["field"] for error in res.get_json()["errors"]}
+        assert missing == {"scene_%d" % i for i in range(1, 6)}

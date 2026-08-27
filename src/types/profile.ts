@@ -4,8 +4,19 @@ export interface UploadedResume {
   type: string;
 }
 
+/**
+ * A resume that has been uploaded to storage but not yet parsed into the profile.
+ *
+ * `resumeId` replaced `objectKey` in the Phase 1b redesign, and the change is a
+ * security improvement rather than a rename. The old finalize endpoint took a
+ * caller-supplied storage key and defended itself with a
+ * `profile/{your-user-id}/` prefix check -- get that wrong and a caller could
+ * name any key in the bucket and have its contents parsed into their own
+ * profile, another user's resume included. The server now rebuilds the key from
+ * the JWT identity and this id, so there is no key for a client to hold.
+ */
 export interface PendingResumeUpload {
-  objectKey: string;
+  resumeId: string;
   mime: string;
   size: number;
   name: string;

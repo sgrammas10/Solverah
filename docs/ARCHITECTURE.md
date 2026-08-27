@@ -707,7 +707,10 @@ only thing a user is given, and it is enough for an engineer to find the trace.
 
 ### 5.2 Endpoint map
 
-Today's 38 handlers, restated. `→` marks the endpoint(s) each one becomes.
+The 38 pre-Phase-1 handlers, restated as the 40 operations the API now serves.
+Phase 1b built this map; the **Replaces** column names what each one took over
+from, and rows marked *not built* say what they are waiting on — Part 8's Phase
+1b entry has the reasoning per row.
 
 **Platform** (unversioned, not rate-limited, not logged as traffic)
 
@@ -724,16 +727,18 @@ Today's 38 handlers, restated. `→` marks the endpoint(s) each one becomes.
 | POST | `/register` | `POST /api/register` |
 | POST | `/login` | `POST /api/login` |
 | POST | `/logout` | `POST /api/logout` |
-| POST | `/refresh` | *new* — rotates the refresh token, enables revocation |
+| POST | `/refresh` | *not built* — needs `user_sessions` (A7). Phase 2. |
 | GET | `/session` | *new* — cheap session probe, replaces `GET /api/profile` for auth restore |
 | POST | `/email/verify` | `POST /api/confirm-email` |
 | POST | `/email/verify/resend` | `POST /api/resend-confirmation` |
 | POST | `/password/forgot` | `POST /api/request-password-reset` |
 | POST | `/password/reset` | `POST /api/verify-password-reset` |
 
-`GET /auth/session` is the fix for P0-3: it returns `{ user, csrf_token, flags }` from a
-replica read with an ETag and **writes nothing**. The heavy `GET /api/profile` is no
-longer on the app-boot path.
+`GET /auth/session` is the fix for P0-3: it returns `{ user, csrf_token, flags }` and
+**writes nothing**, where `GET /api/profile` returned the whole user document and
+committed an `AuditLog` row on every page load. Read replicas and the `ETag` are Phase 5
+and Phase 3 respectively; what landed in 1b is the write and the payload coming off the
+boot path, which is the part that took a lock.
 
 **Me** — `/api/v1/me`
 
@@ -741,15 +746,14 @@ longer on the app-boot path.
 |---|---|---|
 | GET / PATCH | `/` | identity half of `GET\|POST /api/profile` |
 | GET / PATCH | `/profile` | profile half of the same endpoint |
-| GET / POST | `/experiences` | `profileData.experience[]` inside the blob |
-| PATCH / DELETE | `/experiences/{id}` | — |
-| GET / POST | `/educations`, `/educations/{id}` | `profileData.education[]` |
+| GET / POST | `/experiences`, `/experiences/{id}` | *not built* — decomposes the blob. Phase 2. |
+| GET / POST | `/educations`, `/educations/{id}` | *not built* — decomposes the blob. Phase 2. |
 | GET / PUT | `/skills` | `PATCH /api/profile/skills/proficiency` |
 | PATCH | `/career-status` | `PATCH /api/profile/career-status` |
 | GET | `/dashboard` | `GET /api/dashboard-data` |
-| POST | `/resumes` | `POST /api/profile/resume/presign` → returns an upload ticket |
-| POST | `/resumes/{id}/complete` | `POST /api/profile/resume/finalize` → **202**, parsing goes async |
-| GET | `/resumes/{id}/download-url` | `GET /api/profile/resume-url` |
+| POST | `/resumes` | `POST /api/profile/resume/presign` → an upload ticket. Returns a `resume_id`, never a storage key. |
+| POST | `/resumes/{id}/complete` | `POST /api/profile/resume/finalize`. Still 200; **202** when Phase 3 has a queue. |
+| GET | `/resumes/{id}/download-url` | `GET /api/profile/resume-url`. `current` is a valid id until Phase 2 gives resumes rows. |
 | GET | `/export` | account-lifecycle export |
 | DELETE | `/` | account-lifecycle deletion |
 
@@ -763,7 +767,7 @@ on every page load, and a profile edit stops rewriting unrelated data.
 | GET | `/assessments` | *new* — catalogue with per-user completion state |
 | GET | `/assessments/{kind}/form` | `GET /api/assessment/form` |
 | POST | `/assessments/{kind}/submissions` | `/api/assessment/submit`, `/api/work-pulse/submit`, `/api/work-pulse/lite-lite/result`, `/api/focus-type/submit`, `/api/manager-match/submit` |
-| GET | `/assessments/{kind}/submissions/{id}` | — |
+| GET | `/assessments/{kind}/submissions/{id}` | *not built* — only the person-side instrument has ids. Phase 2. |
 | GET | `/me/assessments/{kind}/result` | `/api/work-pulse/results`, `/api/manager-match/results` |
 
 `{kind}` ∈ `core · work_pulse · wpll · focus_type · manager_match`. Five near-identical
@@ -775,29 +779,29 @@ and a scoring strategy per kind. Adding assessment #6 becomes a data change.
 | Method | Path | Replaces |
 |---|---|---|
 | GET | `/companies?cursor=&limit=&q=&industry=` | *new* — paginated, faceted |
-| GET | `/companies/{public_id}` | `GET /api/companies/<int:id>` — no longer enumerable |
+| GET | `/companies/{public_id}` | `GET /api/companies/<int:id>`. Still the integer id, so still enumerable, until Phase 2 adds `public_id`. |
 
 **Matching** — `/api/v1/me/matches`
 
 | Method | Path | Replaces |
 |---|---|---|
-| GET | `/me/matches?cursor=&limit=&lens=culture` | `GET /api/company-lens/matches` — now index-backed and cached |
-| POST | `/me/matches/{id}/actions` | *new* — records `rec_action` (view/save/dismiss/apply) |
+| GET | `/me/matches?cursor=&limit=&lens=&order=` | `GET /api/company-lens/matches`. Cursor-paginated; `order=best\|worst` carries the two slices over. Not yet index-backed (P0-2). |
+| POST | `/me/matches/{id}/actions` | *not built* — needs `rec_actions`. Phase 2. |
 | GET | `/me/recommendations` | `GET /api/recommendations` |
-| POST | `/me/recommendations/refresh` | `POST /api/recommendations` → **202** + job handle |
+| POST | `/me/recommendations/refresh` | `POST /api/recommendations`. Still 200; **202** when Phase 3 has a queue. |
 
 **Intelligence** — `/api/v1/me`
 
 | Method | Path | Replaces |
 |---|---|---|
 | GET / PUT | `/me/path-preferences` | `POST /api/intelligence/path-preferences` |
-| GET | `/me/path-suggestions` | `GET /api/intelligence/path-suggestions` — served from cache; a miss returns 202 and enqueues |
+| GET | `/me/path-suggestions` | `GET /api/intelligence/path-suggestions` — served from cache. A miss still computes inline; **202** when Phase 3 has a queue. |
 
 **Agent** — `/api/v1/agent`
 
 | Method | Path | Replaces |
 |---|---|---|
-| POST | `/agent/messages` | `POST /api/agent/chat` — SSE, streamed, on a thread worker |
+| POST | `/agent/messages` | `POST /api/agent/chat` — SSE, streamed. Still on the request worker until Phase 3. |
 
 **Intake** (public, aggressively rate-limited) — `/api/v1/intake`
 
@@ -805,8 +809,8 @@ and a scoring strategy per kind. Adding assessment #6 becomes a data change.
 |---|---|---|
 | POST | `/early-access` | `POST /api/early-access-request` |
 | POST | `/submissions` | `POST /api/intake/finalize` |
-| POST | `/submissions/{id}/resume-ticket` | `POST /api/intake/presign` |
-| POST | `/submissions/{id}/claim` | `/api/intake/create-account`, `/api/intake/sign-in`, `/api/intake/link-account`, `/api/intake/save-to-account` |
+| POST | `/resume-tickets` | `POST /api/intake/presign`. Not under `/submissions/{id}` — the ticket is what mints the id. |
+| POST | `/claims` | `/api/intake/create-account`, `/api/intake/sign-in`, `/api/intake/link-account`, `/api/intake/save-to-account`. Not under `/submissions/{id}` — two of the four modes have no submission. |
 | POST | `/quiz-preview/insights` | `POST /api/quiz-insights-guest` |
 
 Four near-identical account-attachment endpoints become one `claim` with a `mode`
@@ -828,7 +832,8 @@ branch.
   | `POST /auth/login` | 5 / 15 min per IP **and** per email |
   | `POST /auth/register` | 3 / hour per IP |
   | `POST /auth/password/forgot` | 3 / hour per email |
-  | Public intake / quiz-preview | 10 / hour per IP |
+  | Public intake | 10 / hour per IP |
+  | `POST /intake/quiz-preview/insights` | 5 / hour **and** 20 / day per IP, under a **500 / day global** ceiling |
   | LLM-backed endpoints | 20 / hour per user |
   | Authenticated default | 1000 / hour per user |
 
@@ -1089,7 +1094,11 @@ rolling deploy both versions serve traffic simultaneously.
 ## Part 8 — Migration roadmap
 
 Strangler fig. The current app keeps serving traffic throughout; nothing is rewritten
-in place. The 490-test suite is the ratchet — it stays green at every step.
+in place. The test suite is the ratchet — it stays green at every step, and it
+grows at every step. Phase counts are recorded per phase below rather than in
+one number here: a figure quoted in the prose goes stale the first time anyone
+adds a test, and a stale ratchet is worse than none, because the next person
+reads it as the floor.
 
 ### Phase 0 — Foundation *(additive only, zero behaviour change)*
 
@@ -1136,17 +1145,184 @@ login and register, the 3/minute on password reset, and the 1/day on guest quiz
 insights had **no effect at all**. Only `default_limits` applied. Blueprint ordering
 fixed it; `tests/test_rate_limits.py` is the regression cover.
 
-**Exit met:** 729 backend tests green, up from a 570 baseline.
+**Exit met:** backend tests green, up from a 570 baseline. The figure recorded
+here at the time was 729, and it was already wrong when it was written — the
+conftest cleanup and the new safety and route-limit tests had taken it to 770
+before Phase 1b started. The lesson is in the paragraph above Phase 0: quote the
+baseline you measured against, not a number that will drift.
 
-#### Phase 1b — endpoint redesign *(pending)*
+#### Phase 1b — endpoint redesign · **done 2026-08-26**
 
-- The Part 5.2 map: `/me/*`, the `GET|POST /profile` split, one
-  `POST /assessments/{kind}/submissions` replacing five submit handlers, one
-  `claim` replacing four account-attachment endpoints, cursor pagination.
-- Handlers move from `{"error": ...}` onto `solverah.errors.ApiError`, so every
-  failure answers in Problem Details; `@document(..., enforce=True)` turns the
-  schemas from descriptive into enforced.
-- Frontend cutover, then the legacy `/api/*` aliases are removed.
+The Part 5.2 map is live and is the only surface the API serves: 40 operations
+under `/api/v1`, no unversioned aliases, no superseded paths.
+
+- **`/me/*`.** `GET|POST /profile` split into `GET|PATCH /me` (identity),
+  `GET|PATCH /me/profile` (the blob), `GET|PUT /me/skills`,
+  `PATCH /me/career-status`, `GET /me/dashboard`, and a resume resource. The
+  account-lifecycle routes folded in as `GET /me/export` and `DELETE /me`.
+- **One assessment route.** `POST /assessments/{kind}/submissions` replaces five
+  submit handlers, `GET /assessments` is a new catalogue with per-user
+  completion state, and `GET /me/assessments/{kind}/result` replaces the two
+  result endpoints. `{kind}` selects the request body, the response body, the
+  auth requirement, and the rate-limit bucket.
+- **One claim.** `POST /intake/claims` replaces `create-account`, `sign-in`,
+  `link-account`, and `save-to-account`, discriminated on `mode`.
+- **Cursor pagination.** `GET /companies` (new) and `GET /me/matches` page with
+  an opaque keyset cursor; `GET /me/recommendations` carries the envelope ahead
+  of having rows to put in it.
+- **`GET /auth/session`.** The P0-3 fix: identity, CSRF token and flags, with no
+  `profile_data` and no audit write, so session restore no longer takes a write
+  lock on the hottest read in the system.
+- **Enforced schemas.** `@document(..., enforce=True)` on every route.
+  Enforcement lives in a `before_request` hook, not in the decorator — see
+  "Where enforcement lives" below.
+- **Frontend cut over**, then the legacy `/api/*` aliases and the superseded
+  handlers were deleted. `solverah/api/v1/{profiles,account}.py` are gone
+  entirely; `register_legacy_aliases` is gone with them.
+
+**Exit met:** 917 backend tests green, against a 770 baseline.
+
+##### Where enforcement lives, and why not in the decorator
+
+`@document` is written *above* `@bp.route` throughout, and `Blueprint.route`
+registers the object it is handed and returns it unchanged — so a decorator
+above it annotates something Flask has already registered. A wrapper written
+there would never run. That is precisely how every `@limiter.limit` in the
+pre-Phase-1 `app.py` came to be inert. Enforcement therefore resolves the spec
+from `request.endpoint` at request time, which makes declaration order
+irrelevant; `tests/test_request_validation.py` asserts that directly.
+
+Three decisions came out of auditing what the handlers tolerated before the flip:
+unknown keys are **dropped**, not rejected (live call sites send more than the
+schemas name — `role` on register would have broken); types are **coerced**, not
+policed (pydantic's lax mode matches what `int(data.get("size") or 0)` did); and
+missing required fields are **rejected**. The third is the live change: eight
+failures that answered 400 from a hand-written check now answer 422 with the
+offending field named. Nothing in the frontend branches on 400, and
+`src/utils/apiError.ts` already read both bodies.
+
+One consequence is worth knowing: a request refused by the hook is **not**
+charged to its endpoint's rate-limit bucket, because Flask-Limiter evaluates
+decorated limits inside the view wrapper rather than in middleware. That is the
+behaviour to want — a 422 is cheaper than the handler it prevents, and charging
+for it would let a stranger behind the same NAT gateway spend a real user's
+login allowance with garbage — but it means a flood of *malformed* bodies is
+bounded only at the edge.
+
+##### Rate-limit buckets after the collapse
+
+Collapsing routes merges their limiter buckets, and this was decided rather than
+inherited. Flask-Limiter composes its storage key from the endpoint name, so
+five submit handlers at 5/minute each became one handler with one shared
+5/minute budget — a user finishing Work Pulse and starting FocusType would have
+been spending a single allowance across two unrelated instruments.
+
+**Decision: key the bucket by the discriminator, preserving each instrument's
+budget exactly, rather than raising the limit.** Raising it to 25 would have let
+any *one* instrument be hit five times harder than before, and the limit exists
+to bound provider spend, which is per call to a specific instrument. The same
+applies to `/intake/claims`, whose four modes did not even share a number —
+three at 5/minute, `save-to-account` at 10 — so the limit value is resolved per
+mode as well as the bucket.
+
+Two mechanics bit while implementing this and are recorded so they do not bite
+again:
+
+| Trap | What happens |
+|---|---|
+| `limiter.limit(scope=...)` | Keys the bucket as `"{endpoint}:{scope}"`, so the scope *sub-divides one endpoint* rather than joining two. It reads correctly and does nothing. Only `limiter.shared_limit` drops the endpoint from the key. |
+| A new view written as `return login()` | At module scope `login` is the limiter wrapper, not the handler, so the shared bucket is charged **twice** per request and the route silently runs at half its stated allowance. Caught by a test that expected the breach on the sixth request and saw it on the fourth. |
+| A bare `"5 per minute"` on a route that had no per-endpoint limit | `@limiter.limit` defaults to `override_defaults=True`, so it *removes* the global 200/day while appearing to tighten. `wpll` needed its defaults named explicitly. |
+
+Scopes are kept now that the cutover is over, for a different reason: dropping
+them would rename every live bucket at deploy time and hand every caller a fresh
+allowance mid-release.
+
+##### Guest quiz insights — the outstanding 1a follow-up
+
+`POST /quiz-insights-guest` carried `@limiter.limit("1 per day")` keyed on the
+IP, with a docstring saying it existed to cap OpenAI spend. Both halves of that
+deserved to be taken seriously and they pull in opposite directions.
+
+`1 per day per IP` is not one preview per person. Behind corporate NAT it is one
+per *office*; behind mobile CGNAT it is one per *carrier segment*. The second
+visitor gets a 429 having done nothing, at the unauthenticated top of the
+pre-launch funnel, with no account and no way to tell a limit from a fault — it
+reads as a broken quiz, and the visitor leaves. But it cannot simply be loosened
+either: every call is a paid request with no account behind it, so a per-IP limit
+alone bounds nothing that matters, because spend scales with the number of
+distinct IPs and that is the one quantity an abuser controls freely.
+
+**Recommended and implemented: a per-IP allowance sized for a human plus a
+global daily ceiling sized to a spend budget** — `5/hour;20/day` per IP and
+`500/day` overall, both named in `security.py` with the reasoning attached so
+tuning them is a one-line change. The trade is explicit: a global ceiling means
+a determined abuser can exhaust the day's budget and leave real visitors seeing
+429s. That is still the better failure, because the alternative is an unbounded
+invoice, and the per-IP limit means exhausting the global budget takes many
+distinct addresses rather than one.
+
+**This one needs a decision to stand.** The numbers are a recommendation, not a
+measurement — nobody has looked at what the endpoint actually receives. And the
+global half only works if the counter is shared: on `memory://` it is per-worker
+and resets on deploy (P0-5), which makes it decorative in exactly the deployment
+where it matters. Set `REDIS_URL` before relying on it.
+
+##### Deliberately not built
+
+Part 5.2 lists these; each is gated on something Phase 1b does not have.
+
+| Not built | Gated on |
+|---|---|
+| `/me/experiences`, `/me/educations` | These replace `profileData.experience[]` *inside the blob*. Building them now means CRUD endpoints doing read-modify-write on sub-arrays of a JSON column — starting the decomposition with none of the row-level storage that makes it safe, and widening P0-1's lost-update window once per list item. Phase 2. |
+| `POST /auth/refresh` | Needs the `user_sessions` table (A7). Phase 2. |
+| `202` + job handle on resume-complete, recommendations-refresh, path-suggestions | Needs a queue. Returning 202 for work that then runs inline hands the client a job to poll that has already finished. Phase 3. |
+| `POST /me/matches/{id}/actions` | Needs the `rec_actions` table. Phase 2. |
+| `GET /assessments/{kind}/submissions/{id}` | Only the person-side instrument has submission ids to serve it from. Phase 2's `assessment_*` unification. |
+| `/companies/{public_id}` | `companies.public_id` does not exist; the integer id still enumerates. Phase 2 / Part 4.2. |
+
+Two paths deviate from Part 5.2's sketch on purpose:
+
+- **`POST /intake/resume-tickets`**, not `/intake/submissions/{id}/resume-ticket`.
+  The id does not exist until the ticket mints it — the flow is ticket → browser
+  uploads → `POST /intake/submissions` commits the row. A path taking the id
+  would need either a draft row inserted before any validation ran or a
+  client-generated id, and that id is the *only* thing protecting an anonymous
+  submission, so it has to come from a server-side CSPRNG.
+- **`POST /intake/claims`**, not `/intake/submissions/{id}/claim`. Two of the
+  four modes have no submission id: `link` files a *new* submission rather than
+  claiming an existing one, and `session` adopts a quiz session that was never a
+  submission at all.
+
+##### What Phase 1b made temporarily worse
+
+`profile_data` was not touched — it is still the storage, and Phase 2 decomposes
+it. Splitting the endpoint therefore widens **P0-1** in one specific way: a
+client that sent one `POST /profile` now sends `PATCH /me` and
+`PATCH /me/profile`, so a failure between them leaves identity and profile out of
+step, and two concurrent editors have two windows to lose an update in rather
+than one. This is accepted, recorded in `solverah/schemas/profile.py` where the
+shapes live, and the `ProfileDocument` envelope is what Phase 2 hangs `version`
+off to close it.
+
+**P0-3 is fixed at the API and only half-realised at the client.** `GET
+/auth/session` writes nothing, but `AuthContext.tsx` still fetches
+`GET /me/profile` alongside it on boot, because the `User` type carries
+`profileData` and six components read it off the user object. The two requests
+are issued together so a restore is one round trip's latency rather than two.
+Deleting the second request from that `Promise.all` is what finishes the job,
+and it is Phase 4 work — the split it needs has already happened.
+
+##### One bug this phase created and caught
+
+Deleting the superseded handlers took a helper with them that a *new* handler
+still called, leaving `POST /intake/early-access` raising `NameError` on its
+first real request. Every test passed, because nothing in the suite called that
+endpoint. `tests/test_route_surface.py` is the answer: a static check that every
+name a route module loads is one it defines, plus the behaviour coverage the
+funnel was missing. Worth noting which one would have caught it — the static
+check would; the "no route returns 5xx" sweep would not, because the enforced
+schema rejects an empty body before the handler runs.
 
 ### Phase 2 — Data model v2
 
@@ -1192,9 +1368,20 @@ Phase 1 contract. Only the second group needs backend coordination.
 
 **Gated on Phase 1:**
 
-- The *generated* typed client (there is no OpenAPI document until Phase 1).
-- MSW handlers generated from the contract — hand-write them in the meantime.
-- The `/api/*` → `/api/v1/*` path cutover.
+- The *generated* typed client. `docs/openapi.json` exists as of Phase 1a and is
+  enforced as of 1b, so this is unblocked — nothing generates from it yet.
+- MSW handlers generated from the contract — hand-written in the meantime.
+- ~~The `/api/*` → `/api/v1/*` path cutover~~ — **done 2026-08-26** with Phase 1b.
+  `API_BASE` carries the version, so the 37 call sites moved by changing one
+  constant plus each path that Part 5.2 actually renamed. The unversioned
+  aliases are deleted; `tests/test_frontend_contract.py` tracks the surface and
+  fails if a call site drifts off it.
+
+Phase 1b leaves one item here with a name: `AuthContext.tsx` still fetches
+`GET /me/profile` alongside `GET /auth/session` on boot, because the `User` type
+carries `profileData` and six components read it off the user object. Moving
+those onto their own queries and deleting the second request is what finishes
+P0-3 on the client.
 
 **Exit:** initial bundle under budget; no component owns a `loading` boolean for server data.
 
@@ -1241,6 +1428,10 @@ in parallel with the rest of Phase 4.
 | A6 | Modular monolith, not microservices | One team. Service boundaries here would buy operational cost and distributed-transaction pain to solve a problem the product does not have. The layering makes extraction cheap later if it is ever warranted. | Microservices |
 | A7 | Refresh tokens in the database | Revocation, device management, and reuse detection are impossible with stateless JWTs alone. One indexed lookup per refresh (not per request) is an acceptable price. | Long-lived stateless JWT |
 | A8 | CI on Postgres, not SQLite | Tests that pass against a database the product does not run are not evidence. | Keep SQLite for speed |
+| A9 | Collapsed routes keep one rate-limit bucket per discriminator | Five submit handlers at 5/min were five budgets; one handler is one, so finishing Work Pulse would have spent FocusType's allowance. The limit bounds provider spend, which is per call to a specific instrument — raising it to 25 buys any one instrument a 5× to fix a bucketing problem. | Raise the limit on the collapsed route |
+| A10 | Schema enforcement in a `before_request` hook, not in `@document` | `@document` sits above `@bp.route`, which registers the object it is handed — a wrapper written there never runs. That exact ordering made every `@limiter.limit` in the old `app.py` inert. Resolving the spec from `request.endpoint` makes declaration order irrelevant. | A wrapping decorator |
+| A11 | Enforced request models ignore unknown keys rather than forbidding them | Handlers read fields with `data.get(...)` and ignore the rest, and live call sites send more than the schemas name. A 422 on a key the server was going to drop is the "worked yesterday" incident enforcement is supposed to prevent. Closed models still generate a strict client. | `extra="forbid"` on requests |
+| A12 | One route per collapsed group, but a response model per discriminator | The five assessments produce genuinely different payloads — `core` deliberately returns no dimension scores at all. A lowest-common-denominator envelope would have to be open enough to hold any of them, which makes it a document that promises nothing. | A shared result envelope |
 
 ## Appendix B — What already works and is not being changed
 

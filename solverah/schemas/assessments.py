@@ -13,14 +13,21 @@ reaches a client.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, RootModel
 
 from . import SolverahModel
 
 __all__ = [
+    "RESULT_RESPONSES",
+    "SUBMISSION_REQUESTS",
+    "SUBMISSION_RESPONSES",
+    "AssessmentCatalogueEntry",
+    "AssessmentCatalogueResponse",
     "AssessmentFormResponse",
+    "AssessmentSubmissionRequest",
+    "AssessmentSubmissionResponse",
     "AssessmentSubmitRequest",
     "AssessmentSubmitResponse",
     "FocusTypeResult",
@@ -166,3 +173,120 @@ class AssessmentSubmitResponse(SolverahModel):
     submission_id: str
     scoring_key_version: str
     dimensions_scored: int
+
+
+# ===========================================================================
+# Phase 1b -- POST /assessments/{kind}/submissions
+# ===========================================================================
+#
+# One route, five instruments, and **five request shapes and five response
+# shapes**.  Collapsing the handlers was the goal; collapsing the payloads was
+# never part of it, and would have been the expensive mistake.  A Work Pulse
+# result is a narrative and an archetype, a FocusType result is six dimension
+# scores and recommendations, a WPLL result is one sentence and a list of
+# locked section titles, and a ``core`` submission deliberately returns no
+# scores at all.  A lowest-common-denominator envelope over those five would
+# have to be open enough to hold any of them, which makes it a document that
+# promises nothing.
+#
+# So the union models below exist to *document* the route -- they emit
+# ``anyOf`` over the five real schemas, each of which stays exactly what it was
+# -- while the per-kind maps underneath are what the route actually enforces
+# and what tests assert against.  ``solverah.openapi.document``'s ``request_for``
+# is the hook that keeps those two facts consistent: the union is published, one
+# member is enforced, and enforcing the union instead would let a Work Pulse
+# body through on the FocusType path.
+
+
+class AssessmentSubmissionRequest(RootModel):
+    """Documentation-only union of the five submission bodies.
+
+    Do not validate against this. Union members here are open models, so
+    pydantic's smart matching will accept almost anything into the first one
+    that fits -- which is precisely why the route enforces
+    :data:`SUBMISSION_REQUESTS` per kind rather than this.
+    """
+
+    root: Union[
+        AssessmentSubmitRequest,
+        WorkPulseSubmitRequest,
+        WpllSubmitRequest,
+        FocusTypeSubmitRequest,
+        ManagerMatchSubmitRequest,
+    ]
+
+
+class AssessmentSubmissionResponse(RootModel):
+    """Documentation-only union of the five submission results.
+
+    Which member comes back is determined by ``{kind}`` in the path, not by
+    anything in the body, so this cannot be an OpenAPI discriminated union --
+    3.1 keys a discriminator off a property of the payload, and the
+    discriminator here is the URL. The union is the honest encoding of "one of
+    these five, and the path tells you which".
+    """
+
+    root: Union[
+        AssessmentSubmitResponse,
+        WorkPulseResult,
+        WpllResultResponse,
+        FocusTypeResult,
+        ManagerMatchResult,
+    ]
+
+
+#: ``{kind}`` -> the body that kind actually accepts. This is what is enforced.
+SUBMISSION_REQUESTS: Dict[str, type] = {
+    "core": AssessmentSubmitRequest,
+    "work_pulse": WorkPulseSubmitRequest,
+    "wpll": WpllSubmitRequest,
+    "focus_type": FocusTypeSubmitRequest,
+    "manager_match": ManagerMatchSubmitRequest,
+}
+
+#: ``{kind}`` -> the body that kind returns. Referenced by tests and by the
+#: operation description, so the mapping is stated once rather than in prose.
+SUBMISSION_RESPONSES: Dict[str, type] = {
+    "core": AssessmentSubmitResponse,
+    "work_pulse": WorkPulseResult,
+    "wpll": WpllResultResponse,
+    "focus_type": FocusTypeResult,
+    "manager_match": ManagerMatchResult,
+}
+
+#: ``{kind}`` -> the body ``GET /me/assessments/{kind}/result`` returns.
+#: ``core`` is absent by design: its dimension scores are withheld from the
+#: submit response so a retaking respondent has no gradient to optimise
+#: against, and a read endpoint would be the same disclosure through a
+#: different door.
+RESULT_RESPONSES: Dict[str, type] = {
+    "work_pulse": WorkPulseResult,
+    "focus_type": FocusTypeResult,
+    "manager_match": ManagerMatchResult,
+}
+
+
+class AssessmentCatalogueEntry(SolverahModel):
+    """One instrument, with the caller's completion state against it."""
+
+    kind: str = Field(description="Path segment: core, work_pulse, wpll, focus_type, manager_match.")
+    title: str
+    requires_auth: bool = Field(description="False only for the anonymous wpll teaser.")
+    scored_by: str = Field(
+        description='"rules" or "llm". An llm-scored instrument is unavailable when the provider is.'
+    )
+    has_form: bool = Field(description="Whether GET /assessments/{kind}/form serves items.")
+    has_result: bool = Field(
+        description="Whether GET /me/assessments/{kind}/result can re-read a submission."
+    )
+    completed: bool
+
+
+class AssessmentCatalogueResponse(SolverahModel):
+    """``GET /assessments`` -- the five instruments and where the caller stands.
+
+    Not paginated. The set is a fixed five that changes when code changes, not a
+    list that grows with data, and a cursor over it would be ceremony.
+    """
+
+    data: List[AssessmentCatalogueEntry] = Field(default_factory=list)

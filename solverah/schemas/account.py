@@ -1,8 +1,10 @@
 """Schemas for the account-rights endpoints (GDPR/CCPA export and deletion).
 
-The shapes below are the ones ``solverah/api/v1/account.py`` already returns.
-Nothing here changes them -- see the package docstring for why Phase 1a's
-schemas are descriptive rather than enforced.
+The shapes below are served by ``GET /api/v1/me/export`` and ``DELETE /api/v1/me``
+in ``solverah/api/v1/me.py``.  Phase 1b folded the account-lifecycle routes into
+the ``/me`` resource -- exporting and erasing an account are things done to the
+authenticated principal, and Part 5.2 puts them where everything else about it
+already lives.  Neither body changed.
 """
 
 from __future__ import annotations
@@ -102,9 +104,28 @@ class AccountExportResponse(SolverahModel):
 
 
 class AccountDeleteRequest(SolverahModel):
-    """Explicit confirmation, so a stray click cannot destroy an account."""
+    """Explicit confirmation, so a stray click cannot destroy an account.
 
-    confirm: str = Field(description='Must be the literal string "DELETE".')
+    ``confirm`` is declared **optional** even though the request is refused
+    without it, and that is deliberate rather than an oversight.
+
+    Making it required would let the enforced schema reject an absent value with
+    422 while the handler rejects a wrong value with 400 -- two refusal paths to
+    the same decision, on the one operation in the API that cannot be undone.
+    A safety interlock on an irreversible action wants exactly one path, owned by
+    the code that performs the action, so that it cannot be relaxed by a change
+    to a schema. Leaving it optional here means every non-``"DELETE"`` value --
+    absent, empty, misspelled, wrong type -- takes the same branch and gets the
+    same actionable message.
+
+    The field is still documented, so a generated client still knows to send it.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    confirm: Optional[str] = Field(
+        default=None, description='Must be the literal string "DELETE".'
+    )
 
 
 class AccountDeleteResponse(SolverahModel):

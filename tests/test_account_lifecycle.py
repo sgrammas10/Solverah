@@ -19,7 +19,7 @@ def _register_and_login(client, monkeypatch, email="lifecycle@example.com",
     monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
 
     client.post(
-        "/api/register",
+        "/api/v1/auth/register",
         json={"email": email, "password": password, "name": "Lifecycle User",
               "role": "job-seeker", "terms_accepted": True},
     )
@@ -34,7 +34,7 @@ def _register_and_login(client, monkeypatch, email="lifecycle@example.com",
         db.session.commit()
         user_id = user.id
 
-    resp = client.post("/api/login", json={"email": email, "password": password})
+    resp = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert resp.status_code == 200
     return resp.get_json()["csrfToken"], user_id
 
@@ -79,7 +79,7 @@ def test_export_returns_all_identified_data(client, monkeypatch):
     csrf, user_id = _register_and_login(client, monkeypatch)
     _seed_assessment_rows(user_id)
 
-    res = client.get("/api/account/export")
+    res = client.get("/api/v1/me/export")
     assert res.status_code == 200
     payload = res.get_json()
     assert payload["account"]["email"] == "lifecycle@example.com"
@@ -88,7 +88,7 @@ def test_export_returns_all_identified_data(client, monkeypatch):
 
 
 def test_export_requires_auth(client):
-    res = client.get("/api/account/export")
+    res = client.get("/api/v1/me/export")
     assert res.status_code == 401
 
 
@@ -97,7 +97,7 @@ def test_export_requires_auth(client):
 def test_delete_requires_explicit_confirmation(client, monkeypatch):
     csrf, user_id = _register_and_login(client, monkeypatch)
 
-    res = client.post("/api/account/delete", json={},
+    res = client.delete("/api/v1/me", json={},
                       headers={"X-CSRF-TOKEN": csrf})
     assert res.status_code == 400
 
@@ -113,7 +113,7 @@ def test_delete_tombstones_user_and_purges_pii(client, monkeypatch):
     csrf, user_id = _register_and_login(client, monkeypatch)
     _seed_assessment_rows(user_id)
 
-    res = client.post("/api/account/delete", json={"confirm": "DELETE"},
+    res = client.delete("/api/v1/me", json={"confirm": "DELETE"},
                       headers={"X-CSRF-TOKEN": csrf})
     assert res.status_code == 200
 
@@ -149,7 +149,7 @@ def test_delete_removes_dependent_personal_rows(client, monkeypatch):
                                   wpll_answers=[]))
         db.session.commit()
 
-    res = client.post("/api/account/delete", json={"confirm": "DELETE"},
+    res = client.delete("/api/v1/me", json={"confirm": "DELETE"},
                       headers={"X-CSRF-TOKEN": csrf})
     assert res.status_code == 200
 
@@ -161,9 +161,9 @@ def test_delete_removes_dependent_personal_rows(client, monkeypatch):
 def test_deleted_account_cannot_login(client, monkeypatch):
     csrf, user_id = _register_and_login(client, monkeypatch)
 
-    client.post("/api/account/delete", json={"confirm": "DELETE"},
+    client.delete("/api/v1/me", json={"confirm": "DELETE"},
                 headers={"X-CSRF-TOKEN": csrf})
 
-    res = client.post("/api/login", json={
+    res = client.post("/api/v1/auth/login", json={
         "email": "lifecycle@example.com", "password": "Strongpass1!"})
     assert res.status_code in (400, 401, 404)

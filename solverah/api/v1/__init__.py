@@ -1,19 +1,18 @@
 """v1 blueprint registry.
 
-Every handler in the application is reachable at two paths during the Phase 1
-cutover: the canonical ``/api/v1/...`` and the legacy ``/api/...`` the deployed
-frontend still calls.  Only one of them is declared here.  Blueprints below
-carry **prefix-free** rules -- ``/login``, not ``/api/login`` -- and
-``register_v1_blueprints`` mounts the whole set under ``/api/v1``.  The factory
-then calls :func:`solverah.factory.register_legacy_aliases`, which adds the
-unversioned rule for each one against the same endpoint.
+Every route in the application is declared here, mounted under ``/api/v1`` by
+:func:`register_v1_blueprints`.  Blueprints carry **prefix-free** rules --
+``/auth/login``, not ``/api/v1/auth/login`` -- so the version lives in exactly
+one place and a future ``/api/v2`` is a second mount rather than a rewrite of
+every module.
 
-That is why Phase 1a adds *only* the prefix and renames nothing: a rule declared
-as ``/profile/career-status`` becomes ``/api/v1/profile/career-status`` and
-``/api/profile/career-status``, and the two stay in lockstep by construction.
-The Part 5.2 renaming (``/me/career-status``, the collapse of five assessment
-submit handlers into one, cursor pagination) is Phase 1b, and it is a separate
-change precisely because it is the part that alters request and response shapes.
+Phase 1a additionally bound each rule to an unversioned ``/api/...`` alias, on
+the *same endpoint*, so the deployed frontend kept working while the versioned
+paths became canonical.  That mattered for two reasons worth remembering even
+though the aliases are gone: a redirect on a CORS-preflighted POST is not
+handled uniformly across browsers, and Flask-Limiter keys its storage on the
+endpoint name, so a second *endpoint* would have given every auth limit a second
+independent bucket.  Phase 1b cut the frontend over and removed them.
 
 Adding a resource module:
 
@@ -31,13 +30,12 @@ from typing import List, Tuple
 
 from flask import Blueprint, Flask
 
-from .account import account_bp
 from .assessments import assessments_bp
 from .auth import auth_bp
 from .companies import companies_bp
 from .intake import intake_bp
 from .intelligence import intelligence_bp
-from .profiles import profiles_bp
+from .me import me_bp
 
 __all__ = ["BLUEPRINTS", "register_v1_blueprints"]
 
@@ -45,12 +43,11 @@ __all__ = ["BLUEPRINTS", "register_v1_blueprints"]
 #: resource; see the module docstring.
 BLUEPRINTS: Tuple[Blueprint, ...] = (
     auth_bp,
-    profiles_bp,
+    me_bp,
     intake_bp,
     assessments_bp,
     companies_bp,
     intelligence_bp,
-    account_bp,
 )
 
 
