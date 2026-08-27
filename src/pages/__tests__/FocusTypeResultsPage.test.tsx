@@ -99,7 +99,6 @@ describe("FocusTypeResultsPage - result from the profile query", () => {
 
 describe("FocusTypeResultsPage - navigation guard", () => {
   it("redirects to /focus-type when no result and no cached profile", () => {
-    mocks.user = null;
     renderWithState(undefined);
     expect(mocks.navigate).toHaveBeenCalledWith("/focus-type", { replace: true });
   });

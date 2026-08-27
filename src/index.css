@@ -7,3 +7,42 @@
     @apply bg-cream-base text-ink-primary;
   }
 }
+
+@layer utilities {
+  /*
+   * Deferred fade-in, used by the route-level Suspense fallback.
+   *
+   * Starts fully transparent and stays that way for 240ms, so a chunk that
+   * arrives quickly never paints a skeleton at all. Only a genuinely slow
+   * download gets a placeholder, which is the opposite of the usual failure
+   * mode where the fallback flickers on every navigation.
+   *
+   * Defined here rather than in tailwind.config.js so the whole behaviour --
+   * keyframe, delay and reduced-motion handling -- reads in one place, and so
+   * the component that depends on it does not depend on theme config too.
+   */
+  @keyframes deferred-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-deferred-fade-in {
+    opacity: 0;
+    animation: deferred-fade-in 200ms ease-out 240ms forwards;
+  }
+
+  /*
+   * Reduced motion still needs the delay -- the point of it is to avoid a
+   * flash, not to decorate -- so the animation is kept and only the fade is
+   * collapsed to an instant step.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-deferred-fade-in {
+      animation: deferred-fade-in 1ms linear 240ms forwards;
+    }
+  }
+}

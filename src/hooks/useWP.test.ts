@@ -84,6 +84,7 @@ describe("useWP", () => {
         narrative: "Test narrative",
         emerging_signals: [],
         archetype: "Thinker",
+        archetype_description: "Test archetype description",
       });
     });
     act(() => {

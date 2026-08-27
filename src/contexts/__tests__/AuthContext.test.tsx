@@ -315,6 +315,12 @@ describe("AuthProvider - optimistic updates", () => {
       ok: true,
       data: sessionBody(),
       profile: { firstName: "Ada" },
+      // The app's client, not the bare one: `mountAuth`'s default sets
+      // gcTime 0, which collects the seeded entry on the next macrotask
+      // because nothing here observes it. The `await` inside mountAuth is
+      // that macrotask, so the assertion below raced the collector and read
+      // `undefined`. See the note on the `client` option in mountAuth.
+      client: createQueryClient(),
     });
 
     act(() => { ctx.updateProfileData({ lastName: "Lovelace" } as any); });
@@ -422,6 +428,9 @@ describe("AuthProvider - logout drops the cached profile", () => {
       ok: true,
       data: sessionBody(),
       profile: { firstName: "Ada" },
+      // Same reason as above: gcTime 0 would collect the seeded document
+      // before this test could assert that logout is what removed it.
+      client: createQueryClient(),
     });
     expect(cachedProfile()).toEqual({ firstName: "Ada" });
 

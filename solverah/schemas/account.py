@@ -59,7 +59,13 @@ class ExportedIntakeSubmission(SolverahModel):
 
 
 class ExportedLegacyQuiz(SolverahModel):
-    """The pre-assessment-table quiz payloads held on ``UserIntake``."""
+    """The two Work Pulse instruments' payloads, under their original key.
+
+    They were columns on ``UserIntake`` and are two ``assessment_submissions``
+    rows since Phase 2d. The block keeps its name and its five keys: a
+    subject-access response is not a place to rename things to match the storage
+    underneath, and ``legacy_quiz`` was named to be independent of it.
+    """
 
     model_config = ConfigDict(extra="allow")
 

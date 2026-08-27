@@ -18,7 +18,6 @@ from typing import List
 
 from sqlalchemy import func
 
-from solverah.repositories import profile_repository
 from model import (
     IntakeSubmission,
     JobRecommendation,
@@ -27,6 +26,7 @@ from model import (
     UserIntake,
     db,
 )
+from solverah.repositories import assessment_repository, profile_repository
 
 __all__ = [
     "delete_personal_rows",
@@ -73,6 +73,16 @@ def delete_personal_rows(user_id: int, intakes: List[IntakeSubmission]) -> None:
     UserIntake.query.filter_by(user_id=user_id).delete()
     JobRecommendation.query.filter_by(user_id=user_id).delete()
     ResumeParseCorrection.query.filter_by(user_id=user_id).delete()
+    # Assessment submissions hold narratives, archetypes and raw answers, so
+    # they are in this function rather than in `tombstone_user`. An explicit
+    # delete and not the `ON DELETE CASCADE` on `user_id`: deletion tombstones
+    # the user row instead of removing it, so the cascade never fires.
+    #
+    # This does NOT reach the core assessment's answers or dimension scores.
+    # Those survive de-identified -- a decided reconciliation, asserted in
+    # tests/test_account_lifecycle.py -- and they are behind D-01's doorway,
+    # which is exactly why the submission row it is joined to holds none of them.
+    assessment_repository.delete_for_user(user_id)
 
 
 def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_password: str) -> None:

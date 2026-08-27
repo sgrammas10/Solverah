@@ -1142,7 +1142,7 @@
       },
       "ExportedLegacyQuiz": {
         "additionalProperties": true,
-        "description": "The pre-assessment-table quiz payloads held on ``UserIntake``.",
+        "description": "The two Work Pulse instruments' payloads, under their original key.\n\nThey were columns on ``UserIntake`` and are two ``assessment_submissions``\nrows since Phase 2d. The block keeps its name and its five keys: a\nsubject-access response is not a place to rename things to match the storage\nunderneath, and ``legacy_quiz`` was named to be independent of it.",
         "properties": {
           "wpl_answers": {
             "anyOf": [
@@ -3220,7 +3220,7 @@
       },
       "WorkPulseResult": {
         "additionalProperties": true,
-        "description": "Work Pulse narrative result.\n\nPersisted to ``user_intake.wpl_result`` and returned verbatim by\n``GET /work-pulse/results``.",
+        "description": "Work Pulse narrative result.\n\nPersisted to ``assessment_submissions.result`` since Phase 2d --\n``user_intake.wpl_result`` before it -- and returned verbatim by\n``GET /me/assessments/work_pulse/result``.",
         "properties": {
           "archetype": {
             "title": "Archetype",

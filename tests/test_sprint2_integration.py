@@ -143,13 +143,18 @@ def test_sprint2_full_happy_path(client, monkeypatch):
     assert flags_final["wpl_completed"] is True
     assert flags_final["wpll_completed"] is True
 
-    # Confirm intake row holds full data for both phases
-    from model import UserIntake
+    # Confirm both phases are on record. Two rows in one table since Phase 2d;
+    # two column families on `user_intake` before it. This is the assertion the
+    # unification is for -- the same query answers it for either instrument.
+    from model import AssessmentSubmission
     with app.app_context():
         user = User.query.filter_by(email=email).first()
-        intake = UserIntake.query.filter_by(user_id=user.id).first()
-        assert intake is not None
-        assert intake.wpll_answers == WPLL_ANSWERS
-        assert intake.wpl_answers == WP_ANSWERS
-        assert intake.wpll_completed_at is not None
-        assert intake.wpl_completed_at is not None
+        rows = {
+            row.kind: row
+            for row in AssessmentSubmission.query.filter_by(user_id=user.id).all()
+        }
+        assert set(rows) == {"wpll", "work_pulse"}
+        assert rows["wpll"].answers == WPLL_ANSWERS
+        assert rows["work_pulse"].answers == WP_ANSWERS
+        assert rows["wpll"].completed_at is not None
+        assert rows["work_pulse"].completed_at is not None

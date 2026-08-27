@@ -55,3 +55,6 @@ htmlcov/
 # Database snapshots taken by `make db-snapshot` (docs/RUNBOOK_DATABASE_ROLLBACK.md).
 # These are full copies of whatever DATABASE_URL pointed at, production included.
 backups/
+
+# TypeScript incremental build info (`tsc -b` drops these at the repo root)
+*.tsbuildinfo

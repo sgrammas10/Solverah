@@ -46,7 +46,7 @@ from flask_jwt_extended import (
 from solverah.domain.validation import is_valid_email
 from solverah.extensions import bcrypt, limiter
 from solverah.openapi import document
-from solverah.repositories import user_repository
+from solverah.repositories import assessment_repository, user_repository
 from solverah.schemas import LegacyError
 from solverah.schemas.auth import (
     ConfirmEmailRequest,
@@ -246,6 +246,7 @@ def session():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
+    finished = assessment_repository.completed_kinds(user.id)
     return jsonify(
         {
             "user": {
@@ -257,8 +258,8 @@ def session():
             "csrf_token": get_jwt().get("csrf"),
             "flags": {
                 "email_confirmed": bool(getattr(user, "email_confirmed", False)),
-                "wpl_completed": bool(user.intake and user.intake.wpl_completed_at),
-                "wpll_completed": bool(user.intake and user.intake.wpll_completed_at),
+                "wpl_completed": "work_pulse" in finished,
+                "wpll_completed": "wpll" in finished,
                 "wp_v2_completed": _wp_v2_completed(user.id),
             },
         }

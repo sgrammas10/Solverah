@@ -108,6 +108,25 @@ SCALAR_COLUMNS: Tuple[Tuple[str, str], ...] = (
 #: nobody noticed were empty. See the module docstring.
 UNPROMOTED_COLUMNS = ("headline", "location_state", "location_city", "portfolio_url")
 
+#: Document keys that are **not** stored in the profile tables at all, and where
+#: they come from instead: ``{assessment kind: document key}``.
+#:
+#: FocusType and ManagerMatch results were keys inside ``profile_data``, and
+#: Phase 2a carried them into ``profiles.extra`` along with everything else that
+#: had no column. Phase 2d moved them to ``assessment_submissions``, where the
+#: other three instruments' results live -- but they are still on the wire in
+#: ``GET /me/profile`` and ``GET /me/export``, and ``intelligence_service`` still
+#: reads them out of the document. So the document keeps assembling them; only
+#: the row they are read from changed.
+#:
+#: Named here rather than in the assessment service because this is a fact about
+#: the *document's* shape, and the document is what has to stay identical.
+#: ``profile_repository.load_document`` is the one place that acts on it.
+ASSESSMENT_RESULT_KEYS = {
+    "focus_type": "focus_type_result",
+    "manager_match": "manager_match_result",
+}
+
 
 # ---------------------------------------------------------------------------
 # Row shapes -- plain data, no ORM, no database types beyond `date`

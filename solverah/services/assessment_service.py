@@ -1,25 +1,28 @@
 """The five assessment instruments: Work Pulse, WPLL, FocusType, ManagerMatch,
 and the current 24-item person-side culture assessment.
 
-Part 5.2 collapses the five near-identical submit handlers into one
-``POST /assessments/{kind}/submissions`` with the differences living in
-``assessment_forms.definition`` and a scoring strategy per kind.  That is Phase
-1b.  What this module does now is put the five side by side in one file, which
-is what makes the shape of that collapse visible: three of them are
-score-then-narrate-then-store-in-a-blob and differ only in which scorer, which
-prompt, and which key.
+Phase 1b collapsed the five near-identical submit handlers into one
+``POST /assessments/{kind}/submissions``.  Phase 2d finished the other half:
+the five now write one storage shape, ``assessment_submissions``, instead of the
+four places they used to live in -- two column families on ``user_intake``, two
+keys inside the profile document, and the person-side tables.
 
 Deliberately unchanged:
 
 * The **two-commit** sequence in :func:`submit_work_pulse`.  Answers and the
-  completion timestamp are committed first, then the narrative blob separately,
-  so that a failure writing ``wpl_result`` -- a column that has been missing on a
-  deployment mid-migration -- still leaves the user marked complete rather than
-  losing a 12-question submission.
+  completion timestamp are committed first, then the narrative separately, so
+  that a failure writing the result still leaves the user marked complete rather
+  than losing a 12-question submission.  It reads better against the new schema
+  than it did against the old one: commit 1 leaves the row ``complete``, commit 2
+  makes it ``scored``, which is exactly what Part 4.4's ``status`` column is for.
 * Scoring the person-side assessment returns the submission id and the key
   version but **not the six dimension scores**.  Handing them back gives a
   retaking respondent a gradient to optimise against, which teaches the
   item-to-dimension mapping the shuffle and interleave exist to hide.
+* Persistence for ``core`` still goes through ``assessment_store`` and nothing
+  else (D-01).  Its submission row is written there, in the same transaction as
+  the raw responses, and carries no result and no answers.  Unifying where a
+  sitting is *recorded* was not licence to widen what a sitting *exposes*.
 """
 
 from __future__ import annotations
@@ -32,7 +35,11 @@ from typing import Any, Dict, List, Optional
 from model import User, db
 from solverah.domain import auth as auth_domain
 from solverah.infra import llm
-from solverah.repositories import assessment_repository, profile_repository
+from solverah.repositories import (
+    assessment_repository,
+    intake_repository,
+    profile_repository,
+)
 from solverah.services import assessment_prompts, path_cache
 
 __all__ = [
@@ -48,6 +55,7 @@ __all__ = [
     "MANAGER_MATCH_ANSWER_COUNT",
     "WORK_PULSE_ANSWER_COUNT",
     "WPLL_MAX_ANSWERS",
+    "completed_kinds",
     "get_manager_match_result",
     "get_work_pulse_result",
     "submit_focus_type",
@@ -60,9 +68,20 @@ WORK_PULSE_ANSWER_COUNT = 12
 MANAGER_MATCH_ANSWER_COUNT = 15
 WPLL_MAX_ANSWERS = 5
 
-#: Result keys inside the profile document (``profiles.extra`` since 2a).
-FOCUS_TYPE_KEY = "focus_type_result"
-MANAGER_MATCH_KEY = "manager_match_result"
+#: The form version the four client-rendered instruments submit against.
+#:
+#: A placeholder, and named as one. Their questions ship in the client bundle,
+#: so there is no server-side definition to version and nothing that could
+#: disagree about which one a respondent saw. It exists because
+#: ``assessment_submissions.form_version`` is part of the composite foreign key
+#: into ``assessment_forms`` -- the constraint that stops the version string
+#: being free text -- and a nullable column there would make the constraint
+#: unenforceable for four instruments out of five. It becomes a real version the
+#: moment those definitions move server-side, which is Phase 4.
+#:
+#: ``core`` does not use this. Its version is the item file's own
+#: ``form_version``, which is a real one.
+CLIENT_FORM_VERSION = "v1"
 
 
 @dataclass
@@ -157,16 +176,29 @@ def submit_work_pulse(user: User, answers: Any, logger) -> AssessmentResult:
     if not isinstance(answers, list) or len(answers) != WORK_PULSE_ANSWER_COUNT:
         return _error(400, "answers must be a list of exactly 12 items")
 
-    # Load or create the intake row before the LLM call, so a concurrent
-    # duplicate collides cheaply rather than after a paid round trip.
-    intake = assessment_repository.get_or_create_user_intake(user.id)
+    # Open the submission row before the LLM call, so a concurrent duplicate
+    # collides cheaply -- on `uq_assessment_submissions_current` -- rather than
+    # after a paid round trip. That is the same reason the intake row used to be
+    # created here; only the constraint doing the work has changed.
+    submission = assessment_repository.open_current(
+        user.id, "work_pulse", CLIENT_FORM_VERSION
+    )
+
+    # Context for the narrative, from the two places it has always come from:
+    # the claimed WPLL sitting (now a submission of its own) and the intake
+    # row's statement selections (which are intake data, not an assessment, and
+    # stay where they are).
+    wpll = assessment_repository.current_submission(user.id, "wpll")
+    intake = intake_repository.find_user_intake(user.id)
 
     try:
         result = _chat_json(
             assessment_prompts.build_wp_narrative_prompt(
                 answers,
-                wpll_answers=intake.wpll_answers or None,
-                selected_statement_ids=intake.selected_statement_ids or None,
+                wpll_answers=(wpll.answers if wpll else None) or None,
+                selected_statement_ids=(
+                    intake.selected_statement_ids if intake else None
+                ) or None,
             ),
             "OPENAI_WP_MODEL",
             "gpt-4o-mini",
@@ -179,13 +211,13 @@ def submit_work_pulse(user: User, answers: Any, logger) -> AssessmentResult:
     if not all(key in result for key in required):
         return _error(500, "Malformed response from model")
 
-    # Commit 1: persist answers and mark the user as WP-complete.
-    # This must succeed before we attempt to store the narrative so that
-    # wpl_completed_at is always written even if the wpl_result column is
-    # missing (e.g. a pending migration) or the second commit fails for any
-    # other reason.
-    intake.wpl_answers = answers
-    intake.wpl_completed_at = auth_domain.utcnow()
+    # Commit 1: persist answers and mark the sitting complete. This must
+    # succeed before the narrative is attempted, so that completion is always
+    # recorded even if the second commit fails for any reason -- losing a
+    # 12-question submission is the outcome this ordering exists to prevent.
+    submission.answers = answers
+    submission.completed_at = auth_domain.utcnow()
+    submission.status = "complete"
 
     preferences = derive_culture_preferences(answers)
     profile_repository.update_document(
@@ -194,35 +226,57 @@ def submit_work_pulse(user: User, answers: Any, logger) -> AssessmentResult:
 
     db.session.commit()
 
-    # Commit 2: store the full narrative/result blob (best-effort).
-    # If this fails (e.g. wpl_result column not yet migrated) the user is
-    # still marked complete; they will see an error on the results page and
-    # can retry narrative generation after running flask db upgrade.
+    # Commit 2: store the narrative and the full result (best-effort). If this
+    # fails the user is still complete; they see an error on the results page
+    # and can resubmit to regenerate the narrative. `get_work_pulse_result`
+    # answers 422 for exactly this state, which is what makes it actionable.
     try:
-        intake.wpl_narrative = result["narrative"]
-        intake.wpl_result = result
+        submission.narrative = result["narrative"]
+        submission.result = result
+        submission.status = "scored"
+        submission.scored_at = auth_domain.utcnow()
         db.session.commit()
         path_cache.invalidate(user.id)
     except Exception:  # noqa: BLE001 -- see the comment above
         db.session.rollback()
-        logger.exception("Work Pulse: failed to persist narrative/result blob")
+        logger.exception("Work Pulse: failed to persist narrative/result")
 
     return AssessmentResult(status=200, body=result)
 
 
 def get_work_pulse_result(user: User) -> AssessmentResult:
     """Return the stored Work Pulse narrative, for rehydrating a fresh session."""
-    intake = assessment_repository.find_user_intake(user.id)
-    if not intake or not intake.wpl_completed_at:
+    submission = assessment_repository.current_submission(user.id, "work_pulse")
+    if submission is None or submission.completed_at is None:
         return _error(404, "No Work Pulse results found")
-    if not intake.wpl_result:
-        # Answers saved but narrative blob missing (e.g. wpl_result column not
-        # yet migrated). Tell the client to resubmit so narrative can be
-        # regenerated -- 422 rather than 404, because the distinction is
-        # actionable: one means "take the assessment", the other "try again".
+    if not submission.result:
+        # Complete but not scored: the answers landed and the second commit did
+        # not. Tell the client to resubmit so the narrative can be regenerated --
+        # 422 rather than 404, because the distinction is actionable: one means
+        # "take the assessment", the other "try again".
         return _error(422, "Work Pulse results pending — please resubmit")
 
-    return AssessmentResult(status=200, body=intake.wpl_result)
+    return AssessmentResult(status=200, body=submission.result)
+
+
+def _store(user: User, kind: str, *, answers, result, narrative=None) -> None:
+    """Record a completed, scored sitting of one of the deterministic-or-narrated
+    instruments. Does not commit -- the caller owns the transaction.
+
+    Only for the instruments whose whole result arrives in one request.
+    ``work_pulse`` does not use it, because its two-commit sequence needs the row
+    between the two commits; ``core`` does not, because its persistence is behind
+    ``assessment_store``; ``wpll`` does not, because its stored state arrives from
+    an anonymous session being claimed rather than from a submission.
+    """
+    now = auth_domain.utcnow()
+    submission = assessment_repository.open_current(user.id, kind, CLIENT_FORM_VERSION)
+    submission.answers = answers
+    submission.result = result
+    submission.narrative = narrative
+    submission.status = "scored"
+    submission.completed_at = now
+    submission.scored_at = now
 
 
 # ---------------------------------------------------------------------------
@@ -248,7 +302,7 @@ def submit_focus_type(user: User, data: Dict[str, Any]) -> AssessmentResult:
         data["scene_5"],
     )
 
-    assessment_repository.save_profile_result(user, FOCUS_TYPE_KEY, result)
+    _store(user, "focus_type", answers=data, result=result)
     db.session.commit()
     path_cache.invalidate(user.id)
 
@@ -289,7 +343,13 @@ def submit_manager_match(user: User, answers: Any, logger) -> AssessmentResult:
 
     result = {**scoring, **llm_result}
 
-    assessment_repository.save_profile_result(user, MANAGER_MATCH_KEY, result)
+    _store(
+        user,
+        "manager_match",
+        answers=answers,
+        result=result,
+        narrative=llm_result["narrative"],
+    )
     db.session.commit()
     path_cache.invalidate(user.id)
 
@@ -298,10 +358,10 @@ def submit_manager_match(user: User, answers: Any, logger) -> AssessmentResult:
 
 def get_manager_match_result(user: User) -> AssessmentResult:
     """Return the stored ManagerMatch result."""
-    result = assessment_repository.get_profile_result(user, MANAGER_MATCH_KEY)
-    if result is None:
+    submission = assessment_repository.current_submission(user.id, "manager_match")
+    if submission is None or submission.result is None:
         return _error(404, "No ManagerMatch result found")
-    return AssessmentResult(status=200, body=result)
+    return AssessmentResult(status=200, body=submission.result)
 
 
 def submit_person_side(user: User, responses: Any) -> AssessmentResult:
@@ -386,13 +446,6 @@ def person_side_form(user: User, logger) -> AssessmentResult:
 # respondent a gradient to optimise against and teaches the item-to-dimension
 # mapping the shuffle and interleave exist to hide. A "uniform" result envelope
 # with a ``scores`` field would have quietly undone that.
-
-#: Result keys the two blob-stored instruments write to.
-_RESULT_KEYS = {
-    "focus_type": FOCUS_TYPE_KEY,
-    "manager_match": MANAGER_MATCH_KEY,
-}
-
 
 @dataclass(frozen=True)
 class AssessmentKind:
@@ -482,10 +535,10 @@ def result(kind: AssessmentKind, user: User) -> AssessmentResult:
     if kind.key == "manager_match":
         return get_manager_match_result(user)
     if kind.key == "focus_type":
-        stored = assessment_repository.get_profile_result(user, FOCUS_TYPE_KEY)
-        if stored is None:
+        submission = assessment_repository.current_submission(user.id, "focus_type")
+        if submission is None or submission.result is None:
             return _error(404, "No FocusType result found")
-        return AssessmentResult(status=200, body=stored)
+        return AssessmentResult(status=200, body=submission.result)
     return _error(404, "%s does not store a retrievable result" % kind.key)
 
 
@@ -497,6 +550,7 @@ def catalogue(user: User) -> AssessmentResult:
     three unrelated places -- ``user_intake`` timestamps, two blob keys, and the
     person-side tables.
     """
+    finished = completed_kinds(user)
     return AssessmentResult(
         status=200,
         body={
@@ -508,7 +562,7 @@ def catalogue(user: User) -> AssessmentResult:
                     "scored_by": kind.scored_by,
                     "has_form": kind.has_form,
                     "has_result": kind.has_result,
-                    "completed": _is_completed(kind, user),
+                    "completed": kind.key in finished,
                 }
                 for kind in ASSESSMENT_KINDS
             ]
@@ -516,27 +570,30 @@ def catalogue(user: User) -> AssessmentResult:
     )
 
 
-def _is_completed(kind: AssessmentKind, user: User) -> bool:
-    """Whether *user* has finished *kind*.
+def completed_kinds(user: User) -> set:
+    """Every instrument key *user* has finished.
 
-    Four storage locations for five instruments, which is the schema problem
-    Part 4.4's ``assessment_*`` unification exists to end. Reading them in one
-    place is as far as Phase 1b goes.
+    Phase 1b's version of this read four storage locations, one instrument at a
+    time, and the docstring said so. It is two reads now and they are the two
+    that genuinely differ:
+
+    * ``core``'s completion is keyed to the *current* ``scoring_key_version``, so
+      a sitting of a superseded instrument is correctly not completion. That rule
+      lives in ``assessment_store`` behind D-01's doorway and cannot be answered
+      by a query here.
+    * Everything else is one ``SELECT DISTINCT kind`` over the shared table.
+
+    Neither read is allowed to fail a page load. ``core``'s is wrapped for the
+    same reason it always was: the flag gates a banner, and a wrong ``False``
+    re-shows a prompt to someone who already finished -- visible and recoverable
+    -- while an exception is a broken dashboard.
     """
-    if kind.key == "core":
-        from assessment_store import has_completed_assessment
+    from assessment_store import has_completed_assessment
 
-        try:
-            return bool(has_completed_assessment(user.id))
-        except Exception:  # noqa: BLE001 -- a catalogue must not fail a page load
-            return False
-
-    if kind.key in _RESULT_KEYS:
-        return assessment_repository.get_profile_result(user, _RESULT_KEYS[kind.key]) is not None
-
-    intake = assessment_repository.find_user_intake(user.id)
-    if intake is None:
-        return False
-    if kind.key == "work_pulse":
-        return intake.wpl_completed_at is not None
-    return intake.wpll_completed_at is not None
+    finished = assessment_repository.completed_kinds(user.id)
+    try:
+        if has_completed_assessment(user.id):
+            finished.add("core")
+    except Exception:  # noqa: BLE001 -- a catalogue must not fail a page load
+        pass
+    return finished

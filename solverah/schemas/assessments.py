@@ -78,8 +78,9 @@ class WorkPulseSubmitRequest(SolverahModel):
 class WorkPulseResult(SolverahModel):
     """Work Pulse narrative result.
 
-    Persisted to ``user_intake.wpl_result`` and returned verbatim by
-    ``GET /work-pulse/results``.
+    Persisted to ``assessment_submissions.result`` since Phase 2d --
+    ``user_intake.wpl_result`` before it -- and returned verbatim by
+    ``GET /me/assessments/work_pulse/result``.
     """
 
     model_config = ConfigDict(extra="allow")

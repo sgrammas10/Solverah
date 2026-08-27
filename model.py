@@ -346,6 +346,194 @@ class IntakeSubmission(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Assessments, unified (Part 4.4, Phase 2d)
+# ---------------------------------------------------------------------------
+# Five products used to be stored in four places: `user_intake.wpl_*` and
+# `user_intake.wpll_*` for the two Work Pulse instruments, two keys inside the
+# profile document for FocusType and ManagerMatch, and the two person-side tables
+# below for the core assessment. `GET /assessments` had to read three of them to
+# answer one question. These two tables are the one shape all five share.
+
+
+#: The `{kind}` values `assessment_forms` and `assessment_submissions` accept.
+#: The same five keys `solverah.services.assessment_service.ASSESSMENT_KINDS`
+#: registers -- kept here as well because the check constraint needs a literal
+#: and importing the service layer from `model` would invert the layering.
+ASSESSMENT_KIND_KEYS = ("core", "work_pulse", "wpll", "focus_type", "manager_match")
+
+#: `in_progress` is declared by Part 4.4 and is never written today: every
+#: instrument arrives complete in one request. It stays in the constraint rather
+#: than being trimmed to what is currently reachable, because partial saves are
+#: the reason the column exists and narrowing it now would make adding them a
+#: migration.
+ASSESSMENT_STATUSES = ("in_progress", "complete", "scored")
+
+
+class AssessmentForm(db.Model):
+    """One published version of one instrument.
+
+    What makes this more than a lookup table is the composite foreign key from
+    `assessment_submissions (kind, form_version)`. A submission cannot name a
+    version that was never registered, which is the property that stops the
+    version string being free text that drifts per instrument.
+
+    `definition` holds only what the *database* is the source of truth for. For
+    `core` that is the item-file identity the server serves the form from; for
+    the other four it is `{"source": "client"}`, because the questions genuinely
+    ship in the client bundle and writing a copy here would create a second
+    source of truth for something no server code reads. Moving them server-side
+    is Phase 4 work, and the honest record until then is that they are not here.
+
+    `published_at` is null for a version registered on first use rather than
+    published deliberately -- see :meth:`register`.
+    """
+
+    __tablename__ = "assessment_forms"
+
+    id = db.Column(db.BigInteger, db.Identity(always=True), primary_key=True)
+    kind = db.Column(db.Text, nullable=False)
+    version = db.Column(db.Text, nullable=False)
+    definition = db.Column(JSONB, nullable=False, default=dict)
+    published_at = db.Column(db.DateTime(timezone=True))
+
+    __table_args__ = (
+        db.UniqueConstraint("kind", "version", name="uq_assessment_forms_kind_version"),
+        db.CheckConstraint(
+            "kind IN %s" % (ASSESSMENT_KIND_KEYS,), name="ck_assessment_forms_kind"
+        ),
+    )
+
+    @classmethod
+    def register(cls, kind: str, version: str) -> None:
+        """Record that (*kind*, *version*) exists, if it does not already.
+
+        Called on the write path before a submission names a version, so the
+        composite foreign key can be enforced without a deploy step between "the
+        item file changed" and "someone submitted against it". Idempotent by
+        `ON CONFLICT DO NOTHING` rather than by a SELECT, because two respondents
+        can be the first to sit a new version at the same moment.
+
+        A row created here has a null `published_at` and an empty `definition`.
+        That is deliberate and readable: it says the version was observed, not
+        that anyone published a definition for it. The five rows the Phase 2d
+        migration seeds carry both.
+
+        Does not commit -- the caller owns the transaction, as everywhere else on
+        this write path.
+        """
+        from sqlalchemy.dialects.postgresql import insert as _pg_insert
+
+        db.session.execute(
+            _pg_insert(cls.__table__)
+            .values(kind=kind, version=version, definition={})
+            .on_conflict_do_nothing(index_elements=["kind", "version"])
+        )
+
+
+class AssessmentSubmission(db.Model):
+    """One sitting of one instrument, for one user.
+
+    RETAKE SEMANTICS DIFFER BY KIND, AND THE SCHEMA SAYS SO
+    -------------------------------------------------------
+    `uq_assessment_submissions_current` is a **partial** unique index over
+    (user_id, kind) `WHERE kind <> 'core'`. The four non-core instruments have
+    exactly one current sitting each and a retake updates it in place, which is
+    what they did before this table existed -- `user_intake` is one row per user,
+    and a profile-document key holds one value. Making that a constraint rather
+    than a convention is what stops a concurrent double-submit leaving two rows
+    that every later read has to choose between.
+
+    `core` is excluded because its sittings are append-only: a retake writes a
+    fresh set of `assessment_response` rows under a new id and the old sitting
+    stays readable forever, which is what makes a score re-derivable when the
+    scoring key changes.
+
+    WHAT A `core` ROW DELIBERATELY DOES NOT HOLD (D-01)
+    ---------------------------------------------------
+    `result` and `answers` are both null for `core`, always, and a check
+    constraint says so rather than a convention. Its answers live in
+    `assessment_response` and its scores in `person_dimension_score`, reachable
+    only through `assessment_store` -- and unifying the *submission* record was
+    not licence to widen that doorway. A core row carries a kind, a version, a
+    status and three timestamps, and there is nothing in it from which an
+    employer-facing reader could learn an individual's answers or dimension
+    scores. `tests/test_employer_visibility.py` guards the two tables; the null
+    columns are what keep this one uninteresting to it.
+
+    `answers` IS AN ADDITION TO PART 4.4, AND WHY
+    ---------------------------------------------
+    Part 4.4 has no answers column, because it puts raw per-item answers in
+    `assessment_responses` -- a table partitioned by `answered_at`, which is
+    Phase 2 item 5 and its own phase. The four non-core instruments still need
+    their raw answers kept: the Work Pulse narrative prompt reads the claimed
+    WPLL answers, `/me/export` returns both sets, and the culture-preference
+    backfill re-derives from the Work Pulse answers. Until item 5 lands they live
+    here, as the payload the client sent. The alternative -- decomposing them
+    into `assessment_response` now -- would put four instruments' answers behind
+    the D-01 doorway and force every one of those readers through it, which is
+    the surface widening this phase is explicitly not allowed to do.
+    """
+
+    __tablename__ = "assessment_submissions"
+
+    id = db.Column(db.BigInteger, db.Identity(always=True), primary_key=True)
+    public_id = db.Column(
+        UUID(as_uuid=True), nullable=False, server_default=db.text("uuidv7()")
+    )
+    user_id = db.Column(
+        db.BigInteger,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    kind = db.Column(db.Text, nullable=False)
+    form_version = db.Column(db.Text, nullable=False)
+    status = db.Column(db.Text, nullable=False, default="in_progress")
+    #: The instrument's payload, returned verbatim by
+    #: `GET /me/assessments/{kind}/result`. Null for `core` (see the class
+    #: docstring) and for `wpll`, which stores a claimed anonymous session and
+    #: has no result endpoint.
+    result = db.Column(JSONB)
+    narrative = db.Column(db.Text)
+    #: What the respondent sent. Null for `core`. See the class docstring.
+    answers = db.Column(JSONB)
+    started_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    completed_at = db.Column(db.DateTime(timezone=True))
+    scored_at = db.Column(db.DateTime(timezone=True))
+
+    __table_args__ = (
+        db.ForeignKeyConstraint(
+            ["kind", "form_version"],
+            ["assessment_forms.kind", "assessment_forms.version"],
+            name="fk_assessment_submissions_form",
+        ),
+        db.CheckConstraint(
+            "kind IN %s" % (ASSESSMENT_KIND_KEYS,),
+            name="ck_assessment_submissions_kind",
+        ),
+        db.CheckConstraint(
+            "status IN %s" % (ASSESSMENT_STATUSES,),
+            name="ck_assessment_submissions_status",
+        ),
+        db.CheckConstraint(
+            "kind <> 'core' OR (result IS NULL AND answers IS NULL)",
+            name="ck_assessment_submissions_core_carries_nothing",
+        ),
+        db.Index(
+            "uq_assessment_submissions_current",
+            "user_id",
+            "kind",
+            unique=True,
+            postgresql_where=db.text("kind <> 'core'"),
+        ),
+        db.Index("ix_submissions_user", "user_id", "kind", db.text("completed_at DESC")),
+    )
+
+    user = db.relationship("User", backref="assessment_submissions")
+
+
+# ---------------------------------------------------------------------------
 # Person side of the culture-fit instrument (causal_graph/v1_model)
 # ---------------------------------------------------------------------------
 # These two tables are the minimum subset of causal_graph/v1_model/schema.sql needed to

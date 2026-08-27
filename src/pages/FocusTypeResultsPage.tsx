@@ -43,6 +43,10 @@ export default function FocusTypeResultsPage() {
     );
   }
 
+  // Reaching here means the document arrived and carries no FocusType result,
+  // so the user genuinely has not taken it. A *failed* fetch cannot reach this
+  // line: useProfile sets throwOnError, so it lands on RouteErrorBoundary
+  // instead of being misread as "never taken" and bouncing them to the quiz.
   if (!result) {
     return <Navigate to="/focus-type" replace />;
   }

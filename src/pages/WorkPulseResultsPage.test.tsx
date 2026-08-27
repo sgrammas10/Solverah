@@ -49,6 +49,7 @@ const MOCK_RESULT: WpApiResponse = {
     { title: "Deep Focus Seeker", description: "You need uninterrupted time to reach your best." },
   ],
   archetype: "Structured Deep Thinker",
+  archetype_description: "You pair sustained concentration with a need for clear structure.",
 };
 
 describe("WorkPulseResultsPage", () => {

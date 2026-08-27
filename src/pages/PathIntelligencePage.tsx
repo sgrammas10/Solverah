@@ -144,6 +144,9 @@ export default function PathIntelligencePage() {
     // Every branch below reads the profile document. Running before it arrives
     // would see no skills and no path_preferences and send a user who has both
     // to the preferences form -- the failure this gate exists to prevent.
+    // The gate covers in-flight only; a failed fetch is handled upstream by
+    // useProfile's throwOnError, which routes it to RouteErrorBoundary rather
+    // than letting this effect read `undefined` as "has no preferences".
     if (profileLoading) return;
     if (!hasFiredRef.current) {
       hasFiredRef.current = true;

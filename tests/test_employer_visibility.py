@@ -59,6 +59,19 @@ ALLOWED: dict[str, str] = {
     "model.py": "defines the two tables",
     "assessment_store.py": "the single write path; owns the transaction boundary",
     "migrations/versions/20260819_add_person_side_assessment.py": "creates the tables",
+    "migrations/versions/20260827_assessment_unification.py": (
+        "Phase 2d. Reads DISTINCT (submission_id, user_id, form_version) off the response "
+        "table to build one assessment_submissions row per existing sitting, so the two "
+        "join by public_id. It reads the sitting's *identity* and nothing else -- no "
+        "choice, no dimension_key, no score -- and the row it writes is null in result and "
+        "answers under a check constraint.\n\n"
+        "A migration cannot route through assessment_store, and that is the point rather "
+        "than an excuse: assessment_store writes through the ORM against today's model, "
+        "while a migration must run against the schema as it stood at its revision. Same "
+        "class of grant as the 20260819 entry above. It is one-shot, runs under `flask db "
+        "upgrade`, and is not reachable from any HTTP route -- which is the property that "
+        "makes this a grant and not a leak."
+    ),
     "causal_graph/v1_model/assemble_training_data.py": (
         "research pipeline, not app-facing. Reads person-side scores to build the training set "
         "for the Bayesian model. Not reachable from any HTTP route."

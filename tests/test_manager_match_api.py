@@ -177,19 +177,28 @@ def test_submit_unauthenticated(client):
 # ── GET results ───────────────────────────────────────────────────────────────
 
 def test_get_results_happy_path(client, monkeypatch):
+    from solverah.domain import auth as auth_domain
+
     csrf = _register_and_login(client, monkeypatch, email="mm_get@example.com")
 
     from app import app
     from model import User, db
-    from solverah.repositories import profile_repository
+    from solverah.repositories import assessment_repository
+    from solverah.services import assessment_service
     with app.app_context():
         user = User.query.filter_by(email="mm_get@example.com").first()
-        profile_repository.update_document(
-            user.id,
-            lambda _existing: {
-                "manager_match_result": {"archetype": "The Autonomist", "narrative": "test"}
-            },
+        # Seeded as a submission since Phase 2d; it was a key in the profile
+        # document before. Written through the repository rather than by
+        # constructing the row here: `open_current` is the write doorway, so a
+        # test cannot seed a row the application could not produce -- and the
+        # form-version registration the foreign key needs happens on the way in.
+        submission = assessment_repository.open_current(
+            user.id, "manager_match", assessment_service.CLIENT_FORM_VERSION
         )
+        submission.result = {"archetype": "The Autonomist", "narrative": "test"}
+        submission.narrative = "test"
+        submission.status = "scored"
+        submission.completed_at = submission.scored_at = auth_domain.utcnow()
         db.session.commit()
 
     res = client.get("/api/v1/me/assessments/manager_match/result")

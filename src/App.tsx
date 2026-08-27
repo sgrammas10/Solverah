@@ -22,50 +22,80 @@
  *   The global Header is hidden on the "/" route because PrelaunchLandingPage
  *   renders its own navigation (LandingNav).  All other routes show the Header.
  */
-import React from "react";
+import React, { lazy } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { useAuth } from "./contexts/useAuth";
 import Header from "./components/Header";
+import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
 import { createQueryClient } from "./utils/queryClient";
 
-// Quiz Components
-import CareerQuizzes from "./components/CareerQuizzes";
-import NextChapterYourWayQuiz from "./components/NextChapterYourWayQuiz";
-import SolverahYourFutureYourWayQuiz from "./components/SolverahYourFutureYourWayQuiz";
+/*
+ * Route modules: eager for the entry surface, lazy for everything else.
+ *
+ * Phase 4b. Before this every one of the 30 page modules below was a static
+ * import, so the single bundle the landing page downloaded contained the whole
+ * authenticated application -- every quiz, every results screen, react-markdown
+ * and dnd-kit included -- for a visitor who had not signed in and might never.
+ *
+ * The split line is "can this be someone's first paint?", not "is it public".
+ *   - "/" is the entry point.
+ *   - /login and /register are linked straight off it, and are where a returning
+ *     visitor goes first.
+ *   - /verify-email, /forgot-password and /forgot-password/verify are reached by
+ *     clicking a link in an email, which is a cold load with no chunk cached.
+ * Splitting any of those would add a round trip in front of first paint, which
+ * is the cost this change exists to remove, not to relocate.
+ *
+ * Everything else is reached by an in-app navigation, where the shell is already
+ * on screen and RouteFallback can render inside it. That includes the public
+ * marketing and legal pages: they are real destinations, but nobody's session
+ * starts there often enough to pay for them on every landing-page load.
+ */
 
-// Core Pages
+// ── Eager: the entry surface ────────────────────────────────────────────────
 import PrelaunchLandingPage from "./pages/prelaunchlandingpage";
-import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ConfirmEmail from "./pages/ConfirmEmail";
 import CheckEmail from "./pages/CheckEmail";
 import ForgotPassword from "./pages/ForgotPassword";
 import ForgotPasswordVerify from "./pages/ForgotPasswordVerify";
-import JobSeekerDashboard from "./pages/JobSeekerDashboard";
-import JobSeekerProfile from "./pages/JobSeekerProfile";
-import Feed from "./pages/Feed";
-import SearchResults from "./pages/SearchResults"; // from your quiz-aware version
-import QuizInsights from "./pages/QuizInsights";
-import GuestQuizPreview from "./pages/GuestQuizPreview";
-import GuestQuizInsights from "./pages/GuestQuizInsights";
-import AgentChat from "./pages/AgentChat";
-import CareerIntakePage from "./pages/CareerIntakePage";
-import WorkPulsePage from "./pages/WorkPulsePage";
-import AssessmentPage from "./pages/AssessmentPage";
-import WorkPulseResultsPage from "./pages/WorkPulseResultsPage";
-import FocusTypePage from "./pages/FocusTypePage";
-import FocusTypeResultsPage from "./pages/FocusTypeResultsPage";
-import IntelligencePage from "./pages/IntelligencePage";
-import CompanyDetailPage from "./pages/CompanyDetailPage";
-import CompanyLensPage from "./pages/CompanyLensPage";
-import ManagerMatchPage from "./pages/ManagerMatchPage";
-import ManagerMatchResultsPage from "./pages/ManagerMatchResultsPage";
-import PathIntelligencePage from "./pages/PathIntelligencePage";
-import LegalPage from "./pages/LegalPage";
-import HowMatchingWorksPage from "./pages/HowMatchingWorksPage";
+
+// ── Lazy: quiz components ───────────────────────────────────────────────────
+const CareerQuizzes = lazy(() => import("./components/CareerQuizzes"));
+const NextChapterYourWayQuiz = lazy(() => import("./components/NextChapterYourWayQuiz"));
+const SolverahYourFutureYourWayQuiz = lazy(
+  () => import("./components/SolverahYourFutureYourWayQuiz"),
+);
+
+// ── Lazy: public pages behind an in-app navigation ──────────────────────────
+const LandingPage = lazy(() => import("./pages/LandingPage"));
+const GuestQuizPreview = lazy(() => import("./pages/GuestQuizPreview"));
+const GuestQuizInsights = lazy(() => import("./pages/GuestQuizInsights"));
+const CareerIntakePage = lazy(() => import("./pages/CareerIntakePage"));
+const LegalPage = lazy(() => import("./pages/LegalPage"));
+const HowMatchingWorksPage = lazy(() => import("./pages/HowMatchingWorksPage"));
+
+// ── Lazy: the authenticated application ─────────────────────────────────────
+const JobSeekerDashboard = lazy(() => import("./pages/JobSeekerDashboard"));
+const JobSeekerProfile = lazy(() => import("./pages/JobSeekerProfile"));
+const Feed = lazy(() => import("./pages/Feed"));
+const SearchResults = lazy(() => import("./pages/SearchResults"));
+const QuizInsights = lazy(() => import("./pages/QuizInsights"));
+const AgentChat = lazy(() => import("./pages/AgentChat"));
+const WorkPulsePage = lazy(() => import("./pages/WorkPulsePage"));
+const AssessmentPage = lazy(() => import("./pages/AssessmentPage"));
+const WorkPulseResultsPage = lazy(() => import("./pages/WorkPulseResultsPage"));
+const FocusTypePage = lazy(() => import("./pages/FocusTypePage"));
+const FocusTypeResultsPage = lazy(() => import("./pages/FocusTypeResultsPage"));
+const IntelligencePage = lazy(() => import("./pages/IntelligencePage"));
+const CompanyDetailPage = lazy(() => import("./pages/CompanyDetailPage"));
+const CompanyLensPage = lazy(() => import("./pages/CompanyLensPage"));
+const ManagerMatchPage = lazy(() => import("./pages/ManagerMatchPage"));
+const ManagerMatchResultsPage = lazy(() => import("./pages/ManagerMatchResultsPage"));
+const PathIntelligencePage = lazy(() => import("./pages/PathIntelligencePage"));
 
 /**
  * ProtectedRoute — Wraps a route element with authentication and role checks.
@@ -131,6 +161,16 @@ function OnetAttribution() {
  * that page has its own LandingNav component. The global footer is suppressed
  * on "/" for the same reason — PrelaunchLandingPage renders its own footer
  * which includes the O*NET attribution inline.
+ *
+ * Phase 4b put `RouteErrorBoundary` *between* the chrome and the routes rather
+ * than around the shell. That is the placement that makes the guarantee worth
+ * having: a screen that throws is replaced by a fallback in the content area
+ * while the Header above it keeps working, so the user navigates out of the
+ * broken page instead of reaching for the back button. Wrapping the shell
+ * instead would take the Header down with the route and leave them stranded.
+ *
+ * The route-level `Suspense` lives inside that boundary too — see
+ * components/RouteErrorBoundary.tsx for why the two belong together.
  */
 function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -139,7 +179,9 @@ function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col">
       {!hideHeader && <Header />}
-      <div className="flex-1">{children}</div>
+      <div className="flex-1">
+        <RouteErrorBoundary>{children}</RouteErrorBoundary>
+      </div>
       {!hideFooter && <OnetAttribution />}
     </div>
   );

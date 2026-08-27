@@ -61,7 +61,7 @@ function PrelaunchLandingPage() {
         Skip to main content
       </a>
 
-      <LandingNav onRequestEarlyAccess={() => navigate("/start")} />
+      <LandingNav />
 
       <main id="main">
         {/* ─── HERO ─── */}
@@ -116,7 +116,6 @@ function PrelaunchLandingPage() {
                 setPrivacyConsent={intake.setPrivacyConsent}
                 infoOptIn={intake.infoOptIn}
                 setInfoOptIn={intake.setInfoOptIn}
-                resumeFile={intake.resumeFile}
                 setResumeFile={intake.setResumeFile}
                 selectedFileName={intake.selectedFileName}
                 setSelectedFileName={intake.setSelectedFileName}

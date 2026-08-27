@@ -233,11 +233,14 @@ and eight `.docx` specs.
       ▼
 ┌──────────────────────────────────────────┐
 │ Postgres 18 primary                      │
-│  · pgvector (culture / skill ANN)        │──► read replicas (analytics, heavy reads)
-│  · monthly partitions on append-only     │
+│  · monthly partitions on append-only     │──► read replicas (analytics, heavy reads)
 │  · logical replication → warehouse       │
 └──────────────────────────────────────────┘
 ```
+
+The first line of that box used to read `pgvector (culture / skill ANN)`. Struck
+2026-08-27 with Phase 2 item 4 — there is no ANN workload here. A16.
+
 
 ### 2.2 Layering inside the API
 
@@ -270,7 +273,7 @@ the most valuable IP in the product independently testable and reusable from wor
 |---|---|---|
 | **T0 — now** | < 10k | Single API service, single Postgres, Redis cache. Everything in this doc's Phases 0–3 is sufficient. |
 | **T1** | 100k | Read replicas for `GET` traffic. PgBouncer transaction pooling. Partitioned `audit_events`. CDN cache on public company pages. |
-| **T2** | 1M | pgvector HNSW for matching. Precomputed match sets refreshed by workers, served from Redis. Move `audit_events` + `rec_actions` to a columnar store via logical replication. |
+| **T2** | 1M | Precomputed match sets refreshed by workers, served from Redis. (This cell said "pgvector HNSW for matching" until A16 struck it; precomputation is the whole fix, and it is the half that was always doing the work.) Move `audit_events` + `rec_actions` to a columnar store via logical replication. |
 | **T3** | 10M | Shard by `user_id` range or extract identity into its own service. Multi-region read paths. Dedicated scoring service. |
 
 The architecture below is designed so T0→T2 requires **no rewrite** — only
@@ -783,6 +786,42 @@ CREATE TABLE person_dimension_scores (
 );
 ```
 
+#### As built · **2026-08-27**
+
+Phase 2d created the first two tables. Four deltas from the SQL above, each of them
+a decision rather than an oversight.
+
+**`assessment_submissions.answers JSONB`, which is not declared here.** The four
+client-rendered instruments need their raw answers kept — the Work Pulse narrative
+prompt reads the claimed WPLL answers, `/me/export` returns both sets, and the
+culture-preference backfill re-derives from the Work Pulse answers. This schema's
+home for raw answers is `assessment_responses`, which is partitioned and therefore
+item 5. Decomposing four instruments' answers into it now would put them behind
+D-01's doorway and force every one of those readers through it. The column is the
+interim home and goes when item 5 lands.
+
+**`UNIQUE (user_id, kind) WHERE kind <> 'core'`, which is not declared here
+either.** The four instruments have one current sitting each and a retake updates
+it in place; `core` appends, because its raw responses are append-only so a score
+stays re-derivable. That asymmetry was going to exist either way — this makes it a
+constraint instead of a convention every reader has to remember, and it is what
+makes a concurrent double-submit collide before the LLM call rather than after it.
+
+**A composite foreign key `(kind, form_version) → assessment_forms (kind,
+version)`.** Implied by `UNIQUE (kind, version)` existing at all, but worth
+stating: without it `form_version` is free text, and the `UNIQUE` constrains a
+table nothing joins to. Versions register on first use, so a new item file needs
+no deploy step ahead of it.
+
+**Three check constraints**: `kind` and `status` against their declared domains,
+and `kind <> 'core' OR (result IS NULL AND answers IS NULL)` — the D-01 boundary
+inside the shared table, expressed where it cannot be forgotten.
+
+`assessment_responses` and `person_dimension_score` are **not** as built. The
+existing `assessment_response` and `person_dimension_score` are unchanged: no
+column added, no type changed, no row rewritten. A sitting joins to its submission
+by `submission_id = assessment_submissions.public_id.hex`. Partitioning is item 5.
+
 ### 4.5 Companies and the matching fix
 
 This is the P0-2 fix — the full scan disappears.
@@ -805,41 +844,19 @@ CREATE TABLE companies (
 CREATE UNIQUE INDEX uq_companies_slug ON companies (slug);
 CREATE INDEX ix_companies_facets ON companies (industry, size_band, hq_state)
     WHERE status = 'active';
-
--- The 8 culture dimensions as a single indexed vector.
-CREATE TABLE company_culture_vectors (
-    company_id   BIGINT PRIMARY KEY REFERENCES companies(id) ON DELETE CASCADE,
-    vec          vector(8) NOT NULL,   -- pgvector; dimension order pinned in code
-    dims_version TEXT   NOT NULL,
-    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX ix_culture_vec_hnsw ON company_culture_vectors
-    USING hnsw (vec vector_cosine_ops) WITH (m = 16, ef_construction = 64);
-
-CREATE TABLE user_culture_vectors (
-    user_id      BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    vec          vector(8) NOT NULL,
-    dims_version TEXT   NOT NULL,
-    derived_from BIGINT,               -- assessment_submissions.id
-    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
 ```
 
-Top-K culture matching becomes one indexed query instead of a full scan:
+**Struck 2026-08-27 — `company_culture_vectors`, `user_culture_vectors`, the HNSW
+index, and the top-K cosine query that used them.** They were the schema behind
+Phase 2 item 4, and they cannot compute the score this product actually has: the
+scorer is per-axis L1 proximity with a Jaccard dimension in it, cosine ranks a
+different quantity, and the corpus is too small for an index to be the reason to
+do anything. A16 has the measurements. Nothing replaces them here — the
+destination is the causal Bayesian model in `match_scoring.py`, which is a
+per-pair predictor and has no ANN formulation to index.
 
-```sql
-SELECT c.id, c.public_id, c.name, c.industry,
-       1 - (v.vec <=> :user_vec) AS fit_score
-FROM   company_culture_vectors v
-JOIN   companies c ON c.id = v.company_id AND c.status = 'active'
-WHERE  v.dims_version = :dims_version
-ORDER  BY v.vec <=> :user_vec
-LIMIT  :k;
-```
-
-`O(all companies)` in Python becomes `O(log n)` in Postgres. Results are cached in
-Redis under `match:v1:{user_id}:{dims_version}` and invalidated when the user's vector
-changes (assessment completion) or the dimension set is versioned up.
+What is *not* struck is the `companies` table above it. Its facet index is
+ordinary B-tree work and stands on its own.
 
 The `company_dimension_score` / `company_confounder_value` / `model_run` /
 `weight_posterior` tables from the causal model carry forward unchanged in shape — only
@@ -1620,11 +1637,22 @@ Expand/contract, one aggregate at a time, dual-write then backfill then cut over
    the profile tables went ahead of it.
 2. **Phase 2a · done 2026-08-27.** `profiles` + `profile_experiences` +
    `profile_educations` + `skills` + `profile_skills` + `resumes`.
-3. `assessment_*` unification.
-4. `company_culture_vectors` + pgvector + HNSW.
+3. **Phase 2d · done 2026-08-27.** `assessment_*` unification —
+   `assessment_forms` + `assessment_submissions`, and the three storage homes
+   carried into them.
+4. ~~`company_culture_vectors` + pgvector + HNSW.~~ **Struck 2026-08-27 (A16).**
+   Cosine over an 8-vector does not compute `culture_fit_score`, and 2,071
+   companies do not need an index. The 4.5 schema behind it is struck with it.
+   Renumbering the item below would break every reference to "item 5", so the
+   numbering stands and this entry stays as the record of why there are four.
 5. Partition `audit_events`, `assessment_responses`, `match_recommendations`, `rec_actions`.
 
-**Exit:** no query reads `profile_data`; culture matching is index-backed.
+**Exit:** no query reads `profile_data`; every assessment product reads and writes
+one storage shape.
+
+The exit criterion used to read "culture matching is index-backed". That went
+stale with item 4 and is struck with it — the full scan in `_score_all` is still
+P0-2 and still open, but an index was never the fix for it. A16.
 
 #### Phase 2a — decomposing `profile_data` · **done 2026-08-27**
 
@@ -1664,6 +1692,26 @@ none of it. Phase 3's cache is where this gets paid back.
   computation cannot drift — and the column is there so "how many profiles are
   more than 80% complete" is a query rather than a scan of a JSON column. A test
   asserts the two agree.
+
+**One defect introduced by this phase, found 2026-08-27 and fixed.**
+`education[].field` was silently dropped on every profile save. `_write_children`
+builds an ORM-enabled bulk insert — `sa.insert(ProfileEducation)` with a list of
+dicts — and those key on *attribute* names; the dict said `"field"`, which is the
+column name. `ProfileEducation.field_of_study = db.Column("field", …)` is the only
+renamed column in the profile tables, so it was the only key of the twenty-odd
+across three inserts where the two names differ, and SQLAlchemy dropped it with no
+error and a NULL in the column. The migration was never wrong — it writes raw SQL
+against the real column — so data carried across by 2a is intact; only writes
+through the application lost the value, from 2a until the fix.
+
+Two things are worth taking from it. The first is that every test in
+`test_profile_decomposition.py` passed throughout, because `RICH_PATCH`'s
+education entry carries no `field`. The second is that the same trap is armed for
+any future renamed column, so `test_the_set_of_renamed_columns_is_still_these_two`
+now pins the set to `profile_educations.field` and `audit_log.metadata` — the
+tripwire fires when a third appears, which is months before someone bulk-inserts
+into it. `audit_log.event_metadata` is safe today: its only write is an ORM
+constructor, and constructors key on attributes.
 
 **Two pre-existing defects found while verifying this, neither fixed here.**
 
@@ -1722,6 +1770,112 @@ intended.
 are never written. And `status` is maintained at exactly two transitions,
 confirmation and tombstoning, because those are the two that already existed in
 code; the rest of the state machine arrives with whatever needs to read it.
+
+#### Phase 2d — assessment storage unification · **done 2026-08-27**
+
+Five products, four storage locations, one shape. Work Pulse in
+`user_intake.wpl_*`, the Lite-Lite session in `user_intake.wpll_*`, FocusType and
+ManagerMatch as two keys inside the profile document, and the core assessment in
+its own two tables. `GET /assessments` read three of them to answer one question.
+
+**A storage change, not a contract change — and this time that was measured
+rather than argued.** 2a verified its equivalent by hand and 2c built the fixture;
+2d extended it. `Scripts/capture_contract.py` now drives 44 responses instead of
+25: all five instruments submitted, the three that store a result re-read, the
+anonymous WPLL session claimed onto the account, and the catalogue and session
+captured with `wpl_completed` / `wpll_completed` / `wp_v2_completed` **true**. The
+2c scenario never touched an assessment, so those three booleans had only ever
+been compared in the state where nothing sets them. `verify_contract.py` reports
+**0 differences across 44 responses**. `docs/openapi.json` regenerated with no
+change to a single path, schema or status code; the only diff is prose in two
+`description` strings that said `user_intake` was still the storage — the same
+result 2a got, for the same reason.
+
+**What the fixture cannot see, and what covers it instead.** The Work Pulse
+narrative prompt reads the claimed WPLL answers and the intake row's statement
+selections. Neither reaches the wire, and the fixture stubs the prompt builders to
+keep the provider deterministic, so a Work Pulse narrative could have quietly lost
+its context with every byte still identical. `tests/test_assessment_storage.py`
+asserts the two inputs arrive.
+
+**The one addition to 4.4, and the reason for it.** `assessment_submissions` has an
+`answers` column that Part 4.4 does not declare, because 4.4 puts raw per-item
+answers in `assessment_responses` — the table partitioned by `answered_at`, which
+is item 5 and its own phase. The four non-core instruments need their answers kept
+(the narrative prompt, `/me/export`, the culture-preference backfill), so until
+item 5 lands they live on the submission as the payload the client sent. The
+alternative was decomposing them into the person-side response table now, which
+would have put four instruments' answers behind D-01's doorway and forced every
+one of those readers through it — the exact surface widening the phase was not
+allowed to do.
+
+**D-01 came out of this exactly as wide as it went in.** A `core` row in the shared
+table carries a kind, a version, a status and three timestamps. `result` and
+`answers` are null, under a check constraint rather than a convention, and the
+core row is written by `assessment_store` inside the same transaction as the raw
+responses rather than by the repository the other four use. The person-side tables
+were not altered at all: no column added, no type changed, no row rewritten. The
+join is `submission_id = public_id.hex` — the id those tables already carried,
+still 32 hex characters on the wire, now a key into the shared table instead of a
+`uuid4()` joined to nothing.
+
+One allowlist entry was added, and it is the thing to argue with if anything here
+is wrong: the migration reads `DISTINCT (submission_id, user_id, form_version)`
+off the response table to build one submission row per existing sitting. It reads
+a sitting's identity and nothing else — no choice, no dimension key, no score —
+and it cannot route through `assessment_store`, which writes through the ORM
+against today's model while a migration must run against the schema at its own
+revision. Same class of grant as the 2026-08-19 entry that creates the tables.
+
+**Retake semantics differ by kind, and the schema says so.**
+`uq_assessment_submissions_current` is a partial unique index over
+`(user_id, kind) WHERE kind <> 'core'`. The four client-rendered instruments have
+one current sitting each and a retake updates it in place, which is what
+`user_intake`'s one-row-per-user and a profile-document key gave them before.
+`core` is excluded because its sittings are append-only. That index is also what
+replaced `get_or_create_user_intake`'s cheap-collision trick: a concurrent double
+submit now collides on the constraint before the LLM call rather than after it.
+
+**`assessment_forms` is load-bearing, not decoration.**
+`assessment_submissions (kind, form_version)` is a composite foreign key into it,
+so a submission cannot name a version nobody registered — which is what stops the
+version string being free text that drifts per instrument. Versions register on
+first use (`AssessmentForm.register`, `ON CONFLICT DO NOTHING`), so a new item file
+is usable the moment it ships rather than after a deploy step. `definition` is
+empty for the four client-rendered instruments on purpose: their questions ship in
+the client bundle, and writing a copy here would create a second source of truth
+for something no server code reads. Their `form_version` is the placeholder `v1`
+for the same reason. Both become real when Phase 4 moves those definitions
+server-side.
+
+**The migration was executed, not merely written**, in both directions, against a
+scratch database seeded with one row of every shape it reads — including the Work
+Pulse account whose second commit never landed, the account that picked statements
+but never answered the quiz, and two core sittings under two different item files.
+Thirty-four checks, all passing: the carry-over, the `complete`-versus-`scored`
+distinction preserved rather than flattened, the two profile keys removed from
+`extra` with unrelated keys untouched, `public_id` equal to the pre-existing
+submission id, and the downgrade putting all four instruments back. Autogenerate
+then reports **0 operations** against the migrated schema, which is the model and
+the migration agreeing — the check nothing else in this repo makes.
+
+**Left behind on purpose.** `user_intake.wpl_*` and `wpll_*` are not dropped. Read
+by nothing after this phase, they go in the next release — the same one-release
+stay `users.profile_data` has been serving since 2a. `selected_statement_ids`
+stays permanently: statement selections are intake data, not an assessment, and no
+instrument produces them. `culture_preferences` also stays in `profiles.extra`,
+and that is now a loose end rather than a decision — it is derived from Work Pulse
+and consumed by matching, and 4.5's `user_culture_vectors` was where it was going
+until A16 struck that table. It has no declared destination now.
+
+**Not done here, and named so it is not mistaken for done.** `assessment_responses`
+is still the unpartitioned `assessment_response`; partitioning is item 5.
+`GET /assessments/core/form` still serves items from the item file rather than
+from `assessment_forms.definition`, which is correct while the shuffle is
+server-authoritative (D-04) and the definition is a version record rather than a
+question bank. `status` never takes the value `in_progress` on a committed row,
+because every instrument still arrives complete in one request; the constraint
+keeps it because partial saves are what the column is for.
 
 ### Phase 3 — Async and caching
 
@@ -1807,7 +1961,7 @@ in parallel with the rest of Phase 4.
 | # | Decision | Rationale | Alternative rejected |
 |---|---|---|---|
 | A1 | Stay on Flask; do not rewrite in FastAPI | The value is in the domain logic and the schema, not the framework. A rewrite spends the whole budget re-earning today's behaviour. Pydantic + OpenAPI on Flask gets ~90 % of the benefit. | FastAPI rewrite |
-| A2 | Postgres for everything, including vectors | pgvector handles 8-dim culture vectors and millions of rows comfortably. One datastore to operate, back up, and reason about. Revisit at high-dimensional embedding scale. | Pinecone / Weaviate |
+| A2 | ~~Postgres for everything, including vectors~~ — **superseded by A16, 2026-08-27** | The decision was right and its stated reason was wrong. "One datastore" stands; "pgvector handles 8-dim culture vectors" was never tested against the scorer, and A16 shows the 8 dimensions are not a vector space this product ranks in. There is no vector workload to keep in Postgres, so the decision it was arguing against never arises. `vector` stays installed on Render (0.8.1) and is unused. | Pinecone / Weaviate |
 | A3 | Decompose `profile_data` rather than index the JSONB | GIN on JSONB fixes reads but not lost updates, not validation, and not row bloat. The blob is a correctness problem, not only a performance one. | JSONB + GIN |
 | A4 | Celery over a bespoke thread pool | Durable queues, retries, scheduling, and observability for free. In-process threads lose work on deploy. | `ThreadPoolExecutor` |
 | A5 | Cursor pagination, never offset | `OFFSET 100000` scans 100k rows and skews under concurrent writes. | Offset/limit |
@@ -1821,6 +1975,7 @@ in parallel with the rest of Phase 4.
 | A10 | Schema enforcement in a `before_request` hook, not in `@document` | `@document` sits above `@bp.route`, which registers the object it is handed — a wrapper written there never runs. That exact ordering made every `@limiter.limit` in the old `app.py` inert. Resolving the spec from `request.endpoint` makes declaration order irrelevant. | A wrapping decorator |
 | A11 | Enforced request models ignore unknown keys rather than forbidding them | Handlers read fields with `data.get(...)` and ignore the rest, and live call sites send more than the schemas name. A 422 on a key the server was going to drop is the "worked yesterday" incident enforcement is supposed to prevent. Closed models still generate a strict client. | `extra="forbid"` on requests |
 | A12 | One route per collapsed group, but a response model per discriminator | The five assessments produce genuinely different payloads — `core` deliberately returns no dimension scores at all. A lowest-common-denominator envelope would have to be open enough to hold any of them, which makes it a document that promises nothing. | A shared result envelope |
+| A16 | Strike `company_culture_vectors`, pgvector and the HNSW index (Phase 2 item 4) rather than build them | **The index would rank the wrong quantity.** `culture_fit_score` is `max(0, 1 - |company - user|)` per axis (`packages/ml/culture/scoring.py:_score_numeric`) — L1 proximity, where a user at 0.5 and a company at 0.5 score 1.0 on that axis. Cosine measures the angle between whole vectors and is blind to that: it cannot distinguish "matches on every axis" from "is proportionally larger on every axis". Measured over the 2,071-company corpus, ranking by cosine reproduces 3 of the exact scorer's top 10 (recall@10 = 3/10), so an HNSW index would be a fast answer to a different question. **One of the eight dimensions is not a vector component at all.** `work_environment` is Jaccard over an open tag vocabulary, at weight 1.5 — joint-heaviest with `pace` — and set overlap has no fixed-width numeric encoding to put in a `vector(8)`. Any embedding of it changes the score before the index is reached. **There is no performance case either.** The corpus is 2,071 companies and the exact in-Python scan measures 34 ms; ANN exists to avoid scanning millions, and at this size the index build and the recall loss are both pure cost. **And the destination is not a nearest-neighbour problem.** The replacement for `culture_fit_score` is the causal Bayesian model (`match_scoring.py`): a per-pair logistic predictor with a signed directional feature and company-level confounders. It is evaluated per (user, company) pair against a fitted posterior, not looked up by distance — no ANN index serves it, however indexed. P0-2's full scan is still real and still open; the fix is precomputation and caching (Phase 3), not a different index. | Build the vectors and the HNSW index as specified |
 
 ## Appendix B — What already works and is not being changed
 

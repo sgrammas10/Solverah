@@ -158,6 +158,8 @@ export default function FocusTypePage() {
   // A user who has already taken FocusType is redirected by the effect above,
   // but only once the document arrives. Rendering the intro in the meantime
   // would flash "Begin" at someone about to be sent to their results.
+  // A failed fetch does not fall through to the intro either — useProfile
+  // throws to RouteErrorBoundary rather than reporting an empty document.
   if (phase === "intro" && profileLoading) {
     return (
       <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">

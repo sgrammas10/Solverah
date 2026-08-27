@@ -21,7 +21,6 @@ type Props = {
   setPrivacyConsent: (v: boolean) => void;
   infoOptIn: boolean;
   setInfoOptIn: (v: boolean) => void;
-  resumeFile: File | null;
   setResumeFile: (f: File | null) => void;
   selectedFileName: string;
   setSelectedFileName: (s: string) => void;
@@ -37,7 +36,6 @@ export default function IntakeForm({
   setPrivacyConsent,
   infoOptIn,
   setInfoOptIn,
-  resumeFile,
   setResumeFile,
   selectedFileName,
   setSelectedFileName,

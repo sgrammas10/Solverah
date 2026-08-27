@@ -32,7 +32,11 @@ from typing import Any, Dict, Optional
 from model import User, db
 from solverah.domain import auth as domain
 from solverah.infra import email as email_infra
-from solverah.repositories import profile_repository, user_repository
+from solverah.repositories import (
+    assessment_repository,
+    profile_repository,
+    user_repository,
+)
 from solverah.services import audit
 
 __all__ = [
@@ -223,6 +227,7 @@ def login(*, email: str, password: str, check_password, wp_v2_completed) -> Auth
             "Email not confirmed. Please check your inbox or use the resend option.",
         )
 
+    finished = assessment_repository.completed_kinds(user.id)
     return AuthResult(
         status=200,
         body={
@@ -233,8 +238,8 @@ def login(*, email: str, password: str, check_password, wp_v2_completed) -> Auth
                 "name": user.name,
                 "role": user.role,
                 "profileData": profile_repository.load_document(user.id),
-                "wpl_completed": bool(user.intake and user.intake.wpl_completed_at),
-                "wpll_completed": bool(user.intake and user.intake.wpll_completed_at),
+                "wpl_completed": "work_pulse" in finished,
+                "wpll_completed": "wpll" in finished,
                 "wp_v2_completed": wp_v2_completed(user.id),
             },
         },

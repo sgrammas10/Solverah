@@ -1,5 +1,11 @@
 """Reads and writes for ``intake_submissions`` and ``user_intake``.
 
+Since Phase 2d ``user_intake`` holds one live column: ``selected_statement_ids``.
+The ``wpll_*`` and ``wpl_*`` families beside it moved to
+``assessment_submissions`` and are read by nothing; they are dropped next
+release.  That is why :func:`upsert_user_intake` takes two arguments where it
+used to take five.
+
 One oddity is preserved here rather than cleaned up: :func:`insert_submission`
 opens a raw psycopg2 connection instead of using the SQLAlchemy session.  That is
 how both intake write paths have always worked.  It is worth being explicit about
@@ -21,7 +27,6 @@ handlers, which is what makes it a small change later.
 
 from __future__ import annotations
 
-import datetime
 import os
 from typing import Any, List, Optional
 
@@ -101,41 +106,28 @@ def find_user_intake(user_id: int) -> Optional[UserIntake]:
     return UserIntake.query.filter_by(user_id=user_id).first()
 
 
-def upsert_user_intake(
-    user_id: int,
-    selected_ids: List[Any],
-    wpll_answers: List[Any],
-    wpll_insight_text: str,
-    now: datetime.datetime,
-) -> UserIntake:
-    """Create or update the anonymous-session data attached to an account.
+def upsert_user_intake(user_id: int, selected_ids: List[Any]) -> UserIntake:
+    """Create or update the statement selections attached to an account.
 
-    ``wpll_completed_at`` is set only on the first save carrying answers, so a
-    re-save does not move the completion timestamp forward.
+    Statement selections are intake data: they are what the visitor picked on
+    screen 1 of ``/start``, they are not scored, and no instrument produces them.
+    So they stay here.
 
-    The ``wpl_*`` columns are never touched here.  They belong to the Work Pulse
-    submit endpoint, and writing them from this path would silently overwrite a
-    completed assessment with nothing.
+    **The WPLL answers used to be written here too, and are not any more.** Phase
+    2d moved them to ``assessment_submissions`` with the other four instruments'
+    data -- see ``intake_service.save_to_account``, which now writes both halves.
+    The ``wpll_*`` and ``wpl_*`` columns still exist on this table, are read by
+    nothing, and are dropped in the next release; the same one-release stay
+    ``users.profile_data`` is serving.
 
     Does not commit -- the caller owns the transaction.
     """
     intake = find_user_intake(user_id)
 
     if intake is None:
-        intake = UserIntake(
-            user_id=user_id,
-            selected_statement_ids=selected_ids,
-            wpll_answers=wpll_answers,
-            wpll_insight_text=wpll_insight_text or None,
-            wpll_completed_at=now if wpll_answers else None,
-        )
+        intake = UserIntake(user_id=user_id, selected_statement_ids=selected_ids)
         db.session.add(intake)
         return intake
 
     intake.selected_statement_ids = selected_ids
-    intake.wpll_answers = wpll_answers
-    intake.wpll_insight_text = wpll_insight_text or None
-    # Only set wpll_completed_at on first save; preserve if already set.
-    if wpll_answers and intake.wpll_completed_at is None:
-        intake.wpll_completed_at = now
     return intake

@@ -1,6 +1,6 @@
 import React from "react";
 import { Upload, X } from "lucide-react";
-import { ProfileFormData, PendingResumeUpload } from "../../types/profile";
+import { ProfileFormData } from "../../types/profile";
 
 const fieldCls =
   "w-full border border-cream-muted bg-cream-base px-3 py-2.5 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors rounded-md";

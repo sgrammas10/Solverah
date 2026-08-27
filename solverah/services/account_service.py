@@ -38,7 +38,11 @@ from assessment_store import export_person_side
 from model import IntakeSubmission, User, db
 from solverah.domain import auth as auth_domain
 from solverah.infra import storage
-from solverah.repositories import account_repository, profile_repository
+from solverah.repositories import (
+    account_repository,
+    assessment_repository,
+    profile_repository,
+)
 from solverah.services import audit
 
 __all__ = [
@@ -112,10 +116,51 @@ def delete_r2_objects(keys: List[str]) -> List[str]:
     return failed
 
 
+def _legacy_quiz(user_id: int):
+    """The export's ``legacy_quiz`` block, unchanged on the wire since Phase 2d.
+
+    The five keys were columns on ``user_intake`` and are now two rows in
+    ``assessment_submissions``. The block's *shape* is a published contract --
+    a subject-access response is not a place to quietly rename things -- so the
+    keys stay, and only where they are read from moved.
+
+    Three details keep it byte-identical rather than merely equivalent:
+
+    * ``wpll_answers`` falls back to ``[]``, never ``null``. The column it
+      replaced was ``NOT NULL DEFAULT '[]'``, so an account that selected
+      statements but never answered the quiz exported an empty list, and an
+      export that started answering ``null`` there would be a changed contract
+      for the accounts least likely to notice.
+    * The block is present, rather than ``null``, whenever the account has a
+      ``user_intake`` row -- even with no submissions behind it. That is the
+      condition the old code had, because the five values lived on that row.
+      Its *existence* is what is read here, not any assessment column on it;
+      the row is still live and still holds ``selected_statement_ids``.
+    * ``null`` survives as the answer for an account that has neither.
+
+    The name stays ``legacy_quiz`` too. It reads oddly now that these are
+    ordinary submissions, but renaming an export key to suit the storage
+    underneath it is precisely the coupling the key was named to avoid.
+    """
+    wpll = assessment_repository.current_submission(user_id, "wpll")
+    work_pulse = assessment_repository.current_submission(user_id, "work_pulse")
+
+    if wpll is None and work_pulse is None:
+        if account_repository.find_user_intake(user_id) is None:
+            return None
+
+    return {
+        "wpll_answers": (wpll.answers if wpll else None) or [],
+        "wpll_insight_text": wpll.narrative if wpll else None,
+        "wpl_answers": work_pulse.answers if work_pulse else None,
+        "wpl_narrative": work_pulse.narrative if work_pulse else None,
+        "wpl_result": work_pulse.result if work_pulse else None,
+    }
+
+
 def export_account_data(user: User) -> AccountResult:
     """One JSON document of every identified data class held for this user."""
     intakes = account_repository.find_intakes_for_email(user.email)
-    user_intake = account_repository.find_user_intake(user.id)
     person_side = export_person_side(user.id)
     recommendations = account_repository.find_job_recommendations(user.id)
 
@@ -147,17 +192,7 @@ def export_account_data(user: User) -> AccountResult:
             }
             for i in intakes
         ],
-        "legacy_quiz": (
-            {
-                "wpll_answers": user_intake.wpll_answers,
-                "wpll_insight_text": user_intake.wpll_insight_text,
-                "wpl_answers": user_intake.wpl_answers,
-                "wpl_narrative": user_intake.wpl_narrative,
-                "wpl_result": user_intake.wpl_result,
-            }
-            if user_intake
-            else None
-        ),
+        "legacy_quiz": _legacy_quiz(user.id),
         # Keyed "assessment_answers" rather than after the table it comes from:
         # the export is the subject's answers, and mirroring an internal table
         # name into a public payload is how a schema detail becomes an API

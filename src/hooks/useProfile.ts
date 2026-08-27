@@ -79,6 +79,52 @@ export function seedProfileCache(client: QueryClient, profile: ProfileData | und
  * `isLoading`, not `isPending`: a disabled query (nobody signed in) stays
  * pending forever, and a consumer gated on `isPending` would spin rather than
  * render its signed-out path.
+ *
+ * ── Why this query throws (Phase 4b) ────────────────────────────────────────
+ *
+ * TanStack Query does not throw by default: a failed query hands back
+ * `{ data: undefined, isLoading: false, error }` and leaves it to the caller to
+ * notice. For most queries that is the right default. For this one it produced
+ * a specific and silent class of bug, because every consumer *branches on the
+ * document to decide which screen to show* — and an errored query is shaped
+ * exactly like a successful fetch of a user who has done nothing yet:
+ *
+ *   FocusTypeResultsPage   `!result` -> <Navigate to="/focus-type">, sending a
+ *                          user who has a result back to retake the quiz.
+ *   FocusTypePage          renders the "Begin" intro to that same user.
+ *   PathIntelligencePage   no `path_preferences` -> the preferences form, which
+ *                          is precisely the failure its own gate comment says
+ *                          the loading check exists to prevent.
+ *   IntelligencePage       `if (!result) return null` — a blank screen — or the
+ *                          FocusType/ManagerMatch cards drawn as "not started".
+ *   useProfileForm         worst of the set: `isSuccess` is false, so the form
+ *                          never hydrates, and a user who edits and saves
+ *                          PATCHes empty defaults over their real document.
+ *
+ * None of those render an error. Four render a *plausible wrong screen*, which
+ * is worse than a crash because nobody files a bug for it.
+ *
+ * So the policy is boundary-caught rather than in-component: `throwOnError`
+ * sends the failure to `RouteErrorBoundary`, which draws one error card with a
+ * working retry and leaves the Header alive. The alternative — an `isError`
+ * branch in each consumer — is five copies of that card, and, more to the
+ * point, a rule the sixth consumer will forget, silently, in exactly the way
+ * this comment exists to describe.
+ *
+ * Two things make it safe rather than merely loud:
+ *   - It fires after `shouldRetry` is exhausted, not on the first blip; a 429
+ *     or 5xx still gets its two retries before anything reaches a boundary.
+ *   - Writes are unaffected. `saveProfileData` and `fetchProfileData` go
+ *     through `fetchWithAuth`/`fetchQuery` and still reject to their callers,
+ *     which catch them and show inline form errors. Only *reads during render*
+ *     escalate.
+ *
+ * The one behaviour deliberately given up: ManagerMatchResultsPage used to
+ * treat a failed document as "no cached result" and fall through to
+ * `/me/assessments/manager_match/result`, which occasionally recovered. It now
+ * throws with its four siblings. Consistency is worth more than a fallback that
+ * only helps when `/me/profile` fails while a sibling endpoint on the same
+ * session succeeds — and that page's own fetch already has real error UI.
  */
 export function useProfile() {
   const { user, fetchWithAuth } = useAuth();
@@ -90,5 +136,6 @@ export function useProfile() {
       return data.profile ?? EMPTY_PROFILE;
     },
     enabled: Boolean(user),
+    throwOnError: true,
   });
 }

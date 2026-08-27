@@ -315,6 +315,107 @@ def test_a_current_role_is_flagged_on_the_row(rich_profile):
     assert second.is_current is False
 
 
+#: An education entry that exercises the one column in the profile tables whose
+#: attribute name and column name differ. ``RICH_PATCH``'s entry carries no
+#: ``field``, which is exactly why every test in this file passed while the value
+#: was being dropped.
+EDUCATION_WITH_FIELD = {
+    "education": [
+        {
+            "id": 1,
+            # `institution`, not `school`. `_decompose_educations` requires
+            # `institution` and leaves the entry whole in `extra` without it --
+            # where `field` survives for the wrong reason, and this test would
+            # pass against the broken write path.
+            "institution": "State University",
+            "degree": "BS",
+            "field": "Computer Science",
+        }
+    ],
+}
+
+
+def test_the_education_field_survives_a_write(client, auth):
+    """Regression: ``education[].field`` was silently dropped on every save.
+
+    ``_write_children`` builds an **ORM-enabled** bulk insert --
+    ``sa.insert(ProfileEducation)`` with a list of dicts -- and an ORM bulk
+    insert keys on *attribute* names. ``ProfileEducation.field_of_study`` is
+    declared as ``db.Column("field", ...)``, so the dict key ``"field"`` matched
+    no attribute, and SQLAlchemy dropped it without raising. The column went in
+    NULL, ``assemble`` omits a null ``field_of_study``, and the key vanished from
+    the document.
+
+    Every other key in those three insert dicts happens to have an identical
+    attribute and column name, which is why this was the only field affected --
+    and why the fix is to spell the attribute rather than to stop using bulk
+    inserts.
+
+    The migration was never wrong: it writes raw SQL against the real column
+    name, so data carried across by Phase 2a is intact. Only writes through the
+    application lost the value.
+    """
+    csrf, user_id = auth
+
+    resp = client.patch(
+        "/api/v1/me/profile", json={"profile": EDUCATION_WITH_FIELD},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert resp.status_code == 200
+
+    served = client.get("/api/v1/me/profile").get_json()["profile"]["education"][0]
+    assert served["field"] == "Computer Science"
+    assert served["institution"] == "State University"
+    assert served["degree"] == "BS"
+
+    # The read path reads the attribute and always looked right; this asserts it
+    # against a row the corrected insert actually wrote, rather than assuming.
+    row = _rows(user_id)["educations"][0]
+    assert row.field_of_study == "Computer Science"
+
+
+#: Every column in the schema whose database name differs from its ORM
+#: attribute, as of 2026-08-27. Read off the mapper by the test below.
+RENAMED_COLUMNS = {
+    ("profile_educations", "field_of_study", "field"),
+    ("audit_log", "event_metadata", "metadata"),
+}
+
+
+def test_the_set_of_renamed_columns_is_still_these_two():
+    """A tripwire for the next renamed column, not a schema inventory.
+
+    A column whose attribute and database names differ is the only way an
+    ORM-enabled bulk insert can drop a value in silence: the insert keys on
+    attribute names, the schema is written in column names, and a key that
+    matches no attribute produces no error. ``profile_educations.field`` was
+    written that way for the whole life of Phase 2a and nothing failed.
+
+    So the trap is set at the moment a third renamed column appears, which is
+    months before someone bulk-inserts into it. If this test fails, the new
+    column is fine -- go and check that every ``sa.insert(Entity)`` writing to it
+    spells the *attribute*, then add it here.
+
+    ``audit_log.event_metadata`` is in the set and is safe today: its only write
+    is the ORM constructor in ``solverah/services/audit.py``, and a constructor
+    keys on attributes. Nothing bulk-inserts into it.
+    """
+    from sqlalchemy import inspect
+
+    from model import db
+
+    found = set()
+    for mapped in db.Model.registry._class_registry.values():
+        if not hasattr(mapped, "__tablename__"):
+            continue
+        for prop in inspect(mapped).mapper.column_attrs:
+            column = prop.columns[0]
+            if column.name != prop.key:
+                found.add((mapped.__tablename__, prop.key, column.name))
+
+    assert found == RENAMED_COLUMNS
+
+
 def test_skills_reference_the_dimension_table(rich_profile):
     """Free text on the way in, a foreign key on the way out."""
     from app import app

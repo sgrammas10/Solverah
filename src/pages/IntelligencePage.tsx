@@ -77,6 +77,9 @@ export default function IntelligencePage() {
   // the FocusType and ManagerMatch cards below render straight off the document,
   // and showing "Start FocusType" to someone who has finished it -- for the one
   // render before the query resolves -- is a worse artefact than a spinner.
+  // The document *failing* is not folded in here: useProfile throws it to
+  // RouteErrorBoundary, so it cannot arrive as a permanently empty document and
+  // draw those cards as "not started" (or fall through to `return null`).
   if (fetchState === "loading" || profileLoading) {
     return (
       <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">

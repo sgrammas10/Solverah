@@ -34,7 +34,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from model import User, db
 from solverah.domain import profile as domain
-from solverah.repositories import profile_repository
+from solverah.repositories import assessment_repository, profile_repository
 from solverah.services import audit, path_cache, resume_service
 
 __all__ = [
@@ -91,6 +91,7 @@ def read_profile(user: User, csrf_token: Optional[str], wp_v2_completed) -> Prof
         metadata={"target_user_id": user.id},
     )
     db.session.commit()
+    finished = assessment_repository.completed_kinds(user.id)
     return ProfileResult(
         status=200,
         body={
@@ -100,8 +101,8 @@ def read_profile(user: User, csrf_token: Optional[str], wp_v2_completed) -> Prof
             "role": user.role,
             "profileData": profile_repository.load_document(user.id),
             "csrfToken": csrf_token,
-            "wpl_completed": bool(user.intake and user.intake.wpl_completed_at),
-            "wpll_completed": bool(user.intake and user.intake.wpll_completed_at),
+            "wpl_completed": "work_pulse" in finished,
+            "wpll_completed": "wpll" in finished,
             "wp_v2_completed": wp_v2_completed(user.id),
         },
     )

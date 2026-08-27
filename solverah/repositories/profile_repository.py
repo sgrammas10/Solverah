@@ -19,11 +19,13 @@ callback is re-run against a fresh read whenever another writer got there first.
 what the other writer committed, and an ORM instance in the identity map does
 not go and look.  Core `select()` always does.
 
-The queries here are deliberately plain.  ``load_document`` is five round trips
+The queries here are deliberately plain.  ``load_document`` is seven round trips
 where the blob was zero, because the blob rode along on the user row that was
-already loaded.  That is the cost of the decomposition and it is paid on
-``GET /me/profile``, not on the boot path -- ``GET /auth/session`` never touches
-this module.
+already loaded.  Five of those are Phase 2a's decomposition; the other two are
+Phase 2d fetching the FocusType and ManagerMatch results, which were blob keys
+and are now rows.  The whole cost is paid on ``GET /me/profile``, not on the boot
+path -- ``GET /auth/session`` never touches this module.  Phase 3's cache is
+where it gets paid back.
 """
 
 from __future__ import annotations
@@ -54,6 +56,7 @@ from solverah.domain.profile_document import (
     ResumeRecord,
     SkillRow,
 )
+from solverah.repositories import assessment_repository
 
 __all__ = [
     "MAX_WRITE_ATTEMPTS",
@@ -205,10 +208,37 @@ def load_document(user_id: int) -> Dict[str, Any]:
 
     Byte-for-byte what ``users.profile_data`` used to hold. Everything that used
     to read the blob reads this instead, and nothing above this line can tell
-    the difference -- which is the contract Phase 2a is required not to break.
+    the difference -- which is the contract Phase 2a was required not to break
+    and Phase 2d inherits.
+
+    **Two keys are assembled from outside the profile tables.**
+    ``focus_type_result`` and ``manager_match_result`` were blob keys, so 2a
+    carried them into ``profiles.extra`` with everything else that had no
+    column; 2d moved them to ``assessment_submissions``, where the other three
+    instruments' results already live. They are still in this document because
+    ``GET /me/profile`` and ``GET /me/export`` still return them and
+    ``intelligence_service`` still reads them from here -- a storage change that
+    dropped two keys off the wire would not be a storage change.
+
+    Merged after :func:`assemble` rather than inside it, and merged
+    unconditionally, so the row is the only source: a stale copy left behind in
+    ``extra`` cannot shadow it. (The migration removes those copies; this
+    ordering is what makes a missed one harmless rather than silently
+    authoritative.) Neither key is client-writable -- ``clean_profile_data``'s
+    allowlist has never included them -- so nothing can put one back.
     """
     state, _version = _read_state(user_id)
-    return document_domain.assemble(state)
+    document = document_domain.assemble(state)
+
+    for kind, key in document_domain.ASSESSMENT_RESULT_KEYS.items():
+        submission = assessment_repository.current_submission(user_id, kind)
+        result = submission.result if submission is not None else None
+        if result is None:
+            document.pop(key, None)
+        else:
+            document[key] = result
+
+    return document
 
 
 def current_resume(user_id: int) -> Optional[Resume]:
@@ -361,7 +391,19 @@ def _write_children(user_id: int, state: ProfileState) -> None:
                     "user_id": user_id,
                     "institution": row.institution,
                     "degree": row.degree,
-                    "field": row.field_of_study,
+                    # `field_of_study`, the mapped attribute -- NOT `field`, the
+                    # column. These statements are ORM-enabled bulk inserts
+                    # (an entity plus a list of dicts), and those key on
+                    # attribute names; a key matching no attribute is dropped
+                    # silently, with no error and a NULL in the column.
+                    # `ProfileEducation.field_of_study = db.Column("field", ...)`
+                    # is the only renamed column in the profile tables, so this
+                    # is the only key in the three inserts here where the two
+                    # names differ and the only one that can go wrong this way.
+                    # It did: every save between Phase 2a and 2026-08-27 wrote
+                    # NULL here. tests/test_profile_decomposition.py
+                    # ::test_the_education_field_survives_a_write.
+                    "field_of_study": row.field_of_study,
                     "start_date": row.start_date,
                     "end_date": row.end_date,
                     "source": row.source,

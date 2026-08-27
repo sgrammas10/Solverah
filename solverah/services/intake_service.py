@@ -31,8 +31,13 @@ from solverah.domain import intake as domain
 from solverah.infra import email as email_infra
 from solverah.infra import storage
 from solverah.infra.storage import ALLOWED_MIME, MAX_BYTES
-from solverah.repositories import intake_repository, profile_repository, user_repository
-from solverah.services import audit, resume_service
+from solverah.repositories import (
+    assessment_repository,
+    intake_repository,
+    profile_repository,
+    user_repository,
+)
+from solverah.services import assessment_service, audit, resume_service
 
 __all__ = [
     "IntakeResult",
@@ -442,13 +447,27 @@ def save_to_account(user: User, data: Dict[str, Any]) -> IntakeResult:
     if len(wpll_answers) > MAX_WPLL_ANSWERS:
         return _error(400, "wpll_answers must contain at most 5 items")
 
-    intake = intake_repository.upsert_user_intake(
-        user_id=user.id,
-        selected_ids=selected_ids,
-        wpll_answers=wpll_answers,
-        wpll_insight_text=wpll_insight_text,
-        now=auth_domain.utcnow(),
+    # Two halves, two homes, and the split is the point of Phase 2d: the
+    # statement selections are intake data and stay on `user_intake`; the WPLL
+    # answers and their insight are one of the five assessment products and go
+    # where the other four go.
+    intake_repository.upsert_user_intake(
+        user_id=user.id, selected_ids=selected_ids
     )
+
+    submission = assessment_repository.open_current(
+        user.id, "wpll", assessment_service.CLIENT_FORM_VERSION
+    )
+    submission.answers = wpll_answers
+    submission.narrative = wpll_insight_text or None
+    submission.status = "complete"
+    # Set on the first save that carries answers and never moved afterwards. A
+    # re-save replaces the answers -- it always has -- but "when did this person
+    # finish WPLL" is a fact about the first sitting, and a re-save is not a
+    # retake. This is the one instrument whose completion timestamp is not
+    # refreshed, which is why `open_current` leaves the field to the caller.
+    if wpll_answers and submission.completed_at is None:
+        submission.completed_at = auth_domain.utcnow()
 
     audit.log_audit_event(
         action="create",
@@ -465,6 +484,6 @@ def save_to_account(user: User, data: Dict[str, Any]) -> IntakeResult:
         status=200,
         body={
             "message": "Intake saved",
-            "wpll_completed": intake.wpll_completed_at is not None,
+            "wpll_completed": submission.completed_at is not None,
         },
     )

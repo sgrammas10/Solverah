@@ -32,6 +32,13 @@ jobs:
         # which means the tree CI audits need not be the tree that was reviewed.
         run: npm ci
 
+      # Type errors do not fail Vitest: it transpiles per-file and strips types
+      # without checking them, so a broken type survives a green suite. `tsc -b`
+      # is the only thing in this job that reads tsconfig and checks across
+      # files. Placed before the tests so the cheap gate reports first.
+      - name: Type Check
+        run: npm run type-check
+
       - name: Run Tests
         run: npm test -- --run
 

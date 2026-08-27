@@ -20,7 +20,7 @@ export default function CareerIntakePage() {
 
   return (
     <div className="min-h-screen bg-cream-base">
-      <LandingNav onRequestEarlyAccess={() => {}} />
+      <LandingNav />
 
       {/* Progress bar */}
       <div className="mx-auto max-w-2xl px-6 pt-10 pb-6">

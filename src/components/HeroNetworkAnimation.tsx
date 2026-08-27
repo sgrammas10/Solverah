@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 // ── Precomputed constants ─────────────────────────────────────────────────────
 
@@ -25,7 +25,6 @@ const NODES = [
   { id: 'T', cx: 508, cy: 412 },
 ] as const;
 
-type NodeId = typeof NODES[number]['id'];
 
 const NODE_MAP: Record<string, { cx: number; cy: number }> = {};
 NODES.forEach(n => { NODE_MAP[n.id] = { cx: n.cx, cy: n.cy }; });

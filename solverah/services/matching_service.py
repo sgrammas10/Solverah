@@ -29,7 +29,11 @@ from model import User, db
 from packages.ml.culture import CultureValues, culture_fit_score
 from solverah import pagination
 from solverah.domain import matching as domain
-from solverah.repositories import company_repository, profile_repository
+from solverah.repositories import (
+    assessment_repository,
+    company_repository,
+    profile_repository,
+)
 
 __all__ = [
     "DEFAULT_LENS",
@@ -104,14 +108,16 @@ def resolve_culture_preferences(user: User) -> Optional[dict]:
         return user_prefs
 
     # Backfill for users who completed WP before culture_preferences was stored.
-    from model import UserIntake
+    # Reads the Work Pulse submission since Phase 2d; it read
+    # `user_intake.wpl_answers` before, which was the last query outside the
+    # assessment tables that treated an instrument's answers as profile state.
     from work_pulse.derive_preferences import derive_culture_preferences
 
-    intake = UserIntake.query.filter_by(user_id=user.id).first()
-    if not intake or not intake.wpl_answers:
+    submission = assessment_repository.current_submission(user.id, "work_pulse")
+    if submission is None or not submission.answers:
         return None
 
-    user_prefs = derive_culture_preferences(intake.wpl_answers)
+    user_prefs = derive_culture_preferences(submission.answers)
     profile_repository.update_document(
         user.id, lambda existing: {**existing, "culture_preferences": user_prefs}
     )
