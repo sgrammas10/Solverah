@@ -17,9 +17,15 @@ name: solverah
 
 services:
   db:
-    # pgvector on top of Postgres 16: the target architecture indexes company
+    # pgvector on top of Postgres 18: the target architecture indexes company
     # culture vectors with HNSW rather than scanning every company in Python.
-    image: pgvector/pgvector:pg16
+    #
+    # 18 rather than the 16 this originally pinned. Render was measured on
+    # 2026-08-27 and runs `PostgreSQL 18.3 (Debian 18.3-1.pgdg12+1)`, and Part 4
+    # defaults every public_id to `uuidv7()` -- a Postgres 18 built-in with no 16
+    # equivalent. Local, CI, and production now agree; on 16, Phase 2 migrations
+    # would fail everywhere except the environment that actually matters.
+    image: pgvector/pgvector:pg18
     environment:
       POSTGRES_USER: solverah
       POSTGRES_PASSWORD: solverah

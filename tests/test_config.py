@@ -220,26 +220,81 @@ def test_app_guards_load_dotenv_behind_the_flag():
     ), "load_dotenv() is no longer guarded by IGNORE_DOTENV_VAR"
 
 
-def test_make_test_ci_sets_the_flag_and_the_ci_variables():
-    """`make test-ci` must stay an honest reproduction of the runner.
+CI_VARIABLES = (
+    "APP_ENV",
+    "DATABASE_URL",
+    "JWT_SECRET_KEY",
+    "JWT_COOKIE_SECURE",
+    "JWT_COOKIE_SAMESITE",
+)
 
-    If CI's env block gains a variable and this target does not, the target
-    quietly stops matching and the gap it exists to close reopens.
+# Each backend CI job and the make target that reproduces it. There are two as of
+# 2026-08-27: Postgres is the gate, SQLite is fast non-gating signal. Both are listed
+# because a target that has drifted from its job is a target that lies, and it does not
+# matter which of the two it is -- the SQLite one is exactly where a false green hurts
+# most, since it is the one people run while waiting.
+BACKEND_JOBS = (
+    ("backend-tests-postgres:", "test-pg:"),
+    ("backend-tests-sqlite:", "test-ci:"),
+)
+
+
+@pytest.mark.parametrize("job_anchor, target_anchor", BACKEND_JOBS)
+def test_make_targets_reproduce_the_ci_backend_jobs(job_anchor, target_anchor):
+    """Every backend CI job must have a make target that is an honest copy of it.
+
+    If a job's env block gains a variable and its target does not, the target quietly
+    stops matching and the gap it exists to close reopens.
     """
     import io as _io
 
     makefile = _io.open("Makefile", encoding="utf-8").read()
-    recipe = makefile.split("test-ci:", 1)[1].split(".PHONY", 1)[0]
+    assert job_anchor.rstrip(":") in _io.open(
+        ".github/workflows/tests.yml", encoding="utf-8"
+    ).read(), (
+        "CI job %r is gone. If a backend job was renamed or removed, update "
+        "BACKEND_JOBS -- do not delete the pairing." % job_anchor
+    )
+    recipe = makefile.split(target_anchor, 1)[1].split(".PHONY", 1)[0]
 
-    # Anchor on the backend job: "Run Tests" also names the frontend step, which
-    # runs npm and carries no env block.
+    # Anchor on the job first: "Run Tests" also names the frontend step, which runs npm
+    # and carries no env block.
     workflow = _io.open(".github/workflows/tests.yml", encoding="utf-8").read()
-    backend_job = workflow.split("backend-tests:", 1)[1]
+    backend_job = workflow.split(job_anchor, 1)[1]
     ci_env = backend_job.split("- name: Run Tests", 1)[1].split("run:", 1)[0]
 
-    assert "SOLVERAH_IGNORE_DOTENV=1" in recipe
+    assert "SOLVERAH_IGNORE_DOTENV=1" in recipe, (
+        "%s does not suppress .env, so it runs with secrets the runner does not have"
+        % target_anchor
+    )
 
-    for name in ("APP_ENV", "DATABASE_URL", "JWT_SECRET_KEY",
-                 "JWT_COOKIE_SECURE", "JWT_COOKIE_SAMESITE"):
+    for name in CI_VARIABLES:
         assert name in ci_env, "CI no longer sets %s; update this test" % name
-        assert name in recipe, "make test-ci does not set %s, but CI does" % name
+        assert name in recipe, "make %s does not set %s, but CI does" % (
+            target_anchor,
+            name,
+        )
+
+
+def test_the_postgres_job_is_the_gate_and_sqlite_cannot_fail_the_build():
+    """The two backend jobs are not peers, and the workflow has to say so.
+
+    A SQLite job that can fail the build is a SQLite job that can *block* on a defect
+    the real database does not have -- and, worse, one people fix by making the code
+    accommodate SQLite. It runs for speed; Postgres decides.
+    """
+    import io as _io
+
+    workflow = _io.open(".github/workflows/tests.yml", encoding="utf-8").read()
+
+    sqlite_job = workflow.split("backend-tests-sqlite:", 1)[1]
+    assert "continue-on-error: true" in sqlite_job.split("steps:", 1)[0], (
+        "The SQLite job can fail the build. It is early signal, not the gate — "
+        "set continue-on-error: true."
+    )
+
+    postgres_job = workflow.split("backend-tests-postgres:", 1)[1].split("\n  backend-tests-sqlite:", 1)[0]
+    assert "continue-on-error" not in postgres_job.split("steps:", 1)[0], (
+        "The Postgres job is the gate; it must be able to fail the build."
+    )
+    assert "pgvector/pgvector:pg" in postgres_job, "the Postgres service container is gone"

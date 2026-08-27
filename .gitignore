@@ -51,3 +51,7 @@ venv/
 htmlcov/
 .coverage
 .coverage.*
+
+# Database snapshots taken by `make db-snapshot` (docs/RUNBOOK_DATABASE_ROLLBACK.md).
+# These are full copies of whatever DATABASE_URL pointed at, production included.
+backups/

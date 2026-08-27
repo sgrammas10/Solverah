@@ -265,11 +265,16 @@ def _fake_submission(scoring_key_version: str):
     )
 
 
-def test_get_dimension_scores_none_current_and_stale(client):
+def test_get_dimension_scores_none_current_and_stale(client, seed_user):
     from app import app
     from assessment_form import scoring_key_version
     from assessment_store import get_dimension_scores, persist_submission
     from model import db
+
+    # Users 1 and 2 both get submissions, so both need the parent row the FK names.
+    # User 99 is left unseeded on purpose: the assertion below is that a user with no
+    # scores reads back None.
+    seed_user(1, 2)
 
     with app.app_context():
         assert get_dimension_scores(99) is None  # no profile: None, never a default

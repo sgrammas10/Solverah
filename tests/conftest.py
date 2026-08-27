@@ -89,6 +89,37 @@ def _refuse_non_local_database(raw_url: str) -> None:
 _refuse_non_local_database(os.environ["DATABASE_URL"])
 
 
+def _enforce_sqlite_foreign_keys() -> None:
+    """Make SQLite reject orphan foreign keys, the way Postgres always has.
+
+    SQLite ships with foreign-key enforcement OFF and it is a per-connection pragma,
+    so an FK declared in the schema is documentation and nothing more until someone
+    turns it on.  Nobody had.  Eight tests across four files inserted child rows
+    naming a ``user_id`` no ``user`` row ever had; all eight passed for as long as the
+    suite ran on SQLite and all eight failed the hour CI moved to Postgres
+    (2026-08-27).  The rows were orphans on both databases.  Only one of the two said so.
+
+    The SQLite job is kept for speed, and a fast job that is *laxer* than the gate is
+    worse than no fast job: it reports green on precisely the defects the gate exists
+    to catch, so the first real signal arrives minutes later from the slower run.  This
+    listener closes that gap -- both jobs now enforce the same integrity rules.
+    """
+    from sqlalchemy import event
+    from sqlalchemy.engine import Engine
+
+    @event.listens_for(Engine, "connect")
+    def _set_sqlite_pragma(dbapi_connection, connection_record):  # noqa: ANN001
+        # Fires for every engine; only SQLite DBAPI connections understand the pragma.
+        if type(dbapi_connection).__module__.split(".")[0] != "sqlite3":
+            return
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+
+_enforce_sqlite_foreign_keys()
+
+
 @pytest.fixture()
 def client():
     """A Flask test client backed by a freshly created, fully torn-down database."""
@@ -134,3 +165,61 @@ def client():
                 "usual cause -- check for another pytest process still holding it."
                 % (sqlite_path, exc)
             ) from exc
+
+
+def _resync_identity_sequence(db) -> None:
+    """Advance ``user.id``'s sequence past any hand-assigned ids.
+
+    Supplying a primary key explicitly does not consume a value from the sequence
+    backing it, so the next ``User()`` inserted without an id is handed 1 and collides
+    with the seeded row.  SQLite has no sequence and needs nothing.
+    """
+    if db.engine.url.drivername.startswith("sqlite"):
+        return
+
+    from sqlalchemy import text
+
+    # `user` is a reserved word in Postgres, hence the quoting (P1-8 renames the table
+    # to `users` in Phase 2; until then every reference has to carry the quotes).
+    # The table and column reach pg_get_serial_sequence as bind parameters because it
+    # takes them as *text*, so inlining them would mean a quoted literal inside a
+    # quoted literal for no benefit.
+    db.session.execute(
+        text(
+            "SELECT setval(pg_get_serial_sequence(:tbl, :col), "
+            'COALESCE((SELECT MAX(id) FROM "user"), 0) + 1, false)'
+        ),
+        {"tbl": '"user"', "col": "id"},
+    )
+    db.session.commit()
+
+
+@pytest.fixture()
+def seed_user(client):
+    """Create ``user`` rows with the explicit ids a test's child rows point at.
+
+    Several tests assert things *about a specific user id* -- that completion is
+    per-user rather than global, that a stale scoring key does not satisfy the current
+    instrument's gate -- so the id is load-bearing and cannot be replaced with whatever
+    the sequence happens to hand out.  This seeds the parent row those ids need.
+
+    Depends on ``client`` so the tables exist first, and so both fixtures share one
+    database lifecycle: the teardown that drops the schema also removes these rows.
+    """
+    from app import app
+    from model import User, db
+
+    def _seed(*user_ids: int) -> None:
+        with app.app_context():
+            for user_id in user_ids:
+                db.session.add(
+                    User(
+                        id=user_id,
+                        email="seeded-%d@example.test" % user_id,
+                        password="not-a-real-hash",
+                    )
+                )
+            db.session.commit()
+            _resync_identity_sequence(db)
+
+    return _seed

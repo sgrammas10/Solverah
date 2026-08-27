@@ -120,6 +120,14 @@ enforcement, transaction isolation, `citext`, partial indexes, and concurrency
 semantics all differ. Every one of the 490 passing tests is passing against a database
 the product does not use.
 
+**Resolved 2026-08-27** (Phase 2 prerequisite). The suite — 926 tests by then — moved
+onto a Postgres service container. Eight failed on the first run, and all eight were the
+same defect: child rows inserted against a `user_id` no `user` row had. SQLite's foreign
+keys are off by default and are a per-connection pragma, so every foreign key in the
+schema had been decoration for the entire life of the test suite. The tests now seed the
+parent row, and conftest turns the pragma on so the surviving SQLite job cannot report
+green on that class again.
+
 #### P1-10 · API surface
 
 No versioning, no pagination on any list endpoint, no request/response schema
@@ -186,7 +194,7 @@ and eight `.docx` specs.
       │       └────────┘
       ▼
 ┌──────────────────────────────────────────┐
-│ Postgres 16 primary                      │
+│ Postgres 18 primary                      │
 │  · pgvector (culture / skill ANN)        │──► read replicas (analytics, heavy reads)
 │  · monthly partitions on append-only     │
 │  · logical replication → warehouse       │
@@ -1108,7 +1116,9 @@ reads it as the floor.
 - SQLAlchemy engine options: `pool_pre_ping`, sized pool, statement timeout.
 - Redis-backed rate limiting and cache.
 - `Dockerfile`, `compose.yml`, `Makefile`, `.dockerignore`.
-- CI switched to Postgres; `pytest-postgresql` or a service container.
+- ~~CI switched to Postgres~~ — **done 2026-08-27.** A `pgvector/pgvector:pg18`
+  service container, digest-pinned, is the gate; the SQLite job survives as
+  non-gating early signal. See Phase 2's prerequisites below.
 
 **Exit:** existing `app.py` still serves every route; new infrastructure runs alongside.
 
@@ -1326,6 +1336,37 @@ schema rejects an empty body before the handler runs.
 
 ### Phase 2 — Data model v2
 
+#### Prerequisites · **done 2026-08-27**
+
+Three things had to be true before any migration ran, and all three were checked against
+the live system rather than assumed:
+
+- **CI runs on Postgres** (above). 926 tests, 8 real failures, fixed.
+- **The target supports the design.** Render reports
+  `PostgreSQL 18.3 (Debian 18.3-1.pgdg12+1)`, and `CREATE EXTENSION` succeeds for
+  `vector` (0.8.1), `citext` (1.8), and `pg_trgm` (1.6) under the application role —
+  tested for real inside a transaction that was then rolled back.
+
+  This settles an open question in 4.2: **`uuidv7()` is a native built-in here and
+  works.** `DEFAULT uuidv7()` stands exactly as written, and no table in Part 4 needs
+  app-side ULID or UUIDv7 generation. It also corrects this document, which said
+  "Postgres 16" in 2.1 — 16 has no `uuidv7()`, so the CI container is pinned to pg18 to
+  match production rather than to match that line.
+- **The rollback path exists and has been walked.** `docs/RUNBOOK_DATABASE_ROLLBACK.md`.
+  The load-bearing detail: Render's point-in-time recovery provisions a **new instance
+  with a new connection string**, so it is not a rollback until every service is
+  repointed. The fast path is a pre-migration `pg_dump` restored in place — 16.5 s to
+  take against production, 1.4 s to restore, connection string untouched. Rehearsed
+  by dropping a column and deleting a million rows, then restoring both.
+
+  Behind it, Render's PITR window is **7 days** (confirmed 2026-08-27), rolling rather
+  than daily snapshots. That is the outer bound on how late a Phase 2 defect can be
+  discovered and still be recoverable from Render's side — a backfill whose wrongness
+  only surfaces in a monthly report is outside it, which is an argument for verifying
+  each aggregate's backfill before moving to the next rather than batching them.
+
+#### The migrations
+
 Expand/contract, one aggregate at a time, dual-write then backfill then cut over:
 
 1. `users` (rename from `user`, add `public_id`, `status`, `version`).
@@ -1427,7 +1468,8 @@ in parallel with the rest of Phase 4.
 | A5 | Cursor pagination, never offset | `OFFSET 100000` scans 100k rows and skews under concurrent writes. | Offset/limit |
 | A6 | Modular monolith, not microservices | One team. Service boundaries here would buy operational cost and distributed-transaction pain to solve a problem the product does not have. The layering makes extraction cheap later if it is ever warranted. | Microservices |
 | A7 | Refresh tokens in the database | Revocation, device management, and reuse detection are impossible with stateless JWTs alone. One indexed lookup per refresh (not per request) is an acceptable price. | Long-lived stateless JWT |
-| A8 | CI on Postgres, not SQLite | Tests that pass against a database the product does not run are not evidence. | Keep SQLite for speed |
+| A8 | CI on Postgres, not SQLite | Tests that pass against a database the product does not run are not evidence. Landed 2026-08-27 and immediately caught 8 orphaned foreign keys SQLite had accepted for months. SQLite is kept as a non-gating fast job, with `PRAGMA foreign_keys=ON` so it cannot be laxer than the gate. | Keep SQLite for speed |
+| A13 | Pin CI Postgres to 18, matching Render, not to 16 | Part 4 defaults every `public_id` to `uuidv7()`, which exists only in Postgres 18+. Render was measured at 18.3, so a pg16 runner would fail migrations production accepts — divergence in the opposite direction, and the tempting workaround (generate ids in the app) would be a permanent change to every table made to satisfy a container. `tests/test_database_parity.py` asserts the floor. | `pgvector/pgvector:pg16` |
 | A9 | Collapsed routes keep one rate-limit bucket per discriminator | Five submit handlers at 5/min were five budgets; one handler is one, so finishing Work Pulse would have spent FocusType's allowance. The limit bounds provider spend, which is per call to a specific instrument — raising it to 25 buys any one instrument a 5× to fix a bucketing problem. | Raise the limit on the collapsed route |
 | A10 | Schema enforcement in a `before_request` hook, not in `@document` | `@document` sits above `@bp.route`, which registers the object it is handed — a wrapper written there never runs. That exact ordering made every `@limiter.limit` in the old `app.py` inert. Resolving the spec from `request.endpoint` makes declaration order irrelevant. | A wrapping decorator |
 | A11 | Enforced request models ignore unknown keys rather than forbidding them | Handlers read fields with `data.get(...)` and ignore the rest, and live call sites send more than the schemas name. A 422 on a key the server was going to drop is the "worked yesterday" incident enforcement is supposed to prevent. Closed models still generate a strict client. | `extra="forbid"` on requests |
