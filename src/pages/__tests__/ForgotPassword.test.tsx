@@ -1,6 +1,10 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { HttpResponse } from "msw";
+
 import ForgotPassword from "../ForgotPassword";
+import { mock } from "../../../tests/msw/contract";
+import { server, useApiMocks, recordRequests } from "../../../tests/msw/server";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -13,8 +17,10 @@ vi.mock("react-router-dom", async (importOriginal) => {
 
 vi.mock("../../components/HeroNetworkAnimation", () => ({ default: () => null }));
 
-const mockFetch = vi.fn();
-globalThis.fetch = mockFetch as any;
+useApiMocks();
+const { requests } = recordRequests();
+
+const FORGOT = "POST /api/v1/auth/password/forgot";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -37,10 +43,6 @@ async function submitEmail(email = "user@example.com") {
 
 describe("ForgotPassword - happy path", () => {
   it("navigates to /forgot-password/verify on success", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({}),
-    });
     renderForgotPassword();
     await submitEmail("user@example.com");
     expect(mocks.navigate).toHaveBeenCalledWith("/forgot-password/verify", {
@@ -49,38 +51,50 @@ describe("ForgotPassword - happy path", () => {
   });
 
   it("trims and lower-cases the email before sending", async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+    let sent: Record<string, unknown> | undefined;
+    server.use(
+      mock("post", "/api/v1/auth/password/forgot").resolve(async ({ request }) => {
+        sent = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ message: "Code sent" });
+      }),
+    );
     renderForgotPassword();
     await submitEmail("  USER@EXAMPLE.COM  ");
-    const [, options] = mockFetch.mock.calls[0];
-    const body = JSON.parse(options.body);
-    expect(body.email).toBe("user@example.com");
+    expect(sent?.email).toBe("user@example.com");
   });
 });
 
 describe("ForgotPassword - error handling", () => {
   it("shows server error message when response is not ok", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      json: async () => ({ error: "Email not found" }),
-    });
+    server.use(
+      mock("post", "/api/v1/auth/password/forgot").reply(404, { error: "Email not found" }),
+    );
     renderForgotPassword();
     await submitEmail();
     expect(screen.getByText(/Email not found/i)).toBeInTheDocument();
   });
 
   it("shows fallback message when server error has no message", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      json: async () => null,
-    });
+    // Off-contract on purpose: `LegacyError` requires `error`, so `.reply`
+    // cannot express a null body. This branch exists for responses that are not
+    // the documented shape, so the test has to be able to send one.
+    server.use(
+      mock("post", "/api/v1/auth/password/forgot").resolve(
+        () => new HttpResponse("null", { status: 500, headers: { "Content-Type": "application/json" } }),
+      ),
+    );
     renderForgotPassword();
     await submitEmail();
     expect(screen.getByText(/Something went wrong/i)).toBeInTheDocument();
   });
 
-  it("shows network error message when fetch throws", async () => {
-    mockFetch.mockRejectedValueOnce(new Error("Network failure"));
+  it("shows network error message when the request fails outright", async () => {
+    // Genuine here, unlike the equivalent case in ConfirmEmail: this component's
+    // catch is bare -- `catch { setError("Network error. Please try again.") }` --
+    // so the string asserted below is the component's own and not the test's.
+    server.use(
+      mock("post", "/api/v1/auth/password/forgot").resolve(() => HttpResponse.error()),
+    );
     renderForgotPassword();
     await submitEmail();
     expect(screen.getByText(/Network error/i)).toBeInTheDocument();
@@ -89,8 +103,17 @@ describe("ForgotPassword - error handling", () => {
 
 describe("ForgotPassword - loading state", () => {
   it("disables the button and shows Sending… while loading", async () => {
-    let resolve!: (v: any) => void;
-    mockFetch.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+    // The request is held open by a gate the test releases, which is the MSW
+    // equivalent of the never-resolving promise the fetch stub used to return.
+    let release!: () => void;
+    const inFlight = new Promise<void>((resolve) => { release = resolve; });
+    server.use(
+      mock("post", "/api/v1/auth/password/forgot").resolve(async () => {
+        await inFlight;
+        return HttpResponse.json({ message: "Code sent" });
+      }),
+    );
+
     renderForgotPassword();
     fireEvent.change(screen.getByLabelText(/email address/i), {
       target: { value: "user@example.com" },
@@ -98,8 +121,13 @@ describe("ForgotPassword - loading state", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /send code/i }));
     });
+
     expect(screen.getByRole("button", { name: /sending/i })).toBeDisabled();
-    await act(async () => { resolve({ ok: true, json: async () => ({}) }); });
+
+    await act(async () => {
+      release();
+      await inFlight;
+    });
   });
 });
 
@@ -110,13 +138,9 @@ describe("ForgotPassword - initial render", () => {
     expect(screen.getByRole("button", { name: /send code/i })).toBeInTheDocument();
   });
 
-  it("calls the correct API endpoint", async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+  it("posts to the password-forgot endpoint and nothing else", async () => {
     renderForgotPassword();
     await submitEmail();
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("/auth/password/forgot"),
-      expect.objectContaining({ method: "POST" })
-    );
+    expect(requests).toEqual([FORGOT]);
   });
 });

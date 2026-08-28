@@ -1,6 +1,9 @@
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { HttpResponse } from "msw";
 import CareerIntakePage from "../CareerIntakePage";
+import { mock } from "../../../tests/msw/contract";
+import { server, useApiMocks } from "../../../tests/msw/server";
 
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -8,23 +11,29 @@ vi.mock("react-router-dom", async (importOriginal) => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
-const mockFetch = vi.fn();
-globalThis.fetch = mockFetch as any;
+/**
+ * The only request this page makes is the WPLL teaser submission, issued by the
+ * `TeaserResult` child on step 3. It is served by a contract-bound handler here
+ * rather than by a `vi.fn()` over `globalThis.fetch`, so the path and the `{kind}`
+ * in it are checked rather than assumed -- see tests/msw/contract.ts.
+ */
+useApiMocks();
+
+const TEASER_RESPONSE = {
+  insight_text: "Test insight text.",
+  locked_sections: [
+    "Environmental Friction Score",
+    "Work Rhythm Pattern",
+    "Emerging Archetype Signals",
+  ],
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
   sessionStorage.clear();
-  mockFetch.mockResolvedValue({
-    ok: true,
-    json: async () => ({
-      insight_text: "Test insight text.",
-      locked_sections: [
-        "Environmental Friction Score",
-        "Work Rhythm Pattern",
-        "Emerging Archetype Signals",
-      ],
-    }),
-  });
+  server.use(
+    mock("post", "/api/v1/assessments/{kind}/submissions").reply(200, TEASER_RESPONSE),
+  );
 });
 
 function renderPage() {
@@ -126,10 +135,24 @@ describe("CareerIntakePage — Step 2: WPLL stepper", () => {
 
 describe("CareerIntakePage — Step 3: Teaser result", () => {
   it("step 3 shows loading state while fetch is in-flight", async () => {
-    mockFetch.mockReturnValueOnce(new Promise(() => {}));
+    // Held open for the duration of the assertion. `delay("infinite")` would
+    // leave a request pending at teardown; a gate the test owns does not.
+    let release!: () => void;
+    const inFlight = new Promise<void>((resolve) => { release = resolve; });
+    server.use(
+      mock("post", "/api/v1/assessments/{kind}/submissions").resolve(async () => {
+        await inFlight;
+        return HttpResponse.json(TEASER_RESPONSE);
+      }),
+    );
     renderPage();
     await goToStep3();
     expect(screen.getByText(/Reading your responses/i)).toBeInTheDocument();
+
+    await act(async () => {
+      release();
+      await inFlight;
+    });
   });
 
   it("step 3 renders insight text after fetch resolves", async () => {

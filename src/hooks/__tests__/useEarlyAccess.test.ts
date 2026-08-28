@@ -1,12 +1,36 @@
 import { renderHook, act } from "@testing-library/react";
+import { HttpResponse } from "msw";
+
 import { useEarlyAccess } from "../useEarlyAccess";
+import { mock } from "../../../tests/msw/contract";
+import { server, useApiMocks, recordRequests } from "../../../tests/msw/server";
 
-const mockFetch = vi.fn();
-globalThis.fetch = mockFetch as any;
+/**
+ * These tests used to assign a `vi.fn()` over `globalThis.fetch` and hand back
+ * bare `{ ok: true }` objects. Two things were wrong with that. The stub
+ * answered every URL identically, so nothing here checked that the hook posts
+ * to `/intake/early-access` rather than to some other endpoint; and `{ ok: true }`
+ * is not a `Response`, so these tests could not have caught the hook calling any
+ * method the real object has.
+ *
+ * The handlers are contract-typed -- see tests/msw/contract.ts -- and unhandled
+ * requests are errors, so a call to the wrong path now fails the test that made
+ * it rather than being answered anyway.
+ */
+useApiMocks();
+const { requests } = recordRequests();
 
-beforeEach(() => {
-  mockFetch.mockReset();
-});
+/** The path the hook is supposed to post to, as `recordRequests` formats it. */
+const EARLY_ACCESS = "POST /api/v1/intake/early-access";
+
+/** Fill the three fields `handleSubmit` requires before it will send anything. */
+function fillRequired(result: { current: ReturnType<typeof useEarlyAccess> }) {
+  act(() => {
+    result.current.handleChange("firstName", "Ada");
+    result.current.handleChange("lastName", "Lovelace");
+    result.current.handleChange("email", "ada@example.com");
+  });
+}
 
 describe("useEarlyAccess - handleSubmit validation", () => {
   it("sets error when firstName is missing", async () => {
@@ -43,37 +67,57 @@ describe("useEarlyAccess - handleSubmit validation", () => {
     expect(result.current.error).toBe("Please fill out all required fields.");
   });
 
-  it("does not call fetch when validation fails", async () => {
+  it("issues no request when validation fails", async () => {
     const { result } = renderHook(() => useEarlyAccess());
     await act(async () => { await result.current.handleSubmit(); });
-    expect(mockFetch).not.toHaveBeenCalled();
+    expect(requests).toEqual([]);
   });
 });
 
 describe("useEarlyAccess - successful submission", () => {
   it("closes modal and sets success flag on 200", async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true });
     const { result } = renderHook(() => useEarlyAccess());
-    act(() => {
-      result.current.setIsOpen(true);
-      result.current.handleChange("firstName", "Ada");
-      result.current.handleChange("lastName", "Lovelace");
-      result.current.handleChange("email", "ada@example.com");
-    });
+    act(() => { result.current.setIsOpen(true); });
+    fillRequired(result);
     await act(async () => { await result.current.handleSubmit(); });
     expect(result.current.isOpen).toBe(false);
     expect(result.current.isSuccess).toBe(true);
   });
 
-  it("resets form fields after successful submit", async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true });
+  it("posts the trimmed form to the early-access endpoint", async () => {
+    // Not assertable before this file moved to MSW: the old stub recorded a
+    // call to a function, so which URL was hit went unchecked.
+    let sent: Record<string, unknown> | undefined;
+    server.use(
+      mock("post", "/api/v1/intake/early-access").resolve(async ({ request }) => {
+        sent = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ok: true });
+      }),
+    );
+
     const { result } = renderHook(() => useEarlyAccess());
     act(() => {
-      result.current.handleChange("firstName", "Ada");
-      result.current.handleChange("lastName", "Lovelace");
-      result.current.handleChange("email", "ada@example.com");
-      result.current.handleChange("phone", "555-1234");
+      result.current.handleChange("firstName", "  Ada  ");
+      result.current.handleChange("lastName", "  Lovelace  ");
+      result.current.handleChange("email", "  ada@example.com  ");
+      result.current.handleChange("phone", " 555-1234 ");
     });
+    await act(async () => { await result.current.handleSubmit(); });
+
+    expect(requests).toEqual([EARLY_ACCESS]);
+    expect(sent).toMatchObject({
+      firstName: "Ada",
+      lastName: "Lovelace",
+      email: "ada@example.com",
+      phone: "555-1234",
+      preferredContact: "email",
+    });
+  });
+
+  it("resets form fields after successful submit", async () => {
+    const { result } = renderHook(() => useEarlyAccess());
+    fillRequired(result);
+    act(() => { result.current.handleChange("phone", "555-1234"); });
     await act(async () => { await result.current.handleSubmit(); });
     expect(result.current.formData.firstName).toBe("");
     expect(result.current.formData.email).toBe("");
@@ -82,13 +126,8 @@ describe("useEarlyAccess - successful submission", () => {
   });
 
   it("is not submitting after successful request", async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true });
     const { result } = renderHook(() => useEarlyAccess());
-    act(() => {
-      result.current.handleChange("firstName", "Ada");
-      result.current.handleChange("lastName", "Lovelace");
-      result.current.handleChange("email", "ada@example.com");
-    });
+    fillRequired(result);
     await act(async () => { await result.current.handleSubmit(); });
     expect(result.current.isSubmitting).toBe(false);
   });
@@ -96,44 +135,40 @@ describe("useEarlyAccess - successful submission", () => {
 
 describe("useEarlyAccess - API error handling", () => {
   it("sets error message from API response body", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      json: () => Promise.resolve({ error: "Server unavailable" }),
-    });
+    server.use(
+      mock("post", "/api/v1/intake/early-access").reply(400, { error: "Server unavailable" }),
+    );
     const { result } = renderHook(() => useEarlyAccess());
-    act(() => {
-      result.current.handleChange("firstName", "Ada");
-      result.current.handleChange("lastName", "Lovelace");
-      result.current.handleChange("email", "ada@example.com");
-    });
+    fillRequired(result);
     await act(async () => { await result.current.handleSubmit(); });
     expect(result.current.error).toBe("Server unavailable");
     expect(result.current.isSuccess).toBe(false);
   });
 
   it("sets fallback error when API returns no error field", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      json: () => Promise.resolve({}),
-    });
+    // `.resolve` rather than `.reply`, deliberately: the contract's 400 body is
+    // `LegacyError`, which *requires* `error`, so this body is one the API is
+    // not supposed to be able to send and `.reply` would refuse to compile it.
+    // The fallback exists for exactly that case -- a proxy or a truncated
+    // response -- so the test has to be able to describe a body off the
+    // contract in order to cover it.
+    server.use(
+      mock("post", "/api/v1/intake/early-access").resolve(() =>
+        HttpResponse.json({}, { status: 400 }),
+      ),
+    );
     const { result } = renderHook(() => useEarlyAccess());
-    act(() => {
-      result.current.handleChange("firstName", "Ada");
-      result.current.handleChange("lastName", "Lovelace");
-      result.current.handleChange("email", "ada@example.com");
-    });
+    fillRequired(result);
     await act(async () => { await result.current.handleSubmit(); });
     expect(result.current.error).toBe("Could not send request. Please try again.");
   });
 
   it("sets fallback error on network failure", async () => {
-    mockFetch.mockRejectedValueOnce(new Error("Network error"));
+    server.use(
+      mock("post", "/api/v1/intake/early-access").resolve(() => HttpResponse.error()),
+    );
     const { result } = renderHook(() => useEarlyAccess());
-    act(() => {
-      result.current.handleChange("firstName", "Ada");
-      result.current.handleChange("lastName", "Lovelace");
-      result.current.handleChange("email", "ada@example.com");
-    });
+    fillRequired(result);
     await act(async () => { await result.current.handleSubmit(); });
     expect(result.current.error).toBe("Could not send request. Please try again.");
     expect(result.current.isSubmitting).toBe(false);

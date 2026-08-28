@@ -21,6 +21,11 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  // "tests/msw" is in the program so the MSW handlers are type-checked against
+  // the generated OpenAPI types by `npm run type-check`. Without it the
+  // contract binding in tests/msw/contract.ts would be advisory: a handler
+  // returning a shape the API does not return would compile nowhere and fail
+  // nothing, which is the failure the handlers exist to prevent.
+  "include": ["src", "tests/msw"]
 }
 

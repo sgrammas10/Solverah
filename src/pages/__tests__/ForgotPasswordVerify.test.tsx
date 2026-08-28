@@ -1,6 +1,10 @@
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { HttpResponse } from "msw";
+
 import ForgotPasswordVerify from "../ForgotPasswordVerify";
+import { mock } from "../../../tests/msw/contract";
+import { server, useApiMocks, recordRequests, TEST_USER } from "../../../tests/msw/server";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -18,8 +22,28 @@ vi.mock("../../contexts/useAuth", () => ({
 
 vi.mock("../../components/HeroNetworkAnimation", () => ({ default: () => null }));
 
-const mockFetch = vi.fn();
-globalThis.fetch = mockFetch as any;
+/**
+ * `useAuth` stays a module mock -- this page's job is to hand the envelope to
+ * `loginWithData`, and asserting that it did is the point of the file. What
+ * moved to MSW is the transport underneath: the page talks to two different
+ * endpoints (`/auth/password/reset` to verify, `/auth/password/forgot` to
+ * resend) and the old fetch stub answered both with the same object, so nothing
+ * here could tell them apart.
+ */
+useApiMocks();
+const { requests } = recordRequests();
+
+const RESET = "POST /api/v1/auth/password/reset";
+const RESEND = "POST /api/v1/auth/password/forgot";
+
+/** A successful passwordless sign-in, in the contract's envelope. */
+function resetSucceeds(user = TEST_USER, csrfToken = "token123") {
+  return mock("post", "/api/v1/auth/password/reset").reply(200, {
+    message: "Signed in",
+    csrfToken,
+    user,
+  });
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -80,32 +104,29 @@ describe("ForgotPasswordVerify - validation", () => {
 
 describe("ForgotPasswordVerify - happy path", () => {
   it("calls loginWithData and navigates to dashboard on success", async () => {
-    const mockUser = { id: "1", email: "user@example.com", name: "User", role: "job-seeker" };
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ user: mockUser, csrfToken: "token123" }),
-    });
+    // `TEST_USER.id` is a number because the contract says `integer`, where the
+    // old fixture here used `"1"`. `src/contexts/authContext.ts` declares
+    // `id: string`; the two disagree and the contract is the half CI checks.
+    server.use(resetSucceeds());
     renderForgotPasswordVerify();
     await submitCode("123456");
-    expect(mocks.loginWithData).toHaveBeenCalledWith(mockUser, "token123");
+    expect(mocks.loginWithData).toHaveBeenCalledWith(TEST_USER, "token123");
     expect(mocks.navigate).toHaveBeenCalledWith("/job-seeker/dashboard", { replace: true });
   });
 
-  it("calls the verify-password-reset endpoint", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ user: {}, csrfToken: "tok" }),
-    });
+  it("posts the email and code to the password-reset endpoint", async () => {
+    let sent: Record<string, unknown> | undefined;
+    server.use(
+      mock("post", "/api/v1/auth/password/reset").resolve(async ({ request }) => {
+        sent = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ message: "Signed in", csrfToken: "tok", user: TEST_USER });
+      }),
+    );
     renderForgotPasswordVerify("user@example.com");
     await submitCode("654321");
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("/auth/password/reset"),
-      expect.objectContaining({ method: "POST" })
-    );
-    const [, options] = mockFetch.mock.calls[0];
-    const body = JSON.parse(options.body);
-    expect(body.email).toBe("user@example.com");
-    expect(body.code).toBe("654321");
+
+    expect(requests).toEqual([RESET]);
+    expect(sent).toMatchObject({ email: "user@example.com", code: "654321" });
   });
 });
 
@@ -113,24 +134,28 @@ describe("ForgotPasswordVerify - happy path", () => {
 
 describe("ForgotPasswordVerify - error handling", () => {
   it("shows error message on invalid/expired code", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      json: async () => ({ error: "Invalid code" }),
-    });
+    server.use(
+      mock("post", "/api/v1/auth/password/reset").reply(400, { error: "Invalid code" }),
+    );
     renderForgotPasswordVerify();
     await submitCode();
     expect(screen.getByText(/Invalid or expired code/i)).toBeInTheDocument();
   });
 
-  it("shows network error message when fetch throws", async () => {
-    mockFetch.mockRejectedValueOnce(new Error("Network failure"));
+  it("shows network error message when the request fails outright", async () => {
+    // Genuine: this component's catch is bare, so the string below is its own.
+    server.use(
+      mock("post", "/api/v1/auth/password/reset").resolve(() => HttpResponse.error()),
+    );
     renderForgotPasswordVerify();
     await submitCode();
     expect(screen.getByText(/Network error/i)).toBeInTheDocument();
   });
 
   it("does not call loginWithData on failure", async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, json: async () => ({}) });
+    server.use(
+      mock("post", "/api/v1/auth/password/reset").reply(400, { error: "Invalid code" }),
+    );
     renderForgotPasswordVerify();
     await submitCode();
     expect(mocks.loginWithData).not.toHaveBeenCalled();
@@ -141,15 +166,26 @@ describe("ForgotPasswordVerify - error handling", () => {
 
 describe("ForgotPasswordVerify - loading state", () => {
   it("shows 'Verifying…' while request is in flight", async () => {
-    let resolve!: (v: any) => void;
-    mockFetch.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+    let release!: () => void;
+    const inFlight = new Promise<void>((resolve) => { release = resolve; });
+    server.use(
+      mock("post", "/api/v1/auth/password/reset").resolve(async () => {
+        await inFlight;
+        return HttpResponse.json({ message: "Signed in", csrfToken: "", user: TEST_USER });
+      }),
+    );
+
     renderForgotPasswordVerify();
     fireEvent.change(screen.getByPlaceholderText("000000"), { target: { value: "123456" } });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
     });
     expect(screen.getByRole("button", { name: /verifying/i })).toBeDisabled();
-    await act(async () => { resolve({ ok: true, json: async () => ({ user: {}, csrfToken: "" }) }); });
+
+    await act(async () => {
+      release();
+      await inFlight;
+    });
   });
 });
 
@@ -157,12 +193,14 @@ describe("ForgotPasswordVerify - loading state", () => {
 
 describe("ForgotPasswordVerify - resend", () => {
   it("shows 'New code sent!' after successful resend", async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
     renderForgotPasswordVerify("user@example.com");
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /resend code/i }));
     });
     await waitFor(() => expect(screen.getByText(/New code sent!/i)).toBeInTheDocument());
+    // Resend re-requests a code from the *forgot* endpoint, not the reset one.
+    // Indistinguishable before, because one stub answered both.
+    expect(requests).toEqual([RESEND]);
   });
 
   it("shows error when no email available for resend", async () => {
@@ -171,5 +209,6 @@ describe("ForgotPasswordVerify - resend", () => {
       fireEvent.click(screen.getByRole("button", { name: /resend code/i }));
     });
     expect(screen.getByText(/No email available/i)).toBeInTheDocument();
+    expect(requests).toEqual([]);
   });
 });

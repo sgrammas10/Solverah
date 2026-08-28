@@ -14,28 +14,30 @@
  *      and the route-level skeleton answer different questions, and chaining
  *      one behind the other in the same spot is the "stutter" this design was
  *      built to avoid.
+ *
+ * The session probe is served by MSW rather than by a `vi.fn()` over
+ * `globalThis.fetch`. The default handler 401s, which is the signed-out boot
+ * this file is describing, so the first test no longer has to say so.
  */
 import { render, screen, act } from "@testing-library/react";
+import { HttpResponse } from "msw";
 
 import App from "../App";
-
-const mockFetch = vi.fn();
+import { mock } from "../../tests/msw/contract";
+import { server, useApiMocks, recordRequests } from "../../tests/msw/server";
 
 /** The AuthProvider boot spinner, which has no accessible name to query by. */
 const AUTH_SPINNER = ".animate-spin.rounded-full.h-32";
 /** The route-level Suspense skeleton from RouteFallback. */
 const ROUTE_SKELETON = ".animate-deferred-fade-in";
 
-beforeEach(() => {
-  mockFetch.mockReset();
-  globalThis.fetch = mockFetch as unknown as typeof fetch;
-});
+useApiMocks();
+const { requests } = recordRequests();
 
 describe("App - route code splitting", () => {
   it("renders the landing page without ever showing a route skeleton", async () => {
-    // Signed out: the session probe fails and AuthProvider settles to user=null.
-    mockFetch.mockResolvedValue({ ok: false, json: () => Promise.resolve({}) });
-
+    // Signed out: the default session handler 401s and AuthProvider settles to
+    // user = null.
     const { container } = render(<App />);
 
     await screen.findAllByText(/Solverah/i);
@@ -45,12 +47,28 @@ describe("App - route code splitting", () => {
     expect(container.querySelector(ROUTE_SKELETON)).toBeNull();
   });
 
+  it("boots the whole app with a single request", async () => {
+    // The same exit condition AuthContext.boot.test.tsx asserts, checked here
+    // against the real router and the real route tree rather than a bare
+    // provider — this is the closest a component test gets to what a browser
+    // does on a cold load of `/`.
+    render(<App />);
+    await screen.findAllByText(/Solverah/i);
+
+    expect(requests).toEqual(["GET /api/v1/auth/session"]);
+  });
+
   it("shows the auth spinner alone while the session is restoring", async () => {
-    let settle: () => void = () => {};
-    const pending = new Promise<{ ok: boolean; json: () => Promise<unknown> }>((resolve) => {
-      settle = () => resolve({ ok: false, json: () => Promise.resolve({}) });
-    });
-    mockFetch.mockReturnValue(pending);
+    // The probe is held open by a gate the test releases, which is the MSW
+    // equivalent of the never-resolving promise the fetch stub used to return.
+    let release!: () => void;
+    const inFlight = new Promise<void>((resolve) => { release = resolve; });
+    server.use(
+      mock("get", "/api/v1/auth/session").resolve(async () => {
+        await inFlight;
+        return HttpResponse.json({ error: "Not authenticated" }, { status: 401 });
+      }),
+    );
 
     const { container } = render(<App />);
 
@@ -61,9 +79,10 @@ describe("App - route code splitting", () => {
     expect(container.querySelector(ROUTE_SKELETON)).toBeNull();
 
     await act(async () => {
-      settle();
-      await pending;
+      release();
+      await inFlight;
     });
+    await screen.findAllByText(/Solverah/i);
 
     // Phase two: the spinner is gone and the eager route is on screen. At no
     // point were both present.

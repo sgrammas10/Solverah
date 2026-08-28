@@ -1,6 +1,10 @@
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { HttpResponse } from "msw";
+
 import ConfirmEmail from "../ConfirmEmail";
+import { mock } from "../../../tests/msw/contract";
+import { server, useApiMocks, recordRequests } from "../../../tests/msw/server";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -13,11 +17,20 @@ vi.mock("react-router-dom", async (importOriginal) => {
 
 vi.mock("../../components/HeroNetworkAnimation", () => ({ default: () => null }));
 
-const mockFetch = vi.fn();
-globalThis.fetch = mockFetch as any;
+/**
+ * The verify and resend endpoints are real requests here rather than a `vi.fn()`
+ * over `globalThis.fetch`. What that buys, concretely: the old stub answered
+ * both endpoints with the same canned object, so the resend tests would have
+ * passed had the button posted to the verify path, and vice versa.
+ */
+useApiMocks();
+const { requests } = recordRequests();
+
+const VERIFY = "POST /api/v1/auth/email/verify";
+const RESEND = "POST /api/v1/auth/email/verify/resend";
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  mocks.navigate.mockReset();
 });
 
 function renderConfirmEmail(state?: { email?: string; from?: string }, search = "") {
@@ -80,10 +93,6 @@ describe("ConfirmEmail - validation", () => {
 
 describe("ConfirmEmail - happy path", () => {
   it("shows success message after valid code submission", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({}),
-    });
     renderConfirmEmail({ email: "user@example.com" });
     await submitCode("123456");
     expect(screen.getByText(/Email verified!/i)).toBeInTheDocument();
@@ -91,7 +100,6 @@ describe("ConfirmEmail - happy path", () => {
 
   it("redirects to /login after success delay", async () => {
     vi.useFakeTimers();
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
     renderConfirmEmail({ email: "user@example.com" });
     await submitCode("123456");
     await act(async () => { vi.runAllTimers(); });
@@ -101,7 +109,6 @@ describe("ConfirmEmail - happy path", () => {
 
   it("redirects to /login?from=wpll when from=wpll", async () => {
     vi.useFakeTimers();
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
     renderConfirmEmail({ email: "user@example.com", from: "wpll" });
     await submitCode("123456");
     await act(async () => { vi.runAllTimers(); });
@@ -109,38 +116,81 @@ describe("ConfirmEmail - happy path", () => {
     vi.useRealTimers();
   });
 
-  it("calls the confirm-email endpoint with email and code", async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+  it("posts the email and code to the verify endpoint", async () => {
+    let sent: Record<string, unknown> | undefined;
+    server.use(
+      mock("post", "/api/v1/auth/email/verify").resolve(async ({ request }) => {
+        sent = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ message: "Email verified" });
+      }),
+    );
+
     renderConfirmEmail({ email: "user@example.com" });
     await submitCode("654321");
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("/auth/email/verify"),
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ email: "user@example.com", code: "654321" }),
-      })
-    );
+
+    expect(requests).toEqual([VERIFY]);
+    expect(sent).toEqual({ email: "user@example.com", code: "654321" });
   });
 });
 
 // ─── error handling ────────────────────────────────────────────────────────────
 
 describe("ConfirmEmail - error handling", () => {
-  it("shows server error message on non-ok response", async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      json: async () => null,
-    });
+  it("shows the server's message on a rejected code", async () => {
+    server.use(
+      mock("post", "/api/v1/auth/email/verify").reply(400, { error: "That code has expired." }),
+    );
+    renderConfirmEmail({ email: "a@b.com" });
+    await submitCode();
+    expect(screen.getByText(/That code has expired/i)).toBeInTheDocument();
+  });
+
+  it("shows the fallback message when the error body carries nothing usable", async () => {
+    // Off-contract on purpose -- see the equivalent note in useEarlyAccess.test.ts.
+    // `LegacyError` requires `error`, so `.reply` cannot express a null body, and
+    // the fallback branch this covers exists precisely for responses that are not
+    // the documented shape.
+    server.use(
+      mock("post", "/api/v1/auth/email/verify").resolve(
+        () => new HttpResponse("null", { status: 400, headers: { "Content-Type": "application/json" } }),
+      ),
+    );
     renderConfirmEmail({ email: "a@b.com" });
     await submitCode();
     expect(screen.getByText(/Verification failed/i)).toBeInTheDocument();
   });
 
-  it("shows network error message when fetch throws", async () => {
-    mockFetch.mockRejectedValueOnce(new Error("Network error. Please try again."));
+  it("enters the error state, not success, when the request fails outright", async () => {
+    /**
+     * This assertion changed when the file moved to MSW, and the old one was
+     * wrong rather than merely different.
+     *
+     * It read `mockFetch.mockRejectedValueOnce(new Error("Network error. Please
+     * try again."))` and then asserted `/Network error/i` was on screen -- but
+     * the component's catch is `setMessage(err?.message || "Network error.
+     * Please try again.")`, so what it rendered was the message the *test* had
+     * just put in the error. The test asserted on its own fixture. The `||`
+     * fallback it looked like it was covering was never reached, and would not
+     * have been reached however the fallback was written.
+     *
+     * A real transport failure rejects with whatever the runtime says --
+     * "Failed to fetch" under undici -- so pinning the string here would only
+     * pin the runtime. What is worth asserting is the behaviour: the failure
+     * surfaces in the error panel, the success path does not run, and the form
+     * is still there to retry with.
+     */
+    server.use(
+      mock("post", "/api/v1/auth/email/verify").resolve(() => HttpResponse.error()),
+    );
     renderConfirmEmail({ email: "a@b.com" });
     await submitCode();
-    expect(screen.getByText(/Network error/i)).toBeInTheDocument();
+
+    expect(screen.queryByText(/Email verified!/i)).not.toBeInTheDocument();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+
+    const errorPanel = document.querySelector(".bg-red-50");
+    expect(errorPanel).not.toBeNull();
+    expect(errorPanel?.textContent?.trim()).not.toBe("");
   });
 });
 
@@ -148,7 +198,6 @@ describe("ConfirmEmail - error handling", () => {
 
 describe("ConfirmEmail - resend", () => {
   it("shows 'New code sent!' after successful resend", async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
     renderConfirmEmail({ email: "user@example.com" });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /resend code/i }));
@@ -156,6 +205,9 @@ describe("ConfirmEmail - resend", () => {
     await waitFor(() => {
       expect(screen.getByText(/New code sent!/i)).toBeInTheDocument();
     });
+    // The resend button posts to the resend path, not the verify one. The old
+    // fetch stub answered both identically and could not tell them apart.
+    expect(requests).toEqual([RESEND]);
   });
 
   it("shows error when no email available for resend", async () => {
@@ -164,5 +216,6 @@ describe("ConfirmEmail - resend", () => {
       fireEvent.click(screen.getByRole("button", { name: /resend code/i }));
     });
     expect(screen.getByText(/No email available/i)).toBeInTheDocument();
+    expect(requests).toEqual([]);
   });
 });

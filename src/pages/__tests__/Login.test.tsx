@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import Login from "../Login";
 import { useAuth } from "../../contexts/useAuth";
 import * as guestQuiz from "../../utils/guestQuiz";
+import { useApiMocks } from "../../../tests/msw/server";
 
 vi.mock("../../contexts/useAuth");
 vi.mock("../../components/HeroNetworkAnimation", () => ({ default: () => null }));
@@ -13,8 +14,19 @@ vi.mock("react-router-dom", async (importOriginal) => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
-const mockFetch = vi.fn();
-globalThis.fetch = mockFetch as any;
+/**
+ * This page's collaborators are all mocked at the module level -- `useAuth`
+ * supplies both `login` and `fetchWithAuth` -- so nothing here is expected to
+ * reach the network at all.
+ *
+ * There used to be a `globalThis.fetch = vi.fn()` here to make sure of that. It
+ * was never asserted on, and it could not have been: a stray request would have
+ * been swallowed by the stub and returned `undefined`, failing somewhere else
+ * with an unrelated message. `useApiMocks()` inverts that -- unhandled requests
+ * are errors, so a call escaping the mocked `useAuth` fails this file, by name,
+ * at the point it happens.
+ */
+useApiMocks();
 
 const mockLogin = vi.fn();
 const mockFetchWithAuth = vi.fn();
