@@ -228,31 +228,67 @@
     "body": "{\"message\":\"Intake saved\",\"wpll_completed\":true}\n"
   },
   {
-    "step": "submit-wpll",
+    "step": "submit-wpll-sync-gone",
     "method": "POST",
     "path": "/api/v1/assessments/wpll/submissions",
+    "status": 410,
+    "mimetype": "application/problem+json",
+    "cookies_set": [],
+    "body": "{\"detail\":\"wpll is scored off the request path since Phase 3c. Queue the scoring at POST /assessments/wpll/scoring-jobs and poll the job.\",\"errors\":[{\"code\":\"moved_to_scoring_jobs\",\"field\":\"kind\"}],\"instance\":\"/api/v1/assessments/wpll/submissions\",\"replaced_by\":\"/assessments/wpll/scoring-jobs\",\"request_id\":\"<RID>\",\"status\":410,\"title\":\"Gone\",\"type\":\"https://solverah.com/errors/gone\"}\n"
+  },
+  {
+    "step": "queue-wpll",
+    "method": "POST",
+    "path": "/api/v1/assessments/wpll/scoring-jobs",
+    "status": 202,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"job_id\":\"<JID>\",\"status\":\"queued\",\"status_url\":\"/assessments/wpll/scoring-jobs/<JID>\"}\n"
+  },
+  {
+    "step": "poll-wpll-job",
+    "method": "GET",
+    "path": "/api/v1/assessments/wpll/scoring-jobs/<JID>",
     "status": 200,
     "mimetype": "application/json",
     "cookies_set": [],
-    "body": "{\"insight_text\":\"You are drawn to work with a visible finish line.\",\"locked_sections\":[\"Environmental Friction Score\",\"Work Rhythm Pattern\",\"Emerging Archetype Signals\"]}\n"
+    "body": "{\"error\":null,\"job_id\":\"<JID>\",\"result\":{\"insight_text\":\"You are drawn to work with a visible finish line.\",\"locked_sections\":[\"Environmental Friction Score\",\"Work Rhythm Pattern\",\"Emerging Archetype Signals\"]},\"status\":\"succeeded\"}\n"
   },
   {
-    "step": "submit-work-pulse-too-few-answers",
+    "step": "submit-work-pulse-sync-gone",
     "method": "POST",
     "path": "/api/v1/assessments/work_pulse/submissions",
+    "status": 410,
+    "mimetype": "application/problem+json",
+    "cookies_set": [],
+    "body": "{\"detail\":\"work_pulse is scored off the request path since Phase 3c. Queue the scoring at POST /assessments/work_pulse/scoring-jobs and poll the job.\",\"errors\":[{\"code\":\"moved_to_scoring_jobs\",\"field\":\"kind\"}],\"instance\":\"/api/v1/assessments/work_pulse/submissions\",\"replaced_by\":\"/assessments/work_pulse/scoring-jobs\",\"request_id\":\"<RID>\",\"status\":410,\"title\":\"Gone\",\"type\":\"https://solverah.com/errors/gone\"}\n"
+  },
+  {
+    "step": "queue-work-pulse-too-few-answers",
+    "method": "POST",
+    "path": "/api/v1/assessments/work_pulse/scoring-jobs",
     "status": 400,
     "mimetype": "application/json",
     "cookies_set": [],
     "body": "{\"error\":\"answers must be a list of exactly 12 items\"}\n"
   },
   {
-    "step": "submit-work-pulse",
+    "step": "queue-work-pulse",
     "method": "POST",
-    "path": "/api/v1/assessments/work_pulse/submissions",
+    "path": "/api/v1/assessments/work_pulse/scoring-jobs",
+    "status": 202,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"job_id\":\"<JID>\",\"status\":\"succeeded\",\"status_url\":\"/assessments/work_pulse/scoring-jobs/<JID>\"}\n"
+  },
+  {
+    "step": "poll-work-pulse-job",
+    "method": "GET",
+    "path": "/api/v1/assessments/work_pulse/scoring-jobs/<JID>",
     "status": 200,
     "mimetype": "application/json",
     "cookies_set": [],
-    "body": "{\"archetype\":\"The Deep Worker\",\"archetype_description\":\"Sustained focus is where your output comes from.\",\"emerging_signals\":[\"depth over breadth\",\"low tolerance for context switching\"],\"narrative\":\"You do your best work in long uninterrupted stretches.\"}\n"
+    "body": "{\"error\":null,\"job_id\":\"<JID>\",\"result\":{\"archetype\":\"The Deep Worker\",\"archetype_description\":\"Sustained focus is where your output comes from.\",\"emerging_signals\":[\"depth over breadth\",\"low tolerance for context switching\"],\"narrative\":\"You do your best work in long uninterrupted stretches.\"},\"status\":\"succeeded\"}\n"
   },
   {
     "step": "submit-focus-type",
@@ -264,13 +300,31 @@
     "body": "{\"archetype\":\"Deep Diver\",\"dimension_scores\":{\"burst_energy\":2,\"deep_focus\":11,\"reactivity\":1,\"social_fuel\":1,\"structure_need\":3,\"urgency_drive\":3},\"recommendations\":[\"Block 3\\u20134 hour focus windows every morning before meetings\",\"Work in environments with zero notifications \\u2014 phone on Do Not Disturb\",\"Batch all async communication into 2 dedicated windows per day\",\"Avoid open-plan offices or hot-desking \\u2014 you need a consistent, quiet space\",\"Best tools: time-blocking calendar, noise-cancelling headphones, single-tab browser sessions\"]}\n"
   },
   {
-    "step": "submit-manager-match",
+    "step": "submit-manager-match-sync-gone",
     "method": "POST",
     "path": "/api/v1/assessments/manager_match/submissions",
+    "status": 410,
+    "mimetype": "application/problem+json",
+    "cookies_set": [],
+    "body": "{\"detail\":\"manager_match is scored off the request path since Phase 3c. Queue the scoring at POST /assessments/manager_match/scoring-jobs and poll the job.\",\"errors\":[{\"code\":\"moved_to_scoring_jobs\",\"field\":\"kind\"}],\"instance\":\"/api/v1/assessments/manager_match/submissions\",\"replaced_by\":\"/assessments/manager_match/scoring-jobs\",\"request_id\":\"<RID>\",\"status\":410,\"title\":\"Gone\",\"type\":\"https://solverah.com/errors/gone\"}\n"
+  },
+  {
+    "step": "queue-manager-match",
+    "method": "POST",
+    "path": "/api/v1/assessments/manager_match/scoring-jobs",
+    "status": 202,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"job_id\":\"<JID>\",\"status\":\"succeeded\",\"status_url\":\"/assessments/manager_match/scoring-jobs/<JID>\"}\n"
+  },
+  {
+    "step": "poll-manager-match-job",
+    "method": "GET",
+    "path": "/api/v1/assessments/manager_match/scoring-jobs/<JID>",
     "status": 200,
     "mimetype": "application/json",
     "cookies_set": [],
-    "body": "{\"archetype\":\"The Operator\",\"archetype_description\":\"Autonomy with an explicit target.\",\"dimension_scores\":{\"autonomy\":0.25,\"feedback_style\":0.8,\"growth_focus\":0.7875000000000001,\"relationship\":0.39999999999999997},\"narrative\":\"You want a manager who sets direction and then gets out of the way.\",\"red_flags\":[\"decisions that only happen in the room\"],\"what_to_look_for\":[\"clear written goals\",\"few standing meetings\"]}\n"
+    "body": "{\"error\":null,\"job_id\":\"<JID>\",\"result\":{\"archetype\":\"The Operator\",\"archetype_description\":\"Autonomy with an explicit target.\",\"dimension_scores\":{\"autonomy\":0.25,\"feedback_style\":0.8,\"growth_focus\":0.7875000000000001,\"relationship\":0.39999999999999997},\"narrative\":\"You want a manager who sets direction and then gets out of the way.\",\"red_flags\":[\"decisions that only happen in the room\"],\"what_to_look_for\":[\"clear written goals\",\"few standing meetings\"]},\"status\":\"succeeded\"}\n"
   },
   {
     "step": "submit-core",
@@ -325,6 +379,15 @@
     "mimetype": "application/json",
     "cookies_set": [],
     "body": "{\"data\":[{\"completed\":true,\"has_form\":true,\"has_result\":false,\"kind\":\"core\",\"requires_auth\":true,\"scored_by\":\"rules\",\"title\":\"Culture Assessment\"},{\"completed\":true,\"has_form\":false,\"has_result\":true,\"kind\":\"work_pulse\",\"requires_auth\":true,\"scored_by\":\"llm\",\"title\":\"Work Pulse\"},{\"completed\":true,\"has_form\":false,\"has_result\":false,\"kind\":\"wpll\",\"requires_auth\":false,\"scored_by\":\"llm\",\"title\":\"Work Pulse Lite-Lite\"},{\"completed\":true,\"has_form\":false,\"has_result\":true,\"kind\":\"focus_type\",\"requires_auth\":true,\"scored_by\":\"rules\",\"title\":\"FocusType\"},{\"completed\":true,\"has_form\":false,\"has_result\":true,\"kind\":\"manager_match\",\"requires_auth\":true,\"scored_by\":\"llm\",\"title\":\"ManagerMatch\"}]}\n"
+  },
+  {
+    "step": "path-suggestions-miss",
+    "method": "GET",
+    "path": "/api/v1/me/path-suggestions",
+    "status": 404,
+    "mimetype": "application/problem+json",
+    "cookies_set": [],
+    "body": "{\"detail\":\"No cached path suggestions. Queue a scoring at POST /me/path-suggestion-jobs and poll the job; its result is the payload this route serves.\",\"errors\":[{\"code\":\"not_generated\",\"field\":\"cache\"}],\"instance\":\"/api/v1/me/path-suggestions\",\"request_id\":\"<RID>\",\"start_job_url\":\"/me/path-suggestion-jobs\",\"status\":404,\"title\":\"Not found\",\"type\":\"https://solverah.com/errors/not_found\"}\n"
   },
   {
     "step": "me-after-write",

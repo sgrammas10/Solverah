@@ -91,10 +91,10 @@ def commits():
 
 
 #: Every ``GET`` a signed-in client can reach that used to, or could plausibly,
-#: write. ``/me/matches`` and ``/me/path-suggestions`` answer 400 here (no
-#: culture preferences, no career status) and that is fine -- the question is
-#: whether they committed on the way to the answer, and the branch that used to
-#: commit is the one a 400 passes through.
+#: write. ``/me/matches`` answers 400 here (no culture preferences) and
+#: ``/me/path-suggestions`` a 404 (an unwarmed cache, since 3c) and that is
+#: fine -- the question is whether they committed on the way to the answer,
+#: and the branch that used to commit is the one an error passes through.
 READ_PATHS = [
     "/api/v1/me",
     "/api/v1/me/profile",
@@ -106,6 +106,7 @@ READ_PATHS = [
     "/api/v1/companies",
     "/api/v1/me/matches",
     "/api/v1/me/path-preferences",
+    "/api/v1/me/path-suggestions",
     "/api/v1/me/recommendations",
 ]
 

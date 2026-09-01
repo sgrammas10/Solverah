@@ -18,11 +18,11 @@ from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_request
 
 from security import DEFAULT_LIMITS
-from solverah.errors import NotFoundError
+from solverah.errors import GoneError, NotFoundError
 from solverah.extensions import limiter
 from solverah.openapi import document
 from solverah.repositories import user_repository
-from solverah.schemas import LegacyError
+from solverah.schemas import PROBLEM_RESPONSE_MODEL, LegacyError
 from solverah.schemas.assessments import (
     SUBMISSION_REQUESTS,
     AssessmentScoringJobStatus,
@@ -52,8 +52,8 @@ _AUTHENTICATED = ["accessTokenCookie"]
 _AUTHENTICATED_WRITE = ["accessTokenCookie", "csrfHeader"]
 
 #: Rate-limit bucket namespace for a submission, completed with the ``{kind}``.
-#: Named here so the superseded handlers below can opt into the same bucket as
-#: the unified route -- see ``_submission_scope`` for why that matters.
+#: Shared by the submit route and the scoring-job enqueue, so the two doors to
+#: one instrument draw a single budget (A9) -- see ``_submission_scope``.
 #:
 #: Used with ``limiter.shared_limit``, never ``limiter.limit``.
 #: ``limit(scope=...)`` keys its bucket as ``"{endpoint}:{scope}"``, which
@@ -120,6 +120,35 @@ def _kind_or_404(kind: str):
         raise NotFoundError(
             detail="Unknown assessment kind %r" % kind,
             errors=[{"field": "kind", "code": "unknown_kind"}],
+        )
+    return resolved
+
+
+def _sync_kind_or_410(kind: str):
+    """Resolve ``{kind}`` and require that it still submits synchronously.
+
+    The mirror of :func:`_job_kind_or_404`, splitting the five instruments on
+    the same predicate (``scoring_jobs.is_job_eligible``) so the two routes
+    partition them identically: the three provider-scored kinds queue and are
+    refused here, the two rules-scored kinds submit here and 404 there.
+
+    410 rather than 404, because a 404 would lie twice over. The kind exists --
+    an unknown one is the 404, above -- and this operation existed for it until
+    Phase 3c deleted the synchronous half. Silently accepting instead would
+    resurrect the blocking provider call the whole phase existed to remove. The
+    problem document carries where the work went, so a client that missed the
+    cutover is told the fix rather than left to guess.
+    """
+    resolved = _kind_or_404(kind)
+    if scoring_jobs.is_job_eligible(resolved.key):
+        raise GoneError(
+            detail=(
+                "%s is scored off the request path since Phase 3c. Queue the "
+                "scoring at POST /assessments/%s/scoring-jobs and poll the job."
+                % (resolved.key, resolved.key)
+            ),
+            errors=[{"field": "kind", "code": "moved_to_scoring_jobs"}],
+            extra={"replaced_by": "/assessments/%s/scoring-jobs" % resolved.key},
         )
     return resolved
 
@@ -241,25 +270,30 @@ def assessment_kind_form(kind: str):
     "Submit a completed assessment",
     tags=["assessments"],
     request=AssessmentSubmissionRequest,
-    request_for=lambda view_args, _body: SUBMISSION_REQUESTS.get(view_args.get("kind")),
+    request_for=lambda view_args, _body: (
+        None
+        if scoring_jobs.is_job_eligible(view_args.get("kind") or "")
+        else SUBMISSION_REQUESTS.get(view_args.get("kind"))
+    ),
     responses={
         200: AssessmentSubmissionResponse,
         400: LegacyError,
         404: LegacyError,
+        410: PROBLEM_RESPONSE_MODEL,
         500: LegacyError,
     },
     security=_AUTHENTICATED_WRITE,
     enforce=True,
     description=(
-        "Replaces the five submit handlers Phase 1a inherited. `{kind}` is one "
-        "of `core`, `work_pulse`, `wpll`, `focus_type`, `manager_match`, and it "
-        "selects both the request body and the response body -- the route is "
-        "shared, the payloads are not. The `anyOf` on each is the union of the "
-        "five real schemas; the path parameter says which member applies, which "
-        "is why this cannot be an OpenAPI discriminated union (3.1 keys a "
-        "discriminator off a property of the payload, not off the URL).\n\n"
-        "`wpll` is the one kind that needs no JWT: it is the anonymous teaser "
-        "on the pre-launch funnel. The other four require one, and CSRF with it."
+        "Serves the two rules-scored instruments, `core` and `focus_type`, "
+        "which score deterministically in-process and stay synchronous by "
+        "design (A19). `{kind}` selects both the request body and the response "
+        "body -- the route is shared, the payloads are not.\n\n"
+        "The three provider-scored kinds -- `work_pulse`, `wpll`, "
+        "`manager_match` -- answer `410 Gone` here since Phase 3c: their "
+        "scoring moved off the request path, and the problem document's "
+        "`replaced_by` names the `POST /assessments/{kind}/scoring-jobs` "
+        "operation that took it."
     ),
 )
 @assessments_bp.route("/assessments/<kind>/submissions", methods=["POST"])
@@ -267,9 +301,14 @@ def assessment_kind_form(kind: str):
 def assessment_kind_submit(kind: str):
     """POST /assessments/{kind}/submissions - score and persist a submission.
 
-    The five instruments differ in a scorer, a prompt, a storage key, and
-    whether they need a JWT. Everything else about them was five copies of the
-    same handler, and this is the one that is left.
+    Phase 3c closed this route to the three provider-scored instruments; the
+    refusal is in `_sync_kind_or_410`, and it comes before auth and before the
+    body is read because the operation is gone for those kinds no matter who
+    asks or what they send. The rate-limit decorator stays exactly as it was:
+    `_submission_scope` keys one bucket per instrument, which is what keeps
+    `core` and `focus_type` on their own budgets (A9) -- and a refused call
+    still draws the moved kind's shared bucket, so the closed door can never
+    become a way around the enqueue's limit.
 
     Note what is NOT unified: the result. `core` returns a submission id and no
     dimension scores at all -- handing them back would give a retaking
@@ -278,7 +317,7 @@ def assessment_kind_submit(kind: str):
     uniform result envelope with a `scores` field would have undone that
     quietly.
     """
-    resolved = _kind_or_404(kind)
+    resolved = _sync_kind_or_410(kind)
     _require_auth_for(resolved)
 
     user = _current_user() if resolved.requires_auth else None
@@ -322,14 +361,13 @@ def assessment_kind_result(kind: str):
 
 
 # ---------------------------------------------------------------------------
-# Phase 3b -- scoring off the request path
+# Phase 3b/3c -- scoring off the request path
 # ---------------------------------------------------------------------------
 #
-# `202` + a job handle for the three instruments that call a provider, added
-# alongside `POST /assessments/{kind}/submissions` rather than replacing it.
-# The synchronous route above is untouched and byte-identical; a client cannot
-# move from awaiting a 200 to polling a job in the same deploy that first gives
-# it something to poll. 3c is where the synchronous half dies.
+# `202` + a job handle for the three instruments that call a provider. 3b added
+# these alongside the synchronous submit; 3c closed the synchronous half once
+# the frontend had moved (43a2024), so this is now the only way those three
+# score. The submit route above answers their callers 410 with a pointer here.
 #
 # `core` and `focus_type` have no job endpoint and answer 404 here. They score
 # from deterministic tables without opening a socket, and a job for work that
@@ -371,15 +409,17 @@ def _job_kind_or_404(kind: str):
     security=_AUTHENTICATED_WRITE,
     enforce=True,
     description=(
-        "Asynchronous counterpart to `POST /assessments/{kind}/submissions`. "
-        "Identical request body; answers `202` with a job handle instead of "
-        "blocking on the provider. Poll "
+        "The only way the provider-scored instruments score since Phase 3c. "
+        "Takes the body `POST /assessments/{kind}/submissions` used to take "
+        "for these kinds; answers `202` with a job handle instead of blocking "
+        "on the provider. Poll "
         "`GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is "
         "`succeeded` or `failed`.\n\n"
         "Only the three provider-scored instruments have this operation: "
         "`work_pulse`, `wpll`, `manager_match`. `core` and `focus_type` score "
         "deterministically in-process and answer `404` here -- they are served "
-        "by the synchronous route, which remains available for all five.\n\n"
+        "by the synchronous submit route, which since Phase 3c serves only "
+        "them.\n\n"
         "**This shares one rate-limit budget with the synchronous submit for "
         "the same instrument.** The limit bounds provider spend, and spend does "
         "not move when the call moves to a worker (A9), so queueing and "

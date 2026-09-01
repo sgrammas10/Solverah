@@ -1,14 +1,14 @@
 """Resume parsing off the request path: ``202`` + a job handle, and the poll.
 
-Phase 3 item 3.  ``POST /me/resumes/{id}/complete`` downloads the object from R2,
-writes it to a temp file, and runs pdfminer or python-docx over it *inside the
-request* -- part of why ``gunicorn.conf.py`` carries a 120-second timeout.
+Phase 3 item 3.  ``POST /me/resumes/{id}/complete`` downloaded the object from
+R2, wrote it to a temp file, and ran pdfminer or python-docx over it *inside
+the request* -- part of why ``gunicorn.conf.py`` carries a 120-second timeout.
 
-**The old endpoint is not replaced and these tests say so.**  A client cannot
-move from awaiting a 200 to polling a job in the same deploy that first gives it
-a job to poll, so both exist until the frontend has moved.
-``test_the_synchronous_path_still_works`` is the one that fails if somebody
-"finishes the migration" by deleting it.
+**The old endpoint is gone, and these tests say so.**  It outlived the job pair
+by one deploy on purpose -- a client cannot move from awaiting a 200 to polling
+a job in the same deploy that first gives it a job to poll -- and once the
+frontend moved to ``/parse-jobs`` (afcec62), Phase 3c deleted it.
+``test_the_synchronous_complete_route_is_deleted`` is its tombstone.
 
 **What eager execution can and cannot show here.**  Under ``APP_ENV=testing`` the
 parse runs inline, so a job is already terminal by the time the ``202`` is
@@ -158,11 +158,16 @@ def test_polling_reports_success_and_hands_back_the_profile(
     assert body["profile"]["skills"] == ["Python"]
 
 
-def test_the_synchronous_path_still_works(client, auth, storage, parser):
-    """This is an addition, not a replacement.
+def test_the_synchronous_complete_route_is_deleted(client, auth, storage, parser):
+    """The tombstone for ``POST /me/resumes/{id}/complete``.
 
-    Delete `/complete` and this fails -- which is the point, because the frontend
-    is still on it.
+    This test used to assert the opposite: the route had to survive the deploy
+    that introduced the job pair, because the frontend was still awaiting its
+    200. The frontend moved to ``/parse-jobs`` (afcec62), Phase 3c deleted the
+    route, and now the guard points the other way -- a 200 reappearing here
+    would mean the blocking in-request parse came back. The empty parser stub
+    is the half that matters: not just that the routing said no, but that no
+    parse ran.
     """
     resume_id = _ticket(client, auth)
 
@@ -172,8 +177,8 @@ def test_the_synchronous_path_still_works(client, auth, storage, parser):
         headers={"X-CSRF-TOKEN": auth},
     )
 
-    assert resp.status_code == 200
-    assert resp.get_json()["profile"]["skills"] == ["Python"]
+    assert resp.status_code == 404
+    assert parser == [], "the deleted route must not reach the parser"
 
 
 # ── Ownership ───────────────────────────────────────────────────────────────

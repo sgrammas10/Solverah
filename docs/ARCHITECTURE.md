@@ -109,6 +109,15 @@ whole worker for up to two minutes. A provider slowdown becomes a full outage.
 
 There is no job queue anywhere in the system.
 
+**Resolved 2026-09-01** (Phase 3, A21). Resume parsing, all email, assessment
+scoring for the provider-scored instruments, and the path-suggestion fan-out run
+on Celery workers (3a/3b), and 3c deleted the synchronous halves. The timeout is
+back at 30 s. Three named exceptions still reach a provider from a handler — the
+agent SSE stream (A20: a stream is not a job), one bounded OpenAI call behind
+each quiz-insights endpoint, and the single R2 `head_object` that verifies an
+intake upload before its row commits — enumerated with their justifications in
+the Phase 3 exit note.
+
 #### P0-7 · No health checks, no error handlers, no pool tuning
 
 - No `/healthz` or `/readyz` → no safe rolling deploys, no autohealing.
@@ -1047,7 +1056,7 @@ boot path, which is the part that took a lock.
 | PATCH | `/career-status` | `PATCH /api/profile/career-status` |
 | GET | `/dashboard` | `GET /api/dashboard-data` |
 | POST | `/resumes` | `POST /api/profile/resume/presign` → an upload ticket. Returns a `resume_id`, never a storage key. |
-| POST | `/resumes/{id}/complete` | `POST /api/profile/resume/finalize`. Still 200; **202** when Phase 3 has a queue. |
+| POST | `/resumes/{id}/complete` | `POST /api/profile/resume/finalize`. **Deleted 2026-09-01 (3c, A21)** — the parse runs as a job: `POST /resumes/{id}/parse-jobs` + `GET /resume-parse-jobs/{job_id}` (3a). |
 | GET | `/resumes/{id}/download-url` | `GET /api/profile/resume-url`. `current` is a valid id until Phase 2 gives resumes rows. |
 | GET | `/export` | account-lifecycle export |
 | DELETE | `/` | account-lifecycle deletion |
@@ -1061,7 +1070,7 @@ on every page load, and a profile edit stops rewriting unrelated data.
 |---|---|---|
 | GET | `/assessments` | *new* — catalogue with per-user completion state |
 | GET | `/assessments/{kind}/form` | `GET /api/assessment/form` |
-| POST | `/assessments/{kind}/submissions` | `/api/assessment/submit`, `/api/work-pulse/submit`, `/api/work-pulse/lite-lite/result`, `/api/focus-type/submit`, `/api/manager-match/submit` |
+| POST | `/assessments/{kind}/submissions` | `/api/assessment/submit`, `/api/work-pulse/submit`, `/api/work-pulse/lite-lite/result`, `/api/focus-type/submit`, `/api/manager-match/submit`. Since 3c (A21) serves only `core` and `focus_type`; the three provider-scored kinds answer **410** with a `replaced_by` pointer at `POST /assessments/{kind}/scoring-jobs` (3b). |
 | GET | `/assessments/{kind}/submissions/{id}` | *not built* — only the person-side instrument has ids. Phase 2. |
 | GET | `/me/assessments/{kind}/result` | `/api/work-pulse/results`, `/api/manager-match/results` |
 
@@ -1083,20 +1092,20 @@ and a scoring strategy per kind. Adding assessment #6 becomes a data change.
 | GET | `/me/matches?cursor=&limit=&lens=&order=` | `GET /api/company-lens/matches`. Cursor-paginated; `order=best\|worst` carries the two slices over. Not yet index-backed (P0-2). |
 | POST | `/me/matches/{id}/actions` | *not built* — needs `rec_actions`. Phase 2. |
 | GET | `/me/recommendations` | `GET /api/recommendations` |
-| POST | `/me/recommendations/refresh` | `POST /api/recommendations`. Still 200; **202** when Phase 3 has a queue. |
+| POST | `/me/recommendations/refresh` | `POST /api/recommendations`. Still 200, and still a stub: there is no recommendation pipeline to queue (A17), so a 202 would hand back a handle to nothing. It becomes `202` + job when the Groq-backed flow exists. |
 
 **Intelligence** — `/api/v1/me`
 
 | Method | Path | Replaces |
 |---|---|---|
 | GET / PUT | `/me/path-preferences` | `POST /api/intelligence/path-preferences` |
-| GET | `/me/path-suggestions` | `GET /api/intelligence/path-suggestions` — served from cache. A miss still computes inline; **202** when Phase 3 has a queue. |
+| GET | `/me/path-suggestions` | `GET /api/intelligence/path-suggestions` — serves the cache a succeeded `POST /me/path-suggestion-jobs` job warms (3b). Since 3c (A21) a miss computes nothing: **404** carrying `start_job_url`. |
 
 **Agent** — `/api/v1/agent`
 
 | Method | Path | Replaces |
 |---|---|---|
-| POST | `/agent/messages` | `POST /api/agent/chat` — SSE, streamed. Still on the request worker until Phase 3. |
+| POST | `/agent/messages` | `POST /api/agent/chat` — SSE, streamed. On the request worker permanently: a stream is not a job (A20). It is Phase 3's first named exception, measured against `timeout = 30` in A21. |
 
 **Intake** (public, aggressively rate-limited) — `/api/v1/intake`
 
@@ -1573,7 +1582,7 @@ Part 5.2 lists these; each is gated on something Phase 1b does not have.
 |---|---|
 | `/me/experiences`, `/me/educations` | These replace `profileData.experience[]` *inside the blob*. Building them now means CRUD endpoints doing read-modify-write on sub-arrays of a JSON column — starting the decomposition with none of the row-level storage that makes it safe, and widening P0-1's lost-update window once per list item. Phase 2. |
 | `POST /auth/refresh` | Needs the `user_sessions` table (A7). Phase 2. |
-| `202` + job handle on resume-complete, recommendations-refresh, path-suggestions | Needs a queue. Returning 202 for work that then runs inline hands the client a job to poll that has already finished. Phase 3. |
+| `202` + job handle on resume-complete, recommendations-refresh, path-suggestions | Needs a queue. Returning 202 for work that then runs inline hands the client a job to poll that has already finished. Phase 3. **Built in Phase 3 for the parse and the path fan-out (3a/3b), and 3c deleted their synchronous halves (A21); recommendations-refresh alone stays a 200 stub — there is still no pipeline behind it to queue (A17).** |
 | `POST /me/matches/{id}/actions` | Needs the `rec_actions` table. Phase 2. |
 | `GET /assessments/{kind}/submissions/{id}` | Only the person-side instrument has submission ids to serve it from. Phase 2's `assessment_*` unification. |
 | `/companies/{public_id}` | `companies.public_id` does not exist; the integer id still enumerates. Phase 2 / Part 4.2. |
@@ -1709,8 +1718,9 @@ none of it. Phase 3's cache is where this gets paid back.
   parsed one. It becomes a handle when Part 5.2's `/me/experiences` lands and an
   entry is addressed individually.
 - `profile_experiences.source` is always `'user'`. The document records no
-  per-entry provenance; the parser can write `'parsed'` directly once Phase 3
-  moves parsing off the request path.
+  per-entry provenance; Phase 3 moved parsing off the request path (3a), so
+  the parse worker writing `'parsed'` directly is now unblocked — still a
+  follow-up, not done.
 - `profiles.completeness` is maintained on write and the dashboard still computes
   its percentage from the assembled document. That is deliberate — a read-time
   computation cannot drift — and the column is there so "how many profiles are
@@ -1901,7 +1911,7 @@ question bank. `status` never takes the value `in_progress` on a committed row,
 because every instrument still arrives complete in one request; the constraint
 keeps it because partial saves are what the column is for.
 
-### Phase 3 — Async and caching
+### Phase 3 — Async and caching · **done 2026-09-01**
 
 - ~~Celery + Redis broker; queues `default · llm · email · scoring · maintenance`~~ —
   **done 2026-08-27 (3a).** `solverah/infra/queue.py`. Broker and result backend fall
@@ -1910,13 +1920,18 @@ keeps it because partial saves are what the column is for.
   calling process, which is what lets the suite stay green on a runner that has no
   Redis service container. `solverah/worker.py` is the worker entrypoint and
   `infra/docker/compose.yml` gains a `worker` service on all five queues.
-- Move off the request path: **resume parsing (3a)**, **assessment scoring (3b)**,
-  **path suggestions (3b)**, match precomputation, **all email (3a)**.
+- ~~Move off the request path: **resume parsing (3a)**, **assessment scoring
+  (3b)**, **path suggestions (3b)**, **all email (3a)**~~ — **done, and the
+  synchronous halves deleted 2026-09-01 (3c, A21).**
   Assessment scoring moved for the three provider-scored instruments only --
   `work_pulse`, `wpll`, `manager_match`. `core` and `focus_type` score from
   deterministic tables without opening a socket and stay synchronous; see A19.
-  Match precomputation remains open and is gated on the causal model that
-  replaces `culture_fit_score` (A16, A18), which does not exist yet.
+  Match precomputation is struck *from this phase* rather than done: it is
+  gated on the causal model that replaces `culture_fit_score` (A16, A18),
+  which does not exist yet -- and today's inline match scoring is
+  deterministic arithmetic over rows already in hand, no third-party call, so
+  it never stood between this phase and its exit criterion. It is tracked
+  where its gate is, under A16.
 - ~~Transactional outbox for email and domain events~~ — **done 2026-08-27 (3a).**
   Part 4.7's table, `solverah/services/outbox.py`. Every outbound email in the
   application now commits with the business write that occasions it. Three endpoints
@@ -1931,14 +1946,20 @@ keeps it because partial saves are what the column is for.
   (`solverah/infra/cache.py`). **Match sets struck — see A18.**
 - SSE for the agent; `202 + job handle` for everything else that is slow.
   **Resume parsing done 2026-08-27 (3a)**: `POST /me/resumes/{id}/parse-jobs` +
-  `GET /me/resume-parse-jobs/{job_id}`, an addition alongside the synchronous
-  `/complete`, which is unchanged until the frontend moves.
+  `GET /me/resume-parse-jobs/{job_id}`.
   **Assessment scoring and path suggestions done 2026-09-01 (3b)**, the same
   shape and the same state machine: `POST /assessments/{kind}/scoring-jobs` +
   `GET /assessments/{kind}/scoring-jobs/{job_id}`, and
   `POST /me/path-suggestion-jobs` + `GET /me/path-suggestion-jobs/{job_id}`.
-  Both are additions; the synchronous `POST /assessments/{kind}/submissions`
-  and `GET /me/path-suggestions` are byte-identical and stay until 3c.
+  All three landed as additions alongside their synchronous halves, because a
+  client cannot move from awaiting a 200 to polling a job in the deploy that
+  first gives it something to poll. **The frontend cut over (43a2024, and
+  afcec62 for resume parsing), and 3c closed the synchronous halves on
+  2026-09-01 (A21)**: `POST /me/resumes/{id}/complete` is deleted, the three
+  moved kinds answer `410 Gone` with a `replaced_by` pointer on
+  `POST /assessments/{kind}/submissions`, and `GET /me/path-suggestions`
+  serves only the cache a succeeded job warms -- a miss is a 404 carrying
+  `start_job_url`, and computes nothing.
   **The SSE half was already done and is not safe under the worker model that
   actually runs — see A20.** It is the one item in this phase where the
   finding, not the feature, was the deliverable.
@@ -1949,28 +1970,58 @@ keeps it because partial saves are what the column is for.
   `career_status` derivation `GET /me/path-suggestions` committed is applied in memory
   only. `tests/test_read_path_writes.py` counts commits on the request's own session.
 
-**Exit:** no handler makes a blocking third-party call. Gunicorn timeout drops 120 s → 30 s.
+**Exit met (2026-09-01, 3c, A21):** no handler makes a blocking third-party call,
+with three named exceptions below. `gunicorn.conf.py` is back at `timeout = 30`.
 
-**Still not met after 3b, and now for a different reason.** 3a could not claim it
-because assessment scoring and path suggestions were synchronous. They are not any
-more — but *both synchronous routes still exist*, deliberately, because a client
-cannot move from awaiting a 200 to polling a job in the deploy that first gives it
-something to poll. So there are still handlers making blocking third-party calls;
-they are just no longer the only way to do that work. Dropping the timeout now would
-kill precisely the requests the frontend has not yet stopped issuing.
+The claim rests on two pieces of evidence, both from the close-out:
 
-The remaining blockers are therefore named and countable:
+- **The sweep.** With the synchronous halves deleted, every route module and
+  every service a handler reaches was grepped for provider calls — `openai`,
+  `get_openai_client`/`get_agent_client`, `OnetClient`, `requests.`/`httpx`,
+  `resend`, and boto3 network calls (`generate_presigned_url` is local
+  signature arithmetic, not a network call, and is excluded on purpose). The
+  provider calls that remain — `assessment_service._chat_json`,
+  `intelligence_service.path_suggestions`'s O*NET/OpenAI fan-out, the resume
+  parse's R2 download — are reachable only from `scoring_jobs`/`resume_jobs`
+  workers. Email goes through the outbox (3a).
+- **The measurement.** The one handler that legitimately outlives 30 seconds
+  is the agent stream, and its survival was measured, not inferred (trap: A20
+  established that `SHOULD survive` is not evidence). The production image was
+  run in a Linux container with gunicorn loading `gunicorn.conf.py` and no
+  command-line flags — gunicorn's own config machinery reported
+  `worker_class=gthread, threads=8, timeout=30` — with the Groq client stubbed
+  to trickle one SSE frame every 2 seconds. The stream ran 46 seconds end to
+  end: 24 frames, 10 of them after the 30-second mark, the terminal `done`
+  frame delivered, zero worker kills in the gunicorn log. A control run under
+  `--worker-class sync --timeout 30` **also survived identically** — on the
+  pinned gunicorn 26.1.0 the timeout detects a hung process, not a slow
+  streaming response, under either worker class. The `gthread` pin therefore
+  matters for A20's original reason (a sync worker serves exactly one request
+  at a time, streams included), not for stream survival.
 
-1. **The frontend cuts over** to the job endpoints, and the synchronous submits,
-   `GET /me/path-suggestions` and `POST /me/resumes/{id}/complete` are deleted (3c).
-2. **`POST /agent/messages` streams from Groq inside the request** and always will
-   -- a stream is not a job. It is what makes the timeout a question about worker
-   class rather than about queues (A20), and it is the reason 30 s is not simply
-   safe once 3c lands.
-3. **Match precomputation** is still on the read path, gated on the causal model
-   (A16, A18).
+The named exceptions — handlers that still make a bounded third-party call,
+each with the reason it stays:
 
-Until 3c, `gunicorn.conf.py` stays at 120.
+1. **`POST /agent/messages`** streams from Groq for the life of the request,
+   and fetches resume context from R2 first (cached in-process with a TTL). A
+   stream is not a job and cannot be queued (A20); measured against
+   `timeout = 30` above.
+2. **`POST /me/quiz-insights` and `POST /intake/quiz-preview-insights`** each
+   make one JSON-mode OpenAI chat completion inline (`insight_service`). A
+   single bounded call, seconds in practice, behind tight limits (a shared 10
+   per minute; the guest route additionally per-IP and globally capped) — and
+   under gthread a slow call occupies one thread, not the worker's liveness.
+   Queueing them is real work (a job pair plus an SPA change) with no phase
+   behind it; recorded as the debt it is rather than smuggled into 3c.
+3. **`POST /intake/submissions`** makes one R2 `head_object` — a metadata
+   round trip, no body transfer — before committing the row. It is the
+   integrity check that stops a submission committing against a key holding
+   nothing; moving it to a job would turn the public funnel's commit into a
+   poll to save milliseconds.
+
+**Match precomputation** never blocked this exit: today's inline match scoring
+is deterministic arithmetic over rows already loaded, with no third-party call.
+It stays tracked under its actual gate, the causal model (A16, A18).
 
 ### Phase 4 — Frontend restructure
 
@@ -2064,6 +2115,7 @@ in parallel with the rest of Phase 4.
 | A17 | Partition `audit_log`, `match_recommendation` and `rec_action` by range; leave `assessment_response` unpartitioned; widen the foreign keys into `match_recommendation` to a composite `(id, shown_at)` rather than drop them (Phase 2 item 5) | **Decided and dispatched 2026-08-27; implementation in flight — not landed.** The three tables partition on their own event time: `audit_log` on `created_at`, `match_recommendation` on `shown_at`, `rec_action` on `acted_at`. `assessment_response` is excluded even though Part 4.4 lists it as partitioned: it carries `UniqueConstraint(submission_id, item_id)` — one answer per item per submission — and Postgres requires the partition key in every unique constraint on a partitioned table, so partitioning it would force `answered_at` into that constraint. A constraint widened that way stops catching a genuine duplicate answer, and a duplicate is exactly the row `mean_pole`'s denominator cannot tolerate silently double-counting. `assessment_response` is also the lowest-volume of the four candidate tables, so the case for partitioning it was weakest to begin with. Partitioning `match_recommendation` forces its primary key from `id` to `(id, shown_at)` for the same reason — the partition key has to be in the key — which means a bare `id` no longer identifies a unique row. `rec_action`, `outcome_appeal` and `outcome_experienced` each carry a foreign key into `match_recommendation`, so each gained a `shown_at` column and a composite foreign key to `(id, shown_at)` rather than losing the constraint. All three feed the causal model, where a dangling `recommendation_id` is not a visible error — it is silent corruption of training data, a worse failure than the write friction of carrying a second column. `outcome_appeal` keeps its uniqueness on `recommendation_id` alone, not widened to match the new key: one appeal per recommendation is the rule, and widening would let two rows name the same recommendation under different `shown_at` values, only one of which can be about a real event. | Drop the foreign keys into `match_recommendation` instead of widening them, the precedent `audit_events`'s `actor_user_id` already sets in this document |
 | A19 | Queue only the three provider-scored instruments; keep one `scoring_jobs` table for both job types; gate the enqueue with the submit's own rate-limit bucket (Phase 3b) | **Three decisions, and the middle one is the only one that looks like a shortcut.** *Which instruments move:* `assessment_service` already records `scored_by` per instrument, and it is the right axis. `work_pulse`, `wpll` and `manager_match` block on an OpenAI call of seconds to tens of seconds and are why the timeout is 120. `core` and `focus_type` score from deterministic tables without opening a socket -- the contract capture measures them at 211 ms and 40 ms *including* the database writes and the HTTP round trip -- and handing a client a job to poll for work that finishes before the poll could be issued costs two extra round trips and a row to reap in order to deliver a slower answer. `core` has a second and stronger reason: it is the instrument carrying the six person dimension scores, it withholds them even from its own respondent (A12), and a job would put them in `scoring_jobs.result` behind a new endpoint that serves them back -- a second place they live, which is exactly what D-01 is for. *One table:* `job_type` discriminates `assessment_scoring` from `path_suggestions`. Both are 'a user's input, a provider call, a result' over one state machine, and splitting them buys two copies of the claim, the reaper, the lost-enqueue sweep and the purge -- four things that must not drift -- to separate two column sets differing by one nullable `kind`. **This is not A12 conceded.** A12 governs the response model per discriminator, and each poll endpoint publishes and validates that instrument's own model; `{kind}` is in the path, so it selects the shape exactly as it does on the submit route. What is shared is where the row lives, not what the wire promises, and `find_for_user` filters on `job_type` and `kind` so a handle cannot be redeemed at another instrument's path. Three check constraints hold the invariants the application could otherwise break -- notably `ck_scoring_jobs_owner_required`, which grants ownerless rows to `wpll` by name because it is the anonymous teaser and its handle is the whole of its authorisation. *The rate limit:* A9's budgets exist to bound provider spend, and moving the call to a worker changes who waits for it, not what it costs. A job endpoint with its own bucket would hand every instrument a second allowance reachable by queueing instead of submitting -- A9 undone without a line of it being edited. The enqueue therefore carries the *same* `shared_limit` expression and the same kind-keyed scope as the submit, so the two count into one per-instrument budget in both directions. `POST /me/path-suggestion-jobs` gains a limit its synchronous `GET` does not have, which is deliberate rather than an oversight in one of them: the `GET` is self-limiting because the caller holds the connection for the whole fan-out and a repeat inside the cache window reaches no provider, and neither property survives an enqueue that returns in milliseconds. *One thing the job endpoints needed that the submits did not:* a poll must not run on the global `50 per hour` default. Measured, both new poll endpoints 429'd after exactly 50 requests before this was set -- a budget a client polling every two seconds exhausts inside one scoring, and one it shares with every other default-limited route the same browser is using. A poll is a single indexed-row read with no provider call, so A9's reasoning does not reach it, and the day cap is restated explicitly because `@limiter.limit` overrides the defaults. **`GET /me/resume-parse-jobs/{job_id}` (3a) has the identical exposure and was deliberately not changed**: it is an existing route, its limit is behaviour no contract test covers, and a parse finishes in seconds where a narrative does not. Recorded here rather than fixed in passing. **Landed 2026-09-01:** the route now carries the identical `POLL_LIMIT` (`solverah/api/v1/me.py`), and `tests/test_resume_parse_jobs.py` gained the same two tests -- the throttle-survival poll and the daily-backstop assertion -- that cover the two routes above. | Queue all five behind one generic `{status, result}` envelope; a separate table per job type; a fresh rate-limit bucket on the job endpoints |
 | A20 | Do not ship SSE work in 3b. **The agent already streams, and the worker class that `gunicorn.conf.py` actually produces is `sync`** -- deliver the finding and leave the change to a deploy decision (Phase 3b) | **The feature was already there, so the deliverable was the risk.** `POST /agent/messages` has returned `text/event-stream` since Phase 1b: one `data: {"chunk": ...}` frame per token, then a `done` frame, with `X-Accel-Buffering: no`. Phase 3's 'SSE for the agent' line item was already met before 3b began. What was not checked is what serves it. **Measured, not inferred:** loading `gunicorn.conf.py` through gunicorn's own config machinery with no command-line flags yields `worker_class=sync, workers=1, threads=1` -- the file sets `timeout` and nothing else. One in-flight request. **And that is the file production loads:** the config's own docstring says Render's start command does not pass `-c`, so gunicorn picks it up from the working directory. `infra/docker/Dockerfile.api` and the compose `api` service both pass `--worker-class gthread` explicitly on the command line (3x8 and 1x4), so the containers are fine and **the one path with no worker class named is the one that reaches users.** There is no `render.yaml` in this repository, so whether the deployed start command overrides it cannot be answered from here -- and a safety property nobody can verify from the source is the finding. Under sync workers a single open agent conversation occupies a whole worker for the length of the turn; under gthread 3x8 the ceiling is 24 concurrent requests *including* streams, which is a capacity number rather than a fix. A demo that works and falls over at twenty users is worse than a written decision, so nothing was changed here. **The options, cheapest first:** (1) pin `worker_class` and `threads` in `gunicorn.conf.py` so the file that reaches production states what the Dockerfile already does, and the two stop disagreeing -- one line, no new dependency, and it makes the ceiling explicit instead of accidental; (2) move to `gevent`, which makes a held stream cost a greenlet rather than a thread, at the cost of auditing monkey-patching against psycopg2 and SQLAlchemy's pooling; (3) serve the stream from its own process or a different path so streams cannot starve the JSON API whatever the API's worker class is; (4) drop SSE and poll, which costs the token-by-token render the endpoint exists for. **Recommendation: (1) now, as a deploy-reviewed change, and (3) before the agent is promoted.** **(1) landed 2026-09-01:** `gunicorn.conf.py` now pins `worker_class = "gthread"` and `threads = 8`, matching `infra/docker/Dockerfile.api`'s production CMD -- verified by loading the config through gunicorn's own machinery before and after, the same way this finding was measured. `workers` is deliberately left unset: command-line flags always override this file (the module's own docstring), so pinning it here only matters for a deploy that dropped the Dockerfile's flags entirely, and at that point matching thread *behaviour* (`gthread`, not `sync`) is what closes the gap this decision is about. (3) is not done. It is also why Phase 3's exit is not simply 'safe once 3c lands': a stream is not a job and cannot be queued, so 120 -> 30 is a question about worker class, not only about whether the queue took the blocking calls. | Build an SSE feature on top of a worker model that cannot serve it; or silently change `worker_class` as part of a phase that was not asked to touch deployment |
+| A21 | Phase 3c: close the superseded synchronous halves, re-baseline the contract deliberately, and drop the gunicorn timeout to 30 (Phase 3c) | **This is the first deliberate contract change in the project's history -- every prior phase proved zero diff, this change *is* the diff, and this row is how the next reader tells deliberate from accidental.** The frontend was already off every path touched (43a2024; afcec62 for resume parsing), verified by grepping src/ for call sites rather than trusted. *What died, and what replaced each:* **(1)** `POST /assessments/{kind}/submissions` for the three provider-scored kinds `work_pulse`, `wpll`, `manager_match` -- the route itself stays, because `core` and `focus_type` keep it permanently (A19), but those three kinds now answer **410 Gone** with a problem document whose `replaced_by` names `POST /assessments/{kind}/scoring-jobs` (3b), the only door their scoring has. 410 and not 404 because the kind exists and the operation existed -- a 404 sends a stale client hunting for a typo -- and a refusal rather than acceptance because a quiet 200 would resurrect the blocking provider call the phase existed to remove. The refusal lives in the per-kind resolution (`_sync_kind_or_410`, the mirror of `_job_kind_or_404`, both keyed on `scoring_jobs.is_job_eligible`) so one predicate partitions the five kinds across both routes; it precedes auth and body validation, because a dead operation is dead for every caller and every body. The `shared_limit` expression stays on the route untouched: the tombstone still draws the per-kind bucket, so the closed door cannot become a second allowance, and the accounting for the two still-synchronous kinds is exactly what it was (A9). **(2)** `POST /me/resumes/{resume_id}/complete` -- deleted outright, along with its now-unreachable service pair `profile_service.complete_resume_upload`/`finish_resume_upload`; `POST /me/resumes/{id}/parse-jobs` + `GET /me/resume-parse-jobs/{job_id}` (3a) is the only step 2 of an upload. **(3)** `GET /me/path-suggestions` -- kept, but it serves only the per-user cache a succeeded `POST /me/path-suggestion-jobs` job warms; a miss answers **404** carrying `start_job_url` and computes nothing (the O*NET/OpenAI fan-out now runs only in the worker). Deliberately not a 202: nothing was enqueued on the caller's behalf, and a job the client did not start is a job it does not know to poll. *Tests inverted, not deleted:* every test that exercised a closed path either drives the job pair (the behaviour moved, so the coverage moved with it) or asserts the tombstone -- the 410, its problem document, the pointer; the suite count went up, not down. *The re-baseline was intentional:* docs/openapi.json takes its first deletions, Scripts/capture_contract.py now drives the job pairs and captures the 410 tombstones and the miss's 404 pointer as contract, and docs/contract_baseline.json is recaptured -- all in the same commit as the code, because a baseline that outruns its code, or code that outruns its baseline, certifies a broken contract forever. A contract diff against this commit is expected; one against any other commit is still a defect. *The timeout flip is measured, not assumed* (trap named by A20): the production image in a Linux container, gunicorn loading `gunicorn.conf.py` with no command-line flags (its own machinery reporting `gthread/8/timeout=30`), provider stubbed to trickle one SSE frame every 2 s -- the agent stream ran 46 s end to end, 24 frames, 10 after the 30-second mark, `done` delivered, zero worker kills. The surprise worth recording: a `--worker-class sync --timeout 30` control run survived identically, so on the pinned gunicorn 26.1.0 the timeout detects a hung process rather than a slow streaming response under either class -- the `gthread` pin stands on A20's capacity reasoning, not on stream survival. Known residue, deliberately out of scope for this lane: `infra/docker/Dockerfile.api`'s CMD still passes `--timeout 120` on the command line, which overrides this file wherever that CMD runs -- flagged for the infra lane rather than edited from this one. The named exceptions to the exit criterion (agent stream, the two quiz-insight OpenAI calls, intake's R2 `head_object`) are enumerated with justifications in the Phase 3 exit note. | Silently keep accepting the moved kinds' synchronous submits; 404 them as if they never existed; or land the re-baseline in a separate commit from the deletions |
 
 ## Appendix B — What already works and is not being changed
 

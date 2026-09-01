@@ -1,13 +1,18 @@
 """Sprint 2 end-to-end integration smoke test.
 
-Walks the full happy path in a single sequential test:
-  1. Anonymous user completes Work Pulse Lite — POST /api/work-pulse/lite-lite/result
+Walks the full happy path in a single sequential test. Since Phase 3c the two
+assessment submits run through the scoring-job pair -- enqueue a job, poll its
+status -- rather than a synchronous POST:
+  1. Anonymous user completes Work Pulse Lite — enqueue + poll the wpll scoring job
   2. User registers, confirms email, and logs in
-  3. WPLL data saved to account — POST /api/intake/save-to-account
-  4. User completes Work Pulse — POST /api/work-pulse/submit
-  5. GET /api/profile returns both completion flags as True
+  3. WPLL data saved to account — POST /api/v1/intake/claims
+  4. User completes Work Pulse — enqueue + poll the work_pulse scoring job (with CSRF)
+  5. GET /api/v1/auth/session returns both completion flags as True
 
-All OpenAI calls are mocked. All DB operations run against the real (SQLite) test DB.
+Under eager test execution the job runs inline, so each poll is immediately
+terminal and the body the old synchronous 200 returned is the poll's ``result``.
+
+All OpenAI calls are mocked. All DB operations run against the real test DB.
 """
 
 import json
@@ -62,20 +67,26 @@ def _noop(*_args, **_kwargs):
 
 
 def test_sprint2_full_happy_path(client, monkeypatch):
-    """Full Sprint 2 flow: anonymous WPLL → register → save → WP submit → profile complete."""
+    """Full Sprint 2 flow, through the Phase 3c job pair: anonymous WPLL
+    enqueue + poll → register → save → WP enqueue + poll → profile complete."""
     import app as app_module
     monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
     monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
-    # ── Step 1: anonymous WPLL result ────────────────────────────────────────
+    # ── Step 1: anonymous WPLL result, through the scoring-job pair ──────────
     _patch_openai(monkeypatch, _WPLL_LLM_PAYLOAD)
 
-    wpll_res = client.post(
-        "/api/v1/assessments/wpll/submissions",
+    wpll_accepted = client.post(
+        "/api/v1/assessments/wpll/scoring-jobs",
         json={"answers": WPLL_ANSWERS},
     )
-    assert wpll_res.status_code == 200
-    wpll_body = wpll_res.get_json()
+    assert wpll_accepted.status_code == 202
+    wpll_job_id = wpll_accepted.get_json()["job_id"]
+
+    wpll_poll = client.get("/api/v1/assessments/wpll/scoring-jobs/%s" % wpll_job_id)
+    assert wpll_poll.status_code == 200
+    assert wpll_poll.get_json()["status"] == "succeeded"
+    wpll_body = wpll_poll.get_json()["result"]
     assert isinstance(wpll_body["insight_text"], str) and len(wpll_body["insight_text"]) > 0
     assert len(wpll_body["locked_sections"]) == 3
 
@@ -124,16 +135,21 @@ def test_sprint2_full_happy_path(client, monkeypatch):
     assert flags_after_save["wpll_completed"] is True
     assert flags_after_save["wpl_completed"] is False  # WP not done yet
 
-    # ── Step 4: complete Work Pulse ──────────────────────────────────────────
+    # ── Step 4: complete Work Pulse, through the scoring-job pair ────────────
     _patch_openai(monkeypatch, _WP_LLM_PAYLOAD)
 
-    wp_res = client.post(
-        "/api/v1/assessments/work_pulse/submissions",
+    wp_accepted = client.post(
+        "/api/v1/assessments/work_pulse/scoring-jobs",
         json={"answers": WP_ANSWERS},
         headers={"X-CSRF-TOKEN": csrf},
     )
-    assert wp_res.status_code == 200
-    wp_body = wp_res.get_json()
+    assert wp_accepted.status_code == 202
+    wp_job_id = wp_accepted.get_json()["job_id"]
+
+    wp_poll = client.get("/api/v1/assessments/work_pulse/scoring-jobs/%s" % wp_job_id)
+    assert wp_poll.status_code == 200
+    assert wp_poll.get_json()["status"] == "succeeded"
+    wp_body = wp_poll.get_json()["result"]
     assert wp_body["archetype"] == "Deep Work Specialist"
     assert isinstance(wp_body["narrative"], str) and len(wp_body["narrative"]) > 0
     assert len(wp_body["emerging_signals"]) >= 1

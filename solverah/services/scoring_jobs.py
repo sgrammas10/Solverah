@@ -11,12 +11,13 @@ same conditional-UPDATE claim, same reaper, same lost-enqueue sweep as
     queued --> running --> succeeded
                        \\-> failed
 
-**Additive, and the synchronous submits stay.**  ``POST
-/assessments/{kind}/submissions`` and ``GET /me/path-suggestions`` are
-untouched and byte-identical.  A client cannot move from awaiting a 200 to
-polling a job in the same deploy that first gives it something to poll, so both
-paths are live until the frontend has moved -- and 3c is where the synchronous
-halves die.
+**The only door since 3c.**  3b added these jobs alongside the synchronous
+routes, because a client cannot move from awaiting a 200 to polling a job in
+the same deploy that first gives it something to poll.  The frontend moved in
+43a2024, and 3c closed the synchronous halves: ``POST
+/assessments/{kind}/submissions`` answers the three moved kinds 410, and ``GET
+/me/path-suggestions`` reads the cache a succeeded job warms and computes
+nothing on a miss.
 
 **Not every instrument moves, and the split is on what the scoring actually
 does.**  ``assessment_service.AssessmentKind.scored_by`` already records it:
@@ -303,12 +304,12 @@ def _score_assessment(
 def _score_path_suggestions(
     claimed: Dict[str, Any]
 ) -> Tuple[str, Optional[Dict], Optional[str]]:
-    """Run one path-suggestion scoring through the same service the GET uses.
+    """Run one path-suggestion scoring; the service call warms the cache.
 
-    On success this also populates ``path_cache`` as a side effect of the service
-    call, which is what makes the synchronous ``GET /me/path-suggestions`` a
-    cache hit immediately afterwards -- the job warms the read the frontend has
-    not yet stopped issuing.
+    ``intelligence_service.path_suggestions`` populates ``path_cache`` as it
+    returns, and since 3c that cache is the *only* thing ``GET
+    /me/path-suggestions`` serves -- this job is what stands between a miss
+    there and an empty screen.
     """
     from solverah.repositories import user_repository
     from solverah.services import intelligence_service

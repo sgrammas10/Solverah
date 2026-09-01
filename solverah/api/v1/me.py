@@ -57,7 +57,6 @@ from solverah.schemas.profile import (
     ProfileDocument,
     ProfilePatchRequest,
     ResumeCompleteRequest,
-    ResumeCompleteResponse,
     ResumeDownloadResponse,
     ResumeParseJobAccepted,
     ResumeParseJobStatus,
@@ -434,49 +433,6 @@ def post_my_resume_ticket():
 
 
 @document(
-    "Parse an uploaded resume into the profile",
-    tags=["me"],
-    request=ResumeCompleteRequest,
-    responses={200: ResumeCompleteResponse, 400: LegacyError, 404: LegacyError},
-    security=_AUTHENTICATED_WRITE,
-    enforce=True,
-)
-@me_bp.route("/me/resumes/<resume_id>/complete", methods=["POST"])
-@jwt_required()
-def post_my_resume_complete(resume_id: str):
-    """POST /me/resumes/{resume_id}/complete - parse the upload. Step 2 of 2.
-
-    Downloads the object, runs the rule-based parser, and merges the parsed
-    experience, education, and skills into the profile. Stores a
-    _parsedResumeSnapshot so later edits can be diffed against what the parser
-    produced (see ResumeParseCorrection).
-
-    Parsing runs inline, which is P0-6. Part 5.2 has this returning 202 with a
-    job handle; it will, when Phase 3's queue exists. Returning one now for work
-    that finished synchronously would give the client something to poll that is
-    already done.
-    """
-    data = _body()
-    mime, size, error = _validate_upload(data)
-    if error:
-        return error
-
-    user = _current_user()
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    return _respond(
-        profile_service.complete_resume_upload(
-            user,
-            resume_id=resume_id,
-            mime=mime,
-            size=size,
-            name=(data.get("name") or "").strip(),
-        )
-    )
-
-
-@document(
     "Presign a download URL for a stored resume",
     tags=["me"],
     responses={200: ResumeDownloadResponse, 404: LegacyError, 500: LegacyError},
@@ -502,15 +458,11 @@ def get_my_resume_download_url(resume_id: str):
 # Resume parsing as a job (Phase 3)
 # ---------------------------------------------------------------------------
 #
-# Part 5.2's `202 + job handle` for the one endpoint in this module that does
-# genuinely slow work: `/complete` downloads the object from R2, writes it to a
-# temp file, and runs pdfminer or python-docx over it, all inside the request.
-#
-# Added alongside `/complete` rather than replacing it. The old path is
-# unchanged and still works, because a client cannot switch from awaiting a 200
-# to polling a job in the same deploy that first gives it a job to poll. When
-# the frontend has moved, `/complete` becomes a deletion and this becomes the
-# only way in.
+# Part 5.2's `202 + job handle` for the one flow in this module that does
+# genuinely slow work: the parse downloads the object from R2, writes it to a
+# temp file, and runs pdfminer or python-docx over it. 3a added this alongside
+# the synchronous `POST /me/resumes/{resume_id}/complete`; 3c deleted that
+# route once the frontend had moved (afcec62), so this is the only way in.
 
 
 @document(
@@ -521,11 +473,11 @@ def get_my_resume_download_url(resume_id: str):
     security=_AUTHENTICATED_WRITE,
     enforce=True,
     description=(
-        "Asynchronous counterpart to `POST /me/resumes/{resume_id}/complete`. "
-        "Identical request body; answers `202` with a job handle instead of "
-        "blocking for the parse. Poll `GET /me/resume-parse-jobs/{job_id}` until "
-        "`status` is `succeeded` or `failed`.\n\n"
-        "The synchronous endpoint is unchanged and remains available."
+        "Step 2 of 2 of a resume upload, and the only step 2 since Phase 3c "
+        "deleted the synchronous `POST /me/resumes/{resume_id}/complete`. "
+        "Answers `202` with a job handle instead of blocking for the parse. "
+        "Poll `GET /me/resume-parse-jobs/{job_id}` until `status` is "
+        "`succeeded` or `failed`."
     ),
 )
 @me_bp.route("/me/resumes/<resume_id>/parse-jobs", methods=["POST"])

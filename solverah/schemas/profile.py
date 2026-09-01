@@ -26,7 +26,6 @@ __all__ = [
     "ProfileDocument",
     "ProfilePatchRequest",
     "ResumeCompleteRequest",
-    "ResumeCompleteResponse",
     "ResumeDownloadResponse",
     "ResumeParseJobAccepted",
     "ResumeParseJobStatus",
@@ -218,29 +217,27 @@ class ResumeTicketResponse(SolverahModel):
     identity and this id, so there is no key for a caller to name at all.
     """
 
-    resume_id: str = Field(description="Opaque id. Pass to /me/resumes/{id}/complete.")
+    resume_id: str = Field(
+        description="Opaque id. Pass to /me/resumes/{id}/parse-jobs."
+    )
     upload_url: str = Field(description="Presigned PUT URL, valid for 10 minutes.")
     max_bytes: int
 
 
 class ResumeCompleteRequest(SolverahModel):
-    """``POST /me/resumes/{resume_id}/complete`` -- the file is uploaded; parse it."""
+    """``POST /me/resumes/{resume_id}/parse-jobs`` -- the file is uploaded; parse it.
+
+    Named for the synchronous ``/complete`` route it was written for, which
+    Phase 3c deleted; the job route took the identical body, so the model
+    survives its first consumer. Renaming it would churn every generated
+    client for a cosmetic gain.
+    """
 
     model_config = ConfigDict(extra="ignore")
 
     mime: str
     size: int
     name: Optional[str] = Field(default=None, description="Original filename, for display.")
-
-
-class ResumeCompleteResponse(ProfileDocument):
-    """The profile after the parsed resume was merged into it.
-
-    Parsing still runs inline, which is P0-6. Part 5.2 has this returning 202
-    with a job handle; it does not do that yet, and returning a 202 for work
-    that finished synchronously would be a lie the client would have to poll
-    against. It becomes a 202 when Phase 3's queue exists.
-    """
 
 
 class ResumeDownloadResponse(SolverahModel):
@@ -250,10 +247,9 @@ class ResumeDownloadResponse(SolverahModel):
 class ResumeParseJobAccepted(SolverahModel):
     """``202`` from ``POST /me/resumes/{resume_id}/parse-jobs``.
 
-    Part 5.2's ``202 + job handle``, added in Phase 3 alongside the synchronous
-    ``/complete`` rather than replacing it: a client cannot move from awaiting a
-    200 to polling a job in the same deploy that first gives it something to
-    poll. ``/complete`` keeps working until the frontend has moved.
+    Part 5.2's ``202 + job handle``. 3a added it alongside the synchronous
+    ``/complete``; 3c deleted that route once the frontend had moved, so this
+    is the only way a parse starts.
     """
 
     job_id: str = Field(
@@ -269,9 +265,9 @@ class ResumeParseJobStatus(SolverahModel):
     ``status`` is one of ``queued``, ``running``, ``succeeded``, ``failed``; the
     last two are terminal and a client should stop polling on either.
 
-    ``profile`` is present only on ``succeeded``, and carries what ``/complete``
-    would have returned -- so the two paths hand back the same document and the
-    client's merge logic does not fork. ``error`` is present only on ``failed``
+    ``profile`` is present only on ``succeeded``, and is the full current
+    profile document -- what the synchronous ``/complete`` returned before 3c
+    deleted it. ``error`` is present only on ``failed``
     and is a fixed message: parse failures come from pdfminer, python-docx and
     botocore, whose text carries bucket names and object keys.
     """

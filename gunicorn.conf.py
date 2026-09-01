@@ -4,21 +4,25 @@ Render's start command doesn't pass -c, so gunicorn picks this file up by
 default. Any flags passed on the command line take precedence over values here.
 """
 
-# Backstop for slow requests. /api/intelligence/path-suggestions fans out to
-# O*NET and OpenAI; after the embedding batching fix it finishes well inside
-# the default 30s, but a slow upstream day shouldn't turn into a worker kill
-# and a 500 for the user.
+# Backstop for a hung worker, back at gunicorn's default. This number was
+# raised to 120 for two handlers -- assessment scoring and path suggestions --
+# that blocked on OpenAI and O*NET inside the request. 3b moved that work to
+# the queue, 3c deleted the synchronous halves, and dropping this was the exit
+# criterion for the whole of Phase 3: "no handler makes a blocking third-party
+# call" (docs/ARCHITECTURE.md Phase 3, exceptions named there and in A21).
 #
-# STILL 120, deliberately, after Phase 3a. Dropping this to 30s is the exit
-# criterion for the whole of Phase 3, and it is a claim about every handler
-# rather than about most of them: "no handler makes a blocking third-party
-# call" (docs/ARCHITECTURE.md Phase 3). 3a moved resume parsing and all email
-# off the request path. Assessment scoring and path suggestions -- the two
-# handlers this number was actually raised for -- are still synchronous until
-# 3b, so lowering it now would kill exactly the requests it was raised to
-# protect, and the queue that makes it safe would get the credit for the
-# outage.
-timeout = 120
+# The agent stream (`POST /agent/messages`) legitimately outlives 30 seconds
+# and survives this setting, and that is measured rather than assumed (A21):
+# under gunicorn 26.1.0 (pinned) this exact file, loaded with no command-line
+# flags, reported gthread/8/timeout=30 through gunicorn's own config
+# machinery, and a provider stubbed to trickle held the SSE stream open for
+# 46 seconds -- 10 frames landed after the 30-second mark, the `done` frame
+# arrived, and the worker was never killed. A `sync --timeout 30` control run
+# survived identically, so on this gunicorn the timeout detects a hung
+# *process* rather than a slow *streaming* request under either class; the
+# `gthread` pin below stays for A20's original reason -- one sync worker
+# serves one request at a time, streams included -- not for stream survival.
+timeout = 30
 
 # Pinned so the file Render actually loads states what the Dockerfile already
 # does, rather than gunicorn's own defaults (A20, docs/ARCHITECTURE.md).

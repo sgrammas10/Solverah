@@ -14,6 +14,14 @@ that could have been quietly lost in it:
   fifth deliberately does not, so `@jwt_required()` had to come off the route
   and move inside it. That is exactly the sort of change that drops CSRF
   protection without anything failing.
+
+Phase 3c split the route down the middle, and the per-kind submit tests below
+are the statement of the split: `core` and `focus_type` still submit here (they
+score in-process, A19, and keep this door permanently), while `work_pulse`,
+`wpll` and `manager_match` are refused with a 410 pointing at `POST
+/assessments/{kind}/scoring-jobs`. Two accept, three refuse -- a blanket gate
+that 410'd all five, or a route that quietly accepted a moved kind again, each
+fail exactly one half of the pair.
 """
 
 import json
@@ -120,6 +128,23 @@ def _submit(client, kind, body, csrf=None):
     )
 
 
+def _queue(client, kind, body, csrf=None):
+    headers = {"X-CSRF-TOKEN": csrf} if csrf else {}
+    return client.post(
+        "/api/v1/assessments/%s/scoring-jobs" % kind, json=body, headers=headers
+    )
+
+
+def _job_result(client, kind, queued):
+    """The scored result behind a 202 -- eager execution makes it one poll away."""
+    job_id = queued.get_json()["job_id"]
+    resp = client.get("/api/v1/assessments/%s/scoring-jobs/%s" % (kind, job_id))
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["status"] == "succeeded", body
+    return body["result"]
+
+
 # ── Catalogue ───────────────────────────────────────────────────────────────
 
 
@@ -149,10 +174,11 @@ def test_catalogue_reflects_a_completed_assessment(client, auth):
     assert completed == {"focus_type"}
 
 
-# ── The five kinds submit, and keep their own result shapes ─────────────────
+# ── Two kinds submit, three refuse: the 3c split, one test per kind ─────────
 
 
 def test_focus_type_submits_and_matches_its_own_model(client, auth):
+    """Accept #1. `focus_type` scores in-process and keeps this door (A19)."""
     resp = _submit(client, "focus_type", FOCUS_TYPE_PAYLOAD, auth)
 
     assert resp.status_code == 200
@@ -160,46 +186,64 @@ def test_focus_type_submits_and_matches_its_own_model(client, auth):
     assert resp.get_json()["archetype"]
 
 
-def test_work_pulse_submits_and_matches_its_own_model(client, auth, monkeypatch):
+def _assert_refused(resp, kind):
+    """The 410 tombstone, in full: status, shape, and the pointer.
+
+    Asserted body-deep because each part is load-bearing: 404 would say the
+    kind never existed, 200 would resurrect the blocking provider call, and a
+    410 without the pointer strands a client that missed the cutover.
+    """
+    assert resp.status_code == 410
+    assert resp.mimetype == "application/problem+json"
+    body = resp.get_json()
+    assert body["type"] == "https://solverah.com/errors/gone"
+    assert body["errors"] == [{"field": "kind", "code": "moved_to_scoring_jobs"}]
+    assert body["replaced_by"] == "/assessments/%s/scoring-jobs" % kind
+
+
+def test_work_pulse_synchronous_submit_is_refused_with_a_pointer(
+    client, auth, monkeypatch
+):
+    """Refuse #1. Even a perfectly valid body: the operation is gone, not picky."""
     _mock_openai(monkeypatch, WP_LLM_RESPONSE)
 
-    resp = _submit(client, "work_pulse", {"answers": WP_ANSWERS}, auth)
-
-    assert resp.status_code == 200
-    body = resp.get_json()
-    SUBMISSION_RESPONSES["work_pulse"].model_validate(body)
-    assert body["narrative"] and body["archetype"]
+    _assert_refused(
+        _submit(client, "work_pulse", {"answers": WP_ANSWERS}, auth), "work_pulse"
+    )
 
 
-def test_manager_match_submits_and_matches_its_own_model(client, auth, monkeypatch):
+def test_manager_match_synchronous_submit_is_refused_with_a_pointer(
+    client, auth, monkeypatch
+):
+    """Refuse #2."""
     _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
-    resp = _submit(client, "manager_match", {"answers": MM_ANSWERS}, auth)
-
-    assert resp.status_code == 200
-    body = resp.get_json()
-    SUBMISSION_RESPONSES["manager_match"].model_validate(body)
-    assert body["what_to_look_for"]
+    _assert_refused(
+        _submit(client, "manager_match", {"answers": MM_ANSWERS}, auth), "manager_match"
+    )
 
 
-def test_wpll_submits_without_a_jwt(client):
-    """The one anonymous instrument. It runs the pre-launch teaser."""
-    resp = _submit(client, "wpll", {"answers": [{"question_id": "q1", "option_id": "a"}]})
+def test_wpll_synchronous_submit_is_refused_even_anonymously(client):
+    """Refuse #3. `wpll` needs no JWT, so the tombstone must not either."""
+    _assert_refused(
+        _submit(client, "wpll", {"answers": [{"question_id": "q1", "option_id": "a"}]}),
+        "wpll",
+    )
 
-    assert resp.status_code == 200
-    SUBMISSION_RESPONSES["wpll"].model_validate(resp.get_json())
 
-
-def test_the_five_result_shapes_are_not_interchangeable(client, auth, monkeypatch):
+def test_the_result_shapes_are_still_not_interchangeable(client, auth, monkeypatch):
     """The hazard the collapse creates: one route inviting one payload.
 
     A Work Pulse result carries a narrative and an archetype; a FocusType result
     carries dimension scores and recommendations. If a future refactor
-    harmonised them into a shared envelope this is the test that notices.
+    harmonised them into a shared envelope this is the test that notices. Work
+    Pulse's body now arrives through its only door, the scoring job.
     """
     _mock_openai(monkeypatch, WP_LLM_RESPONSE)
 
-    work_pulse = _submit(client, "work_pulse", {"answers": WP_ANSWERS}, auth).get_json()
+    work_pulse = _job_result(
+        client, "work_pulse", _queue(client, "work_pulse", {"answers": WP_ANSWERS}, auth)
+    )
     focus_type = _submit(client, "focus_type", FOCUS_TYPE_PAYLOAD, auth).get_json()
 
     assert "narrative" in work_pulse and "narrative" not in focus_type
@@ -210,7 +254,8 @@ def test_the_five_result_shapes_are_not_interchangeable(client, auth, monkeypatc
 
 
 def test_core_submission_never_returns_dimension_scores(client, auth, monkeypatch):
-    """D-04's threat model, restated as an assertion.
+    """D-04's threat model, restated as an assertion -- and Accept #2 of the 3c
+    split: `core` still submits synchronously, by design (A19), permanently.
 
     Handing back the six numbers gives a retaking respondent a gradient to
     optimise against, which teaches the item-to-dimension mapping the shuffle
@@ -329,19 +374,24 @@ def enforcing(client):
         limiter.reset()
 
 
-def test_each_kind_gets_its_own_rate_limit_bucket(enforcing, auth):
-    """The decision collapsing the five handlers forced.
+def test_each_kind_gets_its_own_rate_limit_bucket(enforcing, auth, monkeypatch):
+    """The decision collapsing the five handlers forced, still holding after 3c.
 
     One endpoint is one Flask-Limiter bucket by default, so a user who finished
     Work Pulse and started FocusType would have been spending a single 5-per-
     minute allowance across two unrelated instruments. Scoping the bucket by
-    kind preserves what the five separate handlers had.
+    kind preserves what the five separate handlers had -- and deleting the
+    moved kinds' sync handling must not have deleted that accounting for the
+    two that still submit here. The cross-kind probe goes to ManagerMatch's
+    only remaining door, the enqueue, which shares the same per-kind buckets.
     """
+    _mock_openai(monkeypatch, MM_LLM_RESPONSE)
+
     for _ in range(6):
         spent = _submit(enforcing, "focus_type", FOCUS_TYPE_PAYLOAD, auth)
     assert spent.status_code == 429
 
-    other = _submit(enforcing, "manager_match", {"answers": MM_ANSWERS}, auth)
+    other = _queue(enforcing, "manager_match", {"answers": MM_ANSWERS}, auth)
 
     assert other.status_code != 429
 

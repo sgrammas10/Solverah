@@ -43,7 +43,6 @@ from solverah.services import audit, path_cache, resume_service
 __all__ = [
     "CURRENT_RESUME",
     "ProfileResult",
-    "complete_resume_upload",
     "dashboard_data",
     "patch_profile",
     "read_identity",
@@ -57,7 +56,6 @@ __all__ = [
     "save_profile",
     "set_career_status",
     "set_skill_proficiency",
-    "finish_resume_upload",
 ]
 
 
@@ -218,38 +216,10 @@ def set_skill_proficiency(user: User, skills: Any) -> ProfileResult:
 # ---------------------------------------------------------------------------
 
 
-def finish_resume_upload(
-    user: User, object_key: str, mime: str, size: int, name: str
-) -> ProfileResult:
-    """Step 2 of 2: parse the uploaded resume and merge it into the profile.
-
-    The ``profile/{user.id}/`` prefix check is the authorisation boundary for
-    this endpoint. Without it a caller could name any key in the bucket and have
-    its contents parsed into their own profile -- including another user's
-    resume.
-    """
-    if not object_key.startswith("profile/%s/" % user.id):
-        return _error(400, "Invalid object_key")
-
-    profile_updates = resume_service.build_profile_from_resume_key(
-        resume_key=object_key,
-        resume_mime=mime,
-        resume_size_bytes=size,
-        resume_name=name or None,
-    )
-
-    snapshot = resume_service.snapshot_of(object_key, profile_updates)
-
-    def merge(existing: Dict[str, Any]) -> Dict[str, Any]:
-        return {**existing, **profile_updates, "_parsedResumeSnapshot": snapshot}
-
-    document = profile_repository.update_document(user.id, merge)
-    db.session.commit()
-
-    return ProfileResult(
-        status=200,
-        body={"message": "Resume processed", "profileData": document},
-    )
+# The synchronous parse -- `finish_resume_upload` and its wrapper
+# `complete_resume_upload`, the pair behind `POST /me/resumes/{id}/complete` --
+# was deleted in Phase 3c. The parse runs in `resume_jobs.run`, which performs
+# the same merge through `profile_repository.update_document`.
 
 
 # ---------------------------------------------------------------------------
@@ -501,22 +471,6 @@ def resolve_resume_key(user: User, resume_id: str, mime: Optional[str] = None) -
 
     ext = resume_service.MIME_EXTENSIONS.get(mime, "bin")
     return "profile/%s/%s/resume.%s" % (user.id, resume_id, ext)
-
-
-def complete_resume_upload(
-    user: User, resume_id: str, mime: str, size: int, name: str
-) -> ProfileResult:
-    """Step 2 of 2: parse the uploaded resume and merge it into the profile."""
-    object_key = resolve_resume_key(user, resume_id, mime=mime)
-    if not object_key:
-        return _error(404, "Resume not found")
-
-    result = finish_resume_upload(
-        user, object_key=object_key, mime=mime, size=size, name=name
-    )
-    if not result.ok:
-        return result
-    return ProfileResult(status=200, body={"profile": result.body["profileData"]})
 
 
 def resume_download_url_by_id(user: User, resume_id: str) -> ProfileResult:

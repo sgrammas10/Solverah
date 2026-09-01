@@ -129,9 +129,11 @@ def _submit_core(client, csrf):
 def test_every_instrument_lands_in_one_table(client, auth, monkeypatch):
     """The phase, in one assertion.
 
-    Four kinds arrive through four different handlers with four different
-    scorers, and `core` arrives through `assessment_store` behind D-01's
-    doorway. One query finds all five.
+    Since Phase 3c three of the kinds arrive by enqueueing a scoring job
+    rather than through a synchronous submit -- eager test execution runs the
+    job inline, so the row exists by the time the 202 comes back. `focus_type`
+    still submits synchronously, and `core` arrives through `assessment_store`
+    behind D-01's doorway. However each one gets in, one query finds all five.
     """
     csrf, user_id = auth
     _stub_llm(monkeypatch, BOTH_LLM_RESPONSE)
@@ -143,11 +145,11 @@ def test_every_instrument_lands_in_one_table(client, auth, monkeypatch):
               "wpll_answers": WPLL_ANSWERS, "wpll_insight_text": "teaser"},
         headers=headers,
     )
-    client.post("/api/v1/assessments/work_pulse/submissions",
+    client.post("/api/v1/assessments/work_pulse/scoring-jobs",
                 json={"answers": WP_ANSWERS}, headers=headers)
     client.post("/api/v1/assessments/focus_type/submissions",
                 json=_FOCUS_TYPE_PAYLOAD, headers=headers)
-    client.post("/api/v1/assessments/manager_match/submissions",
+    client.post("/api/v1/assessments/manager_match/scoring-jobs",
                 json={"answers": _MM_ANSWERS}, headers=headers)
     assert _submit_core(client, csrf).status_code == 200
 
@@ -176,8 +178,8 @@ def test_a_retake_updates_the_row_and_a_core_retake_appends(client, auth, monkey
     headers = {"X-CSRF-TOKEN": csrf}
 
     for _ in range(2):
-        assert client.post("/api/v1/assessments/work_pulse/submissions",
-                           json={"answers": WP_ANSWERS}, headers=headers).status_code == 200
+        assert client.post("/api/v1/assessments/work_pulse/scoring-jobs",
+                           json={"answers": WP_ANSWERS}, headers=headers).status_code == 202
         assert _submit_core(client, csrf).status_code == 200
 
     from app import app
@@ -198,7 +200,7 @@ def test_every_submission_names_a_registered_form_version(client, auth, monkeypa
     """
     csrf, _user_id = auth
     _stub_llm(monkeypatch)
-    client.post("/api/v1/assessments/work_pulse/submissions",
+    client.post("/api/v1/assessments/work_pulse/scoring-jobs",
                 json={"answers": WP_ANSWERS}, headers={"X-CSRF-TOKEN": csrf})
     assert _submit_core(client, csrf).status_code == 200
 
@@ -354,6 +356,10 @@ def test_the_work_pulse_prompt_still_gets_its_claimed_wpll_context(
     so the contract fixture cannot see this -- it stubs the prompt builders --
     and without this test the Work Pulse narrative could quietly lose its context
     with every response still byte-identical.
+
+    Since Phase 3c the way in is the scoring job, not the synchronous submit;
+    eager execution runs the job inside the POST, so the capture still happens
+    before the 202 is returned.
     """
     csrf, _user_id = auth
     _stub_llm(monkeypatch)
@@ -378,9 +384,9 @@ def test_the_work_pulse_prompt_still_gets_its_claimed_wpll_context(
         "solverah.services.assessment_prompts.build_wp_narrative_prompt", _capture
     )
 
-    assert client.post("/api/v1/assessments/work_pulse/submissions",
+    assert client.post("/api/v1/assessments/work_pulse/scoring-jobs",
                        json={"answers": WP_ANSWERS},
-                       headers=headers).status_code == 200
+                       headers=headers).status_code == 202
 
     assert seen["answers"] == WP_ANSWERS
     assert seen["wpll_answers"] == WPLL_ANSWERS

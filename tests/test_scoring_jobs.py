@@ -1,16 +1,17 @@
 """Assessment scoring and path suggestions off the request path: 202 + a poll.
 
-Phase 3b.  ``POST /assessments/{kind}/submissions`` and ``GET
-/me/path-suggestions`` call OpenAI and O*NET *inside the request*, and they are
-the two handlers ``gunicorn.conf.py``'s 120-second timeout was actually raised
-for -- which is why 3a moved resume parsing and email and still could not claim
-Phase 3's exit.
+Phase 3b built the job pair; 3c made it the only door.  ``POST
+/assessments/{kind}/submissions`` and ``GET /me/path-suggestions`` used to call
+OpenAI and O*NET *inside the request* -- the two handlers
+``gunicorn.conf.py``'s 120-second timeout was actually raised for.
 
-**The synchronous routes are not replaced and these tests say so.**
-``test_the_synchronous_submit_still_works`` and
-``test_the_synchronous_path_suggestions_still_works`` are the two that fail if
-somebody "finishes the migration" by deleting the old half before the frontend
-has moved off it.
+**The synchronous halves are closed and these tests say so.**
+``test_the_synchronous_submit_for_a_moved_kind_is_gone`` and
+``test_the_path_suggestions_get_computes_nothing_on_a_miss`` are the two that
+fail if the old halves quietly come back -- a sync submit that starts answering
+200 again, or a GET that computes on a miss, is the blocking provider call this
+phase existed to remove.  Until the frontend moved (43a2024) the guards pointed
+the other way, keeping the routes alive; the cutover is what flipped them.
 
 **Three things here are guarding decisions rather than code**, and each has a
 section below:
@@ -367,15 +368,24 @@ def test_polling_a_finished_job_returns_that_instruments_result_model(
     SUBMISSION_RESPONSES[kind].model_validate(body["result"])
 
 
-def test_the_job_result_matches_what_the_synchronous_route_returns(
+def test_the_job_result_matches_what_the_service_scorer_returns(
     client, auth, monkeypatch
 ):
-    """One scorer, two doors.
+    """One scorer, however many doors.
 
-    The worker calls `assessment_service.submit` -- the same function the
-    synchronous handler calls -- so the same answers must produce the same body.
-    A second scorer written for the queue is the drift this forbids.
+    The worker calls `assessment_service.submit` -- until 3c the same function
+    the synchronous handler called, and still the single dispatch every scoring
+    goes through. The same answers through the job must produce byte-for-byte
+    what the service produces directly; a second scorer written for the queue
+    is the drift this forbids. Asserted at the service seam now that the
+    synchronous door is a 410 tombstone.
     """
+    import logging
+
+    from app import app
+    from model import User
+    from solverah.services import assessment_service
+
     _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
     queued = _queue(client, "manager_match", {"answers": MM_ANSWERS}, auth)
@@ -383,20 +393,41 @@ def test_the_job_result_matches_what_the_synchronous_route_returns(
         "result"
     ]
 
-    submitted = _submit(client, "manager_match", {"answers": MM_ANSWERS}, auth)
+    with app.app_context():
+        user = User.query.filter_by(email=EMAIL).first()
+        direct = assessment_service.submit(
+            assessment_service.find_kind("manager_match"),
+            user,
+            {"answers": MM_ANSWERS},
+            logging.getLogger("test"),
+        )
 
-    assert submitted.status_code == 200
-    assert job_result == submitted.get_json()
+    assert direct.status == 200
+    assert job_result == direct.body
 
 
-def test_the_synchronous_submit_still_works(client, auth, monkeypatch):
-    """The route that must not be deleted until the frontend has moved (3c)."""
-    _mock_openai(monkeypatch, WP_LLM_RESPONSE)
+@pytest.mark.parametrize("kind", ["work_pulse", "wpll", "manager_match"])
+def test_the_synchronous_submit_for_a_moved_kind_is_gone(
+    client, auth, monkeypatch, kind
+):
+    """The deletion, asserted -- the inverse of the guard that stood until 3c.
 
-    resp = _submit(client, "work_pulse", {"answers": WP_ANSWERS}, auth)
+    410 rather than 404, because the kind exists and the operation used to; and
+    a refusal rather than acceptance, because a 200 here would resurrect the
+    blocking provider call this phase existed to remove. The problem document
+    names the replacement so a client that missed the cutover is told the fix.
+    """
+    payload = {"answers": {"work_pulse": WP_ANSWERS, "wpll": WPLL_ANSWERS,
+                           "manager_match": MM_ANSWERS}[kind]}
 
-    assert resp.status_code == 200
-    SUBMISSION_RESPONSES["work_pulse"].model_validate(resp.get_json())
+    resp = _submit(client, kind, payload, auth)
+
+    assert resp.status_code == 410
+    assert resp.mimetype == "application/problem+json"
+    body = resp.get_json()
+    assert body["type"] == "https://solverah.com/errors/gone"
+    assert body["replaced_by"] == "/assessments/%s/scoring-jobs" % kind
+    assert body["errors"] == [{"field": "kind", "code": "moved_to_scoring_jobs"}]
 
 
 # ── wpll: the anonymous instrument ──────────────────────────────────────────
@@ -542,16 +573,18 @@ def test_the_enqueue_is_rate_limited(enforcing, auth, monkeypatch):
 
 
 def test_queueing_and_submitting_share_one_budget(enforcing, auth, monkeypatch):
-    """A9, stated as a number.
+    """A9, stated as a number -- and 3c's deletion did not delete the join.
 
-    Five enqueues exhaust Work Pulse's 5-per-minute allowance; the sixth call is
-    a *submit*, and it must be refused too. If the two operations held separate
-    buckets this would be a 200 and the instrument's real budget would be ten.
+    Five enqueues exhaust Work Pulse's 5-per-minute allowance; the sixth call
+    is a *submit* to the closed door, and the limiter refuses it before the
+    tombstone can answer. The `shared_limit` expression carrying this is the
+    same one that keeps `core` and `focus_type` on their own per-kind budgets
+    (trap: deleting the sync handling must not delete the shared-bucket
+    accounting), so this failing means the accounting came off the route.
 
-    `shared_limit` with a kind-keyed scope is what joins them -- written as
-    `limiter.limit(scope=...)` the key would be "{endpoint}:{scope}", which
-    sub-divides one endpoint rather than joining two, and this test is what
-    catches that.
+    Written as `limiter.limit(scope=...)` the key would be "{endpoint}:{scope}",
+    which sub-divides one endpoint rather than joining two, and this test is
+    what catches that.
     """
     _mock_openai(monkeypatch, WP_LLM_RESPONSE)
 
@@ -566,13 +599,18 @@ def test_queueing_and_submitting_share_one_budget(enforcing, auth, monkeypatch):
 def test_submitting_then_queueing_spends_the_same_budget(enforcing, auth, monkeypatch):
     """The same join, exercised in the other direction.
 
-    One of the two orderings could pass by accident if only one route carried
-    the shared scope, so both are asserted.
+    Since 3c the five submits are refused as 410s -- but a refused call still
+    draws the shared bucket, so the sixth call, an *enqueue*, is a 429. That is
+    the property worth keeping: if the tombstone ever stopped charging the
+    bucket while the join stood, hammering the closed door would cost nothing;
+    if it kept charging but the join broke, the enqueue would get a fresh
+    allowance. One of the two orderings could pass by accident if only one
+    route carried the shared scope, so both are asserted.
     """
     _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
     for _ in range(5):
-        assert _submit(enforcing, "manager_match", {"answers": MM_ANSWERS}, auth).status_code == 200
+        assert _submit(enforcing, "manager_match", {"answers": MM_ANSWERS}, auth).status_code == 410
 
     spent = _queue(enforcing, "manager_match", {"answers": MM_ANSWERS}, auth)
 
@@ -631,22 +669,47 @@ def test_the_path_suggestion_enqueue_is_rate_limited(enforcing, auth, monkeypatc
         ("wpll", {"answers": []}),
     ],
 )
-def test_a_malformed_body_is_refused_identically_on_both_paths(
+def test_a_malformed_body_is_refused_before_the_enqueue_with_the_scorers_error(
     client, auth, monkeypatch, kind, bad_body
 ):
     """`precheck` duplicates the submit guards; this is what stops it drifting.
 
-    Both routes must answer the same status and the same body for the same bad
-    payload. Without the pre-check the job route would answer 202 and turn an
-    immediate, actionable 400 into a poll and a failure several seconds later.
+    Without the pre-check the job route would answer 202 and turn an immediate,
+    actionable 400 into a poll and a failure several seconds later. The drift
+    guard used to compare the enqueue against the synchronous route; that door
+    is a 410 now, so the copy is held against the scorer itself: a job forced
+    past the precheck must fail with exactly the error the precheck answers,
+    because both are quoting the same guard.
     """
+    from app import app
+    from model import ScoringJob, User, db
+    from solverah.services import scoring_jobs
+
     _mock_openai(monkeypatch, WP_LLM_RESPONSE)
 
     queued = _queue(client, kind, bad_body, auth)
-    submitted = _submit(client, kind, bad_body, auth)
+    assert queued.status_code == 400
+    precheck_error = queued.get_json()["error"]
 
-    assert queued.status_code == submitted.status_code == 400
-    assert queued.get_json() == submitted.get_json()
+    with app.app_context():
+        user = User.query.filter_by(email=EMAIL).first()
+        row = ScoringJob(
+            user_id=None if kind == "wpll" else user.id,
+            job_type=scoring_jobs.ASSESSMENT,
+            kind=kind,
+            payload=bad_body,
+            status="queued",
+        )
+        db.session.add(row)
+        db.session.commit()
+
+        assert scoring_jobs.run(row.id) == scoring_jobs.FAILED
+
+        # `run` writes the terminal state on its own Core connection; the
+        # ORM instance in this session was loaded before that write and will
+        # happily serve the stale `error=None` unless it is expired first.
+        db.session.expire_all()
+        assert db.session.get(ScoringJob, row.id).error == precheck_error
 
 
 def test_a_refused_body_creates_no_job_row(client, auth, monkeypatch):
@@ -937,10 +1000,11 @@ def test_polling_path_suggestions_returns_the_scored_paths(client, auth, monkeyp
 
 
 def test_a_succeeded_path_job_warms_the_cache_the_get_reads(client, auth, monkeypatch):
-    """The job and the synchronous GET are the same work, so it is done once.
+    """The job computes, the GET serves -- and the work is done exactly once.
 
-    A client part-way through the migration can queue the scoring and then read
-    the old endpoint; the second call must not pay O*NET and OpenAI again.
+    Since 3c the cache a succeeded job stores into is the *only* thing `GET
+    /me/path-suggestions` serves, so this pairing is the whole read path: a job
+    then a read is one fan-out, not two.
     """
     _mock_path_scoring(monkeypatch)
     _set_profile(EMAIL, {"career_status": "employed"})
@@ -952,18 +1016,29 @@ def test_a_succeeded_path_job_warms_the_cache_the_get_reads(client, auth, monkey
     resp = client.get("/api/v1/me/path-suggestions")
 
     assert resp.status_code == 200
+    assert resp.get_json()["suggestions"]
     assert path_scoring_mod.score_paths.call_count == 1
 
 
-def test_the_synchronous_path_suggestions_still_works(client, auth, monkeypatch):
-    """The route that must not be deleted until the frontend has moved (3c)."""
+def test_the_path_suggestions_get_computes_nothing_on_a_miss(
+    client, auth, monkeypatch
+):
+    """The deletion, asserted -- the inverse of the guard that stood until 3c.
+
+    The status code alone would not prove it: a handler that computed inline
+    and *then* failed could also 404. The scorer's call count is what shows the
+    fan-out never ran, and the pointer is what tells a client where the work
+    went instead.
+    """
     _mock_path_scoring(monkeypatch)
     _set_profile(EMAIL, {"career_status": "employed"})
 
     resp = client.get("/api/v1/me/path-suggestions")
 
-    assert resp.status_code == 200
-    assert resp.get_json()["suggestions"]
+    assert resp.status_code == 404
+    assert path_scoring_mod.score_paths.call_count == 0
+    body = resp.get_json()
+    assert body["start_job_url"] == "/me/path-suggestion-jobs"
 
 
 def test_a_missing_career_status_fails_the_job_with_the_same_reason(

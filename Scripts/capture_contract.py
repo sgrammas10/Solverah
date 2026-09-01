@@ -58,6 +58,20 @@ same bytes as the first. With no `REDIS_URL` set the cache is inert and the pair
 proves the handler is deterministic instead -- which is why the verify step is
 worth running once each way.
 
+**Extended for Phase 3c (the first deliberate contract change).** Every prior
+capture proved zero diff; this one records a surface that changed on purpose,
+and A21 (docs/ARCHITECTURE.md) is the ledger of exactly what moved. The three
+provider-scored instruments no longer submit synchronously: the old submit
+steps are kept as captures of their 410 problem documents -- the refusal and
+its ``replaced_by`` pointer are contract now -- and the scoring itself is
+driven the way the SPA drives it, ``POST /assessments/{kind}/scoring-jobs``
+plus a poll. Under this script's eager execution the job runs inline, so the
+202 already reads ``succeeded`` and one poll returns the result; both bodies
+are captured. ``GET /me/path-suggestions`` is captured on a cache miss, where
+computing nothing and answering 404 with ``start_job_url`` is the new promise.
+Job handles are random per run and masked as ``<JID>`` -- in bodies and in the
+recorded poll *path*, which is the first path here to embed a per-run value.
+
 **The LLM is stubbed, and the prompt builders with it.** Three instruments call a
 provider; a fixture that depended on one could not produce stable bytes, and the
 narrative text is the whole payload for two of them. `_chat_json` is replaced by a
@@ -179,14 +193,30 @@ _SUBMISSION_ID = re.compile(r'("submission_id"\s*:\s*)"[0-9a-f]{32}"')
 #: never reached a route that answers with one -- the errors it captured are the
 #: legacy `{"error": "..."}` shape, which carries no id.
 _REQUEST_ID = re.compile(r'("request_id"\s*:\s*)"[0-9a-f]{32}"')
+#: A scoring-job handle (Phase 3c): `uuid.hex`, same 32-lowercase-hex format as
+#: the submission id, appearing as `job_id` and as the tail of `status_url`.
+#: The character class is the assertion, exactly as `_SUBMISSION_ID` documents.
+_JOB_ID = re.compile(r'("job_id"\s*:\s*)"[0-9a-f]{32}"')
+_STATUS_URL_ID = re.compile(r'("status_url"\s*:\s*"[^"]*/)[0-9a-f]{32}(")')
 
 
 def _mask(text: str) -> str:
-    """Replace the four values that legitimately differ between runs."""
+    """Replace the values that legitimately differ between runs."""
     text = _CSRF_VALUE.sub(r'\1"<CSRF>"', text)
     text = _SUBMISSION_ID.sub(r'\1"<SID>"', text)
     text = _REQUEST_ID.sub(r'\1"<RID>"', text)
+    text = _JOB_ID.sub(r'\1"<JID>"', text)
+    text = _STATUS_URL_ID.sub(r"\g<1><JID>\g<2>", text)
     return _ISO_TIMESTAMP.sub("<TS>", text)
+
+
+#: The poll paths embed the handle, so the recorded `path` needs the same mask
+#: the bodies get -- the first path in the scenario to carry a per-run value.
+_HEX_PATH_SEGMENT = re.compile(r"/[0-9a-f]{32}(?=/|$)")
+
+
+def _mask_path(path: str) -> str:
+    return _HEX_PATH_SEGMENT.sub("/<JID>", path)
 
 
 def _load_conftest_guard():
@@ -360,7 +390,7 @@ def run_scenario() -> List[Dict[str, Any]]:
             {
                 "step": step,
                 "method": method,
-                "path": path,
+                "path": _mask_path(path),
                 "status": resp.status_code,
                 "mimetype": resp.mimetype,
                 "cookies_set": sorted(
@@ -558,26 +588,50 @@ def run_scenario() -> List[Dict[str, Any]]:
         headers=csrf,
     )
 
+    # The three provider-scored instruments, each captured through both doors
+    # (Phase 3c): the 410 tombstone on the old synchronous submit -- the
+    # refusal and its `replaced_by` pointer are contract -- and the job pair
+    # that took the scoring. Eager execution runs the job inside the enqueue,
+    # so the 202 already reads `succeeded` and one poll carries the result.
+    def queue_and_poll(kind: str, body: dict, headers=None) -> None:
+        queued = call(
+            "queue-%s" % kind.replace("_", "-"),
+            "POST",
+            "/api/v1/assessments/%s/scoring-jobs" % kind,
+            json=body,
+            **({"headers": headers} if headers else {}),
+        )
+        job_id = queued.get_json()["job_id"]
+        call(
+            "poll-%s-job" % kind.replace("_", "-"),
+            "GET",
+            "/api/v1/assessments/%s/scoring-jobs/%s" % (kind, job_id),
+        )
+
     call(
-        "submit-wpll",
+        "submit-wpll-sync-gone",
         "POST",
         "/api/v1/assessments/wpll/submissions",
         json={"answers": WPLL_ANSWERS},
     )
+    queue_and_poll("wpll", {"answers": WPLL_ANSWERS})
+
     call(
-        "submit-work-pulse-too-few-answers",
-        "POST",
-        "/api/v1/assessments/work_pulse/submissions",
-        json={"answers": WP_ANSWERS[:3]},
-        headers=csrf,
-    )
-    call(
-        "submit-work-pulse",
+        "submit-work-pulse-sync-gone",
         "POST",
         "/api/v1/assessments/work_pulse/submissions",
         json={"answers": WP_ANSWERS},
         headers=csrf,
     )
+    call(
+        "queue-work-pulse-too-few-answers",
+        "POST",
+        "/api/v1/assessments/work_pulse/scoring-jobs",
+        json={"answers": WP_ANSWERS[:3]},
+        headers=csrf,
+    )
+    queue_and_poll("work_pulse", {"answers": WP_ANSWERS}, headers=csrf)
+
     call(
         "submit-focus-type",
         "POST",
@@ -586,12 +640,13 @@ def run_scenario() -> List[Dict[str, Any]]:
         headers=csrf,
     )
     call(
-        "submit-manager-match",
+        "submit-manager-match-sync-gone",
         "POST",
         "/api/v1/assessments/manager_match/submissions",
         json={"answers": MM_ANSWERS},
         headers=csrf,
     )
+    queue_and_poll("manager_match", {"answers": MM_ANSWERS}, headers=csrf)
 
     # `core` answers the form it was just served: the tokens are salted per
     # respondent, so they cannot be hard-coded here.
@@ -613,6 +668,12 @@ def run_scenario() -> List[Dict[str, Any]]:
     call("result-manager-match", "GET", "/api/v1/me/assessments/manager_match/result")
     call("result-wpll-not-stored", "GET", "/api/v1/me/assessments/wpll/result")
     call("assessments-catalogue-after", "GET", "/api/v1/assessments")
+
+    # Phase 3c: a cache miss computes nothing and answers 404 with a pointer at
+    # the job pair. The cache is in-process and nothing in this scenario warms
+    # it, so the miss is deterministic -- and this capture is what notices if
+    # the inline fan-out ever comes back as a different status or body.
+    call("path-suggestions-miss", "GET", "/api/v1/me/path-suggestions")
 
     call("me-after-write", "GET", "/api/v1/me")
     call("me-profile-after-write", "GET", "/api/v1/me/profile")

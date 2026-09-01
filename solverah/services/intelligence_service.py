@@ -45,6 +45,7 @@ __all__ = [
     "SENIORITY_INTENTS",
     "build_user_context",
     "build_user_profile",
+    "cached_path_suggestions",
     "derive_career_status",
     "path_suggestions",
     "save_path_preferences",
@@ -234,8 +235,28 @@ def build_user_context(profile: Dict[str, Any], intake, career_status: str):
 # Suggestions
 # ---------------------------------------------------------------------------
 
+def cached_path_suggestions(user: User) -> Optional[IntelligenceResult]:
+    """The cached suggestions payload for *user*, or None on a miss.
+
+    The whole of what ``GET /me/path-suggestions`` serves since Phase 3c. The
+    fan-out to O*NET and OpenAI lives in :func:`path_suggestions`, which only a
+    worker runs now -- a miss here is the route's cue to point the client at
+    ``POST /me/path-suggestion-jobs`` rather than to compute inline.
+    """
+    cached = path_cache.get(user.id)
+    if cached is None:
+        return None
+    return IntelligenceResult(status=200, body=cached)
+
+
 def path_suggestions(user: User, logger) -> IntelligenceResult:
-    """Score and narrate career-path suggestions, caching the result per user."""
+    """Score and narrate career-path suggestions, caching the result per user.
+
+    Since Phase 3c this runs only off the request path -- `scoring_jobs` calls
+    it from a worker, and the cache it stores into is what the GET serves. Kept
+    whole rather than split from its cache write because the succeeded job and
+    the warm cache must never disagree about what was computed.
+    """
     from backend.services.onet_client import OnetClient
     from backend.services.path_narrative import NarrativeGenerationError, generate_narratives
     from backend.services.path_scoring import score_paths

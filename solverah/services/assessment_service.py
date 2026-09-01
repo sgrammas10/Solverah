@@ -497,6 +497,12 @@ def submit(kind: AssessmentKind, user: Optional[User], data: Dict[str, Any], log
     because the five signatures genuinely differ -- three take a bare answers
     list, one takes the whole payload, one takes no user -- and a uniform
     adapter would be five wrappers pretending to be one.
+
+    Two callers since 3c, and the split is by ``scored_by``: the synchronous
+    submit route reaches this only for ``core`` and ``focus_type`` (it answers
+    the other three 410), and the scoring-job worker reaches it only for the
+    three it refuses. One dispatcher for both is what guarantees a queued
+    scoring and the synchronous one it replaced produce the same body.
     """
     if kind.key == "core":
         return submit_person_side(user, data.get("responses"))
@@ -523,13 +529,13 @@ def precheck(kind: AssessmentKind, data: Dict[str, Any]) -> Optional[AssessmentR
     trip through the broker.
 
     **This deliberately duplicates the guards at the top of the three submit
-    functions rather than being factored out of them.**  Extracting them would
-    edit the synchronous handlers, which are required to stay byte-identical
-    until the frontend moves (3c), and a refactor that is *supposed* to be
-    invisible is exactly the kind that turns out not to be.  The duplication is
-    held honest by ``tests/test_scoring_jobs.py``, which submits the same
-    malformed bodies to both routes and asserts the status and the body match --
-    so the copy cannot drift without a test failing.
+    functions rather than being factored out of them.**  The guards still run
+    -- a worker reaches them through :func:`submit` -- so extracting them would
+    refactor the scorers to serve a check that already exists.  The duplication
+    is held honest by ``tests/test_scoring_jobs.py``, which sends the same
+    malformed body through the enqueue's precheck and through a directly-run
+    job and asserts the two report the same error -- so the copy cannot drift
+    without a test failing.
 
     Returns None when there is nothing to object to.  A None here is not a
     promise the scoring will succeed: the provider can still fail, and that is

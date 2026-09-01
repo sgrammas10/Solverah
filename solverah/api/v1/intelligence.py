@@ -29,6 +29,7 @@ from security import (
     GUEST_INSIGHTS_PER_IP_LIMIT,
     global_rate_limit_key,
 )
+from solverah.errors import NotFoundError
 from solverah.extensions import limiter
 from solverah.infra import llm
 from solverah.openapi import document
@@ -225,28 +226,49 @@ def put_path_preferences():
 
 
 @document(
-    "Score and narrate career path suggestions",
+    "Read the cached career path suggestions",
     tags=["me"],
-    responses={200: PathSuggestionsResponse, 400: LegacyError, 404: LegacyError, 500: LegacyError},
+    responses={200: PathSuggestionsResponse, 404: LegacyError},
     security=_AUTHENTICATED,
     enforce=True,
+    description=(
+        "Serves the per-user cache that a succeeded path-suggestion job "
+        "populates; the cache is invalidated when Work Pulse results, "
+        "experience entries, or ManagerMatch results change.\n\n"
+        "A miss is `404` and computes nothing: the problem document's "
+        "`start_job_url` names `POST /me/path-suggestion-jobs`, which queues "
+        "the O*NET and OpenAI fan-out this route performed inline before "
+        "Phase 3c and whose poll returns the same payload this serves."
+    ),
 )
 @intelligence_bp.route("/me/path-suggestions", methods=["GET"])
 @jwt_required()
 def get_path_suggestions():
-    """GET /me/path-suggestions - scored and narrated career paths.
+    """GET /me/path-suggestions - the cached suggestions, and only the cache.
 
-    Cached per user; the cache is invalidated when Work Pulse results,
-    experience entries, or ManagerMatch results change.
-
-    Part 5.2 has a cache miss answering 202 and enqueueing the work. It does not
-    yet -- there is no queue until Phase 3, and a 202 for work that then runs
-    inline would hand the client a job to poll that has already finished.
+    Until Phase 3c a miss here ran the whole O*NET and OpenAI fan-out inside
+    the request -- the handler `gunicorn.conf.py`'s 120-second timeout was
+    raised for. The SPA moved to the job pair in 43a2024, so a miss now answers
+    404 with a pointer at the enqueue instead of computing. Deliberately not a
+    202: nothing was queued on the client's behalf, and a job the client did
+    not start is a job it does not know to poll.
     """
     user = _current_user()
     if not user:
         return jsonify({"error": "User not found"}), 404
-    return _respond(intelligence_service.path_suggestions(user, current_app.logger))
+
+    cached = intelligence_service.cached_path_suggestions(user)
+    if cached is None:
+        raise NotFoundError(
+            detail=(
+                "No cached path suggestions. Queue a scoring at "
+                "POST /me/path-suggestion-jobs and poll the job; its result "
+                "is the payload this route serves."
+            ),
+            errors=[{"field": "cache", "code": "not_generated"}],
+            extra={"start_job_url": "/me/path-suggestion-jobs"},
+        )
+    return _respond(cached)
 
 
 @document(
@@ -349,18 +371,14 @@ def agent_messages():
 
 
 # ---------------------------------------------------------------------------
-# Phase 3b -- path suggestions off the request path
+# Phase 3b/3c -- path suggestions off the request path
 # ---------------------------------------------------------------------------
 #
-# `GET /me/path-suggestions` fans out to O*NET and OpenAI inside the request.
-# It and assessment scoring are the two handlers `gunicorn.conf.py`'s 120-second
-# timeout was raised for, and the reason Phase 3's exit was not claimed by 3a.
-#
-# Added alongside the GET, which is unchanged. Its own docstring anticipated
-# this: "Part 5.2 has a cache miss answering 202 and enqueueing the work. It
-# does not yet -- there is no queue until Phase 3." There is now, and this is
-# that operation -- as an addition rather than as a change to the GET, because
-# turning a 200 into a 202 is a contract change and the frontend has not moved.
+# `GET /me/path-suggestions` used to fan out to O*NET and OpenAI inside the
+# request. It and assessment scoring were the two handlers `gunicorn.conf.py`'s
+# 120-second timeout was raised for. 3b added this job pair alongside the GET;
+# 3c cut the GET down to a cache read once the frontend had moved (43a2024), so
+# the fan-out below is the only way the scoring runs.
 
 
 @document(
@@ -371,18 +389,16 @@ def agent_messages():
     enforce=True,
     request_required=False,
     description=(
-        "Asynchronous counterpart to `GET /me/path-suggestions`, which fans out "
-        "to O*NET and OpenAI inside the request. Answers `202` with a job "
-        "handle; poll `GET /me/path-suggestion-jobs/{job_id}` until `status` is "
-        "`succeeded` or `failed`. The synchronous `GET` is unchanged and "
-        "remains available.\n\n"
-        "A succeeded job also warms the per-user cache the `GET` reads, so a "
-        "client part-way through the migration can queue the work and then read "
-        "the old endpoint without paying for the scoring twice.\n\n"
-        "Rate limited. The synchronous `GET` is not, because it is naturally "
-        "self-limiting -- the caller waits for the fan-out and a repeat is a "
-        "cache hit. An enqueue returns immediately and can be issued in a loop, "
-        "so the budget that bounds provider spend has to live here (A9)."
+        "The only way path suggestions are computed since Phase 3c. Queues the "
+        "O*NET and OpenAI fan-out and answers `202` with a job handle; poll "
+        "`GET /me/path-suggestion-jobs/{job_id}` until `status` is `succeeded` "
+        "or `failed`.\n\n"
+        "A succeeded job warms the per-user cache `GET /me/path-suggestions` "
+        "serves, so the payload can be re-read there without paying for the "
+        "scoring twice.\n\n"
+        "Rate limited, and the cache-reading `GET` is not: an enqueue returns "
+        "immediately and can be issued in a loop, so the budget that bounds "
+        "provider spend has to live here (A9)."
     ),
 )
 @intelligence_bp.route("/me/path-suggestion-jobs", methods=["POST"])
@@ -391,17 +407,14 @@ def agent_messages():
 def post_my_path_suggestion_job():
     """POST /me/path-suggestion-jobs - queue the scoring, return 202.
 
-    **This route carries a limit the endpoint it mirrors does not, and that is
-    deliberate rather than an oversight in one of them.** `GET
-    /me/path-suggestions` is unlimited today and survives it: the caller holds
-    the connection for the whole O*NET and OpenAI fan-out, so a client cannot
-    have many in flight, and every repeat inside the cache window is a cache hit
-    that reaches no provider. Neither property survives the move to a queue. An
-    enqueue returns in milliseconds, so a loop issues hundreds; and each one
-    that a worker picks up before the first has populated the cache is a full
-    fan-out at full cost. A9's principle is that the budget bounds provider
-    spend -- this is where the spend became reachable, so this is where the
-    budget goes.
+    **This route carries a limit the GET it feeds does not, and that is
+    deliberate rather than an oversight in one of them.** Since 3c the GET is a
+    cache read that reaches no provider, so there is nothing there for a budget
+    to bound. An enqueue returns in milliseconds, so a loop issues hundreds;
+    and each one that a worker picks up before the first has populated the
+    cache is a full O*NET and OpenAI fan-out at full cost. A9's principle is
+    that the budget bounds provider spend -- this is the only door to the
+    spend, so this is where the budget lives.
 
     10 per minute, matching `POST /me/recommendations/refresh`: the other
     authenticated operation whose whole purpose is to ask the server to
