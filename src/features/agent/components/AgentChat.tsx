@@ -13,6 +13,12 @@ function AgentChat() {
   const { streamFetch } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  // Deliberately NOT a useMutation (TanStack round, Phase 4): `isLoading`
+  // spans an SSE read loop that appends tokens to `messages` as they arrive
+  // and can be cancelled through abortControllerRef. A mutation models one
+  // promise settling once; it does not absorb a stream loop, and wrapping the
+  // loop in a mutationFn would leave the incremental updates and the abort
+  // handle outside it anyway.
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);

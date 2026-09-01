@@ -1,6 +1,9 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
 import CompanyLensPage from "./CompanyLensPage";
+import { ApiError } from "../../../shared/api/apiError";
+import { createQueryClient } from "../../../shared/api/queryClient";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -81,11 +84,21 @@ function mockMatchesOnce() {
     .mockResolvedValueOnce(page(WORST_FITS, "worst"));
 }
 
+/** The matches query needs a client; fresh per render, per the
+ *  useProfileForm.test precedent, so no cache entry leaks between tests.
+ *  The real client, with the real retry policy: the failure fixtures below are
+ *  ApiErrors with 4xx statuses, which shouldRetry refuses to retry — a bare
+ *  `new Error(...)` here would be classified as a network failure and retried,
+ *  and the mock's next (undefined) response would take the test somewhere
+ *  unintended. That mirrors production, where fetchWithAuth only ever throws
+ *  ApiError for a server-rejected request. */
 function renderCompanyLensPage() {
   render(
-    <MemoryRouter>
-      <CompanyLensPage />
-    </MemoryRouter>
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter>
+        <CompanyLensPage />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 
@@ -135,9 +148,12 @@ describe("CompanyLensPage - happy path", () => {
 
 describe("CompanyLensPage - no-prefs state", () => {
   it("shows 'Complete Work Pulse' CTA when culture preferences missing", async () => {
+    // A 409 ApiError, as the server actually sends it: 4xx is not retryable,
+    // so the no-prefs screen appears without the query retrying into the
+    // mock's exhausted (undefined) responses.
     mocks.fetchWithAuth
-      .mockRejectedValueOnce(new Error("culture preferences not set"))
-      .mockRejectedValueOnce(new Error("culture preferences not set"));
+      .mockRejectedValueOnce(new ApiError("culture preferences not set", { status: 409 }))
+      .mockRejectedValueOnce(new ApiError("culture preferences not set", { status: 409 }));
     renderCompanyLensPage();
     await waitFor(() =>
       expect(screen.getByText(/Complete Work Pulse to unlock CompanyLens/i)).toBeInTheDocument()
@@ -146,8 +162,8 @@ describe("CompanyLensPage - no-prefs state", () => {
 
   it("navigates to /work-pulse when 'Start Work Pulse' clicked", async () => {
     mocks.fetchWithAuth
-      .mockRejectedValueOnce(new Error("Work Pulse not completed"))
-      .mockRejectedValueOnce(new Error("Work Pulse not completed"));
+      .mockRejectedValueOnce(new ApiError("Work Pulse not completed", { status: 409 }))
+      .mockRejectedValueOnce(new ApiError("Work Pulse not completed", { status: 409 }));
     renderCompanyLensPage();
     await waitFor(() => screen.getByRole("button", { name: /start work pulse/i }));
     fireEvent.click(screen.getByRole("button", { name: /start work pulse/i }));
@@ -159,9 +175,11 @@ describe("CompanyLensPage - no-prefs state", () => {
 
 describe("CompanyLensPage - error handling", () => {
   it("shows error UI on fetch failure", async () => {
+    // 400, not a bare Error: this test means "the request failed and stays
+    // failed", and a 4xx is the class shouldRetry surfaces immediately.
     mocks.fetchWithAuth
-      .mockRejectedValueOnce(new Error("API down"))
-      .mockRejectedValueOnce(new Error("API down"));
+      .mockRejectedValueOnce(new ApiError("API down", { status: 400 }))
+      .mockRejectedValueOnce(new ApiError("API down", { status: 400 }));
     renderCompanyLensPage();
     await waitFor(() =>
       expect(screen.getByText(/Couldn't load your company matches/i)).toBeInTheDocument()
@@ -171,13 +189,34 @@ describe("CompanyLensPage - error handling", () => {
   it("retry button re-fetches successfully", async () => {
     // The failed attempt consumes both of its calls before the retry's pair.
     mocks.fetchWithAuth
-      .mockRejectedValueOnce(new Error("API down"))
-      .mockRejectedValueOnce(new Error("API down"));
+      .mockRejectedValueOnce(new ApiError("API down", { status: 400 }))
+      .mockRejectedValueOnce(new ApiError("API down", { status: 400 }));
     renderCompanyLensPage();
     await waitFor(() => screen.getByRole("button", { name: /try again/i }));
     mockMatchesOnce();
     fireEvent.click(screen.getByRole("button", { name: /try again/i }));
     await waitFor(() => expect(screen.getByText("Stripe")).toBeInTheDocument());
+  });
+
+  it("retries a 500 through shouldRetry and renders the retry's success", async () => {
+    // The behaviour this round adopted on purpose: a converted GET routes
+    // through queryClient.ts's shouldRetry, so a transient 5xx is retried
+    // (bounded) instead of surfacing at the first blip. Safe on this API:
+    // Phase 3a removed every commit from GET handlers, so the retried read
+    // re-reads and nothing else. First attempt's pair 500s; the automatic
+    // retry consumes the queued success pair and the page renders.
+    mocks.fetchWithAuth
+      .mockRejectedValueOnce(new ApiError("upstream hiccup", { status: 500 }))
+      .mockRejectedValueOnce(new ApiError("upstream hiccup", { status: 500 }));
+    mockMatchesOnce();
+    renderCompanyLensPage();
+    await waitFor(
+      () => expect(screen.getByText("Stripe")).toBeInTheDocument(),
+      // Past the ~1s backoff shouldRetry's first retry waits out.
+      { timeout: 5000 }
+    );
+    // Two failed calls, then the retried pair.
+    expect(mocks.fetchWithAuth).toHaveBeenCalledTimes(4);
   });
 });
 

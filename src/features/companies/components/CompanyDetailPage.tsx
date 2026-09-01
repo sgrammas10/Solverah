@@ -1,8 +1,7 @@
-import { useState, useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth";
-
-type FetchState = "loading" | "error" | "success";
 
 interface CompanyOverview {
   name: string;
@@ -174,6 +173,12 @@ function warnBadgeClass(level?: string): string {
   return "bg-green-50 text-green-700 border-green-200";
 }
 
+/** Query keys for company documents. `all` is the invalidation handle. */
+export const companyKeys = {
+  all: ["companies"] as const,
+  detail: (id: string) => ["companies", "detail", id] as const,
+};
+
 export default function CompanyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
@@ -186,20 +191,16 @@ export default function CompanyDetailPage() {
     typeof fitState.fit_score === "number" &&
     Array.isArray(fitState.top_matching_dimensions);
 
-  const [fetchState, setFetchState] = useState<FetchState>("loading");
-  const [data, setData] = useState<CompanyDetailResponse | null>(null);
+  // A 5xx now gets queryClient.ts's bounded retries before the error card
+  // (safe: Phase 3a removed every commit from GET handlers). The retry button
+  // is refetch() — the duplicated hand-written fetch it replaced is gone.
+  const companyQuery = useQuery({
+    queryKey: companyKeys.detail(id ?? ""),
+    queryFn: () => fetchWithAuth<CompanyDetailResponse>(`/companies/${id}`),
+  });
+  const data = companyQuery.data;
 
-  useEffect(() => {
-    setFetchState("loading");
-    fetchWithAuth<CompanyDetailResponse>(`/companies/${id}`)
-      .then((res) => {
-        setData(res);
-        setFetchState("success");
-      })
-      .catch(() => setFetchState("error"));
-  }, [id]);
-
-  if (fetchState === "loading") {
+  if (companyQuery.isLoading) {
     return (
       <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
         <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
@@ -208,7 +209,7 @@ export default function CompanyDetailPage() {
     );
   }
 
-  if (fetchState === "error" || !data) {
+  if (companyQuery.isError || !data) {
     return (
       <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
         <div className="max-w-sm w-full rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
@@ -216,12 +217,7 @@ export default function CompanyDetailPage() {
           <p className="text-xs">Please try again in a moment.</p>
           <button
             type="button"
-            onClick={() => {
-              setFetchState("loading");
-              fetchWithAuth<CompanyDetailResponse>(`/companies/${id}`)
-                .then((res) => { setData(res); setFetchState("success"); })
-                .catch(() => setFetchState("error"));
-            }}
+            onClick={() => companyQuery.refetch()}
             className="mt-3 text-xs font-semibold text-red-700 underline"
           >
             Try again

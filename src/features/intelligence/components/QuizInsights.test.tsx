@@ -1,10 +1,12 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import QuizInsights from "./QuizInsights";
+// Barrel import (boundary rule); the vi.mock below pins the concrete module,
+// which still intercepts the barrel's re-export.
+import { useProfile } from "../../profile";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
-  fetchProfileData: vi.fn(),
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -12,12 +14,31 @@ vi.mock("react-router-dom", async (importOriginal) => {
   return { ...actual, useNavigate: () => mocks.navigate };
 });
 
-vi.mock("../../auth/useAuth", () => ({
-  useAuth: () => ({ fetchProfileData: mocks.fetchProfileData }),
-}));
+/**
+ * The page reads the profile document through useProfile() now -- the
+ * fetchProfileData() round trip it used to make on mount is gone. Mocking the
+ * hook (the useProfileForm.test precedent) keeps these tests about what the
+ * page renders from a given document, not about the query machinery, and
+ * needs no QueryClientProvider. The document's *failure* is not renderable
+ * here any more: useProfile throws it to RouteErrorBoundary for every
+ * consumer, so the old inline-error test left with the inline error UI.
+ */
+vi.mock("../../profile/useProfile", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../profile/useProfile")>();
+  return { ...actual, useProfile: vi.fn() };
+});
+
+/** What the mocked useProfile() hands back. Set per test before rendering. */
+let mockProfile: Record<string, unknown> | undefined;
+let mockProfileLoading: boolean;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockProfile = {};
+  mockProfileLoading = false;
+  vi.mocked(useProfile).mockImplementation(
+    () => ({ data: mockProfile, isLoading: mockProfileLoading }) as any
+  );
 });
 
 const MOCK_CAREER_INSIGHTS = {
@@ -47,22 +68,11 @@ function renderQuizInsights(search = "?group=careerQuizzes", locationState?: obj
 // ─── loading state ─────────────────────────────────────────────────────────────
 
 describe("QuizInsights - loading state", () => {
-  it("shows loading text while fetching", () => {
-    mocks.fetchProfileData.mockReturnValue(new Promise(() => {}));
+  it("shows loading text while the profile document is in flight", () => {
+    mockProfile = undefined;
+    mockProfileLoading = true;
     renderQuizInsights();
     expect(screen.getByText(/Loading insights/i)).toBeInTheDocument();
-  });
-});
-
-// ─── error state ──────────────────────────────────────────────────────────────
-
-describe("QuizInsights - error state", () => {
-  it("shows error message when fetchProfileData rejects", async () => {
-    mocks.fetchProfileData.mockRejectedValueOnce(new Error("API error"));
-    renderQuizInsights();
-    await waitFor(() =>
-      expect(screen.getByText(/API error/i)).toBeInTheDocument()
-    );
   });
 });
 
@@ -70,17 +80,15 @@ describe("QuizInsights - error state", () => {
 
 describe("QuizInsights - no insights", () => {
   it("shows empty state when no insights found", async () => {
-    mocks.fetchProfileData.mockResolvedValueOnce({
-      profileData: { quizInsights: null },
-    });
+    mockProfile = { quizInsights: null };
     renderQuizInsights();
     await waitFor(() =>
       expect(screen.getByText(/No insights found yet/i)).toBeInTheDocument()
     );
   });
 
-  it("shows empty state when profileData has no quizInsights key", async () => {
-    mocks.fetchProfileData.mockResolvedValueOnce({ profileData: {} });
+  it("shows empty state when the document has no quizInsights key", async () => {
+    mockProfile = {};
     renderQuizInsights();
     await waitFor(() =>
       expect(screen.getByText(/No insights found yet/i)).toBeInTheDocument()
@@ -92,17 +100,13 @@ describe("QuizInsights - no insights", () => {
 
 describe("QuizInsights - careerQuizzes group", () => {
   it("renders insight card titles from profile data", async () => {
-    mocks.fetchProfileData.mockResolvedValueOnce({
-      profileData: { quizInsights: MOCK_CAREER_INSIGHTS },
-    });
+    mockProfile = { quizInsights: MOCK_CAREER_INSIGHTS };
     renderQuizInsights("?group=careerQuizzes");
     await waitFor(() => expect(screen.getAllByText("Early Career")[0]).toBeInTheDocument());
   });
 
   it("renders insight summary text", async () => {
-    mocks.fetchProfileData.mockResolvedValueOnce({
-      profileData: { quizInsights: MOCK_CAREER_INSIGHTS },
-    });
+    mockProfile = { quizInsights: MOCK_CAREER_INSIGHTS };
     renderQuizInsights("?group=careerQuizzes");
     await waitFor(() =>
       expect(screen.getByText("You value structured environments.")).toBeInTheDocument()
@@ -110,17 +114,13 @@ describe("QuizInsights - careerQuizzes group", () => {
   });
 
   it("renders key takeaways", async () => {
-    mocks.fetchProfileData.mockResolvedValueOnce({
-      profileData: { quizInsights: MOCK_CAREER_INSIGHTS },
-    });
+    mockProfile = { quizInsights: MOCK_CAREER_INSIGHTS };
     renderQuizInsights("?group=careerQuizzes");
     await waitFor(() => expect(screen.getByText("Seek mentorship")).toBeInTheDocument());
   });
 
   it("renders overall insight when 'all' filter is active", async () => {
-    mocks.fetchProfileData.mockResolvedValueOnce({
-      profileData: { quizInsights: MOCK_CAREER_INSIGHTS },
-    });
+    mockProfile = { quizInsights: MOCK_CAREER_INSIGHTS };
     renderQuizInsights("?group=careerQuizzes");
     await waitFor(() =>
       expect(screen.getByText("Across all quizzes you show strong analytical skills.")).toBeInTheDocument()
@@ -128,18 +128,14 @@ describe("QuizInsights - careerQuizzes group", () => {
   });
 
   it("renders filter pills", async () => {
-    mocks.fetchProfileData.mockResolvedValueOnce({
-      profileData: { quizInsights: MOCK_CAREER_INSIGHTS },
-    });
+    mockProfile = { quizInsights: MOCK_CAREER_INSIGHTS };
     renderQuizInsights("?group=careerQuizzes");
     await waitFor(() => expect(screen.getByRole("button", { name: "All" })).toBeInTheDocument());
     expect(screen.getByRole("button", { name: "Early Career" })).toBeInTheDocument();
   });
 
   it("filters to specific insight when pill clicked", async () => {
-    mocks.fetchProfileData.mockResolvedValueOnce({
-      profileData: { quizInsights: MOCK_CAREER_INSIGHTS },
-    });
+    mockProfile = { quizInsights: MOCK_CAREER_INSIGHTS };
     renderQuizInsights("?group=careerQuizzes");
     await waitFor(() => screen.getByRole("button", { name: "Early Career" }));
     fireEvent.click(screen.getByRole("button", { name: "Early Career" }));
@@ -152,7 +148,7 @@ describe("QuizInsights - careerQuizzes group", () => {
 
 describe("QuizInsights - from location state", () => {
   it("renders insights from location state when no profile data", async () => {
-    mocks.fetchProfileData.mockResolvedValueOnce({ profileData: {} });
+    mockProfile = {};
     renderQuizInsights("?group=careerQuizzes", {
       insight: {
         overallSummary: "Strong analytical profile.",
@@ -172,9 +168,7 @@ describe("QuizInsights - from location state", () => {
 
 describe("QuizInsights - navigation", () => {
   it("back to assessments button navigates to /intelligence", async () => {
-    mocks.fetchProfileData.mockResolvedValueOnce({
-      profileData: { quizInsights: MOCK_CAREER_INSIGHTS },
-    });
+    mockProfile = { quizInsights: MOCK_CAREER_INSIGHTS };
     renderQuizInsights();
     await waitFor(() => screen.getByRole("button", { name: /back to assessments/i }));
     fireEvent.click(screen.getByRole("button", { name: /back to assessments/i }));

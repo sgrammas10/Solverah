@@ -1,8 +1,10 @@
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { HttpResponse } from "msw";
 
 import ConfirmEmail from "./ConfirmEmail";
+import { createQueryClient } from "../../../shared/api/queryClient";
 import { mock } from "../../../../tests/msw/contract";
 import { server, useApiMocks, recordRequests } from "../../../../tests/msw/server";
 
@@ -33,11 +35,16 @@ beforeEach(() => {
   mocks.navigate.mockReset();
 });
 
+/** The verify/resend mutations need a client; fresh per render, per the
+ *  useProfileForm.test precedent. Mutations never retry, so the real defaults
+ *  from createQueryClient() are safe here. */
 function renderConfirmEmail(state?: { email?: string; from?: string }, search = "") {
   render(
-    <MemoryRouter initialEntries={[{ pathname: "/verify-email", search, state }]}>
-      <ConfirmEmail />
-    </MemoryRouter>
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter initialEntries={[{ pathname: "/verify-email", search, state }]}>
+        <ConfirmEmail />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 
@@ -95,7 +102,9 @@ describe("ConfirmEmail - happy path", () => {
   it("shows success message after valid code submission", async () => {
     renderConfirmEmail({ email: "user@example.com" });
     await submitCode("123456");
-    expect(screen.getByText(/Email verified!/i)).toBeInTheDocument();
+    // findBy: the mutation's success state lands a scheduler tick after the
+    // response, where the hand-rolled setStatus landed inside the awaited act.
+    expect(await screen.findByText(/Email verified!/i)).toBeInTheDocument();
   });
 
   it("redirects to /login after success delay", async () => {

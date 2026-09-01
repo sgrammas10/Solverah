@@ -1,9 +1,22 @@
-import { renderHook, act } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
+import { renderHook as renderHookBase, act } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { HttpResponse } from "msw";
 
 import { useEarlyAccess } from "./useEarlyAccess";
+import { createQueryClient } from "../../shared/api/queryClient";
 import { mock } from "../../../tests/msw/contract";
 import { server, useApiMocks, recordRequests } from "../../../tests/msw/server";
+
+/** The hook's submit mutation needs a client; fresh per renderHook, per the
+ *  useProfileForm.test precedent. createElement rather than JSX because this
+ *  file is .ts. Mutations never retry, so the real defaults are safe here. */
+function renderHook<T>(callback: () => T) {
+  const client = createQueryClient();
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client }, children);
+  return renderHookBase(callback, { wrapper });
+}
 
 /**
  * These tests used to assign a `vi.fn()` over `globalThis.fetch` and hand back

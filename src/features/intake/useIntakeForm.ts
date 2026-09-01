@@ -19,6 +19,7 @@
  *   accountModal*            — State for the post-submission account creation/sign-in modal.
  */
 import { FormEvent, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { API_BASE } from "../../shared/api/api";
 import { parseApiError } from "../../shared/api/apiError";
 
@@ -57,8 +58,6 @@ export function useIntakeForm() {
   const [accountPassword, setAccountPassword] = useState("");
   const [accountConfirm, setAccountConfirm] = useState("");
   const [accountError, setAccountError] = useState("");
-  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
-  const [isSigningIn, setIsSigningIn] = useState(false);
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -173,7 +172,59 @@ export function useIntakeForm() {
     }
   };
 
-  const handleCreateAccount = async () => {
+  const createAccountMutation = useMutation({
+    mutationFn: async (password: string) => {
+      // `/intake/claims` replaces the four account-attachment endpoints; `mode`
+      // selects which one this is. Registering a new account from a finished
+      // submission -- the email comes from the submission, never from here.
+      const response = await fetch(`${API_BASE}/intake/claims`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "register",
+          submission_id: submissionId,
+          password,
+          role: "job-seeker",
+        }),
+      });
+      const data = await response.json().catch((e) => {
+        console.error("Failed to parse create-account response:", e);
+        return {};
+      });
+      if (!response.ok) throw parseApiError(response, data, "Unable to create account right now.");
+    },
+    onSuccess: () => setAccountStep("success"),
+    onError: (error) =>
+      setAccountError(error instanceof Error ? error.message : "Unable to create account right now."),
+  });
+
+  const signInExistingMutation = useMutation({
+    mutationFn: async (credentials: { email: string; password: string }) => {
+      // Same endpoint, different mode: attaching the submission to an account
+      // that already exists.
+      const response = await fetch(`${API_BASE}/intake/claims`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          mode: "sign_in",
+          submission_id: submissionId,
+          email: credentials.email,
+          password: credentials.password,
+        }),
+      });
+      const data = await response.json().catch((e) => {
+        console.error("Failed to parse sign-in response:", e);
+        return {};
+      });
+      if (!response.ok) throw parseApiError(response, data, "Unable to sign in right now.");
+    },
+    onSuccess: () => setAccountStep("success"),
+    onError: (error) =>
+      setAccountError(error instanceof Error ? error.message : "Unable to sign in right now."),
+  });
+
+  const handleCreateAccount = () => {
     if (!submissionId) {
       setAccountError("We couldn't find your submission ID. Please resubmit the form.");
       return;
@@ -186,37 +237,12 @@ export function useIntakeForm() {
       setAccountError("Passwords do not match.");
       return;
     }
-    setIsCreatingAccount(true);
     setAccountAction("create");
     setAccountError("");
-    try {
-      // `/intake/claims` replaces the four account-attachment endpoints; `mode`
-      // selects which one this is. Registering a new account from a finished
-      // submission -- the email comes from the submission, never from here.
-      const response = await fetch(`${API_BASE}/intake/claims`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "register",
-          submission_id: submissionId,
-          password: accountPassword,
-          role: "job-seeker",
-        }),
-      });
-      const data = await response.json().catch((e) => {
-        console.error("Failed to parse create-account response:", e);
-        return {};
-      });
-      if (!response.ok) throw parseApiError(response, data, "Unable to create account right now.");
-      setAccountStep("success");
-    } catch (error) {
-      setAccountError(error instanceof Error ? error.message : "Unable to create account right now.");
-    } finally {
-      setIsCreatingAccount(false);
-    }
+    createAccountMutation.mutate(accountPassword);
   };
 
-  const handleSignInExisting = async () => {
+  const handleSignInExisting = () => {
     if (!submissionId) {
       setAccountError("We couldn't find your submission ID. Please resubmit the form.");
       return;
@@ -229,34 +255,9 @@ export function useIntakeForm() {
       setAccountError("Please enter your password.");
       return;
     }
-    setIsSigningIn(true);
     setAccountAction("signin");
     setAccountError("");
-    try {
-      // Same endpoint, different mode: attaching the submission to an account
-      // that already exists.
-      const response = await fetch(`${API_BASE}/intake/claims`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          mode: "sign_in",
-          submission_id: submissionId,
-          email: signInEmail.trim(),
-          password: signInPassword,
-        }),
-      });
-      const data = await response.json().catch((e) => {
-        console.error("Failed to parse sign-in response:", e);
-        return {};
-      });
-      if (!response.ok) throw parseApiError(response, data, "Unable to sign in right now.");
-      setAccountStep("success");
-    } catch (error) {
-      setAccountError(error instanceof Error ? error.message : "Unable to sign in right now.");
-    } finally {
-      setIsSigningIn(false);
-    }
+    signInExistingMutation.mutate({ email: signInEmail.trim(), password: signInPassword });
   };
 
   return {
@@ -291,8 +292,8 @@ export function useIntakeForm() {
     setAccountConfirm,
     accountError,
     setAccountError,
-    isCreatingAccount,
-    isSigningIn,
+    isCreatingAccount: createAccountMutation.isPending,
+    isSigningIn: signInExistingMutation.isPending,
     handleCreateAccount,
     handleSignInExisting,
   };

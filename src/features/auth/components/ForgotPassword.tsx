@@ -1,36 +1,40 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useMutation } from '@tanstack/react-query';
 import { API_BASE } from '../../../shared/api/api';
-import { parseApiError } from '../../../shared/api/apiError';
+import { ApiError, parseApiError } from '../../../shared/api/apiError';
 import HeroNetworkAnimation from '../../../shared/ui/HeroNetworkAnimation';
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
+  const forgotMutation = useMutation({
+    mutationFn: async (normalizedEmail: string) => {
       const res = await fetch(`${API_BASE}/auth/password/forgot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        body: JSON.stringify({ email: normalizedEmail }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setError(parseApiError(res, data, 'Something went wrong. Please try again.').message);
-        return;
-      }
-      navigate('/forgot-password/verify', { state: { email: email.trim().toLowerCase() } });
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+      if (!res.ok) throw parseApiError(res, data, 'Something went wrong. Please try again.');
+      return normalizedEmail;
+    },
+    onSuccess: (normalizedEmail) =>
+      navigate('/forgot-password/verify', { state: { email: normalizedEmail } }),
+  });
+
+  const loading = forgotMutation.isPending;
+  // An ApiError carries the server's own wording; anything else never reached it.
+  const error = forgotMutation.isError
+    ? forgotMutation.error instanceof ApiError
+      ? forgotMutation.error.message
+      : 'Network error. Please try again.'
+    : '';
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    forgotMutation.mutate(email.trim().toLowerCase());
   };
 
   const inputCls =

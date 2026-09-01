@@ -25,6 +25,7 @@ import {
   useStartScoringJob,
   type ScoringJobResult,
 } from "../useScoringJob";
+import { useWorkPulseResult, workPulseResultKeys } from "../useWorkPulseResult";
 import { WP_QUESTIONS } from "../data/wpQuestions";
 import { TierBar } from "../../intake";
 
@@ -32,9 +33,11 @@ import { TierBar } from "../../intake";
  * `scoring` is the job's pending state and `error` its failed one, and they are
  * separate on purpose: a failed scoring that left the spinner running would be
  * distinguishable from a slow one only by how long the user was willing to
- * wait. `loading` remains the synchronous read of an already-stored result.
+ * wait. The synchronous read of an already-stored result is no longer a member:
+ * that request lives in `useWorkPulseResult`, whose own isLoading/isError carry
+ * what `loading` (and the fetch half of `error`) used to.
  */
-type FetchState = "loading" | "scoring" | "error" | "success";
+type FetchState = "idle" | "scoring" | "error";
 
 /**
  * The job's `result` in the shape this page renders.
@@ -52,19 +55,27 @@ function asWpApiResponse(result: ScoringJobResult<"work_pulse">): WpApiResponse 
 
 export default function WorkPulseResultsPage() {
   const navigate = useNavigate();
-  const { fetchWithAuth, user, updateProfile } = useAuth();
+  const { user, updateProfile } = useAuth();
   const { state, setCachedResult } = useWP();
   const queryClient = useQueryClient();
 
   const hasCached = state.cachedResult !== null;
-  const [fetchState, setFetchState] = useState<FetchState>(hasCached ? "success" : "loading");
-  const [result, setResult] = useState<WpApiResponse | null>(state.cachedResult);
+  const [fetchState, setFetchState] = useState<FetchState>("idle");
   const [scoringError, setScoringError] = useState<string | null>(null);
   const hasFiredRef = useRef(false);
 
   const startScoring = useStartScoringJob("work_pulse");
   const [jobId, setJobId] = useState<string | null>(null);
   const job = useScoringJobStatus("work_pulse", jobId);
+
+  // The stored result, shared with IntelligencePage through one query.
+  // Enabled exactly when the old mount effect called fetchFromServer: no
+  // sessionStorage copy, and the server says the instrument is completed.
+  const wpQuery = useWorkPulseResult({
+    enabled: !hasCached && Boolean(user?.wpl_completed),
+  });
+
+  const result = state.cachedResult ?? wpQuery.data ?? null;
 
   const submitAnswers = useCallback(() => {
     setFetchState("scoring");
@@ -97,7 +108,6 @@ export default function WorkPulseResultsPage() {
 
     if (data.status === "succeeded" && data.result) {
       const narrative = asWpApiResponse(data.result);
-      setResult(narrative);
       setCachedResult(narrative);
       // The session flag the shell gates on (IntelligencePage, JobSeekerDashboard).
       updateProfile({ wpl_completed: true });
@@ -105,8 +115,13 @@ export default function WorkPulseResultsPage() {
       // into. Without this, a screen reading it through useProfile() shows a
       // pre-completion copy for up to the 60 s staleTime.
       queryClient.invalidateQueries({ queryKey: profileKeys.document() });
+      // The job's `result` is the same body `GET /me/assessments/.../result`
+      // serves, so write it into the shared query too — a consumer mounting
+      // after a retake must not be handed the pre-retake narrative for the
+      // staleTime window.
+      queryClient.setQueryData(workPulseResultKeys.result(), narrative);
       setJobId(null);
-      setFetchState("success");
+      setFetchState("idle");
       return;
     }
 
@@ -134,26 +149,33 @@ export default function WorkPulseResultsPage() {
     setFetchState("error");
   }, [job.error]);
 
-  const fetchFromServer = useCallback(async () => {
-    setFetchState("loading");
-    try {
-      const data = await fetchWithAuth<WpApiResponse>("/me/assessments/work_pulse/result");
-      setResult(data);
-      setCachedResult(data);
-      updateProfile({ wpl_completed: true });
-      setFetchState("success");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "";
-      // Backend returns 422 when wpl_completed_at is set but wpl_result is missing
-      // (e.g. pending migration). Resubmit to regenerate the narrative if answers
-      // are still in sessionStorage.
-      if (msg.includes("resubmit") && state.answers.length === WP_QUESTIONS.length) {
-        submitAnswers();
-        return;
-      }
-      setFetchState("error");
+  // A landed read is what fetchFromServer's success branch was: prime the
+  // sessionStorage cache and the session flag. `hasCached` and the setters are
+  // deliberately not dependencies — this runs when a fetch lands, not when the
+  // cache it writes to changes underneath it.
+  useEffect(() => {
+    if (!wpQuery.data) return;
+    setCachedResult(wpQuery.data);
+    updateProfile({ wpl_completed: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wpQuery.data]);
+
+  // Backend returns 422 when wpl_completed_at is set but wpl_result is missing
+  // (e.g. pending migration). Resubmit to regenerate the narrative if answers
+  // are still in sessionStorage. A 422 is not retryable in shouldRetry's
+  // classification, so it arrives here without retry delay.
+  const queryErrorMsg = wpQuery.error instanceof Error ? wpQuery.error.message : "";
+  const canResubmitAfterQueryError =
+    queryErrorMsg.includes("resubmit") && state.answers.length === WP_QUESTIONS.length;
+
+  useEffect(() => {
+    if (!wpQuery.error) return;
+    if (canResubmitAfterQueryError) {
+      submitAnswers();
     }
-  }, [fetchWithAuth, setCachedResult, updateProfile, state.answers, submitAnswers]);
+    // Narrow on purpose: refires per failed fetch, not per render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wpQuery.error]);
 
   useEffect(() => {
     if (hasCached && user?.wpl_completed) {
@@ -173,9 +195,10 @@ export default function WorkPulseResultsPage() {
       }
       return;
     }
-    // Fresh session: user already completed WP but sessionStorage was cleared — refetch from server.
+    // Fresh session: user already completed WP but sessionStorage was cleared —
+    // the stored result arrives through useWorkPulseResult, enabled for exactly
+    // this state.
     if (user?.wpl_completed) {
-      fetchFromServer();
       return;
     }
     if (state.answers.length < WP_QUESTIONS.length) {
@@ -194,11 +217,17 @@ export default function WorkPulseResultsPage() {
       // and the case where the narrative blob failed to persist.
       submitAnswers();
     } else {
-      fetchFromServer();
+      wpQuery.refetch();
     }
-  }, [state.answers.length, fetchFromServer, submitAnswers]);
+  }, [state.answers.length, wpQuery, submitAnswers]);
 
-  if (fetchState === "loading") {
+  // `isError && isFetching` is the retry in flight: the error object survives
+  // a refetch, and rendering the card through it would make "Try again" look
+  // dead. It draws the spinner the hand-rolled "loading" state did.
+  if (
+    fetchState !== "scoring" &&
+    (wpQuery.isLoading || (wpQuery.isError && wpQuery.isFetching))
+  ) {
     return (
       <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
         <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
@@ -224,7 +253,7 @@ export default function WorkPulseResultsPage() {
     );
   }
 
-  if (fetchState === "error") {
+  if (fetchState === "error" || (wpQuery.isError && !canResubmitAfterQueryError)) {
     return (
       <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
         <div

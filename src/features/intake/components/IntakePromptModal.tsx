@@ -1,8 +1,9 @@
 import { FormEvent, useId, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { API_BASE } from "../../../shared/api/api";
 import { useAuth } from "../../auth";
-import { parseApiError } from "../../../shared/api/apiError";
+import { errorMessage, parseApiError } from "../../../shared/api/apiError";
 
 type Step = "prompt" | "form" | "success";
 
@@ -32,8 +33,8 @@ export default function IntakePromptModal({ open, hasIntakeSubmission, onClose, 
   const [selectedFileName, setSelectedFileName] = useState("");
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [infoOptIn, setInfoOptIn] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  // Client-side validation only; the submission's own failure lives on the mutation.
+  const [validationError, setValidationError] = useState("");
 
   const firstNameId = useId();
   const lastNameId = useId();
@@ -49,26 +50,20 @@ export default function IntakePromptModal({ open, hasIntakeSubmission, onClose, 
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError("");
-
-    const firstName = formData.firstName.trim();
-    const lastName = formData.lastName.trim();
-    const state = formData.state.trim();
-
-    if (!firstName || !lastName) { setError("Please enter your name."); return; }
-    if (!state) { setError("Please enter your state / region."); return; }
-    if (!resumeFile) { setError("Please attach your resume to continue."); return; }
-    if (!privacyConsent) { setError("Please agree to the privacy notice to continue."); return; }
-
-    setSubmitting(true);
-    try {
+  // One mutation for the whole chain: the three steps succeed or fail as a
+  // unit, exactly as the hand-rolled try block treated them.
+  const submitIntake = useMutation({
+    mutationFn: async (input: {
+      firstName: string;
+      lastName: string;
+      state: string;
+      resumeFile: File;
+    }) => {
       // Step 1: get presigned upload URL
       const presignRes = await fetch(`${API_BASE}/intake/resume-tickets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mime: resumeFile.type, size: resumeFile.size }),
+        body: JSON.stringify({ mime: input.resumeFile.type, size: input.resumeFile.size }),
       });
       const presignData = await presignRes.json().catch(() => ({}));
       if (!presignRes.ok) throw parseApiError(presignRes, presignData, "Unable to start upload.");
@@ -82,8 +77,8 @@ export default function IntakePromptModal({ open, hasIntakeSubmission, onClose, 
       // Step 2: upload resume directly to S3
       const putRes = await fetch(upload_url, {
         method: "PUT",
-        headers: { "Content-Type": resumeFile.type },
-        body: resumeFile,
+        headers: { "Content-Type": input.resumeFile.type },
+        body: input.resumeFile,
       });
       if (!putRes.ok) throw new Error("Resume upload failed. Please try again.");
 
@@ -96,11 +91,11 @@ export default function IntakePromptModal({ open, hasIntakeSubmission, onClose, 
           mode: "link",
           submission_id,
           object_key,
-          mime: resumeFile.type,
-          size: resumeFile.size,
-          first_name: firstName,
-          last_name: lastName,
-          state,
+          mime: input.resumeFile.type,
+          size: input.resumeFile.size,
+          first_name: input.firstName,
+          last_name: input.lastName,
+          state: input.state,
           phone: formData.phone.trim() || null,
           linkedin_url: formData.linkedinUrl.trim() || null,
           portfolio_url: formData.portfolioUrl.trim() || null,
@@ -108,13 +103,31 @@ export default function IntakePromptModal({ open, hasIntakeSubmission, onClose, 
           info_opt_in: infoOptIn,
         }),
       });
+    },
+    onSuccess: () => setStep("success"),
+  });
 
-      setStep("success");
-    } catch (err: any) {
-      setError(err?.message || "Something went wrong. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
+  const submitting = submitIntake.isPending;
+  const error =
+    validationError ||
+    (submitIntake.isError
+      ? errorMessage(submitIntake.error, "Something went wrong. Please try again.")
+      : "");
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const firstName = formData.firstName.trim();
+    const lastName = formData.lastName.trim();
+    const state = formData.state.trim();
+
+    if (!firstName || !lastName) { setValidationError("Please enter your name."); return; }
+    if (!state) { setValidationError("Please enter your state / region."); return; }
+    if (!resumeFile) { setValidationError("Please attach your resume to continue."); return; }
+    if (!privacyConsent) { setValidationError("Please agree to the privacy notice to continue."); return; }
+
+    setValidationError("");
+    submitIntake.mutate({ firstName, lastName, state, resumeFile });
   };
 
   if (!open) return null;

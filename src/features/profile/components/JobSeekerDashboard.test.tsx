@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
 import JobSeekerDashboard from "./JobSeekerDashboard";
+import { createQueryClient } from "../../../shared/api/queryClient";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -56,11 +58,15 @@ beforeEach(() => {
   });
 });
 
+/** The dashboard query needs a client; fresh per render, per the
+ *  useProfileForm.test precedent, so no cache entry leaks between tests. */
 function renderJobSeekerDashboard() {
   render(
-    <MemoryRouter>
-      <JobSeekerDashboard />
-    </MemoryRouter>
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter>
+        <JobSeekerDashboard />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 

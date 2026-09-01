@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
 import { User, Briefcase, GraduationCap, Star, X } from "lucide-react";
 import { useProfileForm } from "../useProfileForm";
 import { useAuth } from "../../auth";
@@ -26,20 +27,19 @@ interface CareerStatusModalProps {
 function CareerStatusModal({ onDismiss }: CareerStatusModalProps) {
   const { fetchWithAuth } = useAuth();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
 
-  const handleSelect = async (status: "between_jobs" | "first_job") => {
-    setLoading(true);
-    try {
-      await fetchWithAuth("/me/career-status", {
+  // A failed PATCH re-enables the buttons and nothing more, as before.
+  const selectStatus = useMutation({
+    mutationFn: (status: "between_jobs" | "first_job") =>
+      fetchWithAuth("/me/career-status", {
         method: "PATCH",
         body: JSON.stringify({ status }),
-      });
-      navigate("/intelligence/paths");
-    } catch {
-      setLoading(false);
-    }
-  };
+      }),
+    onSuccess: () => navigate("/intelligence/paths"),
+  });
+
+  const loading = selectStatus.isPending;
+  const handleSelect = (status: "between_jobs" | "first_job") => selectStatus.mutate(status);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">

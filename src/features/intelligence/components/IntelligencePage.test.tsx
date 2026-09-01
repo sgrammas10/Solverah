@@ -1,7 +1,10 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
 import IntelligencePage from "./IntelligencePage";
 import type { WpApiResponse } from "../../assessments";
+import { ApiError } from "../../../shared/api/apiError";
+import { createQueryClient } from "../../../shared/api/queryClient";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -74,11 +77,18 @@ const MOCK_WP_RESULT: WpApiResponse = {
   archetype_description: "You plan before you act.",
 };
 
+/** The useWorkPulseResult query needs a client; fresh per render, per the
+ *  useProfileForm.test precedent, so no cache entry leaks between tests.
+ *  The real retry policy stays on: failure fixtures below are 4xx ApiErrors,
+ *  which shouldRetry refuses — a bare Error would be retried into the mock's
+ *  next queued response and take the test somewhere unintended. */
 function renderIntelligencePage() {
   render(
-    <MemoryRouter>
-      <IntelligencePage />
-    </MemoryRouter>
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter>
+        <IntelligencePage />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 
@@ -117,7 +127,9 @@ describe("IntelligencePage - error state", () => {
   it("shows error UI when fetch fails", async () => {
     mocks.user = { wpl_completed: true };
     mocks.wpState = { answers: [], cachedResult: null };
-    mocks.fetchWithAuth.mockRejectedValueOnce(new Error("API error"));
+    // 400, not a bare Error: this test means "the request failed and stays
+    // failed", and a 4xx is the class shouldRetry surfaces immediately.
+    mocks.fetchWithAuth.mockRejectedValueOnce(new ApiError("API error", { status: 400 }));
     renderIntelligencePage();
     await waitFor(() =>
       expect(screen.getByText(/couldn't load your profile right now/i)).toBeInTheDocument()
@@ -127,8 +139,10 @@ describe("IntelligencePage - error state", () => {
   it("retry button re-fetches and shows results", async () => {
     mocks.user = { wpl_completed: true };
     mocks.wpState = { answers: [], cachedResult: null };
+    // The 400 must not be auto-retried, or the queued success would render
+    // before the button was ever clicked and the test would assert nothing.
     mocks.fetchWithAuth
-      .mockRejectedValueOnce(new Error("first failure"))
+      .mockRejectedValueOnce(new ApiError("first failure", { status: 400 }))
       .mockResolvedValueOnce(MOCK_WP_RESULT);
     renderIntelligencePage();
     await waitFor(() => screen.getByRole("button", { name: /try again/i }));

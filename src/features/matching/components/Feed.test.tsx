@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
 import Feed from "./Feed";
+import { createQueryClient } from "../../../shared/api/queryClient";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -23,11 +25,15 @@ beforeEach(() => {
   mocks.fetchWithAuth.mockResolvedValue({ data: [], next_cursor: null });
 });
 
+/** The recommendations query needs a client; fresh per render, per the
+ *  useProfileForm.test precedent, so no cache entry leaks between tests. */
 function renderFeed() {
   render(
-    <MemoryRouter>
-      <Feed />
-    </MemoryRouter>
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter>
+        <Feed />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 

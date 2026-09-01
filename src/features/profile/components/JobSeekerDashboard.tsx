@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../auth';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, FileText, Brain, Briefcase, TrendingUp } from 'lucide-react';
@@ -6,6 +7,12 @@ import { IntakePromptModal } from '../../intake';
 import { WorkPulseBanner, WorkPulseUnlock } from '../../assessments';
 
 const iconMap: Record<string, any> = { User, FileText, Brain, Briefcase, TrendingUp };
+
+/** Query keys for the dashboard document. `all` is the invalidation handle. */
+export const dashboardKeys = {
+  all: ['dashboard'] as const,
+  summary: () => ['dashboard', 'summary'] as const,
+};
 
 function JobSeekerDashboard() {
   const navigate = useNavigate();
@@ -20,27 +27,26 @@ function JobSeekerDashboard() {
     );
   };
 
-  const [dashboardData, setDashboardData] = useState<any>(null);
   const [jobsPopupOpen, setJobsPopupOpen] = useState(false);
   const [intakeModalOpen, setIntakeModalOpen] = useState(false);
   const [wplBannerDismissed, setWplBannerDismissed] = useState(false);
   const { user, fetchWithAuth } = useAuth();
 
+  // A failed fetch (after queryClient.ts's bounded retries) leaves `data`
+  // undefined and this page renders without the stats row, exactly as the
+  // hand-rolled catch-and-log did.
+  const { data: dashboardData } = useQuery({
+    queryKey: dashboardKeys.summary(),
+    queryFn: () => fetchWithAuth<any>('/me/dashboard'),
+  });
+
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const data = await fetchWithAuth('/me/dashboard');
-        setDashboardData(data);
-        const completionPct = parseInt(data.profileCompletion ?? '0', 10);
-        if (completionPct < 50) {
-          setIntakeModalOpen(true);
-        }
-      } catch (err) {
-        console.error('Error loading dashboard data:', err);
-      }
-    };
-    loadData();
-  }, [fetchWithAuth]);
+    if (!dashboardData) return;
+    const completionPct = parseInt(dashboardData.profileCompletion ?? '0', 10);
+    if (completionPct < 50) {
+      setIntakeModalOpen(true);
+    }
+  }, [dashboardData]);
 
   const cardCls =
     'border border-cream-muted rounded-xl bg-white p-6';

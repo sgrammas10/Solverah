@@ -1,12 +1,13 @@
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { API_BASE } from "../../shared/api/api";
-import { parseApiError } from "../../shared/api/apiError";
+import { ApiError, parseApiError } from "../../shared/api/apiError";
 
 export function useEarlyAccess() {
   const [isOpen, setIsOpen] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  // Client-side validation only; the request's own failure lives on the mutation.
+  const [validationError, setValidationError] = useState("");
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -20,44 +21,59 @@ export function useEarlyAccess() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async () => {
-    const { firstName, lastName, email, phone, preferredContact, careerJourney } = formData;
-    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-      setError("Please fill out all required fields.");
-      return;
-    }
-    setIsSubmitting(true);
-    setError("");
-    try {
+  const submitRequest = useMutation({
+    mutationFn: async (body: Record<string, string>) => {
       const res = await fetch(`${API_BASE}/intake/early-access`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: email.trim(),
-          phone: phone.trim(),
-          preferredContact,
-          careerJourney,
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const data = await res.json().catch((e) => {
           console.error("Failed to parse early-access response:", e);
           return {};
         });
-        setError(parseApiError(res, data, "Could not send request. Please try again.").message);
-        return;
+        throw parseApiError(res, data, "Could not send request. Please try again.");
       }
+    },
+    onSuccess: () => {
       setIsOpen(false);
       setIsSuccess(true);
       setFormData({ firstName: "", lastName: "", email: "", phone: "", preferredContact: "email", careerJourney: "" });
-    } catch {
-      setError("Could not send request. Please try again.");
-    } finally {
-      setIsSubmitting(false);
+    },
+  });
+
+  // Async, and awaits the mutation: callers (and tests) that `await
+  // handleSubmit()` are done when the submission is, same as before the
+  // TanStack conversion. The rejection is swallowed here because the failure
+  // already surfaces through the mutation's error state below.
+  const handleSubmit = async () => {
+    const { firstName, lastName, email, phone, preferredContact, careerJourney } = formData;
+    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
+      setValidationError("Please fill out all required fields.");
+      return;
     }
+    setValidationError("");
+    await submitRequest
+      .mutateAsync({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        preferredContact,
+        careerJourney,
+      })
+      .catch(() => {});
   };
+
+  // An ApiError carries the server's own wording; anything else never reached it.
+  const error =
+    validationError ||
+    (submitRequest.isError
+      ? submitRequest.error instanceof ApiError
+        ? submitRequest.error.message
+        : "Could not send request. Please try again."
+      : "");
 
   return {
     isOpen,
@@ -66,7 +82,7 @@ export function useEarlyAccess() {
     setIsSuccess,
     formData,
     handleChange,
-    isSubmitting,
+    isSubmitting: submitRequest.isPending,
     error,
     handleSubmit,
   };

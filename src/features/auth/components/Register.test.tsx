@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
 import Register from "./Register";
+import { createQueryClient } from "../../../shared/api/queryClient";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -22,11 +24,16 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+/** The register mutation needs a client; fresh per render, per the
+ *  useProfileForm.test precedent. Mutations never retry, so the real
+ *  defaults from createQueryClient() are safe here. */
 function renderRegister(search = "") {
   render(
-    <MemoryRouter initialEntries={[{ pathname: "/register", search }]}>
-      <Register />
-    </MemoryRouter>
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter initialEntries={[{ pathname: "/register", search }]}>
+        <Register />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 

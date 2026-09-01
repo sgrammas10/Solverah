@@ -1,41 +1,19 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { useAuth } from '../../auth';
+import { useRecommendations } from '../useRecommendations';
 import { Search } from "lucide-react";
 
 const RESULTS_PER_PAGE = 5; // adjust as you like
 
 export default function SearchResults() {
-  const { fetchWithAuth } = useAuth();
   const [searchParams] = useSearchParams();
   const query = (searchParams.get("q") || "").toLowerCase();
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Shared with Feed through useRecommendations — a failed fetch settles with
+  // `data` undefined, which renders as "no results", exactly as before.
+  const { data, isLoading: loading } = useRecommendations();
+  const jobs = data ?? [];
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(1);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        // Paginated since Phase 1b: `{ data, next_cursor }`. The list is always
-        // empty today -- the ML pipeline behind it was replaced by the agent and
-        // the Groq-backed successor is not wired up -- so there is no cursor to
-        // follow yet. Reading `data` now means the day it returns rows is not
-        // the day this file changes.
-        const res = await fetchWithAuth<{ data: any[]; next_cursor: string | null }>(
-          "/me/recommendations",
-          { method: "GET" }
-        );
-        setJobs(res.data ?? []);
-      } catch (err) {
-        console.error("Failed to load recommendations", err);
-        setJobs([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [fetchWithAuth]);
 
   const filtered = jobs.filter((job) => {
     if (!query) return true;

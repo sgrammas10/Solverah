@@ -1,8 +1,10 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
 import Login from "./Login";
 import { useAuth } from "../useAuth";
 import * as guestQuiz from "../../../shared/lib/guestQuiz";
+import { createQueryClient } from "../../../shared/api/queryClient";
 import { useApiMocks } from "../../../../tests/msw/server";
 
 vi.mock("../useAuth");
@@ -49,11 +51,16 @@ beforeEach(() => {
   vi.spyOn(guestQuiz, "clearPendingQuizSave").mockImplementation(() => {});
 });
 
+/** The page's login/resend mutations need a client; fresh per render, per the
+ *  useProfileForm.test precedent. Mutations never retry, so the real defaults
+ *  from createQueryClient() are safe here. */
 function renderLogin() {
   render(
-    <MemoryRouter>
-      <Login />
-    </MemoryRouter>
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 
@@ -72,27 +79,32 @@ describe("Login - error handling", () => {
     mockLogin.mockRejectedValueOnce(new Error("Invalid credentials"));
     renderLogin();
     await submitForm();
-    expect(screen.getByText(/Failed to sign in/i)).toBeInTheDocument();
+    // findBy: the mutation's error state lands a scheduler tick after the
+    // rejection, where the hand-rolled setState landed inside the awaited act.
+    expect(await screen.findByText(/Failed to sign in/i)).toBeInTheDocument();
   });
 
   it("shows the email-not-confirmed message for that specific error", async () => {
     mockLogin.mockRejectedValueOnce(new Error("email not confirmed"));
     renderLogin();
     await submitForm();
-    expect(screen.getByText(/email is not confirmed/i)).toBeInTheDocument();
+    expect(await screen.findByText(/email is not confirmed/i)).toBeInTheDocument();
   });
 
   it("shows the ResendConfirmation component on email-not-confirmed error", async () => {
     mockLogin.mockRejectedValueOnce(new Error("email not confirmed"));
     renderLogin();
     await submitForm();
-    expect(screen.getByText(/Resend verification code/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Resend verification code/i)).toBeInTheDocument();
   });
 
   it("does not show ResendConfirmation on a generic error", async () => {
     mockLogin.mockRejectedValueOnce(new Error("wrong password"));
     renderLogin();
     await submitForm();
+    // The error state has to have landed before the negative assertion means
+    // anything — otherwise it would pass against a form still settling.
+    await screen.findByText(/Failed to sign in/i);
     expect(screen.queryByText(/Resend verification code/i)).toBeNull();
   });
 });
@@ -198,9 +210,11 @@ describe("Login - password visibility", () => {
 describe("Login - from=wpll intake save", () => {
   function renderLoginWithParam(search = "?from=wpll") {
     render(
-      <MemoryRouter initialEntries={[`/login${search}`]}>
-        <Login />
-      </MemoryRouter>
+      <QueryClientProvider client={createQueryClient()}>
+        <MemoryRouter initialEntries={[`/login${search}`]}>
+          <Login />
+        </MemoryRouter>
+      </QueryClientProvider>
     );
   }
 
@@ -299,9 +313,11 @@ describe("Login - from=wpll intake save", () => {
     mockLogin.mockResolvedValueOnce({ role: "job-seeker", id: "1", email: "a@b.com", name: "A" });
 
     render(
-      <MemoryRouter initialEntries={["/login"]}>
-        <Login />
-      </MemoryRouter>
+      <QueryClientProvider client={createQueryClient()}>
+        <MemoryRouter initialEntries={["/login"]}>
+          <Login />
+        </MemoryRouter>
+      </QueryClientProvider>
     );
     await submitForm();
 
@@ -326,7 +342,9 @@ describe("Login - loading state", () => {
       fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
     });
 
-    expect(screen.getByRole("button", { name: /signing in/i })).toBeDisabled();
+    // findBy: isPending lands a scheduler tick after mutate(), where the
+    // hand-rolled setLoading(true) was synchronous with the click.
+    expect(await screen.findByRole("button", { name: /signing in/i })).toBeDisabled();
 
     // Clean up
     await act(async () => { resolve({ role: "job-seeker", id: "1", email: "a@b.com", name: "A", profileComplete: false }); });

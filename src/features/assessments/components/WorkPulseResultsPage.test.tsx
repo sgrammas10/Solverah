@@ -212,6 +212,9 @@ describe("WorkPulseResultsPage", () => {
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: ["profile", "document"],
     });
+    // And the shared stored-result query (useWorkPulseResult): a consumer
+    // mounting after this must not be handed a pre-retake narrative.
+    expect(queryClient.getQueryData(["workPulseResult", "result"])).toEqual(MOCK_RESULT);
   });
 
   it("does not invalidate the profile document while the job is still running", async () => {
@@ -343,8 +346,12 @@ describe("WorkPulseResultsPage", () => {
     );
     expect(mocks.navigate).not.toHaveBeenCalled();
     // Still a plain GET: this reads a persisted row and opens no socket, so it
-    // was never one of the three that moved to a job.
-    expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/me/assessments/work_pulse/result");
+    // was never one of the three that moved to a job. The read lives in
+    // useWorkPulseResult now, which spells the method out.
+    expect(mocks.fetchWithAuth).toHaveBeenCalledWith(
+      "/me/assessments/work_pulse/result",
+      { method: "GET" }
+    );
     expect(mocks.startScoringMutate).not.toHaveBeenCalled();
   });
 });

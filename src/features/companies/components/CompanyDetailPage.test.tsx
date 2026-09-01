@@ -1,6 +1,9 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
 import CompanyDetailPage from "./CompanyDetailPage";
+import { ApiError } from "../../../shared/api/apiError";
+import { createQueryClient } from "../../../shared/api/queryClient";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -69,11 +72,18 @@ const MOCK_COMPANY: any = {
   },
 };
 
+/** The company query needs a client; fresh per render, per the
+ *  useProfileForm.test precedent, so no cache entry leaks between tests.
+ *  The real retry policy stays on: failure fixtures below are 404 ApiErrors,
+ *  which shouldRetry refuses — a bare Error would be retried into the mock's
+ *  next queued response and take the test somewhere unintended. */
 function renderCompanyDetailPage(locationState?: object) {
   render(
-    <MemoryRouter initialEntries={[{ pathname: "/companies/42", state: locationState }]}>
-      <CompanyDetailPage />
-    </MemoryRouter>
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter initialEntries={[{ pathname: "/companies/42", state: locationState }]}>
+        <CompanyDetailPage />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 
@@ -162,7 +172,9 @@ describe("CompanyDetailPage - fit score banner", () => {
 
 describe("CompanyDetailPage - error handling", () => {
   it("shows error UI when fetch fails", async () => {
-    mocks.fetchWithAuth.mockRejectedValueOnce(new Error("API error"));
+    // 404, not a bare Error: this test means "the request failed and stays
+    // failed", and a 4xx is the class shouldRetry surfaces immediately.
+    mocks.fetchWithAuth.mockRejectedValueOnce(new ApiError("API error", { status: 404 }));
     renderCompanyDetailPage();
     await waitFor(() =>
       expect(screen.getByText(/Couldn't load this company profile/i)).toBeInTheDocument()
@@ -170,8 +182,10 @@ describe("CompanyDetailPage - error handling", () => {
   });
 
   it("retry button re-fetches and shows results on success", async () => {
+    // The 404 must not be auto-retried, or the queued success would render
+    // before the button was ever clicked and the test would assert nothing.
     mocks.fetchWithAuth
-      .mockRejectedValueOnce(new Error("first failure"))
+      .mockRejectedValueOnce(new ApiError("first failure", { status: 404 }))
       .mockResolvedValueOnce(MOCK_COMPANY);
     renderCompanyDetailPage();
     await waitFor(() => expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument());

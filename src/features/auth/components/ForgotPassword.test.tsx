@@ -1,8 +1,10 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { HttpResponse } from "msw";
 
 import ForgotPassword from "./ForgotPassword";
+import { createQueryClient } from "../../../shared/api/queryClient";
 import { mock } from "../../../../tests/msw/contract";
 import { server, useApiMocks, recordRequests } from "../../../../tests/msw/server";
 
@@ -26,11 +28,16 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+/** The forgot-password mutation needs a client; fresh per render, per the
+ *  useProfileForm.test precedent. Mutations never retry, so the real defaults
+ *  from createQueryClient() are safe here. */
 function renderForgotPassword() {
   render(
-    <MemoryRouter>
-      <ForgotPassword />
-    </MemoryRouter>
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter>
+        <ForgotPassword />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 

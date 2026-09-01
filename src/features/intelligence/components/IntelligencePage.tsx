@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Lock } from "lucide-react";
-import { useWP } from "../../assessments";
-import type { WpApiResponse } from "../../assessments";
+import { useWP, useWorkPulseResult } from "../../assessments";
 import { useAuth } from "../../auth";
 import { useProfileForm } from "../../profile";
 import { useProfile } from "../../profile";
@@ -29,20 +28,13 @@ const LOCKED_CARDS = [
   },
 ];
 
-type FetchState = "loading" | "error" | "success";
-
 export default function IntelligencePage() {
   const navigate = useNavigate();
-  const { fetchWithAuth, user } = useAuth();
+  const { user } = useAuth();
   const { state, setCachedResult } = useWP();
   const { formData } = useProfileForm();
 
   const hasCached = state.cachedResult !== null;
-  const [fetchState, setFetchState] = useState<FetchState>(
-    !user?.wpl_completed || hasCached ? "success" : "loading"
-  );
-  const [result, setResult] = useState<WpApiResponse | null>(state.cachedResult);
-  const hasFiredRef = useRef(false);
 
   const { state: mmState } = useMM();
 
@@ -51,27 +43,26 @@ export default function IntelligencePage() {
   const managerMatchResult =
     mmState.cachedResult ?? (profile?.manager_match_result as MMResult | undefined);
 
-  const fetchFromServer = useCallback(async () => {
-    setFetchState("loading");
-    try {
-      const data = await fetchWithAuth<WpApiResponse>("/me/assessments/work_pulse/result");
-      setResult(data);
-      setCachedResult(data);
-      setFetchState("success");
-    } catch {
-      setFetchState("error");
-    }
-  }, [fetchWithAuth, setCachedResult]);
+  // The stored result, shared with WorkPulseResultsPage through one query.
+  // Disabled while the sessionStorage cache already has the narrative, and
+  // until wpl_completed — the gate the hand-rolled effect used to hold. When
+  // the flag flips true mid-session (user navigated here mid-submission via
+  // the header) the query fires on its own.
+  const wpResult = useWorkPulseResult({
+    enabled: Boolean(user?.wpl_completed) && !hasCached,
+  });
+  const result = state.cachedResult ?? wpResult.data ?? null;
 
+  // Keep the sessionStorage cache primed for the other Work Pulse screens,
+  // as the hand-rolled fetch did after every server read.
   useEffect(() => {
-    if (!user?.wpl_completed) return;
-    if (hasCached) return;
-    if (!hasFiredRef.current) {
-      hasFiredRef.current = true;
-      fetchFromServer();
+    if (wpResult.data && !hasCached) {
+      setCachedResult(wpResult.data);
     }
-  // Re-runs when wpl_completed flips true (e.g. user navigated here mid-submission via the header)
-  }, [user?.wpl_completed]); // eslint-disable-line react-hooks/exhaustive-deps
+    // hasCached/setCachedResult deliberately absent: this runs when a fetch
+    // lands, not when the cache it writes to changes underneath it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wpResult.data]);
 
   // profileLoading joins the existing gate rather than getting its own branch:
   // the FocusType and ManagerMatch cards below render straight off the document,
@@ -80,7 +71,7 @@ export default function IntelligencePage() {
   // The document *failing* is not folded in here: useProfile throws it to
   // RouteErrorBoundary, so it cannot arrive as a permanently empty document and
   // draw those cards as "not started" (or fall through to `return null`).
-  if (fetchState === "loading" || profileLoading) {
+  if (wpResult.isLoading || profileLoading) {
     return (
       <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
         <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
@@ -89,7 +80,7 @@ export default function IntelligencePage() {
     );
   }
 
-  if (fetchState === "error") {
+  if (wpResult.isError) {
     return (
       <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
         <div className="max-w-sm w-full rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
@@ -97,7 +88,7 @@ export default function IntelligencePage() {
           <p className="text-xs">Please try again in a moment.</p>
           <button
             type="button"
-            onClick={fetchFromServer}
+            onClick={() => wpResult.refetch()}
             className="mt-3 text-xs font-semibold text-red-700 underline"
           >
             Try again

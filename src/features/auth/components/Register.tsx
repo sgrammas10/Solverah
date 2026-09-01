@@ -1,8 +1,21 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '../useAuth';
 import { Eye, EyeOff } from 'lucide-react';
 import HeroNetworkAnimation from '../../../shared/ui/HeroNetworkAnimation';
+
+/** The server's rejection, in the wording this form has always shown. */
+function registerErrorMessage(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  if (message.includes('User already exists') || message.toLowerCase().includes('already exists')) {
+    return 'An account with that email already exists';
+  }
+  if (message.includes('409') || message.includes('400')) {
+    return 'Failed to create account. Please check your input and try again.';
+  }
+  return message || 'Failed to create account. Please try again.';
+}
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -14,65 +27,61 @@ function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  // Client-side validation only; the request's own failure lives on the mutation.
+  const [validationError, setValidationError] = useState('');
 
   const { register } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const fromWpll = new URLSearchParams(location.search).get('from') === 'wpll';
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const registerMutation = useMutation({
+    mutationFn: () => register(formData.email, formData.password, formData.name, termsAccepted),
+    onSuccess: () =>
+      navigate('/verify-email', {
+        state: { email: formData.email, from: fromWpll ? 'wpll' : undefined },
+      }),
+  });
+
+  const loading = registerMutation.isPending;
+  const error =
+    validationError ||
+    (registerMutation.isError ? registerErrorMessage(registerMutation.error) : '');
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setValidationError('Passwords do not match');
       return;
     }
     if (formData.password.length < 12) {
-      setError('Password must be at least 12 characters');
+      setValidationError('Password must be at least 12 characters');
       return;
     }
     if (!/[A-Z]/.test(formData.password)) {
-      setError('Password must contain an uppercase letter');
+      setValidationError('Password must contain an uppercase letter');
       return;
     }
     if (!/[a-z]/.test(formData.password)) {
-      setError('Password must contain a lowercase letter');
+      setValidationError('Password must contain a lowercase letter');
       return;
     }
     if (!/[0-9]/.test(formData.password)) {
-      setError('Password must contain a number');
+      setValidationError('Password must contain a number');
       return;
     }
     if (!/[^A-Za-z0-9]/.test(formData.password)) {
-      setError('Password must contain a symbol');
+      setValidationError('Password must contain a symbol');
       return;
     }
     if (!termsAccepted) {
-      setError('Please confirm you are 16 or older and accept the Terms of Service and Privacy Policy');
+      setValidationError('Please confirm you are 16 or older and accept the Terms of Service and Privacy Policy');
       return;
     }
 
-    setLoading(true);
-    try {
-      await register(formData.email, formData.password, formData.name, termsAccepted);
-      navigate('/verify-email', {
-        state: { email: formData.email, from: fromWpll ? 'wpll' : undefined },
-      });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (message.includes('User already exists') || message.toLowerCase().includes('already exists')) {
-        setError('An account with that email already exists');
-      } else if (message.includes('409') || message.includes('400')) {
-        setError('Failed to create account. Please check your input and try again.');
-      } else {
-        setError(message || 'Failed to create account. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
+    setValidationError('');
+    registerMutation.mutate();
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

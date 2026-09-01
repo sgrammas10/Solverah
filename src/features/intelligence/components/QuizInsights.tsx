@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../../auth";
+import { useProfile } from "../../profile";
 
 type InsightEntry = {
   title?: string;
@@ -30,10 +30,11 @@ const groupTitles: Record<string, string> = {
 };
 
 export default function QuizInsights() {
-  const { fetchProfileData } = useAuth();
-  const [insightsData, setInsightsData] = useState<Record<string, any> | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // The insights live inside the profile document, which useProfile() already
+  // caches — reading the cache replaces the fetchProfileData() round trip this
+  // page used to make on every mount. A failed fetch throws to
+  // RouteErrorBoundary with the document's other consumers (see useProfile).
+  const { data: profile, isLoading: loading } = useProfile();
   const [activeFilter, setActiveFilter] = useState<string>("all");
   const navigate = useNavigate();
   const location = useLocation();
@@ -46,28 +47,11 @@ export default function QuizInsights() {
     return params.get("group") || "careerQuizzes";
   }, [location.search]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        if (!fetchProfileData) {
-          setError("Unable to load insights.");
-          return;
-        }
-        const data = await fetchProfileData();
-        const profileData = data?.profileData || {};
-        const quizInsights = (profileData as any)?.quizInsights;
-        if (!quizInsights || typeof quizInsights !== "object") {
-          setInsightsData(null);
-        } else {
-          setInsightsData(quizInsights as Record<string, any>);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Unable to load insights.");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [fetchProfileData]);
+  const quizInsights = (profile as any)?.quizInsights;
+  const insightsData: Record<string, any> | null =
+    quizInsights && typeof quizInsights === "object"
+      ? (quizInsights as Record<string, any>)
+      : null;
 
   const renderInsightCard = (title: string, entry?: InsightEntry) => {
     if (!entry) return null;
@@ -274,10 +258,6 @@ export default function QuizInsights() {
 
         {loading ? (
           <p className="text-sm text-ink-tertiary">Loading insights…</p>
-        ) : error ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-            {error}
-          </div>
         ) : content ? (
           content
         ) : (

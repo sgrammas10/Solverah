@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth";
-
-type FetchState = "loading" | "error" | "success" | "no-prefs";
 
 interface CompanyMatch {
   id: number;
@@ -161,67 +160,63 @@ function MatchCard({ match, accent }: MatchCardProps) {
   );
 }
 
+/** Query keys for the two-ended matches view. `all` is the invalidation handle. */
+export const companyMatchKeys = {
+  all: ["companyMatches"] as const,
+  view: (limit: number) => ["companyMatches", "view", limit] as const,
+};
+
 export default function CompanyLensPage() {
   const navigate = useNavigate();
   const { fetchWithAuth } = useAuth();
 
-  const [fetchState, setFetchState] = useState<FetchState>("loading");
-  const [data, setData] = useState<MatchesView | null>(null);
   const [limit, setLimit] = useState(5);
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
 
-  const fetchMatches = useCallback(
-    async (lim: number) => {
-      setFetchState("loading");
-      try {
-        // Two requests where there was one: the endpoint no longer returns
-        // both ends of the ranking in a single body. They are issued together,
-        // so this is still one round trip's latency.
-        const [best, worst] = await Promise.all([
-          fetchWithAuth<MatchesPage>(`/me/matches?order=best&limit=${lim}`),
-          fetchWithAuth<MatchesPage>(`/me/matches?order=worst&limit=${lim}`),
-        ]);
-        // Drop from the weak end anything already shown at the strong end.
-        //
-        // The endpoint this replaced partitioned at the midpoint whenever there
-        // were at most 2*limit companies, so a company could never appear in
-        // both lists. A paginated list cannot do that -- it walks a ranking, it
-        // does not carve one -- so the screen has to. Filtering rather than
-        // slicing at a computed midpoint means no overlap regardless of how the
-        // two page sizes and the total relate.
-        const shownAsBest = new Set(best.data.map((match) => match.id));
-        setData({
-          best: best.data,
-          worst: worst.data.filter((match) => !shownAsBest.has(match.id)),
-          total_companies_scored: best.total_companies_scored,
-        });
-        setFetchState("success");
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "";
-        if (
-          msg.includes("culture preferences") ||
-          msg.includes("Work Pulse not completed")
-        ) {
-          setFetchState("no-prefs");
-        } else {
-          setFetchState("error");
-        }
-      }
+  // Keyed on `limit`: "Show more" bumps the key, and the fresh key loads like
+  // the hand-rolled refetch did. A 5xx now gets queryClient.ts's bounded
+  // retries (safe: Phase 3a removed every commit from GET handlers), while the
+  // no-prefs rejection is a 4xx and surfaces immediately.
+  const matchesQuery = useQuery({
+    queryKey: companyMatchKeys.view(limit),
+    queryFn: async (): Promise<MatchesView> => {
+      // Two requests where there was one: the endpoint no longer returns
+      // both ends of the ranking in a single body. They are issued together,
+      // so this is still one round trip's latency.
+      const [best, worst] = await Promise.all([
+        fetchWithAuth<MatchesPage>(`/me/matches?order=best&limit=${limit}`),
+        fetchWithAuth<MatchesPage>(`/me/matches?order=worst&limit=${limit}`),
+      ]);
+      // Drop from the weak end anything already shown at the strong end.
+      //
+      // The endpoint this replaced partitioned at the midpoint whenever there
+      // were at most 2*limit companies, so a company could never appear in
+      // both lists. A paginated list cannot do that -- it walks a ranking, it
+      // does not carve one -- so the screen has to. Filtering rather than
+      // slicing at a computed midpoint means no overlap regardless of how the
+      // two page sizes and the total relate.
+      const shownAsBest = new Set(best.data.map((match) => match.id));
+      return {
+        best: best.data,
+        worst: worst.data.filter((match) => !shownAsBest.has(match.id)),
+        total_companies_scored: best.total_companies_scored,
+      };
     },
-    [fetchWithAuth]
-  );
+  });
 
-  useEffect(() => {
-    fetchMatches(limit);
-  }, []); // intentionally runs once on mount
+  const data = matchesQuery.data ?? null;
+  const errorMsg =
+    matchesQuery.error instanceof Error ? matchesQuery.error.message : "";
+  const needsPrefs =
+    matchesQuery.isError &&
+    (errorMsg.includes("culture preferences") ||
+      errorMsg.includes("Work Pulse not completed"));
 
   const handleShowMore = () => {
-    const next = limit + 5;
-    setLimit(next);
-    fetchMatches(next);
+    setLimit(limit + 5);
   };
 
-  if (fetchState === "loading") {
+  if (matchesQuery.isLoading) {
     return (
       <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
         <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
@@ -232,7 +227,7 @@ export default function CompanyLensPage() {
     );
   }
 
-  if (fetchState === "error") {
+  if (matchesQuery.isError && !needsPrefs) {
     return (
       <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
         <div className="max-w-sm w-full rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
@@ -240,7 +235,7 @@ export default function CompanyLensPage() {
           <p className="text-xs">Please try again in a moment.</p>
           <button
             type="button"
-            onClick={() => fetchMatches(limit)}
+            onClick={() => matchesQuery.refetch()}
             className="mt-3 text-xs font-semibold text-red-700 underline"
           >
             Try again
@@ -250,7 +245,7 @@ export default function CompanyLensPage() {
     );
   }
 
-  if (fetchState === "no-prefs") {
+  if (needsPrefs) {
     return (
       <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
         <div className="rounded-xl border border-cream-muted bg-white px-6 py-8 text-center max-w-sm w-full">

@@ -1,8 +1,10 @@
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { HttpResponse } from "msw";
 
 import ForgotPasswordVerify from "./ForgotPasswordVerify";
+import { createQueryClient } from "../../../shared/api/queryClient";
 import { mock } from "../../../../tests/msw/contract";
 import { server, useApiMocks, recordRequests, TEST_USER } from "../../../../tests/msw/server";
 
@@ -49,13 +51,18 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+/** The reset/resend mutations need a client; fresh per render, per the
+ *  useProfileForm.test precedent. Mutations never retry, so the real defaults
+ *  from createQueryClient() are safe here. */
 function renderForgotPasswordVerify(email = "user@example.com") {
   render(
-    <MemoryRouter
-      initialEntries={[{ pathname: "/forgot-password/verify", state: { email } }]}
-    >
-      <ForgotPasswordVerify />
-    </MemoryRouter>
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter
+        initialEntries={[{ pathname: "/forgot-password/verify", state: { email } }]}
+      >
+        <ForgotPasswordVerify />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 

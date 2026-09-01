@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '../useAuth';
 import { getPendingQuizSave, clearPendingQuizSave } from "../../../shared/lib/guestQuiz";
 import { API_BASE } from "../../../shared/api/api";
@@ -23,44 +24,47 @@ import { Eye, EyeOff } from 'lucide-react';
 
 function ResendConfirmation({ email }: { email: string }) {
   const navigate = useNavigate();
-  const [status, setStatus] = useState<'idle' | 'sending' | 'error'>('idle');
-  const [msg, setMsg] = useState('');
+  // Client-side validation only; the request's own failure lives on the mutation.
+  const [validationMsg, setValidationMsg] = useState('');
 
-  const handleResend = async () => {
-    if (!email) {
-      setMsg('Please enter your email above before resending.');
-      setStatus('error');
-      return;
-    }
-    setStatus('sending');
-    setMsg('');
-    try {
+  const resendMutation = useMutation({
+    mutationFn: async (targetEmail: string) => {
       const res = await fetch(`${API_BASE}/auth/email/verify/resend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: targetEmail }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setStatus('error');
-        setMsg(parseApiError(res, data, 'Failed to resend code').message);
-        return;
-      }
-      navigate('/verify-email', { state: { email } });
-    } catch (err: any) {
-      setStatus('error');
-      setMsg(err?.message || 'Network error');
+      if (!res.ok) throw parseApiError(res, data, 'Failed to resend code');
+    },
+    onSuccess: () => navigate('/verify-email', { state: { email } }),
+  });
+
+  const handleResend = () => {
+    if (!email) {
+      setValidationMsg('Please enter your email above before resending.');
+      return;
     }
+    setValidationMsg('');
+    resendMutation.mutate(email);
   };
+
+  const msg =
+    validationMsg ||
+    (resendMutation.isError
+      ? resendMutation.error instanceof Error
+        ? resendMutation.error.message || 'Network error'
+        : 'Network error'
+      : '');
 
   return (
     <div className="mt-2">
       <button
         onClick={handleResend}
         className="text-sm font-medium text-forest-mid underline underline-offset-4 hover:text-forest-dark transition-colors"
-        disabled={status === 'sending'}
+        disabled={resendMutation.isPending}
       >
-        {status === 'sending' ? 'Sending…' : 'Resend verification code'}
+        {resendMutation.isPending ? 'Sending…' : 'Resend verification code'}
       </button>
       {msg && <p className="mt-1 text-sm text-red-600">{msg}</p>}
     </div>
@@ -71,19 +75,17 @@ function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const { login, fetchWithAuth } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      const loggedInUser = await login(email, password);
+  const loginMutation = useMutation({
+    mutationFn: (credentials: { email: string; password: string }) =>
+      login(credentials.email, credentials.password),
+    // The chained follow-ups and the redirect live here: the mutation stays
+    // pending until this resolves, so the button reads "Signing in…" through
+    // the whole sequence, exactly as the hand-rolled flag did.
+    onSuccess: async (loggedInUser) => {
       let redirectPath = '/job-seeker/dashboard';
 
       const pendingIntake = getPendingIntakeSave();
@@ -131,16 +133,23 @@ function Login() {
       }
 
       navigate(redirectPath);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (message && message.toLowerCase().includes('email not confirmed')) {
-        setError('Your email is not confirmed. Please check your inbox.');
-      } else {
-        setError('Failed to sign in. Please check your credentials.');
-      }
-    } finally {
-      setLoading(false);
-    }
+    },
+  });
+
+  const loading = loginMutation.isPending;
+  const error = loginMutation.isError
+    ? (() => {
+        const err = loginMutation.error;
+        const message = err instanceof Error ? err.message : String(err);
+        return message && message.toLowerCase().includes('email not confirmed')
+          ? 'Your email is not confirmed. Please check your inbox.'
+          : 'Failed to sign in. Please check your credentials.';
+      })()
+    : '';
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    loginMutation.mutate({ email, password });
   };
 
   const inputCls =

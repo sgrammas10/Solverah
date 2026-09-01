@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useMutation } from '@tanstack/react-query';
 import { API_BASE } from '../../../shared/api/api';
+import { ApiError, parseApiError } from '../../../shared/api/apiError';
 import { useAuth } from '../useAuth';
 import { User } from '../authContext';
 import HeroNetworkAnimation from '../../../shared/ui/HeroNetworkAnimation';
@@ -13,65 +15,76 @@ export default function ForgotPasswordVerify() {
   const email = (location.state as any)?.email || '';
 
   const [code, setCode] = useState('');
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
-  const [message, setMessage] = useState('');
-  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
-  const [resendMsg, setResendMsg] = useState('');
+  // Client-side validation only; each request's own failure lives on its mutation.
+  const [codeValidationMsg, setCodeValidationMsg] = useState('');
+  const [resendValidationMsg, setResendValidationMsg] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = code.trim();
-    if (trimmed.length !== 6 || !/^\d{6}$/.test(trimmed)) {
-      setStatus('error');
-      setMessage('Please enter the 6-digit code from your email.');
-      return;
-    }
-    setStatus('submitting');
-    setMessage('');
-    try {
+  const resetMutation = useMutation({
+    mutationFn: async (trimmedCode: string) => {
       const res = await fetch(`${API_BASE}/auth/password/reset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email, code: trimmed }),
+        body: JSON.stringify({ email, code: trimmedCode }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setStatus('error');
-        setMessage('Invalid or expired code. Please try again.');
-        return;
-      }
+      if (!res.ok) throw parseApiError(res, data);
+      return data;
+    },
+    onSuccess: (data) => {
       // Set auth state in context so protected routes work without a page reload
       loginWithData(data.user as User, data.csrfToken);
-      setStatus('success');
       navigate('/job-seeker/dashboard', { replace: true });
-    } catch {
-      setStatus('error');
-      setMessage('Network error. Please try again.');
-    }
-  };
+    },
+  });
 
-  const handleResend = async () => {
-    if (!email) {
-      setResendStatus('error');
-      setResendMsg('No email available. Please go back and enter your email.');
-      return;
-    }
-    setResendStatus('sending');
-    setResendMsg('');
-    try {
+  const resendMutation = useMutation({
+    // Fire-and-forget, as it always was: only a network failure reports here.
+    mutationFn: async (targetEmail: string) => {
       await fetch(`${API_BASE}/auth/password/forgot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: targetEmail }),
       });
-      setResendStatus('sent');
-      setResendMsg('New code sent! Check your inbox.');
-    } catch {
-      setResendStatus('error');
-      setResendMsg('Network error. Please try again.');
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = code.trim();
+    if (trimmed.length !== 6 || !/^\d{6}$/.test(trimmed)) {
+      setCodeValidationMsg('Please enter the 6-digit code from your email.');
+      return;
     }
+    setCodeValidationMsg('');
+    resetMutation.mutate(trimmed);
   };
+
+  const handleResend = () => {
+    if (!email) {
+      setResendValidationMsg('No email available. Please go back and enter your email.');
+      return;
+    }
+    setResendValidationMsg('');
+    resendMutation.mutate(email);
+  };
+
+  const message =
+    codeValidationMsg ||
+    (resetMutation.isError
+      ? resetMutation.error instanceof ApiError
+        ? 'Invalid or expired code. Please try again.'
+        : 'Network error. Please try again.'
+      : '');
+  const showMessage = Boolean(codeValidationMsg) || resetMutation.isError;
+  const resendFailed = Boolean(resendValidationMsg) || resendMutation.isError;
+  const resendMsg =
+    resendValidationMsg ||
+    (resendMutation.isError
+      ? 'Network error. Please try again.'
+      : resendMutation.isSuccess
+      ? 'New code sent! Check your inbox.'
+      : '');
 
   return (
     <div className="relative overflow-hidden min-h-screen bg-cream-base font-sans flex items-center justify-center py-16 px-4">
@@ -98,7 +111,7 @@ export default function ForgotPasswordVerify() {
             </p>
           </div>
 
-          {status !== 'success' && (
+          {!resetMutation.isSuccess && (
             <form onSubmit={handleSubmit} className="space-y-4">
               <input
                 type="text"
@@ -111,7 +124,7 @@ export default function ForgotPasswordVerify() {
                 autoFocus
               />
 
-              {status === 'error' && (
+              {showMessage && (
                 <div className="rounded bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
                   {message}
                 </div>
@@ -119,26 +132,26 @@ export default function ForgotPasswordVerify() {
 
               <button
                 type="submit"
-                disabled={status === 'submitting' || code.length !== 6}
+                disabled={resetMutation.isPending || code.length !== 6}
                 className="w-full bg-forest-dark text-white font-semibold py-3 rounded hover:bg-forest-mid transition-colors disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
               >
-                {status === 'submitting' ? 'Verifying…' : 'Sign in'}
+                {resetMutation.isPending ? 'Verifying…' : 'Sign in'}
               </button>
             </form>
           )}
 
-          {status !== 'success' && (
+          {!resetMutation.isSuccess && (
             <div className="space-y-2 pt-4">
               <p className="text-xs text-ink-tertiary">Didn't receive a code?</p>
               <button
                 onClick={handleResend}
-                disabled={resendStatus === 'sending' || resendStatus === 'sent'}
+                disabled={resendMutation.isPending || resendMutation.isSuccess}
                 className="text-sm font-medium text-forest-mid underline underline-offset-4 hover:text-forest-dark transition-colors disabled:opacity-50"
               >
-                {resendStatus === 'sending' ? 'Sending…' : resendStatus === 'sent' ? 'Sent!' : 'Resend code'}
+                {resendMutation.isPending ? 'Sending…' : resendMutation.isSuccess ? 'Sent!' : 'Resend code'}
               </button>
               {resendMsg && (
-                <p className={`text-xs ${resendStatus === 'error' ? 'text-red-600' : 'text-forest-mid'}`}>
+                <p className={`text-xs ${resendFailed ? 'text-red-600' : 'text-forest-mid'}`}>
                   {resendMsg}
                 </p>
               )}

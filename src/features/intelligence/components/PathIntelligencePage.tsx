@@ -9,6 +9,7 @@
  * now arrive as a `failed` job carrying the same string in `error`.
  */
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth";
 import { useProfile } from "../../profile";
@@ -124,7 +125,6 @@ export default function PathIntelligencePage() {
   const [fetchState, setFetchState] = useState<FetchState>("loading");
   const [data, setData] = useState<PathSuggestionsResponse | null>(null);
   const [showProficiencyModal, setShowProficiencyModal] = useState(false);
-  const [proficiencySaving, setProficiencySaving] = useState(false);
   const [proficiencySkipped, setProficiencySkipped] = useState(false);
   const hasFiredRef = useRef(false);
 
@@ -189,12 +189,11 @@ export default function PathIntelligencePage() {
     }
   }, [profile, fetchSuggestions]);
 
-  const handleProficiencySave = async (levels: Record<string, string>) => {
-    setProficiencySaving(true);
-    try {
-      // PUT, not PATCH: the write replaces the whole ratings map rather than
-      // merging into it, and Phase 1b made the verb match what happens.
-      await fetchWithAuth("/me/skills", {
+  const saveProficiency = useMutation({
+    // PUT, not PATCH: the write replaces the whole ratings map rather than
+    // merging into it, and Phase 1b made the verb match what happens.
+    mutationFn: (levels: Record<string, string>) =>
+      fetchWithAuth("/me/skills", {
         method: "PUT",
         body: JSON.stringify({
           skills: Object.entries(levels).map(([name, proficiency]) => ({
@@ -202,14 +201,18 @@ export default function PathIntelligencePage() {
             proficiency,
           })),
         }),
-      });
-    } catch {
-      // Non-fatal — proceed anyway so the user isn't blocked
-    } finally {
-      setProficiencySaving(false);
-    }
-    setShowProficiencyModal(false);
-    proceedAfterProficiency();
+      }),
+  });
+
+  const handleProficiencySave = (levels: Record<string, string>) => {
+    saveProficiency.mutate(levels, {
+      // onSettled, not onSuccess: a failed save is non-fatal — proceed anyway
+      // so the user isn't blocked, exactly as the swallowed catch did.
+      onSettled: () => {
+        setShowProficiencyModal(false);
+        proceedAfterProficiency();
+      },
+    });
   };
 
   const handleProficiencySkip = () => {
@@ -247,7 +250,7 @@ export default function PathIntelligencePage() {
         <SkillProficiencyModal
           skills={userSkills}
           initialLevels={skillLevels}
-          saving={proficiencySaving}
+          saving={saveProficiency.isPending}
           onSave={handleProficiencySave}
           onSkip={handleProficiencySkip}
         />

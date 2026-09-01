@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
 import FocusTypePage from "./FocusTypePage";
+import { createQueryClient } from "../../../shared/api/queryClient";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -65,11 +67,16 @@ beforeEach(() => {
   mocks.locationState = null;
 });
 
+/** The submit mutation needs a client; fresh per render, per the
+ *  useProfileForm.test precedent. Mutations never retry, so the real defaults
+ *  from createQueryClient() are safe here. */
 function renderFocusTypePage(state?: object) {
   render(
-    <MemoryRouter initialEntries={[{ pathname: "/focus-type", state }]}>
-      <FocusTypePage />
-    </MemoryRouter>
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter initialEntries={[{ pathname: "/focus-type", state }]}>
+        <FocusTypePage />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 

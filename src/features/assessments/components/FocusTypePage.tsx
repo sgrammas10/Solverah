@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth";
 import { useProfile } from "../../profile";
@@ -43,7 +44,9 @@ export interface FocusTypeResult {
   recommendations: string[];
 }
 
-type Phase = "intro" | "scenes" | "submitting" | "error";
+/** `submitting` and `error` are no longer members: the POST lives on a
+ *  mutation, whose isPending/isError carry those two screens. */
+type Phase = "intro" | "scenes";
 
 // ---------------------------------------------------------------------------
 // Progress indicator
@@ -83,7 +86,6 @@ export default function FocusTypePage() {
   const [phase, setPhase] = useState<Phase>("intro");
   const [currentScene, setCurrentScene] = useState(1);
   const [scenePayloads, setScenePayloads] = useState<ScenePayloads>({});
-  const hasFiredRef = useRef(false);
 
   const savedResult = profile?.focus_type_result as FocusTypeResult | undefined;
   useEffect(() => {
@@ -92,26 +94,24 @@ export default function FocusTypePage() {
     }
   }, [savedResult, isRetake, navigate]);
 
-  const submit = useCallback(
-    async (payloads: ScenePayloads) => {
-      if (hasFiredRef.current) return;
-      hasFiredRef.current = true;
-      setPhase("submitting");
-
-      try {
-        const result = await fetchWithAuth<FocusTypeResult>("/assessments/focus_type/submissions", {
-          method: "POST",
-          body: JSON.stringify(payloads),
-        });
-        updateProfileData({ focus_type_result: result });
-        navigate("/focus-type/results", { state: { result } });
-      } catch {
-        hasFiredRef.current = false;
-        setPhase("error");
-      }
+  const submitMutation = useMutation({
+    mutationFn: (payloads: ScenePayloads) =>
+      fetchWithAuth<FocusTypeResult>("/assessments/focus_type/submissions", {
+        method: "POST",
+        body: JSON.stringify(payloads),
+      }),
+    onSuccess: (result) => {
+      updateProfileData({ focus_type_result: result });
+      navigate("/focus-type/results", { state: { result } });
     },
-    [fetchWithAuth, navigate]
-  );
+  });
+
+  const submit = (payloads: ScenePayloads) => {
+    // isPending replaces the hasFiredRef double-fire guard; a failed attempt
+    // clears it, so the error screen's retry can go again.
+    if (submitMutation.isPending) return;
+    submitMutation.mutate(payloads);
+  };
 
   function handleSceneComplete(sceneNum: number, payload: unknown) {
     const key = `scene_${sceneNum}` as keyof ScenePayloads;
@@ -126,7 +126,7 @@ export default function FocusTypePage() {
   }
 
   // ── Submitting ──
-  if (phase === "submitting") {
+  if (submitMutation.isPending) {
     return (
       <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
         <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
@@ -136,7 +136,7 @@ export default function FocusTypePage() {
   }
 
   // ── Error ──
-  if (phase === "error") {
+  if (submitMutation.isError) {
     return (
       <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
         <div className="max-w-sm w-full rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
