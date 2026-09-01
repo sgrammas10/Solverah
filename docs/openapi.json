@@ -254,6 +254,21 @@
         "title": "AssessmentFormResponse",
         "type": "object"
       },
+      "AssessmentScoringJobStatus": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/WorkPulseScoringJobStatus"
+          },
+          {
+            "$ref": "#/components/schemas/WpllScoringJobStatus"
+          },
+          {
+            "$ref": "#/components/schemas/ManagerMatchScoringJobStatus"
+          }
+        ],
+        "description": "Documentation-only union of the three poll responses.\n\nWhich member comes back is determined by ``{kind}`` in the path, not by\nanything in the body -- the same reason ``AssessmentSubmissionResponse``\ncannot be an OpenAPI discriminated union.  Do not validate against this;\nvalidate against :data:`SCORING_JOB_RESPONSES`.",
+        "title": "AssessmentScoringJobStatus"
+      },
       "AssessmentSubmissionRequest": {
         "anyOf": [
           {
@@ -1997,6 +2012,52 @@
         "title": "ManagerMatchResult",
         "type": "object"
       },
+      "ManagerMatchScoringJobStatus": {
+        "additionalProperties": true,
+        "description": "``GET /assessments/manager_match/scoring-jobs/{job_id}``.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Present only on 'failed'. Either a validation message the scorer authored or a fixed generic string -- never provider text, which carries prompt fragments and therefore the user's own answers.",
+            "title": "Error"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ManagerMatchResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Present only on 'succeeded'."
+          },
+          "status": {
+            "description": "queued, running, succeeded or failed. The last two are terminal.",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "ManagerMatchScoringJobStatus",
+        "type": "object"
+      },
       "ManagerMatchSubmitRequest": {
         "additionalProperties": false,
         "properties": {
@@ -2344,6 +2405,80 @@
           }
         },
         "title": "PathSuggestion",
+        "type": "object"
+      },
+      "PathSuggestionJobAccepted": {
+        "additionalProperties": false,
+        "description": "``202`` from ``POST /me/path-suggestion-jobs``.",
+        "properties": {
+          "job_id": {
+            "description": "Poll the status URL until status is 'succeeded' or 'failed'.",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "status": {
+            "description": "Always \"queued\" here; the job has not started.",
+            "title": "Status",
+            "type": "string"
+          },
+          "status_url": {
+            "description": "Where to poll. Relative to the API root.",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "status_url"
+        ],
+        "title": "PathSuggestionJobAccepted",
+        "type": "object"
+      },
+      "PathSuggestionJobStatus": {
+        "additionalProperties": true,
+        "description": "``GET /me/path-suggestion-jobs/{job_id}``.\n\nOn ``succeeded``, ``result`` is byte-for-byte what ``GET\n/me/path-suggestions`` would have returned -- the job runs the same service\nfunction -- so a client's rendering logic does not fork between the two\npaths.\n\nThe job also warms ``path_cache`` on the way through, which means the\nsynchronous GET is a cache hit immediately after a job succeeds. A client\nmid-migration can therefore poll the job and then read the old endpoint,\nand neither call pays for the scoring twice.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Present only on 'failed'. `career_status_not_set` means the profile is missing a field the scorer requires -- the same condition the synchronous GET answers 400 for.",
+            "title": "Error"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PathSuggestionsResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Present only on 'succeeded'."
+          },
+          "status": {
+            "description": "queued, running, succeeded or failed. The last two are terminal.",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "PathSuggestionJobStatus",
         "type": "object"
       },
       "PathSuggestionsResponse": {
@@ -2982,6 +3117,34 @@
         "title": "ResumeTicketResponse",
         "type": "object"
       },
+      "ScoringJobAccepted": {
+        "additionalProperties": false,
+        "description": "``202`` from ``POST /assessments/{kind}/scoring-jobs``.\n\nUniform across instruments because nothing in it is instrument-specific:\nthe handle is a UUID, the status is always ``queued``, and the poll URL is\nderived from the two.  The *result* is where the instruments differ, and\nthat is served by the poll under a per-kind model.",
+        "properties": {
+          "job_id": {
+            "description": "Poll the status URL until status is 'succeeded' or 'failed'.",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "status": {
+            "description": "Always \"queued\" here; the job has not started.",
+            "title": "Status",
+            "type": "string"
+          },
+          "status_url": {
+            "description": "Where to poll. Relative to the API root.",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "status_url"
+        ],
+        "title": "ScoringJobAccepted",
+        "type": "object"
+      },
       "SessionFlags": {
         "additionalProperties": false,
         "description": "Per-user booleans the shell needs before it can decide what to render.\n\nThey live in their own object rather than at the top level so a flag can be\nadded without the client having to distinguish \"new flag\" from \"new identity\nfield\", and so the whole set can be cached under one key.",
@@ -3301,6 +3464,52 @@
         "title": "WorkPulseResult",
         "type": "object"
       },
+      "WorkPulseScoringJobStatus": {
+        "additionalProperties": true,
+        "description": "``GET /assessments/work_pulse/scoring-jobs/{job_id}``.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Present only on 'failed'. Either a validation message the scorer authored or a fixed generic string -- never provider text, which carries prompt fragments and therefore the user's own answers.",
+            "title": "Error"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkPulseResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Present only on 'succeeded'."
+          },
+          "status": {
+            "description": "queued, running, succeeded or failed. The last two are terminal.",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "WorkPulseScoringJobStatus",
+        "type": "object"
+      },
       "WorkPulseSubmitRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3371,6 +3580,52 @@
           "locked_sections"
         ],
         "title": "WpllResultResponse",
+        "type": "object"
+      },
+      "WpllScoringJobStatus": {
+        "additionalProperties": true,
+        "description": "``GET /assessments/wpll/scoring-jobs/{job_id}``.\n\nThe one poll that needs no JWT, because the instrument it belongs to needs\nnone: ``wpll`` is the anonymous pre-launch teaser and has no account to\nscope a handle to.  The handle *is* the authorisation -- see\n``scoring_jobs.find_anonymous`` for why that is acceptable here and nowhere\nelse.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Present only on 'failed'. Either a validation message the scorer authored or a fixed generic string -- never provider text, which carries prompt fragments and therefore the user's own answers.",
+            "title": "Error"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WpllResultResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Present only on 'succeeded'."
+          },
+          "status": {
+            "description": "queued, running, succeeded or failed. The last two are terminal.",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "WpllScoringJobStatus",
         "type": "object"
       },
       "WpllSubmitRequest": {
@@ -3605,6 +3860,151 @@
           }
         ],
         "summary": "Fetch an assessment's items, ordered for this respondent",
+        "tags": [
+          "assessments"
+        ]
+      }
+    },
+    "/api/v1/assessments/{kind}/scoring-jobs": {
+      "post": {
+        "description": "Asynchronous counterpart to `POST /assessments/{kind}/submissions`. Identical request body; answers `202` with a job handle instead of blocking on the provider. Poll `GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is `succeeded` or `failed`.\n\nOnly the three provider-scored instruments have this operation: `work_pulse`, `wpll`, `manager_match`. `core` and `focus_type` score deterministically in-process and answer `404` here -- they are served by the synchronous route, which remains available for all five.\n\n**This shares one rate-limit budget with the synchronous submit for the same instrument.** The limit bounds provider spend, and spend does not move when the call moves to a worker (A9), so queueing and submitting draw on the same allowance rather than two.",
+        "operationId": "post_assessments_assessment_kind_scoring_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssessmentSubmissionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoringJobAccepted"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Queue an assessment scoring and return a job handle",
+        "tags": [
+          "assessments"
+        ]
+      }
+    },
+    "/api/v1/assessments/{kind}/scoring-jobs/{job_id}": {
+      "get": {
+        "description": "`{kind}` selects the response shape, as it does on the submit route: `result` is that instrument's own result model and nothing else, and it is present only once `status` is `succeeded`. There is no shared result envelope here for the same reason there is none there (A12).\n\n`wpll` needs no JWT, because the instrument does not: it is the anonymous teaser, its job has no owner, and the handle is what authorises the poll. The other two scope the handle to the authenticated user.",
+        "operationId": "get_assessments_assessment_kind_scoring_job_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentScoringJobStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Report the state of a queued assessment scoring",
         "tags": [
           "assessments"
         ]
@@ -5306,6 +5706,113 @@
           }
         ],
         "summary": "Replace the user's career search preferences",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/path-suggestion-jobs": {
+      "post": {
+        "description": "Asynchronous counterpart to `GET /me/path-suggestions`, which fans out to O*NET and OpenAI inside the request. Answers `202` with a job handle; poll `GET /me/path-suggestion-jobs/{job_id}` until `status` is `succeeded` or `failed`. The synchronous `GET` is unchanged and remains available.\n\nA succeeded job also warms the per-user cache the `GET` reads, so a client part-way through the migration can queue the work and then read the old endpoint without paying for the scoring twice.\n\nRate limited. The synchronous `GET` is not, because it is naturally self-limiting -- the caller waits for the fan-out and a repeat is a cache hit. An enqueue returns immediately and can be issued in a loop, so the budget that bounds provider spend has to live here (A9).",
+        "operationId": "post_intelligence_post_my_path_suggestion_job",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathSuggestionJobAccepted"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Queue a path-suggestion scoring and return a job handle",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/path-suggestion-jobs/{job_id}": {
+      "get": {
+        "description": "GET /me/path-suggestion-jobs/{job_id} - poll a queued scoring.\n\n404 covers no such job, a malformed handle, and somebody else's job alike.\nDistinguishing them would confirm that a handle exists, which is the only\nthing protecting one.\n\n`error` on a failed job carries the scorer's own message -- notably\n`career_status_not_set`, the same condition the synchronous GET answers 400\nfor, which the client handles by prompting for the missing field rather than\nby retrying.",
+        "operationId": "get_intelligence_get_my_path_suggestion_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathSuggestionJobStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Report the state of a queued path-suggestion scoring",
         "tags": [
           "me"
         ]

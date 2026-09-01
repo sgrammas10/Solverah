@@ -23,6 +23,13 @@ from solverah.tasks import (  # noqa: F401  -- imported for registration
     maintenance_tasks,
     outbox_tasks,
     resume_tasks,
+    scoring_tasks,
 )
 
-__all__ = ["audit_tasks", "maintenance_tasks", "outbox_tasks", "resume_tasks"]
+__all__ = [
+    "audit_tasks",
+    "maintenance_tasks",
+    "outbox_tasks",
+    "resume_tasks",
+    "scoring_tasks",
+]

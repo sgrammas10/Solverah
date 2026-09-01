@@ -25,10 +25,55 @@ right for a laptop and wrong for production.
 from __future__ import annotations
 
 import os
+import sys
+from pathlib import Path
 
-from dotenv import load_dotenv
+#: The repository root, put on ``sys.path`` before anything else is imported.
+#:
+#: **Without this a worker can start cleanly and then fail every task that
+#: reaches a scorer**, which is the shape of failure this is here to prevent.
+#:
+#: ``celery`` is an installed console script, so ``sys.path[0]`` is
+#: ``/usr/local/bin`` rather than the working directory -- the repository root is
+#: not on the path at all. Celery still finds *this* module, because it resolves
+#: ``--app`` through ``celery.utils.imports.import_from_cwd``, which adds the
+#: working directory for the duration of that one import and then removes it
+#: again. So every module imported while this file is being imported resolves
+#: and lands in ``sys.modules``, and the worker boots looking entirely healthy.
+#:
+#: What does not resolve is the imports the services make *lazily, inside
+#: functions* -- ``work_pulse``, ``manager_match``, ``focus_type``,
+#: ``assessment_store`` and ``backend.services.*`` are all top-level modules at
+#: the repository root imported at call time. Those run long after the working
+#: directory has left the path, and they raise ``ModuleNotFoundError`` in the
+#: task rather than at boot.
+#:
+#: Found by running a real job through the compose worker (Phase 3b): the job
+#: was claimed, failed, and written terminal correctly -- the mechanism worked
+#: and the scorer was simply unreachable. It is not new in 3b.
+#: ``solverah.maintenance.backfill_culture_preferences`` has had it since 3a
+#: through ``matching_service``'s lazy ``work_pulse`` import; 3b is what would
+#: have made it routine rather than occasional.
+#:
+#: Here rather than in a ``PYTHONPATH`` on the compose file because every
+#: deployment that starts a worker needs it, and an environment variable one of
+#: them forgets is a worker that boots and fails its tasks.
+#:
+#: **The insert is unconditional, and guarding it with "if not already present"
+#: is the version that does not work.**  Celery's ``cwd_in_path`` inserts the
+#: working directory only when it is absent and removes it again afterwards, so
+#: at the moment this module is imported the path is *already there* -- a
+#: membership test skips the insert, Celery then removes its own entry, and the
+#: net effect is nothing.  Inserting unconditionally leaves two entries during
+#: the import; ``list.remove`` takes the first, one survives, and the worker
+#: keeps the root for the lifetime of the process.  A duplicate ``sys.path``
+#: entry costs one failed stat per miss and is the cheapest correct answer here.
+REPO_ROOT = str(Path(__file__).resolve().parents[1])
+sys.path.insert(0, REPO_ROOT)
 
-from solverah.config import is_truthy
+from dotenv import load_dotenv  # noqa: E402  -- must follow the path fix
+
+from solverah.config import is_truthy  # noqa: E402  -- same
 
 #: Same flag ``app.py`` reads, for the same reason: CI has no `.env`, so work
 #: that only runs because a developer's `.env` supplied a variable must be able

@@ -1360,6 +1360,125 @@ class ResumeParseJob(db.Model):
     )
 
 
+class ScoringJob(db.Model):
+    """Assessment scoring and path suggestions, taken off the request path (3b).
+
+    The same `202 + job handle` shape `ResumeParseJob` carries for resume
+    parsing, and deliberately the same state machine rather than a second one:
+    `queued -> running -> succeeded | failed`, claimed by a conditional UPDATE,
+    swept by `reap_stalled` when a worker dies holding one.
+
+    **One table for two job types, and the reason is the mechanism rather than
+    the payload.** `job_type` discriminates `assessment_scoring` from
+    `path_suggestions`. Both are "a user's input, a provider call, a result",
+    and splitting them would buy two copies of the claim, the reaper, the
+    sweep and the purge -- four things that must not drift -- to separate two
+    column sets that differ by one nullable `kind`.
+
+    **A shared table is not a shared response.** A12 rejects a uniform result
+    envelope for the five instruments, and nothing here reintroduces one:
+    `result` is JSONB at rest, and `{kind}` in the path selects the response
+    model the job endpoint publishes and validates against, exactly as it does
+    on the synchronous submit. What is shared is where the row lives, not what
+    the wire promises.
+
+    **`user_id` is nullable for exactly one instrument.** `wpll` is the
+    anonymous pre-launch teaser and has no account to attach to, so its job has
+    no owner and the `public_id` is the only thing that can authorise a poll --
+    a capability handle, and the check constraint below is what stops any other
+    job type acquiring one by accident.
+
+    **`payload` is nulled when the job reaches a terminal state.** It holds the
+    submitted answers, which for the three instruments that persist are already
+    in `assessment_submissions.answers`; keeping a second copy alive past the
+    scoring is duplicate retention of assessment data for no reader. `result` is
+    kept, because the poll is what serves it.
+    """
+
+    __tablename__ = "scoring_jobs"
+
+    #: Same four states as `resume_parse_jobs`, and the same two are terminal.
+    STATUSES = ("queued", "running", "succeeded", "failed")
+
+    #: The two kinds of work on this table. `assessment_scoring` carries a
+    #: `kind`; `path_suggestions` does not and must not.
+    JOB_TYPES = ("assessment_scoring", "path_suggestions")
+
+    id = db.Column(db.BigInteger, db.Identity(always=True), primary_key=True)
+    #: The handle on the wire, and for `wpll` the only thing authorising a poll.
+    public_id = db.Column(
+        UUID(as_uuid=True), nullable=False, server_default=db.text("uuidv7()")
+    )
+    #: Null only for an anonymous `wpll` scoring -- see the check constraint.
+    user_id = db.Column(
+        db.BigInteger, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+    )
+    job_type = db.Column(db.Text, nullable=False)
+    #: The assessment instrument, for `assessment_scoring` only.
+    kind = db.Column(db.Text)
+    #: The submitted body. Nulled on a terminal state; see the class docstring.
+    payload = db.Column(
+        JSONB, nullable=False, server_default=db.text("'{}'::jsonb")
+    )
+    #: What the poll serves. Shape is per-discriminator, not per-table.
+    result = db.Column(JSONB)
+    status = db.Column(db.Text, nullable=False, default="queued")
+    #: Present only on `failed`, and shown to the client, so it is written from
+    #: a fixed vocabulary rather than from a provider exception -- those carry
+    #: model names, request ids and prompt fragments.
+    error = db.Column(db.Text)
+    attempts = db.Column(db.SmallInteger, nullable=False, server_default=db.text("0"))
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.Index("uq_scoring_jobs_public_id", "public_id", unique=True),
+        db.Index("ix_scoring_jobs_user", "user_id", db.text("created_at DESC")),
+        db.Index(
+            "ix_scoring_jobs_pending",
+            "created_at",
+            postgresql_where=db.text("status IN ('queued', 'running')"),
+        ),
+        # The purge sweep's index. Separate from the pending one because the two
+        # select disjoint halves of the table and a single index over
+        # `created_at` would make each scan the other's rows.
+        db.Index(
+            "ix_scoring_jobs_terminal",
+            "created_at",
+            postgresql_where=db.text("status IN ('succeeded', 'failed')"),
+        ),
+        db.CheckConstraint(
+            "status IN ('queued', 'running', 'succeeded', 'failed')",
+            name="ck_scoring_jobs_status",
+        ),
+        db.CheckConstraint(
+            "job_type IN ('assessment_scoring', 'path_suggestions')",
+            name="ck_scoring_jobs_type",
+        ),
+        # `kind` belongs to assessment scoring and to nothing else. Without this
+        # a path-suggestion row could carry `kind='work_pulse'` and be served by
+        # the assessment poll under that instrument's response model.
+        db.CheckConstraint(
+            "(job_type = 'assessment_scoring' AND kind IS NOT NULL) OR "
+            "(job_type = 'path_suggestions' AND kind IS NULL)",
+            name="ck_scoring_jobs_kind_matches_type",
+        ),
+        # Anonymity is granted to one instrument by name, in the schema, rather
+        # than left to whichever handler happens to set `user_id`. `wpll` is the
+        # pre-launch teaser; every other job belongs to an account, and an
+        # ownerless row of any other type would be a poll nobody can be denied.
+        db.CheckConstraint(
+            "user_id IS NOT NULL OR "
+            "(job_type = 'assessment_scoring' AND kind = 'wpll')",
+            name="ck_scoring_jobs_owner_required",
+        ),
+    )
+
+
 # `updated_at` is the database's job, not the application's (Part 4.1 rule 5).
 # Attached per table rather than declared once because a trigger is DDL and has
 # to be emitted after the table it fires on -- for `db.create_all()` in the tests
@@ -1376,6 +1495,7 @@ for _triggered_table in (
     ProfileEducation.__table__,
     ProfileSkill.__table__,
     ResumeParseJob.__table__,
+    ScoringJob.__table__,
 ):
     sa_event.listen(
         _triggered_table,

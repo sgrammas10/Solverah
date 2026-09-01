@@ -45,6 +45,7 @@ from solverah.services import assessment_prompts, path_cache
 __all__ = [
     "ASSESSMENT_KINDS",
     "AssessmentKind",
+    "precheck",
     "AssessmentResult",
     "KINDS_BY_KEY",
     "catalogue",
@@ -508,6 +509,55 @@ def submit(kind: AssessmentKind, user: Optional[User], data: Dict[str, Any], log
     if kind.key == "manager_match":
         return submit_manager_match(user, data.get("answers"), logger)
     return _error(404, "Unknown assessment")
+
+
+def precheck(kind: AssessmentKind, data: Dict[str, Any]) -> Optional[AssessmentResult]:
+    """The 400 a submission would earn, decided without calling a provider.
+
+    Exists for the asynchronous path and only for it.  ``POST
+    /assessments/{kind}/scoring-jobs`` answers 202 and hands back a handle, so
+    anything it does not check up front becomes a job that is accepted, queued,
+    picked up by a worker and *then* failed -- turning what the synchronous
+    route answers immediately as a 400 into a poll, a spinner, and an error
+    delivered several seconds later.  A malformed body is not worth a round
+    trip through the broker.
+
+    **This deliberately duplicates the guards at the top of the three submit
+    functions rather than being factored out of them.**  Extracting them would
+    edit the synchronous handlers, which are required to stay byte-identical
+    until the frontend moves (3c), and a refactor that is *supposed* to be
+    invisible is exactly the kind that turns out not to be.  The duplication is
+    held honest by ``tests/test_scoring_jobs.py``, which submits the same
+    malformed bodies to both routes and asserts the status and the body match --
+    so the copy cannot drift without a test failing.
+
+    Returns None when there is nothing to object to.  A None here is not a
+    promise the scoring will succeed: the provider can still fail, and that is
+    a failed job rather than a 400, because by then the client has a handle.
+    """
+    if kind.key == "work_pulse":
+        answers = data.get("answers")
+        if not isinstance(answers, list) or len(answers) != WORK_PULSE_ANSWER_COUNT:
+            return _error(400, "answers must be a list of exactly 12 items")
+        return None
+
+    if kind.key == "manager_match":
+        answers = data.get("answers")
+        if not isinstance(answers, list) or len(answers) != MANAGER_MATCH_ANSWER_COUNT:
+            return _error(400, "answers must be a list of exactly 15 items")
+        return None
+
+    if kind.key == "wpll":
+        answers = data.get("answers", [])
+        if not isinstance(answers, list):
+            return _error(400, "answers must be a list")
+        if len(answers) == 0:
+            return _error(400, "answers is required")
+        if len(answers) > WPLL_MAX_ANSWERS:
+            return _error(400, "Too many answers")
+        return None
+
+    return None
 
 
 def form(kind: AssessmentKind, user: User, logger) -> AssessmentResult:

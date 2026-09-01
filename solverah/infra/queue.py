@@ -15,8 +15,19 @@ be given its own worker count and its own concurrency.
     default      short work with no better home
     llm          provider-backed generation -- slow, bursty, retryable
     email        outbox publication; latency-sensitive, tiny payloads
-    scoring      path scoring, match precomputation -- CPU-bound
+    scoring      match precomputation -- CPU-bound
     maintenance  sweeps and backfills; may be starved without anyone noticing
+
+**Path scoring moved from ``scoring`` to ``llm`` in 3b, and the row above was
+corrected rather than honoured.**  This list originally put it on ``scoring``
+beside match precomputation, under the heading "CPU-bound".  It is not:
+``intelligence_service.path_suggestions`` calls O*NET over the network, asks
+OpenAI for embeddings, and then asks it again for the narratives.  It is the
+same shape of work as an assessment narrative -- slow, bursty, provider-backed,
+and wanting the low concurrency and horizontal scaling that ``llm`` workers get
+-- so routing it by its old label would have put a provider call on the queue
+sized for CPU work.  ``scoring`` keeps match precomputation, which really is
+CPU-bound and does not exist yet (A16, A18).
 
 **Eager mode is not a test convenience, it is the no-broker degradation.**
 ``task_always_eager`` makes ``.delay()`` run the task inline in the calling
@@ -113,6 +124,20 @@ BEAT_SCHEDULE = {
     "resume-jobs-sweep": {
         "task": "solverah.resume.sweep_jobs",
         "schedule": timedelta(minutes=5),
+    },
+    # 3b's half of the same guarantee, for assessment scoring and path
+    # suggestions. Same five minutes as the resume sweep: both recover from a
+    # lost enqueue or a dead worker, and neither is on a path where a further
+    # few minutes of latency changes what the user does.
+    "scoring-jobs-sweep": {
+        "task": "solverah.scoring.sweep_jobs",
+        "schedule": timedelta(minutes=5),
+    },
+    # `scoring_jobs` is the one job table with no account to cascade from -- a
+    # `wpll` scoring is anonymous -- so nothing else would ever bound it.
+    "scoring-jobs-purge": {
+        "task": "solverah.scoring.purge_jobs",
+        "schedule": timedelta(hours=6),
     },
 }
 

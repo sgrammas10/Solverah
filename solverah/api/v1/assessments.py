@@ -25,6 +25,7 @@ from solverah.repositories import user_repository
 from solverah.schemas import LegacyError
 from solverah.schemas.assessments import (
     SUBMISSION_REQUESTS,
+    AssessmentScoringJobStatus,
     AssessmentCatalogueResponse,
     AssessmentFormResponse,
     AssessmentSubmissionRequest,
@@ -35,12 +36,13 @@ from solverah.schemas.assessments import (
     FocusTypeSubmitRequest,
     ManagerMatchResult,
     ManagerMatchSubmitRequest,
+    ScoringJobAccepted,
     WorkPulseResult,
     WorkPulseSubmitRequest,
     WpllResultResponse,
     WpllSubmitRequest,
 )
-from solverah.services import assessment_service
+from solverah.services import assessment_service, scoring_jobs
 
 __all__ = ["assessments_bp"]
 
@@ -62,6 +64,27 @@ _AUTHENTICATED_WRITE = ["accessTokenCookie", "csrfHeader"]
 SUBMIT_SCOPE_PREFIX = "assessments:submit:"
 
 DEFAULT_SUBMISSION_LIMIT = "5 per minute"
+
+#: Rate limit for a job poll, and it is deliberately not the global default.
+#:
+#: A poll is a single indexed-row read that makes no provider call, so A9's
+#: reasoning does not reach it: those budgets exist to bound provider spend, and
+#: a poll spends nothing. Left on the defaults it inherits ``50 per hour`` --
+#: measured, not assumed -- which a client polling every two seconds exhausts
+#: inside one scoring, and which it shares with every other default-limited
+#: route the same browser is using.
+#:
+#: The day cap is restated rather than dropped. ``@limiter.limit`` defaults to
+#: ``override_defaults=True``, so naming only a per-minute allowance here would
+#: silently remove the ``200 per day`` backstop while looking like a tightening
+#: -- the same trap ``SUBMISSION_LIMITS`` documents.
+#:
+#: ``GET /me/resume-parse-jobs/{job_id}`` (3a) has the identical exposure and is
+#: deliberately left alone: it is an existing route, changing its limit is a
+#: behaviour change no contract test would catch, and it is a smaller problem
+#: there because a parse finishes in seconds. It is recorded in A19 rather than
+#: fixed in passing.
+POLL_LIMIT = "60 per minute;2000 per day"
 
 #: Per-instrument limits, preserved exactly as the five separate handlers had
 #: them. ``wpll`` carries no per-endpoint limit today and therefore runs on the
@@ -296,3 +319,165 @@ def assessment_kind_result(kind: str):
     if not user:
         return jsonify({"error": "User not found"}), 404
     return _respond(assessment_service.result(resolved, user))
+
+
+# ---------------------------------------------------------------------------
+# Phase 3b -- scoring off the request path
+# ---------------------------------------------------------------------------
+#
+# `202` + a job handle for the three instruments that call a provider, added
+# alongside `POST /assessments/{kind}/submissions` rather than replacing it.
+# The synchronous route above is untouched and byte-identical; a client cannot
+# move from awaiting a 200 to polling a job in the same deploy that first gives
+# it something to poll. 3c is where the synchronous half dies.
+#
+# `core` and `focus_type` have no job endpoint and answer 404 here. They score
+# from deterministic tables without opening a socket, and a job for work that
+# finishes before the poll could be issued costs two round trips and a row to
+# reap to deliver a slower answer. The reasoning is in `scoring_jobs`.
+
+
+def _job_kind_or_404(kind: str):
+    """Resolve ``{kind}`` and require that it scores off the request path.
+
+    A 404 for `core` and `focus_type` rather than a 400: the truthful statement
+    is that this operation does not exist for those instruments, not that the
+    caller asked for it wrongly. It is the same answer `GET
+    /assessments/{kind}/form` gives for the four instruments that serve no form.
+    """
+    resolved = _kind_or_404(kind)
+    if not scoring_jobs.is_job_eligible(resolved.key):
+        raise NotFoundError(
+            detail="%s is scored synchronously and has no scoring job" % resolved.key,
+            errors=[{"field": "kind", "code": "not_job_scored"}],
+        )
+    return resolved
+
+
+@document(
+    "Queue an assessment scoring and return a job handle",
+    tags=["assessments"],
+    request=AssessmentSubmissionRequest,
+    request_for=lambda view_args, _body: (
+        SUBMISSION_REQUESTS.get(view_args.get("kind"))
+        if scoring_jobs.is_job_eligible(view_args.get("kind") or "")
+        else None
+    ),
+    responses={
+        202: ScoringJobAccepted,
+        400: LegacyError,
+        404: LegacyError,
+    },
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "Asynchronous counterpart to `POST /assessments/{kind}/submissions`. "
+        "Identical request body; answers `202` with a job handle instead of "
+        "blocking on the provider. Poll "
+        "`GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is "
+        "`succeeded` or `failed`.\n\n"
+        "Only the three provider-scored instruments have this operation: "
+        "`work_pulse`, `wpll`, `manager_match`. `core` and `focus_type` score "
+        "deterministically in-process and answer `404` here -- they are served "
+        "by the synchronous route, which remains available for all five.\n\n"
+        "**This shares one rate-limit budget with the synchronous submit for "
+        "the same instrument.** The limit bounds provider spend, and spend does "
+        "not move when the call moves to a worker (A9), so queueing and "
+        "submitting draw on the same allowance rather than two."
+    ),
+)
+@assessments_bp.route("/assessments/<kind>/scoring-jobs", methods=["POST"])
+@limiter.shared_limit(_submission_limit, scope=_submission_scope)
+def assessment_kind_scoring_job(kind: str):
+    """POST /assessments/{kind}/scoring-jobs - queue the scoring, return 202.
+
+    The rate-limit decorator is the same expression the synchronous submit
+    carries, and that is the whole of A9 on this route. `_submission_scope`
+    keys the bucket on `{kind}` and `shared_limit` drops the endpoint from the
+    key, so this operation and `POST /assessments/{kind}/submissions` count into
+    one per-instrument budget. Written as `@limiter.limit(scope=...)` it would
+    key as "{endpoint}:{scope}" and hand every instrument a second, independent
+    allowance reachable by queueing instead of submitting -- which is A9 undone
+    by the same mistake the Phase 1b cutover made and caught.
+
+    The body is validated before anything is enqueued. A malformed submission is
+    a 400 here exactly as it is on the synchronous route; letting it through
+    would convert an immediate, actionable error into a 202, a poll, and a
+    failed job several seconds later.
+    """
+    resolved = _job_kind_or_404(kind)
+    _require_auth_for(resolved)
+
+    user = _current_user() if resolved.requires_auth else None
+    if resolved.requires_auth and not user:
+        return jsonify({"error": "User not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    refusal = assessment_service.precheck(resolved, data)
+    if refusal is not None:
+        return _respond(refusal)
+
+    job = scoring_jobs.create_assessment(resolved.key, user, data)
+    job_id = job.public_id.hex
+    return (
+        jsonify(
+            {
+                "job_id": job_id,
+                "status": job.status,
+                "status_url": "/assessments/%s/scoring-jobs/%s" % (resolved.key, job_id),
+            }
+        ),
+        202,
+    )
+
+
+@document(
+    "Report the state of a queued assessment scoring",
+    tags=["assessments"],
+    responses={200: AssessmentScoringJobStatus, 404: LegacyError},
+    security=_AUTHENTICATED,
+    enforce=True,
+    description=(
+        "`{kind}` selects the response shape, as it does on the submit route: "
+        "`result` is that instrument's own result model and nothing else, and "
+        "it is present only once `status` is `succeeded`. There is no shared "
+        "result envelope here for the same reason there is none there (A12).\n\n"
+        "`wpll` needs no JWT, because the instrument does not: it is the "
+        "anonymous teaser, its job has no owner, and the handle is what "
+        "authorises the poll. The other two scope the handle to the "
+        "authenticated user."
+    ),
+)
+@assessments_bp.route("/assessments/<kind>/scoring-jobs/<job_id>", methods=["GET"])
+@limiter.limit(POLL_LIMIT)
+def assessment_kind_scoring_job_status(kind: str, job_id: str):
+    """GET /assessments/{kind}/scoring-jobs/{job_id} - poll a queued scoring.
+
+    404 covers four cases deliberately: no such job, a malformed handle, a job
+    belonging to somebody else, and a handle for a job of a different
+    instrument. The first three are the rule `resume_jobs` follows -- confirming
+    a handle exists is the only thing a handle has to protect. The fourth is
+    A12's promise read from the other end: a Work Pulse job served at the
+    ManagerMatch path would answer under ManagerMatch's response model with a
+    Work Pulse body.
+    """
+    resolved = _job_kind_or_404(kind)
+    _require_auth_for(resolved)
+
+    if resolved.requires_auth:
+        user = _current_user()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+        job = scoring_jobs.find_for_user(
+            user.id,
+            job_id,
+            job_type=scoring_jobs.ASSESSMENT,
+            kind=resolved.key,
+        )
+    else:
+        job = scoring_jobs.find_anonymous(job_id, kind=resolved.key)
+
+    if job is None:
+        return jsonify({"error": "Job not found"}), 404
+
+    return jsonify(scoring_jobs.status_for(job)), 200

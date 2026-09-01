@@ -21,8 +21,14 @@ from . import SolverahModel
 
 __all__ = [
     "RESULT_RESPONSES",
+    "SCORING_JOB_RESPONSES",
     "SUBMISSION_REQUESTS",
     "SUBMISSION_RESPONSES",
+    "AssessmentScoringJobStatus",
+    "ManagerMatchScoringJobStatus",
+    "ScoringJobAccepted",
+    "WorkPulseScoringJobStatus",
+    "WpllScoringJobStatus",
     "AssessmentCatalogueEntry",
     "AssessmentCatalogueResponse",
     "AssessmentFormResponse",
@@ -291,3 +297,125 @@ class AssessmentCatalogueResponse(SolverahModel):
     """
 
     data: List[AssessmentCatalogueEntry] = Field(default_factory=list)
+
+
+# ===========================================================================
+# Phase 3b -- POST /assessments/{kind}/scoring-jobs and its poll
+# ===========================================================================
+#
+# The three ``scored_by == "llm"`` instruments score off the request path.  The
+# ``202`` body is genuinely uniform -- a handle, a state, and where to poll,
+# none of which is instrument-specific -- so ``ScoringJobAccepted`` is one model
+# and that is not an A12 violation.
+#
+# **The poll is where A12 applies, and it is answered the same way the submit
+# route answers it.**  ``{kind}`` is in the path, so it selects the response
+# model; the union below exists to document the operation and the per-kind map
+# underneath is what tests assert against.  A single ``{status, result}`` with
+# ``result: Any`` would be exactly the promise-nothing envelope A12 rejected --
+# the asynchronous door into the same room.
+#
+# ``core`` and ``focus_type`` are absent from every map here, because they do not
+# score off the request path at all.  For ``core`` that is doubly deliberate:
+# it is the instrument whose dimension scores D-01 keeps off the wire, and it
+# withholds them even from its own respondent (A12).  A job row would put them
+# in ``scoring_jobs.result`` and a poll endpoint would serve them back.
+
+
+class ScoringJobAccepted(SolverahModel):
+    """``202`` from ``POST /assessments/{kind}/scoring-jobs``.
+
+    Uniform across instruments because nothing in it is instrument-specific:
+    the handle is a UUID, the status is always ``queued``, and the poll URL is
+    derived from the two.  The *result* is where the instruments differ, and
+    that is served by the poll under a per-kind model.
+    """
+
+    job_id: str = Field(
+        description="Poll the status URL until status is 'succeeded' or 'failed'."
+    )
+    status: str = Field(description='Always "queued" here; the job has not started.')
+    status_url: str = Field(description="Where to poll. Relative to the API root.")
+
+
+class _ScoringJobStatusBase(SolverahModel):
+    """Fields every poll response carries, whatever the instrument.
+
+    Subclassed rather than parameterised so each instrument's ``result`` is a
+    named, published type instead of a generic the document renders as ``any``.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    job_id: str
+    status: str = Field(
+        description="queued, running, succeeded or failed. The last two are terminal."
+    )
+    error: Optional[str] = Field(
+        default=None,
+        description=(
+            "Present only on 'failed'. Either a validation message the scorer "
+            "authored or a fixed generic string -- never provider text, which "
+            "carries prompt fragments and therefore the user's own answers."
+        ),
+    )
+
+
+class WorkPulseScoringJobStatus(_ScoringJobStatusBase):
+    """``GET /assessments/work_pulse/scoring-jobs/{job_id}``."""
+
+    result: Optional[WorkPulseResult] = Field(
+        default=None, description="Present only on 'succeeded'."
+    )
+
+
+class WpllScoringJobStatus(_ScoringJobStatusBase):
+    """``GET /assessments/wpll/scoring-jobs/{job_id}``.
+
+    The one poll that needs no JWT, because the instrument it belongs to needs
+    none: ``wpll`` is the anonymous pre-launch teaser and has no account to
+    scope a handle to.  The handle *is* the authorisation -- see
+    ``scoring_jobs.find_anonymous`` for why that is acceptable here and nowhere
+    else.
+    """
+
+    result: Optional[WpllResultResponse] = Field(
+        default=None, description="Present only on 'succeeded'."
+    )
+
+
+class ManagerMatchScoringJobStatus(_ScoringJobStatusBase):
+    """``GET /assessments/manager_match/scoring-jobs/{job_id}``."""
+
+    result: Optional[ManagerMatchResult] = Field(
+        default=None, description="Present only on 'succeeded'."
+    )
+
+
+class AssessmentScoringJobStatus(RootModel):
+    """Documentation-only union of the three poll responses.
+
+    Which member comes back is determined by ``{kind}`` in the path, not by
+    anything in the body -- the same reason ``AssessmentSubmissionResponse``
+    cannot be an OpenAPI discriminated union.  Do not validate against this;
+    validate against :data:`SCORING_JOB_RESPONSES`.
+    """
+
+    root: Union[
+        WorkPulseScoringJobStatus,
+        WpllScoringJobStatus,
+        ManagerMatchScoringJobStatus,
+    ]
+
+
+#: ``{kind}`` -> the poll body that kind returns. This is what tests assert.
+#:
+#: Exactly the three instruments in ``scoring_jobs.JOB_ELIGIBLE_KINDS``, and
+#: ``tests/test_scoring_jobs.py`` asserts the two agree -- an instrument that
+#: gained a job endpoint without a response model would be documented by the
+#: union as "one of these three" while returning a fourth shape.
+SCORING_JOB_RESPONSES: Dict[str, type] = {
+    "work_pulse": WorkPulseScoringJobStatus,
+    "wpll": WpllScoringJobStatus,
+    "manager_match": ManagerMatchScoringJobStatus,
+}

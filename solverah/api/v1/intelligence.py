@@ -40,6 +40,8 @@ from solverah.schemas.intelligence import (
     PathPreferencesDocument,
     PathPreferencesPutRequest,
     PathPreferencesRequest,
+    PathSuggestionJobAccepted,
+    PathSuggestionJobStatus,
     RecommendationsPage,
     PathPreferencesResponse,
     PathSuggestionsResponse,
@@ -48,7 +50,12 @@ from solverah.schemas.intelligence import (
     QuizInsightsResponse,
     RecommendationsResponse,
 )
-from solverah.services import agent_service, insight_service, intelligence_service
+from solverah.services import (
+    agent_service,
+    insight_service,
+    intelligence_service,
+    scoring_jobs,
+)
 
 __all__ = ["intelligence_bp"]
 
@@ -64,6 +71,11 @@ _SCOPE_QUIZ_INSIGHTS = "intelligence:quiz-insights"
 _SCOPE_RECOMMENDATIONS_REFRESH = "intelligence:recommendations-refresh"
 _SCOPE_RECOMMENDATIONS_READ = "intelligence:recommendations-read"
 _SCOPE_AGENT = "intelligence:agent"
+_SCOPE_PATH_SUGGESTION_JOBS = "intelligence:path-suggestion-jobs"
+
+#: See ``solverah/api/v1/assessments.py`` for why a poll does not run on the
+#: global defaults, and why the day cap is restated rather than dropped.
+POLL_LIMIT = "60 per minute;2000 per day"
 _SCOPE_GUEST_INSIGHTS = "intake:quiz-preview-insights"
 _SCOPE_GUEST_INSIGHTS_GLOBAL = "intake:quiz-preview-insights:global"
 
@@ -334,3 +346,115 @@ def agent_messages():
     than a bespoke 400 body.
     """
     return _do_agent_stream()
+
+
+# ---------------------------------------------------------------------------
+# Phase 3b -- path suggestions off the request path
+# ---------------------------------------------------------------------------
+#
+# `GET /me/path-suggestions` fans out to O*NET and OpenAI inside the request.
+# It and assessment scoring are the two handlers `gunicorn.conf.py`'s 120-second
+# timeout was raised for, and the reason Phase 3's exit was not claimed by 3a.
+#
+# Added alongside the GET, which is unchanged. Its own docstring anticipated
+# this: "Part 5.2 has a cache miss answering 202 and enqueueing the work. It
+# does not yet -- there is no queue until Phase 3." There is now, and this is
+# that operation -- as an addition rather than as a change to the GET, because
+# turning a 200 into a 202 is a contract change and the frontend has not moved.
+
+
+@document(
+    "Queue a path-suggestion scoring and return a job handle",
+    tags=["me"],
+    responses={202: PathSuggestionJobAccepted, 404: LegacyError},
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    request_required=False,
+    description=(
+        "Asynchronous counterpart to `GET /me/path-suggestions`, which fans out "
+        "to O*NET and OpenAI inside the request. Answers `202` with a job "
+        "handle; poll `GET /me/path-suggestion-jobs/{job_id}` until `status` is "
+        "`succeeded` or `failed`. The synchronous `GET` is unchanged and "
+        "remains available.\n\n"
+        "A succeeded job also warms the per-user cache the `GET` reads, so a "
+        "client part-way through the migration can queue the work and then read "
+        "the old endpoint without paying for the scoring twice.\n\n"
+        "Rate limited. The synchronous `GET` is not, because it is naturally "
+        "self-limiting -- the caller waits for the fan-out and a repeat is a "
+        "cache hit. An enqueue returns immediately and can be issued in a loop, "
+        "so the budget that bounds provider spend has to live here (A9)."
+    ),
+)
+@intelligence_bp.route("/me/path-suggestion-jobs", methods=["POST"])
+@limiter.shared_limit("10 per minute", scope=_SCOPE_PATH_SUGGESTION_JOBS)
+@jwt_required()
+def post_my_path_suggestion_job():
+    """POST /me/path-suggestion-jobs - queue the scoring, return 202.
+
+    **This route carries a limit the endpoint it mirrors does not, and that is
+    deliberate rather than an oversight in one of them.** `GET
+    /me/path-suggestions` is unlimited today and survives it: the caller holds
+    the connection for the whole O*NET and OpenAI fan-out, so a client cannot
+    have many in flight, and every repeat inside the cache window is a cache hit
+    that reaches no provider. Neither property survives the move to a queue. An
+    enqueue returns in milliseconds, so a loop issues hundreds; and each one
+    that a worker picks up before the first has populated the cache is a full
+    fan-out at full cost. A9's principle is that the budget bounds provider
+    spend -- this is where the spend became reachable, so this is where the
+    budget goes.
+
+    10 per minute, matching `POST /me/recommendations/refresh`: the other
+    authenticated operation whose whole purpose is to ask the server to
+    regenerate something expensive.
+    """
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    job = scoring_jobs.create_path_suggestions(user)
+    job_id = job.public_id.hex
+    return (
+        jsonify(
+            {
+                "job_id": job_id,
+                "status": job.status,
+                "status_url": "/me/path-suggestion-jobs/%s" % job_id,
+            }
+        ),
+        202,
+    )
+
+
+@document(
+    "Report the state of a queued path-suggestion scoring",
+    tags=["me"],
+    responses={200: PathSuggestionJobStatus, 404: LegacyError},
+    security=_AUTHENTICATED,
+    enforce=True,
+)
+@intelligence_bp.route("/me/path-suggestion-jobs/<job_id>", methods=["GET"])
+@limiter.limit(POLL_LIMIT)
+@jwt_required()
+def get_my_path_suggestion_job(job_id: str):
+    """GET /me/path-suggestion-jobs/{job_id} - poll a queued scoring.
+
+    404 covers no such job, a malformed handle, and somebody else's job alike.
+    Distinguishing them would confirm that a handle exists, which is the only
+    thing protecting one.
+
+    `error` on a failed job carries the scorer's own message -- notably
+    `career_status_not_set`, the same condition the synchronous GET answers 400
+    for, which the client handles by prompting for the missing field rather than
+    by retrying.
+    """
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    job = scoring_jobs.find_for_user(
+        user.id, job_id, job_type=scoring_jobs.PATH_SUGGESTIONS
+    )
+    if job is None:
+        return jsonify({"error": "Job not found"}), 404
+
+    return jsonify(scoring_jobs.status_for(job)), 200

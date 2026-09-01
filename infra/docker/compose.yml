@@ -96,8 +96,8 @@ services:
     # right for counters and a cache and it is NOT right for a broker holding
     # queued work: a restart drops every message in flight. It is acceptable
     # locally because every producer in this system commits a durable row before
-    # it enqueues -- `outbox` and `resume_parse_jobs` -- and the sweeps re-drive
-    # anything the broker lost. Production should still persist.
+    # it enqueues -- `outbox`, `resume_parse_jobs` and `scoring_jobs` -- and the
+    # sweeps re-drive anything the broker lost. Production should still persist.
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
       - "6379:6379"
@@ -179,14 +179,27 @@ services:
       - --access-logfile=-
 
   worker:
-    # Celery worker (docs/ARCHITECTURE.md Phase 3). Runs the work that used to
-    # block a request: outbox publication -- so every email in the system now
-    # leaves from here -- resume parsing, and the maintenance sweeps.
+    # Celery worker (docs/ARCHITECTURE.md Phase 3).
     #
     # Same image and same source mount as `api`, deliberately. A worker running
     # different code from the API is a worker that deserialises a message the API
     # wrote and cannot handle it, and the two drifting apart is the failure that
     # is hardest to see coming.
+    #
+    # Runs the work that used to block a request: outbox publication -- so every
+    # email in the system now leaves from here -- resume parsing (3a), and
+    # assessment scoring and path suggestions (3b), plus the sweeps behind all
+    # three.
+    #
+    # `solverah/worker.py` puts the repository root on `sys.path` and that is
+    # load-bearing for this container rather than tidiness: the scorers
+    # (`work_pulse`, `manager_match`, `focus_type`, `backend.services.*`) are
+    # top-level modules imported lazily inside functions, and `celery` is a
+    # console script, so without it the worker boots perfectly and then fails
+    # every task that reaches a scorer. Verified by running a real job through
+    # this service, which is the only way that failure is visible -- under the
+    # suite's eager execution the task runs in the pytest process, where the
+    # root is already importable.
     #
     # Not `SOLVERAH_IGNORE_DOTENV`: the entrypoint loads `.env` exactly as
     # `app.py` does, so RESEND_API_KEY from a developer's file reaches the

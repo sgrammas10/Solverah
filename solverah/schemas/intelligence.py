@@ -18,6 +18,8 @@ __all__ = [
     "PathPreferencesRequest",
     "PathPreferencesResponse",
     "PathSuggestion",
+    "PathSuggestionJobAccepted",
+    "PathSuggestionJobStatus",
     "PathSuggestionsResponse",
     "QuizInsight",
     "QuizInsightsGuestResponse",
@@ -248,4 +250,62 @@ class AgentMessagesRequest(SolverahModel):
     )
     model: Optional[str] = Field(
         default=None, description='Groq model. Defaults to "llama-3.1-8b-instant".'
+    )
+
+
+# ===========================================================================
+# Phase 3b -- POST /me/path-suggestion-jobs and its poll
+# ===========================================================================
+#
+# `GET /me/path-suggestions` fans out to O*NET and OpenAI; it and assessment
+# scoring are the two handlers `gunicorn.conf.py`'s 120-second timeout was
+# raised for. These two operations are the asynchronous counterpart, added
+# alongside the GET rather than replacing it -- the GET is unchanged and is
+# still what the frontend calls.
+#
+# `result` is `PathSuggestionsResponse`, not a loose object: there is one
+# discriminator here, so the per-discriminator rule A12 states for the five
+# instruments is satisfied by naming the one shape this job can produce.
+
+
+class PathSuggestionJobAccepted(SolverahModel):
+    """``202`` from ``POST /me/path-suggestion-jobs``."""
+
+    job_id: str = Field(
+        description="Poll the status URL until status is 'succeeded' or 'failed'."
+    )
+    status: str = Field(description='Always "queued" here; the job has not started.')
+    status_url: str = Field(description="Where to poll. Relative to the API root.")
+
+
+class PathSuggestionJobStatus(SolverahModel):
+    """``GET /me/path-suggestion-jobs/{job_id}``.
+
+    On ``succeeded``, ``result`` is byte-for-byte what ``GET
+    /me/path-suggestions`` would have returned -- the job runs the same service
+    function -- so a client's rendering logic does not fork between the two
+    paths.
+
+    The job also warms ``path_cache`` on the way through, which means the
+    synchronous GET is a cache hit immediately after a job succeeds. A client
+    mid-migration can therefore poll the job and then read the old endpoint,
+    and neither call pays for the scoring twice.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    job_id: str
+    status: str = Field(
+        description="queued, running, succeeded or failed. The last two are terminal."
+    )
+    error: Optional[str] = Field(
+        default=None,
+        description=(
+            "Present only on 'failed'. `career_status_not_set` means the profile "
+            "is missing a field the scorer requires -- the same condition the "
+            "synchronous GET answers 400 for."
+        ),
+    )
+    result: Optional[PathSuggestionsResponse] = Field(
+        default=None, description="Present only on 'succeeded'."
     )
