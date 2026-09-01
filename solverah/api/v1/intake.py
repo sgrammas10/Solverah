@@ -148,7 +148,7 @@ def _claim_limit() -> str:
     "Register interest from the landing-page modal",
     tags=["intake"],
     request=EarlyAccessRequest,
-    responses={200: OkResponse, 400: LegacyError, 500: LegacyError},
+    responses={200: OkResponse, 400: LegacyError},
     security=[],
     enforce=True,
 )
@@ -156,14 +156,14 @@ def _claim_limit() -> str:
 def intake_early_access():
     """POST /intake/early-access - early-access interest form (no resume).
 
-    Forwards the details to info@solverah.com via Resend. Does not persist to
-    the database, which is a real gap: a mail outage loses the lead with only a
-    log line behind it. Phase 3's transactional outbox is what fixes it.
+    Writes the lead to the transactional outbox and returns 200; a worker
+    delivers it to info@solverah.com. This answered 500 on a mail failure until
+    Phase 3, because the lead existed only as an email and a swallowed error lost
+    it. The row is durable before this returns, so there is nothing left to lose
+    and nothing left to report.
     """
     return _respond(
-        intake_service.early_access_request(
-            request.get_json(silent=True) or {}, current_app.logger
-        )
+        intake_service.early_access_request(request.get_json(silent=True) or {})
     )
 
 
@@ -225,8 +225,7 @@ def intake_create_submission():
     entirely and calling this anyway. The check is what makes the row mean "a
     resume of this size and type exists at this key".
     """
-    return _respond(intake_service.finalize(request.get_json(silent=True) or {},
-                                            current_app.logger))
+    return _respond(intake_service.finalize(request.get_json(silent=True) or {}))
 
 
 @document(

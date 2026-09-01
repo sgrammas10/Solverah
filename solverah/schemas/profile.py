@@ -28,6 +28,8 @@ __all__ = [
     "ResumeCompleteRequest",
     "ResumeCompleteResponse",
     "ResumeDownloadResponse",
+    "ResumeParseJobAccepted",
+    "ResumeParseJobStatus",
     "ResumeTicketRequest",
     "ResumeTicketResponse",
     "SkillsPutRequest",
@@ -243,3 +245,40 @@ class ResumeCompleteResponse(ProfileDocument):
 
 class ResumeDownloadResponse(SolverahModel):
     url: str = Field(description="Presigned GET URL, valid for 10 minutes.")
+
+
+class ResumeParseJobAccepted(SolverahModel):
+    """``202`` from ``POST /me/resumes/{resume_id}/parse-jobs``.
+
+    Part 5.2's ``202 + job handle``, added in Phase 3 alongside the synchronous
+    ``/complete`` rather than replacing it: a client cannot move from awaiting a
+    200 to polling a job in the same deploy that first gives it something to
+    poll. ``/complete`` keeps working until the frontend has moved.
+    """
+
+    job_id: str = Field(
+        description="Poll GET /me/resume-parse-jobs/{job_id} until status is terminal."
+    )
+    status: str = Field(description='Always "queued" here; the job has not started.')
+    status_url: str = Field(description="Where to poll. Relative to the API root.")
+
+
+class ResumeParseJobStatus(SolverahModel):
+    """``GET /me/resume-parse-jobs/{job_id}``.
+
+    ``status`` is one of ``queued``, ``running``, ``succeeded``, ``failed``; the
+    last two are terminal and a client should stop polling on either.
+
+    ``profile`` is present only on ``succeeded``, and carries what ``/complete``
+    would have returned -- so the two paths hand back the same document and the
+    client's merge logic does not fork. ``error`` is present only on ``failed``
+    and is a fixed message: parse failures come from pdfminer, python-docx and
+    botocore, whose text carries bucket names and object keys.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    job_id: str
+    status: str
+    error: Optional[str] = None
+    profile: Optional[Dict[str, Any]] = None

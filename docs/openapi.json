@@ -2861,6 +2861,79 @@
         "title": "ResumeDownloadResponse",
         "type": "object"
       },
+      "ResumeParseJobAccepted": {
+        "additionalProperties": false,
+        "description": "``202`` from ``POST /me/resumes/{resume_id}/parse-jobs``.\n\nPart 5.2's ``202 + job handle``, added in Phase 3 alongside the synchronous\n``/complete`` rather than replacing it: a client cannot move from awaiting a\n200 to polling a job in the same deploy that first gives it something to\npoll. ``/complete`` keeps working until the frontend has moved.",
+        "properties": {
+          "job_id": {
+            "description": "Poll GET /me/resume-parse-jobs/{job_id} until status is terminal.",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "status": {
+            "description": "Always \"queued\" here; the job has not started.",
+            "title": "Status",
+            "type": "string"
+          },
+          "status_url": {
+            "description": "Where to poll. Relative to the API root.",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "status_url"
+        ],
+        "title": "ResumeParseJobAccepted",
+        "type": "object"
+      },
+      "ResumeParseJobStatus": {
+        "additionalProperties": true,
+        "description": "``GET /me/resume-parse-jobs/{job_id}``.\n\n``status`` is one of ``queued``, ``running``, ``succeeded``, ``failed``; the\nlast two are terminal and a client should stop polling on either.\n\n``profile`` is present only on ``succeeded``, and carries what ``/complete``\nwould have returned -- so the two paths hand back the same document and the\nclient's merge logic does not fork. ``error`` is present only on ``failed``\nand is a fixed message: parse failures come from pdfminer, python-docx and\nbotocore, whose text carries bucket names and object keys.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "ResumeParseJobStatus",
+        "type": "object"
+      },
       "ResumeTicketRequest": {
         "description": "``POST /me/resumes`` -- ask for somewhere to upload to.",
         "properties": {
@@ -2907,33 +2980,6 @@
           "max_bytes"
         ],
         "title": "ResumeTicketResponse",
-        "type": "object"
-      },
-      "SendEmailFailureResponse": {
-        "additionalProperties": false,
-        "description": "The 500 body when Resend rejects a send.\n\nCarries ``detail`` on the resend path only, which is where the original\nhandler included it.",
-        "properties": {
-          "detail": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Detail"
-          },
-          "error": {
-            "title": "Error",
-            "type": "string"
-          }
-        },
-        "required": [
-          "error"
-        ],
-        "title": "SendEmailFailureResponse",
         "type": "object"
       },
       "SessionFlags": {
@@ -3752,16 +3798,6 @@
             },
             "description": "Not found"
           },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SendEmailFailureResponse"
-                }
-              }
-            },
-            "description": "Internal server error"
-          },
           "default": {
             "content": {
               "application/problem+json": {
@@ -3921,16 +3957,6 @@
             },
             "description": "Not found"
           },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
-                }
-              }
-            },
-            "description": "Internal server error"
-          },
           "default": {
             "content": {
               "application/problem+json": {
@@ -4004,7 +4030,7 @@
     },
     "/api/v1/auth/register": {
       "post": {
-        "description": "POST /auth/register - Create a new user account.\n\nCreates the user with ``email_confirmed=False`` and sends a 6-digit OTP. The\nuser must confirm their email before they can log in. Profile data is\npre-seeded with a blank default profile appropriate for the given role.",
+        "description": "POST /auth/register - Create a new user account.\n\nCreates the user with ``email_confirmed=False`` and sends a 6-digit OTP. The\nuser must confirm their email before they can log in. Profile data is\npre-seeded with a blank default profile appropriate for the given role.\n\nThe OTP is written to the outbox inside the same transaction as the account\n(Phase 3), so there is no longer a second call here to make it best-effort:\na created account and an owed verification email are one commit.",
         "operationId": "post_auth_register",
         "requestBody": {
           "content": {
@@ -4395,7 +4421,7 @@
     },
     "/api/v1/intake/early-access": {
       "post": {
-        "description": "POST /intake/early-access - early-access interest form (no resume).\n\nForwards the details to info@solverah.com via Resend. Does not persist to\nthe database, which is a real gap: a mail outage loses the lead with only a\nlog line behind it. Phase 3's transactional outbox is what fixes it.",
+        "description": "POST /intake/early-access - early-access interest form (no resume).\n\nWrites the lead to the transactional outbox and returns 200; a worker\ndelivers it to info@solverah.com. This answered 500 on a mail failure until\nPhase 3, because the lead existed only as an email and a swallowed error lost\nit. The row is durable before this returns, so there is nothing left to lose\nand nothing left to report.",
         "operationId": "post_intake_intake_early_access",
         "requestBody": {
           "content": {
@@ -4427,16 +4453,6 @@
               }
             },
             "description": "Bad request"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
-                }
-              }
-            },
-            "description": "Internal server error"
           },
           "default": {
             "content": {
@@ -5634,6 +5650,63 @@
         ]
       }
     },
+    "/api/v1/me/resume-parse-jobs/{job_id}": {
+      "get": {
+        "description": "GET /me/resume-parse-jobs/{job_id} - poll a queued parse.\n\n404 covers three cases deliberately: no such job, a malformed handle, and a\njob belonging to somebody else. Distinguishing them would confirm that a\nhandle exists, which is the only thing protecting one.",
+        "operationId": "get_me_get_my_resume_parse_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeParseJobStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Report the state of a queued resume parse",
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/api/v1/me/resumes": {
       "post": {
         "description": "POST /me/resumes - presign a PUT URL for a resume upload. Step 1 of 2.\n\nReturns a resume_id rather than the raw object key the superseded endpoint\nhanded back. The key is derived server-side from the JWT identity, so a\ncaller has no key to name and the finalize step has no prefix check to get\nwrong.",
@@ -5846,6 +5919,86 @@
           }
         ],
         "summary": "Presign a download URL for a stored resume",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/resumes/{resume_id}/parse-jobs": {
+      "post": {
+        "description": "Asynchronous counterpart to `POST /me/resumes/{resume_id}/complete`. Identical request body; answers `202` with a job handle instead of blocking for the parse. Poll `GET /me/resume-parse-jobs/{job_id}` until `status` is `succeeded` or `failed`.\n\nThe synchronous endpoint is unchanged and remains available.",
+        "operationId": "post_me_post_my_resume_parse_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resume_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeParseJobAccepted"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Queue a resume parse and return a job handle",
         "tags": [
           "me"
         ]

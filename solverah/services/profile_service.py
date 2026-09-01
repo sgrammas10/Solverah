@@ -6,12 +6,14 @@ The behaviour of every function below is unchanged from the handlers in
 :mod:`solverah.repositories.profile_repository`, and object storage sits behind
 :mod:`solverah.services.resume_service`.
 
-One defect is carried forward deliberately and one is gone.
+Two defects were carried forward here and both are now gone.
 
-* :func:`read_profile` writes an ``AuditLog`` row and commits **on every read**
-  (P0-3).  Still true of this deliberate read of a personal-data document, and
-  no longer true of the boot path -- Phase 1b moved session restore onto
-  ``GET /auth/session``, which comes nowhere near this module.
+* :func:`read_profile_document` wrote an ``AuditLog`` row and committed **on every
+  read** (P0-3).  **Fixed in Phase 3.**  The event is still recorded -- this is a
+  deliberate read of a personal-data document and the trail is worth its cost --
+  but it is handed to a worker, so the read itself issues no INSERT, takes no
+  write lock, and commits nothing.  ``solverah/services/audit.py`` explains which
+  of the two recording paths a caller belongs on.
 * :func:`save_profile` was a read-modify-write of a whole JSON column (P0-1).
   Two concurrent writers both read, both merged, and the second commit discarded
   the first with no error.  **Fixed in Phase 2a.**  Every write below now hands a
@@ -34,6 +36,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from model import User, db
 from solverah.domain import profile as domain
+from solverah.infra import cache
 from solverah.repositories import assessment_repository, profile_repository
 from solverah.services import audit, path_cache, resume_service
 
@@ -81,16 +84,22 @@ def _error(status: int, message: str) -> ProfileResult:
 def read_profile(user: User, csrf_token: Optional[str], wp_v2_completed) -> ProfileResult:
     """Return the full profile document and record the read.
 
-    The audit write on a GET is P0-3 and is preserved -- see the module
-    docstring. It is also why this function commits.
+    The god-endpoint body: identity, the whole profile document, a CSRF token and
+    four completion flags in one response. No route reaches it -- Part 5.2 split
+    it into ``GET /me``, ``GET /me/profile`` and ``GET /auth/session``, and
+    Phase 1b moved the last caller off it -- and it is kept only because deleting
+    it is a separate decision from this phase's.
+
+    Its audit write moved off the request path with the routed one, because a
+    dead function that commits on a read is a live one waiting for somebody to
+    wire it up again.
     """
-    audit.log_audit_event(
+    audit.record_read_event(
         action="read",
         actor_user_id=user.id,
         resource="profile",
         metadata={"target_user_id": user.id},
     )
-    db.session.commit()
     finished = assessment_repository.completed_kinds(user.id)
     return ProfileResult(
         status=200,
@@ -277,28 +286,46 @@ _PLACEHOLDER_RECOMMENDATIONS: List[Dict[str, Any]] = [
 
 
 def dashboard_data(user: User, email: str) -> ProfileResult:
-    """Summary stats for the job-seeker dashboard.
+    """Summary stats for the job-seeker dashboard. Cached in Redis (Phase 3).
 
     ``recentActivity`` and ``recommendations`` are static placeholders; the
     counts are live. Preserved as-is so the dashboard renders identically.
+
+    Three queries -- the assembled profile document, a recommendation count, and
+    an intake-submission existence check -- for a screen the user lands on first
+    and returns to constantly. The cached payload is per user, so the key carries
+    the user id and nothing else.
+
+    **What invalidates it, and the one thing that does not.** Every change to the
+    profile document drops the key, from
+    :func:`solverah.repositories.profile_repository.update_document`, which is
+    the single write path Phase 2a left. ``jobMatches`` has no live writer today.
+    ``hasIntakeSubmission`` does: an anonymous intake finalized under this
+    address while the user is already signed in elsewhere would flip it, and that
+    write has no user id to key off. It is the one field the TTL rather than an
+    invalidation bounds, which is what the TTL is for.
     """
+    key = cache.dashboard_key(user.id)
+    cached = cache.get_json(key)
+    if cached is not None:
+        return ProfileResult(status=200, body=cached)
+
     profile = profile_repository.load_document(user.id)
 
     applications = (
         len(profile.get("applications", [])) if "applications" in profile else 0
     )
 
-    return ProfileResult(
-        status=200,
-        body={
-            "profileCompletion": "%d%%" % domain.profile_completion_percent(profile),
-            "jobMatches": profile_repository.count_job_recommendations(user.id),
-            "applications": applications,
-            "recentActivity": list(_PLACEHOLDER_ACTIVITY),
-            "recommendations": [dict(item) for item in _PLACEHOLDER_RECOMMENDATIONS],
-            "hasIntakeSubmission": profile_repository.has_intake_submission(email),
-        },
-    )
+    body = {
+        "profileCompletion": "%d%%" % domain.profile_completion_percent(profile),
+        "jobMatches": profile_repository.count_job_recommendations(user.id),
+        "applications": applications,
+        "recentActivity": list(_PLACEHOLDER_ACTIVITY),
+        "recommendations": [dict(item) for item in _PLACEHOLDER_RECOMMENDATIONS],
+        "hasIntakeSubmission": profile_repository.has_intake_submission(email),
+    }
+    cache.set_json(key, body)
+    return ProfileResult(status=200, body=body)
 
 
 # ---------------------------------------------------------------------------
@@ -356,18 +383,23 @@ def update_identity(user: User, name: Any) -> ProfileResult:
 def read_profile_document(user: User) -> ProfileResult:
     """The profile blob in its envelope, and record that it was read.
 
-    Still writes an ``AuditLog`` row, unlike the identity read. That is
-    deliberate: this is a deliberate read of a personal-data document and the
-    trail is worth its cost, whereas the same write on the session-restore path
-    was P0-3. What changed is that session restore no longer comes through here.
+    Still records an audit event, unlike the identity read: this is a deliberate
+    read of a personal-data document and the trail is worth its cost. What
+    changed in Phase 3 is *where the row is written*. It used to be appended to
+    this request's session and committed here, which is P0-3 -- a write lock and
+    a commit on a request that should be servable from a replica. It is now
+    handed to a worker, and this function commits nothing at all.
+
+    The event is recorded either way. ``tests/test_me_api.py`` asserts the row
+    still appears after this read, and ``tests/test_read_path_writes.py`` asserts
+    that the request itself did not write it.
     """
-    audit.log_audit_event(
+    audit.record_read_event(
         action="read",
         actor_user_id=user.id,
         resource="profile",
         metadata={"target_user_id": user.id},
     )
-    db.session.commit()
     return ProfileResult(
         status=200, body={"profile": profile_repository.load_document(user.id)}
     )

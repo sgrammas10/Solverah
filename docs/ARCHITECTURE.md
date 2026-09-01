@@ -1903,14 +1903,42 @@ keeps it because partial saves are what the column is for.
 
 ### Phase 3 — Async and caching
 
-- Celery + Redis broker; queues `default · llm · email · scoring · maintenance`.
-- Move off the request path: resume parsing, assessment scoring, path suggestions,
-  match precomputation, all email.
-- Transactional outbox for email and domain events.
-- Redis cache for match sets, company detail, dashboards; invalidation by key on write.
+- ~~Celery + Redis broker; queues `default · llm · email · scoring · maintenance`~~ —
+  **done 2026-08-27 (3a).** `solverah/infra/queue.py`. Broker and result backend fall
+  back to `REDIS_URL`, so one variable configures the queue, the rate limiter and the
+  cache. With no broker — CI, and a developer without Redis — tasks run eagerly in the
+  calling process, which is what lets the suite stay green on a runner that has no
+  Redis service container. `solverah/worker.py` is the worker entrypoint and
+  `infra/docker/compose.yml` gains a `worker` service on all five queues.
+- Move off the request path: **resume parsing (3a)**, assessment scoring, path
+  suggestions, match precomputation, **all email (3a)**.
+- ~~Transactional outbox for email and domain events~~ — **done 2026-08-27 (3a).**
+  Part 4.7's table, `solverah/services/outbox.py`. Every outbound email in the
+  application now commits with the business write that occasions it. Three endpoints
+  changed behaviour as a result and all three were compensating for the send being
+  outside the transaction: `POST /intake/early-access` answered 500 on a mail failure
+  and now answers 200 (the lead is durable before it returns), and
+  `POST /auth/email/verify/resend` and `POST /auth/password/forgot` answered 500 after
+  having already rotated the token — telling the user nothing had happened while the
+  code in the database had just changed underneath them.
+- Redis cache for ~~match sets~~, company detail, dashboards; invalidation by key on
+  write. **Company detail and the dashboard done 2026-08-27 (3a)**
+  (`solverah/infra/cache.py`). **Match sets struck — see A18.**
 - SSE for the agent; `202 + job handle` for everything else that is slow.
+  **Resume parsing done 2026-08-27 (3a)**: `POST /me/resumes/{id}/parse-jobs` +
+  `GET /me/resume-parse-jobs/{job_id}`, an addition alongside the synchronous
+  `/complete`, which is unchanged until the frontend moves.
+- ~~Writes on the read path (P0-3, server half)~~ — **done 2026-08-27 (3a).** No `GET`
+  handler commits. The audit rows `GET /me/profile` and `GET /me/export` wrote are
+  recorded by a worker; the culture-preferences backfill `GET /me/matches` committed is
+  now a maintenance sweep and the read derives what it needs without persisting; the
+  `career_status` derivation `GET /me/path-suggestions` committed is applied in memory
+  only. `tests/test_read_path_writes.py` counts commits on the request's own session.
 
 **Exit:** no handler makes a blocking third-party call. Gunicorn timeout drops 120 s → 30 s.
+**Not met by 3a, deliberately.** Assessment scoring and path suggestions are the two
+handlers the 120 s was raised for and both are still synchronous; lowering it now would
+kill exactly the requests it protects, and the queue would get the blame.
 
 ### Phase 4 — Frontend restructure
 
@@ -2000,6 +2028,7 @@ in parallel with the rest of Phase 4.
 | A11 | Enforced request models ignore unknown keys rather than forbidding them | Handlers read fields with `data.get(...)` and ignore the rest, and live call sites send more than the schemas name. A 422 on a key the server was going to drop is the "worked yesterday" incident enforcement is supposed to prevent. Closed models still generate a strict client. | `extra="forbid"` on requests |
 | A12 | One route per collapsed group, but a response model per discriminator | The five assessments produce genuinely different payloads — `core` deliberately returns no dimension scores at all. A lowest-common-denominator envelope would have to be open enough to hold any of them, which makes it a document that promises nothing. | A shared result envelope |
 | A16 | Strike `company_culture_vectors`, pgvector and the HNSW index (Phase 2 item 4) rather than build them | **The index would rank the wrong quantity.** `culture_fit_score` is `max(0, 1 - |company - user|)` per axis (`packages/ml/culture/scoring.py:_score_numeric`) — L1 proximity, where a user at 0.5 and a company at 0.5 score 1.0 on that axis. Cosine measures the angle between whole vectors and is blind to that: it cannot distinguish "matches on every axis" from "is proportionally larger on every axis". Measured over the 2,071-company corpus, ranking by cosine reproduces 3 of the exact scorer's top 10 (recall@10 = 3/10), so an HNSW index would be a fast answer to a different question. **One of the eight dimensions is not a vector component at all.** `work_environment` is Jaccard over an open tag vocabulary, at weight 1.5 — joint-heaviest with `pace` — and set overlap has no fixed-width numeric encoding to put in a `vector(8)`. Any embedding of it changes the score before the index is reached. **There is no performance case either.** The corpus is 2,071 companies and the exact in-Python scan measures 34 ms; ANN exists to avoid scanning millions, and at this size the index build and the recall loss are both pure cost. **And the destination is not a nearest-neighbour problem.** The replacement for `culture_fit_score` is the causal Bayesian model (`match_scoring.py`): a per-pair logistic predictor with a signed directional feature and company-level confounders. It is evaluated per (user, company) pair against a fitted posterior, not looked up by distance — no ANN index serves it, however indexed. P0-2's full scan is still real and still open; the fix is precomputation and caching (Phase 3), not a different index. | Build the vectors and the HNSW index as specified |
+| A18 | Strike the Redis cache for match sets (Phase 3's first caching item); cache company detail and the dashboard instead | **The cache would be built around a scorer that is being deleted.** A16 already struck the pgvector work on the finding that `culture_fit_score` is an interim scorer and the causal Bayesian model in `match_scoring.py` is the destination. A cache is not neutral about what it caches: the key would be the user's eight-dimension preference vector plus the lens and the page, invalidated by a Work Pulse submit — and the replacement is a per-pair logistic predictor against a fitted posterior, keyed by (user, company) and invalidated by a model run. Nothing about the first survives into the second, so it would be written, deployed, and deleted inside one phase. **And the performance case is A16's measurement, not a guess:** the exact in-Python scan is 34 ms over 2,071 companies, which is not the number that justifies a cache with an invalidation story. What P0-2 needs is precomputation under the model that replaces the scorer, which is work that cannot start until that model exists. The two reads that *were* cached are the ones whose payloads are stable, large, and read far more often than written: a company's research document is identical for every caller, and the dashboard is three queries behind the screen a user lands on first. **The read-path write removal was done first, and the order matters:** a cached response skips the handler, so it also skips whatever the handler wrote — landing the cache before removing the writes would have hidden their absence behind a cache hit rather than surfacing it. | Build the match-set cache as specified and migrate it when the scorer is replaced |
 | A17 | Partition `audit_log`, `match_recommendation` and `rec_action` by range; leave `assessment_response` unpartitioned; widen the foreign keys into `match_recommendation` to a composite `(id, shown_at)` rather than drop them (Phase 2 item 5) | **Decided and dispatched 2026-08-27; implementation in flight — not landed.** The three tables partition on their own event time: `audit_log` on `created_at`, `match_recommendation` on `shown_at`, `rec_action` on `acted_at`. `assessment_response` is excluded even though Part 4.4 lists it as partitioned: it carries `UniqueConstraint(submission_id, item_id)` — one answer per item per submission — and Postgres requires the partition key in every unique constraint on a partitioned table, so partitioning it would force `answered_at` into that constraint. A constraint widened that way stops catching a genuine duplicate answer, and a duplicate is exactly the row `mean_pole`'s denominator cannot tolerate silently double-counting. `assessment_response` is also the lowest-volume of the four candidate tables, so the case for partitioning it was weakest to begin with. Partitioning `match_recommendation` forces its primary key from `id` to `(id, shown_at)` for the same reason — the partition key has to be in the key — which means a bare `id` no longer identifies a unique row. `rec_action`, `outcome_appeal` and `outcome_experienced` each carry a foreign key into `match_recommendation`, so each gained a `shown_at` column and a composite foreign key to `(id, shown_at)` rather than losing the constraint. All three feed the causal model, where a dangling `recommendation_id` is not a visible error — it is silent corruption of training data, a worse failure than the write friction of carrying a second column. `outcome_appeal` keeps its uniqueness on `recommendation_id` alone, not widened to match the new key: one appeal per recommendation is the rule, and widening would let two rows name the same recommendation under different `shown_at` values, only one of which can be about a real event. | Drop the foreign keys into `match_recommendation` instead of widening them, the precedent `audit_events`'s `actor_user_id` already sets in this document |
 
 ## Appendix B — What already works and is not being changed

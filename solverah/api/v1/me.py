@@ -58,12 +58,14 @@ from solverah.schemas.profile import (
     ResumeCompleteRequest,
     ResumeCompleteResponse,
     ResumeDownloadResponse,
+    ResumeParseJobAccepted,
+    ResumeParseJobStatus,
     ResumeTicketRequest,
     ResumeTicketResponse,
     SkillsPutRequest,
     SkillsResponse,
 )
-from solverah.services import account_service, profile_service
+from solverah.services import account_service, profile_service, resume_jobs
 from validators import clean_profile_data
 
 __all__ = ["me_bp"]
@@ -474,3 +476,97 @@ def get_my_resume_download_url(resume_id: str):
     if not user:
         return jsonify({"error": "User not found"}), 404
     return _respond(profile_service.resume_download_url_by_id(user, resume_id))
+
+
+# ---------------------------------------------------------------------------
+# Resume parsing as a job (Phase 3)
+# ---------------------------------------------------------------------------
+#
+# Part 5.2's `202 + job handle` for the one endpoint in this module that does
+# genuinely slow work: `/complete` downloads the object from R2, writes it to a
+# temp file, and runs pdfminer or python-docx over it, all inside the request.
+#
+# Added alongside `/complete` rather than replacing it. The old path is
+# unchanged and still works, because a client cannot switch from awaiting a 200
+# to polling a job in the same deploy that first gives it a job to poll. When
+# the frontend has moved, `/complete` becomes a deletion and this becomes the
+# only way in.
+
+
+@document(
+    "Queue a resume parse and return a job handle",
+    tags=["me"],
+    request=ResumeCompleteRequest,
+    responses={202: ResumeParseJobAccepted, 400: LegacyError, 404: LegacyError},
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "Asynchronous counterpart to `POST /me/resumes/{resume_id}/complete`. "
+        "Identical request body; answers `202` with a job handle instead of "
+        "blocking for the parse. Poll `GET /me/resume-parse-jobs/{job_id}` until "
+        "`status` is `succeeded` or `failed`.\n\n"
+        "The synchronous endpoint is unchanged and remains available."
+    ),
+)
+@me_bp.route("/me/resumes/<resume_id>/parse-jobs", methods=["POST"])
+@jwt_required()
+def post_my_resume_parse_job(resume_id: str):
+    """POST /me/resumes/{resume_id}/parse-jobs - queue the parse, return 202."""
+    data = _body()
+    mime, size, error = _validate_upload(data)
+    if error:
+        return error
+
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    object_key = profile_service.resolve_resume_key(user, resume_id, mime=mime)
+    if not object_key:
+        return jsonify({"error": "Resume not found"}), 404
+
+    job = resume_jobs.create(
+        user,
+        object_key=object_key,
+        mime=mime,
+        size=size,
+        name=(data.get("name") or "").strip(),
+    )
+    job_id = job.public_id.hex
+    return (
+        jsonify(
+            {
+                "job_id": job_id,
+                "status": job.status,
+                "status_url": "/me/resume-parse-jobs/%s" % job_id,
+            }
+        ),
+        202,
+    )
+
+
+@document(
+    "Report the state of a queued resume parse",
+    tags=["me"],
+    responses={200: ResumeParseJobStatus, 404: LegacyError},
+    security=_AUTHENTICATED,
+    enforce=True,
+)
+@me_bp.route("/me/resume-parse-jobs/<job_id>", methods=["GET"])
+@jwt_required()
+def get_my_resume_parse_job(job_id: str):
+    """GET /me/resume-parse-jobs/{job_id} - poll a queued parse.
+
+    404 covers three cases deliberately: no such job, a malformed handle, and a
+    job belonging to somebody else. Distinguishing them would confirm that a
+    handle exists, which is the only thing protecting one.
+    """
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    job = resume_jobs.find_for_user(user.id, job_id)
+    if job is None:
+        return jsonify({"error": "Job not found"}), 404
+
+    return jsonify(resume_jobs.status_for(job)), 200

@@ -28,7 +28,6 @@ from typing import Any, Dict, Optional
 from model import IntakeSubmission, User, db
 from solverah.domain import auth as auth_domain
 from solverah.domain import intake as domain
-from solverah.infra import email as email_infra
 from solverah.infra import storage
 from solverah.infra.storage import ALLOWED_MIME, MAX_BYTES
 from solverah.repositories import (
@@ -37,7 +36,7 @@ from solverah.repositories import (
     profile_repository,
     user_repository,
 )
-from solverah.services import assessment_service, audit, resume_service
+from solverah.services import assessment_service, audit, outbox, resume_service
 
 __all__ = [
     "IntakeResult",
@@ -79,12 +78,24 @@ def _error(status: int, message: str) -> IntakeResult:
 # Anonymous intake
 # ---------------------------------------------------------------------------
 
-def early_access_request(data: Dict[str, Any], logger) -> IntakeResult:
+def early_access_request(data: Dict[str, Any]) -> IntakeResult:
     """Forward the landing-page interest form to info@solverah.com.
 
-    Does not persist to the database -- the submission exists only as an email,
-    which is a real gap: a Resend outage loses the lead entirely, with only a log
-    line behind. Phase 3's transactional outbox is what fixes it.
+    **This used to be the only endpoint in the intake funnel that returned 500
+    on a mail failure, and it was right to.** Nothing was persisted -- the lead
+    existed only as an email -- so swallowing the error lost it outright, and a
+    500 at least told the visitor to try again.
+
+    Phase 3 removes the reason rather than the behaviour. The lead is now written
+    to the outbox before anything is returned, so it is durable the instant this
+    function commits and a worker retries delivery until it lands. There is no
+    longer a failure that loses it, so there is no longer a failure to report:
+    the endpoint answers 200, which is the truth -- the submission was accepted.
+
+    Still not a row in a real table. `outbox` is a queue and `purge_published`
+    deletes delivered rows, so the lead's durable home is still the recipient's
+    inbox. That is a product decision this phase does not get to make; what it
+    fixes is the window in which the lead existed nowhere at all.
     """
     first_name = (data.get("firstName") or "").strip()
     last_name = (data.get("lastName") or "").strip()
@@ -94,18 +105,19 @@ def early_access_request(data: Dict[str, Any], logger) -> IntakeResult:
     if not first_name or not last_name or not email:
         return _error(400, "First name, last name, and email are required.")
 
-    try:
-        email_infra.send_early_access_modal_notification(
-            first_name=first_name,
-            last_name=last_name,
-            email=email,
-            phone=(data.get("phone") or "").strip(),
-            preferred_contact=(data.get("preferredContact") or "").strip(),
-            career_journey=(data.get("careerJourney") or "").strip(),
-        )
-    except Exception as exc:  # noqa: BLE001 -- reported to the caller below
-        logger.error("Failed to send early access modal notification: %s", exc)
-        return _error(500, "Failed to send notification.")
+    entry_id = outbox.enqueue(
+        outbox.TOPIC_EMAIL_EARLY_ACCESS,
+        {
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": email,
+            "phone": (data.get("phone") or "").strip(),
+            "preferred_contact": (data.get("preferredContact") or "").strip(),
+            "career_journey": (data.get("careerJourney") or "").strip(),
+        },
+    )
+    db.session.commit()
+    outbox.publish_soon(entry_id)
 
     return IntakeResult(status=200, body={"ok": True})
 
@@ -177,7 +189,7 @@ def verify_upload(object_key: str, mime: str, size: int) -> Optional[str]:
     return None
 
 
-def finalize(data: Dict[str, Any], logger) -> IntakeResult:
+def finalize(data: Dict[str, Any]) -> IntakeResult:
     """Step 2 of 2: validate, confirm the upload, insert the row, notify."""
     fields = domain.parse_submission(data)
     problem = domain.validate_submission(
@@ -196,24 +208,27 @@ def finalize(data: Dict[str, Any], logger) -> IntakeResult:
 
     intake_repository.insert_submission(fields, email=fields.email, status="uploaded")
 
-    try:
-        email_infra.send_intake_notification(
-            first_name=fields.first_name,
-            last_name=fields.last_name,
-            email=fields.email,
-            state=fields.state,
-            phone=fields.phone,
-            linkedin_url=fields.linkedin_url,
-            portfolio_url=fields.portfolio_url,
-            object_key=fields.object_key,
-            mime=fields.mime,
-            size=fields.size,
-        )
-    except Exception as exc:  # noqa: BLE001 -- the row is committed; the
-        # notification is ours to chase, not the submitter's problem.
-        logger.error(
-            "Failed to send intake notification to info@solverah.com: %s", exc
-        )
+    # The notification and the submission row are one commit. Previously the row
+    # was committed by insert_submission and the email followed it, so a Resend
+    # outage left a submission nobody was told about -- recoverable only by
+    # someone thinking to query the table.
+    entry_id = outbox.enqueue(
+        outbox.TOPIC_EMAIL_INTAKE_NOTIFICATION,
+        {
+            "first_name": fields.first_name,
+            "last_name": fields.last_name,
+            "email": fields.email,
+            "state": fields.state,
+            "phone": fields.phone,
+            "linkedin_url": fields.linkedin_url,
+            "portfolio_url": fields.portfolio_url,
+            "object_key": fields.object_key,
+            "mime": fields.mime,
+            "size": fields.size,
+        },
+    )
+    db.session.commit()
+    outbox.publish_soon(entry_id)
 
     return IntakeResult(status=200, body={"ok": True})
 
@@ -273,18 +288,11 @@ def create_account(
     profile_repository.update_document(new_user.id, lambda _existing: profile_data)
 
     intake.status = "account_created"
+    entry_id = outbox.enqueue(
+        outbox.TOPIC_EMAIL_VERIFICATION, {"to": new_user.email, "code": token}
+    )
     db.session.commit()
-
-    # Send confirmation email (best-effort)
-    try:
-        email_infra.send_confirmation_email(new_user.email, token)
-    except Exception:  # noqa: BLE001 -- account exists; recoverable by resend
-        audit.log_audit_event(
-            action="email_send_failed",
-            actor_user_id=new_user.id,
-            resource="email",
-            metadata={},
-        )
+    outbox.publish_soon(entry_id)
 
     return IntakeResult(
         status=201,

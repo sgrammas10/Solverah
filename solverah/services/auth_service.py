@@ -19,8 +19,15 @@ Known issues carried forward, not fixed here:
 * :func:`login` returns the entire profile document, so session restore
   ships the whole user document.  That is the god-endpoint problem Part 5.2
   splits into ``GET /auth/session`` plus ``GET /me/profile``.
-* Email is sent inline, so a Resend outage holds a worker (P0-6).  Phase 3 moves
-  it to the ``email`` queue behind a transactional outbox.
+Resolved here in Phase 3, and worth stating because it changes two error paths:
+
+* Email is no longer sent inline.  Every send in this module writes an ``outbox``
+  row **inside the transaction that makes the change the email is about**, and a
+  worker delivers it.  ``resend_confirmation`` and ``request_password_reset``
+  used to answer 500 when Resend was unreachable -- having already rotated the
+  token, so the user was told it failed while the code in the database had
+  changed underneath them.  Both now answer 200: the row is durable, the send is
+  owed, and a retry will make it.  See ``solverah/services/outbox.py``.
 """
 
 from __future__ import annotations
@@ -31,13 +38,12 @@ from typing import Any, Dict, Optional
 
 from model import User, db
 from solverah.domain import auth as domain
-from solverah.infra import email as email_infra
 from solverah.repositories import (
     assessment_repository,
     profile_repository,
     user_repository,
 )
-from solverah.services import audit
+from solverah.services import outbox
 
 __all__ = [
     "AuthResult",
@@ -146,7 +152,16 @@ def register(
     # that cannot be read.
     db.session.flush()
     profile_repository.update_document(new_user.id, lambda _existing: profile_data)
+    # The verification email joins the same transaction as the account it
+    # verifies. Before this it was a separate call after the commit, so a Resend
+    # outage produced an account nobody could confirm and a 201 that said
+    # everything was fine -- the failure recorded only as a log line and an audit
+    # row. Now the send is a committed obligation and the worker retries it.
+    entry_id = outbox.enqueue(
+        outbox.TOPIC_EMAIL_VERIFICATION, {"to": new_user.email, "code": code}
+    )
     db.session.commit()
+    outbox.publish_soon(entry_id)
 
     return AuthResult(
         status=201,
@@ -163,27 +178,11 @@ def register(
     )
 
 
-def send_registration_code(user: User, code: str, logger) -> None:
-    """Best-effort delivery of the registration code.
-
-    Deliberately swallows the failure: the account exists, and refusing to
-    return 201 because a third party is down would leave the caller unable to
-    tell whether to retry the registration.  The failure is recorded as an audit
-    event so it is countable, and the user can recover with
-    ``POST /resend-confirmation``.
-    """
-    try:
-        email_infra.send_confirmation_email(user.email, code)
-    except Exception as exc:  # noqa: BLE001 -- see docstring
-        # id, not email: keep PII out of logs
-        logger.error("register email send failed for user %s: %s", user.id, exc)
-        audit.log_audit_event(
-            action="email_send_failed",
-            actor_user_id=user.id,
-            resource="email",
-            metadata={"error": str(exc)},
-        )
-        db.session.commit()
+# ``send_registration_code`` lived here and is gone. It existed to make the
+# post-commit Resend call best-effort -- catch, log, write an `email_send_failed`
+# audit row, commit again -- and every line of that was compensating for the send
+# being outside the transaction. It is inside it now, so there is nothing left to
+# compensate for and no second commit to make.
 
 
 # ---------------------------------------------------------------------------
@@ -282,7 +281,7 @@ def confirm_email(*, email: str, code: str) -> AuthResult:
     return AuthResult(status=200, body={"message": "email confirmed"}, user=user)
 
 
-def resend_confirmation(*, email: str, is_valid_email, logger) -> AuthResult:
+def resend_confirmation(*, email: str, is_valid_email) -> AuthResult:
     """Issue a fresh OTP for an unconfirmed account."""
     email = (email or "").strip().lower()
     if not email or not is_valid_email(email):
@@ -298,20 +297,16 @@ def resend_confirmation(*, email: str, is_valid_email, logger) -> AuthResult:
     code = domain.generate_verification_code()
     user.confirmation_token = code
     user.confirmation_sent_at = domain.utcnow()
+    # Rotating the token and owing the email are now one commit. They were two
+    # statements with a network call between them: the token in the database was
+    # already the new one when the send failed, so the 500 this used to return
+    # told the user nothing had happened while the code they had been sent
+    # earlier had just been invalidated.
+    entry_id = outbox.enqueue(
+        outbox.TOPIC_EMAIL_VERIFICATION, {"to": user.email, "code": code}
+    )
     db.session.commit()
-
-    try:
-        email_infra.send_confirmation_email(user.email, code)
-    except Exception as exc:  # noqa: BLE001 -- reported to the caller below
-        audit.log_audit_event(
-            action="email_send_failed",
-            actor_user_id=user.id,
-            resource="email",
-            metadata={"error": str(exc)},
-        )
-        # id, not email: keep PII out of logs
-        logger.error("resend_confirmation email failed for user %s: %s", user.id, exc)
-        return _error(500, "Failed to send email", detail=str(exc))
+    outbox.publish_soon(entry_id)
 
     return AuthResult(status=200, body={"message": "confirmation_sent"}, user=user)
 
@@ -320,7 +315,7 @@ def resend_confirmation(*, email: str, is_valid_email, logger) -> AuthResult:
 # Password reset (passwordless sign-in by OTP)
 # ---------------------------------------------------------------------------
 
-def request_password_reset(*, email: str, logger) -> AuthResult:
+def request_password_reset(*, email: str) -> AuthResult:
     """Send a 6-digit OTP for passwordless login.
 
     Answers 404 for an unknown or unconfirmed address, which discloses account
@@ -337,20 +332,11 @@ def request_password_reset(*, email: str, logger) -> AuthResult:
     code = domain.generate_verification_code()
     user.reset_token = code
     user.reset_sent_at = domain.utcnow()
+    entry_id = outbox.enqueue(
+        outbox.TOPIC_EMAIL_PASSWORD_RESET, {"to": user.email, "code": code}
+    )
     db.session.commit()
-
-    try:
-        email_infra.send_password_reset_email(user.email, code)
-    except Exception as exc:  # noqa: BLE001 -- reported to the caller below
-        audit.log_audit_event(
-            action="email_send_failed",
-            actor_user_id=user.id,
-            resource="email",
-            metadata={"error": str(exc)},
-        )
-        # id, not email: keep PII out of logs
-        logger.error("request_password_reset email failed for user %s: %s", user.id, exc)
-        return _error(500, "Failed to send email. Please try again.")
+    outbox.publish_soon(entry_id)
 
     return AuthResult(status=200, body={"message": "reset_sent"}, user=user)
 

@@ -47,6 +47,17 @@ the catalogue and the session with the flags **true**. `export` and
 `me-profile-after-write` are captured after all of that rather than before, so the
 `legacy_quiz` block and the two profile-document result keys are in the diff too.
 
+**Extended for Phase 3 (async and caching).** Two reads gain a Redis cache --
+`GET /companies/{id}` and `GET /me/dashboard` -- and a cached response is served
+without the handler running, so a cache that reshapes a payload is a defect only
+a byte comparison can see. Company detail was not in the 2c/2d scenario at all,
+which meant the diff protected exactly nothing about it, so the scenario now
+seeds a company and reads it. Each of the two cached routes is read **twice in a
+row**: the second read is the one that can come from Redis, and it has to be the
+same bytes as the first. With no `REDIS_URL` set the cache is inert and the pair
+proves the handler is deterministic instead -- which is why the verify step is
+worth running once each way.
+
 **The LLM is stubbed, and the prompt builders with it.** Three instruments call a
 provider; a fixture that depended on one could not produce stable bytes, and the
 narrative text is the whole payload for two of them. `_chat_json` is replaced by a
@@ -216,6 +227,36 @@ def _reset_schema(db) -> None:
     db.create_all()
 
 
+def _reset_cache() -> None:
+    """Drop every cached payload, for the same reason `_reset_schema` exists.
+
+    `_reset_schema` returns the database to a first-ever-run state, and until
+    Phase 3 that was the whole of the state a run inherited. It is not any more:
+    two reads are cached in Redis, and Redis is not dropped with the schema. A
+    second run against the same instance would therefore be served company and
+    dashboard payloads built from the *previous* run's rows -- which is a way to
+    both mask a real change and invent one that is not there, and it would look
+    like a flaky diff rather than a stale cache.
+
+    Scoped to the `solverah:` prefix rather than FLUSHDB: this script is pointed
+    at whatever `REDIS_URL` names, and that may be an instance holding a
+    developer's rate-limit counters.
+
+    A no-op with no Redis configured, which is how this script normally runs --
+    `SOLVERAH_IGNORE_DOTENV=1` and no REDIS_URL means the cache is inert and
+    there is nothing to clear. Set REDIS_URL to exercise the cached path, which
+    is the run that can catch a cache reshaping a payload.
+    """
+    from solverah.infra import cache
+
+    client = cache._get_client()
+    if client is None:
+        return
+    keys = list(client.scan_iter("solverah:*"))
+    if keys:
+        client.delete(*keys)
+
+
 def _silence_outbound_email() -> None:
     """No scenario step may depend on an SMTP server being reachable."""
     from solverah.infra import email as email_infra
@@ -258,6 +299,30 @@ def _stub_llm() -> None:
         return dict(_LLM_REPLIES[marker])
 
     assessment_service._chat_json = _canned
+
+
+#: The one company the scenario reads. Minimal on purpose: `profile_json` is
+#: echoed to the client verbatim, so every key in it is a key the diff compares,
+#: and the point is to detect a *changed* payload rather than to model a real
+#: research profile.
+CONTRACT_COMPANY = {
+    "overview": {"name": "Contract Industries", "industry": "Testing"},
+    "culture": {"pace": "steady"},
+}
+
+
+def _seed_company(db) -> None:
+    """Insert the company `company-detail` reads. Requires an app context."""
+    from model import Company
+
+    db.session.add(
+        Company(
+            name="Contract Industries",
+            slug="contract-industries",
+            profile_json=CONTRACT_COMPANY,
+        )
+    )
+    db.session.commit()
 
 
 def run_scenario() -> List[Dict[str, Any]]:
@@ -311,6 +376,8 @@ def run_scenario() -> List[Dict[str, Any]]:
 
     with app.app_context():
         _reset_schema(db)
+        _reset_cache()
+        _seed_company(db)
 
     client = app.test_client()
 
@@ -551,7 +618,18 @@ def run_scenario() -> List[Dict[str, Any]]:
     call("me-profile-after-write", "GET", "/api/v1/me/profile")
     call("session-after-write", "GET", "/api/v1/auth/session")
     call("dashboard", "GET", "/api/v1/me/dashboard")
+    # Immediately again. Phase 3 caches this read, so the second call is the one
+    # that can be answered from Redis without the handler running at all.
+    call("dashboard-cached", "GET", "/api/v1/me/dashboard")
     call("export", "GET", "/api/v1/me/export")
+
+    # -- company detail, the other cached read -----------------------------
+    #
+    # New to the scenario in Phase 3. It was never captured before, so nothing
+    # stood between a change to this payload and production.
+    call("company-detail", "GET", "/api/v1/companies/1")
+    call("company-detail-cached", "GET", "/api/v1/companies/1")
+    call("company-detail-missing", "GET", "/api/v1/companies/424242")
 
     # -- the unconfirmed account, and logout -------------------------------
     call(

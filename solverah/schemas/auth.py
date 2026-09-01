@@ -25,7 +25,6 @@ __all__ = [
     "RegisterRequest",
     "RegisterResponse",
     "ResendConfirmationRequest",
-    "SendEmailFailureResponse",
     "SessionFlags",
     "SessionResponse",
     "SessionUser",
@@ -135,17 +134,6 @@ class ConfirmEmailRequest(SolverahModel):
 
 class ResendConfirmationRequest(SolverahModel):
     email: str
-
-
-class SendEmailFailureResponse(SolverahModel):
-    """The 500 body when Resend rejects a send.
-
-    Carries ``detail`` on the resend path only, which is where the original
-    handler included it.
-    """
-
-    error: str
-    detail: Optional[str] = None
 
 
 class PasswordResetRequest(SolverahModel):

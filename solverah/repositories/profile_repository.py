@@ -48,6 +48,7 @@ from model import (
     Skill,
     db,
 )
+from solverah.infra import cache
 from solverah.domain import profile_document as document_domain
 from solverah.domain.profile_document import (
     EducationRow,
@@ -69,6 +70,7 @@ __all__ = [
     "record_resume_corrections",
     "referenced_resume_keys",
     "update_document",
+    "user_ids_missing",
 ]
 
 #: How many times a losing writer re-reads and re-applies before giving up.
@@ -542,6 +544,13 @@ def update_document(
             continue
 
         _write_children(user_id, new_state)
+        # The dashboard reads this document, so every successful swap retires its
+        # cached payload (Phase 3). Registered here, in the one write path Phase
+        # 2a left, rather than at each of the dozen callers -- an invalidation a
+        # caller can forget is one that will be forgotten, and the symptom is a
+        # stale number nobody reports. Dropped after the caller's commit, never
+        # before: see solverah/infra/cache.py.
+        cache.invalidate_on_commit(cache.dashboard_key(user_id))
         return new_document
 
     raise ConcurrentProfileUpdate(
@@ -609,6 +618,31 @@ def record_resume_corrections(
 def count_job_recommendations(user_id: int) -> int:
     """How many recommendation rows exist for this user."""
     return JobRecommendation.query.filter_by(user_id=user_id).count()
+
+
+def user_ids_missing(extra_key: str, limit: int = 500) -> List[int]:
+    """User ids whose ``profiles.extra`` has no *extra_key*. For backfills.
+
+    ``NOT (extra ? key)`` is the JSONB key-existence operator, so the filter runs
+    in the database rather than by loading every document into Python -- which
+    matters because the only caller is a sweep over accounts that have not been
+    backfilled yet, and that set starts as "all of them".
+
+    Unindexable as written: `extra` has no GIN index, so this is a sequential
+    scan of `profiles`. That is the right trade for a bounded maintenance sweep
+    and would not be for anything on a request path. Nothing on a request path
+    may call this.
+
+    Ordered by ``user_id`` and bounded by *limit*, so repeated runs make
+    progress in a stable order instead of re-reading the same page.
+    """
+    rows = db.session.execute(
+        sa.select(Profile.user_id)
+        .where(~Profile.extra.has_key(extra_key))  # noqa: W601 -- JSONB `?`, not dict
+        .order_by(Profile.user_id)
+        .limit(limit)
+    )
+    return [row[0] for row in rows]
 
 
 def has_intake_submission(email: str) -> bool:

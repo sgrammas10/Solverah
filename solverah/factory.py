@@ -24,6 +24,10 @@ The wiring order below is not arbitrary and is preserved from the original:
      and the JWT manager reads the cookie policy.
   4. Blueprints last, so ``limiter.exempt()`` and the Talisman per-view options
      can address view functions that exist.
+  5. After them, the Phase 3 adapters: the read cache and the Celery app.  The
+     queue goes last of all because importing the task modules pulls in the
+     services, and a cycle is only avoided by that import happening once
+     everything else exists.
 
 Configuration validation stays non-fatal.  Phase 0 left a note saying it would
 become fatal "in Phase 1 when create_app() owns configuration"; that is
@@ -51,6 +55,8 @@ from solverah.api.v1 import register_v1_blueprints
 from solverah.config import ConfigError, Settings
 from solverah.errors import register_error_handlers
 from solverah.extensions import bcrypt, db, jwt, limiter, migrate
+from solverah.infra.cache import init_cache
+from solverah.infra.queue import init_celery
 from solverah.observability.logging import init_logging, install_request_logging
 from solverah.validation import install_request_validation
 
@@ -421,6 +427,15 @@ def create_app(config: Optional[Mapping[str, Any]] = None) -> Flask:
 
     _register_platform_blueprints(app)
     register_v1_blueprints(app, url_prefix=V1_PREFIX)
+
+    # Async and caching (Phase 3). Both degrade to "not configured" rather than
+    # failing boot, because both are absent in CI and on a developer machine with
+    # no Redis: tasks run inline and cached reads are ordinary reads. The queue is
+    # initialised last because importing the task modules imports services, which
+    # import the blueprints' dependencies -- doing it before the blueprints are
+    # registered would only work by accident.
+    init_cache(app, settings)
+    init_celery(app, settings)
 
     app.extensions["solverah_settings"] = settings
     app.extensions["solverah_is_production"] = is_production

@@ -59,6 +59,13 @@ backups/
 # TypeScript incremental build info (`tsc -b` drops these at the repo root)
 *.tsbuildinfo
 
+# Celery beat's local schedule state (`--beat` in infra/docker/compose.yml). The
+# worker bind-mounts the repo at /app and beat writes its last-run times to its
+# working directory, so this appears at the repo root the first time the stack is
+# started. It is a shelve database, per-machine and per-run.
+celerybeat-schedule*
+celerybeat.pid
+
 # Playwright (tests/e2e). Reports and traces are per-run artifacts; the browser
 # binaries live in the user-level ms-playwright cache, not in the repo.
 test-results/

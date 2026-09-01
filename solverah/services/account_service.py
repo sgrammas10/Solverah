@@ -209,10 +209,12 @@ def export_account_data(user: User) -> AccountResult:
         ],
     }
 
-    audit.log_audit_event(
+    # `GET /me/export` is a read, so it does not commit (Phase 3, P0-3's server
+    # half). The event is still recorded -- a subject-access export is the last
+    # thing to lose a trail on -- but a worker writes the row.
+    audit.record_read_event(
         action="account_export", actor_user_id=user.id, resource="account"
     )
-    db.session.commit()
     return AccountResult(status=200, body=payload)
 
 

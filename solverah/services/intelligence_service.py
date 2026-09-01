@@ -8,11 +8,17 @@ Most of that length is the extraction, so that is what comes out first:
 the profile blob and the intake row, and the orchestration around them is now
 short enough to read in one screen.
 
-Three behaviours are preserved deliberately:
+Two behaviours are preserved deliberately, and one is gone.
 
-* **A GET that writes.**  When ``career_status`` is unset, the service tries to
-  derive it from an experience entry ending in "Present"/"Current" and commits
-  the derivation.  Same class of problem as P0-3.
+* **A GET that writes.**  When ``career_status`` was unset, the service derived
+  it from an experience entry ending in "Present"/"Current" and *committed* the
+  derivation mid-read -- the same class of problem as P0-3.  **Fixed in Phase 3.**
+  The derivation still happens and still feeds the scorer; it is simply not
+  persisted.  No backfill replaces it, unlike the culture-preferences write in
+  ``matching_service``, and the difference is that this derivation is a pure
+  function of the profile document already in hand -- there is nothing to save by
+  storing it, and storing it wrote a *guess* into a field the user is the
+  authority on.  ``PATCH /me/career-status`` remains the only thing that sets it.
 * **Empty results are a 500, not a 200.**  If scoring returns nothing for a
   complete profile, O*NET gave us nothing, and that is a transient upstream
   failure rather than a message the user can act on.
@@ -241,17 +247,14 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
     profile = profile_repository.load_document(user.id)
     career_status = profile.get("career_status")
     if not career_status:
-        # Try to derive from experience before giving up, and persist it so
-        # future calls skip the derivation entirely. This is the write on a GET
-        # noted in the module docstring.
+        # Derive from experience before giving up. This used to persist and
+        # commit the derivation -- the write on a GET named in the module
+        # docstring -- and now applies it to the in-memory document only. The
+        # scorer sees exactly what it saw before; the database does not.
         career_status = derive_career_status(profile)
         if not career_status:
             return _error(400, "career_status_not_set")
-        derived = career_status
-        profile = profile_repository.update_document(
-            user.id, lambda existing: {**existing, "career_status": derived}
-        )
-        db.session.commit()
+        profile = {**profile, "career_status": career_status}
 
     user_profile = build_user_profile(profile, user.intake, career_status)
 

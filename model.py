@@ -1226,6 +1226,140 @@ class Resume(db.Model):
     )
 
 
+# ---------------------------------------------------------------------------
+# Platform tables (Part 4.7, Phase 3)
+# ---------------------------------------------------------------------------
+
+
+class Outbox(db.Model):
+    """Domain events and emails that commit with the business write.
+
+    Part 4.7, verbatim: the columns here are the ones that section declares and
+    nothing else. It is the fix for "the email send failed so the request 500'd"
+    -- registration used to create the account, commit it, then call Resend
+    inline, so a provider blip turned a successful registration into either a
+    500 or a silently missing verification code depending on which caller you
+    landed in.
+
+    The mechanism is one property: the row is inserted into the *caller's*
+    transaction and never committed by itself, so "the account exists" and "the
+    email is owed" become the same commit. Either both happened or neither did.
+    A worker publishes afterwards (``solverah/services/outbox.py``), and if the
+    worker never runs, the row is still there.
+
+    NOT partitioned, unlike `audit_log`, `match_recommendation` and `rec_action`.
+    Those three are append-only and unbounded, and partitioning is what lets a
+    month be dropped in constant time. This table is a *queue*: rows are written,
+    published within seconds, and swept once published. Its steady-state size is
+    the backlog, not the history, so range partitions would be empty overhead --
+    and a partitioned table would force `created_at` into the primary key, which
+    would in turn make the by-id claim in `publish` a partition scan.
+
+    `attempts` is incremented on every publish try, successful or not. It is the
+    only failure state the table carries, which is deliberate: a `last_error`
+    column would put provider text -- an address, a bounce reason -- in a second
+    place, and the logs already carry it beside the row id. `drain` stops
+    retrying a row once `attempts` reaches its ceiling, so a permanently bad
+    payload parks rather than spinning.
+
+    Payloads hold what the send needs, which for the two OTP topics is an address
+    and a code. Neither is new exposure -- `users.confirmation_token` already
+    stores the same code in plaintext -- but it does mean this table holds PII,
+    and `purge_published` is what bounds how long.
+    """
+
+    __tablename__ = "outbox"
+
+    id = db.Column(db.BigInteger, db.Identity(always=True), primary_key=True)
+    topic = db.Column(db.Text, nullable=False)
+    payload = db.Column(JSONB, nullable=False, default=dict)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    published_at = db.Column(db.DateTime(timezone=True))
+    attempts = db.Column(db.SmallInteger, nullable=False, server_default=db.text("0"))
+
+    __table_args__ = (
+        # Partial, on the unpublished rows only. The drain query is
+        # `WHERE published_at IS NULL ORDER BY created_at`, and the whole point
+        # is that its cost tracks the backlog rather than the table: a published
+        # row is not in this index at all.
+        db.Index(
+            "ix_outbox_unpublished",
+            "created_at",
+            postgresql_where=db.text("published_at IS NULL"),
+        ),
+    )
+
+
+class ResumeParseJob(db.Model):
+    """One resume parse taken off the request path (Phase 3, item 3).
+
+    `POST /me/resumes/{id}/parse-jobs` inserts a row and answers 202 with its
+    `public_id`; a worker on the `default` queue does the parse; `GET
+    /me/resume-parse-jobs/{job_id}` reports what happened. The synchronous
+    `POST /me/resumes/{id}/complete` is untouched and still works -- this is a
+    contract addition, and the old path stays until the frontend moves.
+
+    A table rather than Celery's result backend, and the difference matters
+    twice. The result backend is Redis, so the status endpoint would answer 404
+    for every job the moment Redis restarted -- for work that had actually
+    succeeded. And a result backend is a transport detail with a TTL, not a
+    record of what a user asked the product to do; `attempts`, the object key,
+    and the failure reason are all things support needs after the TTL expires.
+
+    Terminal states are `succeeded` and `failed`. `queued` and `running` are not
+    terminal and a row can sit in either if a worker dies mid-parse, which is
+    what `reap_stalled` in the maintenance sweep is for.
+    """
+
+    __tablename__ = "resume_parse_jobs"
+
+    #: The four states a job can be in. Declared rather than left as free text so
+    #: the status endpoint's schema and the worker agree on one vocabulary.
+    STATUSES = ("queued", "running", "succeeded", "failed")
+
+    id = db.Column(db.BigInteger, db.Identity(always=True), primary_key=True)
+    #: The handle on the wire. The integer `id` is never published: it enumerates,
+    #: and P1-8 already names that as a defect in the tables that do it.
+    public_id = db.Column(
+        UUID(as_uuid=True), nullable=False, server_default=db.text("uuidv7()")
+    )
+    user_id = db.Column(
+        db.BigInteger, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    object_key = db.Column(db.Text, nullable=False)
+    mime = db.Column(db.Text, nullable=False)
+    size_bytes = db.Column(db.BigInteger, nullable=False, default=0)
+    resume_name = db.Column(db.Text)
+    status = db.Column(db.Text, nullable=False, default="queued")
+    #: Present only on `failed`, and it is the message the client is shown. It is
+    #: written from a caught exception, so it must never carry a storage path or a
+    #: provider response -- `resume_tasks` maps to a fixed set of reasons.
+    error = db.Column(db.Text)
+    attempts = db.Column(db.SmallInteger, nullable=False, server_default=db.text("0"))
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.Index("uq_resume_parse_jobs_public_id", "public_id", unique=True),
+        db.Index("ix_resume_parse_jobs_user", "user_id", db.text("created_at DESC")),
+        db.Index(
+            "ix_resume_parse_jobs_pending",
+            "created_at",
+            postgresql_where=db.text("status IN ('queued', 'running')"),
+        ),
+        db.CheckConstraint(
+            "status IN ('queued', 'running', 'succeeded', 'failed')",
+            name="ck_resume_parse_jobs_status",
+        ),
+    )
+
+
 # `updated_at` is the database's job, not the application's (Part 4.1 rule 5).
 # Attached per table rather than declared once because a trigger is DDL and has
 # to be emitted after the table it fires on -- for `db.create_all()` in the tests
@@ -1241,6 +1375,7 @@ for _triggered_table in (
     ProfileExperience.__table__,
     ProfileEducation.__table__,
     ProfileSkill.__table__,
+    ResumeParseJob.__table__,
 ):
     sa_event.listen(
         _triggered_table,

@@ -81,9 +81,23 @@ services:
 
   redis:
     image: redis:7-alpine
-    # Shared backend for rate limiting. Without it, Flask-Limiter counts
-    # per-worker: configured limits are N-workers times looser and reset on
-    # every deploy.
+    # Three jobs on one instance, by design: rate-limit counters, the Celery
+    # broker and result backend, and the read cache. `solverah/config.py` reads
+    # REDIS_URL for all three so one variable configures the platform's shared
+    # state instead of three that can disagree.
+    #
+    # Without it, Flask-Limiter counts per-worker -- configured limits are
+    # N-workers times looser and reset on every deploy -- Celery falls back to
+    # running tasks inline in the web process, and cached reads become ordinary
+    # reads. All three degrade rather than fail, which is what lets CI run with
+    # no Redis at all.
+    #
+    # `--save "" --appendonly no` means nothing here survives a restart. That is
+    # right for counters and a cache and it is NOT right for a broker holding
+    # queued work: a restart drops every message in flight. It is acceptable
+    # locally because every producer in this system commits a durable row before
+    # it enqueues -- `outbox` and `resume_parse_jobs` -- and the sweeps re-drive
+    # anything the broker lost. Production should still persist.
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
       - "6379:6379"
@@ -163,6 +177,67 @@ services:
       - --threads=4
       - --reload
       - --access-logfile=-
+
+  worker:
+    # Celery worker (docs/ARCHITECTURE.md Phase 3). Runs the work that used to
+    # block a request: outbox publication -- so every email in the system now
+    # leaves from here -- resume parsing, and the maintenance sweeps.
+    #
+    # Same image and same source mount as `api`, deliberately. A worker running
+    # different code from the API is a worker that deserialises a message the API
+    # wrote and cannot handle it, and the two drifting apart is the failure that
+    # is hardest to see coming.
+    #
+    # Not `SOLVERAH_IGNORE_DOTENV`: the entrypoint loads `.env` exactly as
+    # `app.py` does, so RESEND_API_KEY from a developer's file reaches the
+    # publisher and outbox rows are actually delivered. Without one they park
+    # unpublished with a rising `attempts`, which is the correct behaviour and is
+    # visible in the table.
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+    environment:
+      APP_ENV: development
+      LOG_FORMAT: console
+      LOG_LEVEL: INFO
+      DATABASE_URL: postgresql://solverah:solverah@db:5432/solverah
+      REDIS_URL: redis://redis:6379/0
+      # Read by Settings even though a worker serves no cookies: create_app()
+      # validates the whole environment at once and would log this as a
+      # configuration problem at CRITICAL on every worker boot.
+      JWT_SECRET_KEY: local-development-only-not-a-real-secret
+      JWT_COOKIE_SECURE: "false"
+      JWT_COOKIE_SAMESITE: Lax
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY_ID: solverah
+      S3_SECRET_ACCESS_KEY: solverah-dev-secret
+      S3_BUCKET_NAME: solverah-resumes
+      FRONTEND_URL: http://localhost:5173
+    volumes:
+      - ../..:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command:
+      - celery
+      - --app=solverah.worker:celery_app
+      - worker
+      # All five on one worker. Right for a laptop and wrong for production,
+      # where the point of the split is scaling them independently -- a fleet of
+      # `llm` workers at concurrency 1 beside two `email` workers that answer in
+      # milliseconds. Named here rather than defaulted in code so that is a
+      # deploy argument and not a code change.
+      - --queues=default,llm,email,scoring,maintenance
+      - --concurrency=2
+      # Embedded beat, which runs the sweep schedule in `solverah/infra/queue.py`
+      # -- the outbox drain above all, without which a failed send is never
+      # retried. Embedded is a development convenience and Celery says so:
+      # production runs `celery beat` as its own single process, because two
+      # workers each with `-B` schedule every task twice.
+      - --beat
+      - --loglevel=INFO
 
 volumes:
   pgdata:
