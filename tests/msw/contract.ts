@@ -27,7 +27,7 @@
  */
 import { http, HttpResponse, type HttpHandler, type HttpResponseResolver } from "msw";
 
-import type { paths } from "../../src/api/schema";
+import type { paths } from "../../src/shared/api/schema";
 
 /** Every path the contract describes. */
 export type ApiPath = keyof paths;

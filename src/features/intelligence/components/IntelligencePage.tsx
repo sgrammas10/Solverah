@@ -1,0 +1,406 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { Lock } from "lucide-react";
+import { useWP } from "../../assessments";
+import type { WpApiResponse } from "../../assessments";
+import { useAuth } from "../../auth";
+import { useProfileForm } from "../../profile";
+import { useProfile } from "../../profile";
+import AssessmentsTab from "./AssessmentsTab";
+import type { FocusTypeResult } from "../../assessments";
+import { useMM } from "../../assessments";
+import type { MMResult } from "../../assessments";
+
+const ECOSYSTEM_STEPS = [
+  { label: "Work Pulse Lite" },
+  { label: "Work Pulse" },
+  { label: "FocusType" },
+  { label: "ManagerMatch" },
+  { label: "CompanyLens" },
+  { label: "Future Path" },
+];
+
+const LOCKED_CARDS = [
+  {
+    title: "CompanyLens™",
+    subtitle: "Company environment and cultural alignment",
+    description:
+      "See which real companies match your work patterns and sustainability signals.",
+  },
+];
+
+type FetchState = "loading" | "error" | "success";
+
+export default function IntelligencePage() {
+  const navigate = useNavigate();
+  const { fetchWithAuth, user } = useAuth();
+  const { state, setCachedResult } = useWP();
+  const { formData } = useProfileForm();
+
+  const hasCached = state.cachedResult !== null;
+  const [fetchState, setFetchState] = useState<FetchState>(
+    !user?.wpl_completed || hasCached ? "success" : "loading"
+  );
+  const [result, setResult] = useState<WpApiResponse | null>(state.cachedResult);
+  const hasFiredRef = useRef(false);
+
+  const { state: mmState } = useMM();
+
+  const { data: profile, isLoading: profileLoading } = useProfile();
+  const focusTypeResult = profile?.focus_type_result as FocusTypeResult | undefined;
+  const managerMatchResult =
+    mmState.cachedResult ?? (profile?.manager_match_result as MMResult | undefined);
+
+  const fetchFromServer = useCallback(async () => {
+    setFetchState("loading");
+    try {
+      const data = await fetchWithAuth<WpApiResponse>("/me/assessments/work_pulse/result");
+      setResult(data);
+      setCachedResult(data);
+      setFetchState("success");
+    } catch {
+      setFetchState("error");
+    }
+  }, [fetchWithAuth, setCachedResult]);
+
+  useEffect(() => {
+    if (!user?.wpl_completed) return;
+    if (hasCached) return;
+    if (!hasFiredRef.current) {
+      hasFiredRef.current = true;
+      fetchFromServer();
+    }
+  // Re-runs when wpl_completed flips true (e.g. user navigated here mid-submission via the header)
+  }, [user?.wpl_completed]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // profileLoading joins the existing gate rather than getting its own branch:
+  // the FocusType and ManagerMatch cards below render straight off the document,
+  // and showing "Start FocusType" to someone who has finished it -- for the one
+  // render before the query resolves -- is a worse artefact than a spinner.
+  // The document *failing* is not folded in here: useProfile throws it to
+  // RouteErrorBoundary, so it cannot arrive as a permanently empty document and
+  // draw those cards as "not started" (or fall through to `return null`).
+  if (fetchState === "loading" || profileLoading) {
+    return (
+      <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
+        <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
+        <p className="text-sm text-ink-secondary">Loading your profile…</p>
+      </div>
+    );
+  }
+
+  if (fetchState === "error") {
+    return (
+      <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
+        <div className="max-w-sm w-full rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+          <p className="font-medium mb-1">We couldn't load your profile right now.</p>
+          <p className="text-xs">Please try again in a moment.</p>
+          <button
+            type="button"
+            onClick={fetchFromServer}
+            className="mt-3 text-xs font-semibold text-red-700 underline"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user?.wpl_completed) {
+    return (
+      <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center px-6 text-center">
+        <div className="max-w-sm space-y-4">
+          <h1 className="font-display text-2xl font-semibold text-ink-primary">
+            Complete Work Pulse to unlock your profile.
+          </h1>
+          <p className="text-sm text-ink-secondary leading-relaxed">
+            Work Pulse takes about 4 minutes and gives you a personalized
+            narrative, your work archetype, and the foundation of your Solverah
+            profile.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/work-pulse")}
+            className="w-full bg-forest-dark text-white font-semibold py-3 rounded hover:bg-forest-mid transition-colors"
+          >
+            Start Work Pulse
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!result) return null;
+
+  return (
+    <div className="min-h-screen bg-cream-base">
+      <div className="mx-auto max-w-3xl px-6 pt-12 pb-20 space-y-8">
+
+        {/* Header */}
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
+            Your Intelligence Hub
+          </p>
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
+            Everything we know about how you work.
+          </h1>
+          <p className="text-sm text-ink-secondary pt-1">
+            Your profile grows as you complete more of the Solverah ecosystem.
+          </p>
+        </div>
+
+        {/* Progress indicator */}
+        <div className="flex items-start gap-2 sm:gap-4 overflow-x-auto pb-1">
+          {ECOSYSTEM_STEPS.map((step, i) => {
+            const complete =
+              i < 2 ||
+              (i === 2 && !!focusTypeResult) ||
+              (i === 3 && !!managerMatchResult);
+            return (
+              <div key={step.label} className="flex flex-col items-center gap-1.5 min-w-[56px]">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                    complete
+                      ? "bg-forest-dark text-white"
+                      : "bg-cream-muted text-ink-tertiary"
+                  }`}
+                >
+                  {complete ? "✓" : ""}
+                </div>
+                <span className="text-xs text-ink-secondary text-center leading-tight">
+                  {step.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* WorkPulse card — unlocked */}
+        <div className="rounded-xl border border-forest-light bg-forest-pale px-6 py-6 space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
+            ✦ Unlocked · Work Pulse™
+          </p>
+          <p className="font-display text-2xl font-semibold text-forest-dark">
+            {result.archetype}
+          </p>
+          {result.archetype_description && (
+            <p className="text-sm text-ink-primary leading-relaxed">
+              {result.archetype_description}
+            </p>
+          )}
+          {result.emerging_signals.length > 0 && (
+            <>
+              <hr className="border-forest-light/30" />
+              <div className="flex flex-wrap gap-2">
+                {result.emerging_signals.map((signal) => (
+                  <span
+                    key={signal.title}
+                    className="rounded-full border border-forest-light bg-white px-3 py-1 text-xs font-semibold text-forest-mid"
+                  >
+                    {signal.title}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => navigate("/work-pulse/results")}
+            className="text-sm font-semibold text-forest-dark hover:underline"
+          >
+            View full Work Pulse analysis →
+          </button>
+        </div>
+
+        {/* Ecosystem cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+          {/* FocusType — completed */}
+          {focusTypeResult ? (
+            <div className="rounded-xl border border-forest-light bg-forest-pale px-5 py-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-1">
+                ✦ Unlocked · FocusType™
+              </p>
+              <p className="font-display text-lg font-semibold text-forest-dark mb-3">
+                {focusTypeResult.archetype}
+              </p>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate("/focus-type/results", {
+                      state: { result: focusTypeResult },
+                    })
+                  }
+                  className="text-sm font-semibold text-forest-dark hover:underline"
+                >
+                  View results →
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/focus-type", { state: { retake: true } })}
+                  className="text-xs text-ink-tertiary hover:underline"
+                >
+                  Retake
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* FocusType — not started */
+            <div className="rounded-xl border border-cream-muted bg-white px-5 py-5">
+              <p className="text-sm font-semibold text-ink-primary">FocusType™</p>
+              <p className="text-xs text-ink-secondary mt-0.5 mb-2">
+                Attention, focus, and energy patterns
+              </p>
+              <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+                Understand how your attention works and which environments protect it.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/focus-type")}
+                className="bg-forest-dark text-white font-semibold px-3 py-1.5 rounded text-xs hover:bg-forest-mid"
+              >
+                Start FocusType™ →
+              </button>
+            </div>
+          )}
+
+          {/* ManagerMatch — completed */}
+          {managerMatchResult ? (
+            <div className="rounded-xl border border-forest-light bg-forest-pale px-5 py-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-1">
+                ✦ Unlocked · ManagerMatch™
+              </p>
+              <p className="font-display text-lg font-semibold text-forest-dark mb-3">
+                {managerMatchResult.archetype}
+              </p>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => navigate("/manager-match/results")}
+                  className="text-sm font-semibold text-forest-dark hover:underline"
+                >
+                  View results →
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/manager-match", { state: { retake: true } })}
+                  className="text-xs text-ink-tertiary hover:underline"
+                >
+                  Retake
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* ManagerMatch — not started */
+            <div className="rounded-xl border border-cream-muted bg-white px-5 py-5">
+              <p className="text-sm font-semibold text-ink-primary">ManagerMatch™</p>
+              <p className="text-xs text-ink-secondary mt-0.5 mb-2">
+                Leadership and management alignment
+              </p>
+              <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+                Discover which management styles bring out your best — and which create friction.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/manager-match")}
+                className="bg-forest-dark text-white font-semibold px-3 py-1.5 rounded text-xs hover:bg-forest-mid"
+              >
+                Start ManagerMatch™ →
+              </button>
+            </div>
+          )}
+
+          {/* CompanyLens card — unlocks after Work Pulse */}
+          {user?.wpl_completed ? (
+            <div className="rounded-xl border border-forest-light bg-forest-pale px-5 py-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-1">
+                ✦ Ready · CompanyLens™
+              </p>
+              <p className="font-display text-lg font-semibold text-forest-dark mb-1">
+                Your company matches are ready.
+              </p>
+              <p className="text-xs text-forest-dark leading-relaxed mb-4">
+                See which companies match how you work — and which ones to approach carefully.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/company-lens")}
+                className="bg-forest-dark text-white font-semibold px-3 py-1.5 rounded text-xs hover:bg-forest-mid transition-colors"
+              >
+                Open CompanyLens™ →
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-cream-muted bg-white px-5 py-5 opacity-60 relative">
+              <Lock className="absolute top-4 right-4 w-4 h-4 text-ink-tertiary" />
+              <p className="text-sm font-semibold text-ink-primary pr-6">CompanyLens™</p>
+              <p className="text-xs text-ink-secondary mt-0.5 mb-2">Company environment and cultural alignment</p>
+              <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+                Complete Work Pulse to unlock company matching.
+              </p>
+              <button
+                type="button"
+                disabled
+                className="border border-cream-muted text-ink-tertiary text-xs font-semibold px-3 py-1.5 rounded cursor-not-allowed"
+              >
+                Unlocks after Work Pulse
+              </button>
+            </div>
+          )}
+
+          {/* Other locked cards */}
+          {LOCKED_CARDS.filter((c) => c.title !== "CompanyLens™").map((card) => (
+            <div
+              key={card.title}
+              className="rounded-xl border border-cream-muted bg-white px-5 py-5 relative opacity-60"
+            >
+              <Lock className="absolute top-4 right-4 w-4 h-4 text-ink-tertiary" />
+              <p className="text-sm font-semibold text-ink-primary pr-6">{card.title}</p>
+              <p className="text-xs text-ink-secondary mt-0.5 mb-2">{card.subtitle}</p>
+              <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+                {card.description}
+              </p>
+              <button
+                type="button"
+                disabled
+                className="border border-cream-muted text-ink-tertiary text-xs font-semibold px-3 py-1.5 rounded cursor-not-allowed"
+              >
+                Unlocks with Work Pulse Pro
+              </button>
+            </div>
+          ))}
+
+          {/* Path Intelligence */}
+          <div className="rounded-xl border border-cream-muted bg-white px-5 py-5">
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-sm font-semibold text-ink-primary">Path Intelligence</p>
+              <span className="rounded-full bg-forest-pale border border-forest-light px-2 py-0.5 text-xs font-semibold text-forest-mid">
+                Pro
+              </span>
+            </div>
+            <p className="text-xs text-ink-secondary mt-0.5 mb-2">
+              Career path scoring and guidance
+            </p>
+            <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+              See which career paths best match your skills and profile, with plain-language
+              guidance on why each one fits.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/intelligence/paths")}
+              className="bg-forest-dark text-white font-semibold px-3 py-1.5 rounded text-xs hover:bg-forest-mid transition-colors"
+            >
+              View Your Paths →
+            </button>
+          </div>
+        </div>
+
+        {/* Assessments section */}
+        <AssessmentsTab formData={formData} />
+
+      </div>
+    </div>
+  );
+}

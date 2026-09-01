@@ -28,8 +28,8 @@
 import { HttpResponse } from "msw";
 
 import { mock } from "./contract";
-import type { components } from "../../src/api/schema";
-import type { ScoringJobKind, ScoringJobResult } from "../../src/hooks/useScoringJob";
+import type { components } from "../../src/shared/api/schema";
+import type { ScoringJobKind, ScoringJobResult } from "../../src/features/assessments/useScoringJob";
 
 type ScoringJobAccepted = components["schemas"]["ScoringJobAccepted"];
 type PathSuggestionJobAccepted = components["schemas"]["PathSuggestionJobAccepted"];

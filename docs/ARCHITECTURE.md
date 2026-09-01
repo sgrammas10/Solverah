@@ -345,7 +345,7 @@ solverah/
 │       │   ├── app/                   # router, providers, shell, error boundaries
 │       │   ├── features/              # vertical slices — the unit of ownership
 │       │   │   ├── auth/  profile/  assessments/  companies/
-│       │   │   ├── matching/  intelligence/  intake/  agent/
+│       │   │   ├── matching/  intelligence/  intake/  agent/  landing/   # landing: ninth slice, added in Phase 4 — the prelaunch/marketing/legal pages fit none of the eight
 │       │   │   └── <slice>/ { api.ts · queries.ts · components/ · types.ts · index.ts }
 │       │   ├── shared/
 │       │   │   ├── api/               # generated client, queryClient, problem-details

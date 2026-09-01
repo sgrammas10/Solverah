@@ -15,7 +15,7 @@
 import { HttpResponse } from "msw";
 
 import { mock } from "./contract";
-import type { components } from "../../src/api/schema";
+import type { components } from "../../src/shared/api/schema";
 
 type SummaryUser = components["schemas"]["SummaryUser"];
 type SessionFlags = components["schemas"]["SessionFlags"];
