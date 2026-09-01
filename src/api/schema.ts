@@ -89,9 +89,9 @@ export interface paths {
         put?: never;
         /**
          * Queue an assessment scoring and return a job handle
-         * @description Asynchronous counterpart to `POST /assessments/{kind}/submissions`. Identical request body; answers `202` with a job handle instead of blocking on the provider. Poll `GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is `succeeded` or `failed`.
+         * @description The only way the provider-scored instruments score since Phase 3c. Takes the body `POST /assessments/{kind}/submissions` used to take for these kinds; answers `202` with a job handle instead of blocking on the provider. Poll `GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is `succeeded` or `failed`.
          *
-         *     Only the three provider-scored instruments have this operation: `work_pulse`, `wpll`, `manager_match`. `core` and `focus_type` score deterministically in-process and answer `404` here -- they are served by the synchronous route, which remains available for all five.
+         *     Only the three provider-scored instruments have this operation: `work_pulse`, `wpll`, `manager_match`. `core` and `focus_type` score deterministically in-process and answer `404` here -- they are served by the synchronous submit route, which since Phase 3c serves only them.
          *
          *     **This shares one rate-limit budget with the synchronous submit for the same instrument.** The limit bounds provider spend, and spend does not move when the call moves to a worker (A9), so queueing and submitting draw on the same allowance rather than two.
          */
@@ -135,9 +135,9 @@ export interface paths {
         put?: never;
         /**
          * Submit a completed assessment
-         * @description Replaces the five submit handlers Phase 1a inherited. `{kind}` is one of `core`, `work_pulse`, `wpll`, `focus_type`, `manager_match`, and it selects both the request body and the response body -- the route is shared, the payloads are not. The `anyOf` on each is the union of the five real schemas; the path parameter says which member applies, which is why this cannot be an OpenAPI discriminated union (3.1 keys a discriminator off a property of the payload, not off the URL).
+         * @description Serves the two rules-scored instruments, `core` and `focus_type`, which score deterministically in-process and stay synchronous by design (A19). `{kind}` selects both the request body and the response body -- the route is shared, the payloads are not.
          *
-         *     `wpll` is the one kind that needs no JWT: it is the anonymous teaser on the pre-launch funnel. The other four require one, and CSRF with it.
+         *     The three provider-scored kinds -- `work_pulse`, `wpll`, `manager_match` -- answer `410 Gone` here since Phase 3c: their scoring moved off the request path, and the problem document's `replaced_by` names the `POST /assessments/{kind}/scoring-jobs` operation that took it.
          */
         post: operations["post_assessments_assessment_kind_submit"];
         delete?: never;
@@ -712,11 +712,11 @@ export interface paths {
         put?: never;
         /**
          * Queue a path-suggestion scoring and return a job handle
-         * @description Asynchronous counterpart to `GET /me/path-suggestions`, which fans out to O*NET and OpenAI inside the request. Answers `202` with a job handle; poll `GET /me/path-suggestion-jobs/{job_id}` until `status` is `succeeded` or `failed`. The synchronous `GET` is unchanged and remains available.
+         * @description The only way path suggestions are computed since Phase 3c. Queues the O*NET and OpenAI fan-out and answers `202` with a job handle; poll `GET /me/path-suggestion-jobs/{job_id}` until `status` is `succeeded` or `failed`.
          *
-         *     A succeeded job also warms the per-user cache the `GET` reads, so a client part-way through the migration can queue the work and then read the old endpoint without paying for the scoring twice.
+         *     A succeeded job warms the per-user cache `GET /me/path-suggestions` serves, so the payload can be re-read there without paying for the scoring twice.
          *
-         *     Rate limited. The synchronous `GET` is not, because it is naturally self-limiting -- the caller waits for the fan-out and a repeat is a cache hit. An enqueue returns immediately and can be issued in a loop, so the budget that bounds provider spend has to live here (A9).
+         *     Rate limited, and the cache-reading `GET` is not: an enqueue returns immediately and can be issued in a loop, so the budget that bounds provider spend has to live here (A9).
          */
         post: operations["post_intelligence_post_my_path_suggestion_job"];
         delete?: never;
@@ -762,15 +762,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Score and narrate career path suggestions
-         * @description GET /me/path-suggestions - scored and narrated career paths.
+         * Read the cached career path suggestions
+         * @description Serves the per-user cache that a succeeded path-suggestion job populates; the cache is invalidated when Work Pulse results, experience entries, or ManagerMatch results change.
          *
-         *     Cached per user; the cache is invalidated when Work Pulse results,
-         *     experience entries, or ManagerMatch results change.
-         *
-         *     Part 5.2 has a cache miss answering 202 and enqueueing the work. It does not
-         *     yet -- there is no queue until Phase 3, and a 202 for work that then runs
-         *     inline would hand the client a job to poll that has already finished.
+         *     A miss is `404` and computes nothing: the problem document's `start_job_url` names `POST /me/path-suggestion-jobs`, which queues the O*NET and OpenAI fan-out this route performed inline before Phase 3c and whose poll returns the same payload this serves.
          */
         get: operations["get_intelligence_get_path_suggestions"];
         put?: never;
@@ -940,36 +935,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/me/resumes/{resume_id}/complete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Parse an uploaded resume into the profile
-         * @description POST /me/resumes/{resume_id}/complete - parse the upload. Step 2 of 2.
-         *
-         *     Downloads the object, runs the rule-based parser, and merges the parsed
-         *     experience, education, and skills into the profile. Stores a
-         *     _parsedResumeSnapshot so later edits can be diffed against what the parser
-         *     produced (see ResumeParseCorrection).
-         *
-         *     Parsing runs inline, which is P0-6. Part 5.2 has this returning 202 with a
-         *     job handle; it will, when Phase 3's queue exists. Returning one now for work
-         *     that finished synchronously would give the client something to poll that is
-         *     already done.
-         */
-        post: operations["post_me_post_my_resume_complete"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/me/resumes/{resume_id}/download-url": {
         parameters: {
             query?: never;
@@ -1005,9 +970,7 @@ export interface paths {
         put?: never;
         /**
          * Queue a resume parse and return a job handle
-         * @description Asynchronous counterpart to `POST /me/resumes/{resume_id}/complete`. Identical request body; answers `202` with a job handle instead of blocking for the parse. Poll `GET /me/resume-parse-jobs/{job_id}` until `status` is `succeeded` or `failed`.
-         *
-         *     The synchronous endpoint is unchanged and remains available.
+         * @description Step 2 of 2 of a resume upload, and the only step 2 since Phase 3c deleted the synchronous `POST /me/resumes/{resume_id}/complete`. Answers `202` with a job handle instead of blocking for the parse. Poll `GET /me/resume-parse-jobs/{job_id}` until `status` is `succeeded` or `failed`.
          */
         post: operations["post_me_post_my_resume_parse_job"];
         delete?: never;
@@ -2796,7 +2759,12 @@ export interface components {
         };
         /**
          * ResumeCompleteRequest
-         * @description ``POST /me/resumes/{resume_id}/complete`` -- the file is uploaded; parse it.
+         * @description ``POST /me/resumes/{resume_id}/parse-jobs`` -- the file is uploaded; parse it.
+         *
+         *     Named for the synchronous ``/complete`` route it was written for, which
+         *     Phase 3c deleted; the job route took the identical body, so the model
+         *     survives its first consumer. Renaming it would churn every generated
+         *     client for a cosmetic gain.
          */
         ResumeCompleteRequest: {
             /** Mime */
@@ -2810,24 +2778,6 @@ export interface components {
             /** Size */
             size: number;
         };
-        /**
-         * ResumeCompleteResponse
-         * @description The profile after the parsed resume was merged into it.
-         *
-         *     Parsing still runs inline, which is P0-6. Part 5.2 has this returning 202
-         *     with a job handle; it does not do that yet, and returning a 202 for work
-         *     that finished synchronously would be a lie the client would have to poll
-         *     against. It becomes a 202 when Phase 3's queue exists.
-         */
-        ResumeCompleteResponse: {
-            /**
-             * Profile
-             * @description The profile document. Assembled from the profile tables since Phase 2a; open-ended because the unpromoted keys genuinely vary per user.
-             */
-            profile?: {
-                [key: string]: unknown;
-            };
-        };
         /** ResumeDownloadResponse */
         ResumeDownloadResponse: {
             /**
@@ -2840,10 +2790,9 @@ export interface components {
          * ResumeParseJobAccepted
          * @description ``202`` from ``POST /me/resumes/{resume_id}/parse-jobs``.
          *
-         *     Part 5.2's ``202 + job handle``, added in Phase 3 alongside the synchronous
-         *     ``/complete`` rather than replacing it: a client cannot move from awaiting a
-         *     200 to polling a job in the same deploy that first gives it something to
-         *     poll. ``/complete`` keeps working until the frontend has moved.
+         *     Part 5.2's ``202 + job handle``. 3a added it alongside the synchronous
+         *     ``/complete``; 3c deleted that route once the frontend had moved, so this
+         *     is the only way a parse starts.
          */
         ResumeParseJobAccepted: {
             /**
@@ -2869,9 +2818,9 @@ export interface components {
          *     ``status`` is one of ``queued``, ``running``, ``succeeded``, ``failed``; the
          *     last two are terminal and a client should stop polling on either.
          *
-         *     ``profile`` is present only on ``succeeded``, and carries what ``/complete``
-         *     would have returned -- so the two paths hand back the same document and the
-         *     client's merge logic does not fork. ``error`` is present only on ``failed``
+         *     ``profile`` is present only on ``succeeded``, and is the full current
+         *     profile document -- what the synchronous ``/complete`` returned before 3c
+         *     deleted it. ``error`` is present only on ``failed``
          *     and is a fixed message: parse failures come from pdfminer, python-docx and
          *     botocore, whose text carries bucket names and object keys.
          */
@@ -2926,7 +2875,7 @@ export interface components {
             max_bytes: number;
             /**
              * Resume Id
-             * @description Opaque id. Pass to /me/resumes/{id}/complete.
+             * @description Opaque id. Pass to /me/resumes/{id}/parse-jobs.
              */
             resume_id: string;
             /**
@@ -3571,6 +3520,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
                 };
             };
             /** @description Internal server error */
@@ -4865,26 +4823,8 @@ export interface operations {
                     "application/json": components["schemas"]["PathSuggestionsResponse"];
                 };
             };
-            /** @description Bad request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyError"];
-                };
-            };
             /** @description Not found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyError"];
-                };
-            };
-            /** @description Internal server error */
-            500: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5170,59 +5110,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResumeTicketResponse"];
-                };
-            };
-            /** @description Bad request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyError"];
-                };
-            };
-            /** @description Not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyError"];
-                };
-            };
-            /** @description Unexpected error (RFC 9457 problem document) */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
-                };
-            };
-        };
-    };
-    post_me_post_my_resume_complete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                resume_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ResumeCompleteRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ResumeCompleteResponse"];
                 };
             };
             /** @description Bad request */
