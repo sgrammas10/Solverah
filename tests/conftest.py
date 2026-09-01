@@ -80,7 +80,7 @@ os.environ.setdefault("APP_ENV", "testing")
 #
 # `solverah_test`, not `solverah` -- see TEST_DATABASE_URL above.
 os.environ.setdefault("DATABASE_URL", TEST_DATABASE_URL)
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
+os.environ.setdefault("JWT_SECRET_KEY", "test-jwt-secret-not-a-real-one-32-bytes-min")
 os.environ.setdefault("JWT_COOKIE_SECURE", "false")
 os.environ.setdefault("JWT_COOKIE_SAMESITE", "Lax")
 

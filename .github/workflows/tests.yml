@@ -142,7 +142,7 @@ jobs:
         env:
           APP_ENV: testing
           DATABASE_URL: postgresql://solverah:solverah@localhost:5432/solverah
-          JWT_SECRET_KEY: test-secret
+          JWT_SECRET_KEY: test-jwt-secret-not-a-real-one-32-bytes-min
           JWT_COOKIE_SECURE: "false"
           JWT_COOKIE_SAMESITE: Lax
         run: pytest --tb=short

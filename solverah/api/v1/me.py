@@ -42,6 +42,7 @@ from __future__ import annotations
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required, unset_jwt_cookies
 
+from solverah.extensions import limiter
 from solverah.infra.storage import ALLOWED_MIME, MAX_BYTES
 from solverah.openapi import document
 from solverah.repositories import user_repository
@@ -74,6 +75,25 @@ me_bp = Blueprint("me", __name__)
 
 _AUTHENTICATED = ["accessTokenCookie"]
 _AUTHENTICATED_WRITE = ["accessTokenCookie", "csrfHeader"]
+
+#: Rate limit for polling a resume-parse job -- the same shape as the 3b poll
+#: endpoints' `POLL_LIMIT` (`solverah/api/v1/assessments.py`,
+#: `solverah/api/v1/intelligence.py`).
+#:
+#: This route (3a) carried the identical exposure those two were built with a
+#: limit to avoid: left on the `50 per hour` global default, a client polling
+#: every two seconds exhausts it inside a single parse, and shares that budget
+#: with every other default-limited route the same browser is using. A9's
+#: per-instrument budgets do not reach a poll either way -- it is a single
+#: indexed-row read with no provider call, so it spends nothing. A19 recorded
+#: the exposure and deferred the fix rather than make it in passing; this is
+#: that fix.
+#:
+#: The day cap is restated rather than dropped, same reason as the 3b routes:
+#: `@limiter.limit` defaults to `override_defaults=True`, so naming only a
+#: per-minute allowance would silently remove the global `200 per day` while
+#: reading as a tightening.
+POLL_LIMIT = "60 per minute;2000 per day"
 
 
 def _current_user():
@@ -553,6 +573,7 @@ def post_my_resume_parse_job(resume_id: str):
     enforce=True,
 )
 @me_bp.route("/me/resume-parse-jobs/<job_id>", methods=["GET"])
+@limiter.limit(POLL_LIMIT)
 @jwt_required()
 def get_my_resume_parse_job(job_id: str):
     """GET /me/resume-parse-jobs/{job_id} - poll a queued parse.

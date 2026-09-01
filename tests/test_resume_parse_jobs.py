@@ -339,6 +339,56 @@ def test_a_recent_job_is_not_reaped(client, auth, job):
     assert body["status"] == "queued"
 
 
+# ── Rate limit on the poll ───────────────────────────────────────────────────
+
+
+@pytest.fixture()
+def enforcing(client):
+    """A client with the TESTING rate-limit exemption switched off."""
+    from app import app
+    from solverah.extensions import limiter
+
+    limiter.reset()
+    app.config["TESTING"] = False
+    try:
+        yield client
+    finally:
+        app.config["TESTING"] = True
+        limiter.reset()
+
+
+def test_polling_is_not_throttled_by_the_global_default(enforcing, auth, job):
+    """A poll must survive being a poll.
+
+    This route inherited the global `50 per hour` default until now -- the
+    identical exposure A19 recorded for the two 3b poll endpoints and
+    deliberately deferred fixing here. A client polling every two seconds
+    exhausts 50 requests inside a single parse, and shares that budget with
+    every other default-limited route the same browser is using.
+    """
+    statuses = [
+        enforcing.get(
+            "/api/v1/me/resume-parse-jobs/%s" % job["public_id"]
+        ).status_code
+        for _ in range(55)
+    ]
+
+    assert statuses == [200] * 55
+
+
+def test_the_poll_limit_keeps_a_daily_backstop():
+    """`@limiter.limit` overrides the defaults, so the day cap must be restated.
+
+    Naming only a per-minute allowance would have removed the global
+    `200 per day` while reading as a tightening -- the same trap
+    `SUBMISSION_LIMITS` documents in `solverah/api/v1/assessments.py`.
+    """
+    from solverah.api.v1.me import POLL_LIMIT
+
+    assert "per minute" in POLL_LIMIT
+    assert "per day" in POLL_LIMIT
+
+
 def test_the_sweep_runs_jobs_whose_enqueue_was_lost(client, auth, job, parser):
     """``queue.enqueue`` swallows a broker failure, so something has to find the row.
 

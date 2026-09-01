@@ -88,7 +88,7 @@ test-pg: dev-deps ## Backend tests exactly as CI runs them — reproduces the ga
 	@until $(COMPOSE) exec -T db pg_isready -U solverah -d solverah >/dev/null 2>&1; do sleep 1; done
 	APP_ENV=testing \
 	DATABASE_URL="$(DATABASE_URL)" \
-	JWT_SECRET_KEY=test-secret \
+	JWT_SECRET_KEY=test-jwt-secret-not-a-real-one-32-bytes-min \
 	JWT_COOKIE_SECURE=false \
 	JWT_COOKIE_SAMESITE=Lax \
 	SOLVERAH_IGNORE_DOTENV=1 \
