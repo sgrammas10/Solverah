@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 // import the CSV as a raw string using Vite's ?raw
-// @ts-ignore
 //import jobCsv from '../../zensearchData/job_postings.csv?raw';
 
 // simple CSV parser that handles quoted fields and escaped quotes

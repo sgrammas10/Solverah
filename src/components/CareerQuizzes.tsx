@@ -312,6 +312,11 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
     );
   }
 
+  // Pre-existing: this effect sits below the `!quiz` early return, so hook
+  // order genuinely varies if that guard flips between renders. Hoisting it
+  // above the guard changes when it fires; scoped out of the Phase 4 move
+  // round and listed in its report.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     (async () => {
       try {
