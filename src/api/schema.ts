@@ -257,6 +257,10 @@ export interface paths {
          *     Creates the user with ``email_confirmed=False`` and sends a 6-digit OTP. The
          *     user must confirm their email before they can log in. Profile data is
          *     pre-seeded with a blank default profile appropriate for the given role.
+         *
+         *     The OTP is written to the outbox inside the same transaction as the account
+         *     (Phase 3), so there is no longer a second call here to make it best-effort:
+         *     a created account and an owed verification email are one commit.
          */
         post: operations["post_auth_register"];
         delete?: never;
@@ -379,9 +383,11 @@ export interface paths {
          * Register interest from the landing-page modal
          * @description POST /intake/early-access - early-access interest form (no resume).
          *
-         *     Forwards the details to info@solverah.com via Resend. Does not persist to
-         *     the database, which is a real gap: a mail outage loses the lead with only a
-         *     log line behind it. Phase 3's transactional outbox is what fixes it.
+         *     Writes the lead to the transactional outbox and returns 200; a worker
+         *     delivers it to info@solverah.com. This answered 500 on a mail failure until
+         *     Phase 3, because the lead existed only as an email and a swallowed error lost
+         *     it. The row is durable before this returns, so there is nothing left to lose
+         *     and nothing left to report.
          */
         post: operations["post_intake_intake_early_access"];
         delete?: never;
@@ -786,6 +792,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/resume-parse-jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Report the state of a queued resume parse
+         * @description GET /me/resume-parse-jobs/{job_id} - poll a queued parse.
+         *
+         *     404 covers three cases deliberately: no such job, a malformed handle, and a
+         *     job belonging to somebody else. Distinguishing them would confirm that a
+         *     handle exists, which is the only thing protecting one.
+         */
+        get: operations["get_me_get_my_resume_parse_job"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/resumes": {
         parameters: {
             query?: never;
@@ -859,6 +889,28 @@ export interface paths {
         get: operations["get_me_get_my_resume_download_url"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/resumes/{resume_id}/parse-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue a resume parse and return a job handle
+         * @description Asynchronous counterpart to `POST /me/resumes/{resume_id}/complete`. Identical request body; answers `202` with a job handle instead of blocking for the parse. Poll `GET /me/resume-parse-jobs/{job_id}` until `status` is `succeeded` or `failed`.
+         *
+         *     The synchronous endpoint is unchanged and remains available.
+         */
+        post: operations["post_me_post_my_resume_parse_job"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2593,6 +2645,65 @@ export interface components {
             url: string;
         };
         /**
+         * ResumeParseJobAccepted
+         * @description ``202`` from ``POST /me/resumes/{resume_id}/parse-jobs``.
+         *
+         *     Part 5.2's ``202 + job handle``, added in Phase 3 alongside the synchronous
+         *     ``/complete`` rather than replacing it: a client cannot move from awaiting a
+         *     200 to polling a job in the same deploy that first gives it something to
+         *     poll. ``/complete`` keeps working until the frontend has moved.
+         */
+        ResumeParseJobAccepted: {
+            /**
+             * Job Id
+             * @description Poll GET /me/resume-parse-jobs/{job_id} until status is terminal.
+             */
+            job_id: string;
+            /**
+             * Status
+             * @description Always "queued" here; the job has not started.
+             */
+            status: string;
+            /**
+             * Status Url
+             * @description Where to poll. Relative to the API root.
+             */
+            status_url: string;
+        };
+        /**
+         * ResumeParseJobStatus
+         * @description ``GET /me/resume-parse-jobs/{job_id}``.
+         *
+         *     ``status`` is one of ``queued``, ``running``, ``succeeded``, ``failed``; the
+         *     last two are terminal and a client should stop polling on either.
+         *
+         *     ``profile`` is present only on ``succeeded``, and carries what ``/complete``
+         *     would have returned -- so the two paths hand back the same document and the
+         *     client's merge logic does not fork. ``error`` is present only on ``failed``
+         *     and is a fixed message: parse failures come from pdfminer, python-docx and
+         *     botocore, whose text carries bucket names and object keys.
+         */
+        ResumeParseJobStatus: {
+            /**
+             * Error
+             * @default null
+             */
+            error: string | null;
+            /** Job Id */
+            job_id: string;
+            /**
+             * Profile
+             * @default null
+             */
+            profile: {
+                [key: string]: unknown;
+            } | null;
+            /** Status */
+            status: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ResumeTicketRequest
          * @description ``POST /me/resumes`` -- ask for somewhere to upload to.
          */
@@ -2631,22 +2742,6 @@ export interface components {
              * @description Presigned PUT URL, valid for 10 minutes.
              */
             upload_url: string;
-        };
-        /**
-         * SendEmailFailureResponse
-         * @description The 500 body when Resend rejects a send.
-         *
-         *     Carries ``detail`` on the resend path only, which is where the original
-         *     handler included it.
-         */
-        SendEmailFailureResponse: {
-            /**
-             * Detail
-             * @default null
-             */
-            detail: string | null;
-            /** Error */
-            error: string;
         };
         /**
          * SessionFlags
@@ -3210,15 +3305,6 @@ export interface operations {
                     "application/json": components["schemas"]["LegacyError"];
                 };
             };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SendEmailFailureResponse"];
-                };
-            };
             /** @description Unexpected error (RFC 9457 problem document) */
             default: {
                 headers: {
@@ -3343,15 +3429,6 @@ export interface operations {
             };
             /** @description Not found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyError"];
-                };
-            };
-            /** @description Internal server error */
-            500: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3699,15 +3776,6 @@ export interface operations {
             };
             /** @description Bad request */
             400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyError"];
-                };
-            };
-            /** @description Internal server error */
-            500: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4594,6 +4662,46 @@ export interface operations {
             };
         };
     };
+    get_me_get_my_resume_parse_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumeParseJobStatus"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
     post_me_post_my_resume_ticket: {
         parameters: {
             query?: never;
@@ -4729,6 +4837,59 @@ export interface operations {
             };
             /** @description Internal server error */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    post_me_post_my_resume_parse_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resume_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResumeCompleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumeParseJobAccepted"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

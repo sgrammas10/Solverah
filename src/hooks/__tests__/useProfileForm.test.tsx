@@ -1,14 +1,27 @@
+import type { ReactNode } from "react";
 import { renderHook, act } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import {
   buildDefaultProfile,
   normalizeProfileData,
   useProfileForm,
 } from "../useProfileForm";
 import { useAuth } from "../../contexts/useAuth";
-import { useProfile } from "../useProfile";
+import { useProfile, profileKeys } from "../useProfile";
+import { useStartResumeParseJob, useResumeParseJobStatus } from "../useResumeParseJob";
+import { createQueryClient } from "../../utils/queryClient";
 
 vi.mock("../../contexts/useAuth");
-vi.mock("../useProfile");
+// `profileKeys`/`seedProfileCache` stay real: `useProfileForm` invalidates the
+// profile query by the actual key on a succeeded parse job, and a bare
+// auto-mock would replace `profileKeys.document` (a function) with a `vi.fn()`
+// returning undefined, breaking both the production call and any assertion
+// against it.
+vi.mock("../useProfile", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../useProfile")>();
+  return { ...actual, useProfile: vi.fn() };
+});
+vi.mock("../useResumeParseJob");
 
 const mockAuth = {
   user: null as any,
@@ -25,6 +38,27 @@ const mockAuth = {
 /** The profile document the query hands back. Set per test before rendering. */
 let mockProfile: Record<string, unknown> | undefined = {};
 
+/** `useStartResumeParseJob()`'s return shape. `mutate` is asserted on directly. */
+const mockStartResumeParseJob = {
+  mutate: vi.fn(),
+  isPending: false,
+  isError: false,
+  error: null as unknown,
+};
+
+/**
+ * `useResumeParseJobStatus()`'s return shape, mutable so a test can move a job
+ * through statuses across a `rerender()` the way real polling would.
+ */
+let mockResumeParseJobStatus: { data: any; error: unknown; isLoading: boolean } = {
+  data: undefined,
+  error: null,
+  isLoading: false,
+};
+
+const mockUploadFetch = vi.fn();
+globalThis.fetch = mockUploadFetch as any;
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(useAuth).mockReturnValue(mockAuth as any);
@@ -36,6 +70,13 @@ beforeEach(() => {
   vi.mocked(useProfile).mockImplementation(
     () => ({ data: mockProfile, isSuccess: true }) as any
   );
+  mockStartResumeParseJob.isPending = false;
+  mockStartResumeParseJob.isError = false;
+  mockStartResumeParseJob.error = null;
+  vi.mocked(useStartResumeParseJob).mockImplementation(() => mockStartResumeParseJob as any);
+  mockResumeParseJobStatus = { data: undefined, error: null, isLoading: false };
+  vi.mocked(useResumeParseJobStatus).mockImplementation(() => mockResumeParseJobStatus as any);
+  mockUploadFetch.mockResolvedValue({ ok: true });
 });
 
 // ─── buildDefaultProfile ──────────────────────────────────────────────────────
@@ -117,10 +158,31 @@ describe("normalizeProfileData", () => {
 
 // ─── useProfileForm — collection management ───────────────────────────────────
 
+/** Wraps every renderHook in a real QueryClientProvider -- useProfileForm now
+ *  calls useQueryClient() directly for the resume-parse-job cache invalidation. */
+function createWrapper() {
+  const queryClient = createQueryClient();
+  const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+  const Wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+  return { Wrapper, invalidateSpy };
+}
+
 async function setup() {
-  const { result } = renderHook(() => useProfileForm());
+  const { Wrapper } = createWrapper();
+  const { result } = renderHook(() => useProfileForm(), { wrapper: Wrapper });
   await act(async () => {}); // flush mount effects
   return result;
+}
+
+/** Like `setup`, but also exposes `rerender` and the invalidation spy, for
+ *  tests that move a mocked resume-parse-job status across renders. */
+async function setupWithControls() {
+  const { Wrapper, invalidateSpy } = createWrapper();
+  const { result, rerender } = renderHook(() => useProfileForm(), { wrapper: Wrapper });
+  await act(async () => {});
+  return { result, rerender, invalidateSpy };
 }
 
 describe("useProfileForm - experience", () => {
@@ -305,5 +367,103 @@ describe("useProfileForm - removeUploadedResume", () => {
     expect(result.current.resumeUploaded).toBe(false);
     expect(result.current.pendingResume).toBeNull();
     expect(result.current.isSaved).toBe(false);
+  });
+});
+
+// ─── useProfileForm — async resume-parse job ──────────────────────────────────
+
+function uploadedFile() {
+  return new File(["%PDF-1.4"], "resume.pdf", { type: "application/pdf" });
+}
+
+describe("useProfileForm - resume parse job", () => {
+  it("starts a parse job with the schema fields after upload, and never calls the old /complete endpoint", async () => {
+    mockAuth.fetchWithAuth.mockResolvedValueOnce({
+      resume_id: "resume-1",
+      upload_url: "https://uploads.example.com/resume-1",
+      max_bytes: 10_000_000,
+    });
+    const result = await setup();
+    const file = uploadedFile();
+
+    await act(async () => {
+      await result.current.handleResumeUpload({ target: { files: [file] } } as any);
+    });
+
+    expect(mockStartResumeParseJob.mutate).toHaveBeenCalledWith(
+      { resumeId: "resume-1", mime: "application/pdf", size: file.size, name: "resume.pdf" },
+      expect.objectContaining({ onSuccess: expect.any(Function) })
+    );
+    expect(mockAuth.fetchWithAuth).not.toHaveBeenCalledWith(
+      expect.stringContaining("/complete"),
+      expect.anything()
+    );
+  });
+
+  it("merges a succeeded job's profile into formData, leaves isSaved unchanged, and invalidates the profile query", async () => {
+    const { result, rerender, invalidateSpy } = await setupWithControls();
+    expect(result.current.isSaved).toBe(true);
+
+    mockResumeParseJobStatus = {
+      data: {
+        job_id: "job-1",
+        status: "succeeded",
+        profile: { firstName: "Ada", skills: ["Rust"] },
+        error: null,
+      },
+      error: null,
+      isLoading: false,
+    };
+    await act(async () => { rerender(); });
+
+    expect(result.current.formData.firstName).toBe("Ada");
+    expect(result.current.formData.skills).toEqual(["Rust"]);
+    // The server already persisted this merge (resume_jobs.py's run(), before
+    // the job is marked succeeded) -- there is nothing pending to save, so
+    // this must NOT flip the unsaved-changes banner on.
+    expect(result.current.isSaved).toBe(true);
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.document() });
+  });
+
+  it("clears the parse job (and its status) when the resume is removed", async () => {
+    mockAuth.fetchWithAuth.mockResolvedValueOnce({
+      resume_id: "resume-42",
+      upload_url: "https://uploads.example.com/resume-42",
+      max_bytes: 10_000_000,
+    });
+    const { result, rerender } = await setupWithControls();
+
+    await act(async () => {
+      await result.current.handleResumeUpload({ target: { files: [uploadedFile()] } } as any);
+    });
+    const onSuccess = mockStartResumeParseJob.mutate.mock.calls[0][1].onSuccess;
+    act(() => onSuccess({ job_id: "job-42", status: "queued", status_url: "" }));
+
+    mockResumeParseJobStatus = {
+      data: { job_id: "job-42", status: "queued", profile: null, error: null },
+      error: null,
+      isLoading: false,
+    };
+    await act(async () => { rerender(); });
+    expect(result.current.resumeParseStatus).toEqual({ phase: "queued" });
+
+    act(() => { result.current.removeUploadedResume(); });
+    expect(result.current.resumeParseStatus).toEqual({ phase: "idle" });
+  });
+
+  it("handleSubmit no longer touches the old alert/try-catch resume-complete path", async () => {
+    const result = await setup();
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+
+    await act(async () => {
+      await result.current.handleSubmit({ preventDefault: () => {} } as any);
+    });
+
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(mockAuth.fetchWithAuth).not.toHaveBeenCalledWith(
+      expect.stringContaining("/complete"),
+      expect.anything()
+    );
+    alertSpy.mockRestore();
   });
 });

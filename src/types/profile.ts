@@ -22,6 +22,20 @@ export interface PendingResumeUpload {
   name: string;
 }
 
+/**
+ * UI-facing state of an in-flight (or just-finished) async resume-parse job.
+ *
+ * A single structured value rather than parallel booleans -- see
+ * `useProfileForm`'s `resumeParseStatus`, which derives this from the
+ * mutation + poll query in `useResumeParseJob`.
+ */
+export type ResumeParseUiState =
+  | { phase: "idle" }
+  | { phase: "starting" }
+  | { phase: "queued" | "running" }
+  | { phase: "succeeded" }
+  | { phase: "failed"; message: string };
+
 export interface PsychometricScore {
   score: number | null;
   percentile: number | null;

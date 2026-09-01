@@ -1,6 +1,6 @@
 import React from "react";
 import { Upload, X } from "lucide-react";
-import { ProfileFormData } from "../../types/profile";
+import { ProfileFormData, ResumeParseUiState } from "../../types/profile";
 
 const fieldCls =
   "w-full border border-cream-muted bg-cream-base px-3 py-2.5 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors rounded-md";
@@ -15,6 +15,7 @@ type Props = {
   uploadProgress: number;
   uploadedResume: File | null;
   resumeUploaded: boolean;
+  resumeParseStatus: ResumeParseUiState;
   handleResumeUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleViewResume: () => void;
   removeUploadedResume: () => void;
@@ -30,6 +31,7 @@ export default function PersonalInfoTab({
   uploadProgress,
   uploadedResume,
   resumeUploaded,
+  resumeParseStatus,
   handleResumeUpload,
   handleViewResume,
   removeUploadedResume,
@@ -235,6 +237,20 @@ export default function PersonalInfoTab({
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {(resumeParseStatus.phase === "starting" ||
+            resumeParseStatus.phase === "queued" ||
+            resumeParseStatus.phase === "running") && (
+            <div className="mb-4 p-2 text-ink-secondary bg-cream-subtle border border-cream-muted rounded text-sm">
+              Parsing resume…
+            </div>
+          )}
+
+          {resumeParseStatus.phase === "failed" && (
+            <div className="mb-4 p-2 text-red-700 bg-red-50 border border-red-200 rounded text-sm">
+              {resumeParseStatus.message}
             </div>
           )}
 

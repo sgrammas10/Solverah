@@ -15,10 +15,13 @@
  *   normalizeProfileData(incoming) — Coerce a raw server payload to ProfileFormData shape.
  *   useProfileForm()               — The hook itself; returns form state + mutators.
  */
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../contexts/useAuth";
-import { useProfile } from "./useProfile";
-import { ProfileFormData, PendingResumeUpload, SkillLevel, Certification } from "../types/profile";
+import { useProfile, profileKeys } from "./useProfile";
+import { useStartResumeParseJob, useResumeParseJobStatus } from "./useResumeParseJob";
+import { errorMessage } from "../utils/apiError";
+import { ProfileFormData, PendingResumeUpload, ResumeParseUiState, SkillLevel, Certification } from "../types/profile";
 
 // Per-collection limits enforced in the UI to prevent unreasonably large profiles.
 const MAX_EXPERIENCES = 20;
@@ -118,6 +121,11 @@ export function useProfileForm() {
   // two copies of the same document. One source now.
   const { data: profile, isSuccess: profileLoaded } = useProfile();
 
+  const queryClient = useQueryClient();
+  const startResumeParseJob = useStartResumeParseJob();
+  const [resumeParseJobId, setResumeParseJobId] = useState<string | null>(null);
+  const resumeParseJobStatus = useResumeParseJobStatus(resumeParseJobId);
+
   const [formData, setFormData] = useState<ProfileFormData>(() =>
     buildDefaultProfile(user ?? undefined)
   );
@@ -134,6 +142,37 @@ export function useProfileForm() {
   const [educationLimitMsg, setEducationLimitMsg] = useState("");
   const [certificationLimitMsg, setCertificationLimitMsg] = useState("");
   const [locationLimitMsg, setLocationLimitMsg] = useState("");
+
+  // Single structured resume-parse status, derived from the start mutation and
+  // the poll query -- no separate hand-rolled booleans for "parsing"/"failed".
+  const resumeParseStatus: ResumeParseUiState = useMemo(() => {
+    if (startResumeParseJob.isError) {
+      return { phase: "failed", message: errorMessage(startResumeParseJob.error, "Unable to start resume parsing.") };
+    }
+    if (startResumeParseJob.isPending) return { phase: "starting" };
+    if (!resumeParseJobId) return { phase: "idle" };
+    if (resumeParseJobStatus.error) {
+      return {
+        phase: "failed",
+        message: errorMessage(resumeParseJobStatus.error, "Unable to check resume parsing status."),
+      };
+    }
+    const status = resumeParseJobStatus.data?.status;
+    if (status === "succeeded") return { phase: "succeeded" };
+    if (status === "failed") {
+      return { phase: "failed", message: resumeParseJobStatus.data?.error || "We couldn't read that file. Try uploading again." };
+    }
+    if (status === "queued" || status === "running") return { phase: status };
+    if (status !== undefined) return { phase: "failed", message: "Resume parsing did not complete. Try uploading again." };
+    return { phase: "starting" };
+  }, [
+    startResumeParseJob.isError,
+    startResumeParseJob.error,
+    startResumeParseJob.isPending,
+    resumeParseJobId,
+    resumeParseJobStatus.error,
+    resumeParseJobStatus.data,
+  ]);
 
   // Progress bar simulation for saving
   useEffect(() => {
@@ -195,6 +234,39 @@ export function useProfileForm() {
       setResumeUploaded(true);
     }
   }, [profile]);
+
+  // Reflect a succeeded parse job in the open form.
+  //
+  // The server already persisted this merge -- resume_jobs.py's run() writes
+  // it through profile_repository.update_document before the job is marked
+  // succeeded, and status_for() hands back that already-current document, not
+  // a snapshot from parse time. So this effect is a UI convenience, not a
+  // pending write: it does NOT call setIsSaved(false) (there is nothing to
+  // save) and does NOT force setIsSaved(true) either (that could paper over a
+  // genuinely unrelated edit -- e.g. an unsaved phone-number change -- that
+  // happens to be in flight at the same moment). It does invalidate the
+  // profile query so other useProfile() consumers pick up the server's copy
+  // without a manual refresh.
+  //
+  // Note the trade-off this shares with the old submit-time merge: if the user
+  // edited a field the parse also touches (e.g. summary) before this lands,
+  // that edit is overwritten. Same behavior as before, kept deliberately.
+  useEffect(() => {
+    const data = resumeParseJobStatus.data;
+    if (data?.status !== "succeeded" || !data.profile) return;
+    const normalized = normalizeProfileData(data.profile as Partial<ProfileFormData>);
+    setFormData((prev) => ({
+      ...prev,
+      ...normalized,
+      experience: normalized.experience ?? prev.experience,
+      education: normalized.education ?? prev.education,
+      skills: normalized.skills ?? prev.skills,
+      uploadedResume: normalized.uploadedResume ?? prev.uploadedResume,
+      resumeKey: normalized.resumeKey ?? prev.resumeKey,
+    }));
+    queryClient.invalidateQueries({ queryKey: profileKeys.document() });
+    setResumeParseJobId(null);
+  }, [resumeParseJobStatus.data, queryClient]);
 
   // Warn before leaving with unsaved changes
   useEffect(() => {
@@ -264,38 +336,6 @@ export function useProfileForm() {
         ? { name: uploadedResume.name, size: uploadedResume.size, type: uploadedResume.type }
         : formData.uploadedResume ?? null,
     };
-
-    if (pendingResume) {
-      try {
-        const finalized = await fetchWithAuth<{ profile?: Partial<ProfileFormData> }>(
-          `/me/resumes/${pendingResume.resumeId}/complete`,
-          {
-            method: "POST",
-            body: JSON.stringify({
-              mime: pendingResume.mime,
-              size: pendingResume.size,
-              name: pendingResume.name,
-            }),
-          }
-        );
-        if (finalized?.profile) {
-          const normalized = normalizeProfileData(finalized.profile);
-          profileDataToSave = {
-            ...profileDataToSave,
-            ...normalized,
-            experience: normalized.experience ?? profileDataToSave.experience,
-            education: normalized.education ?? profileDataToSave.education,
-            skills: normalized.skills ?? profileDataToSave.skills,
-            uploadedResume: normalized.uploadedResume ?? profileDataToSave.uploadedResume,
-            resumeKey: normalized.resumeKey ?? profileDataToSave.resumeKey,
-          };
-          setPendingResume(null);
-        }
-      } catch (err) {
-        console.error(err);
-        alert("Unable to process resume right now.");
-      }
-    }
 
     // If any experience entry is marked as current, the user is employed.
     // Set career_status automatically so Path Intelligence stops showing the
@@ -525,6 +565,15 @@ export function useProfileForm() {
         uploadedResume: { name: file.name, size: file.size, type: file.type },
       }));
       setResumeUploaded(true);
+
+      // Kick off the parse in the background rather than waiting for submit --
+      // reset first, in case a job for a resume this one is replacing is still
+      // in flight.
+      setResumeParseJobId(null);
+      startResumeParseJob.mutate(
+        { resumeId: ticket.resume_id, mime: file.type, size: file.size, name: file.name },
+        { onSuccess: (data) => setResumeParseJobId(data.job_id) }
+      );
     } catch (err) {
       console.error(err);
       alert("Unable to process resume right now.");
@@ -551,6 +600,7 @@ export function useProfileForm() {
     setFormData((curr) => ({ ...curr, uploadedResume: null, resumeKey: null }));
     setResumeUploaded(false);
     setPendingResume(null);
+    setResumeParseJobId(null);
     setIsSaved(false);
   };
 
@@ -566,6 +616,7 @@ export function useProfileForm() {
     uploadedResume,
     resumeUploaded,
     pendingResume,
+    resumeParseStatus,
     experienceLimitMsg,
     skillLimitMsg,
     educationLimitMsg,

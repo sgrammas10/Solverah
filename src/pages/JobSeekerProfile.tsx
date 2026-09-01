@@ -193,6 +193,7 @@ function JobSeekerProfile() {
             uploadProgress={profile.uploadProgress}
             uploadedResume={profile.uploadedResume}
             resumeUploaded={profile.resumeUploaded}
+            resumeParseStatus={profile.resumeParseStatus}
             handleResumeUpload={profile.handleResumeUpload}
             handleViewResume={profile.handleViewResume}
             removeUploadedResume={profile.removeUploadedResume}
