@@ -67,9 +67,20 @@ developer with a populated `.env` gets `SOLVERAH_FORM_TOKEN_SECRET`, `OPENAI_API
 A test that reaches code reading any other variable passes locally and fails on the
 runner.
 
-Before declaring a suite green, run it the way CI does:
+Before declaring a suite green, run it the way CI does — the app honors
+`SOLVERAH_IGNORE_DOTENV` so nothing needs moving:
 
-    mv .env .env.off && pytest --tb=short -q; mv .env.off .env
+    SOLVERAH_IGNORE_DOTENV=1 pytest --tb=short -q
+
+Build verification venvs OUTSIDE the repo (e.g. a sibling directory or the
+session scratchpad). Guard tests walk the whole tree with rglob and a .venv
+inside the repo fails them on third-party source — two agents have each
+burned a full suite run rediscovering this.
+
+Do NOT use the old `mv .env .env.off && pytest; mv .env.off .env` recipe: a
+run killed between the two moves leaves `.env` gone, and everything that
+reads it (S3, OpenAI, the form-token secret) silently breaks for whoever
+uses this machine next. That happened on 2026-09-01; the flag can't.
 
 Any test touching an assessment route needs the form-token secret supplied explicitly —
 it is read at call time in `assessment_store.respondent_id_for_user` and has **no
