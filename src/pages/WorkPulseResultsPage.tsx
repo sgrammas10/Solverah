@@ -1,43 +1,138 @@
+/**
+ * WorkPulseResultsPage — Work Pulse, scored by a job rather than by the submit.
+ *
+ * Phase 3c: `work_pulse` is one of the three provider-scored instruments, so
+ * generating a narrative now means `POST /assessments/work_pulse/scoring-jobs`
+ * and then polling, instead of holding a request open for the tens of seconds
+ * the OpenAI call can take (A19). The succeeded job's `result` is the same body
+ * the synchronous submit returned, so everything downstream of it here is
+ * unchanged.
+ *
+ * `GET /me/assessments/work_pulse/result` — the "I already did this, show me
+ * the stored one" path — is untouched. It reads a persisted row and opens no
+ * socket; it was never the slow one.
+ */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useWP } from "../hooks/useWP";
 import type { WpApiResponse } from "../hooks/useWP";
 import { useAuth } from "../contexts/useAuth";
+import { profileKeys } from "../hooks/useProfile";
+import {
+  isKnownScoringPhase,
+  useScoringJobStatus,
+  useStartScoringJob,
+  type ScoringJobResult,
+} from "../hooks/useScoringJob";
 import { WP_QUESTIONS } from "../data/wpQuestions";
 import TierBar from "../components/intake/TierBar";
 
-type FetchState = "loading" | "error" | "success";
+/**
+ * `scoring` is the job's pending state and `error` its failed one, and they are
+ * separate on purpose: a failed scoring that left the spinner running would be
+ * distinguishable from a slow one only by how long the user was willing to
+ * wait. `loading` remains the synchronous read of an already-stored result.
+ */
+type FetchState = "loading" | "scoring" | "error" | "success";
+
+/**
+ * The job's `result` in the shape this page renders.
+ *
+ * `WorkPulseResult` as generated from the OpenAPI document is deliberately open
+ * — `emerging_signals?: unknown[]`, `archetype_description: string | null`,
+ * plus an index signature — because the API documents it that way. `WpApiResponse`
+ * is the narrower shape the page has always rendered, and the synchronous call
+ * this replaces asserted exactly the same narrowing by writing
+ * `fetchWithAuth<WpApiResponse>(...)`. The assertion has moved, not appeared.
+ */
+function asWpApiResponse(result: ScoringJobResult<"work_pulse">): WpApiResponse {
+  return result as unknown as WpApiResponse;
+}
 
 export default function WorkPulseResultsPage() {
   const navigate = useNavigate();
   const { fetchWithAuth, user, updateProfile } = useAuth();
   const { state, setCachedResult } = useWP();
+  const queryClient = useQueryClient();
 
   const hasCached = state.cachedResult !== null;
   const [fetchState, setFetchState] = useState<FetchState>(hasCached ? "success" : "loading");
   const [result, setResult] = useState<WpApiResponse | null>(state.cachedResult);
+  const [scoringError, setScoringError] = useState<string | null>(null);
   const hasFiredRef = useRef(false);
 
-  const submitAnswers = useCallback(async () => {
-    setFetchState("loading");
-    try {
-      const data = await fetchWithAuth<WpApiResponse>("/assessments/work_pulse/submissions", {
-        method: "POST",
-        body: JSON.stringify({
-          answers: state.answers.map((a) => ({
-            question_id: a.questionId,
-            option_id: a.optionId,
-          })),
-        }),
-      });
-      setResult(data);
-      setCachedResult(data);
+  const startScoring = useStartScoringJob("work_pulse");
+  const [jobId, setJobId] = useState<string | null>(null);
+  const job = useScoringJobStatus("work_pulse", jobId);
+
+  const submitAnswers = useCallback(() => {
+    setFetchState("scoring");
+    setScoringError(null);
+    startScoring.mutate(
+      {
+        answers: state.answers.map((a) => ({
+          question_id: a.questionId,
+          option_id: a.optionId,
+        })),
+      },
+      {
+        onSuccess: (accepted) => setJobId(accepted.job_id),
+        // The enqueue itself failing (a 429 on the shared per-instrument budget,
+        // say) is a failure to start, not a failure to score, but the user's
+        // recovery is the same one: try again.
+        onError: () => setFetchState("error"),
+      }
+    );
+  // `startScoring` is a stable mutation object from TanStack Query; including it
+  // would rebuild this callback on every mutation state change, and the mount
+  // effect below depends on it being stable across the submit it triggers.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.answers]);
+
+  // Route the job's terminal state into what the synchronous response drove.
+  useEffect(() => {
+    const data = job.data;
+    if (!data) return;
+
+    if (data.status === "succeeded" && data.result) {
+      const narrative = asWpApiResponse(data.result);
+      setResult(narrative);
+      setCachedResult(narrative);
+      // The session flag the shell gates on (IntelligencePage, JobSeekerDashboard).
       updateProfile({ wpl_completed: true });
+      // And the profile document, which the server has now written this result
+      // into. Without this, a screen reading it through useProfile() shows a
+      // pre-completion copy for up to the 60 s staleTime.
+      queryClient.invalidateQueries({ queryKey: profileKeys.document() });
+      setJobId(null);
       setFetchState("success");
-    } catch {
+      return;
+    }
+
+    if (data.status === "failed") {
+      setScoringError(data.error ?? null);
+      setJobId(null);
+      setFetchState("error");
+      return;
+    }
+
+    // Fail closed, exactly as the hook's refetchInterval does: a status this
+    // client does not recognise has already stopped the polling, so leaving the
+    // spinner up would hang the screen forever.
+    if (!isKnownScoringPhase(data.status)) {
+      setJobId(null);
       setFetchState("error");
     }
-  }, [state.answers, fetchWithAuth, setCachedResult, updateProfile]);
+  }, [job.data, setCachedResult, updateProfile, queryClient]);
+
+  // A rejected poll (a 404 on a stale handle) is terminal too — the hook has
+  // stopped polling, so nothing else will move this screen off "scoring".
+  useEffect(() => {
+    if (!job.error) return;
+    setJobId(null);
+    setFetchState("error");
+  }, [job.error]);
 
   const fetchFromServer = useCallback(async () => {
     setFetchState("loading");
@@ -107,7 +202,24 @@ export default function WorkPulseResultsPage() {
     return (
       <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
         <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
+        <p className="text-sm text-ink-secondary">Loading your results…</p>
+      </div>
+    );
+  }
+
+  // Pending. Says that the work is queued and still running, so that waiting is
+  // an informed choice rather than a guess about whether anything is happening.
+  if (fetchState === "scoring") {
+    return (
+      <div
+        className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4"
+        aria-live="polite"
+      >
+        <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
         <p className="text-sm text-ink-secondary">Analysing your responses…</p>
+        <p className="text-xs text-ink-tertiary">
+          This usually takes under a minute. You can leave this page open.
+        </p>
       </div>
     );
   }
@@ -115,9 +227,16 @@ export default function WorkPulseResultsPage() {
   if (fetchState === "error") {
     return (
       <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
-        <div className="max-w-sm w-full rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+        <div
+          className="max-w-sm w-full rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700"
+          role="alert"
+        >
           <p className="font-medium mb-1">We couldn't generate your results right now.</p>
-          <p className="text-xs">Please try again in a moment.</p>
+          {/* The scorer's own message when it authored one. Never provider text
+              — the server sends either a validation message it wrote or a fixed
+              generic string, because provider text carries prompt fragments and
+              therefore the respondent's own answers. */}
+          <p className="text-xs">{scoringError || "Please try again in a moment."}</p>
           <button
             type="button"
             onClick={handleRetry}

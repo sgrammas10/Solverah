@@ -1,9 +1,15 @@
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { HttpResponse } from "msw";
 import CareerIntakePage from "../CareerIntakePage";
+import { createQueryClient } from "../../utils/queryClient";
 import { mock } from "../../../tests/msw/contract";
 import { server, useApiMocks } from "../../../tests/msw/server";
+import {
+  scoringJobAccepted,
+  scoringJobProgresses,
+} from "../../../tests/msw/scoringJobHandlers";
 
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -12,12 +18,34 @@ vi.mock("react-router-dom", async (importOriginal) => {
 });
 
 /**
- * The only request this page makes is the WPLL teaser submission, issued by the
- * `TeaserResult` child on step 3. It is served by a contract-bound handler here
- * rather than by a `vi.fn()` over `globalThis.fetch`, so the path and the `{kind}`
- * in it are checked rather than assumed -- see tests/msw/contract.ts.
+ * A signed-out session, stubbed rather than provided.
+ *
+ * The real `AuthProvider` withholds its children behind a spinner until the
+ * session probe settles, which would make every assertion on this page await a
+ * request that has nothing to do with it. `{ user: null }` *is* the state this
+ * funnel runs in -- it is the pre-account journey -- and the WPLL job does not
+ * use `fetchWithAuth` anyway: `wpll` is the one kind fetched without the
+ * session's credentials, so the requests below are still real and still land on
+ * the contract-bound handlers.
+ */
+vi.mock("../../contexts/useAuth", () => ({
+  useAuth: () => ({ fetchWithAuth: vi.fn(), user: null }),
+}));
+
+/**
+ * The only requests this page makes are the WPLL teaser's, issued by the
+ * `TeaserResult` child on step 3. Phase 3c moved that from one synchronous
+ * submit to `POST /assessments/wpll/scoring-jobs` plus a poll, so both are
+ * served here -- by contract-bound handlers rather than by a `vi.fn()` over
+ * `globalThis.fetch`, so the paths and the `{kind}` in them are checked rather
+ * than assumed (see tests/msw/contract.ts).
+ *
+ * The query client is real because `TeaserResult` now reaches the network
+ * through `useScoringJob`, which is a TanStack Query mutation plus a query.
  */
 useApiMocks();
+
+const TEASER_JOB_ID = "wpll-intake-job";
 
 const TEASER_RESPONSE = {
   insight_text: "Test insight text.",
@@ -32,15 +60,23 @@ beforeEach(() => {
   vi.clearAllMocks();
   sessionStorage.clear();
   server.use(
-    mock("post", "/api/v1/assessments/{kind}/submissions").reply(200, TEASER_RESPONSE),
+    scoringJobAccepted("wpll", TEASER_JOB_ID),
+    // One step: the component has no poll-interval override, so a queued ->
+    // succeeded ladder would cost a real three seconds here. The ladder is
+    // proved in src/hooks/useScoringJob.test.tsx.
+    scoringJobProgresses("wpll", TEASER_JOB_ID, [
+      { status: "succeeded", result: TEASER_RESPONSE },
+    ]),
   );
 });
 
 function renderPage() {
   render(
-    <MemoryRouter>
-      <CareerIntakePage />
-    </MemoryRouter>
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter>
+        <CareerIntakePage />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 
@@ -134,15 +170,22 @@ describe("CareerIntakePage — Step 2: WPLL stepper", () => {
 // ─── Step 3: Teaser result ────────────────────────────────────────────────────
 
 describe("CareerIntakePage — Step 3: Teaser result", () => {
-  it("step 3 shows loading state while fetch is in-flight", async () => {
+  it("step 3 shows the pending state while the scoring job is queued", async () => {
     // Held open for the duration of the assertion. `delay("infinite")` would
     // leave a request pending at teardown; a gate the test owns does not.
     let release!: () => void;
     const inFlight = new Promise<void>((resolve) => { release = resolve; });
     server.use(
-      mock("post", "/api/v1/assessments/{kind}/submissions").resolve(async () => {
+      mock("post", "/api/v1/assessments/{kind}/scoring-jobs").resolve(async () => {
         await inFlight;
-        return HttpResponse.json(TEASER_RESPONSE);
+        return HttpResponse.json(
+          {
+            job_id: TEASER_JOB_ID,
+            status: "queued",
+            status_url: `/api/v1/assessments/wpll/scoring-jobs/${TEASER_JOB_ID}`,
+          },
+          { status: 202 }
+        );
       }),
     );
     renderPage();
@@ -155,7 +198,7 @@ describe("CareerIntakePage — Step 3: Teaser result", () => {
     });
   });
 
-  it("step 3 renders insight text after fetch resolves", async () => {
+  it("step 3 renders insight text once the scoring job succeeds", async () => {
     renderPage();
     await goToStep3();
     await waitFor(() => {

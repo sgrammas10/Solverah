@@ -1,7 +1,23 @@
+/**
+ * PathIntelligencePage — path suggestions, scored by a job rather than inline.
+ *
+ * Phase 3c: `GET /me/path-suggestions` fanned out to O*NET *and* OpenAI inside
+ * the request. This screen now enqueues `POST /me/path-suggestion-jobs` and
+ * polls (A19). The succeeded job's `result` is byte-for-byte what the
+ * synchronous GET would have returned, so everything below the fetch is
+ * unchanged — including the two failure codes that used to arrive as a 400 and
+ * now arrive as a `failed` job carrying the same string in `error`.
+ */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/useAuth";
 import { useProfile } from "../hooks/useProfile";
+import {
+  isKnownScoringPhase,
+  usePathSuggestionJobStatus,
+  useStartPathSuggestionJob,
+  type PathSuggestionJobResult,
+} from "../hooks/usePathSuggestionJob";
 import type { PathSuggestionsResponse } from "../types/pathIntelligence";
 import PathSuggestionList from "../components/PathIntelligence/PathSuggestionList";
 import PathPreferencesForm from "../components/PathIntelligence/PathPreferencesForm";
@@ -11,7 +27,35 @@ import SkillProficiencyModal from "../components/PathIntelligence/SkillProficien
 // Types
 // ---------------------------------------------------------------------------
 
+/** `loading` is the job's pending state; the four others are its terminal ones. */
 type FetchState = "loading" | "error" | "career_status_not_set" | "profile_incomplete" | "needs_preferences" | "success";
+
+/**
+ * Which screen a failure puts up.
+ *
+ * The two named codes are recoverable by the user and get their own prompts;
+ * everything else is the retryable error card. They used to reach this page as
+ * the `message` of a 400 and now reach it as a failed job's `error` — the same
+ * strings either way, which is what lets this mapping be shared by both paths.
+ */
+function stateForFailure(message: string): FetchState {
+  if (message === "career_status_not_set") return "career_status_not_set";
+  if (message === "profile_incomplete") return "profile_incomplete";
+  return "error";
+}
+
+/**
+ * The job's `result` in the shape this page renders.
+ *
+ * The generated `PathSuggestionsResponse` is the looser of the two —
+ * `suggestions?` optional, `career_status: string` rather than the three-way
+ * union — because that is how the API documents it. `types/pathIntelligence.ts`
+ * holds the narrower shape the components take, and the synchronous call this
+ * replaces asserted it identically with `fetchWithAuth<PathSuggestionsResponse>`.
+ */
+function asPathSuggestions(result: PathSuggestionJobResult): PathSuggestionsResponse {
+  return result as unknown as PathSuggestionsResponse;
+}
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -84,24 +128,58 @@ export default function PathIntelligencePage() {
   const [proficiencySkipped, setProficiencySkipped] = useState(false);
   const hasFiredRef = useRef(false);
 
-  const fetchSuggestions = useCallback(async () => {
+  const startSuggestions = useStartPathSuggestionJob();
+  const [jobId, setJobId] = useState<string | null>(null);
+  const suggestionJob = usePathSuggestionJobStatus(jobId);
+
+  const fetchSuggestions = useCallback(() => {
     setFetchState("loading");
-    try {
-      const result = await fetchWithAuth<PathSuggestionsResponse>(
-        "/me/path-suggestions"
-      );
-      setData(result);
+    startSuggestions.mutate(undefined, {
+      onSuccess: (accepted) => setJobId(accepted.job_id),
+      // A19 gives the enqueue a rate limit the synchronous GET never needed, so
+      // a 429 is reachable here and is one of the things this branch renders.
+      onError: (err) => setFetchState(stateForFailure(err instanceof Error ? err.message : "")),
+    });
+  // `startSuggestions` is a stable TanStack Query mutation object; listing it
+  // would rebuild this callback on every mutation state change, and the mount
+  // effect below depends on it being stable.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Route the job's terminal state into what the synchronous response drove.
+  useEffect(() => {
+    const job = suggestionJob.data;
+    if (!job) return;
+
+    if (job.status === "succeeded" && job.result) {
+      setData(asPathSuggestions(job.result));
+      setJobId(null);
       setFetchState("success");
-    } catch (err) {
-      if (err instanceof Error && err.message === "career_status_not_set") {
-        setFetchState("career_status_not_set");
-      } else if (err instanceof Error && err.message === "profile_incomplete") {
-        setFetchState("profile_incomplete");
-      } else {
-        setFetchState("error");
-      }
+      return;
     }
-  }, [fetchWithAuth]);
+
+    if (job.status === "failed") {
+      setJobId(null);
+      setFetchState(stateForFailure(job.error ?? ""));
+      return;
+    }
+
+    // Fail closed: the hook has already stopped polling an unrecognised status,
+    // so leaving the skeletons up would hang the screen.
+    if (!isKnownScoringPhase(job.status)) {
+      setJobId(null);
+      setFetchState("error");
+    }
+  }, [suggestionJob.data]);
+
+  // A rejected poll (404 on a stale handle) is terminal too.
+  useEffect(() => {
+    if (!suggestionJob.error) return;
+    setJobId(null);
+    setFetchState(
+      stateForFailure(suggestionJob.error instanceof Error ? suggestionJob.error.message : "")
+    );
+  }, [suggestionJob.error]);
 
   const proceedAfterProficiency = useCallback(() => {
     if (!profile?.path_preferences) {

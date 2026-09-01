@@ -1,6 +1,22 @@
+/**
+ * TeaserResult — the anonymous WPLL teaser, scored by a job rather than by the submit.
+ *
+ * Phase 3c: `wpll` is one of the three provider-scored instruments, so the
+ * insight now comes from `POST /assessments/wpll/scoring-jobs` plus a poll
+ * rather than from a request held open across the OpenAI call (A19).
+ *
+ * This is the one kind with no session behind it. `wpll` is the pre-launch
+ * teaser: its job has no owner and the handle is the whole of its
+ * authorisation, which is why `useScoringJob` fetches this kind without the
+ * session's credentials. See that hook's `anonymousFetch`.
+ */
 import { useState, useEffect, useCallback } from "react";
-import { API_BASE } from "../../utils/api";
 import TierBar from "./TierBar";
+import {
+  isKnownScoringPhase,
+  useScoringJobStatus,
+  useStartScoringJob,
+} from "../../hooks/useScoringJob";
 
 interface TeaserResultProps {
   wpllAnswers: { questionId: string; optionId: string }[];
@@ -9,6 +25,13 @@ interface TeaserResultProps {
   onContinue: () => void;
 }
 
+/**
+ * `loading` is the job's pending state and `error` its failed one.
+ *
+ * Distinct on purpose: this screen sits in the pre-account funnel, where a
+ * spinner that never resolves is a visitor who leaves rather than a visitor who
+ * retries.
+ */
 type FetchState = "loading" | "error" | "success";
 
 const FALLBACK_LOCKED_SECTIONS = [
@@ -31,40 +54,63 @@ export default function TeaserResult({
     cachedInsightText ? FALLBACK_LOCKED_SECTIONS : []
   );
 
-  const fetchInsight = useCallback(async () => {
+  const startScoring = useStartScoringJob("wpll");
+  const [jobId, setJobId] = useState<string | null>(null);
+  const job = useScoringJobStatus("wpll", jobId);
+
+  const fetchInsight = useCallback(() => {
     setFetchState("loading");
-    try {
-      const response = await fetch(`${API_BASE}/assessments/wpll/submissions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          answers: wpllAnswers.map((a) => ({
-            question_id: a.questionId,
-            option_id: a.optionId,
-          })),
-        }),
-      });
+    startScoring.mutate(
+      {
+        answers: wpllAnswers.map((a) => ({
+          question_id: a.questionId,
+          option_id: a.optionId,
+        })),
+      },
+      {
+        onSuccess: (accepted) => setJobId(accepted.job_id),
+        onError: () => setFetchState("error"),
+      }
+    );
+  // `startScoring` is a stable TanStack Query mutation object; listing it would
+  // rebuild this callback on every mutation state change and re-fire the effect
+  // below, which is keyed on it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wpllAnswers]);
 
-      if (!response.ok) throw new Error("Non-OK response");
+  // Route the job's terminal state into what the synchronous response drove.
+  useEffect(() => {
+    const data = job.data;
+    if (!data) return;
 
-      const data = (await response.json()) as {
-        insight_text: string;
-        locked_sections: string[];
-      };
-
+    if (data.status === "succeeded" && data.result) {
       const sections =
-        data.locked_sections?.length >= 3
-          ? data.locked_sections.slice(0, 3)
+        data.result.locked_sections?.length >= 3
+          ? data.result.locked_sections.slice(0, 3)
           : FALLBACK_LOCKED_SECTIONS;
 
-      setInsightText(data.insight_text);
+      setInsightText(data.result.insight_text);
       setLockedSections(sections);
-      onInsightReceived(data.insight_text);
+      onInsightReceived(data.result.insight_text);
+      setJobId(null);
       setFetchState("success");
-    } catch {
+      return;
+    }
+
+    // `failed` and any status this client does not recognise are both terminal:
+    // the hook has stopped polling, so the spinner would otherwise never clear.
+    if (data.status === "failed" || !isKnownScoringPhase(data.status)) {
+      setJobId(null);
       setFetchState("error");
     }
-  }, [wpllAnswers, onInsightReceived]);
+  }, [job.data, onInsightReceived]);
+
+  // A rejected poll (404 on a stale handle) is terminal too.
+  useEffect(() => {
+    if (!job.error) return;
+    setJobId(null);
+    setFetchState("error");
+  }, [job.error]);
 
   useEffect(() => {
     if (!cachedInsightText) {

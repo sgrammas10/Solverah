@@ -1,12 +1,47 @@
+/**
+ * ManagerMatchPage — ManagerMatch, scored by a job rather than by the submit.
+ *
+ * Phase 3c: `manager_match` is one of the three provider-scored instruments, so
+ * finishing the 15 forced choices now enqueues
+ * `POST /assessments/manager_match/scoring-jobs` and polls, instead of holding
+ * a request open across the OpenAI call (A19). The succeeded job's `result` is
+ * the same body the synchronous submit returned, so it is handed to
+ * `setCachedResult` and the navigation is unchanged.
+ */
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../contexts/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
 import { useMM } from "../hooks/useMM";
 import type { MMAnswer, MMResult } from "../hooks/useMM";
+import { profileKeys } from "../hooks/useProfile";
+import {
+  isKnownScoringPhase,
+  useScoringJobStatus,
+  useStartScoringJob,
+  type ScoringJobResult,
+} from "../hooks/useScoringJob";
 import { MM_QUESTIONS } from "../data/mmQuestions";
 import HeroNetworkAnimation from "../components/HeroNetworkAnimation";
 
+/**
+ * `submitting` is the job's pending state; `error` is its failed one. Kept
+ * distinct so a scoring that failed cannot present as a scoring that is merely
+ * taking its time.
+ */
 type Phase = 'intro' | 'questions' | 'submitting' | 'error';
+
+/**
+ * The job's `result` in the shape this page's consumers render.
+ *
+ * `ManagerMatchResult` as generated is open — every field nullable,
+ * `dimension_scores?: { [key: string]: unknown }`, plus an index signature —
+ * because the API documents it that way. `MMResult` is the narrower shape
+ * ManagerMatchResultsPage renders, and the synchronous call this replaces
+ * asserted the same narrowing with `fetchWithAuth<MMResult>(...)`.
+ */
+function asMMResult(result: ScoringJobResult<"manager_match">): MMResult {
+  return result as unknown as MMResult;
+}
 
 function QuestionIndicator({ current, total }: { current: number; total: number }) {
   return (
@@ -32,8 +67,13 @@ export default function ManagerMatchPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const isRetake = (location.state as { retake?: boolean } | null)?.retake === true;
-  const { fetchWithAuth } = useAuth();
   const { state, setAnswer, setCachedResult, reset } = useMM();
+  const queryClient = useQueryClient();
+
+  const startScoring = useStartScoringJob("manager_match");
+  const [jobId, setJobId] = useState<string | null>(null);
+  const job = useScoringJobStatus("manager_match", jobId);
+  const [scoringError, setScoringError] = useState<string | null>(null);
 
   const [phase, setPhase] = useState<Phase>(() => {
     if (isRetake) return 'intro';
@@ -67,25 +107,72 @@ export default function ManagerMatchPage() {
     }
   }, []); // intentionally runs once on mount
 
-  const submitAnswers = useCallback(async (answers: MMAnswer[]) => {
+  const submitAnswers = useCallback((answers: MMAnswer[]) => {
     if (hasFiredRef.current) return;
     hasFiredRef.current = true;
     setPhase('submitting');
+    setScoringError(null);
 
-    try {
-      const data = await fetchWithAuth<MMResult>('/assessments/manager_match/submissions', {
-        method: 'POST',
-        body: JSON.stringify({
-          answers: answers.map((a) => ({ question_id: a.questionId, choice: a.choice })),
-        }),
-      });
-      setCachedResult(data);
+    startScoring.mutate(
+      {
+        answers: answers.map((a) => ({ question_id: a.questionId, choice: a.choice })),
+      },
+      {
+        onSuccess: (accepted) => setJobId(accepted.job_id),
+        onError: () => {
+          // Cleared so `handleRetry` can enqueue again — the guard exists to
+          // stop a double-fire of one submission, not to make failure final.
+          hasFiredRef.current = false;
+          setPhase('error');
+        },
+      }
+    );
+  // `startScoring` is a stable TanStack Query mutation object; listing it would
+  // rebuild this callback on every mutation state change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Route the job's terminal state into what the synchronous response drove.
+  useEffect(() => {
+    const data = job.data;
+    if (!data) return;
+
+    if (data.status === 'succeeded' && data.result) {
+      setCachedResult(asMMResult(data.result));
+      // The server has written this into the profile document, which is where
+      // ManagerMatchResultsPage looks first (`profile.manager_match_result`).
+      // Without this the results page reads a pre-completion copy for up to the
+      // 60 s staleTime and falls through to a server fetch it did not need.
+      queryClient.invalidateQueries({ queryKey: profileKeys.document() });
+      setJobId(null);
       navigate('/manager-match/results');
-    } catch {
+      return;
+    }
+
+    if (data.status === 'failed') {
+      setScoringError(data.error ?? null);
+      setJobId(null);
+      hasFiredRef.current = false;
+      setPhase('error');
+      return;
+    }
+
+    // Fail closed: the hook has already stopped polling an unrecognised status,
+    // so staying on the spinner would hang the screen.
+    if (!isKnownScoringPhase(data.status)) {
+      setJobId(null);
       hasFiredRef.current = false;
       setPhase('error');
     }
-  }, [fetchWithAuth, navigate, setCachedResult]);
+  }, [job.data, navigate, setCachedResult, queryClient]);
+
+  // A rejected poll (404 on a stale handle) is terminal too.
+  useEffect(() => {
+    if (!job.error) return;
+    setJobId(null);
+    hasFiredRef.current = false;
+    setPhase('error');
+  }, [job.error]);
 
   function handleAnswer(choice: 'a' | 'b') {
     const question = MM_QUESTIONS[questionIndex];
@@ -107,23 +194,35 @@ export default function ManagerMatchPage() {
     submitAnswers(pendingAnswersRef.current);
   }
 
-  // ── Submitting ──
+  // ── Pending: queued or running on the worker ──
   if (phase === 'submitting') {
     return (
-      <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
+      <div
+        className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4"
+        aria-live="polite"
+      >
         <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
         <p className="text-sm text-ink-secondary">Analysing your management preferences…</p>
+        <p className="text-xs text-ink-tertiary">
+          This usually takes under a minute. You can leave this page open.
+        </p>
       </div>
     );
   }
 
-  // ── Error ──
+  // ── Failed ──
   if (phase === 'error') {
     return (
       <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
-        <div className="max-w-sm w-full rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+        <div
+          className="max-w-sm w-full rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700"
+          role="alert"
+        >
           <p className="font-medium mb-1">We couldn't generate your results right now.</p>
-          <p className="text-xs">Please try again in a moment.</p>
+          {/* The scorer's own message where it authored one — never provider
+              text, which would carry prompt fragments and therefore the
+              respondent's answers. */}
+          <p className="text-xs">{scoringError || "Please try again in a moment."}</p>
           <button
             type="button"
             onClick={handleRetry}
