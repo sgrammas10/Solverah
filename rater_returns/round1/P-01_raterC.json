@@ -1,0 +1,348 @@
+{
+  "packet_id": "P-01",
+  "rater": "C",
+  "rubric_version": "v1-frozen-2026-08-15",
+  "anchors_hash": "55c4501b25c5",
+  "session_start": "2026-08-30T10:59:26.110Z",
+  "submitted_at": "2026-08-30T11:43:57.631Z",
+  "duration_seconds": 2672,
+  "commit_order": [
+    "autonomy",
+    "pace",
+    "collaboration",
+    "feedback",
+    "innovation",
+    "decision"
+  ],
+  "recognition": "no",
+  "recognition_detail": "",
+  "searched": "no",
+  "search_detail": "",
+  "free_note": "",
+  "scores": [
+    {
+      "dimension": "autonomy",
+      "score": 0.1,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "You have significant autonomy to do your job with appropriate support when needed. There is not much room for growth. My position is fully remote which was excellent for work/life balance.",
+          "eid": "B3",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "As my time there continued, they started to get more strict and micro-managey.",
+          "eid": "B8",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Very micromanage. They want you to learn how to do every roll [sic] with no extra pay or change in salary.",
+          "eid": "B9",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Heavy micromanagement. Good culture. Not so great work life balance. Management could be better. Frequently changing processes and quality. Management does not seem supportive of staff.",
+          "eid": "B13",
+          "sec": "B",
+          "src": "noncompany"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-30T11:39:28.795Z",
+      "commit_position": 1,
+      "source_mix": {
+        "company": 0,
+        "noncompany": 4,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "B3",
+        "B8",
+        "B9",
+        "B13"
+      ]
+    },
+    {
+      "dimension": "pace",
+      "score": 0.7,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "After years working there and through staff shortage",
+          "eid": "B4",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Very stressful and not positive work place. They don't set you up for success at your job. They will hire from outside the company before promoting from within.",
+          "eid": "B12",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Thursdays are a required in-office day for team meetings and events, while your other two office days are flexible to suit your schedule.",
+          "eid": "C8",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "we were able to align with stakeholders faster and gather more grounded user feedback, ultimately compressing our discovery timeline from months of traditional scoping into just a few weeks",
+          "eid": "D1",
+          "sec": "D",
+          "src": "disputed"
+        },
+        {
+          "text": "\"We had to move fast without skipping the de-risking process. By making the system tangible early, we could answer critical questions before we would typically surface in a traditional build",
+          "eid": "D2",
+          "sec": "D",
+          "src": "disputed"
+        },
+        {
+          "text": "But the sheer velocity of vibe coding can trick us into skipping those steps. When a prototype looks and feels functional, there's a natural temptation to trust it immediately",
+          "eid": "D3",
+          "sec": "D",
+          "src": "disputed"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-30T11:40:16.494Z",
+      "commit_position": 2,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 2,
+        "disputed": 3,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "B4",
+        "B12",
+        "C8",
+        "D1",
+        "D2",
+        "D3"
+      ]
+    },
+    {
+      "dimension": "collaboration",
+      "score": 0.9,
+      "confidence": 0.9,
+      "quotes": [
+        {
+          "text": "Make it right. Admit your mistakes. Then learn from them. Never build alone.",
+          "eid": "A6",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "Our technology team makes it better by building scalable and sustainable applications, infrastructure, and interfaces.",
+          "eid": "A7",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "They often change work processes, KPI and you are expected to keep up with any and all changes at the last minute. Not much room for growth\"",
+          "eid": "B6",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "[The company] is full of people who will stab you in the back at a moment's notice. This may include your direct manager, peers on the same team, stakeholders, or really just anyone who wants to.",
+          "eid": "B7",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Friendly vibe, good team and good supervisor.",
+          "eid": "B11",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Heavy micromanagement. Good culture. Not so great work life balance. Management could be better. Frequently changing processes and quality. Management does not seem supportive of staff.",
+          "eid": "B13",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Become acquainted with internal tools and technical processes, and highlight areas of opportunity for improvement",
+          "eid": "C2",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "Collaborate with colleagues, Experts, and Leads to identify trends and roadblocks",
+          "eid": "C10",
+          "sec": "C",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-30T11:41:14.412Z",
+      "commit_position": 3,
+      "source_mix": {
+        "company": 4,
+        "noncompany": 4,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "A6",
+        "A7",
+        "B6",
+        "B7",
+        "B11",
+        "B13",
+        "C2",
+        "C10"
+      ]
+    },
+    {
+      "dimension": "feedback",
+      "score": 0.5,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "Give and ask for direct feedback. Be grateful for and excited by the help of others.\"",
+          "eid": "A5",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "Your development as a professional matters. That's why we offer structured performance reviews, employee-led workshops, and an executive speaker series to help you grow your career.",
+          "eid": "A8",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "[The company] is full of people who will stab you in the back at a moment's notice. This may include your direct manager, peers on the same team, stakeholders, or really just anyone who wants to.",
+          "eid": "B7",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Friendly vibe, good team and good supervisor.",
+          "eid": "B11",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Very stressful and not positive work place. They don't set you up for success at your job. They will hire from outside the company before promoting from within.",
+          "eid": "B12",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Heavy micromanagement. Good culture. Not so great work life balance. Management could be better. Frequently changing processes and quality. Management does not seem supportive of staff.",
+          "eid": "B13",
+          "sec": "B",
+          "src": "noncompany"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-30T11:42:29.196Z",
+      "commit_position": 4,
+      "source_mix": {
+        "company": 2,
+        "noncompany": 4,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "A5",
+        "A8",
+        "B7",
+        "B11",
+        "B12",
+        "B13"
+      ]
+    },
+    {
+      "dimension": "innovation",
+      "score": 0.3,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "Trying and failing beats not trying and changing nothing",
+          "eid": "A2",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "They often change work processes, KPI and you are expected to keep up with any and all changes at the last minute. Not much room for growth\"",
+          "eid": "B6",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Become acquainted with internal tools and technical processes, and highlight areas of opportunity for improvement",
+          "eid": "C2",
+          "sec": "C",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-30T11:43:12.107Z",
+      "commit_position": 5,
+      "source_mix": {
+        "company": 2,
+        "noncompany": 1,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "A2",
+        "B6",
+        "C2"
+      ]
+    },
+    {
+      "dimension": "decision",
+      "score": 0.9,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "\"Seek the truth. … but never assume you've found it. Be scientific.\"",
+          "eid": "A3",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "They often change work processes, KPI and you are expected to keep up with any and all changes at the last minute. Not much room for growth\"",
+          "eid": "B6",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Become acquainted with internal tools and technical processes, and highlight areas of opportunity for improvement",
+          "eid": "C2",
+          "sec": "C",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-30T11:43:38.318Z",
+      "commit_position": 6,
+      "source_mix": {
+        "company": 2,
+        "noncompany": 1,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "A3",
+        "B6",
+        "C2"
+      ]
+    }
+  ]
+}

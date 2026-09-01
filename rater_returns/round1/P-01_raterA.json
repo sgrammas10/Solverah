@@ -1,0 +1,264 @@
+{
+  "packet_id": "P-01",
+  "rater": "A",
+  "rubric_version": "v1-frozen-2026-08-15",
+  "anchors_hash": "55c4501b25c5",
+  "session_start": "2026-08-16T23:09:08.835Z",
+  "submitted_at": "2026-08-17T02:15:04.479Z",
+  "duration_seconds": 11156,
+  "commit_order": [
+    "collaboration",
+    "autonomy",
+    "feedback",
+    "pace",
+    "innovation",
+    "decision"
+  ],
+  "recognition": "suspect",
+  "recognition_detail": "Oscar Health - I have recruited from this company",
+  "searched": "no",
+  "search_detail": "",
+  "free_note": "It would be good to see warn notices (layoffs) and member decline. (If this is Oscar, they rely heavily on the ACA (Affordable Care Act) enrollment).",
+  "scores": [
+    {
+      "dimension": "autonomy",
+      "score": 0.1,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "• \"You have significant autonomy to do your job with appropriate support when needed. There is not much room for growth. My position is fully remote which was excellent for work/life balance.\" — [employee review rev-03] — title: not stated · location: not stated — 2026-01-12 (needed JS: N) [rendered in full, not truncated]",
+          "eid": "B3",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "• \"It was a wonderful first corporate job. Moving around in the company just depends on what is available at the time. As my time there continued, they started to get more strict and micro-managey. Towards the end, the company only started to care about their profit and making money. The flexibility of\" […] — [employee review rev-08] — title: Insurance Operations Claims Processor · location: not stated — 2025-08-23 (needed JS: N)",
+          "eid": "B8",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "• \"Not a good job for parents that want to work from home with kids. Very micromanage. They want you to learn how to do every roll [sic] with no extra pay or change in salary.\" […] — [employee review rev-09] — title: Claims Specialist · location: [Site D] — 2025-06-27 (needed JS: N)",
+          "eid": "B9",
+          "sec": "B",
+          "src": "noncompany"
+        }
+      ],
+      "note": "Employee reviews are consistent. Were you able to find anything on Reddit or Substack?",
+      "committed_at": "2026-08-17T01:54:07.415Z",
+      "commit_position": 2,
+      "source_mix": {
+        "company": 0,
+        "noncompany": 3,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "B3",
+        "B8",
+        "B9"
+      ]
+    },
+    {
+      "dimension": "pace",
+      "score": 0.7,
+      "confidence": 0.9,
+      "quotes": [
+        {
+          "text": "• \"Traditionally, the design process relies on a rigorous cycle of divergence and convergence, exploring a wide range of possibilities before narrowing down. But the sheer velocity of vibe coding can trick us into skipping those steps. When a prototype looks and feels functional, there's a natural temptation to trust it immediately.\" — [company engineering/design blog] — a Senior Product Designer, company-authored — 2026-05-15 (needed JS: N)",
+          "eid": "D3",
+          "sec": "D",
+          "src": "disputed"
+        },
+        {
+          "text": "• \"We had to move fast without skipping the de-risking process. By making the system tangible early, we could answer critical questions before we would typically surface in a traditional build.\" — [company engineering/design blog] — a Senior Product Designer, company-authored — 2026-05-15 (needed JS: N)",
+          "eid": "D2",
+          "sec": "D",
+          "src": "disputed"
+        },
+        {
+          "text": "• \"Late in 2025, my product and engineering team integrated vibe coding into the early stage of a brand-new medical coding platform. By leveraging [a third-party AI prototyping tool] as our primary tool for rapid concept validation, we were able to align with stakeholders faster and gather more grounded user feedback, ultimately compressing our discovery timeline from months of traditional scoping into just a few weeks.\" — [company engineering/design blog] — a Senior Product Designer, company-authored — 2026-05-15 (needed JS: N)",
+          "eid": "D1",
+          "sec": "D",
+          "src": "disputed"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-17T01:56:03.365Z",
+      "commit_position": 4,
+      "source_mix": {
+        "company": 0,
+        "noncompany": 0,
+        "disputed": 3,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "D3",
+        "D2",
+        "D1"
+      ]
+    },
+    {
+      "dimension": "collaboration",
+      "score": 0.3,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "• \"Collaborate with colleagues, Experts, and Leads to identify trends and roadblocks\" — [job posting] — company-authored, Responsibilities block — confirmed open 2026-08-13 (needed JS: N)",
+          "eid": "C10",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "• \"As a Utilization Management RN, I was concerned that supervision structures, where vocational nurses/LVN managed Registered Nurses, didn't align with state Nurse Practice Act regulations regarding scope of practice. / I felt this structure created potential risk to member safety and licensing integrity,\" […] — [employee review rev-02] — title: Utilization Review Nurse · location: [Site A] — 2026-03-13 (needed JS: N)",
+          "eid": "B2",
+          "sec": "B",
+          "src": "noncompany"
+        }
+      ],
+      "note": "Collaboration is only evident in job posting. Red flag on lack of collaboration was taken from the Utilization Management RN feedback.",
+      "committed_at": "2026-08-17T01:50:14.613Z",
+      "commit_position": 1,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 1,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "C10",
+        "B2"
+      ]
+    },
+    {
+      "dimension": "feedback",
+      "score": 0.1,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "The company] is powered by people from all kinds of backgrounds. They all have one thing in common: they care deeply and have a strong desire to make a frustrating healthcare system easier, more human and better for absolutely everyone.\"",
+          "eid": "A1",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "• \"Heartless company, constant uncertainty. After years working there and through staff shortage, they finally repaid me by laying me off with no severance and no care. Used to be great company to work for but now it's run by people who care for their own power in each team. Highly do not recommend working\" […] — [employee review rev-04] — title: Engineer · location: [Site B] — 2025-12-13 (needed JS: N)",
+          "eid": "B4",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "• \"Heavy micromanagement. Good culture. Not so great work life balance. Management could be better. Frequently changing processes and quality. Management does not seem supportive of staff.\" […] — [employee review rev-13] — title: Complex Case Manager · location: [Region G] — 2025-04-19 (needed JS: N)",
+          "eid": "B13",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "• \"Great place to work I only left because I went back to school to finish my degree. But I would have stayed and possibly retired there. Hopefully I can go back once I obtain my degree\" — [employee review rev-10] — title: UM · location: Remote — 2025-06-25 (needed JS: N) [rendered in full, not truncated]",
+          "eid": "B10",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "but sometimes unorganized! They offer remote work answering there [sic] members benefit questions, prior authorization questions. They often change work processes, KPI and you are expected to keep up with any and all changes at the last minute. Not much room for growth\" […] — [employee review rev-06] — title: Care Guide · location: Remote — 2025-09-06 (needed JS: N)",
+          "eid": "B6",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "• \"As a Utilization Management RN, I was concerned that supervision structures, where vocational nurses/LVN managed Registered Nurses, didn't align with state Nurse Practice Act regulations regarding scope of practice. / I felt this structure created potential risk to member safety and licensing integrity,\" […] — [employee review rev-02] — title: Utilization Review Nurse · location: [Site A] — 2026-03-13 (needed JS: N)",
+          "eid": "B2",
+          "sec": "B",
+          "src": "noncompany"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-17T01:55:51.836Z",
+      "commit_position": 3,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 5,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "A1",
+        "B4",
+        "B13",
+        "B10",
+        "B6",
+        "B2"
+      ]
+    },
+    {
+      "dimension": "innovation",
+      "score": 0.7,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "is the first health insurance company built around a full stack technology platform and a relentless focus on serving its members.",
+          "eid": "A1",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "Late in 2025, my product and engineering team integrated vibe coding into the early stage of a brand-new medical coding platform. By leveraging [a third-party AI prototyping tool] as our primary tool for rapid concept validation, we were able to align with stakeholders faster and gather more grounded user feedback, ultimately compressing our discovery timeline from months of traditional scoping into just a few weeks.\"",
+          "eid": "D1",
+          "sec": "D",
+          "src": "disputed"
+        },
+        {
+          "text": "• \"Late in 2025, my product and engineering team integrated vibe coding into the early stage of a brand-new medical coding platform. By leveraging [a third-party AI prototyping tool] as our primary tool for rapid concept validation, we were able to align with stakeholders faster and gather more grounded user feedback, ultimately compressing our discovery timeline from months of traditional scoping into just a few weeks.\" — [company engineering/design blog] — a Senior Product Designer, company-authored — 2026-05-15 (needed JS: N)",
+          "eid": "D1",
+          "sec": "D",
+          "src": "disputed"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-17T01:56:38.280Z",
+      "commit_position": 5,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 2,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A1",
+        "D1",
+        "D1"
+      ]
+    },
+    {
+      "dimension": "decision",
+      "score": 0.9,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "• \"The insurer expects [a substantial sum] in administrative cost savings next year, half driven by a reduction in workforce and half from \"AI-driven efficiencies\" and \"medical cost affordability initiatives.\" [The company] did not immediately respond to a request for comment about upcoming layoffs.\" — [trade press reporting] — independent, not company-authored — 2025-08-06 (needed JS: N)",
+          "eid": "E1",
+          "sec": "E",
+          "src": "noncompany"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-17T01:57:06.839Z",
+      "commit_position": 6,
+      "source_mix": {
+        "company": 0,
+        "noncompany": 1,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "E1"
+      ]
+    }
+  ]
+}

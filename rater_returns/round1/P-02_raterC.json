@@ -1,0 +1,271 @@
+{
+  "packet_id": "P-02",
+  "rater": "C",
+  "rubric_version": "v1-frozen-2026-08-15",
+  "anchors_hash": "55c4501b25c5",
+  "session_start": "2026-08-30T21:28:42.730Z",
+  "submitted_at": "2026-08-30T22:34:16.613Z",
+  "duration_seconds": 3934,
+  "commit_order": [
+    "autonomy",
+    "pace",
+    "collaboration",
+    "feedback",
+    "innovation",
+    "decision"
+  ],
+  "recognition": "no",
+  "recognition_detail": "",
+  "searched": "no",
+  "search_detail": "",
+  "free_note": "",
+  "scores": [
+    {
+      "dimension": "autonomy",
+      "score": 0.5,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "Because ultimately, no document, including this Code, is a substitute for your good judgment",
+          "eid": "A8",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "Our culture is built on the belief that engaged and committed employees — supported by opportunities to learn, grow, innovate and explore — can lead to extraordinary outcomes.",
+          "eid": "F1",
+          "sec": "F",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-30T22:28:44.639Z",
+      "commit_position": 1,
+      "source_mix": {
+        "company": 2,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A8",
+        "F1"
+      ]
+    },
+    {
+      "dimension": "pace",
+      "score": 0.7,
+      "confidence": 0.9,
+      "quotes": [
+        {
+          "text": "Expect to be busy all day long, every appointment slot booked especially if you work in a store that services [a major consumer hardware brand]'s products, on top of having multiple other tasks that pile up while[…]",
+          "eid": "B2",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Overworked at times but it paid some bills when I needed it to",
+          "eid": "B3",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "for all the incoming workers for the holidays be prepared to work. Depending on the store the work environment can be stressful\"",
+          "eid": "B4",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Constantly busy and the goals are not too hard to hit. Plenty of accommodations for employees and the hours were very easy to work with",
+          "eid": "B14",
+          "sec": "B",
+          "src": "noncompany"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-30T22:29:12.397Z",
+      "commit_position": 2,
+      "source_mix": {
+        "company": 0,
+        "noncompany": 4,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "B2",
+        "B3",
+        "B4",
+        "B14"
+      ]
+    },
+    {
+      "dimension": "collaboration",
+      "score": 0.9,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "\"My coworkers were great and were the only reason I stayed as long as I did. The managers however where either incompetent or didn't want to help, and would frequently scream at employees and customers for small things.",
+          "eid": "B1",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "I had a lot of great experiences getting to learn new things, help people find actual solutions for their needs, and collaborate with great team members throughout my time in a sales position at [the company]",
+          "eid": "B13",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Fun place to work with an amazing team and a positive atmosphere. Management and coworkers are great",
+          "eid": "B15",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "You'll work as part of a team to move products to their designated locations within the distribution center and safely use forklifts and other powered equipment.",
+          "eid": "C3",
+          "sec": "C",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-30T22:30:17.457Z",
+      "commit_position": 3,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 3,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "B1",
+        "B13",
+        "B15",
+        "C3"
+      ]
+    },
+    {
+      "dimension": "feedback",
+      "score": 0.7,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "Foster an environment in which employees feel comfortable coming to you with questions and concerns",
+          "eid": "A7",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "I was terminated because I touched [a collectible product] didn't steal them just moved them. There was a policy that was not told to anyone and I guess I broke that policy. Very bad communications.[…]\"",
+          "eid": "B11",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Sales development is taken seriously if you take it seriously. Will depend on the management team of course",
+          "eid": "B12",
+          "sec": "B",
+          "src": "noncompany"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-30T22:30:51.311Z",
+      "commit_position": 4,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 2,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "A7",
+        "B11",
+        "B12"
+      ]
+    },
+    {
+      "dimension": "innovation",
+      "score": 0.3,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "\"We'll train you with the skills and knowledge you need to confidently recommend the right tech products and services to meet each person's unique needs.\"",
+          "eid": "C1",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "\"You'll perform repairs by troubleshooting and following our procedures.\"",
+          "eid": "C5",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "Our culture is built on the belief that engaged and committed employees — supported by opportunities to learn, grow, innovate and explore — can lead to extraordinary outcomes.",
+          "eid": "F1",
+          "sec": "F",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-30T22:33:45.027Z",
+      "commit_position": 5,
+      "source_mix": {
+        "company": 3,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "C1",
+        "C5",
+        "F1"
+      ]
+    },
+    {
+      "dimension": "decision",
+      "score": 0.5,
+      "confidence": 0.1,
+      "quotes": [
+        {
+          "text": "\"We'll train you with the skills and knowledge you need to confidently recommend the right tech products and services to meet each person's unique needs.\"",
+          "eid": "C1",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "\"You'll perform repairs by troubleshooting and following our procedures.\"",
+          "eid": "C5",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "This role will be highly collaborative and responsible for communicating insights and recommendations from the data to drive positive results",
+          "eid": "C7",
+          "sec": "C",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-30T22:34:07.165Z",
+      "commit_position": 6,
+      "source_mix": {
+        "company": 3,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "C1",
+        "C5",
+        "C7"
+      ]
+    }
+  ]
+}

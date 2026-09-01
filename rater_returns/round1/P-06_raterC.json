@@ -1,0 +1,271 @@
+{
+  "packet_id": "P-06",
+  "rater": "C",
+  "rubric_version": "v1-frozen-2026-08-15",
+  "anchors_hash": "55c4501b25c5",
+  "session_start": "2026-08-23T15:31:06.428Z",
+  "submitted_at": "2026-08-23T16:19:46.175Z",
+  "duration_seconds": 2920,
+  "commit_order": [
+    "autonomy",
+    "pace",
+    "collaboration",
+    "feedback",
+    "innovation",
+    "decision"
+  ],
+  "recognition": "no",
+  "recognition_detail": "",
+  "searched": "no",
+  "search_detail": "",
+  "free_note": "",
+  "scores": [
+    {
+      "dimension": "autonomy",
+      "score": 0.1,
+      "confidence": 0.9,
+      "quotes": [
+        {
+          "text": "\"My time at [the company] as a Mutual Funds Support Associate was genuinely positive. The culture was great, the training fully prepared me for the role, and the team provided constant support. The job wasn't too difficult, but it challenged me in the right ways and helped me grow both professionally",
+          "eid": "B10",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "They're proud to be very conservative, they believe in working on site and they believe in top down micromanagement.",
+          "eid": "B13",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "Under direct supervision, uses general knowledge and skills obtained through training and experience to assist financial advisors with marketing efforts. General instructions and procedures are provided to perform routine standardized tasks.\"",
+          "eid": "C1",
+          "sec": "C",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-23T15:51:21.633Z",
+      "commit_position": 1,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 2,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "B10",
+        "B13",
+        "C1"
+      ]
+    },
+    {
+      "dimension": "pace",
+      "score": 0.5,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "\"This job can be very busy one day and slow the next. Everyday is different which can be enjoyable.",
+          "eid": "B9",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "\"During our peak period from November to April, mandatory overtime is required.\"",
+          "eid": "C3",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "\"Manage multiple projects and priorities in a fast-paced environment while maintaining quality, meeting deadlines and client service expectations.\"",
+          "eid": "C8",
+          "sec": "C",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-23T15:56:43.087Z",
+      "commit_position": 2,
+      "source_mix": {
+        "company": 2,
+        "noncompany": 1,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "B9",
+        "C3",
+        "C8"
+      ]
+    },
+    {
+      "dimension": "collaboration",
+      "score": 0.7,
+      "confidence": 0.9,
+      "quotes": [
+        {
+          "text": "\"We value independence. We respect autonomy, celebrate individuality and welcome diverse perspectives, while encouraging collaboration and innovation.\"",
+          "eid": "A6",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "\"Create the kind of workplace where individuals feel comfortable coming forward with questions or concerns, and supported when they raise issues. Never retaliate when an individual shares concerns, and always work to prevent retaliation by others.\"",
+          "eid": "A8",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "My career has steadily progressed in my 10 years at [the company]. I enjoy coming to work, I like the culture here (as a woman working in a brokerage firm) and the firm is committed to providing the most up-to-date tech tools.",
+          "eid": "B3",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "team wants you to succeed and gives you ample opportunities to do so. Would recommend for people looking for good culture and good people.\"",
+          "eid": "B6",
+          "sec": "B",
+          "src": "noncompany"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-23T16:06:58.920Z",
+      "commit_position": 3,
+      "source_mix": {
+        "company": 2,
+        "noncompany": 2,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "A6",
+        "A8",
+        "B3",
+        "B6"
+      ]
+    },
+    {
+      "dimension": "feedback",
+      "score": 0.3,
+      "confidence": 0.9,
+      "quotes": [
+        {
+          "text": "\"As an established but ever-evolving company, you can start – or continue – growing your career here. We invest in you with wide-ranging benefits and the support of leaders and colleagues who care.\"",
+          "eid": "A3",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "\"Our people-first culture is outlined in our [a named internal culture document]. Check it out to see why many choose to work at [the company] – and why they stay.\"",
+          "eid": "A4",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "\"Create the kind of workplace where individuals feel comfortable coming forward with questions or concerns, and supported when they raise issues. Never retaliate when an individual shares concerns, and always work to prevent retaliation by others.\"",
+          "eid": "A8",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "\"Great place to start with a great culture. Good place to start as a young professional and coworkers care about your growth within the company.",
+          "eid": "B7",
+          "sec": "B",
+          "src": "noncompany"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-23T16:12:40.228Z",
+      "commit_position": 4,
+      "source_mix": {
+        "company": 3,
+        "noncompany": 1,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "A3",
+        "A4",
+        "A8",
+        "B7"
+      ]
+    },
+    {
+      "dimension": "innovation",
+      "score": 0.1,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "\"We value independence. We respect autonomy, celebrate individuality and welcome diverse perspectives, while encouraging collaboration and innovation.\"",
+          "eid": "A6",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "Under direct supervision, uses general knowledge and skills obtained through training and experience to assist financial advisors with marketing efforts. General instructions and procedures are provided to perform routine standardized tasks.\"",
+          "eid": "C1",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "\"Follow a range of mandatory procedures to ensure that work is carried out to the required quality standards and/or to ensure adherence to external regulatory codes and internal codes of conduct.\"",
+          "eid": "C6",
+          "sec": "C",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-23T16:19:15.365Z",
+      "commit_position": 5,
+      "source_mix": {
+        "company": 3,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A6",
+        "C1",
+        "C6"
+      ]
+    },
+    {
+      "dimension": "decision",
+      "score": 0.3,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "\"At [the company] our associates use five guiding behaviors [five named behaviours] to deliver on the firm's core values of client-first, integrity, independence and a conservative, long-term view.\"",
+          "eid": "C2",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "\"You will define, monitor, and maintain key performance indicators (KPIs), conduct analyses using techniques ranging from summary statistics to diagnostic and predictive modeling (with guidance as needed), and create and maintain reports and dashboards that support decision-making.\"",
+          "eid": "C7",
+          "sec": "C",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-23T16:19:33.497Z",
+      "commit_position": 6,
+      "source_mix": {
+        "company": 2,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "C2",
+        "C7"
+      ]
+    }
+  ]
+}
