@@ -1,5 +1,15 @@
-"""Tests for GET /api/intelligence/path-suggestions."""
-import os
+"""``GET /api/v1/me/path-suggestions`` -- a cache read, and only a cache read.
+
+Until Phase 3c a miss here ran the whole O*NET and OpenAI fan-out inside the
+request -- the handler ``gunicorn.conf.py``'s 120-second timeout was raised
+for. The SPA moved to ``POST /me/path-suggestion-jobs`` plus a poll (43a2024),
+and 3c cut this route down to serving the per-user cache a succeeded job warms.
+
+So the tests split the way the route did: the shape and cache-coherence tests
+warm the cache through the job pair and read it back here, and the miss tests
+assert the fan-out *never runs* on this route -- the scorer's call count, not
+the status code, is what proves the blocking call is gone.
+"""
 import pytest
 from unittest.mock import MagicMock
 
@@ -46,7 +56,6 @@ def _noop(*_args, **_kwargs):
 
 
 def _register_and_login(client, monkeypatch, email="paths@example.com", password="Strongpass1!"):
-    import app as app_module
     monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
     monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
 
@@ -71,11 +80,12 @@ def _register_and_login(client, monkeypatch, email="paths@example.com", password
 def _set_profile(email: str, extra: dict):
     from app import app
     from model import User, db
+    from solverah.repositories import profile_repository
     with app.app_context():
         user = User.query.filter_by(email=email).first()
-        profile = dict(user.profile_data or {})
-        profile.update(extra)
-        user.profile_data = profile
+        profile_repository.update_document(
+            user.id, lambda existing: {**existing, **extra}
+        )
         db.session.commit()
 
 
@@ -86,6 +96,12 @@ def _mock_scoring(monkeypatch):
     monkeypatch.setattr(path_scoring_mod, "score_paths", mock_score)
     monkeypatch.setattr(path_narrative_mod, "generate_narratives", mock_narrative)
     return mock_score, mock_narrative
+
+
+def _warm_cache(client, csrf):
+    """Run the fan-out the only way it runs now: a job, eager, already done."""
+    resp = client.post("/api/v1/me/path-suggestion-jobs", headers={"X-CSRF-TOKEN": csrf})
+    assert resp.status_code == 202, resp.get_json()
 
 
 # ---------------------------------------------------------------------------
@@ -109,16 +125,49 @@ def test_unauthenticated_returns_401(client):
     assert resp.status_code == 401
 
 
-def test_missing_career_status_returns_400(client, monkeypatch):
+def test_a_cache_miss_is_a_404_that_computes_nothing(client, monkeypatch):
+    """The inversion of the test that used to stand here.
+
+    Until 3c a miss with no career_status was a 400 from *inside* the fan-out;
+    now the route must answer before any of that machinery is reachable. The
+    scorer's call count is the real assertion -- a 404 produced after an inline
+    compute failed would pass a status check and still be the regression.
+    """
     _register_and_login(client, monkeypatch)
+    mock_score, mock_narrative = _mock_scoring(monkeypatch)
+
     resp = client.get("/api/v1/me/path-suggestions")
-    assert resp.status_code == 400
+
+    assert resp.status_code == 404
+    mock_score.assert_not_called()
+    mock_narrative.assert_not_called()
+
+
+def test_a_cache_miss_points_at_the_job_route(client, monkeypatch):
+    """The 404 is a pointer, not a shrug.
+
+    A client that missed the cutover has to be told where the work went:
+    the problem document names the enqueue whose succeeded job makes this
+    route answer 200.
+    """
+    _register_and_login(client, monkeypatch)
+
+    resp = client.get("/api/v1/me/path-suggestions")
+
+    assert resp.status_code == 404
+    assert resp.mimetype == "application/problem+json"
     body = resp.get_json()
-    assert body["error"] == "career_status_not_set"
+    assert body["start_job_url"] == "/me/path-suggestion-jobs"
+    assert body["errors"] == [{"field": "cache", "code": "not_generated"}]
 
 
 def test_happy_path_returns_correct_shape(client, monkeypatch):
-    _register_and_login(client, monkeypatch)
+    """The payload is unchanged by 3c -- only who computes it moved.
+
+    The job's succeeded result and this route serve the same cached document,
+    so every shape assertion the synchronous route carried still holds here.
+    """
+    csrf = _register_and_login(client, monkeypatch)
     _set_profile("paths@example.com", {
         "career_status": "employed",
         "skills": ["Communication", "Python"],
@@ -127,6 +176,7 @@ def test_happy_path_returns_correct_shape(client, monkeypatch):
         "manager_match_result": {"archetype": "The Autonomist", "dimension_scores": {}},
     })
     mock_score, mock_narrative = _mock_scoring(monkeypatch)
+    _warm_cache(client, csrf)
 
     resp = client.get("/api/v1/me/path-suggestions")
     assert resp.status_code == 200
@@ -150,10 +200,12 @@ def test_happy_path_returns_correct_shape(client, monkeypatch):
     mock_narrative.assert_called_once()
 
 
-def test_second_call_returns_cached_response(client, monkeypatch):
-    _register_and_login(client, monkeypatch, email="paths_cache@example.com")
+def test_repeat_reads_serve_one_computation(client, monkeypatch):
+    """Cache coherence across the pair: one job, many reads, one fan-out."""
+    csrf = _register_and_login(client, monkeypatch, email="paths_cache@example.com")
     _set_profile("paths_cache@example.com", {"career_status": "between_jobs"})
     mock_score, _ = _mock_scoring(monkeypatch)
+    _warm_cache(client, csrf)
 
     resp1 = client.get("/api/v1/me/path-suggestions")
     assert resp1.status_code == 200

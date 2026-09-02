@@ -197,7 +197,9 @@ def test_the_api_base_constant_carries_the_version(served_rules):
     Had it been repeated at every call site, moving to /api/v1 would have been 37
     edits and moving to /api/v2 will be 37 more.
     """
-    api_module = (SRC / "utils" / "api.ts").read_text(encoding="utf-8")
+    # Phase 4 moved the transport module: src/utils/api.ts -> src/shared/api/api.ts.
+    # Path-only change; the assertion and its meaning are untouched.
+    api_module = (SRC / "shared" / "api" / "api.ts").read_text(encoding="utf-8")
 
     assert "/api/v1" in api_module
 

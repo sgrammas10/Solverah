@@ -13,9 +13,9 @@ wrong OpenAPI document to whoever generates a client from it.
 Conventions:
 
 * ``model_config = ConfigDict(extra="allow")`` on response models that serialise
-  the ``profile_data`` blob.  Until Phase 2 decomposes it, the exact key set is
-  data-dependent, and a closed model would be a lie.  Models over fixed shapes
-  are closed.
+  the profile document.  Phase 2a promoted part of it to columns and left the
+  rest in ``profiles.extra``, so the exact key set is still data-dependent and a
+  closed model would still be a lie.  Models over fixed shapes are closed.
 * Field names match the wire exactly, including the camelCase the frontend
   already reads.  Renaming them is Phase 1b's business, not the schema layer's.
 """
@@ -42,7 +42,7 @@ class SolverahModel(BaseModel):
     ``extra="forbid"`` is the default because an undeclared key in a *request*
     is almost always a client bug or a renamed field, and because a closed model
     is what makes the generated client's types worth trusting.  Response models
-    over the ``profile_data`` blob override it -- see the module docstring.
+    over the profile document override it -- see the module docstring.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -62,7 +62,7 @@ class LegacyError(SolverahModel):
     :class:`ProblemDetailResponse`, which is what the Phase 0 error handlers
     produce for anything a handler did not catch itself.
 
-    The two shapes are why ``src/utils/apiError.ts`` reads both.  Phase 1b
+    The two shapes are why ``src/shared/api/apiError.ts`` reads both.  Phase 1b
     collapses them by moving handlers onto ``solverah.errors.ApiError``.
     """
 

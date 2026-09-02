@@ -64,16 +64,18 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
     CMD curl -fsS http://localhost:8000/healthz || exit 1
 
-# gthread, not sync: handlers still make blocking third-party calls (OpenAI,
-# Groq, O*NET, Resend, R2), and a sync worker is occupied for the whole call.
-# Threads let a worker serve other requests while one waits on the network.
-# Phase 3 moves that I/O to Celery, after which the timeout drops to 30s.
+# gthread, not sync: threads let a worker serve other requests while one
+# waits on the network (the named exceptions in A21 still do). No --timeout
+# here on purpose: a CLI flag overrides gunicorn.conf.py, and this CMD's
+# `--timeout 120` silently overrode the Phase 3 close-out's drop to 30s
+# everywhere this image runs (A21 recorded it as residue). The config file
+# owns timeout now; worker class and threads stay explicit because compose
+# overrides them per-environment and this CMD documents production's shape.
 CMD ["gunicorn", "app:app", \
      "--bind", "0.0.0.0:8000", \
      "--worker-class", "gthread", \
      "--workers", "3", \
      "--threads", "8", \
-     "--timeout", "120", \
      "--graceful-timeout", "30", \
      "--keep-alive", "5", \
      "--max-requests", "2000", \

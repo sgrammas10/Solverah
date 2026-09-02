@@ -1,18 +1,24 @@
 """Career-path preferences and O*NET-backed path suggestions.
 
 ``path_suggestions`` was the single largest handler in ``app.py`` -- roughly 190
-lines that read eleven different keys out of ``profile_data``, assembled two
+lines that read eleven different keys out of the profile document, assembled two
 dataclasses from them, called the scorer and the narrator, and shaped a payload.
 Most of that length is the extraction, so that is what comes out first:
 :func:`build_user_profile` and :func:`build_user_context` are pure functions of
 the profile blob and the intake row, and the orchestration around them is now
 short enough to read in one screen.
 
-Three behaviours are preserved deliberately:
+Two behaviours are preserved deliberately, and one is gone.
 
-* **A GET that writes.**  When ``career_status`` is unset, the service tries to
-  derive it from an experience entry ending in "Present"/"Current" and commits
-  the derivation.  Same class of problem as P0-3.
+* **A GET that writes.**  When ``career_status`` was unset, the service derived
+  it from an experience entry ending in "Present"/"Current" and *committed* the
+  derivation mid-read -- the same class of problem as P0-3.  **Fixed in Phase 3.**
+  The derivation still happens and still feeds the scorer; it is simply not
+  persisted.  No backfill replaces it, unlike the culture-preferences write in
+  ``matching_service``, and the difference is that this derivation is a pure
+  function of the profile document already in hand -- there is nothing to save by
+  storing it, and storing it wrote a *guess* into a field the user is the
+  authority on.  ``PATCH /me/career-status`` remains the only thing that sets it.
 * **Empty results are a 500, not a 200.**  If scoring returns nothing for a
   complete profile, O*NET gave us nothing, and that is a transient upstream
   failure rather than a message the user can act on.
@@ -28,6 +34,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from model import User, db
 from solverah.infra import llm
+from solverah.repositories import profile_repository
 from solverah.services import path_cache
 
 __all__ = [
@@ -38,6 +45,7 @@ __all__ = [
     "SENIORITY_INTENTS",
     "build_user_context",
     "build_user_profile",
+    "cached_path_suggestions",
     "derive_career_status",
     "path_suggestions",
     "save_path_preferences",
@@ -94,13 +102,14 @@ def save_path_preferences(user: User, data: Dict[str, Any]) -> IntelligenceResul
     if priority not in PATH_PRIORITIES:
         return _error(400, "Invalid priority")
 
-    profile = dict(user.profile_data or {})
-    profile["path_preferences"] = {
+    preferences = {
         "move_intent": move_intent,
         "seniority_intent": seniority_intent,
         "priority": priority,
     }
-    user.profile_data = profile
+    profile_repository.update_document(
+        user.id, lambda existing: {**existing, "path_preferences": preferences}
+    )
     db.session.commit()
 
     path_cache.invalidate(user.id)
@@ -226,8 +235,28 @@ def build_user_context(profile: Dict[str, Any], intake, career_status: str):
 # Suggestions
 # ---------------------------------------------------------------------------
 
+def cached_path_suggestions(user: User) -> Optional[IntelligenceResult]:
+    """The cached suggestions payload for *user*, or None on a miss.
+
+    The whole of what ``GET /me/path-suggestions`` serves since Phase 3c. The
+    fan-out to O*NET and OpenAI lives in :func:`path_suggestions`, which only a
+    worker runs now -- a miss here is the route's cue to point the client at
+    ``POST /me/path-suggestion-jobs`` rather than to compute inline.
+    """
+    cached = path_cache.get(user.id)
+    if cached is None:
+        return None
+    return IntelligenceResult(status=200, body=cached)
+
+
 def path_suggestions(user: User, logger) -> IntelligenceResult:
-    """Score and narrate career-path suggestions, caching the result per user."""
+    """Score and narrate career-path suggestions, caching the result per user.
+
+    Since Phase 3c this runs only off the request path -- `scoring_jobs` calls
+    it from a worker, and the cache it stores into is what the GET serves. Kept
+    whole rather than split from its cache write because the succeeded job and
+    the warm cache must never disagree about what was computed.
+    """
     from backend.services.onet_client import OnetClient
     from backend.services.path_narrative import NarrativeGenerationError, generate_narratives
     from backend.services.path_scoring import score_paths
@@ -236,19 +265,17 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
     if cached is not None:
         return IntelligenceResult(status=200, body=cached)
 
-    profile = user.profile_data or {}
+    profile = profile_repository.load_document(user.id)
     career_status = profile.get("career_status")
     if not career_status:
-        # Try to derive from experience before giving up, and persist it so
-        # future calls skip the derivation entirely. This is the write on a GET
-        # noted in the module docstring.
+        # Derive from experience before giving up. This used to persist and
+        # commit the derivation -- the write on a GET named in the module
+        # docstring -- and now applies it to the in-memory document only. The
+        # scorer sees exactly what it saw before; the database does not.
         career_status = derive_career_status(profile)
         if not career_status:
             return _error(400, "career_status_not_set")
-        updated = dict(profile)
-        updated["career_status"] = career_status
-        user.profile_data = updated
-        db.session.commit()
+        profile = {**profile, "career_status": career_status}
 
     user_profile = build_user_profile(profile, user.intake, career_status)
 
@@ -312,10 +339,10 @@ def read_path_preferences(user: User) -> IntelligenceResult:
     New in Phase 1b. The endpoint this pairs with was write-only, so a client
     that wanted to show the user their own answers had to either keep a copy or
     read them out of the profile blob -- which is exactly the coupling to
-    ``profile_data``'s shape that putting schemas at the API boundary exists to
-    stop.
+    the profile document's shape that putting schemas at the API boundary exists
+    to stop.
     """
-    saved = (user.profile_data or {}).get("path_preferences") or {}
+    saved = profile_repository.load_document(user.id).get("path_preferences") or {}
     return IntelligenceResult(
         status=200,
         body={

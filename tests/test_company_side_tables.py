@@ -3,9 +3,16 @@
 These tables have no application code path yet -- the match model is not productionized --
 so what is testable today is the data contract itself: the vocabularies, ranges, and
 uniqueness rules that schema.sql expressed as Postgres enums and constraints. Because the
-enums were translated to String + CHECK, the SQLite test database enforces the same rules
-production Postgres will, and these tests exercise them for real rather than trusting the
-translation.
+enums were translated to String + CHECK, the SQLite test database enforces the same
+vocabulary rules production Postgres will, and these tests exercise them for real rather
+than trusting the translation.
+
+That was only ever half true, and the missing half cost four tests here.  SQLite honours
+the CHECK constraints but ships with *foreign keys* off, so every ``user_id=1`` below was
+an orphan pointing at a `user` row that had never been created.  The vocabulary
+assertions passed while the rows they asserted about could not exist in production.
+Moving CI to Postgres (2026-08-27) surfaced all four at once; ``seed_user`` supplies the
+parent row, and conftest now turns the SQLite pragma on so the two databases agree.
 
 Every expected-failure test writes a sibling VALID row first (or after), so a test cannot
 pass because the table is broken for all inserts -- the S-40 lesson: a check whose fixture
@@ -57,7 +64,7 @@ def _mk_run(db):
     return run
 
 
-def test_full_graph_inserts(client):
+def test_full_graph_inserts(client, seed_user):
     """Happy path: one row in every new table, linked the way the match pipeline will
     link them. If this fails, nothing else in this file means anything."""
     from app import app
@@ -69,6 +76,8 @@ def test_full_graph_inserts(client):
         RecAction,
         WeightPosterior,
     )
+
+    seed_user(1)  # match_recommendation.user_id / outcome_experienced.user_id are FKs
 
     with app.app_context():
         company = _mk_company(db, domain="acme.example")
@@ -97,13 +106,13 @@ def test_full_graph_inserts(client):
         db.session.add(rec)
         db.session.flush()
 
-        db.session.add(RecAction(recommendation_id=rec.id, action="viewed"))
+        db.session.add(RecAction(recommendation=rec, action="viewed"))
         db.session.add(
-            OutcomeAppeal(recommendation_id=rec.id, fit_yes=True, channel="onsite")
+            OutcomeAppeal(recommendation=rec, fit_yes=True, channel="onsite")
         )
         db.session.add(
             OutcomeExperienced(
-                user_id=1, company_id=company.id, recommendation_id=rec.id, working_scale=4
+                user_id=1, company_id=company.id, recommendation=rec, working_scale=4
             )
         )
         db.session.commit()
@@ -232,29 +241,33 @@ def test_weight_posterior_one_row_per_weight_per_run(client):
         db.session.rollback()
 
 
-def test_funnel_action_vocab_enforced(client):
+def test_funnel_action_vocab_enforced(client, seed_user):
     from app import app
     from model import db, MatchRecommendation, RecAction
+
+    seed_user(1)
 
     with app.app_context():
         company = _mk_company(db)
         rec = MatchRecommendation(user_id=1, company_id=company.id)
         db.session.add(rec)
         db.session.flush()
-        db.session.add(RecAction(recommendation_id=rec.id, action="applied"))
+        db.session.add(RecAction(recommendation=rec, action="applied"))
         db.session.commit()
 
         with pytest.raises(IntegrityError):
-            db.session.add(RecAction(recommendation_id=rec.id, action="ghosted"))
+            db.session.add(RecAction(recommendation=rec, action="ghosted"))
             db.session.commit()
         db.session.rollback()
 
 
-def test_outcome_appeal_is_one_per_recommendation(client):
+def test_outcome_appeal_is_one_per_recommendation(client, seed_user):
     """Appeal is a one-shot answer about a shown match; a second answer for the same
     recommendation must be refused, not averaged in later."""
     from app import app
     from model import db, MatchRecommendation, OutcomeAppeal
+
+    seed_user(1)
 
     with app.app_context():
         company = _mk_company(db)
@@ -262,23 +275,25 @@ def test_outcome_appeal_is_one_per_recommendation(client):
         db.session.add(rec)
         db.session.flush()
         db.session.add(
-            OutcomeAppeal(recommendation_id=rec.id, fit_yes=False, channel="email")
+            OutcomeAppeal(recommendation=rec, fit_yes=False, channel="email")
         )
         db.session.commit()
 
         with pytest.raises(IntegrityError):
             db.session.add(
-                OutcomeAppeal(recommendation_id=rec.id, fit_yes=True, channel="onsite")
+                OutcomeAppeal(recommendation=rec, fit_yes=True, channel="onsite")
             )
             db.session.commit()
         db.session.rollback()
 
 
-def test_working_scale_is_ordinal_1_to_5(client):
+def test_working_scale_is_ordinal_1_to_5(client, seed_user):
     """The experienced-fit label the model eventually trains on (OrderedLogistic -- S-06).
     0 and 6 are refused at the database, not just in whatever form collects it someday."""
     from app import app
     from model import db, OutcomeExperienced
+
+    seed_user(1)
 
     with app.app_context():
         company = _mk_company(db)

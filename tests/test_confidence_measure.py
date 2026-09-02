@@ -184,7 +184,7 @@ def test_submit_form_grades_five_and_leaves_feedback_null():
         assert result.confidences[dim] in (0.0, 0.5, 1.0), dim
 
 
-def test_persisted_confidence_roundtrips_and_retake_refreshes(client):
+def test_persisted_confidence_roundtrips_and_retake_refreshes(client, seed_user):
     from app import app
     from assessment_form import scoring_key_version, ScoredSubmission
     from assessment_store import get_dimension_confidences, persist_submission
@@ -199,6 +199,8 @@ def test_persisted_confidence_roundtrips_and_retake_refreshes(client):
             choices=choices,
             confidences={d: (None if d == "feedback" else conf_value) for d in DIMS},
         )
+
+    seed_user(7)  # assessment_response.user_id is a real FK; the parent row must exist
 
     with app.app_context():
         assert get_dimension_confidences(7) is None  # no profile yet

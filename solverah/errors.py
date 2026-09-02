@@ -40,6 +40,7 @@ __all__ = [
     "AuthenticationError",
     "AuthorizationError",
     "ConflictError",
+    "GoneError",
     "NotFoundError",
     "ProblemDetail",
     "RateLimitError",
@@ -168,6 +169,21 @@ class ConflictError(ApiError):
     status = 409
     title = "Conflict"
     code = "conflict"
+
+
+class GoneError(ApiError):
+    """The operation existed and was deliberately removed.
+
+    Distinct from :class:`NotFoundError` on purpose: a 404 for a route a client
+    shipped against says "you never had this", which sends the caller hunting
+    for a typo. 410 says "this was here and is not coming back" -- and the
+    problem document is expected to carry where the work moved (Phase 3c uses
+    ``extra`` for the replacement path).
+    """
+
+    status = 410
+    title = "Gone"
+    code = "gone"
 
 
 class RateLimitError(ApiError):

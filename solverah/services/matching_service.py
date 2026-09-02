@@ -10,14 +10,26 @@ and it is preserved unchanged here rather than fixed:
     companies times meaningful RPS it saturates the database and every worker
     simultaneously.
 
-It also **commits a write on a GET**: a user who completed Work Pulse before
-``culture_preferences`` was stored gets a backfill written and committed
-mid-read.  That is the same class of problem as P0-3 on the profile read.
+It **used to commit a write on a GET** as well: a user who completed Work Pulse
+before ``culture_preferences`` was stored got a backfill written and committed
+mid-read -- the same class of problem as P0-3 on the profile read.  **Fixed in
+Phase 3.**  :func:`resolve_culture_preferences` still derives the vector when it
+is missing, and still returns it, so the response is identical; what it no longer
+does is persist it.  Persisting is :func:`backfill_culture_preferences`, run from
+the ``maintenance`` queue over the accounts that predate the vector being written
+at submit time.
 
-Both are Phase 2/3 work -- a pgvector index over precomputed culture vectors, a
-Redis-cached match set refreshed by a worker, and the backfill moved to a
-migration.  Fixing either here would change response timing and content in a
-batch whose contract is that neither changes.
+Deriving on every read rather than caching the derivation is affordable and was
+measured: ``derive_culture_preferences`` is arithmetic over twelve stored answers,
+and it runs only for accounts the backfill has not reached.
+
+P0-2 is untouched, and Phase 3 deliberately does **not** put a Redis cache in
+front of it.  ``docs/ARCHITECTURE.md`` lists "Redis cache for match sets" as this
+phase's first caching item, and that item is dropped rather than deferred:
+``culture_fit_score`` is an interim scorer being deleted, not migrated -- 34ms
+across 2,071 companies -- and the causal Bayesian model replacing it has a
+different key and a different invalidation trigger.  A cache built here would be
+deleted with the thing it caches.  See ``solverah/infra/cache.py``.
 """
 
 from __future__ import annotations
@@ -29,7 +41,12 @@ from model import User, db
 from packages.ml.culture import CultureValues, culture_fit_score
 from solverah import pagination
 from solverah.domain import matching as domain
-from solverah.repositories import company_repository
+from solverah.infra import cache
+from solverah.repositories import (
+    assessment_repository,
+    company_repository,
+    profile_repository,
+)
 
 __all__ = [
     "DEFAULT_LENS",
@@ -41,6 +58,7 @@ __all__ = [
     "matches",
     "MAX_LIMIT",
     "MatchingResult",
+    "backfill_culture_preferences",
     "company_detail",
     "resolve_culture_preferences",
 ]
@@ -67,56 +85,118 @@ def _error(status: int, message: str) -> MatchingResult:
 
 
 def company_detail(company_id: int) -> MatchingResult:
-    """Return one company's full stored profile.
+    """Return one company's full stored profile. Cached in Redis (Phase 3).
 
     The integer id is exposed directly in the URL, so the endpoint enumerates:
     an authenticated caller can walk ``/companies/1``, ``/companies/2``, and
     read the whole network. Part 4.2 and Part 5.2 replace it with a UUID
     ``public_id``. Unchanged here because the frontend links by integer id.
+
+    **The best caching candidate in the application**, which is why it is one of
+    the two reads Phase 3 caches. The row is large -- ``profile_json`` is the
+    entire research document -- it is read far more often than it is written,
+    every company page hits it, and the payload is identical for every caller
+    because nothing in it depends on who is asking. The key is invalidated by
+    ``company_repository.upsert_company``, which is the only writer.
+
+    **404 is not cached**, deliberately. An id that does not exist yet may exist
+    after the next import, and a negative cache would hold the absence past the
+    row appearing. It also means an enumeration probe cannot leave anything
+    behind.
     """
+    key = cache.company_detail_key(company_id)
+    cached = cache.get_json(key)
+    if cached is not None:
+        return MatchingResult(status=200, body=cached)
+
     company = company_repository.get_by_id(company_id)
     if company is None:
         return _error(404, "Company not found")
 
-    return MatchingResult(
-        status=200,
-        body={
-            "id": company.id,
-            "name": company.name,
-            "slug": company.slug,
-            "profile": company.profile_json,
-        },
-    )
+    body = {
+        "id": company.id,
+        "name": company.name,
+        "slug": company.slug,
+        "profile": company.profile_json,
+    }
+    cache.set_json(key, body)
+    return MatchingResult(status=200, body=body)
+
+
+def _derive_culture_preferences(user_id: int, profile: Dict[str, Any]) -> Optional[dict]:
+    """Compute the culture vector from stored Work Pulse answers, or None.
+
+    Reads the Work Pulse submission since Phase 2d; it read
+    ``user_intake.wpl_answers`` before, which was the last query outside the
+    assessment tables that treated an instrument's answers as profile state.
+
+    Pure with respect to the database: it reads and returns, and persisting the
+    result is the caller's decision.  That separation is what lets the read path
+    have the value without writing it.
+    """
+    from work_pulse.derive_preferences import derive_culture_preferences
+
+    submission = assessment_repository.current_submission(user_id, "work_pulse")
+    if submission is None or not submission.answers:
+        return None
+    return derive_culture_preferences(submission.answers)
 
 
 def resolve_culture_preferences(user: User) -> Optional[dict]:
-    """The user's culture preferences, backfilling from Work Pulse if absent.
+    """The user's culture preferences, deriving from Work Pulse if absent.
 
     Returns None when neither is available, which the caller turns into a 400.
 
-    The backfill commits inside a GET -- see the module docstring. It exists for
-    users who completed Work Pulse before ``culture_preferences`` was written at
-    submit time; those accounts have the answers but not the derived vector.
+    **Writes nothing.**  This derived and then committed inside a GET until
+    Phase 3 -- see the module docstring.  The derivation is unchanged and so is
+    the value returned; only the INSERT is gone, and
+    :func:`backfill_culture_preferences` is where it went.
     """
-    profile = user.profile_data or {}
+    profile = profile_repository.load_document(user.id)
     user_prefs = profile.get("culture_preferences")
     if user_prefs:
         return user_prefs
 
-    # Backfill for users who completed WP before culture_preferences was stored.
-    from model import UserIntake
-    from work_pulse.derive_preferences import derive_culture_preferences
+    return _derive_culture_preferences(user.id, profile)
 
-    intake = UserIntake.query.filter_by(user_id=user.id).first()
-    if not intake or not intake.wpl_answers:
-        return None
 
-    user_prefs = derive_culture_preferences(intake.wpl_answers)
-    profile = dict(profile)
-    profile["culture_preferences"] = user_prefs
-    user.profile_data = profile
-    db.session.commit()
-    return user_prefs
+def backfill_culture_preferences(limit: int = 500) -> Dict[str, int]:
+    """Persist derived culture preferences for accounts still missing them.
+
+    The write ``resolve_culture_preferences`` used to do on a read, done where it
+    belongs: on the ``maintenance`` queue, in bulk, never on a request.  Nothing
+    depends on it having run -- the read derives what it needs either way -- so a
+    failure here costs a few milliseconds per read and not a wrong answer.
+
+    Idempotent and bounded.  Selects only users whose profile lacks the key, so
+    running it twice over a finished backfill is a query and no writes.
+
+    Returns:
+        ``{"considered": n, "written": n, "underivable": n}``.
+    """
+    counts = {"considered": 0, "written": 0, "underivable": 0}
+
+    for user_id in profile_repository.user_ids_missing("culture_preferences", limit=limit):
+        counts["considered"] += 1
+        profile = profile_repository.load_document(user_id)
+        if profile.get("culture_preferences"):
+            continue
+
+        derived = _derive_culture_preferences(user_id, profile)
+        if not derived:
+            # No Work Pulse submission to derive from. Not an error: most accounts
+            # in this state simply have not taken the instrument yet.
+            counts["underivable"] += 1
+            continue
+
+        profile_repository.update_document(
+            user_id,
+            lambda existing, value=derived: {**existing, "culture_preferences": value},
+        )
+        db.session.commit()
+        counts["written"] += 1
+
+    return counts
 
 
 def _clamp_limit(raw: Any) -> Any:

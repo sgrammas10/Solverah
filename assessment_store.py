@@ -26,6 +26,26 @@ score row in place and records which submission it now comes from.
 That asymmetry is intentional. There is exactly one current score per person per dimension
 per scoring key -- anything else means every consumer has to decide which row is live, and
 they will not all decide the same way. The history is not lost; it is in the raw rows.
+
+THE SUBMISSION ROW (Phase 2d)
+-----------------------------
+A sitting is now also one row in `assessment_submissions`, the table all five assessment
+products share. It is written here rather than by `assessment_repository` for the same
+reason everything else on this path is: the row and the raw responses it identifies must
+land in one transaction, and the doorway is where that boundary lives.
+
+The row is deliberately empty of content. `result` and `answers` are null for `core` -- a
+check constraint, not a convention -- so nothing that reads the shared table learns an
+individual's answers or dimension scores. That is what "unify the storage without widening
+D-01" means concretely: the *record that a sitting happened* is shared, and everything the
+sitting contains stays behind this module.
+
+`submission_id` on the two person-side tables is unchanged in type and shape: 32 lowercase
+hex characters. It is now `assessment_submissions.public_id.hex` rather than a free-standing
+`uuid4()`, which makes it a join key to the shared table instead of an id that happened to
+be unique. Both are UUIDs and `.hex` is 32 characters either way, so nothing on the wire
+moved -- `Scripts/capture_contract.py` masks it with a pattern that only matches that shape,
+so a change of format would show up as a diff rather than be hidden by the mask.
 """
 
 from __future__ import annotations
@@ -33,7 +53,6 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
-import uuid
 
 from assessment_form import ScoredSubmission
 
@@ -75,13 +94,38 @@ def persist_submission(db, user_id: int, result: ScoredSubmission) -> str:
     """Write one sitting's raw responses and its six derived scores. Returns submission_id.
 
     Does NOT commit -- the caller owns the transaction boundary, so a route can roll the
-    whole thing back if anything after this fails. Both writes are in the same transaction
-    by construction: a scores row whose raw responses were not written is un-recomputable,
-    and raw responses with no scores are invisible to every consumer.
+    whole thing back if anything after this fails. All three writes are in the same
+    transaction by construction: a scores row whose raw responses were not written is
+    un-recomputable, raw responses with no scores are invisible to every consumer, and a
+    submission row without either is a sitting that never happened.
     """
-    from model import AssessmentResponse, PersonDimensionScore
+    from model import (
+        AssessmentForm,
+        AssessmentResponse,
+        AssessmentSubmission,
+        PersonDimensionScore,
+    )
 
-    submission_id = uuid.uuid4().hex
+    # The form version has to be registered before a submission can name it: the
+    # composite foreign key is what stops `form_version` being free text. Registering on
+    # first use rather than on deploy means a new item file starts being usable the moment
+    # it ships, with no ordering requirement between the two.
+    AssessmentForm.register("core", result.form_version)
+
+    sitting = AssessmentSubmission(
+        user_id=user_id,
+        kind="core",
+        form_version=result.form_version,
+        status="scored",
+        completed_at=db.func.now(),
+        scored_at=db.func.now(),
+    )
+    db.session.add(sitting)
+    # Flushed and refreshed because `public_id` defaults to `uuidv7()` in the database
+    # (A13) -- the value does not exist until the INSERT has run.
+    db.session.flush()
+    db.session.refresh(sitting, ["public_id"])
+    submission_id = sitting.public_id.hex
 
     for item_id, choice in result.choices.items():
         db.session.add(

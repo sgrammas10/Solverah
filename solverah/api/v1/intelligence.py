@@ -29,6 +29,7 @@ from security import (
     GUEST_INSIGHTS_PER_IP_LIMIT,
     global_rate_limit_key,
 )
+from solverah.errors import NotFoundError
 from solverah.extensions import limiter
 from solverah.infra import llm
 from solverah.openapi import document
@@ -40,6 +41,8 @@ from solverah.schemas.intelligence import (
     PathPreferencesDocument,
     PathPreferencesPutRequest,
     PathPreferencesRequest,
+    PathSuggestionJobAccepted,
+    PathSuggestionJobStatus,
     RecommendationsPage,
     PathPreferencesResponse,
     PathSuggestionsResponse,
@@ -48,7 +51,12 @@ from solverah.schemas.intelligence import (
     QuizInsightsResponse,
     RecommendationsResponse,
 )
-from solverah.services import agent_service, insight_service, intelligence_service
+from solverah.services import (
+    agent_service,
+    insight_service,
+    intelligence_service,
+    scoring_jobs,
+)
 
 __all__ = ["intelligence_bp"]
 
@@ -64,6 +72,11 @@ _SCOPE_QUIZ_INSIGHTS = "intelligence:quiz-insights"
 _SCOPE_RECOMMENDATIONS_REFRESH = "intelligence:recommendations-refresh"
 _SCOPE_RECOMMENDATIONS_READ = "intelligence:recommendations-read"
 _SCOPE_AGENT = "intelligence:agent"
+_SCOPE_PATH_SUGGESTION_JOBS = "intelligence:path-suggestion-jobs"
+
+#: See ``solverah/api/v1/assessments.py`` for why a poll does not run on the
+#: global defaults, and why the day cap is restated rather than dropped.
+POLL_LIMIT = "60 per minute;2000 per day"
 _SCOPE_GUEST_INSIGHTS = "intake:quiz-preview-insights"
 _SCOPE_GUEST_INSIGHTS_GLOBAL = "intake:quiz-preview-insights:global"
 
@@ -115,7 +128,7 @@ def _do_agent_stream():
         return jsonify({"error": "messages must be a non-empty list"}), 400
 
     model = (data.get("model") or llm.default_agent_model()).strip()
-    resume_text = agent_service.fetch_resume_text(user.profile_data or {})
+    resume_text = agent_service.resume_text_for(user)
     system_prompt = agent_service.build_agent_context(user, resume_text=resume_text)
     full_messages = [{"role": "system", "content": system_prompt}] + messages
 
@@ -213,28 +226,49 @@ def put_path_preferences():
 
 
 @document(
-    "Score and narrate career path suggestions",
+    "Read the cached career path suggestions",
     tags=["me"],
-    responses={200: PathSuggestionsResponse, 400: LegacyError, 404: LegacyError, 500: LegacyError},
+    responses={200: PathSuggestionsResponse, 404: LegacyError},
     security=_AUTHENTICATED,
     enforce=True,
+    description=(
+        "Serves the per-user cache that a succeeded path-suggestion job "
+        "populates; the cache is invalidated when Work Pulse results, "
+        "experience entries, or ManagerMatch results change.\n\n"
+        "A miss is `404` and computes nothing: the problem document's "
+        "`start_job_url` names `POST /me/path-suggestion-jobs`, which queues "
+        "the O*NET and OpenAI fan-out this route performed inline before "
+        "Phase 3c and whose poll returns the same payload this serves."
+    ),
 )
 @intelligence_bp.route("/me/path-suggestions", methods=["GET"])
 @jwt_required()
 def get_path_suggestions():
-    """GET /me/path-suggestions - scored and narrated career paths.
+    """GET /me/path-suggestions - the cached suggestions, and only the cache.
 
-    Cached per user; the cache is invalidated when Work Pulse results,
-    experience entries, or ManagerMatch results change.
-
-    Part 5.2 has a cache miss answering 202 and enqueueing the work. It does not
-    yet -- there is no queue until Phase 3, and a 202 for work that then runs
-    inline would hand the client a job to poll that has already finished.
+    Until Phase 3c a miss here ran the whole O*NET and OpenAI fan-out inside
+    the request -- the handler `gunicorn.conf.py`'s 120-second timeout was
+    raised for. The SPA moved to the job pair in 43a2024, so a miss now answers
+    404 with a pointer at the enqueue instead of computing. Deliberately not a
+    202: nothing was queued on the client's behalf, and a job the client did
+    not start is a job it does not know to poll.
     """
     user = _current_user()
     if not user:
         return jsonify({"error": "User not found"}), 404
-    return _respond(intelligence_service.path_suggestions(user, current_app.logger))
+
+    cached = intelligence_service.cached_path_suggestions(user)
+    if cached is None:
+        raise NotFoundError(
+            detail=(
+                "No cached path suggestions. Queue a scoring at "
+                "POST /me/path-suggestion-jobs and poll the job; its result "
+                "is the payload this route serves."
+            ),
+            errors=[{"field": "cache", "code": "not_generated"}],
+            extra={"start_job_url": "/me/path-suggestion-jobs"},
+        )
+    return _respond(cached)
 
 
 @document(
@@ -334,3 +368,106 @@ def agent_messages():
     than a bespoke 400 body.
     """
     return _do_agent_stream()
+
+
+# ---------------------------------------------------------------------------
+# Phase 3b/3c -- path suggestions off the request path
+# ---------------------------------------------------------------------------
+#
+# `GET /me/path-suggestions` used to fan out to O*NET and OpenAI inside the
+# request. It and assessment scoring were the two handlers `gunicorn.conf.py`'s
+# 120-second timeout was raised for. 3b added this job pair alongside the GET;
+# 3c cut the GET down to a cache read once the frontend had moved (43a2024), so
+# the fan-out below is the only way the scoring runs.
+
+
+@document(
+    "Queue a path-suggestion scoring and return a job handle",
+    tags=["me"],
+    responses={202: PathSuggestionJobAccepted, 404: LegacyError},
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    request_required=False,
+    description=(
+        "The only way path suggestions are computed since Phase 3c. Queues the "
+        "O*NET and OpenAI fan-out and answers `202` with a job handle; poll "
+        "`GET /me/path-suggestion-jobs/{job_id}` until `status` is `succeeded` "
+        "or `failed`.\n\n"
+        "A succeeded job warms the per-user cache `GET /me/path-suggestions` "
+        "serves, so the payload can be re-read there without paying for the "
+        "scoring twice.\n\n"
+        "Rate limited, and the cache-reading `GET` is not: an enqueue returns "
+        "immediately and can be issued in a loop, so the budget that bounds "
+        "provider spend has to live here (A9)."
+    ),
+)
+@intelligence_bp.route("/me/path-suggestion-jobs", methods=["POST"])
+@limiter.shared_limit("10 per minute", scope=_SCOPE_PATH_SUGGESTION_JOBS)
+@jwt_required()
+def post_my_path_suggestion_job():
+    """POST /me/path-suggestion-jobs - queue the scoring, return 202.
+
+    **This route carries a limit the GET it feeds does not, and that is
+    deliberate rather than an oversight in one of them.** Since 3c the GET is a
+    cache read that reaches no provider, so there is nothing there for a budget
+    to bound. An enqueue returns in milliseconds, so a loop issues hundreds;
+    and each one that a worker picks up before the first has populated the
+    cache is a full O*NET and OpenAI fan-out at full cost. A9's principle is
+    that the budget bounds provider spend -- this is the only door to the
+    spend, so this is where the budget lives.
+
+    10 per minute, matching `POST /me/recommendations/refresh`: the other
+    authenticated operation whose whole purpose is to ask the server to
+    regenerate something expensive.
+    """
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    job = scoring_jobs.create_path_suggestions(user)
+    job_id = job.public_id.hex
+    return (
+        jsonify(
+            {
+                "job_id": job_id,
+                "status": job.status,
+                "status_url": "/me/path-suggestion-jobs/%s" % job_id,
+            }
+        ),
+        202,
+    )
+
+
+@document(
+    "Report the state of a queued path-suggestion scoring",
+    tags=["me"],
+    responses={200: PathSuggestionJobStatus, 404: LegacyError},
+    security=_AUTHENTICATED,
+    enforce=True,
+)
+@intelligence_bp.route("/me/path-suggestion-jobs/<job_id>", methods=["GET"])
+@limiter.limit(POLL_LIMIT)
+@jwt_required()
+def get_my_path_suggestion_job(job_id: str):
+    """GET /me/path-suggestion-jobs/{job_id} - poll a queued scoring.
+
+    404 covers no such job, a malformed handle, and somebody else's job alike.
+    Distinguishing them would confirm that a handle exists, which is the only
+    thing protecting one.
+
+    `error` on a failed job carries the scorer's own message -- notably
+    `career_status_not_set`, the same condition the synchronous GET answers 400
+    for, which the client handles by prompting for the missing field rather than
+    by retrying.
+    """
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    job = scoring_jobs.find_for_user(
+        user.id, job_id, job_type=scoring_jobs.PATH_SUGGESTIONS
+    )
+    if job is None:
+        return jsonify({"error": "Job not found"}), 404
+
+    return jsonify(scoring_jobs.status_for(job)), 200

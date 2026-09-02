@@ -1,0 +1,21 @@
+# Compose override for Scripts/load_baseline.py runs. Local dev only.
+#
+# TRUSTED_PROXY_COUNT=1 makes the app trust one X-Forwarded-For hop
+# (solverah/factory.py:126-138 documents the knob and the spoofing consequence
+# — which is exactly what the load script uses: a unique fake client IP per
+# request, so the per-IP rate limiter never fills a bucket while still running
+# on every request). Never set this on a real deployment to a value above the
+# actual proxy count.
+#
+# SOLVERAH_FORM_TOKEN_SECRET has no default by design (D-05); the base compose
+# file does not set it, and the core-form scenarios need it. Dev-only value,
+# same spirit as the base file's JWT_SECRET_KEY.
+#
+# Usage:
+#   docker compose -f infra/docker/compose.yml -f Scripts/load_baseline.override.yml \
+#       up -d db redis api worker
+services:
+  api:
+    environment:
+      TRUSTED_PROXY_COUNT: "1"
+      SOLVERAH_FORM_TOKEN_SECRET: "load-baseline-local-only-not-a-real-secret"

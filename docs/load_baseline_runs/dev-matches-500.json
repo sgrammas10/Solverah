@@ -1,0 +1,79 @@
+{
+  "label": "dev-1w4t-synthetic500",
+  "base_url": "http://localhost:5000",
+  "date_utc": "2026-09-02T16:31:07+00:00",
+  "commit": "2ef4432",
+  "users_seeded": 25,
+  "step_seconds": 60,
+  "ladder": [
+    1,
+    5,
+    10,
+    25
+  ],
+  "matches_total_companies_scored": 499,
+  "scenarios": {
+    "matches": [
+      {
+        "concurrency": 1,
+        "requests": 1238,
+        "rps": 20.6,
+        "p50_ms": 41.2,
+        "p95_ms": 92.2,
+        "p99_ms": 172.8,
+        "mean_ms": 48.5,
+        "ok": 1238,
+        "http_429": 0,
+        "other_4xx": 0,
+        "http_5xx": 0,
+        "timeouts": 0,
+        "conn_errors": 0
+      },
+      {
+        "concurrency": 5,
+        "requests": 1370,
+        "rps": 22.8,
+        "p50_ms": 190.6,
+        "p95_ms": 370.6,
+        "p99_ms": 436.9,
+        "mean_ms": 219.2,
+        "ok": 1370,
+        "http_429": 0,
+        "other_4xx": 0,
+        "http_5xx": 0,
+        "timeouts": 0,
+        "conn_errors": 0
+      },
+      {
+        "concurrency": 10,
+        "requests": 1640,
+        "rps": 27.2,
+        "p50_ms": 370.8,
+        "p95_ms": 505.6,
+        "p99_ms": 559.1,
+        "mean_ms": 366.8,
+        "ok": 1640,
+        "http_429": 0,
+        "other_4xx": 0,
+        "http_5xx": 0,
+        "timeouts": 0,
+        "conn_errors": 0
+      },
+      {
+        "concurrency": 25,
+        "requests": 1588,
+        "rps": 26.0,
+        "p50_ms": 942.8,
+        "p95_ms": 1195.7,
+        "p99_ms": 1336.6,
+        "mean_ms": 952.5,
+        "ok": 1588,
+        "http_429": 0,
+        "other_4xx": 0,
+        "http_5xx": 0,
+        "timeouts": 0,
+        "conn_errors": 0
+      }
+    ]
+  }
+}

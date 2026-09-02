@@ -176,12 +176,25 @@ def test_early_access_requires_a_name_and_an_email(client):
     assert missing == {"firstName", "lastName"}
 
 
-def test_early_access_reports_a_delivery_failure(client, monkeypatch):
-    """The one intake endpoint that returns 500 rather than swallowing the error.
+def test_early_access_survives_a_delivery_failure(client, monkeypatch):
+    """This was the one intake endpoint that answered 500 on a mail failure.
 
-    Nothing is persisted -- the submission exists only as an email -- so a
-    silent failure loses the lead entirely.
+    It was right to, and the reason is worth keeping in view: nothing was
+    persisted -- the submission existed only as an email -- so a swallowed error
+    lost the lead outright, and a 500 at least told the visitor to try again.
+
+    Phase 3 removes the reason rather than the behaviour. The lead is written to
+    the outbox *before* anything is sent, so a provider that is down costs a
+    retry and not the lead. There is no longer a failure that loses it, so 200
+    is now the honest answer -- the submission was accepted.
+
+    Asserting the status alone would be asserting that the error is ignored,
+    which is the failure mode this replaced. The row is what makes 200 true, so
+    the row is what this checks.
     """
+    from app import app
+    from solverah.services import outbox
+
     def _boom(**_kwargs):
         raise RuntimeError("resend is down")
 
@@ -194,7 +207,25 @@ def test_early_access_reports_a_delivery_failure(client, monkeypatch):
         json={"firstName": "Ada", "lastName": "Lovelace", "email": "ada@example.com"},
     )
 
-    assert resp.status_code == 500
+    assert resp.status_code == 200
+    assert resp.get_json() == {"ok": True}
+
+    with app.app_context():
+        assert outbox.unpublished_count() == 1
+
+    # And it is genuinely retryable rather than merely stored: with the provider
+    # back, the sweep delivers the same lead. This is the half a status-code
+    # assertion cannot reach.
+    delivered = []
+    monkeypatch.setattr(
+        "solverah.infra.email.send_early_access_modal_notification",
+        lambda **kwargs: delivered.append(kwargs),
+    )
+    with app.app_context():
+        counts = outbox.drain()
+
+    assert counts["published"] == 1
+    assert delivered[0]["email"] == "ada@example.com"
 
 
 def test_a_resume_ticket_mints_a_submission_id_and_an_upload_url(client, monkeypatch):

@@ -46,7 +46,7 @@
       },
       "AccountExportResponse": {
         "additionalProperties": false,
-        "description": "Every identified data class held for the authenticated user.\n\n``profile`` is the raw ``users.profile_data`` blob, so it is typed as an open\nobject: its key set is genuinely per-user until Phase 2 decomposes it.",
+        "description": "Every identified data class held for the authenticated user.\n\n``profile`` is the profile document -- ``profiles`` and its child tables\nsince Phase 2a, the ``users.profile_data`` blob before it, and byte-identical\neither way. It stays typed as an open object because the keys that have not\nbeen promoted to columns yet still vary per user.",
         "properties": {
           "account": {
             "$ref": "#/components/schemas/ExportedAccount"
@@ -100,7 +100,7 @@
           },
           "profile": {
             "additionalProperties": true,
-            "description": "Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
+            "description": "The profile document. Assembled from the profile tables since Phase 2a; open-ended because the unpromoted keys genuinely vary per user.",
             "title": "Profile",
             "type": "object"
           }
@@ -253,6 +253,21 @@
         ],
         "title": "AssessmentFormResponse",
         "type": "object"
+      },
+      "AssessmentScoringJobStatus": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/WorkPulseScoringJobStatus"
+          },
+          {
+            "$ref": "#/components/schemas/WpllScoringJobStatus"
+          },
+          {
+            "$ref": "#/components/schemas/ManagerMatchScoringJobStatus"
+          }
+        ],
+        "description": "Documentation-only union of the three poll responses.\n\nWhich member comes back is determined by ``{kind}`` in the path, not by\nanything in the body -- the same reason ``AssessmentSubmissionResponse``\ncannot be an OpenAPI discriminated union.  Do not validate against this;\nvalidate against :data:`SCORING_JOB_RESPONSES`.",
+        "title": "AssessmentScoringJobStatus"
       },
       "AssessmentSubmissionRequest": {
         "anyOf": [
@@ -1142,7 +1157,7 @@
       },
       "ExportedLegacyQuiz": {
         "additionalProperties": true,
-        "description": "The pre-assessment-table quiz payloads held on ``UserIntake``.",
+        "description": "The two Work Pulse instruments' payloads, under their original key.\n\nThey were columns on ``UserIntake`` and are two ``assessment_submissions``\nrows since Phase 2d. The block keeps its name and its five keys: a\nsubject-access response is not a place to rename things to match the storage\nunderneath, and ``legacy_quiz`` was named to be independent of it.",
         "properties": {
           "wpl_answers": {
             "anyOf": [
@@ -1833,7 +1848,7 @@
       },
       "LegacyError": {
         "additionalProperties": false,
-        "description": "The pre-Phase-1 error body: ``{\"error\": \"...\"}``.\n\nHandlers return this from their own explicit failure branches, and Phase 1a\nkeeps every one of them byte-for-byte.  It coexists with\n:class:`ProblemDetailResponse`, which is what the Phase 0 error handlers\nproduce for anything a handler did not catch itself.\n\nThe two shapes are why ``src/utils/apiError.ts`` reads both.  Phase 1b\ncollapses them by moving handlers onto ``solverah.errors.ApiError``.",
+        "description": "The pre-Phase-1 error body: ``{\"error\": \"...\"}``.\n\nHandlers return this from their own explicit failure branches, and Phase 1a\nkeeps every one of them byte-for-byte.  It coexists with\n:class:`ProblemDetailResponse`, which is what the Phase 0 error handlers\nproduce for anything a handler did not catch itself.\n\nThe two shapes are why ``src/shared/api/apiError.ts`` reads both.  Phase 1b\ncollapses them by moving handlers onto ``solverah.errors.ApiError``.",
         "properties": {
           "error": {
             "description": "Human-readable failure message.",
@@ -1995,6 +2010,52 @@
           }
         },
         "title": "ManagerMatchResult",
+        "type": "object"
+      },
+      "ManagerMatchScoringJobStatus": {
+        "additionalProperties": true,
+        "description": "``GET /assessments/manager_match/scoring-jobs/{job_id}``.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Present only on 'failed'. Either a validation message the scorer authored or a fixed generic string -- never provider text, which carries prompt fragments and therefore the user's own answers.",
+            "title": "Error"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ManagerMatchResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Present only on 'succeeded'."
+          },
+          "status": {
+            "description": "queued, running, succeeded or failed. The last two are terminal.",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "ManagerMatchScoringJobStatus",
         "type": "object"
       },
       "ManagerMatchSubmitRequest": {
@@ -2346,6 +2407,80 @@
         "title": "PathSuggestion",
         "type": "object"
       },
+      "PathSuggestionJobAccepted": {
+        "additionalProperties": false,
+        "description": "``202`` from ``POST /me/path-suggestion-jobs``.",
+        "properties": {
+          "job_id": {
+            "description": "Poll the status URL until status is 'succeeded' or 'failed'.",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "status": {
+            "description": "Always \"queued\" here; the job has not started.",
+            "title": "Status",
+            "type": "string"
+          },
+          "status_url": {
+            "description": "Where to poll. Relative to the API root.",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "status_url"
+        ],
+        "title": "PathSuggestionJobAccepted",
+        "type": "object"
+      },
+      "PathSuggestionJobStatus": {
+        "additionalProperties": true,
+        "description": "``GET /me/path-suggestion-jobs/{job_id}``.\n\nOn ``succeeded``, ``result`` is byte-for-byte what ``GET\n/me/path-suggestions`` would have returned -- the job runs the same service\nfunction -- so a client's rendering logic does not fork between the two\npaths.\n\nThe job also warms ``path_cache`` on the way through, which means the\nsynchronous GET is a cache hit immediately after a job succeeds. A client\nmid-migration can therefore poll the job and then read the old endpoint,\nand neither call pays for the scoring twice.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Present only on 'failed'. `career_status_not_set` means the profile is missing a field the scorer requires -- the same condition the synchronous GET answers 400 for.",
+            "title": "Error"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PathSuggestionsResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Present only on 'succeeded'."
+          },
+          "status": {
+            "description": "queued, running, succeeded or failed. The last two are terminal.",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "PathSuggestionJobStatus",
+        "type": "object"
+      },
       "PathSuggestionsResponse": {
         "additionalProperties": false,
         "description": "Scored and narrated career paths, cached per user.\n\nA 400 with ``career_status_not_set`` means the profile is missing a field\nthe scorer requires, and the client should prompt for it. A 500 means O*NET\nor the narrator failed, and the client should retry.",
@@ -2485,11 +2620,11 @@
       },
       "ProfileDocument": {
         "additionalProperties": false,
-        "description": "``GET|PATCH /me/profile`` -- the profile half, in an envelope.\n\nThe envelope is the point. Returning the blob bare would leave nowhere to\nput the ``version`` that P0-1's fix needs, and no way to add it later\nwithout colliding with a profile key of the same name.",
+        "description": "``GET|PATCH /me/profile`` -- the profile half, in an envelope.\n\nThe envelope is the point. Returning the document bare would leave nowhere\nto put a ``version`` and no way to add one later without colliding with a\nprofile key of the same name.\n\nP0-1 is fixed as of Phase 2a and ``version`` is *not* here yet, which is\ndeliberate: the fix is server-side compare-and-swap on ``profiles.version``,\nand it needs no cooperation from the client. Exposing the version becomes\nworth doing when a client wants to say \"write this only if you still have\nwhat I read\" -- an If-Match, not a field.",
         "properties": {
           "profile": {
             "additionalProperties": true,
-            "description": "Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
+            "description": "The profile document. Assembled from the profile tables since Phase 2a; open-ended because the unpromoted keys genuinely vary per user.",
             "title": "Profile",
             "type": "object"
           }
@@ -2502,7 +2637,7 @@
         "properties": {
           "profile": {
             "additionalProperties": true,
-            "description": "Partial profile. Merged over the stored blob; unknown keys are stripped.",
+            "description": "Partial profile. Merged over the stored document; unknown keys are stripped.",
             "title": "Profile",
             "type": "object"
           }
@@ -2594,7 +2729,7 @@
       },
       "QuizInsightsResponse": {
         "additionalProperties": false,
-        "description": "Authenticated generation. Also written to ``profile_data.quizInsights``.",
+        "description": "Authenticated generation. Also written to the profile's ``quizInsights``.",
         "properties": {
           "insights": {
             "items": {
@@ -2742,7 +2877,7 @@
             "type": "string"
           },
           "terms_accepted": {
-            "description": "Must be literal true. Recorded in profile_data as evidence of assent.",
+            "description": "Must be literal true. Recorded on the profile as evidence of assent.",
             "title": "Terms Accepted",
             "type": "boolean"
           },
@@ -2801,7 +2936,7 @@
         "type": "object"
       },
       "ResumeCompleteRequest": {
-        "description": "``POST /me/resumes/{resume_id}/complete`` -- the file is uploaded; parse it.",
+        "description": "``POST /me/resumes/{resume_id}/parse-jobs`` -- the file is uploaded; parse it.\n\nNamed for the synchronous ``/complete`` route it was written for, which\nPhase 3c deleted; the job route took the identical body, so the model\nsurvives its first consumer. Renaming it would churn every generated\nclient for a cosmetic gain.",
         "properties": {
           "mime": {
             "title": "Mime",
@@ -2832,20 +2967,6 @@
         "title": "ResumeCompleteRequest",
         "type": "object"
       },
-      "ResumeCompleteResponse": {
-        "additionalProperties": false,
-        "description": "The profile after the parsed resume was merged into it.\n\nParsing still runs inline, which is P0-6. Part 5.2 has this returning 202\nwith a job handle; it does not do that yet, and returning a 202 for work\nthat finished synchronously would be a lie the client would have to poll\nagainst. It becomes a 202 when Phase 3's queue exists.",
-        "properties": {
-          "profile": {
-            "additionalProperties": true,
-            "description": "Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
-            "title": "Profile",
-            "type": "object"
-          }
-        },
-        "title": "ResumeCompleteResponse",
-        "type": "object"
-      },
       "ResumeDownloadResponse": {
         "additionalProperties": false,
         "properties": {
@@ -2859,6 +2980,79 @@
           "url"
         ],
         "title": "ResumeDownloadResponse",
+        "type": "object"
+      },
+      "ResumeParseJobAccepted": {
+        "additionalProperties": false,
+        "description": "``202`` from ``POST /me/resumes/{resume_id}/parse-jobs``.\n\nPart 5.2's ``202 + job handle``. 3a added it alongside the synchronous\n``/complete``; 3c deleted that route once the frontend had moved, so this\nis the only way a parse starts.",
+        "properties": {
+          "job_id": {
+            "description": "Poll GET /me/resume-parse-jobs/{job_id} until status is terminal.",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "status": {
+            "description": "Always \"queued\" here; the job has not started.",
+            "title": "Status",
+            "type": "string"
+          },
+          "status_url": {
+            "description": "Where to poll. Relative to the API root.",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "status_url"
+        ],
+        "title": "ResumeParseJobAccepted",
+        "type": "object"
+      },
+      "ResumeParseJobStatus": {
+        "additionalProperties": true,
+        "description": "``GET /me/resume-parse-jobs/{job_id}``.\n\n``status`` is one of ``queued``, ``running``, ``succeeded``, ``failed``; the\nlast two are terminal and a client should stop polling on either.\n\n``profile`` is present only on ``succeeded``, and is the full current\nprofile document -- what the synchronous ``/complete`` returned before 3c\ndeleted it. ``error`` is present only on ``failed``\nand is a fixed message: parse failures come from pdfminer, python-docx and\nbotocore, whose text carries bucket names and object keys.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "ResumeParseJobStatus",
         "type": "object"
       },
       "ResumeTicketRequest": {
@@ -2891,7 +3085,7 @@
             "type": "integer"
           },
           "resume_id": {
-            "description": "Opaque id. Pass to /me/resumes/{id}/complete.",
+            "description": "Opaque id. Pass to /me/resumes/{id}/parse-jobs.",
             "title": "Resume Id",
             "type": "string"
           },
@@ -2909,31 +3103,32 @@
         "title": "ResumeTicketResponse",
         "type": "object"
       },
-      "SendEmailFailureResponse": {
+      "ScoringJobAccepted": {
         "additionalProperties": false,
-        "description": "The 500 body when Resend rejects a send.\n\nCarries ``detail`` on the resend path only, which is where the original\nhandler included it.",
+        "description": "``202`` from ``POST /assessments/{kind}/scoring-jobs``.\n\nUniform across instruments because nothing in it is instrument-specific:\nthe handle is a UUID, the status is always ``queued``, and the poll URL is\nderived from the two.  The *result* is where the instruments differ, and\nthat is served by the poll under a per-kind model.",
         "properties": {
-          "detail": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Detail"
+          "job_id": {
+            "description": "Poll the status URL until status is 'succeeded' or 'failed'.",
+            "title": "Job Id",
+            "type": "string"
           },
-          "error": {
-            "title": "Error",
+          "status": {
+            "description": "Always \"queued\" here; the job has not started.",
+            "title": "Status",
+            "type": "string"
+          },
+          "status_url": {
+            "description": "Where to poll. Relative to the API root.",
+            "title": "Status Url",
             "type": "string"
           }
         },
         "required": [
-          "error"
+          "job_id",
+          "status",
+          "status_url"
         ],
-        "title": "SendEmailFailureResponse",
+        "title": "ScoringJobAccepted",
         "type": "object"
       },
       "SessionFlags": {
@@ -3003,7 +3198,7 @@
       },
       "SessionUser": {
         "additionalProperties": true,
-        "description": "The user object returned on a successful login.\n\n``profileData`` is the entire ``users.profile_data`` blob.  Shipping the\nwhole user document on every session restore is the god-endpoint problem\nPart 5.2 splits apart; it is documented here rather than quietly trimmed,\nbecause trimming it would break the frontend that reads it.",
+        "description": "The user object returned on a successful login.\n\n``profileData`` is the entire profile document.  Shipping the whole user\ndocument on every session restore is the god-endpoint problem Part 5.2\nsplits apart; it is documented here rather than quietly trimmed, because\ntrimming it would break the frontend that reads it.\n\nPhase 2a changed where it comes from -- six tables rather than one JSON\ncolumn -- and changed nothing about what it contains, which is why this\nmodel did not move.",
         "properties": {
           "email": {
             "anyOf": [
@@ -3035,7 +3230,7 @@
           },
           "profileData": {
             "additionalProperties": true,
-            "description": "Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
+            "description": "The profile document. Assembled from the profile tables since Phase 2a; open-ended because the unpromoted keys genuinely vary per user.",
             "title": "Profiledata",
             "type": "object"
           },
@@ -3220,7 +3415,7 @@
       },
       "WorkPulseResult": {
         "additionalProperties": true,
-        "description": "Work Pulse narrative result.\n\nPersisted to ``user_intake.wpl_result`` and returned verbatim by\n``GET /work-pulse/results``.",
+        "description": "Work Pulse narrative result.\n\nPersisted to ``assessment_submissions.result`` since Phase 2d --\n``user_intake.wpl_result`` before it -- and returned verbatim by\n``GET /me/assessments/work_pulse/result``.",
         "properties": {
           "archetype": {
             "title": "Archetype",
@@ -3253,6 +3448,52 @@
           "archetype"
         ],
         "title": "WorkPulseResult",
+        "type": "object"
+      },
+      "WorkPulseScoringJobStatus": {
+        "additionalProperties": true,
+        "description": "``GET /assessments/work_pulse/scoring-jobs/{job_id}``.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Present only on 'failed'. Either a validation message the scorer authored or a fixed generic string -- never provider text, which carries prompt fragments and therefore the user's own answers.",
+            "title": "Error"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkPulseResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Present only on 'succeeded'."
+          },
+          "status": {
+            "description": "queued, running, succeeded or failed. The last two are terminal.",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "WorkPulseScoringJobStatus",
         "type": "object"
       },
       "WorkPulseSubmitRequest": {
@@ -3325,6 +3566,52 @@
           "locked_sections"
         ],
         "title": "WpllResultResponse",
+        "type": "object"
+      },
+      "WpllScoringJobStatus": {
+        "additionalProperties": true,
+        "description": "``GET /assessments/wpll/scoring-jobs/{job_id}``.\n\nThe one poll that needs no JWT, because the instrument it belongs to needs\nnone: ``wpll`` is the anonymous pre-launch teaser and has no account to\nscope a handle to.  The handle *is* the authorisation -- see\n``scoring_jobs.find_anonymous`` for why that is acceptable here and nowhere\nelse.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Present only on 'failed'. Either a validation message the scorer authored or a fixed generic string -- never provider text, which carries prompt fragments and therefore the user's own answers.",
+            "title": "Error"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WpllResultResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Present only on 'succeeded'."
+          },
+          "status": {
+            "description": "queued, running, succeeded or failed. The last two are terminal.",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "WpllScoringJobStatus",
         "type": "object"
       },
       "WpllSubmitRequest": {
@@ -3564,9 +3851,154 @@
         ]
       }
     },
+    "/api/v1/assessments/{kind}/scoring-jobs": {
+      "post": {
+        "description": "The only way the provider-scored instruments score since Phase 3c. Takes the body `POST /assessments/{kind}/submissions` used to take for these kinds; answers `202` with a job handle instead of blocking on the provider. Poll `GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is `succeeded` or `failed`.\n\nOnly the three provider-scored instruments have this operation: `work_pulse`, `wpll`, `manager_match`. `core` and `focus_type` score deterministically in-process and answer `404` here -- they are served by the synchronous submit route, which since Phase 3c serves only them.\n\n**This shares one rate-limit budget with the synchronous submit for the same instrument.** The limit bounds provider spend, and spend does not move when the call moves to a worker (A9), so queueing and submitting draw on the same allowance rather than two.",
+        "operationId": "post_assessments_assessment_kind_scoring_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssessmentSubmissionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoringJobAccepted"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Queue an assessment scoring and return a job handle",
+        "tags": [
+          "assessments"
+        ]
+      }
+    },
+    "/api/v1/assessments/{kind}/scoring-jobs/{job_id}": {
+      "get": {
+        "description": "`{kind}` selects the response shape, as it does on the submit route: `result` is that instrument's own result model and nothing else, and it is present only once `status` is `succeeded`. There is no shared result envelope here for the same reason there is none there (A12).\n\n`wpll` needs no JWT, because the instrument does not: it is the anonymous teaser, its job has no owner, and the handle is what authorises the poll. The other two scope the handle to the authenticated user.",
+        "operationId": "get_assessments_assessment_kind_scoring_job_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentScoringJobStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Report the state of a queued assessment scoring",
+        "tags": [
+          "assessments"
+        ]
+      }
+    },
     "/api/v1/assessments/{kind}/submissions": {
       "post": {
-        "description": "Replaces the five submit handlers Phase 1a inherited. `{kind}` is one of `core`, `work_pulse`, `wpll`, `focus_type`, `manager_match`, and it selects both the request body and the response body -- the route is shared, the payloads are not. The `anyOf` on each is the union of the five real schemas; the path parameter says which member applies, which is why this cannot be an OpenAPI discriminated union (3.1 keys a discriminator off a property of the payload, not off the URL).\n\n`wpll` is the one kind that needs no JWT: it is the anonymous teaser on the pre-launch funnel. The other four require one, and CSRF with it.",
+        "description": "Serves the two rules-scored instruments, `core` and `focus_type`, which score deterministically in-process and stay synchronous by design (A19). `{kind}` selects both the request body and the response body -- the route is shared, the payloads are not.\n\nThe three provider-scored kinds -- `work_pulse`, `wpll`, `manager_match` -- answer `410 Gone` here since Phase 3c: their scoring moved off the request path, and the problem document's `replaced_by` names the `POST /assessments/{kind}/scoring-jobs` operation that took it.",
         "operationId": "post_assessments_assessment_kind_submit",
         "parameters": [
           {
@@ -3618,6 +4050,16 @@
               }
             },
             "description": "Not found"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Gone"
           },
           "500": {
             "content": {
@@ -3751,16 +4193,6 @@
               }
             },
             "description": "Not found"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SendEmailFailureResponse"
-                }
-              }
-            },
-            "description": "Internal server error"
           },
           "default": {
             "content": {
@@ -3921,16 +4353,6 @@
             },
             "description": "Not found"
           },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
-                }
-              }
-            },
-            "description": "Internal server error"
-          },
           "default": {
             "content": {
               "application/problem+json": {
@@ -4004,7 +4426,7 @@
     },
     "/api/v1/auth/register": {
       "post": {
-        "description": "POST /auth/register - Create a new user account.\n\nCreates the user with ``email_confirmed=False`` and sends a 6-digit OTP. The\nuser must confirm their email before they can log in. Profile data is\npre-seeded with a blank default profile appropriate for the given role.",
+        "description": "POST /auth/register - Create a new user account.\n\nCreates the user with ``email_confirmed=False`` and sends a 6-digit OTP. The\nuser must confirm their email before they can log in. Profile data is\npre-seeded with a blank default profile appropriate for the given role.\n\nThe OTP is written to the outbox inside the same transaction as the account\n(Phase 3), so there is no longer a second call here to make it best-effort:\na created account and an owed verification email are one commit.",
         "operationId": "post_auth_register",
         "requestBody": {
           "content": {
@@ -4395,7 +4817,7 @@
     },
     "/api/v1/intake/early-access": {
       "post": {
-        "description": "POST /intake/early-access - early-access interest form (no resume).\n\nForwards the details to info@solverah.com via Resend. Does not persist to\nthe database, which is a real gap: a mail outage loses the lead with only a\nlog line behind it. Phase 3's transactional outbox is what fixes it.",
+        "description": "POST /intake/early-access - early-access interest form (no resume).\n\nWrites the lead to the transactional outbox and returns 200; a worker\ndelivers it to info@solverah.com. This answered 500 on a mail failure until\nPhase 3, because the lead existed only as an email and a swallowed error lost\nit. The row is durable before this returns, so there is nothing left to lose\nand nothing left to report.",
         "operationId": "post_intake_intake_early_access",
         "requestBody": {
           "content": {
@@ -4427,16 +4849,6 @@
               }
             },
             "description": "Bad request"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
-                }
-              }
-            },
-            "description": "Internal server error"
           },
           "default": {
             "content": {
@@ -5295,30 +5707,20 @@
         ]
       }
     },
-    "/api/v1/me/path-suggestions": {
-      "get": {
-        "description": "GET /me/path-suggestions - scored and narrated career paths.\n\nCached per user; the cache is invalidated when Work Pulse results,\nexperience entries, or ManagerMatch results change.\n\nPart 5.2 has a cache miss answering 202 and enqueueing the work. It does not\nyet -- there is no queue until Phase 3, and a 202 for work that then runs\ninline would hand the client a job to poll that has already finished.",
-        "operationId": "get_intelligence_get_path_suggestions",
+    "/api/v1/me/path-suggestion-jobs": {
+      "post": {
+        "description": "The only way path suggestions are computed since Phase 3c. Queues the O*NET and OpenAI fan-out and answers `202` with a job handle; poll `GET /me/path-suggestion-jobs/{job_id}` until `status` is `succeeded` or `failed`.\n\nA succeeded job warms the per-user cache `GET /me/path-suggestions` serves, so the payload can be re-read there without paying for the scoring twice.\n\nRate limited, and the cache-reading `GET` is not: an enqueue returns immediately and can be issued in a loop, so the budget that bounds provider spend has to live here (A9).",
+        "operationId": "post_intelligence_post_my_path_suggestion_job",
         "responses": {
-          "200": {
+          "202": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PathSuggestionsResponse"
+                  "$ref": "#/components/schemas/PathSuggestionJobAccepted"
                 }
               }
             },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
-                }
-              }
-            },
-            "description": "Bad request"
+            "description": "Accepted"
           },
           "404": {
             "content": {
@@ -5330,7 +5732,57 @@
             },
             "description": "Not found"
           },
-          "500": {
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Queue a path-suggestion scoring and return a job handle",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/path-suggestion-jobs/{job_id}": {
+      "get": {
+        "description": "GET /me/path-suggestion-jobs/{job_id} - poll a queued scoring.\n\n404 covers no such job, a malformed handle, and somebody else's job alike.\nDistinguishing them would confirm that a handle exists, which is the only\nthing protecting one.\n\n`error` on a failed job carries the scorer's own message -- notably\n`career_status_not_set`, the same condition the synchronous GET answers 400\nfor, which the client handles by prompting for the missing field rather than\nby retrying.",
+        "operationId": "get_intelligence_get_my_path_suggestion_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathSuggestionJobStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
             "content": {
               "application/json": {
                 "schema": {
@@ -5338,7 +5790,7 @@
                 }
               }
             },
-            "description": "Internal server error"
+            "description": "Not found"
           },
           "default": {
             "content": {
@@ -5356,7 +5808,54 @@
             "accessTokenCookie": []
           }
         ],
-        "summary": "Score and narrate career path suggestions",
+        "summary": "Report the state of a queued path-suggestion scoring",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/path-suggestions": {
+      "get": {
+        "description": "Serves the per-user cache that a succeeded path-suggestion job populates; the cache is invalidated when Work Pulse results, experience entries, or ManagerMatch results change.\n\nA miss is `404` and computes nothing: the problem document's `start_job_url` names `POST /me/path-suggestion-jobs`, which queues the O*NET and OpenAI fan-out this route performed inline before Phase 3c and whose poll returns the same payload this serves.",
+        "operationId": "get_intelligence_get_path_suggestions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathSuggestionsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Read the cached career path suggestions",
         "tags": [
           "me"
         ]
@@ -5634,6 +6133,63 @@
         ]
       }
     },
+    "/api/v1/me/resume-parse-jobs/{job_id}": {
+      "get": {
+        "description": "GET /me/resume-parse-jobs/{job_id} - poll a queued parse.\n\n404 covers three cases deliberately: no such job, a malformed handle, and a\njob belonging to somebody else. Distinguishing them would confirm that a\nhandle exists, which is the only thing protecting one.",
+        "operationId": "get_me_get_my_resume_parse_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeParseJobStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Report the state of a queued resume parse",
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/api/v1/me/resumes": {
       "post": {
         "description": "POST /me/resumes - presign a PUT URL for a resume upload. Step 1 of 2.\n\nReturns a resume_id rather than the raw object key the superseded endpoint\nhanded back. The key is derived server-side from the JWT identity, so a\ncaller has no key to name and the finalize step has no prefix check to get\nwrong.",
@@ -5704,86 +6260,6 @@
         ]
       }
     },
-    "/api/v1/me/resumes/{resume_id}/complete": {
-      "post": {
-        "description": "POST /me/resumes/{resume_id}/complete - parse the upload. Step 2 of 2.\n\nDownloads the object, runs the rule-based parser, and merges the parsed\nexperience, education, and skills into the profile. Stores a\n_parsedResumeSnapshot so later edits can be diffed against what the parser\nproduced (see ResumeParseCorrection).\n\nParsing runs inline, which is P0-6. Part 5.2 has this returning 202 with a\njob handle; it will, when Phase 3's queue exists. Returning one now for work\nthat finished synchronously would give the client something to poll that is\nalready done.",
-        "operationId": "post_me_post_my_resume_complete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "resume_id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ResumeCompleteRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResumeCompleteResponse"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
-                }
-              }
-            },
-            "description": "Bad request"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
-                }
-              }
-            },
-            "description": "Not found"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetailResponse"
-                }
-              }
-            },
-            "description": "Unexpected error (RFC 9457 problem document)"
-          }
-        },
-        "security": [
-          {
-            "accessTokenCookie": []
-          },
-          {
-            "csrfHeader": []
-          }
-        ],
-        "summary": "Parse an uploaded resume into the profile",
-        "tags": [
-          "me"
-        ]
-      }
-    },
     "/api/v1/me/resumes/{resume_id}/download-url": {
       "get": {
         "description": "GET /me/resumes/{resume_id}/download-url - short-lived presigned GET URL.\n\n`current` is a valid resume_id and means \"the resume on my profile\". The\nblob holds exactly one resumeKey, so until Phase 2 gives resumes their own\nrows that is the only one a client can name without having just uploaded it.",
@@ -5846,6 +6322,86 @@
           }
         ],
         "summary": "Presign a download URL for a stored resume",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/resumes/{resume_id}/parse-jobs": {
+      "post": {
+        "description": "Step 2 of 2 of a resume upload, and the only step 2 since Phase 3c deleted the synchronous `POST /me/resumes/{resume_id}/complete`. Answers `202` with a job handle instead of blocking for the parse. Poll `GET /me/resume-parse-jobs/{job_id}` until `status` is `succeeded` or `failed`.",
+        "operationId": "post_me_post_my_resume_parse_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resume_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeParseJobAccepted"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Queue a resume parse and return a job handle",
         "tags": [
           "me"
         ]

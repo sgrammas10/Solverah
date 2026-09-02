@@ -32,23 +32,83 @@ jobs:
         # which means the tree CI audits need not be the tree that was reviewed.
         run: npm ci
 
+      # Type errors do not fail Vitest: it transpiles per-file and strips types
+      # without checking them, so a broken type survives a green suite. `tsc -b`
+      # is the only thing in this job that reads tsconfig and checks across
+      # files. Placed before the tests so the cheap gate reports first.
+      - name: Type Check
+        run: npm run type-check
+
       - name: Run Tests
         run: npm test -- --run
+
+      # Nothing above this line builds. Vitest transpiles per-file through Vite's
+      # dev pipeline and never produces a bundle, so until now a production build
+      # that failed outright — a bad `lazy()` import path, a plugin that only
+      # runs in build mode — reached Vercel with CI green. This step is a gate in
+      # its own right, and the budget below needs the artifact anyway.
+      - name: Build
+        run: npm run build
+
+      # Bundle budget (GAP/ARCHITECTURE.md 6.5). Measures the entry chunk and the
+      # stylesheet — what the browser downloads before first paint — and fails on
+      # regression. The limits in .size-limit.cjs are ~5 % above the sizes
+      # measured at 79969d3, not aspirational targets: a budget the build already
+      # exceeds is red on day one and gets raised or deleted rather than heeded.
+      #
+      # Note for whoever sees this fail: find what landed on the eager path
+      # before raising the number. `npm run build` prints per-chunk sizes.
+      - name: Bundle budget
+        run: npm run size
 
       # Supply-chain gate (GAP-07d): fail on known-vulnerable prod deps.
       # continue-on-error stays false on purpose — a red audit is a real signal.
       - name: Audit npm dependencies
         run: npm audit --omit=dev --audit-level=high
 
-  backend-tests:
-    name: Backend (pytest)
+  # ---------------------------------------------------------------------------
+  # THE GATE. Runs against the database the product actually runs on.
+  #
+  # Until 2026-08-27 the only backend job was SQLite, so 926 passing tests were
+  # evidence about a database that exists nowhere in production (P1-9, and
+  # decision A8: "tests that pass against a database the product does not run are
+  # not evidence"). Moving here failed 8 of them immediately — every one a real
+  # orphaned foreign key that SQLite had been silently accepting for months.
+  # ---------------------------------------------------------------------------
+  backend-tests-postgres:
+    name: Backend (pytest · Postgres)
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # Postgres 18, NOT 16 — and the difference is load-bearing, not incidental.
+        #
+        # Render's managed instance was measured on 2026-08-27 and reports
+        # `PostgreSQL 18.3 (Debian 18.3-1.pgdg12+1)`. The Part 4 schema declares
+        # `public_id UUID NOT NULL DEFAULT uuidv7()`, and `uuidv7()` is a Postgres
+        # 18 built-in that does not exist in 16. A pg16 service container would
+        # therefore red-light every Phase 2 migration that production accepts
+        # happily — reintroducing exactly the test/prod divergence this job was
+        # created to remove, only pointing the other way.
+        #
+        # Digest-pinned for the same reason the actions above are SHA-pinned: a
+        # tag is a mutable pointer. Bumping it is a deliberate edit — re-pull the
+        # tag, read the new digest, and let this job prove the suite still passes.
+        image: pgvector/pgvector:pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a
+        env:
+          POSTGRES_USER: solverah
+          POSTGRES_PASSWORD: solverah
+          POSTGRES_DB: solverah
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U solverah -d solverah"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
     steps:
       - name: Checkout Repository
-        # SHA-pinned: version tags are mutable, so `@v4.2.2` can be repointed at
-        # different code. persist-credentials:false keeps GITHUB_TOKEN out of
-        # .git/config, which matters because later steps execute third-party
-        # code (package build hooks during pip install).
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
@@ -62,17 +122,78 @@ jobs:
       - name: Install Dependencies
         run: pip install -r requirements.txt
 
+      # The service container starts before the repo is checked out, so it cannot
+      # run infra/docker/initdb/01-extensions.sql the way `compose up` does. Same
+      # three extensions, applied as a step instead.
+      - name: Enable required extensions
+        env:
+          PGPASSWORD: solverah
+        run: |
+          psql -h localhost -U solverah -d solverah -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS citext;
+          CREATE EXTENSION IF NOT EXISTS pg_trgm;
+          CREATE EXTENSION IF NOT EXISTS vector;
+          SQL
+
       - name: Run Tests
+        # Exactly five variables, and no .env on the runner. Anything reading a
+        # sixth fails here and passes on a developer machine, because app.py calls
+        # load_dotenv(). That asymmetry is the point — see CLAUDE.md.
         env:
           APP_ENV: testing
-          DATABASE_URL: sqlite:///test.db
-          JWT_SECRET_KEY: test-secret
+          DATABASE_URL: postgresql://solverah:solverah@localhost:5432/solverah
+          JWT_SECRET_KEY: test-jwt-secret-not-a-real-one-32-bytes-min
           JWT_COOKIE_SECURE: "false"
           JWT_COOKIE_SAMESITE: Lax
         run: pytest --tb=short
 
       # Supply-chain gate (GAP-07d): known CVEs in installed Python deps.
+      # Lives on the gating job so it runs exactly once per commit.
       - name: Audit Python dependencies
         run: |
           pip install pip-audit
           pip-audit
+
+  # ---------------------------------------------------------------------------
+  # RETIRED 2026-08-27 (Phase 2a). There was a `backend-tests-sqlite` job here.
+  #
+  # It was never a gate — `continue-on-error: true` — and the only argument for
+  # keeping it was written in its own comment: a fast job that is *laxer* than
+  # the gate is worse than no fast job at all, because it reports green on
+  # precisely the defects the gate exists to catch. `conftest.py` setting
+  # `PRAGMA foreign_keys=ON` was what kept that argument true.
+  #
+  # Phase 2a ends it. The Part 4.3 profile tables use five things SQLite cannot
+  # express — `DEFAULT uuidv7()`, identity columns, JSONB, `TEXT[]`, and a GIN
+  # trigram index — and the fixtures build the schema with `db.create_all()`, so
+  # the job could not reach a single test, let alone run one laxly.
+  #
+  # The three ways out, and why this one:
+  #
+  #   * Make the defaults application-side for portability. This is the one that
+  #     looks reasonable and is not. `docs/ARCHITECTURE.md` Phase 2 settled it on
+  #     a measurement of the real database — "uuidv7() is a native built-in here
+  #     and works... no table in Part 4 needs app-side ULID or UUIDv7
+  #     generation" — and `tests/test_database_parity.py` exists specifically to
+  #     stop that being reversed for a CI container's benefit. It would also be
+  #     a permanent change to every table in Part 4, bought to satisfy a database
+  #     the product does not run on.
+  #
+  #   * Skip the new tables on SQLite. That leaves the fast job blind to the only
+  #     thing that changed, which is the laxness the paragraph above rules out.
+  #
+  #   * Retire it. Postgres is the gate, and the gate now runs the schema
+  #     production runs.
+  #
+  # Worth saying plainly: retiring is also the option that most easily keeps CI
+  # green, which is a reason to distrust it. It survives that anyway. Phase 2
+  # item 4 (pgvector + HNSW, struck by A16) and item 5 (declarative
+  # partitioning) are not expressible on SQLite under any of the three
+  # options, so portability bought here is spent inside the same phase — and
+  # A8 is that tests passing against a database the product does not run are
+  # not evidence.
+  #
+  # What is lost is real: the Postgres job takes ~3 minutes where SQLite took
+  # under one, so ordinary breakage now surfaces later. The replacement is a
+  # faster gate, not a laxer second opinion.
+  # ---------------------------------------------------------------------------

@@ -17,17 +17,59 @@ name: solverah
 
 services:
   db:
-    # pgvector on top of Postgres 16: the target architecture indexes company
+    # pgvector on top of Postgres 18: the target architecture indexes company
     # culture vectors with HNSW rather than scanning every company in Python.
-    image: pgvector/pgvector:pg16
+    #
+    # 18 rather than the 16 this originally pinned. Render was measured on
+    # 2026-08-27 and runs `PostgreSQL 18.3 (Debian 18.3-1.pgdg12+1)`, and Part 4
+    # defaults every public_id to `uuidv7()` -- a Postgres 18 built-in with no 16
+    # equivalent. Local, CI, and production now agree; on 16, Phase 2 migrations
+    # would fail everywhere except the environment that actually matters.
+    image: pgvector/pgvector:pg18
     environment:
       POSTGRES_USER: solverah
       POSTGRES_PASSWORD: solverah
       POSTGRES_DB: solverah
     ports:
-      - "5432:5432"
+      # 5433 on the host, NOT 5432, and the reason is Windows rather than taste.
+      #
+      # A native Postgres service (postgresql-x64-18, StartType=Automatic) binds
+      # 0.0.0.0:5432 on at least one developer machine, and Windows lets Docker
+      # bind the same port rather than refusing. Both listeners then exist and the
+      # native one answers every connection: `docker compose ps db` reports
+      # healthy, `docker compose exec db psql` works, and every DATABASE_URL in
+      # this repo fails with `password authentication failed for user "solverah"`
+      # against a server that is not this container at all. Measured 2026-08-27.
+      #
+      # Moving the published port is the repo-side fix, and it is the one that
+      # holds: stopping the native service frees 5432 but it is set to start
+      # automatically, so the next installer repair silently puts the shadow back.
+      # What this does NOT do is close the class -- a native cluster on 5433 would
+      # shadow it exactly the same way, because the collision is Windows allowing
+      # two listeners on one port, not the number. tests/conftest.py names that
+      # case in its refusal so the next person reads minutes rather than hours.
+      #
+      # CI is deliberately left on 5432 (.github/workflows/tests.yml): the runner
+      # has one service container and nothing to collide with, and it sets
+      # DATABASE_URL explicitly rather than inheriting any default here.
+      - "5433:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # `/var/lib/postgresql`, NOT `/var/lib/postgresql/data`.
+      #
+      # This mounted the pre-18 path until 2026-08-27, and on the pg18 image the
+      # container could not start at all -- `solverah-db-1` went straight to
+      # Exited(1) with "PostgreSQL data in: /var/lib/postgresql/data (unused
+      # mount/volume)". 18 keeps its cluster in a major-version subdirectory
+      # (PGDATA=/var/lib/postgresql/18/docker) so that `pg_upgrade --link` does
+      # not have to cross a mount boundary, and it refuses to run rather than
+      # quietly ignore data sitting at the old location. The mount therefore goes
+      # one level up, over the whole directory, and the subdirectory comes along
+      # with it.
+      #
+      # A volume written under the old layout cannot be reused: `docker compose
+      # down && docker volume rm solverah_pgdata` before the first `up` on this
+      # file. Everything in it is disposable by construction.
+      - pgdata:/var/lib/postgresql
       - ./initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       # `pg_isready -U` avoids the false "ready" that plain pg_isready reports
@@ -39,9 +81,23 @@ services:
 
   redis:
     image: redis:7-alpine
-    # Shared backend for rate limiting. Without it, Flask-Limiter counts
-    # per-worker: configured limits are N-workers times looser and reset on
-    # every deploy.
+    # Three jobs on one instance, by design: rate-limit counters, the Celery
+    # broker and result backend, and the read cache. `solverah/config.py` reads
+    # REDIS_URL for all three so one variable configures the platform's shared
+    # state instead of three that can disagree.
+    #
+    # Without it, Flask-Limiter counts per-worker -- configured limits are
+    # N-workers times looser and reset on every deploy -- Celery falls back to
+    # running tasks inline in the web process, and cached reads become ordinary
+    # reads. All three degrade rather than fail, which is what lets CI run with
+    # no Redis at all.
+    #
+    # `--save "" --appendonly no` means nothing here survives a restart. That is
+    # right for counters and a cache and it is NOT right for a broker holding
+    # queued work: a restart drops every message in flight. It is acceptable
+    # locally because every producer in this system commits a durable row before
+    # it enqueues -- `outbox`, `resume_parse_jobs` and `scoring_jobs` -- and the
+    # sweeps re-drive anything the broker lost. Production should still persist.
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
       - "6379:6379"
@@ -121,6 +177,80 @@ services:
       - --threads=4
       - --reload
       - --access-logfile=-
+
+  worker:
+    # Celery worker (docs/ARCHITECTURE.md Phase 3).
+    #
+    # Same image and same source mount as `api`, deliberately. A worker running
+    # different code from the API is a worker that deserialises a message the API
+    # wrote and cannot handle it, and the two drifting apart is the failure that
+    # is hardest to see coming.
+    #
+    # Runs the work that used to block a request: outbox publication -- so every
+    # email in the system now leaves from here -- resume parsing (3a), and
+    # assessment scoring and path suggestions (3b), plus the sweeps behind all
+    # three.
+    #
+    # `solverah/worker.py` puts the repository root on `sys.path` and that is
+    # load-bearing for this container rather than tidiness: the scorers
+    # (`work_pulse`, `manager_match`, `focus_type`, `backend.services.*`) are
+    # top-level modules imported lazily inside functions, and `celery` is a
+    # console script, so without it the worker boots perfectly and then fails
+    # every task that reaches a scorer. Verified by running a real job through
+    # this service, which is the only way that failure is visible -- under the
+    # suite's eager execution the task runs in the pytest process, where the
+    # root is already importable.
+    #
+    # Not `SOLVERAH_IGNORE_DOTENV`: the entrypoint loads `.env` exactly as
+    # `app.py` does, so RESEND_API_KEY from a developer's file reaches the
+    # publisher and outbox rows are actually delivered. Without one they park
+    # unpublished with a rising `attempts`, which is the correct behaviour and is
+    # visible in the table.
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+    environment:
+      APP_ENV: development
+      LOG_FORMAT: console
+      LOG_LEVEL: INFO
+      DATABASE_URL: postgresql://solverah:solverah@db:5432/solverah
+      REDIS_URL: redis://redis:6379/0
+      # Read by Settings even though a worker serves no cookies: create_app()
+      # validates the whole environment at once and would log this as a
+      # configuration problem at CRITICAL on every worker boot.
+      JWT_SECRET_KEY: local-development-only-not-a-real-secret
+      JWT_COOKIE_SECURE: "false"
+      JWT_COOKIE_SAMESITE: Lax
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY_ID: solverah
+      S3_SECRET_ACCESS_KEY: solverah-dev-secret
+      S3_BUCKET_NAME: solverah-resumes
+      FRONTEND_URL: http://localhost:5173
+    volumes:
+      - ../..:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command:
+      - celery
+      - --app=solverah.worker:celery_app
+      - worker
+      # All five on one worker. Right for a laptop and wrong for production,
+      # where the point of the split is scaling them independently -- a fleet of
+      # `llm` workers at concurrency 1 beside two `email` workers that answer in
+      # milliseconds. Named here rather than defaulted in code so that is a
+      # deploy argument and not a code change.
+      - --queues=default,llm,email,scoring,maintenance
+      - --concurrency=2
+      # Embedded beat, which runs the sweep schedule in `solverah/infra/queue.py`
+      # -- the outbox drain above all, without which a failed send is never
+      # retried. Embedded is a development convenience and Celery says so:
+      # production runs `celery beat` as its own single process, because two
+      # workers each with `-B` schedule every task twice.
+      - --beat
+      - --loglevel=INFO
 
 volumes:
   pgdata:

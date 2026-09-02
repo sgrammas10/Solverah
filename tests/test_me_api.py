@@ -370,7 +370,15 @@ def test_download_url_is_404_when_there_is_no_resume(client, auth):
     assert resp.status_code == 404
 
 
-def test_complete_is_404_for_an_id_that_names_nothing(client, auth):
+def test_complete_is_a_routing_404_because_the_route_is_gone(client, auth):
+    """``POST /me/resumes/{id}/complete`` was deleted in Phase 3c.
+
+    This test used to read the 404 as "an id that names nothing"; there is no
+    longer a handler for any id to reach. Resume parsing goes through
+    ``POST /me/resumes/{id}/parse-jobs`` (pinned in ``test_resume_parse_jobs.py``),
+    and this asserts the deletion stays deleted: any request at this path gets
+    the router's problem+json not-found.
+    """
     resp = client.post(
         "/api/v1/me/resumes/current/complete",
         json={"mime": PDF, "size": 1024},
@@ -378,3 +386,5 @@ def test_complete_is_404_for_an_id_that_names_nothing(client, auth):
     )
 
     assert resp.status_code == 404
+    assert resp.mimetype == "application/problem+json"
+    assert resp.get_json()["type"].endswith("/not_found")

@@ -1,5 +1,7 @@
 """Tests for solverah.config — environment validation and engine options."""
 
+import os
+
 import pytest
 
 from solverah.config import ConfigError, Settings
@@ -220,26 +222,164 @@ def test_app_guards_load_dotenv_behind_the_flag():
     ), "load_dotenv() is no longer guarded by IGNORE_DOTENV_VAR"
 
 
-def test_make_test_ci_sets_the_flag_and_the_ci_variables():
-    """`make test-ci` must stay an honest reproduction of the runner.
+CI_VARIABLES = (
+    "APP_ENV",
+    "DATABASE_URL",
+    "JWT_SECRET_KEY",
+    "JWT_COOKIE_SECURE",
+    "JWT_COOKIE_SAMESITE",
+)
 
-    If CI's env block gains a variable and this target does not, the target
-    quietly stops matching and the gap it exists to close reopens.
+# Each backend CI job and the make target that reproduces it. One, as of Phase 2a:
+# the `backend-tests-sqlite` job and its `test-ci` target were retired on 2026-08-27
+# because the Part 4.3 profile tables cannot be created on SQLite at all.
+#
+# The pairing is still worth asserting with a single entry in it. A target that has
+# drifted from its job is a target that lies, and `make test-pg` is now the only way
+# to find out what CI will say without pushing.
+BACKEND_JOBS = (
+    ("backend-tests-postgres:", "test-pg:"),
+)
+
+
+@pytest.mark.parametrize("job_anchor, target_anchor", BACKEND_JOBS)
+def test_make_targets_reproduce_the_ci_backend_jobs(job_anchor, target_anchor):
+    """Every backend CI job must have a make target that is an honest copy of it.
+
+    If a job's env block gains a variable and its target does not, the target quietly
+    stops matching and the gap it exists to close reopens.
     """
     import io as _io
 
     makefile = _io.open("Makefile", encoding="utf-8").read()
-    recipe = makefile.split("test-ci:", 1)[1].split(".PHONY", 1)[0]
+    assert job_anchor.rstrip(":") in _io.open(
+        ".github/workflows/tests.yml", encoding="utf-8"
+    ).read(), (
+        "CI job %r is gone. If a backend job was renamed or removed, update "
+        "BACKEND_JOBS -- do not delete the pairing." % job_anchor
+    )
+    recipe = makefile.split(target_anchor, 1)[1].split(".PHONY", 1)[0]
 
-    # Anchor on the backend job: "Run Tests" also names the frontend step, which
-    # runs npm and carries no env block.
+    # Anchor on the job first: "Run Tests" also names the frontend step, which runs npm
+    # and carries no env block.
     workflow = _io.open(".github/workflows/tests.yml", encoding="utf-8").read()
-    backend_job = workflow.split("backend-tests:", 1)[1]
+    backend_job = workflow.split(job_anchor, 1)[1]
     ci_env = backend_job.split("- name: Run Tests", 1)[1].split("run:", 1)[0]
 
-    assert "SOLVERAH_IGNORE_DOTENV=1" in recipe
+    assert "SOLVERAH_IGNORE_DOTENV=1" in recipe, (
+        "%s does not suppress .env, so it runs with secrets the runner does not have"
+        % target_anchor
+    )
 
-    for name in ("APP_ENV", "DATABASE_URL", "JWT_SECRET_KEY",
-                 "JWT_COOKIE_SECURE", "JWT_COOKIE_SAMESITE"):
+    for name in CI_VARIABLES:
         assert name in ci_env, "CI no longer sets %s; update this test" % name
-        assert name in recipe, "make test-ci does not set %s, but CI does" % name
+        assert name in recipe, "make %s does not set %s, but CI does" % (
+            target_anchor,
+            name,
+        )
+
+
+def test_the_postgres_job_is_the_gate_and_is_the_only_backend_job():
+    """Postgres decides, and nothing runs beside it that could disagree.
+
+    This used to assert that the SQLite job carried `continue-on-error: true`, so a
+    database the product does not run on could not block a build -- or, worse, get
+    "fixed" by making the code accommodate it. Phase 2a retired that job, so the
+    assertion inverts: there must not be a second backend job at all.
+
+    A non-gating backend job is not forbidden forever. What is forbidden is one that
+    reappears without the reasoning in .github/workflows/tests.yml being revisited,
+    which is what this failing would mean.
+    """
+    import io as _io
+
+    workflow = _io.open(".github/workflows/tests.yml", encoding="utf-8").read()
+
+    jobs = _yaml_jobs(workflow)
+    backend_jobs = [name for name in jobs if name.startswith("backend-tests")]
+    assert backend_jobs == ["backend-tests-postgres"], (
+        "Backend CI jobs are %s. A second one needs the trade-off in "
+        ".github/workflows/tests.yml revisited, not this test updated." % backend_jobs
+    )
+
+    postgres_job = jobs["backend-tests-postgres"]
+    assert "continue-on-error" not in postgres_job, (
+        "The Postgres job is the gate; it must be able to fail the build."
+    )
+    assert "pgvector/pgvector:pg" in _io.open(
+        ".github/workflows/tests.yml", encoding="utf-8"
+    ).read(), "the Postgres service container is gone"
+
+
+# ---------------------------------------------------------------------------
+# Fatal validation (2026-09-02).
+#
+# Phase 0 logged ConfigError at CRITICAL and booted anyway, with a note that it
+# would become fatal once create_app() owned configuration. Phase 1 landed the
+# factory, so create_app() now raises. The line being drawn: fatal means
+# *invalid* config, never *testing* config -- the five CI variables must keep
+# booting every entrypoint (web, worker, flask db, capture_contract).
+# ---------------------------------------------------------------------------
+
+
+def test_create_app_refuses_to_boot_when_a_required_var_is_missing(monkeypatch):
+    """A genuinely missing DATABASE_URL must kill boot, naming the variable.
+
+    The pre-promotion behaviour -- log CRITICAL, keep booting -- deferred the
+    failure to the first query, where it surfaces as a pool error that says
+    nothing about configuration.
+    """
+    from solverah.factory import create_app
+
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    with pytest.raises(ConfigError) as exc:
+        create_app()
+
+    assert "DATABASE_URL" in str(exc.value)
+
+
+def test_create_app_boots_under_exactly_the_ci_environment():
+    """The five variables CI sets are sufficient to boot -- nothing else.
+
+    The worker, `flask db`, and Scripts/capture_contract.py all boot the app
+    under this environment; if this test fails, so do they, before any of
+    their own code runs.
+    """
+    from unittest import mock
+
+    from solverah.factory import create_app
+
+    # Process-level variables the interpreter and libraries need to function;
+    # everything app-shaped is cleared so a developer's .env cannot leak in.
+    keep = {
+        k: v
+        for k, v in os.environ.items()
+        if k in {"PATH", "SYSTEMROOT", "TEMP", "TMP", "HOME", "USERPROFILE", "COMSPEC"}
+    }
+    ci_env = dict(
+        keep,
+        APP_ENV="testing",
+        DATABASE_URL=os.environ["DATABASE_URL"],
+        JWT_SECRET_KEY="test-jwt-secret-not-a-real-one-32-bytes-min",
+        JWT_COOKIE_SECURE="false",
+        JWT_COOKIE_SAMESITE="Lax",
+    )
+
+    with mock.patch.dict(os.environ, ci_env, clear=True):
+        app = create_app()
+
+    assert app.extensions["solverah_settings"] is not None
+    assert app.extensions["solverah_settings"].is_testing is True
+
+
+def _yaml_jobs(workflow: str) -> dict:
+    """The workflow's jobs, parsed rather than string-split.
+
+    The retired job left a forty-line comment block behind that still contains the
+    words "backend-tests-sqlite", and a `.split()` on that string would find it.
+    Parsing is what tells a job apart from a note about a job.
+    """
+    import yaml
+
+    return yaml.safe_load(workflow)["jobs"]

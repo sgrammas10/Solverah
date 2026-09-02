@@ -1,7 +1,7 @@
 """Schemas for the profile, resume, and dashboard endpoints.
 
 ``GET|POST /profile`` is the god-endpoint Part 5.2 breaks apart: one route that
-reads or writes the entire user document, returns the whole ``profile_data``
+reads or writes the entire user document, returns the whole profile document
 blob on every session restore, and writes an audit row on the read.  The models
 below describe it exactly as it is, because Phase 1a does not change it.
 
@@ -26,8 +26,9 @@ __all__ = [
     "ProfileDocument",
     "ProfilePatchRequest",
     "ResumeCompleteRequest",
-    "ResumeCompleteResponse",
     "ResumeDownloadResponse",
+    "ResumeParseJobAccepted",
+    "ResumeParseJobStatus",
     "ResumeTicketRequest",
     "ResumeTicketResponse",
     "SkillsPutRequest",
@@ -139,14 +140,20 @@ class IdentityUpdateRequest(SolverahModel):
 class ProfileDocument(SolverahModel):
     """``GET|PATCH /me/profile`` -- the profile half, in an envelope.
 
-    The envelope is the point. Returning the blob bare would leave nowhere to
-    put the ``version`` that P0-1's fix needs, and no way to add it later
-    without colliding with a profile key of the same name.
+    The envelope is the point. Returning the document bare would leave nowhere
+    to put a ``version`` and no way to add one later without colliding with a
+    profile key of the same name.
+
+    P0-1 is fixed as of Phase 2a and ``version`` is *not* here yet, which is
+    deliberate: the fix is server-side compare-and-swap on ``profiles.version``,
+    and it needs no cooperation from the client. Exposing the version becomes
+    worth doing when a client wants to say "write this only if you still have
+    what I read" -- an If-Match, not a field.
     """
 
     profile: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
+        description="The profile document. Assembled from the profile tables since Phase 2a; open-ended because the unpromoted keys genuinely vary per user.",
     )
 
 
@@ -161,7 +168,7 @@ class ProfilePatchRequest(SolverahModel):
     model_config = ConfigDict(extra="ignore")
 
     profile: Dict[str, Any] = Field(
-        description="Partial profile. Merged over the stored blob; unknown keys are stripped."
+        description="Partial profile. Merged over the stored document; unknown keys are stripped."
     )
 
 
@@ -210,13 +217,21 @@ class ResumeTicketResponse(SolverahModel):
     identity and this id, so there is no key for a caller to name at all.
     """
 
-    resume_id: str = Field(description="Opaque id. Pass to /me/resumes/{id}/complete.")
+    resume_id: str = Field(
+        description="Opaque id. Pass to /me/resumes/{id}/parse-jobs."
+    )
     upload_url: str = Field(description="Presigned PUT URL, valid for 10 minutes.")
     max_bytes: int
 
 
 class ResumeCompleteRequest(SolverahModel):
-    """``POST /me/resumes/{resume_id}/complete`` -- the file is uploaded; parse it."""
+    """``POST /me/resumes/{resume_id}/parse-jobs`` -- the file is uploaded; parse it.
+
+    Named for the synchronous ``/complete`` route it was written for, which
+    Phase 3c deleted; the job route took the identical body, so the model
+    survives its first consumer. Renaming it would churn every generated
+    client for a cosmetic gain.
+    """
 
     model_config = ConfigDict(extra="ignore")
 
@@ -225,15 +240,41 @@ class ResumeCompleteRequest(SolverahModel):
     name: Optional[str] = Field(default=None, description="Original filename, for display.")
 
 
-class ResumeCompleteResponse(ProfileDocument):
-    """The profile after the parsed resume was merged into it.
-
-    Parsing still runs inline, which is P0-6. Part 5.2 has this returning 202
-    with a job handle; it does not do that yet, and returning a 202 for work
-    that finished synchronously would be a lie the client would have to poll
-    against. It becomes a 202 when Phase 3's queue exists.
-    """
-
-
 class ResumeDownloadResponse(SolverahModel):
     url: str = Field(description="Presigned GET URL, valid for 10 minutes.")
+
+
+class ResumeParseJobAccepted(SolverahModel):
+    """``202`` from ``POST /me/resumes/{resume_id}/parse-jobs``.
+
+    Part 5.2's ``202 + job handle``. 3a added it alongside the synchronous
+    ``/complete``; 3c deleted that route once the frontend had moved, so this
+    is the only way a parse starts.
+    """
+
+    job_id: str = Field(
+        description="Poll GET /me/resume-parse-jobs/{job_id} until status is terminal."
+    )
+    status: str = Field(description='Always "queued" here; the job has not started.')
+    status_url: str = Field(description="Where to poll. Relative to the API root.")
+
+
+class ResumeParseJobStatus(SolverahModel):
+    """``GET /me/resume-parse-jobs/{job_id}``.
+
+    ``status`` is one of ``queued``, ``running``, ``succeeded``, ``failed``; the
+    last two are terminal and a client should stop polling on either.
+
+    ``profile`` is present only on ``succeeded``, and is the full current
+    profile document -- what the synchronous ``/complete`` returned before 3c
+    deleted it. ``error`` is present only on ``failed``
+    and is a fixed message: parse failures come from pdfminer, python-docx and
+    botocore, whose text carries bucket names and object keys.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    job_id: str
+    status: str
+    error: Optional[str] = None
+    profile: Optional[Dict[str, Any]] = None

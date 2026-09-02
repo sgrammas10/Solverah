@@ -59,7 +59,13 @@ class ExportedIntakeSubmission(SolverahModel):
 
 
 class ExportedLegacyQuiz(SolverahModel):
-    """The pre-assessment-table quiz payloads held on ``UserIntake``."""
+    """The two Work Pulse instruments' payloads, under their original key.
+
+    They were columns on ``UserIntake`` and are two ``assessment_submissions``
+    rows since Phase 2d. The block keeps its name and its five keys: a
+    subject-access response is not a place to rename things to match the storage
+    underneath, and ``legacy_quiz`` was named to be independent of it.
+    """
 
     model_config = ConfigDict(extra="allow")
 
@@ -79,15 +85,17 @@ class ExportedJobRecommendation(SolverahModel):
 class AccountExportResponse(SolverahModel):
     """Every identified data class held for the authenticated user.
 
-    ``profile`` is the raw ``users.profile_data`` blob, so it is typed as an open
-    object: its key set is genuinely per-user until Phase 2 decomposes it.
+    ``profile`` is the profile document -- ``profiles`` and its child tables
+    since Phase 2a, the ``users.profile_data`` blob before it, and byte-identical
+    either way. It stays typed as an open object because the keys that have not
+    been promoted to columns yet still vary per user.
     """
 
     exported_at: str = Field(description="ISO 8601 timestamp of this export.")
     account: ExportedAccount
     profile: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
+        description="The profile document. Assembled from the profile tables since Phase 2a; open-ended because the unpromoted keys genuinely vary per user.",
     )
     intake_submissions: List[ExportedIntakeSubmission] = Field(default_factory=list)
     legacy_quiz: Optional[ExportedLegacyQuiz] = None

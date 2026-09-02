@@ -3,16 +3,18 @@
 Tracks corrections users make to parser-extracted resume fields so the parser
 can be improved over time. One row per (user, resume_key, field).
 
-Revision ID: 20260312_add_resume_parse_corrections
-Revises: 20260203_add_email_confirmation_to_user
+Revision ID: 20260312_resume_corrections
+Revises: 20260203_email_confirmation
 Create Date: 2026-03-12
 """
 from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = "20260312_add_resume_parse_corrections"
-down_revision = "20260203_add_email_confirmation_to_user"
+# Renamed from "20260312_add_resume_parse_corrections" (37 chars): over the VARCHAR(32) limit of
+# alembic_version.version_num. See tests/test_migrations_chain.py.
+revision = "20260312_resume_corrections"
+down_revision = "20260203_email_confirmation"
 branch_labels = None
 depends_on = None
 

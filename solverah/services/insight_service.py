@@ -1,7 +1,7 @@
 """AI-generated career insights from quiz answers.
 
 Two endpoints share almost everything: an authenticated one that persists into
-``profile_data.quizInsights``, and an anonymous preview limited to one call per
+the profile's ``quizInsights``, and an anonymous preview limited to one call per
 IP per day.  The differences are two: whether the result is stored, and the name
 of one response key -- authenticated returns ``overallInsight``, the guest
 preview returns ``overallSummary``.  Both are read by the frontend, so both are
@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from model import User, db
 from solverah.infra import llm
+from solverah.repositories import profile_repository
 from solverah.services import insight_prompts
 
 __all__ = [
@@ -151,7 +152,7 @@ def generate_for_guest(data: Dict[str, Any], logger) -> InsightResult:
 
 
 def generate_for_user(user: Optional[User], data: Dict[str, Any], logger) -> InsightResult:
-    """Authenticated generation, persisted into ``profile_data.quizInsights``.
+    """Authenticated generation, persisted into the profile's ``quizInsights``.
 
     Note the ordering: the model is called *before* the user is looked up, which
     is how the original ran. It means a request from a JWT whose user has since
@@ -176,23 +177,27 @@ def generate_for_user(user: Optional[User], data: Dict[str, Any], logger) -> Ins
     if not user:
         return _error(404, "User not found")
 
-    profile = dict(user.profile_data or {})
-    quiz_insights = profile.get("quizInsights")
-    quiz_insights = dict(quiz_insights) if isinstance(quiz_insights, dict) else {}
-
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
-    if quiz_group == CAREER_QUIZ_GROUP:
-        quiz_insights[CAREER_QUIZ_GROUP] = _career_group_store(
-            quiz_insights.get(CAREER_QUIZ_GROUP), insights, overall_insight, timestamp, model
-        )
-    else:
-        quiz_insights[quiz_group] = _single_group_store(
-            insights, overall_insight, timestamp, model
-        )
+    def store(existing: Dict[str, Any]) -> Dict[str, Any]:
+        quiz_insights = existing.get("quizInsights")
+        quiz_insights = dict(quiz_insights) if isinstance(quiz_insights, dict) else {}
 
-    profile["quizInsights"] = quiz_insights
-    user.profile_data = profile
+        if quiz_group == CAREER_QUIZ_GROUP:
+            quiz_insights[CAREER_QUIZ_GROUP] = _career_group_store(
+                quiz_insights.get(CAREER_QUIZ_GROUP),
+                insights,
+                overall_insight,
+                timestamp,
+                model,
+            )
+        else:
+            quiz_insights[quiz_group] = _single_group_store(
+                insights, overall_insight, timestamp, model
+            )
+        return {**existing, "quizInsights": quiz_insights}
+
+    profile_repository.update_document(user.id, store)
     db.session.commit()
 
     return InsightResult(

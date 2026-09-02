@@ -152,6 +152,12 @@ class Settings:
     redis_url: Optional[str]
     ratelimit_storage_uri: str
 
+    # -- Async ---------------------------------------------------------------
+    celery_broker_url: Optional[str]
+    celery_result_backend: Optional[str]
+    celery_task_always_eager: bool
+    cache_default_ttl_seconds: int
+
     # -- Observability -------------------------------------------------------
     log_level: str
     log_format: str  # "json" | "console"
@@ -239,6 +245,50 @@ class Settings:
                 "reset on deploy. Set REDIS_URL or RATELIMIT_STORAGE_URI."
             )
 
+        # Celery rides the same Redis as the rate limiter and the cache, for the
+        # same reason ``ratelimit_storage_uri`` falls back to ``REDIS_URL``: one
+        # variable configures the platform's shared state instead of three that
+        # can disagree.  ``CELERY_BROKER_URL`` overrides it for the case where the
+        # queue genuinely belongs on its own instance.
+        celery_broker_url = (env.get("CELERY_BROKER_URL") or "").strip() or redis_url
+        celery_result_backend = (
+            (env.get("CELERY_RESULT_BACKEND") or "").strip() or celery_broker_url
+        )
+
+        # Eager means "run the task inline in the caller, right now".  Two cases
+        # need it and both are about a broker that is not there:
+        #
+        #   * Testing.  CI sets five environment variables and runs no Redis
+        #     service container, so `.delay()` would raise on connect in every
+        #     test that reaches a queued path.  Eager keeps the suite honest about
+        #     *ordering* -- what runs, in what order, with what arguments -- while
+        #     being explicitly no evidence about durability.  The outbox invariant
+        #     is tested against the table directly for that reason.
+        #   * A developer running the API with no Redis at all.  Degrading to
+        #     inline execution keeps `flask run` working exactly as it did before
+        #     this phase, rather than turning every registration into a 500.
+        #
+        # Production always has a broker, and setting this there would silently
+        # put every LLM call and every email back on the request path -- so it is
+        # a configuration problem rather than a mode, and it is warned about below.
+        celery_eager_default = is_testing or not celery_broker_url
+        celery_task_always_eager = _read_bool(
+            env, "CELERY_TASK_ALWAYS_EAGER", celery_eager_default, problems
+        )
+        if is_production and celery_task_always_eager:
+            warnings.append(
+                "CELERY_TASK_ALWAYS_EAGER is on (or no broker is configured): queued "
+                "work runs inline in the web worker, which is the request-path "
+                "blocking Phase 3 exists to remove. Set CELERY_BROKER_URL or REDIS_URL."
+            )
+
+        # Backstop only. Every cached read is invalidated by key on the write that
+        # changes it, so the TTL is what bounds staleness if an invalidation is
+        # ever missed -- not the mechanism the cache relies on.
+        cache_default_ttl_seconds = _read_int(
+            env, "CACHE_DEFAULT_TTL_SECONDS", 300, problems, minimum=1, maximum=86400
+        )
+
         log_format = (env.get("LOG_FORMAT") or ("json" if is_production else "console")).strip().lower()
         if log_format not in {"json", "console"}:
             problems.append("LOG_FORMAT must be 'json' or 'console', got %r" % log_format)
@@ -289,6 +339,10 @@ class Settings:
             cors_origins=cors_origins,
             redis_url=redis_url,
             ratelimit_storage_uri=ratelimit_storage_uri,
+            celery_broker_url=celery_broker_url,
+            celery_result_backend=celery_result_backend,
+            celery_task_always_eager=celery_task_always_eager,
+            cache_default_ttl_seconds=cache_default_ttl_seconds,
             log_level=log_level,
             log_format=log_format,
             openai_api_key=(env.get("OPENAI_API_KEY") or "").strip() or None,
@@ -340,6 +394,9 @@ class Settings:
             "jwt_cookie_samesite": self.jwt_cookie_samesite,
             "trusted_proxy_count": self.trusted_proxy_count,
             "ratelimit_storage": "redis" if self.ratelimit_storage_uri != "memory://" else "memory",
+            "celery_broker": "redis" if self.celery_broker_url else "none",
+            "celery_eager": self.celery_task_always_eager,
+            "cache": "redis" if self.redis_url else "disabled",
             "log_level": self.log_level,
             "log_format": self.log_format,
             "providers": {

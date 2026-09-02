@@ -80,12 +80,14 @@ def _seed_companies(count, industries=None, scoreable=True):
 def _give_culture_preferences():
     from app import app
     from model import User, db
+    from solverah.repositories import profile_repository
 
     with app.app_context():
         user = User.query.filter_by(email=EMAIL).first()
-        profile = dict(user.profile_data or {})
-        profile["culture_preferences"] = CULTURE_PREFERENCES
-        user.profile_data = profile
+        profile_repository.update_document(
+            user.id,
+            lambda existing: {**existing, "culture_preferences": CULTURE_PREFERENCES},
+        )
         db.session.commit()
 
 

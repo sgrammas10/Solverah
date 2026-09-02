@@ -26,6 +26,7 @@ from model import (
     UserIntake,
     db,
 )
+from solverah.repositories import assessment_repository, profile_repository
 
 __all__ = [
     "delete_personal_rows",
@@ -72,6 +73,16 @@ def delete_personal_rows(user_id: int, intakes: List[IntakeSubmission]) -> None:
     UserIntake.query.filter_by(user_id=user_id).delete()
     JobRecommendation.query.filter_by(user_id=user_id).delete()
     ResumeParseCorrection.query.filter_by(user_id=user_id).delete()
+    # Assessment submissions hold narratives, archetypes and raw answers, so
+    # they are in this function rather than in `tombstone_user`. An explicit
+    # delete and not the `ON DELETE CASCADE` on `user_id`: deletion tombstones
+    # the user row instead of removing it, so the cascade never fires.
+    #
+    # This does NOT reach the core assessment's answers or dimension scores.
+    # Those survive de-identified -- a decided reconciliation, asserted in
+    # tests/test_account_lifecycle.py -- and they are behind D-01's doorway,
+    # which is exactly why the submission row it is joined to holds none of them.
+    assessment_repository.delete_for_user(user_id)
 
 
 def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_password: str) -> None:
@@ -85,10 +96,23 @@ def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_passwor
     Does not commit.
     """
     user.email = "deleted-%s@%s" % (user.id, tombstone_domain)
-    user.password = dead_password
+    user.password_hash = dead_password
     user.name = None
-    user.profile_data = {"deleted_at": now_iso}
+    # Replaces the whole profile document with the tombstone, which also drops
+    # every experience, education, skill and resume row the user had: the write
+    # path rebuilds the child tables from the document it is given, and this
+    # document has none of them. Going through `update_document` rather than
+    # deleting the rows by hand means a field added to the profile in future is
+    # erased here without anyone having to remember to come back.
+    profile_repository.update_document(user.id, lambda _existing: {"deleted_at": now_iso})
     user.email_confirmed = False
+    # `users.status`, added in Phase 2c. `users.deleted_at` is deliberately *not*
+    # set: the address is still freed by the rewrite above, so the partial unique
+    # index `uq_users_email ... WHERE deleted_at IS NULL` keeps behaving like the
+    # full constraint it replaced. Turning this into a real soft-delete is a
+    # deletion-policy change and needs every user query to grow a filter it does
+    # not have yet.
+    user.status = "deleted"
     user.confirmation_token = None
     user.confirmation_sent_at = None
     user.reset_token = None

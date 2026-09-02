@@ -25,7 +25,6 @@ __all__ = [
     "RegisterRequest",
     "RegisterResponse",
     "ResendConfirmationRequest",
-    "SendEmailFailureResponse",
     "SessionFlags",
     "SessionResponse",
     "SessionUser",
@@ -61,17 +60,21 @@ class SummaryUser(SolverahModel):
 class SessionUser(SummaryUser):
     """The user object returned on a successful login.
 
-    ``profileData`` is the entire ``users.profile_data`` blob.  Shipping the
-    whole user document on every session restore is the god-endpoint problem
-    Part 5.2 splits apart; it is documented here rather than quietly trimmed,
-    because trimming it would break the frontend that reads it.
+    ``profileData`` is the entire profile document.  Shipping the whole user
+    document on every session restore is the god-endpoint problem Part 5.2
+    splits apart; it is documented here rather than quietly trimmed, because
+    trimming it would break the frontend that reads it.
+
+    Phase 2a changed where it comes from -- six tables rather than one JSON
+    column -- and changed nothing about what it contains, which is why this
+    model did not move.
     """
 
     model_config = ConfigDict(extra="allow")
 
     profileData: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Raw profile_data blob. Open-ended until Phase 2 (P0-1).",
+        description="The profile document. Assembled from the profile tables since Phase 2a; open-ended because the unpromoted keys genuinely vary per user.",
     )
     wpl_completed: bool = Field(description="Legacy Work Pulse instrument completed.")
     wpll_completed: bool = Field(description="Work Pulse Lite-Lite completed.")
@@ -94,7 +97,7 @@ class RegisterRequest(SolverahModel):
     password: str
     name: Optional[str] = None
     terms_accepted: bool = Field(
-        description="Must be literal true. Recorded in profile_data as evidence of assent."
+        description="Must be literal true. Recorded on the profile as evidence of assent."
     )
     terms_version: Optional[str] = Field(
         default=None, description='Version assented to; stored as "unversioned" when absent.'
@@ -131,17 +134,6 @@ class ConfirmEmailRequest(SolverahModel):
 
 class ResendConfirmationRequest(SolverahModel):
     email: str
-
-
-class SendEmailFailureResponse(SolverahModel):
-    """The 500 body when Resend rejects a send.
-
-    Carries ``detail`` on the resend path only, which is where the original
-    handler included it.
-    """
-
-    error: str
-    detail: Optional[str] = None
 
 
 class PasswordResetRequest(SolverahModel):

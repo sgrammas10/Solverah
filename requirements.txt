@@ -21,6 +21,15 @@ Flask-JWT-Extended==4.7.4
 Flask-Cors==6.0.5
 Flask-Limiter==4.1.1
 Flask-SQLAlchemy==3.1.1
+
+# Pinned explicitly even though Flask-SQLAlchemy already requires it. Until now
+# it arrived transitively, so "Direct dependencies, pinned" was not true of the
+# library every query in the application goes through: a developer machine ran
+# 2.0.41 while CI resolved 2.0.52, and the ORM is the last place a silent
+# version split belongs. 2.0.52 is what CI resolves today, so this records the
+# state rather than changing it.
+SQLAlchemy==2.0.52
+
 Flask-Migrate==4.1.0
 flask-talisman==1.1.0
 gunicorn==26.1.0
@@ -37,6 +46,14 @@ psycopg2-binary==2.9.12
 # failing boot when this is absent, but production needs it installed AND
 # REDIS_URL set. Pure-Python wheel, no build step.
 redis==8.1.0
+
+# Task queue (docs/ARCHITECTURE.md Phase 3). Queues: default, llm, email,
+# scoring, maintenance. The broker and the result backend are the same Redis the
+# rate limiter already needs, so this adds a dependency and not a service. Under
+# APP_ENV=testing -- and anywhere no broker is configured -- tasks run eagerly in
+# the calling process, which is what lets the suite stay green on a runner that
+# has no Redis service container.
+celery==5.6.3
 python-dotenv==1.2.3
 PyYAML==6.0.3
 pdfminer.six==20260107

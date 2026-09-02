@@ -38,11 +38,16 @@ def test_no_submission_means_not_completed(client):
         assert has_completed_assessment(424242) is False
 
 
-def test_current_key_submission_counts_as_completed(client):
+def test_current_key_submission_counts_as_completed(client, seed_user):
     from app import app
     from model import db
     from assessment_form import scoring_key_version
     from assessment_store import has_completed_assessment, persist_submission
+
+    # assessment_response.user_id is a real foreign key. User 2 is deliberately NOT
+    # seeded -- the per-user assertion below is about a user with no submission, and
+    # has_completed_assessment reads rows rather than checking the user exists.
+    seed_user(1)
 
     with app.app_context():
         persist_submission(db, 1, _fake_submission(scoring_key_version()))
@@ -52,7 +57,7 @@ def test_current_key_submission_counts_as_completed(client):
         assert has_completed_assessment(2) is False
 
 
-def test_stale_key_submission_does_not_count(client):
+def test_stale_key_submission_does_not_count(client, seed_user):
     """The load-bearing assertion: completion is a fact about an INSTRUMENT.
 
     A sitting stored under a superseded scoring key must not satisfy the current instrument's
@@ -62,6 +67,8 @@ def test_stale_key_submission_does_not_count(client):
     from app import app
     from model import db
     from assessment_store import has_completed_assessment, persist_submission
+
+    seed_user(3)
 
     with app.app_context():
         persist_submission(db, 3, _fake_submission("v1-superseded+mean_pole"))

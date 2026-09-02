@@ -28,11 +28,15 @@ from typing import Any, Dict, Optional
 from model import IntakeSubmission, User, db
 from solverah.domain import auth as auth_domain
 from solverah.domain import intake as domain
-from solverah.infra import email as email_infra
 from solverah.infra import storage
 from solverah.infra.storage import ALLOWED_MIME, MAX_BYTES
-from solverah.repositories import intake_repository, user_repository
-from solverah.services import audit, resume_service
+from solverah.repositories import (
+    assessment_repository,
+    intake_repository,
+    profile_repository,
+    user_repository,
+)
+from solverah.services import assessment_service, audit, outbox, resume_service
 
 __all__ = [
     "IntakeResult",
@@ -74,12 +78,24 @@ def _error(status: int, message: str) -> IntakeResult:
 # Anonymous intake
 # ---------------------------------------------------------------------------
 
-def early_access_request(data: Dict[str, Any], logger) -> IntakeResult:
+def early_access_request(data: Dict[str, Any]) -> IntakeResult:
     """Forward the landing-page interest form to info@solverah.com.
 
-    Does not persist to the database -- the submission exists only as an email,
-    which is a real gap: a Resend outage loses the lead entirely, with only a log
-    line behind. Phase 3's transactional outbox is what fixes it.
+    **This used to be the only endpoint in the intake funnel that returned 500
+    on a mail failure, and it was right to.** Nothing was persisted -- the lead
+    existed only as an email -- so swallowing the error lost it outright, and a
+    500 at least told the visitor to try again.
+
+    Phase 3 removes the reason rather than the behaviour. The lead is now written
+    to the outbox before anything is returned, so it is durable the instant this
+    function commits and a worker retries delivery until it lands. There is no
+    longer a failure that loses it, so there is no longer a failure to report:
+    the endpoint answers 200, which is the truth -- the submission was accepted.
+
+    Still not a row in a real table. `outbox` is a queue and `purge_published`
+    deletes delivered rows, so the lead's durable home is still the recipient's
+    inbox. That is a product decision this phase does not get to make; what it
+    fixes is the window in which the lead existed nowhere at all.
     """
     first_name = (data.get("firstName") or "").strip()
     last_name = (data.get("lastName") or "").strip()
@@ -89,18 +105,19 @@ def early_access_request(data: Dict[str, Any], logger) -> IntakeResult:
     if not first_name or not last_name or not email:
         return _error(400, "First name, last name, and email are required.")
 
-    try:
-        email_infra.send_early_access_modal_notification(
-            first_name=first_name,
-            last_name=last_name,
-            email=email,
-            phone=(data.get("phone") or "").strip(),
-            preferred_contact=(data.get("preferredContact") or "").strip(),
-            career_journey=(data.get("careerJourney") or "").strip(),
-        )
-    except Exception as exc:  # noqa: BLE001 -- reported to the caller below
-        logger.error("Failed to send early access modal notification: %s", exc)
-        return _error(500, "Failed to send notification.")
+    entry_id = outbox.enqueue(
+        outbox.TOPIC_EMAIL_EARLY_ACCESS,
+        {
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": email,
+            "phone": (data.get("phone") or "").strip(),
+            "preferred_contact": (data.get("preferredContact") or "").strip(),
+            "career_journey": (data.get("careerJourney") or "").strip(),
+        },
+    )
+    db.session.commit()
+    outbox.publish_soon(entry_id)
 
     return IntakeResult(status=200, body={"ok": True})
 
@@ -172,7 +189,7 @@ def verify_upload(object_key: str, mime: str, size: int) -> Optional[str]:
     return None
 
 
-def finalize(data: Dict[str, Any], logger) -> IntakeResult:
+def finalize(data: Dict[str, Any]) -> IntakeResult:
     """Step 2 of 2: validate, confirm the upload, insert the row, notify."""
     fields = domain.parse_submission(data)
     problem = domain.validate_submission(
@@ -191,24 +208,27 @@ def finalize(data: Dict[str, Any], logger) -> IntakeResult:
 
     intake_repository.insert_submission(fields, email=fields.email, status="uploaded")
 
-    try:
-        email_infra.send_intake_notification(
-            first_name=fields.first_name,
-            last_name=fields.last_name,
-            email=fields.email,
-            state=fields.state,
-            phone=fields.phone,
-            linkedin_url=fields.linkedin_url,
-            portfolio_url=fields.portfolio_url,
-            object_key=fields.object_key,
-            mime=fields.mime,
-            size=fields.size,
-        )
-    except Exception as exc:  # noqa: BLE001 -- the row is committed; the
-        # notification is ours to chase, not the submitter's problem.
-        logger.error(
-            "Failed to send intake notification to info@solverah.com: %s", exc
-        )
+    # The notification and the submission row are one commit. Previously the row
+    # was committed by insert_submission and the email followed it, so a Resend
+    # outage left a submission nobody was told about -- recoverable only by
+    # someone thinking to query the table.
+    entry_id = outbox.enqueue(
+        outbox.TOPIC_EMAIL_INTAKE_NOTIFICATION,
+        {
+            "first_name": fields.first_name,
+            "last_name": fields.last_name,
+            "email": fields.email,
+            "state": fields.state,
+            "phone": fields.phone,
+            "linkedin_url": fields.linkedin_url,
+            "portfolio_url": fields.portfolio_url,
+            "object_key": fields.object_key,
+            "mime": fields.mime,
+            "size": fields.size,
+        },
+    )
+    db.session.commit()
+    outbox.publish_soon(entry_id)
 
     return IntakeResult(status=200, body={"ok": True})
 
@@ -254,29 +274,25 @@ def create_account(
 
     new_user = User(
         email=intake.email.lower(),
-        password=hashed_pw,
+        password_hash=hashed_pw,
         name=full_name,
         role=role,
-        profile_data=profile_data,
         email_confirmed=False,
         confirmation_token=token,
         confirmation_sent_at=auth_domain.utcnow(),
     )
     db.session.add(new_user)
+    # Flushed for its id, not committed: the user and their profile land in one
+    # transaction. See the same note in auth_service.register.
+    db.session.flush()
+    profile_repository.update_document(new_user.id, lambda _existing: profile_data)
 
     intake.status = "account_created"
+    entry_id = outbox.enqueue(
+        outbox.TOPIC_EMAIL_VERIFICATION, {"to": new_user.email, "code": token}
+    )
     db.session.commit()
-
-    # Send confirmation email (best-effort)
-    try:
-        email_infra.send_confirmation_email(new_user.email, token)
-    except Exception:  # noqa: BLE001 -- account exists; recoverable by resend
-        audit.log_audit_event(
-            action="email_send_failed",
-            actor_user_id=new_user.id,
-            resource="email",
-            metadata={},
-        )
+    outbox.publish_soon(entry_id)
 
     return IntakeResult(
         status=201,
@@ -325,15 +341,15 @@ def sign_in(data: Dict[str, Any], *, check_password) -> IntakeResult:
     if user.locked_until and user.locked_until > auth_domain.utcnow():
         return _error(423, "Account locked. Try again later.")
 
-    if not check_password(user.password, password):
-        user.failed_login_attempts += 1
-        if user.failed_login_attempts >= MAX_LOGIN_ATTEMPTS:
+    if not check_password(user.password_hash, password):
+        user.failed_login_count += 1
+        if user.failed_login_count >= MAX_LOGIN_ATTEMPTS:
             user.locked_until = auth_domain.lockout_until(LOGIN_LOCKOUT_MINUTES)
-            user.failed_login_attempts = 0
+            user.failed_login_count = 0
         db.session.commit()
         return _error(401, "Invalid credentials")
 
-    user.failed_login_attempts = 0
+    user.failed_login_count = 0
     user.locked_until = None
 
     if not getattr(user, "email_confirmed", False):
@@ -342,7 +358,9 @@ def sign_in(data: Dict[str, Any], *, check_password) -> IntakeResult:
         )
 
     intake_profile = resume_service.build_profile_from_intake(intake)
-    user.profile_data = {**(user.profile_data or {}), **intake_profile}
+    profile_repository.update_document(
+        user.id, lambda existing: {**existing, **intake_profile}
+    )
 
     full_name = ("%s %s" % (intake.first_name, intake.last_name)).strip()
     if full_name:
@@ -402,7 +420,9 @@ def link_account(user: User, current_email: str, data: Dict[str, Any]) -> Intake
     intake = intake_repository.find_submission(fields.submission_id)
     if intake:
         intake_profile = resume_service.build_profile_from_intake(intake)
-        user.profile_data = {**(user.profile_data or {}), **intake_profile}
+        profile_repository.update_document(
+            user.id, lambda existing: {**existing, **intake_profile}
+        )
         full_name = ("%s %s" % (fields.first_name, fields.last_name)).strip()
         if full_name:
             user.name = full_name
@@ -435,13 +455,27 @@ def save_to_account(user: User, data: Dict[str, Any]) -> IntakeResult:
     if len(wpll_answers) > MAX_WPLL_ANSWERS:
         return _error(400, "wpll_answers must contain at most 5 items")
 
-    intake = intake_repository.upsert_user_intake(
-        user_id=user.id,
-        selected_ids=selected_ids,
-        wpll_answers=wpll_answers,
-        wpll_insight_text=wpll_insight_text,
-        now=auth_domain.utcnow(),
+    # Two halves, two homes, and the split is the point of Phase 2d: the
+    # statement selections are intake data and stay on `user_intake`; the WPLL
+    # answers and their insight are one of the five assessment products and go
+    # where the other four go.
+    intake_repository.upsert_user_intake(
+        user_id=user.id, selected_ids=selected_ids
     )
+
+    submission = assessment_repository.open_current(
+        user.id, "wpll", assessment_service.CLIENT_FORM_VERSION
+    )
+    submission.answers = wpll_answers
+    submission.narrative = wpll_insight_text or None
+    submission.status = "complete"
+    # Set on the first save that carries answers and never moved afterwards. A
+    # re-save replaces the answers -- it always has -- but "when did this person
+    # finish WPLL" is a fact about the first sitting, and a re-save is not a
+    # retake. This is the one instrument whose completion timestamp is not
+    # refreshed, which is why `open_current` leaves the field to the caller.
+    if wpll_answers and submission.completed_at is None:
+        submission.completed_at = auth_domain.utcnow()
 
     audit.log_audit_event(
         action="create",
@@ -458,6 +492,6 @@ def save_to_account(user: User, data: Dict[str, Any]) -> IntakeResult:
         status=200,
         body={
             "message": "Intake saved",
-            "wpll_completed": intake.wpll_completed_at is not None,
+            "wpll_completed": submission.completed_at is not None,
         },
     )

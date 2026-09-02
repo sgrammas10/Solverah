@@ -24,13 +24,20 @@ The wiring order below is not arbitrary and is preserved from the original:
      and the JWT manager reads the cookie policy.
   4. Blueprints last, so ``limiter.exempt()`` and the Talisman per-view options
      can address view functions that exist.
+  5. After them, the Phase 3 adapters: the read cache and the Celery app.  The
+     queue goes last of all because importing the task modules pulls in the
+     services, and a cycle is only avoided by that import happening once
+     everything else exists.
 
-Configuration validation stays non-fatal.  Phase 0 left a note saying it would
-become fatal "in Phase 1 when create_app() owns configuration"; that is
-deliberately not being done in the same change that moves 38 routes.  Turning a
-strict check fatal is a deploy-breaking behaviour change and deserves to land on
-its own, where a failure is unambiguously attributable to it.  The problems are
-still logged at CRITICAL.
+Configuration validation is fatal.  Phase 0 left it at a CRITICAL log with a
+note that it would become fatal "in Phase 1 when create_app() owns
+configuration"; Phase 1 landed the factory, and the promotion landed on its own
+(2026-09-02) so a boot failure is unambiguously attributable to it.  Invalid or
+missing required configuration now raises ``ConfigError`` -- after logging the
+full problem list at CRITICAL, so the operator still gets every fix in one log
+line.  Fatal means *invalid* config, never *testing* config: CI's five
+variables, the worker, ``flask db`` and ``Scripts/capture_contract.py`` all
+satisfy ``Settings.from_env()`` and boot exactly as before.
 """
 
 from __future__ import annotations
@@ -51,6 +58,8 @@ from solverah.api.v1 import register_v1_blueprints
 from solverah.config import ConfigError, Settings
 from solverah.errors import register_error_handlers
 from solverah.extensions import bcrypt, db, jwt, limiter, migrate
+from solverah.infra.cache import init_cache
+from solverah.infra.queue import init_celery
 from solverah.observability.logging import init_logging, install_request_logging
 from solverah.validation import install_request_validation
 
@@ -201,7 +210,9 @@ def _load_settings() -> Tuple[Optional[Settings], list]:
     ``Settings.from_env()`` reads and validates the whole environment at once
     and raises ``ConfigError`` listing every problem, rather than the older
     pattern of scattered ``os.environ`` reads that fail one variable per
-    restart.  Non-fatal -- see the module docstring for why.
+    restart.  The caller logs the problems at CRITICAL and then re-raises --
+    fatal, per the module docstring -- so this returns them rather than letting
+    the exception skip the log line.
     """
     try:
         return Settings.from_env(), []
@@ -377,11 +388,14 @@ def create_app(config: Optional[Mapping[str, Any]] = None) -> Flask:
     )
 
     if config_problems:
+        # Logged before raising so the operator sees the complete problem list
+        # even when the traceback is swallowed by a supervisor.
         logging.getLogger("solverah.config").critical(
             "configuration_invalid",
             extra={"event": "configuration_invalid", "problems": config_problems},
         )
-    elif settings is not None:
+        raise ConfigError(config_problems)
+    if settings is not None:
         for warning in settings.warnings:
             logging.getLogger("solverah.config").warning(
                 "configuration_warning",
@@ -421,6 +435,15 @@ def create_app(config: Optional[Mapping[str, Any]] = None) -> Flask:
 
     _register_platform_blueprints(app)
     register_v1_blueprints(app, url_prefix=V1_PREFIX)
+
+    # Async and caching (Phase 3). Both degrade to "not configured" rather than
+    # failing boot, because both are absent in CI and on a developer machine with
+    # no Redis: tasks run inline and cached reads are ordinary reads. The queue is
+    # initialised last because importing the task modules imports services, which
+    # import the blueprints' dependencies -- doing it before the blueprints are
+    # registered would only work by accident.
+    init_cache(app, settings)
+    init_celery(app, settings)
 
     app.extensions["solverah_settings"] = settings
     app.extensions["solverah_is_production"] = is_production

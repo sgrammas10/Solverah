@@ -26,6 +26,7 @@ import re
 
 from model import Company, db
 from packages.ml.culture import CompanyProfile
+from solverah.infra import cache
 
 
 # ---------------------------------------------------------------------------
@@ -87,6 +88,14 @@ def upsert_company(profile: CompanyProfile) -> Company:
         row.profile_json = profile_dict
         for key, val in culture_cols.items():
             setattr(row, key, val)
+
+    # The only writer of this table, and therefore the only place that can
+    # invalidate the cached detail payload (Phase 3). Flushed first because an
+    # INSERT has no id until it is, and dropped only once the commit lands --
+    # dropping it before would let a concurrent read repopulate the key from the
+    # pre-write row and leave it there. See solverah/infra/cache.py.
+    db.session.flush()
+    cache.invalidate_on_commit(cache.company_detail_key(row.id))
 
     db.session.commit()
     return row

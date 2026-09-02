@@ -73,7 +73,7 @@ def test_happy_path_returns_200(client, monkeypatch):
     assert resp.get_json() == VALID_PREFS
 
 
-def test_preferences_persisted_in_profile_data(client, monkeypatch):
+def test_preferences_persisted_in_the_profile_document(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch)
     client.put(
         "/api/v1/me/path-preferences",
@@ -83,10 +83,11 @@ def test_preferences_persisted_in_profile_data(client, monkeypatch):
 
     from app import app
     from model import User
+    from solverah.repositories import profile_repository
     from solverah.services import path_cache
     with app.app_context():
         user = User.query.filter_by(email="prefs@example.com").first()
-        prefs = (user.profile_data or {}).get("path_preferences")
+        prefs = profile_repository.load_document(user.id).get("path_preferences")
     assert prefs == VALID_PREFS
 
 

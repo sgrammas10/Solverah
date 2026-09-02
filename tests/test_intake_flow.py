@@ -61,13 +61,22 @@ def test_full_intake_flow_creates_user_intake_row(client, monkeypatch):
     assert resp.status_code == 200
 
     from app import app
-    from model import User, UserIntake
+    from model import AssessmentSubmission, User
     with app.app_context():
         user = User.query.filter_by(email=email).first()
+        # The claim writes two halves to two homes since Phase 2d, and that split
+        # is what this asserts. Statement selections are intake data and stay on
+        # `user_intake`; the WPLL sitting is one of the five assessment products
+        # and goes where the other four go.
         assert user.intake is not None
         assert user.intake.selected_statement_ids == ["dir-1", "sus-2"]
-        assert len(user.intake.wpll_answers) == 5
-        assert user.intake.wpll_completed_at is not None
+
+        wpll = AssessmentSubmission.query.filter_by(
+            user_id=user.id, kind="wpll"
+        ).first()
+        assert wpll is not None
+        assert len(wpll.answers) == 5
+        assert wpll.completed_at is not None
 
 
 def test_profile_reflects_wpll_completed_after_save(client, monkeypatch):

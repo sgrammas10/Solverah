@@ -1,6 +1,6 @@
 """add email confirmation columns to user
 
-Revision ID: 20260203_add_email_confirmation_to_user
+Revision ID: 20260203_email_confirmation
 Revises: 139e1d37427a_add_login_lockout_columns
 Create Date: 2026-02-03 00:00:00.000000
 """
@@ -8,7 +8,9 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = '20260203_add_email_confirmation_to_user'
+# Renamed from "20260203_add_email_confirmation_to_user" (39 chars): alembic_version.version_num
+# is VARCHAR(32), so a fresh-database upgrade died stamping it. See tests/test_migrations_chain.py.
+revision = '20260203_email_confirmation'
 down_revision = '139e1d37427a'
 branch_labels = None
 depends_on = None

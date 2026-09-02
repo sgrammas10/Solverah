@@ -53,11 +53,12 @@ def _register_and_login(client, monkeypatch, email="lens@example.com", password=
 def _set_culture_prefs(email, prefs):
     from app import app
     from model import User, db
+    from solverah.repositories import profile_repository
     with app.app_context():
         user = User.query.filter_by(email=email).first()
-        profile = dict(user.profile_data or {})
-        profile["culture_preferences"] = prefs
-        user.profile_data = profile
+        profile_repository.update_document(
+            user.id, lambda existing: {**existing, "culture_preferences": prefs}
+        )
         db.session.commit()
 
 

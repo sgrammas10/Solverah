@@ -46,7 +46,7 @@ from flask_jwt_extended import (
 from solverah.domain.validation import is_valid_email
 from solverah.extensions import bcrypt, limiter
 from solverah.openapi import document
-from solverah.repositories import user_repository
+from solverah.repositories import assessment_repository, user_repository
 from solverah.schemas import LegacyError
 from solverah.schemas.auth import (
     ConfirmEmailRequest,
@@ -60,7 +60,6 @@ from solverah.schemas.auth import (
     RegisterRequest,
     RegisterResponse,
     ResendConfirmationRequest,
-    SendEmailFailureResponse,
     SessionResponse,
 )
 from solverah.services import auth_service
@@ -150,6 +149,10 @@ def register():
     Creates the user with ``email_confirmed=False`` and sends a 6-digit OTP. The
     user must confirm their email before they can log in. Profile data is
     pre-seeded with a blank default profile appropriate for the given role.
+
+    The OTP is written to the outbox inside the same transaction as the account
+    (Phase 3), so there is no longer a second call here to make it best-effort:
+    a created account and an owed verification email are one commit.
     """
     data = request.get_json(silent=True) or {}
     result = auth_service.register(
@@ -161,11 +164,6 @@ def register():
         hash_password=bcrypt.generate_password_hash,
         validate_password=validate_password,
     )
-    if result.ok and result.user is not None:
-        # Best-effort; a mail failure must not turn a created account into an error.
-        auth_service.send_registration_code(
-            result.user, result.user.confirmation_token, current_app.logger
-        )
     return _respond(result)
 
 
@@ -246,6 +244,7 @@ def session():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
+    finished = assessment_repository.completed_kinds(user.id)
     return jsonify(
         {
             "user": {
@@ -257,8 +256,8 @@ def session():
             "csrf_token": get_jwt().get("csrf"),
             "flags": {
                 "email_confirmed": bool(getattr(user, "email_confirmed", False)),
-                "wpl_completed": bool(user.intake and user.intake.wpl_completed_at),
-                "wpll_completed": bool(user.intake and user.intake.wpll_completed_at),
+                "wpl_completed": "work_pulse" in finished,
+                "wpll_completed": "wpll" in finished,
                 "wp_v2_completed": _wp_v2_completed(user.id),
             },
         }
@@ -298,11 +297,13 @@ def verify_email():
     "Issue a fresh verification code for an unconfirmed account",
     tags=["auth"],
     request=ResendConfirmationRequest,
+    # No 500 branch any more: Phase 3 made the send an outbox row committed with
+    # the token rotation, so an unreachable provider is a delayed email rather
+    # than a failed request. `SendEmailFailureResponse` went with it.
     responses={
         200: MessageResponse,
         400: LegacyError,
         404: LegacyError,
-        500: SendEmailFailureResponse,
     },
     security=[],
     enforce=True,
@@ -320,7 +321,6 @@ def resend_verification():
         auth_service.resend_confirmation(
             email=data.get("email") or "",
             is_valid_email=is_valid_email,
-            logger=current_app.logger,
         )
     )
 
@@ -333,7 +333,7 @@ def resend_verification():
     "Send a sign-in code to a confirmed account",
     tags=["auth"],
     request=PasswordResetRequest,
-    responses={200: MessageResponse, 404: LegacyError, 500: LegacyError},
+    responses={200: MessageResponse, 404: LegacyError},
     security=[],
     enforce=True,
 )
@@ -344,7 +344,6 @@ def forgot_password():
     return _respond(
         auth_service.request_password_reset(
             email=(request.get_json(silent=True) or {}).get("email") or "",
-            logger=current_app.logger,
         )
     )
 

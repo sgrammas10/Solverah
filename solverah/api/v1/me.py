@@ -42,6 +42,7 @@ from __future__ import annotations
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required, unset_jwt_cookies
 
+from solverah.extensions import limiter
 from solverah.infra.storage import ALLOWED_MIME, MAX_BYTES
 from solverah.openapi import document
 from solverah.repositories import user_repository
@@ -56,14 +57,15 @@ from solverah.schemas.profile import (
     ProfileDocument,
     ProfilePatchRequest,
     ResumeCompleteRequest,
-    ResumeCompleteResponse,
     ResumeDownloadResponse,
+    ResumeParseJobAccepted,
+    ResumeParseJobStatus,
     ResumeTicketRequest,
     ResumeTicketResponse,
     SkillsPutRequest,
     SkillsResponse,
 )
-from solverah.services import account_service, profile_service
+from solverah.services import account_service, profile_service, resume_jobs
 from validators import clean_profile_data
 
 __all__ = ["me_bp"]
@@ -72,6 +74,25 @@ me_bp = Blueprint("me", __name__)
 
 _AUTHENTICATED = ["accessTokenCookie"]
 _AUTHENTICATED_WRITE = ["accessTokenCookie", "csrfHeader"]
+
+#: Rate limit for polling a resume-parse job -- the same shape as the 3b poll
+#: endpoints' `POLL_LIMIT` (`solverah/api/v1/assessments.py`,
+#: `solverah/api/v1/intelligence.py`).
+#:
+#: This route (3a) carried the identical exposure those two were built with a
+#: limit to avoid: left on the `50 per hour` global default, a client polling
+#: every two seconds exhausts it inside a single parse, and shares that budget
+#: with every other default-limited route the same browser is using. A9's
+#: per-instrument budgets do not reach a poll either way -- it is a single
+#: indexed-row read with no provider call, so it spends nothing. A19 recorded
+#: the exposure and deferred the fix rather than make it in passing; this is
+#: that fix.
+#:
+#: The day cap is restated rather than dropped, same reason as the 3b routes:
+#: `@limiter.limit` defaults to `override_defaults=True`, so naming only a
+#: per-minute allowance would silently remove the global `200 per day` while
+#: reading as a tightening.
+POLL_LIMIT = "60 per minute;2000 per day"
 
 
 def _current_user():
@@ -412,49 +433,6 @@ def post_my_resume_ticket():
 
 
 @document(
-    "Parse an uploaded resume into the profile",
-    tags=["me"],
-    request=ResumeCompleteRequest,
-    responses={200: ResumeCompleteResponse, 400: LegacyError, 404: LegacyError},
-    security=_AUTHENTICATED_WRITE,
-    enforce=True,
-)
-@me_bp.route("/me/resumes/<resume_id>/complete", methods=["POST"])
-@jwt_required()
-def post_my_resume_complete(resume_id: str):
-    """POST /me/resumes/{resume_id}/complete - parse the upload. Step 2 of 2.
-
-    Downloads the object, runs the rule-based parser, and merges the parsed
-    experience, education, and skills into the profile. Stores a
-    _parsedResumeSnapshot so later edits can be diffed against what the parser
-    produced (see ResumeParseCorrection).
-
-    Parsing runs inline, which is P0-6. Part 5.2 has this returning 202 with a
-    job handle; it will, when Phase 3's queue exists. Returning one now for work
-    that finished synchronously would give the client something to poll that is
-    already done.
-    """
-    data = _body()
-    mime, size, error = _validate_upload(data)
-    if error:
-        return error
-
-    user = _current_user()
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    return _respond(
-        profile_service.complete_resume_upload(
-            user,
-            resume_id=resume_id,
-            mime=mime,
-            size=size,
-            name=(data.get("name") or "").strip(),
-        )
-    )
-
-
-@document(
     "Presign a download URL for a stored resume",
     tags=["me"],
     responses={200: ResumeDownloadResponse, 404: LegacyError, 500: LegacyError},
@@ -474,3 +452,94 @@ def get_my_resume_download_url(resume_id: str):
     if not user:
         return jsonify({"error": "User not found"}), 404
     return _respond(profile_service.resume_download_url_by_id(user, resume_id))
+
+
+# ---------------------------------------------------------------------------
+# Resume parsing as a job (Phase 3)
+# ---------------------------------------------------------------------------
+#
+# Part 5.2's `202 + job handle` for the one flow in this module that does
+# genuinely slow work: the parse downloads the object from R2, writes it to a
+# temp file, and runs pdfminer or python-docx over it. 3a added this alongside
+# the synchronous `POST /me/resumes/{resume_id}/complete`; 3c deleted that
+# route once the frontend had moved (afcec62), so this is the only way in.
+
+
+@document(
+    "Queue a resume parse and return a job handle",
+    tags=["me"],
+    request=ResumeCompleteRequest,
+    responses={202: ResumeParseJobAccepted, 400: LegacyError, 404: LegacyError},
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "Step 2 of 2 of a resume upload, and the only step 2 since Phase 3c "
+        "deleted the synchronous `POST /me/resumes/{resume_id}/complete`. "
+        "Answers `202` with a job handle instead of blocking for the parse. "
+        "Poll `GET /me/resume-parse-jobs/{job_id}` until `status` is "
+        "`succeeded` or `failed`."
+    ),
+)
+@me_bp.route("/me/resumes/<resume_id>/parse-jobs", methods=["POST"])
+@jwt_required()
+def post_my_resume_parse_job(resume_id: str):
+    """POST /me/resumes/{resume_id}/parse-jobs - queue the parse, return 202."""
+    data = _body()
+    mime, size, error = _validate_upload(data)
+    if error:
+        return error
+
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    object_key = profile_service.resolve_resume_key(user, resume_id, mime=mime)
+    if not object_key:
+        return jsonify({"error": "Resume not found"}), 404
+
+    job = resume_jobs.create(
+        user,
+        object_key=object_key,
+        mime=mime,
+        size=size,
+        name=(data.get("name") or "").strip(),
+    )
+    job_id = job.public_id.hex
+    return (
+        jsonify(
+            {
+                "job_id": job_id,
+                "status": job.status,
+                "status_url": "/me/resume-parse-jobs/%s" % job_id,
+            }
+        ),
+        202,
+    )
+
+
+@document(
+    "Report the state of a queued resume parse",
+    tags=["me"],
+    responses={200: ResumeParseJobStatus, 404: LegacyError},
+    security=_AUTHENTICATED,
+    enforce=True,
+)
+@me_bp.route("/me/resume-parse-jobs/<job_id>", methods=["GET"])
+@limiter.limit(POLL_LIMIT)
+@jwt_required()
+def get_my_resume_parse_job(job_id: str):
+    """GET /me/resume-parse-jobs/{job_id} - poll a queued parse.
+
+    404 covers three cases deliberately: no such job, a malformed handle, and a
+    job belonging to somebody else. Distinguishing them would confirm that a
+    handle exists, which is the only thing protecting one.
+    """
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    job = resume_jobs.find_for_user(user.id, job_id)
+    if job is None:
+        return jsonify({"error": "Job not found"}), 404
+
+    return jsonify(resume_jobs.status_for(job)), 200

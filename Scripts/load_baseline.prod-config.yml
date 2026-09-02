@@ -1,0 +1,24 @@
+# Second compose override: run the api with the PRODUCTION gunicorn geometry
+# from infra/docker/Dockerfile.api (3 workers x 8 threads, no --reload) while
+# keeping the dev image and bind mount. Baseline trap 3: numbers from the dev
+# command (1 worker x 4 threads, --reload) are baseline-of-dev, not capacity;
+# this override gives a second, labeled point of comparison. It is NOT the
+# production image build — same code path, production worker geometry only.
+#
+# Usage (stack recreate picks up the new command):
+#   docker compose -f infra/docker/compose.yml \
+#       -f Scripts/load_baseline.override.yml \
+#       -f Scripts/load_baseline.prod-config.yml up -d api
+services:
+  api:
+    command:
+      - gunicorn
+      - app:app
+      - --bind=0.0.0.0:8000
+      - --worker-class=gthread
+      - --workers=3
+      - --threads=8
+      - --graceful-timeout=30
+      - --keep-alive=5
+      - --access-logfile=-
+      - --error-logfile=-
