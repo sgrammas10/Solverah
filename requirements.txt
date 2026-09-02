@@ -33,7 +33,7 @@ SQLAlchemy==2.0.52
 Flask-Migrate==4.1.0
 flask-talisman==1.1.0
 gunicorn==26.1.0
-pandas==2.3.2
+pandas==3.0.5
 numpy==2.2.6
 scikit-learn==1.7.2
 boto3==1.43.76
