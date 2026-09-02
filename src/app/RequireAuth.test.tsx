@@ -16,8 +16,8 @@
  * thing under test is precisely the handshake between the provider's
  * `sessionLoading` and the boundary that consumes it.
  */
-import { render, screen, act } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { render, screen, act, fireEvent } from "@testing-library/react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { HttpResponse } from "msw";
 
@@ -25,9 +25,10 @@ import { RequireAuth } from "./RequireAuth";
 // Extension spelled out for the same case-insensitive-filesystem reason as in
 // AuthContext.boot.test.tsx: "../AuthContext" would resolve to authContext.ts.
 import { AuthProvider } from "../features/auth/AuthContext.tsx";
+import Login from "../features/auth/components/Login";
 import { createQueryClient } from "../shared/api/queryClient";
 import { mock } from "../../tests/msw/contract";
-import { server, useApiMocks, signedIn, TEST_USER, NO_FLAGS } from "../../tests/msw/server";
+import { server, useApiMocks, signedIn, loginSucceeds, TEST_USER, NO_FLAGS } from "../../tests/msw/server";
 
 useApiMocks();
 
@@ -122,5 +123,102 @@ describe("RequireAuth - once the session is known", () => {
 
     expect(await screen.findByText("home page")).toBeInTheDocument();
     expect(screen.queryByText("protected content")).toBeNull();
+  });
+});
+
+// ─── return-to-origin ─────────────────────────────────────────────────────────
+
+/** Renders what RequireAuth put in router state on its redirect, so the test
+ *  can read the carried `from` off the screen. */
+function FromProbe() {
+  const location = useLocation();
+  const from = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from;
+  return <div>carried from: {from ? `${from.pathname}${from.search ?? ""}` : "none"}</div>;
+}
+
+describe("RequireAuth - return-to-origin", () => {
+  it("carries the intercepted location as state.from on the sign-in redirect", async () => {
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <AuthProvider>
+          <MemoryRouter initialEntries={["/guarded?tab=2"]}>
+            <Routes>
+              <Route path="/login" element={<FromProbe />} />
+              <Route element={<RequireAuth allowedRoles={["job-seeker"]} />}>
+                <Route path="/guarded" element={<div>protected content</div>} />
+              </Route>
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByText("carried from: /guarded?tab=2")).toBeInTheDocument();
+  });
+});
+
+/**
+ * The full round trip, on the wire: the real Login page behind the real gate,
+ * with MSW answering the probe (signed out) and the sign-in. Nothing mocks
+ * useAuth or useNavigate here — the thing under test is the composition of
+ * RequireAuth's carried state, Login's validation of it, and the role gate
+ * running again on the way back.
+ */
+function GuardedProbe() {
+  const location = useLocation();
+  return <div>protected content at {location.pathname + location.search}</div>;
+}
+
+function mountFlow(path: string, allowedRoles: string[]) {
+  return render(
+    <QueryClientProvider client={createQueryClient()}>
+      <AuthProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="/" element={<div>home page</div>} />
+            <Route path="/login" element={<Login />} />
+            <Route element={<RequireAuth allowedRoles={allowedRoles} />}>
+              <Route path="/guarded" element={<GuardedProbe />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}
+
+async function signInThroughForm() {
+  fireEvent.change(await screen.findByLabelText(/email address/i), {
+    target: { value: "ada@example.com" },
+  });
+  fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: "pass" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+  });
+}
+
+describe("RequireAuth + Login - return-to-origin round trip", () => {
+  it("lands the user back on the guarded location, search intact, after sign-in", async () => {
+    server.use(loginSucceeds());
+
+    mountFlow("/guarded?tab=2", ["job-seeker"]);
+    await signInThroughForm();
+
+    expect(await screen.findByText("protected content at /guarded?tab=2")).toBeInTheDocument();
+  });
+
+  it("resolves a wrong-role return to the wrong-role redirect, not a loop", async () => {
+    // The fixture signs in as a job-seeker; the return target requires a
+    // recruiter. RequireAuth's role check runs again on the way back and sends
+    // the user home. A regression that re-redirected to /login would leave the
+    // sign-in form on screen instead of the home page.
+    server.use(loginSucceeds());
+
+    mountFlow("/guarded", ["recruiter"]);
+    await signInThroughForm();
+
+    expect(await screen.findByText("home page")).toBeInTheDocument();
+    expect(screen.queryByText(/protected content/)).toBeNull();
+    expect(screen.queryByLabelText(/email address/i)).toBeNull();
   });
 });

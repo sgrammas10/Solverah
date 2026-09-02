@@ -121,6 +121,59 @@ describe("Login - role-based redirect", () => {
 
 });
 
+// ─── return-to-origin ─────────────────────────────────────────────────────────
+
+describe("Login - return-to-origin", () => {
+  /** Mount /login the way RequireAuth's redirect does: with `from` in router
+   *  state. `from` is deliberately untyped — the hostile cases plant values a
+   *  real Location would never carry, exactly as history.pushState can. */
+  function renderLoginWithFrom(from: unknown) {
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <MemoryRouter initialEntries={[{ pathname: "/login", state: { from } }]}>
+          <Login />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+  }
+
+  const seeker = { role: "job-seeker", id: "1", email: "a@b.com", name: "A", profileComplete: false };
+
+  it("returns to the intercepted location, keeping search and hash", async () => {
+    mockLogin.mockResolvedValueOnce(seeker);
+    renderLoginWithFrom({ pathname: "/job-seeker/matches", search: "?tab=2", hash: "#saved" });
+    await submitForm();
+    expect(mockNavigate).toHaveBeenCalledWith("/job-seeker/matches?tab=2#saved");
+  });
+
+  it("uses the default redirect when the state carries no from", async () => {
+    mockLogin.mockResolvedValueOnce(seeker);
+    renderLoginWithFrom(undefined);
+    await submitForm();
+    expect(mockNavigate).toHaveBeenCalledWith("/job-seeker/dashboard");
+  });
+
+  it.each([
+    ["protocol-relative pathname", { pathname: "//evil.example/phish" }],
+    ["backslash protocol-relative pathname", { pathname: "/\\evil.example/phish" }],
+    ["absolute URL as pathname", { pathname: "https://evil.example/phish" }],
+    ["non-object from", "//evil.example/phish"],
+    ["missing pathname", { search: "?x=1" }],
+  ])("falls back to the default for a hostile from: %s", async (_name, from) => {
+    mockLogin.mockResolvedValueOnce(seeker);
+    renderLoginWithFrom(from);
+    await submitForm();
+    expect(mockNavigate).toHaveBeenCalledWith("/job-seeker/dashboard");
+  });
+
+  it("drops forged search/hash that are not of location shape, keeping the safe pathname", async () => {
+    mockLogin.mockResolvedValueOnce(seeker);
+    renderLoginWithFrom({ pathname: "/job-seeker/matches", search: "https://evil.example", hash: 42 });
+    await submitForm();
+    expect(mockNavigate).toHaveBeenCalledWith("/job-seeker/matches");
+  });
+});
+
 // ─── pending quiz save ────────────────────────────────────────────────────────
 
 describe("Login - pending quiz save", () => {

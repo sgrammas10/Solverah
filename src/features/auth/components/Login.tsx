@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '../useAuth';
 import { getPendingQuizSave, clearPendingQuizSave } from "../../../shared/lib/guestQuiz";
@@ -19,6 +19,33 @@ function getPendingIntakeSave() {
     return null;
   }
 }
+/**
+ * The location RequireAuth intercepted, reduced to a same-app path — or null.
+ *
+ * Router state is client-forgeable (history.pushState can plant any value
+ * here), so nothing from it is navigated to verbatim. Only pathname, search
+ * and hash are read, each only if it is a string of the right shape, and the
+ * pathname must be a plain in-app absolute path: it starts with "/" but not
+ * "//" or "/\" (browsers treat both as protocol-relative, i.e. an external
+ * host). Anything else falls back to the normal post-login redirect.
+ */
+function getReturnToPath(state: unknown): string | null {
+  if (typeof state !== 'object' || state === null) return null;
+  const from = (state as { from?: unknown }).from;
+  if (typeof from !== 'object' || from === null) return null;
+  const { pathname, search, hash } = from as {
+    pathname?: unknown;
+    search?: unknown;
+    hash?: unknown;
+  };
+  if (typeof pathname !== 'string' || !/^\/(?![/\\])/.test(pathname)) return null;
+  return (
+    pathname +
+    (typeof search === 'string' && search.startsWith('?') ? search : '') +
+    (typeof hash === 'string' && hash.startsWith('#') ? hash : '')
+  );
+}
+
 import HeroNetworkAnimation from '../../../shared/ui/HeroNetworkAnimation';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -78,6 +105,7 @@ function Login() {
 
   const { login, fetchWithAuth } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const loginMutation = useMutation({
     mutationFn: (credentials: { email: string; password: string }) =>
@@ -132,7 +160,12 @@ function Login() {
         }
       }
 
-      navigate(redirectPath);
+      // Return-to-origin: RequireAuth put the intercepted location in router
+      // state on its redirect here. A validated `from` wins over the computed
+      // default; a missing or hostile one changes nothing. The role gate still
+      // runs on arrival, so a role-forbidden `from` resolves to RequireAuth's
+      // normal wrong-role redirect, not a loop.
+      navigate(getReturnToPath(location.state) ?? redirectPath);
     },
   });
 

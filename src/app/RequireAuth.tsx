@@ -25,12 +25,15 @@
  * for the session" and "waiting for the chunk" are the same wait, in the same
  * place, under a Header that already works.
  *
- * Return-to-origin after login is a known gap and deliberately NOT built here.
- * When it is, this is the seam: the `<Navigate>` below gains
- * `state={{ from: location }}` (via useLocation) and the Login page reads that
- * state to override its post-login redirect. Nothing else has to move.
+ * Return-to-origin after login: the sign-in redirect carries the intercepted
+ * location as `state={{ from: location }}`, and the Login page reads that state
+ * to override its post-login redirect. The state is client-forgeable
+ * (history.pushState), so Login — not this gate — is the side that validates it
+ * before navigating. The role check below still runs when the user returns, so
+ * a return to a role-forbidden path gets the normal wrong-role redirect to "/",
+ * never a loop back to sign-in.
  */
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 import { useAuth } from "../features/auth/useAuth";
 import { RouteFallback } from "./RouteFallback";
@@ -41,9 +44,10 @@ export const SIGN_IN_ROUTE = "/login";
 
 export function RequireAuth({ allowedRoles }: { allowedRoles: string[] }) {
   const { user, sessionLoading } = useAuth();
+  const location = useLocation();
 
   if (sessionLoading) return <RouteFallback />;
-  if (!user) return <Navigate to={SIGN_IN_ROUTE} replace />;
+  if (!user) return <Navigate to={SIGN_IN_ROUTE} replace state={{ from: location }} />;
   if (!allowedRoles.includes(user.role)) return <Navigate to="/" replace />;
 
   return <Outlet />;
