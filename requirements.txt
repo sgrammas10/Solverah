@@ -33,7 +33,7 @@ SQLAlchemy==2.0.52
 Flask-Migrate==4.1.0
 flask-talisman==1.1.0
 gunicorn==26.1.0
-pandas==2.3.2
+pandas==3.0.5
 numpy==2.2.6
 scikit-learn==1.7.2
 boto3==1.43.76
@@ -79,4 +79,4 @@ pytest-cov==7.1.0
 # dropped the legacy `pkg_resources` module in 82.0.0, and every version that
 # fixes this CVE is past that point -- so there is no version that both patches
 # the CVE and keeps pkg_resources. Nothing in this project imports it.
-setuptools>=83.0.0
+setuptools>=84.0.0
