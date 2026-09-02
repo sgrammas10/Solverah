@@ -129,7 +129,11 @@ describe("ForgotPassword - loading state", () => {
       fireEvent.click(screen.getByRole("button", { name: /send code/i }));
     });
 
-    expect(screen.getByRole("button", { name: /sending/i })).toBeDisabled();
+    // findByRole, not getByRole: the mutation's pending re-render is notified
+    // via notifyManager's setTimeout(0), so it can land after act() returns.
+    // The gated request above keeps isPending true until `release`, so this
+    // cannot over-wait past the state it asserts.
+    expect(await screen.findByRole("button", { name: /sending/i })).toBeDisabled();
 
     await act(async () => {
       release();
