@@ -137,18 +137,20 @@ describe("Register - happy path", () => {
 // ─── error handling ────────────────────────────────────────────────────────────
 
 describe("Register - error handling", () => {
+  // findByText, not getByText: the mutation's error re-render is notified via
+  // notifyManager's setTimeout(0), so it can land after act() returns.
   it("shows 'already exists' message for duplicate accounts", async () => {
     mocks.register.mockRejectedValueOnce(new Error("User already exists"));
     renderRegister();
     await fillAndSubmit();
-    expect(screen.getByText(/already exists/i)).toBeInTheDocument();
+    expect(await screen.findByText(/already exists/i)).toBeInTheDocument();
   });
 
   it("shows generic error for unexpected failures", async () => {
     mocks.register.mockRejectedValueOnce(new Error("Server error"));
     renderRegister();
     await fillAndSubmit();
-    expect(screen.getByText(/Server error/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Server error/i)).toBeInTheDocument();
   });
 });
 
