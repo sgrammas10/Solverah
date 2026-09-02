@@ -31,11 +31,8 @@ export default function CareerAndJobSearchTab({ guest }: CareerAndJobSearchTabPr
   const {
     insightModalOpen,
     insightLoading,
-    setInsightLoading,
     insightProgress,
-    setInsightProgress,
     insightError,
-    setInsightError,
     insightResponse,
     setInsightResponse,
     openInsight,
@@ -140,8 +137,7 @@ export default function CareerAndJobSearchTab({ guest }: CareerAndJobSearchTabPr
             quizPayload: payload,
             createdAt: new Date().toISOString(),
           });
-          openInsight();
-          try {
+          openInsight(async () => {
             const res = await fetch(`${API_BASE}/intake/quiz-preview/insights`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -151,16 +147,11 @@ export default function CareerAndJobSearchTab({ guest }: CareerAndJobSearchTabPr
             if (!res.ok) {
               throw parseApiError(res, data, "Failed to generate insights.");
             }
-            setInsightResponse({
+            return {
               overallSummary: data?.overallSummary || null,
               insights: data?.insights || [],
-            });
-            setInsightProgress(100);
-          } catch (err) {
-            setInsightError(err instanceof Error ? err.message : "Failed to generate insights.");
-          } finally {
-            setInsightLoading(false);
-          }
+            };
+          });
           return;
         }
         // Fetch current profile data if function exists
@@ -205,22 +196,16 @@ export default function CareerAndJobSearchTab({ guest }: CareerAndJobSearchTabPr
                 },
               ],
             };
-            openInsight();
-            try {
+            openInsight(async () => {
               const res = await fetchWithAuth("/me/quiz-insights", {
                 method: "POST",
                 body: JSON.stringify(payload),
               });
-              setInsightResponse({
+              return {
                 overallSummary: res.overallSummary || null,
                 insights: res.insights || [],
-              });
-              setInsightProgress(100);
-            } catch (err) {
-              setInsightError(err instanceof Error ? err.message : "Failed to generate insights.");
-            } finally {
-              setInsightLoading(false);
-            }
+              };
+            });
           }
         } else {
           alert("Unable to save responses (not authenticated).");

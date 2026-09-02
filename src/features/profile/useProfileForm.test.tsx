@@ -459,6 +459,27 @@ describe("useProfileForm - resume parse job", () => {
     expect(result.current.resumeParseStatus).toEqual({ phase: "idle" });
   });
 
+  it("a 4xx on the resume ticket alerts, ends the upload, and never starts a parse job", async () => {
+    // 4xx means fail: a bad file stays bad, and mutations never retry — the
+    // ticket request is issued exactly once and the chain stops there.
+    mockAuth.fetchWithAuth.mockRejectedValueOnce(new Error("Unsupported file type"));
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    const result = await setup();
+
+    await act(async () => {
+      result.current.handleResumeUpload({ target: { files: [uploadedFile()] } } as any);
+    });
+
+    expect(alertSpy).toHaveBeenCalledWith("Unable to process resume right now.");
+    expect(mockAuth.fetchWithAuth).toHaveBeenCalledTimes(1);
+    expect(mockStartResumeParseJob.mutate).not.toHaveBeenCalled();
+    // The mutation settled, so the pending state — and the simulated progress
+    // ticker it drives — are both down.
+    expect(result.current.isUploadingResume).toBe(false);
+    expect(result.current.resumeUploaded).toBe(false);
+    alertSpy.mockRestore();
+  });
+
   it("handleSubmit no longer touches the old alert/try-catch resume-complete path", async () => {
     const result = await setup();
     const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
@@ -473,5 +494,60 @@ describe("useProfileForm - resume parse job", () => {
       expect.anything()
     );
     alertSpy.mockRestore();
+  });
+});
+
+// ─── useProfileForm — the save mutation ───────────────────────────────────────
+
+describe("useProfileForm - save mutation", () => {
+  it("a successful save marks the form saved through the mutation lifecycle", async () => {
+    const result = await setup();
+    act(() => { result.current.handleChange("summary", "draft"); });
+    expect(result.current.isSaved).toBe(false);
+
+    await act(async () => {
+      result.current.handleSubmit({ preventDefault: () => {} } as any);
+    });
+
+    expect(mockActions.saveProfileData).toHaveBeenCalledTimes(1);
+    expect(result.current.isSaving).toBe(false);
+    expect(result.current.isSaved).toBe(true);
+  });
+
+  it("a 4xx on the profile write ends isSaving and leaves the form unsaved", async () => {
+    // 4xx means fail — mutations never retry, so the write is attempted once
+    // and the two-write chain stops before the recommendations refresh.
+    mockActions.saveProfileData.mockRejectedValueOnce(new Error("Validation failed"));
+    const result = await setup();
+    act(() => { result.current.handleChange("summary", "draft"); });
+
+    await act(async () => {
+      result.current.handleSubmit({ preventDefault: () => {} } as any);
+    });
+
+    expect(mockActions.saveProfileData).toHaveBeenCalledTimes(1);
+    expect(mockAuth.fetchWithAuth).not.toHaveBeenCalled();
+    expect(result.current.isSaving).toBe(false);
+    // The unsaved-changes banner stays honest: the edit never reached the server.
+    expect(result.current.isSaved).toBe(false);
+  });
+
+  it("a failed recommendations refresh does not fail the save", async () => {
+    // The refresh keeps its own swallowed catch, exactly as the hand-rolled
+    // submit treated it: the profile write is the save; the refresh is best-effort.
+    mockAuth.fetchWithAuth.mockRejectedValueOnce(new Error("refresh down"));
+    const result = await setup();
+    act(() => { result.current.handleChange("summary", "draft"); });
+
+    await act(async () => {
+      result.current.handleSubmit({ preventDefault: () => {} } as any);
+    });
+
+    expect(mockAuth.fetchWithAuth).toHaveBeenCalledWith(
+      "/me/recommendations/refresh",
+      expect.objectContaining({ method: "POST" })
+    );
+    expect(result.current.isSaving).toBe(false);
+    expect(result.current.isSaved).toBe(true);
   });
 });

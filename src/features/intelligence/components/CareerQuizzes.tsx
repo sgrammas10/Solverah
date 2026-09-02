@@ -268,11 +268,8 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
   const {
     insightModalOpen,
     insightLoading,
-    setInsightLoading,
     insightProgress,
-    setInsightProgress,
     insightError,
-    setInsightError,
     insightResponse,
     setInsightResponse,
     openInsight,
@@ -433,8 +430,7 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
             quizPayload: payload,
             createdAt: new Date().toISOString(),
           });
-          openInsight();
-          try {
+          openInsight(async () => {
             const res = await fetch(`${API_BASE}/intake/quiz-preview/insights`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -444,16 +440,11 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
             if (!res.ok) {
               throw parseApiError(res, data, "Failed to generate insights.");
             }
-            setInsightResponse({
+            return {
               overallSummary: data?.overallSummary || null,
               insights: data?.insights || [],
-            });
-            setInsightProgress(100);
-          } catch (err) {
-            setInsightError(err instanceof Error ? err.message : "Failed to generate insights.");
-          } finally {
-            setInsightLoading(false);
-          }
+            };
+          });
           return;
         }
         // Fetch current profile data so we don't overwrite other fields
@@ -507,22 +498,16 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
               quizGroup: "careerQuizzes",
               quizzes: allAnsweredQuizzes,
             };
-            openInsight();
-            try {
+            openInsight(async () => {
               const res = await fetchWithAuth("/me/quiz-insights", {
                 method: "POST",
                 body: JSON.stringify(payload),
               });
-              setInsightResponse({
+              return {
                 overallInsight: res.overallInsight || null,
                 insights: res.insights || [],
-              });
-              setInsightProgress(100);
-            } catch (err) {
-              setInsightError(err instanceof Error ? err.message : "Failed to generate insights.");
-            } finally {
-              setInsightLoading(false);
-            }
+              };
+            });
           }
         } else {
           // If useProfileActions doesn't expose saveProfileData, log and show a fallback message

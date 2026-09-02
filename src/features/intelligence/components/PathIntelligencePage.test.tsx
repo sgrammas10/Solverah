@@ -21,6 +21,8 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   fetchWithAuth: vi.fn(),
   startSuggestionsMutate: vi.fn(),
+  /** The enqueue mutation's own state — the page derives its screen from it. */
+  start: { isPending: false, isError: false, error: null as Error | null },
   user: {} as Record<string, unknown>,
   profile: { path_preferences: { move_type: "stay_in_field" } } as Record<string, unknown>,
   /** What `usePathSuggestionJobStatus` reports on the next render. */
@@ -52,7 +54,7 @@ vi.mock("../usePathSuggestionJob", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../usePathSuggestionJob")>();
   return {
     ...actual,
-    useStartPathSuggestionJob: () => ({ mutate: mocks.startSuggestionsMutate }),
+    useStartPathSuggestionJob: () => ({ mutate: mocks.startSuggestionsMutate, ...mocks.start }),
     usePathSuggestionJobStatus: () => mocks.job,
   };
 });
@@ -104,6 +106,9 @@ function suggestionsFailWith(code: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.profile = { path_preferences: { move_type: "stay_in_field" } };
+  mocks.start.isPending = false;
+  mocks.start.isError = false;
+  mocks.start.error = null;
   mocks.job.data = undefined;
   mocks.job.error = null;
   // The enqueue lands but nothing terminal follows: the page stays pending.
@@ -148,12 +153,15 @@ describe("PathIntelligencePage - error state", () => {
   });
 
   it("shows the error message when the enqueue itself is rejected", async () => {
-    mocks.startSuggestionsMutate.mockImplementation(
-      (_vars: unknown, opts: { onError?: (e: Error) => void }) => {
-        // A19 gives the enqueue a rate limit the synchronous GET never had.
-        opts.onError?.(new Error("Too many requests"));
-      }
-    );
+    // A19 gives the enqueue a rate limit the synchronous GET never had. The
+    // page reads the failure off the mutation's own state now, so the mock
+    // reports it there rather than through an onError callback. (Set before
+    // render: this mock is a plain object, and mutating it inside `mutate`
+    // would not re-render the page the way a real mutation's state change
+    // does.)
+    mocks.start.isError = true;
+    mocks.start.error = new Error("Too many requests");
+    mocks.startSuggestionsMutate.mockImplementation(() => {});
     renderPage();
     await waitFor(() =>
       expect(

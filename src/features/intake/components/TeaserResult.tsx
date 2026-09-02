@@ -10,7 +10,7 @@
  * authorisation, which is why `useScoringJob` fetches this kind without the
  * session's credentials. See that hook's `anonymousFetch`.
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import TierBar from "./TierBar";
 import {
   isKnownScoringPhase,
@@ -46,20 +46,11 @@ export default function TeaserResult({
   cachedInsightText,
   onContinue,
 }: TeaserResultProps) {
-  const [fetchState, setFetchState] = useState<FetchState>(
-    cachedInsightText ? "success" : "loading"
-  );
-  const [insightText, setInsightText] = useState(cachedInsightText);
-  const [lockedSections, setLockedSections] = useState<string[]>(
-    cachedInsightText ? FALLBACK_LOCKED_SECTIONS : []
-  );
-
   const startScoring = useStartScoringJob("wpll");
   const [jobId, setJobId] = useState<string | null>(null);
   const job = useScoringJobStatus("wpll", jobId);
 
   const fetchInsight = useCallback(() => {
-    setFetchState("loading");
     startScoring.mutate(
       {
         answers: wpllAnswers.map((a) => ({
@@ -67,56 +58,57 @@ export default function TeaserResult({
           option_id: a.optionId,
         })),
       },
-      {
-        onSuccess: (accepted) => setJobId(accepted.job_id),
-        onError: () => setFetchState("error"),
-      }
+      // A retry mints a new handle, and the new job id re-keys the poll query,
+      // so a stale job's terminal state cannot shadow the fresh run.
+      { onSuccess: (accepted) => setJobId(accepted.job_id) }
     );
   // `startScoring` is a stable TanStack Query mutation object; listing it would
-  // rebuild this callback on every mutation state change and re-fire the effect
-  // below, which is keyed on it.
+  // rebuild this callback on every mutation state change and re-fire the mount
+  // effect below, which is keyed on it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wpllAnswers]);
 
-  // Route the job's terminal state into what the synchronous response drove.
+  const result = job.data?.status === "succeeded" ? job.data.result : null;
+
+  // Hand the parent the insight for caching -- once per job, because the
+  // parent's callback is recreated on its every render and would otherwise
+  // re-fire this effect against the same result.
+  const notifiedJobRef = useRef<string | null>(null);
   useEffect(() => {
-    const data = job.data;
-    if (!data) return;
-
-    if (data.status === "succeeded" && data.result) {
-      const sections =
-        data.result.locked_sections?.length >= 3
-          ? data.result.locked_sections.slice(0, 3)
-          : FALLBACK_LOCKED_SECTIONS;
-
-      setInsightText(data.result.insight_text);
-      setLockedSections(sections);
-      onInsightReceived(data.result.insight_text);
-      setJobId(null);
-      setFetchState("success");
-      return;
-    }
-
-    // `failed` and any status this client does not recognise are both terminal:
-    // the hook has stopped polling, so the spinner would otherwise never clear.
-    if (data.status === "failed" || !isKnownScoringPhase(data.status)) {
-      setJobId(null);
-      setFetchState("error");
-    }
-  }, [job.data, onInsightReceived]);
-
-  // A rejected poll (404 on a stale handle) is terminal too.
-  useEffect(() => {
-    if (!job.error) return;
-    setJobId(null);
-    setFetchState("error");
-  }, [job.error]);
+    if (!result || jobId === null || notifiedJobRef.current === jobId) return;
+    notifiedJobRef.current = jobId;
+    onInsightReceived(result.insight_text);
+  }, [result, jobId, onInsightReceived]);
 
   useEffect(() => {
     if (!cachedInsightText) {
       fetchInsight();
     }
   }, [cachedInsightText, fetchInsight]);
+
+  // `failed`, a status this client does not recognise, and a rejected poll
+  // (404 on a stale handle) are all terminal: the hook has stopped polling, so
+  // rendering the spinner for any of them would leave it up forever.
+  const jobFailed =
+    Boolean(job.error) ||
+    (job.data !== undefined &&
+      (job.data.status === "failed" || !isKnownScoringPhase(job.data.status)));
+
+  // Derived, not stored: the mutation's phase and the poll's terminal state
+  // are the whole of what the old hand-rolled fetchState tracked.
+  const fetchState: FetchState = startScoring.isPending
+    ? "loading"
+    : startScoring.isError || jobFailed
+    ? "error"
+    : result || cachedInsightText
+    ? "success"
+    : "loading";
+
+  const insightText = result ? result.insight_text : cachedInsightText;
+  const lockedSections =
+    result && (result.locked_sections?.length ?? 0) >= 3
+      ? result.locked_sections.slice(0, 3)
+      : FALLBACK_LOCKED_SECTIONS;
 
   if (fetchState === "loading") {
     return (
@@ -139,9 +131,6 @@ export default function TeaserResult({
     );
   }
 
-  const displayedSections =
-    lockedSections.length >= 3 ? lockedSections.slice(0, 3) : FALLBACK_LOCKED_SECTIONS;
-
   return (
     <div>
       <p className="text-sm font-semibold uppercase tracking-widest text-forest-light mb-3">
@@ -152,7 +141,7 @@ export default function TeaserResult({
         <p className="text-base text-ink-primary leading-relaxed">{insightText}</p>
       </div>
 
-      {displayedSections.map((title) => (
+      {lockedSections.map((title) => (
         <div
           key={title}
           className="rounded-lg border border-cream-muted bg-cream-base p-4 mt-3 flex items-center justify-between"

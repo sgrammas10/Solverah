@@ -23,7 +23,7 @@ import { useMutation } from "@tanstack/react-query";
 import { API_BASE } from "../../shared/api/api";
 import { parseApiError } from "../../shared/api/apiError";
 
-/** Overall submission lifecycle state. */
+/** Overall submission lifecycle state, derived from the submit mutation. */
 export type SubmissionStatus = "idle" | "submitting" | "success" | "error";
 /** Step within the post-submission account modal. */
 export type AccountStep = "prompt" | "form" | "signin" | "success";
@@ -44,8 +44,8 @@ export function useIntakeForm() {
   const [infoOptIn, setInfoOptIn] = useState(false);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [selectedFileName, setSelectedFileName] = useState("");
-  const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>("idle");
-  const [errorMessage, setErrorMessage] = useState("");
+  // Client-side validation only; the submission's own failure lives on the mutation.
+  const [validationError, setValidationError] = useState("");
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [submissionEmail, setSubmissionEmail] = useState("");
 
@@ -63,40 +63,24 @@ export function useIntakeForm() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSubmissionStatus("submitting");
-    setErrorMessage("");
-
-    try {
-      const firstName = formData.firstName.trim();
-      const lastName = formData.lastName.trim();
-      const email = formData.email.trim();
-      const state = formData.state.trim();
-      const linkedinUrl = formData.linkedinUrl.trim();
-
-      if (!firstName || !lastName) throw new Error("Please enter your name.");
-      if (!email) throw new Error("Please enter your email.");
-      if (!state) throw new Error("Please enter your state / region.");
-      if (!privacyConsent) throw new Error("Please agree to the privacy notice to continue.");
-      if (!resumeFile) throw new Error("Please attach your resume to continue.");
-
-      if (linkedinUrl.length > 0) {
-        try {
-          new URL(linkedinUrl);
-        } catch {
-          throw new Error("Please enter a valid LinkedIn URL.");
-        }
-      }
-
-
-      let mime: string | null = null;
-      let size: number | null = null;
-
+  // One mutation for the whole chain: presign, S3 PUT, finalize succeed or
+  // fail as a unit, exactly as the hand-rolled try block treated them (same
+  // shape as IntakePromptModal's submit). Mutations never retry, and the S3
+  // PUT in particular must not be — the presigned URL is single-use.
+  const submitIntake = useMutation({
+    mutationFn: async (input: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      state: string;
+      linkedinUrl: string;
+      resumeFile: File;
+    }) => {
+      // Step 1: get presigned upload URL
       const presignRes = await fetch(`${API_BASE}/intake/resume-tickets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mime: resumeFile.type, size: resumeFile.size }),
+        body: JSON.stringify({ mime: input.resumeFile.type, size: input.resumeFile.size }),
       });
       const presignData = await presignRes.json().catch((e) => {
         console.error("Failed to parse presign response:", e);
@@ -114,32 +98,33 @@ export function useIntakeForm() {
         throw new Error("Upload initialization failed. Please try again.");
       }
 
+      // Recorded as soon as the ticket exists, as before — the account modal's
+      // claims need it after success, and it names the submission either way.
       setSubmissionId(submission_id);
 
+      // Step 2: upload resume directly to S3
       const putRes = await fetch(upload_url, {
         method: "PUT",
-        headers: { "Content-Type": resumeFile.type },
-        body: resumeFile,
+        headers: { "Content-Type": input.resumeFile.type },
+        body: input.resumeFile,
       });
       if (!putRes.ok) throw new Error("Upload failed. Please try again.");
 
-      mime = resumeFile.type;
-      size = resumeFile.size;
-
+      // Step 3: finalize the submission
       const finalizeRes = await fetch(`${API_BASE}/intake/submissions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           submission_id,
           object_key,
-          mime,
-          size,
-          first_name: firstName,
-          last_name: lastName,
-          email,
-          state,
+          mime: input.resumeFile.type,
+          size: input.resumeFile.size,
+          first_name: input.firstName,
+          last_name: input.lastName,
+          email: input.email,
+          state: input.state,
           phone: formData.phone.trim() || null,
-          linkedin_url: linkedinUrl || null,
+          linkedin_url: input.linkedinUrl || null,
           portfolio_url: formData.portfolioUrl.trim() || null,
           privacy_consent: privacyConsent,
           info_opt_in: infoOptIn,
@@ -150,14 +135,14 @@ export function useIntakeForm() {
         return {};
       });
       if (!finalizeRes.ok) throw parseApiError(finalizeRes, finalizeData, "Unable to submit right now.");
-
-      setSubmissionStatus("success");
+    },
+    onSuccess: (_data, input) => {
       setAccountModalOpen(true);
       setAccountStep("prompt");
       setAccountAction("create");
       setAccountError("");
-      setSubmissionEmail(email);
-      setSignInEmail(email);
+      setSubmissionEmail(input.email);
+      setSignInEmail(input.email);
       setSignInPassword("");
       setAccountPassword("");
       setAccountConfirm("");
@@ -166,11 +151,55 @@ export function useIntakeForm() {
       setInfoOptIn(false);
       setResumeFile(null);
       setSelectedFileName("");
-    } catch (error) {
-      setSubmissionStatus("error");
-      setErrorMessage(error instanceof Error ? error.message : "Unable to submit right now. Please try again.");
+    },
+  });
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const firstName = formData.firstName.trim();
+    const lastName = formData.lastName.trim();
+    const email = formData.email.trim();
+    const state = formData.state.trim();
+    const linkedinUrl = formData.linkedinUrl.trim();
+
+    if (!firstName || !lastName) { setValidationError("Please enter your name."); return; }
+    if (!email) { setValidationError("Please enter your email."); return; }
+    if (!state) { setValidationError("Please enter your state / region."); return; }
+    if (!privacyConsent) { setValidationError("Please agree to the privacy notice to continue."); return; }
+    if (!resumeFile) { setValidationError("Please attach your resume to continue."); return; }
+
+    if (linkedinUrl.length > 0) {
+      try {
+        new URL(linkedinUrl);
+      } catch {
+        setValidationError("Please enter a valid LinkedIn URL.");
+        return;
+      }
     }
+
+    setValidationError("");
+    submitIntake.mutate({ firstName, lastName, email, state, linkedinUrl, resumeFile });
   };
+
+  // The lifecycle the components render is the mutation's, with client-side
+  // validation failures folded in as the "error" they always were.
+  const submissionStatus: SubmissionStatus = validationError
+    ? "error"
+    : submitIntake.isPending
+    ? "submitting"
+    : submitIntake.isSuccess
+    ? "success"
+    : submitIntake.isError
+    ? "error"
+    : "idle";
+  const errorMessage =
+    validationError ||
+    (submitIntake.isError
+      ? submitIntake.error instanceof Error
+        ? submitIntake.error.message
+        : "Unable to submit right now. Please try again."
+      : "");
 
   const createAccountMutation = useMutation({
     mutationFn: async (password: string) => {

@@ -16,7 +16,7 @@
  *   useProfileForm()               — The hook itself; returns form state + mutators.
  */
 import React, { useState, useEffect, useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../auth";
 import { useProfile, profileKeys } from "./useProfile";
 import { useProfileActions } from "./useProfileActions";
@@ -127,10 +127,8 @@ export function useProfileForm() {
   const [formData, setFormData] = useState<ProfileFormData>(() =>
     buildDefaultProfile(user ?? undefined)
   );
-  const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(true);
   const [saveProgress, setSaveProgress] = useState(0);
-  const [isUploadingResume, setIsUploadingResume] = useState(false);
   const [uploadedResume, setUploadedResume] = useState<File | null>(null);
   const [resumeUploaded, setResumeUploaded] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -172,7 +170,101 @@ export function useProfileForm() {
     resumeParseJobStatus.data,
   ]);
 
-  // Progress bar simulation for saving
+  // The two-write save -- the profile PATCH (through useProfileActions) and the
+  // recommendations refresh -- as one mutation, so "saving" is the mutation's
+  // pending state rather than a hand-rolled boolean. The refresh keeps its own
+  // swallowed catch: a failed recommendation rebuild has never failed the save.
+  const saveProfile = useMutation({
+    mutationFn: async (profileDataToSave: ProfileFormData) => {
+      if (saveProfileData) {
+        // Spread rather than passed direct: `ProfileData` wants an index
+        // signature, which the anonymous spread type has and the named
+        // `ProfileFormData` interface does not.
+        await saveProfileData({ ...profileDataToSave });
+        console.log("Profile saved to backend!");
+      } else {
+        console.warn("saveProfileData is not available; profile saved locally only.");
+      }
+
+      const modelPipeline = buildProfilePipeline();
+      const stringified = JSON.stringify(modelPipeline);
+      try {
+        await fetchWithAuth("/me/recommendations/refresh", {
+          method: "POST",
+          body: JSON.stringify({ profilePipeline: stringified }),
+        });
+        console.log("Job recommendations generated and saved!");
+      } catch (err) {
+        console.error("Error generating recommendations:", err);
+      }
+      console.log("AI Profile Pipeline:", stringified);
+    },
+    onSuccess: (_data, profileDataToSave) => {
+      setFormData(profileDataToSave);
+      setIsSaved(true);
+    },
+    onSettled: () => {
+      setSaveProgress(100);
+      setTimeout(() => setSaveProgress(0), PROGRESS_RESET_DELAY_MS);
+    },
+  });
+  const isSaving = saveProfile.isPending;
+
+  // The resume upload -- ticket then S3 PUT -- as one mutation: the two steps
+  // succeed or fail as a unit, exactly as the hand-rolled try block treated
+  // them. Mutations never retry, and the PUT in particular must not be -- the
+  // presigned URL is single-use.
+  const uploadResume = useMutation({
+    mutationFn: async (file: File) => {
+      // The ticket hands back a resume_id, not a storage key -- see
+      // PendingResumeUpload in types/profile.ts for why that is the security
+      // improvement rather than a rename.
+      const ticket = await fetchWithAuth<{
+        resume_id: string;
+        upload_url: string;
+        max_bytes: number;
+      }>("/me/resumes", {
+        method: "POST",
+        body: JSON.stringify({ mime: file.type, size: file.size }),
+      });
+      await fetch(ticket.upload_url, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      return ticket;
+    },
+    onSuccess: (ticket, file) => {
+      setPendingResume({ resumeId: ticket.resume_id, mime: file.type, size: file.size, name: file.name });
+      setFormData((prev) => ({
+        ...prev,
+        uploadedResume: { name: file.name, size: file.size, type: file.type },
+      }));
+      setResumeUploaded(true);
+
+      // Kick off the parse in the background rather than waiting for submit --
+      // reset first, in case a job for a resume this one is replacing is still
+      // in flight.
+      setResumeParseJobId(null);
+      startResumeParseJob.mutate(
+        { resumeId: ticket.resume_id, mime: file.type, size: file.size, name: file.name },
+        { onSuccess: (data) => setResumeParseJobId(data.job_id) }
+      );
+    },
+    onError: (err) => {
+      console.error(err);
+      alert("Unable to process resume right now.");
+    },
+    onSettled: () => {
+      setUploadedResume(null);
+      setUploadProgress(100);
+      setTimeout(() => setUploadProgress(0), PROGRESS_RESET_DELAY_MS);
+    },
+  });
+  const isUploadingResume = uploadResume.isPending;
+
+  // Progress bar simulation for saving -- UX, not server state. isPending
+  // starts it; the mutation settling ends it (see onSettled above).
   useEffect(() => {
     if (!isSaving) return;
     setSaveProgress(8);
@@ -182,7 +274,7 @@ export function useProfileForm() {
     return () => clearInterval(timer);
   }, [isSaving]);
 
-  // Progress bar simulation for resume upload
+  // Progress bar simulation for resume upload -- same contract as the save's.
   useEffect(() => {
     if (!isUploadingResume) return;
     setUploadProgress(8);
@@ -324,9 +416,8 @@ export function useProfileForm() {
     return sections;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaving(true);
 
     let profileDataToSave = {
       ...formData,
@@ -346,35 +437,13 @@ export function useProfileForm() {
       profileDataToSave = { ...profileDataToSave, career_status: "employed" };
     }
 
+    // The synchronous cache merges stay ahead of the server round trip, as
+    // they always were; the awaited writes live on the mutation.
     const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
     updateProfile?.({ name: fullName, profileComplete: true });
     updateProfileData?.(profileDataToSave);
 
-    if (saveProfileData) {
-      await saveProfileData(profileDataToSave);
-      console.log("Profile saved to backend!");
-    } else {
-      console.warn("saveProfileData is not available; profile saved locally only.");
-    }
-
-    const modelPipeline = buildProfilePipeline();
-    const stringified = JSON.stringify(modelPipeline);
-    try {
-      await fetchWithAuth("/me/recommendations/refresh", {
-        method: "POST",
-        body: JSON.stringify({ profilePipeline: stringified }),
-      });
-      console.log("Job recommendations generated and saved!");
-    } catch (err) {
-      console.error("Error generating recommendations:", err);
-    }
-    console.log("AI Profile Pipeline:", stringified);
-
-    setFormData(profileDataToSave);
-    setSaveProgress(100);
-    setIsSaving(false);
-    setIsSaved(true);
-    setTimeout(() => setSaveProgress(0), PROGRESS_RESET_DELAY_MS);
+    saveProfile.mutate(profileDataToSave);
   };
 
   const handleChange = (field: string, value: any) => {
@@ -534,53 +603,12 @@ export function useProfileForm() {
   };
 
   // ── Resume ──────────────────────────────────────────────────────────────────
-  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadedResume(file);
     setIsSaved(false);
-    setIsUploadingResume(true);
-    try {
-      // The ticket hands back a resume_id, not a storage key -- see
-      // PendingResumeUpload in types/profile.ts for why that is the security
-      // improvement rather than a rename.
-      const ticket = await fetchWithAuth<{
-        resume_id: string;
-        upload_url: string;
-        max_bytes: number;
-      }>("/me/resumes", {
-        method: "POST",
-        body: JSON.stringify({ mime: file.type, size: file.size }),
-      });
-      await fetch(ticket.upload_url, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      setPendingResume({ resumeId: ticket.resume_id, mime: file.type, size: file.size, name: file.name });
-      setFormData((prev) => ({
-        ...prev,
-        uploadedResume: { name: file.name, size: file.size, type: file.type },
-      }));
-      setResumeUploaded(true);
-
-      // Kick off the parse in the background rather than waiting for submit --
-      // reset first, in case a job for a resume this one is replacing is still
-      // in flight.
-      setResumeParseJobId(null);
-      startResumeParseJob.mutate(
-        { resumeId: ticket.resume_id, mime: file.type, size: file.size, name: file.name },
-        { onSuccess: (data) => setResumeParseJobId(data.job_id) }
-      );
-    } catch (err) {
-      console.error(err);
-      alert("Unable to process resume right now.");
-    } finally {
-      setUploadedResume(null);
-      setUploadProgress(100);
-      setIsUploadingResume(false);
-      setTimeout(() => setUploadProgress(0), PROGRESS_RESET_DELAY_MS);
-    }
+    uploadResume.mutate(file);
   };
 
   const handleViewResume = async () => {

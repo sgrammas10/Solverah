@@ -249,6 +249,42 @@ describe("TeaserResult", () => {
     );
   });
 
+  it("issues the wpll enqueue and poll without the session's credentials", async () => {
+    // The anonymous teaser's whole authorisation is the job handle. A bare
+    // fetch defaults to `same-origin`; `fetchWithAuth` sends `include`, so this
+    // is the wire-level difference between the two transports.
+    const seenCredentials: string[] = [];
+    server.use(
+      mock("post", "/api/v1/assessments/{kind}/scoring-jobs").resolve(({ request }) => {
+        seenCredentials.push(request.credentials);
+        return HttpResponse.json(
+          {
+            job_id: JOB_ID,
+            status: "queued",
+            status_url: `/api/v1/assessments/wpll/scoring-jobs/${JOB_ID}`,
+          },
+          { status: 202 }
+        );
+      }),
+      mock("get", "/api/v1/assessments/{kind}/scoring-jobs/{job_id}").resolve(({ request }) => {
+        seenCredentials.push(request.credentials);
+        return HttpResponse.json({
+          job_id: JOB_ID,
+          status: "succeeded",
+          result: MOCK_RESULT,
+          error: null,
+        });
+      })
+    );
+
+    renderTeaser(makeProps());
+    await waitFor(() =>
+      expect(screen.getByText(MOCK_RESULT.insight_text)).toBeInTheDocument()
+    );
+
+    expect(seenCredentials).toEqual(["same-origin", "same-origin"]);
+  });
+
   it("calls onContinue when the CTA button is clicked", async () => {
     const onContinue = vi.fn();
 

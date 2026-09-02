@@ -28,7 +28,11 @@ import SkillProficiencyModal from "./SkillProficiencyModal";
 // Types
 // ---------------------------------------------------------------------------
 
-/** `loading` is the job's pending state; the four others are its terminal ones. */
+/**
+ * `loading` is the job's pending state and four others are its terminal ones;
+ * `needs_preferences` is the UI override that shows the preferences form over
+ * whichever of those the job lifecycle is in.
+ */
 type FetchState = "loading" | "error" | "career_status_not_set" | "profile_incomplete" | "needs_preferences" | "success";
 
 /**
@@ -122,8 +126,10 @@ export default function PathIntelligencePage() {
   const skillLevels = (profile?.["skill_levels"] as Record<string, string> | undefined) ?? {};
   const proficiencyConfirmed = profile?.["skills_proficiency_confirmed"] as boolean | undefined;
 
-  const [fetchState, setFetchState] = useState<FetchState>("loading");
-  const [data, setData] = useState<PathSuggestionsResponse | null>(null);
+  // The preferences form is UI navigation, not job state: it is entered from
+  // the mount decision and from "Adjust search preferences", and rendering it
+  // takes precedence over whatever the job lifecycle says below.
+  const [showPreferences, setShowPreferences] = useState(false);
   const [showProficiencyModal, setShowProficiencyModal] = useState(false);
   const [proficiencySkipped, setProficiencySkipped] = useState(false);
   const hasFiredRef = useRef(false);
@@ -133,12 +139,11 @@ export default function PathIntelligencePage() {
   const suggestionJob = usePathSuggestionJobStatus(jobId);
 
   const fetchSuggestions = useCallback(() => {
-    setFetchState("loading");
+    setShowPreferences(false);
     startSuggestions.mutate(undefined, {
+      // A new enqueue re-keys the poll query, so a stale job's terminal state
+      // cannot shadow the fresh run.
       onSuccess: (accepted) => setJobId(accepted.job_id),
-      // A19 gives the enqueue a rate limit the synchronous GET never needed, so
-      // a 429 is reachable here and is one of the things this branch renders.
-      onError: (err) => setFetchState(stateForFailure(err instanceof Error ? err.message : "")),
     });
   // `startSuggestions` is a stable TanStack Query mutation object; listing it
   // would rebuild this callback on every mutation state change, and the mount
@@ -146,44 +151,45 @@ export default function PathIntelligencePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Route the job's terminal state into what the synchronous response drove.
-  useEffect(() => {
+  const data: PathSuggestionsResponse | null =
+    suggestionJob.data?.status === "succeeded" && suggestionJob.data.result
+      ? asPathSuggestions(suggestionJob.data.result)
+      : null;
+
+  // Derived, not stored: the enqueue mutation's phase and the poll's terminal
+  // state are the whole of what the old hand-rolled fetchState tracked, and
+  // reading them at render time removes the two effects that routed them.
+  const jobState: FetchState = (() => {
+    if (startSuggestions.isPending) return "loading";
+    // A19 gives the enqueue a rate limit the synchronous GET never needed, so
+    // a 429 is reachable here and is one of the things "error" renders.
+    if (startSuggestions.isError) {
+      return stateForFailure(
+        startSuggestions.error instanceof Error ? startSuggestions.error.message : ""
+      );
+    }
+    // A rejected poll (404 on a stale handle) is terminal too: the hook has
+    // stopped polling, so the skeletons would otherwise never clear.
+    if (suggestionJob.error) {
+      return stateForFailure(
+        suggestionJob.error instanceof Error ? suggestionJob.error.message : ""
+      );
+    }
     const job = suggestionJob.data;
-    if (!job) return;
+    if (job === undefined) return "loading";
+    if (job.status === "succeeded" && job.result) return "success";
+    if (job.status === "failed") return stateForFailure(job.error ?? "");
+    // Fail closed: the hook has already stopped polling an unrecognised
+    // status, so leaving the skeletons up would hang the screen.
+    if (!isKnownScoringPhase(job.status)) return "error";
+    return "loading";
+  })();
 
-    if (job.status === "succeeded" && job.result) {
-      setData(asPathSuggestions(job.result));
-      setJobId(null);
-      setFetchState("success");
-      return;
-    }
-
-    if (job.status === "failed") {
-      setJobId(null);
-      setFetchState(stateForFailure(job.error ?? ""));
-      return;
-    }
-
-    // Fail closed: the hook has already stopped polling an unrecognised status,
-    // so leaving the skeletons up would hang the screen.
-    if (!isKnownScoringPhase(job.status)) {
-      setJobId(null);
-      setFetchState("error");
-    }
-  }, [suggestionJob.data]);
-
-  // A rejected poll (404 on a stale handle) is terminal too.
-  useEffect(() => {
-    if (!suggestionJob.error) return;
-    setJobId(null);
-    setFetchState(
-      stateForFailure(suggestionJob.error instanceof Error ? suggestionJob.error.message : "")
-    );
-  }, [suggestionJob.error]);
+  const fetchState: FetchState = showPreferences ? "needs_preferences" : jobState;
 
   const proceedAfterProficiency = useCallback(() => {
     if (!profile?.path_preferences) {
-      setFetchState("needs_preferences");
+      setShowPreferences(true);
     } else {
       fetchSuggestions();
     }
@@ -233,9 +239,9 @@ export default function PathIntelligencePage() {
       hasFiredRef.current = true;
       if (userSkills.length > 0 && proficiencyConfirmed !== true) {
         setShowProficiencyModal(true);
-        // Don't set fetchState here — modal controls what happens next
+        // Don't decide a screen here — the modal controls what happens next
       } else if (!profile?.path_preferences) {
-        setFetchState("needs_preferences");
+        setShowPreferences(true);
       } else {
         fetchSuggestions();
       }
@@ -357,7 +363,7 @@ export default function PathIntelligencePage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setFetchState("needs_preferences")}
+                  onClick={() => setShowPreferences(true)}
                   className="text-xs text-ink-secondary underline hover:text-ink-primary transition-colors"
                 >
                   Adjust search preferences
