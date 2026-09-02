@@ -12,6 +12,7 @@ export type { WpApiResponse } from "./useWP";
 export { useWorkPulseResult, workPulseResultKeys } from "./useWorkPulseResult";
 export { useMM } from "./useMM";
 export type { MMResult } from "./useMM";
+export { useManagerMatchResult, managerMatchResultKeys } from "./useManagerMatchResult";
 export {
   isKnownScoringPhase,
   useScoringJobStatus,

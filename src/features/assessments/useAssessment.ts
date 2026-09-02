@@ -24,7 +24,8 @@
  * respondent tokens. Do not add anything to this hook that would let a token be traced back to
  * a dimension.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "../auth";
 
@@ -89,53 +90,65 @@ export function flattenItems(form: AssessmentForm): AssessmentItem[] {
   return form.blocks.flatMap((b) => b.items);
 }
 
+export const assessmentKeys = {
+  all: ["assessment"] as const,
+  coreForm: () => ["assessment", "coreForm"] as const,
+};
+
 export function useAssessment() {
   const { fetchWithAuth } = useAuth();
 
-  const [items, setItems] = useState<AssessmentItem[] | null>(null);
   const [answers, setAnswers] = useState<AssessmentAnswers>(readStoredAnswers);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Retry behaviour is the shared default from queryClient.ts on purpose: a
+  // 429/5xx gets shouldRetry's two bounded retries. Safe for this GET because
+  // Phase 3a removed every commit from GET handlers — a retried read re-reads
+  // and nothing else, and the form it returns is stable per respondent.
+  const formQuery = useQuery({
+    queryKey: assessmentKeys.coreForm(),
+    queryFn: () => fetchWithAuth<AssessmentForm>("/assessments/core/form"),
+  });
+
+  const items = useMemo(
+    () => (formQuery.data ? flattenItems(formQuery.data) : null),
+    [formQuery.data]
+  );
+  const loadError = formQuery.error
+    ? formQuery.error instanceof Error
+      ? formQuery.error.message
+      : "Could not load the assessment."
+    : null;
+
+  // Drop any stored answer whose token is not in the form we just received.
+  //
+  // Tokens are stable for a respondent, so on an ordinary resume every stored answer
+  // still matches. They change if the active item file changes -- which means the stored
+  // answers belong to a different instrument. Keeping them would submit answers to
+  // questions this respondent was never shown; the server would reject the submission
+  // wholesale on the first unknown token, which is correct but reads to the user as an
+  // inexplicable failure at the very end. Dropping them here surfaces it as unanswered
+  // questions instead, which is recoverable.
+  //
+  // `dataUpdatedAt` is in the deps ON PURPOSE: the prune must run once per
+  // FETCH, not once per mount. A refetch that returns the same form is
+  // structurally shared by the cache (`data` keeps its identity), so without
+  // the timestamp a refetch that returned a *changed* form after an identical
+  // one would be the only trigger — and a mount served entirely from cache
+  // still prunes, because the effect also runs on mount with the cached data.
+  // The prune itself is idempotent, so the extra runs are no-ops.
+  const dataUpdatedAt = formQuery.dataUpdatedAt;
   useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const form = await fetchWithAuth<AssessmentForm>("/assessments/core/form");
-        if (cancelled) return;
-
-        const fetched = flattenItems(form);
-        setItems(fetched);
-
-        // Drop any stored answer whose token is not in the form we just received.
-        //
-        // Tokens are stable for a respondent, so on an ordinary resume every stored answer
-        // still matches. They change if the active item file changes -- which means the stored
-        // answers belong to a different instrument. Keeping them would submit answers to
-        // questions this respondent was never shown; the server would reject the submission
-        // wholesale on the first unknown token, which is correct but reads to the user as an
-        // inexplicable failure at the very end. Dropping them here surfaces it as unanswered
-        // questions instead, which is recoverable.
-        const valid = new Set(fetched.map((i) => i.token));
-        setAnswers((prev) => {
-          const kept = Object.fromEntries(
-            Object.entries(prev).filter(([token]) => valid.has(token))
-          );
-          return Object.keys(kept).length === Object.keys(prev).length ? prev : kept;
-        });
-      } catch (err) {
-        if (!cancelled) {
-          setLoadError(err instanceof Error ? err.message : "Could not load the assessment.");
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchWithAuth]);
+    if (!formQuery.data) return;
+    const valid = new Set(flattenItems(formQuery.data).map((i) => i.token));
+    setAnswers((prev) => {
+      const kept = Object.fromEntries(
+        Object.entries(prev).filter(([token]) => valid.has(token))
+      );
+      return Object.keys(kept).length === Object.keys(prev).length ? prev : kept;
+    });
+  }, [formQuery.data, dataUpdatedAt]);
 
   useEffect(() => {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(answers));

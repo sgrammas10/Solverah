@@ -1,11 +1,27 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+/**
+ * ManagerMatchResultsPage — the stored ManagerMatch result, three tiers deep.
+ *
+ * The result is looked for in order, and each tier only fires when the one
+ * above it came up empty:
+ *
+ *   1. Fresh: the result a scoring job just produced, written into
+ *      `managerMatchResultKeys.result()` by ManagerMatchPage (via `useMM`'s
+ *      `setCachedResult`). Mounting straight after a submission renders it
+ *      with no request at all.
+ *   2. Stored: `profile.manager_match_result` on the already-cached profile
+ *      document — answered from cache, no ManagerMatch request.
+ *   3. Fetched: `GET /me/assessments/manager_match/result` through
+ *      `useManagerMatchResult`. Its 404 ("No ManagerMatch result found")
+ *      means the instrument was never finished — redirect to the quiz.
+ *
+ * This used to be a hand-rolled `FetchState` machine over the same three
+ * sources; the tiers are unchanged, only the machinery moved into the query.
+ */
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMM } from "../useMM";
 import type { MMResult } from "../useMM";
-import { useAuth } from "../../auth";
+import { useManagerMatchResult } from "../useManagerMatchResult";
 import { useProfile } from "../../profile";
-
-type FetchState = "loading" | "error" | "success";
 
 const DIMENSIONS = [
   { key: "autonomy", label: "Autonomy" },
@@ -22,56 +38,46 @@ function bandLabel(score: number): string {
 
 export default function ManagerMatchResultsPage() {
   const navigate = useNavigate();
-  const { fetchWithAuth } = useAuth();
   const { data: profile, isLoading: profileLoading } = useProfile();
-  const { state, setCachedResult } = useMM();
 
-  const hasCached = state.cachedResult !== null;
-  const [fetchState, setFetchState] = useState<FetchState>(hasCached ? "success" : "loading");
-  const [result, setResult] = useState<MMResult | null>(state.cachedResult);
-  const hasFiredRef = useRef(false);
+  // Tier 2. Read before the query so a stored copy keeps tier 3 from firing.
+  const profileResult = profile?.manager_match_result as MMResult | undefined;
 
-  const fetchFromServer = useCallback(async () => {
-    setFetchState("loading");
-    try {
-      const data = await fetchWithAuth<MMResult>("/me/assessments/manager_match/result");
-      setResult(data);
-      setCachedResult(data);
-      setFetchState("success");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("No ManagerMatch result found")) {
-        navigate("/manager-match", { replace: true });
-        return;
-      }
-      setFetchState("error");
-    }
-  }, [fetchWithAuth, setCachedResult, navigate]);
+  // Tiers 1 and 3 share this query: a fresh result is already sitting in its
+  // cache entry (written by ManagerMatchPage), and only when the entry is
+  // empty AND the settled profile has no stored copy does the fetch fire.
+  // Waiting for the profile before enabling is deliberate: reading it
+  // mid-flight would see no stored result and fall straight through to a
+  // server fetch the cached document would have answered.
+  const mmQuery = useManagerMatchResult({
+    enabled: !profileLoading && !profileResult,
+  });
 
+  // The tiers, in order. `mmQuery.data` is both tier 1 (cache) and tier 3
+  // (fetched) — the query cannot tell them apart, which is the point.
+  const result = mmQuery.data ?? profileResult ?? null;
+
+  // Tier 3 finding nothing is not an error state, it is "the instrument was
+  // never finished" — same redirect the hand-rolled fetch made. The 404 is a
+  // client error in shouldRetry's classification, so it arrives here without
+  // retry delay.
+  const errMsg = mmQuery.error instanceof Error ? mmQuery.error.message : "";
+  const noStoredResult = errMsg.includes("No ManagerMatch result found");
   useEffect(() => {
-    if (hasCached) return;
-    // Wait for the profile query before deciding. Reading it mid-flight would
-    // see no stored result and fall straight through to the server fetch --
-    // correct, but a request the cached document would have answered.
-    if (profileLoading) return;
+    if (noStoredResult) navigate("/manager-match", { replace: true });
+  }, [noStoredResult, navigate]);
 
-    const profileResult = profile?.manager_match_result as MMResult | undefined;
-    if (profileResult) {
-      setCachedResult(profileResult);
-      setResult(profileResult);
-      setFetchState("success");
-      return;
-    }
-
-    if (!hasFiredRef.current) {
-      hasFiredRef.current = true;
-      fetchFromServer();
-    }
-  // Runs once the profile settles; hasFiredRef guards the server fetch against
-  // a second pass and against Strict Mode's double-invoke.
-  }, [profileLoading]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (fetchState === "loading") {
+  // Loading covers: the profile still settling, the fetch in flight, a retry
+  // in flight after an error (the error object survives a refetch, and
+  // rendering the card through it would make "Try again" look dead), and the
+  // brief render before the not-found redirect lands.
+  if (
+    !result &&
+    (profileLoading ||
+      mmQuery.isLoading ||
+      (mmQuery.isError && mmQuery.isFetching) ||
+      noStoredResult)
+  ) {
     return (
       <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
         <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
@@ -80,7 +86,7 @@ export default function ManagerMatchResultsPage() {
     );
   }
 
-  if (fetchState === "error") {
+  if (!result && mmQuery.isError) {
     return (
       <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
         <div className="max-w-sm w-full rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
@@ -88,7 +94,7 @@ export default function ManagerMatchResultsPage() {
           <p className="text-xs">Please try again in a moment.</p>
           <button
             type="button"
-            onClick={fetchFromServer}
+            onClick={() => mmQuery.refetch()}
             className="mt-3 text-xs font-semibold text-red-700 underline"
           >
             Try again

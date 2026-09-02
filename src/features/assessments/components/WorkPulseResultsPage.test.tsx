@@ -15,6 +15,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import WorkPulseResultsPage from "./WorkPulseResultsPage";
 import { WP_QUESTIONS } from "../data/wpQuestions";
+import { workPulseResultKeys } from "../useWorkPulseResult";
 import { createQueryClient } from "../../../shared/api/queryClient";
 import type { WpApiResponse } from "../useWP";
 
@@ -91,13 +92,16 @@ const ACCEPTED = {
  *
  * The page sets its job id inside `onSuccess`, which re-renders and re-reads
  * `useScoringJobStatus` — so writing `mocks.job.data` before invoking the
- * callback is what the second render then sees.
+ * callback is what the second render then sees. A retry must pass an
+ * `accepted` with a fresh job_id, as a real enqueue would return: the stubbed
+ * status hook cannot notify React of `mocks.job.data` changing, so the id
+ * changing under `setJobId` is what makes the second attempt render.
  */
-function scoringSettlesAs(job: Record<string, unknown>) {
+function scoringSettlesAs(job: Record<string, unknown>, accepted: typeof ACCEPTED = ACCEPTED) {
   mocks.startScoringMutate.mockImplementation(
     (_body: unknown, opts: { onSuccess?: (a: typeof ACCEPTED) => void }) => {
       mocks.job.data = job;
-      opts.onSuccess?.(ACCEPTED);
+      opts.onSuccess?.(accepted);
     }
   );
 }
@@ -113,6 +117,12 @@ let queryClient: QueryClient;
 function renderPage() {
   queryClient = createQueryClient();
   vi.spyOn(queryClient, "invalidateQueries");
+  // The real setCachedResult writes the shared stored-result query (that is
+  // useWP's contract now, proved in useWP.test.tsx); the stub does the same so
+  // the page's success path can be asserted through the cache it feeds.
+  mocks.setCachedResult.mockImplementation((result: WpApiResponse) => {
+    queryClient.setQueryData(workPulseResultKeys.result(), result);
+  });
   render(
     <QueryClientProvider client={queryClient}>
       <WorkPulseResultsPage />
@@ -309,12 +319,10 @@ describe("WorkPulseResultsPage", () => {
       expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument()
     );
 
-    scoringSettlesAs({
-      job_id: "wp-job-2",
-      status: "succeeded",
-      result: MOCK_RESULT,
-      error: null,
-    });
+    scoringSettlesAs(
+      { job_id: "wp-job-2", status: "succeeded", result: MOCK_RESULT, error: null },
+      { ...ACCEPTED, job_id: "wp-job-2" }
+    );
     fireEvent.click(screen.getByRole("button", { name: /try again/i }));
 
     await waitFor(() =>

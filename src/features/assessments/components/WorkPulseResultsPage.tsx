@@ -25,19 +25,9 @@ import {
   useStartScoringJob,
   type ScoringJobResult,
 } from "../useScoringJob";
-import { useWorkPulseResult, workPulseResultKeys } from "../useWorkPulseResult";
+import { useWorkPulseResult } from "../useWorkPulseResult";
 import { WP_QUESTIONS } from "../data/wpQuestions";
 import { TierBar } from "../../intake";
-
-/**
- * `scoring` is the job's pending state and `error` its failed one, and they are
- * separate on purpose: a failed scoring that left the spinner running would be
- * distinguishable from a slow one only by how long the user was willing to
- * wait. The synchronous read of an already-stored result is no longer a member:
- * that request lives in `useWorkPulseResult`, whose own isLoading/isError carry
- * what `loading` (and the fetch half of `error`) used to.
- */
-type FetchState = "idle" | "scoring" | "error";
 
 /**
  * The job's `result` in the shape this page renders.
@@ -60,13 +50,29 @@ export default function WorkPulseResultsPage() {
   const queryClient = useQueryClient();
 
   const hasCached = state.cachedResult !== null;
-  const [fetchState, setFetchState] = useState<FetchState>("idle");
-  const [scoringError, setScoringError] = useState<string | null>(null);
   const hasFiredRef = useRef(false);
 
   const startScoring = useStartScoringJob("work_pulse");
   const [jobId, setJobId] = useState<string | null>(null);
   const job = useScoringJobStatus("work_pulse", jobId);
+  // The enqueue failing is mutation state, but it arrives through a callback;
+  // this one flag captures it for render. The old `FetchState` machine that
+  // mirrored the rest of the job's lifecycle into local state is gone — the
+  // scoring/failed states are derived from the job hooks below, which is what
+  // the `useWorkPulseResult` dedup left this page still hand-rolling.
+  const [enqueueFailed, setEnqueueFailed] = useState(false);
+
+  // A failed job and an unrecognised status are both terminal: the hook's
+  // refetchInterval has already stopped polling either one, so rendering the
+  // spinner through them would hang the screen (fail closed, as before). A
+  // rejected poll (404 on a stale handle) is terminal the same way. And a
+  // failed scoring must stay distinguishable from a slow one by more than the
+  // user's patience — the failed check comes before the spinner in render.
+  const jobFailed = job.data?.status === "failed";
+  const jobUnknown = job.data !== undefined && !isKnownScoringPhase(job.data.status);
+  const scoringFailed = enqueueFailed || jobFailed || Boolean(job.error) || jobUnknown;
+  const scoring = !scoringFailed && (startScoring.isPending || jobId !== null);
+  const scoringError = jobFailed ? (job.data?.error ?? null) : null;
 
   // The stored result, shared with IntelligencePage through one query.
   // Enabled exactly when the old mount effect called fetchFromServer: no
@@ -78,8 +84,10 @@ export default function WorkPulseResultsPage() {
   const result = state.cachedResult ?? wpQuery.data ?? null;
 
   const submitAnswers = useCallback(() => {
-    setFetchState("scoring");
-    setScoringError(null);
+    setEnqueueFailed(false);
+    // Detach any previous (failed) job before enqueueing, so its terminal
+    // state does not render as this attempt's.
+    setJobId(null);
     startScoring.mutate(
       {
         answers: state.answers.map((a) => ({
@@ -92,7 +100,7 @@ export default function WorkPulseResultsPage() {
         // The enqueue itself failing (a 429 on the shared per-instrument budget,
         // say) is a failure to start, not a failure to score, but the user's
         // recovery is the same one: try again.
-        onError: () => setFetchState("error"),
+        onError: () => setEnqueueFailed(true),
       }
     );
   // `startScoring` is a stable mutation object from TanStack Query; including it
@@ -101,64 +109,31 @@ export default function WorkPulseResultsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.answers]);
 
-  // Route the job's terminal state into what the synchronous response drove.
+  // The one thing a terminal job still needs an effect for: the success side
+  // effects. The failure branches this effect used to hold are derived above,
+  // and the old "prime the cache from a landed read" effect is gone with them
+  // — `setCachedResult` writes `workPulseResultKeys.result()` now (see
+  // `useWP`'s header), so a landed read of that very key has nothing left to
+  // prime, and the fetch only fires when `wpl_completed` is already true.
   useEffect(() => {
     const data = job.data;
-    if (!data) return;
+    if (!data || data.status !== "succeeded" || !data.result) return;
 
-    if (data.status === "succeeded" && data.result) {
-      const narrative = asWpApiResponse(data.result);
-      setCachedResult(narrative);
-      // The session flag the shell gates on (IntelligencePage, JobSeekerDashboard).
-      updateProfile({ wpl_completed: true });
-      // And the profile document, which the server has now written this result
-      // into. Without this, a screen reading it through useProfile() shows a
-      // pre-completion copy for up to the 60 s staleTime.
-      queryClient.invalidateQueries({ queryKey: profileKeys.document() });
-      // The job's `result` is the same body `GET /me/assessments/.../result`
-      // serves, so write it into the shared query too — a consumer mounting
-      // after a retake must not be handed the pre-retake narrative for the
-      // staleTime window.
-      queryClient.setQueryData(workPulseResultKeys.result(), narrative);
-      setJobId(null);
-      setFetchState("idle");
-      return;
-    }
-
-    if (data.status === "failed") {
-      setScoringError(data.error ?? null);
-      setJobId(null);
-      setFetchState("error");
-      return;
-    }
-
-    // Fail closed, exactly as the hook's refetchInterval does: a status this
-    // client does not recognise has already stopped the polling, so leaving the
-    // spinner up would hang the screen forever.
-    if (!isKnownScoringPhase(data.status)) {
-      setJobId(null);
-      setFetchState("error");
-    }
-  }, [job.data, setCachedResult, updateProfile, queryClient]);
-
-  // A rejected poll (a 404 on a stale handle) is terminal too — the hook has
-  // stopped polling, so nothing else will move this screen off "scoring".
-  useEffect(() => {
-    if (!job.error) return;
-    setJobId(null);
-    setFetchState("error");
-  }, [job.error]);
-
-  // A landed read is what fetchFromServer's success branch was: prime the
-  // sessionStorage cache and the session flag. `hasCached` and the setters are
-  // deliberately not dependencies — this runs when a fetch lands, not when the
-  // cache it writes to changes underneath it.
-  useEffect(() => {
-    if (!wpQuery.data) return;
-    setCachedResult(wpQuery.data);
+    // Writing the shared query key (`setCachedResult`) is what hands the
+    // narrative to every consumer of `useWorkPulseResult` — a consumer
+    // mounting after a retake must not be handed the pre-retake narrative for
+    // the staleTime window.
+    setCachedResult(asWpApiResponse(data.result));
+    // The session flag the shell gates on (IntelligencePage, JobSeekerDashboard).
     updateProfile({ wpl_completed: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wpQuery.data]);
+    // And the profile document, which the server has now written this result
+    // into. Without this, a screen reading it through useProfile() shows a
+    // pre-completion copy for up to the 60 s staleTime.
+    queryClient.invalidateQueries({ queryKey: profileKeys.document() });
+    // Detach from the finished job so `scoring` derives false and the
+    // narrative renders.
+    setJobId(null);
+  }, [job.data, setCachedResult, updateProfile, queryClient]);
 
   // Backend returns 422 when wpl_completed_at is set but wpl_result is missing
   // (e.g. pending migration). Resubmit to regenerate the narrative if answers
@@ -225,7 +200,7 @@ export default function WorkPulseResultsPage() {
   // a refetch, and rendering the card through it would make "Try again" look
   // dead. It draws the spinner the hand-rolled "loading" state did.
   if (
-    fetchState !== "scoring" &&
+    !scoring &&
     (wpQuery.isLoading || (wpQuery.isError && wpQuery.isFetching))
   ) {
     return (
@@ -238,7 +213,7 @@ export default function WorkPulseResultsPage() {
 
   // Pending. Says that the work is queued and still running, so that waiting is
   // an informed choice rather than a guess about whether anything is happening.
-  if (fetchState === "scoring") {
+  if (scoring) {
     return (
       <div
         className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4"
@@ -253,7 +228,7 @@ export default function WorkPulseResultsPage() {
     );
   }
 
-  if (fetchState === "error" || (wpQuery.isError && !canResubmitAfterQueryError)) {
+  if (scoringFailed || (wpQuery.isError && !canResubmitAfterQueryError)) {
     return (
       <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
         <div

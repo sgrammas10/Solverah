@@ -24,11 +24,15 @@ import { MM_QUESTIONS } from "../data/mmQuestions";
 import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
 
 /**
- * `submitting` is the job's pending state; `error` is its failed one. Kept
- * distinct so a scoring that failed cannot present as a scoring that is merely
- * taking its time.
+ * Only the two genuinely local UI phases remain. "Submitting" and "error" are
+ * not members any more: they were a hand-rolled mirror of state the scoring
+ * job hooks already hold, kept in sync by effects — the parallel half of the
+ * enqueue→poll pattern `useScoringJob` exists to own. Both are now derived at
+ * render time from `useStartScoringJob`/`useScoringJobStatus`, so a failed
+ * scoring still cannot present as one that is merely taking its time, but
+ * nothing has to copy the job's state to make that true.
  */
-type Phase = 'intro' | 'questions' | 'submitting' | 'error';
+type Phase = 'intro' | 'questions';
 
 /**
  * The job's `result` in the shape this page's consumers render.
@@ -73,7 +77,25 @@ export default function ManagerMatchPage() {
   const startScoring = useStartScoringJob("manager_match");
   const [jobId, setJobId] = useState<string | null>(null);
   const job = useScoringJobStatus("manager_match", jobId);
-  const [scoringError, setScoringError] = useState<string | null>(null);
+  // The enqueue failing is mutation state, but it arrives through a callback;
+  // this one flag captures it for render. Everything else is read straight off
+  // the hooks below.
+  const [enqueueFailed, setEnqueueFailed] = useState(false);
+
+  // ── The job's state, read where it lives instead of mirrored into a phase ──
+  // A failed job and an unrecognised status are both terminal: the hook's
+  // refetchInterval has already stopped polling either one, so rendering the
+  // spinner through them would hang the screen (fail closed, as before).
+  const jobFailed = job.data?.status === 'failed';
+  const jobUnknown = job.data !== undefined && !isKnownScoringPhase(job.data.status);
+  // A rejected poll (404 on a stale handle) is terminal too.
+  const scoringFailed = enqueueFailed || jobFailed || Boolean(job.error) || jobUnknown;
+  // Includes `succeeded`: the success effect below is about to navigate away,
+  // and the spinner is the right thing to show until it does.
+  const scoring = !scoringFailed && (startScoring.isPending || jobId !== null);
+  // The scorer's own message where it authored one — never provider text,
+  // which would carry prompt fragments and therefore the respondent's answers.
+  const scoringError = jobFailed ? (job.data?.error ?? null) : null;
 
   const [phase, setPhase] = useState<Phase>(() => {
     if (isRetake) return 'intro';
@@ -110,8 +132,10 @@ export default function ManagerMatchPage() {
   const submitAnswers = useCallback((answers: MMAnswer[]) => {
     if (hasFiredRef.current) return;
     hasFiredRef.current = true;
-    setPhase('submitting');
-    setScoringError(null);
+    setEnqueueFailed(false);
+    // Detach any previous (failed) job before enqueueing, so its terminal
+    // state does not render as this attempt's.
+    setJobId(null);
 
     startScoring.mutate(
       {
@@ -119,12 +143,7 @@ export default function ManagerMatchPage() {
       },
       {
         onSuccess: (accepted) => setJobId(accepted.job_id),
-        onError: () => {
-          // Cleared so `handleRetry` can enqueue again — the guard exists to
-          // stop a double-fire of one submission, not to make failure final.
-          hasFiredRef.current = false;
-          setPhase('error');
-        },
+        onError: () => setEnqueueFailed(true),
       }
     );
   // `startScoring` is a stable TanStack Query mutation object; listing it would
@@ -132,47 +151,23 @@ export default function ManagerMatchPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Route the job's terminal state into what the synchronous response drove.
+  // The one thing a terminal job still needs an effect for: the success side
+  // effects. Everything the failure branches used to do here is derived above.
   useEffect(() => {
     const data = job.data;
-    if (!data) return;
+    if (!data || data.status !== 'succeeded' || !data.result) return;
 
-    if (data.status === 'succeeded' && data.result) {
-      setCachedResult(asMMResult(data.result));
-      // The server has written this into the profile document, which is where
-      // ManagerMatchResultsPage looks first (`profile.manager_match_result`).
-      // Without this the results page reads a pre-completion copy for up to the
-      // 60 s staleTime and falls through to a server fetch it did not need.
-      queryClient.invalidateQueries({ queryKey: profileKeys.document() });
-      setJobId(null);
-      navigate('/manager-match/results');
-      return;
-    }
-
-    if (data.status === 'failed') {
-      setScoringError(data.error ?? null);
-      setJobId(null);
-      hasFiredRef.current = false;
-      setPhase('error');
-      return;
-    }
-
-    // Fail closed: the hook has already stopped polling an unrecognised status,
-    // so staying on the spinner would hang the screen.
-    if (!isKnownScoringPhase(data.status)) {
-      setJobId(null);
-      hasFiredRef.current = false;
-      setPhase('error');
-    }
-  }, [job.data, navigate, setCachedResult, queryClient]);
-
-  // A rejected poll (404 on a stale handle) is terminal too.
-  useEffect(() => {
-    if (!job.error) return;
+    setCachedResult(asMMResult(data.result));
+    // The server has written this into the profile document, which is where
+    // ManagerMatchResultsPage looks first (`profile.manager_match_result`).
+    // Without this the results page reads a pre-completion copy for up to the
+    // 60 s staleTime and falls through to a server fetch it did not need.
+    queryClient.invalidateQueries({ queryKey: profileKeys.document() });
+    // Detach from the finished job so re-renders before the navigation lands
+    // early-return instead of repeating these side effects.
     setJobId(null);
-    hasFiredRef.current = false;
-    setPhase('error');
-  }, [job.error]);
+    navigate('/manager-match/results');
+  }, [job.data, navigate, setCachedResult, queryClient]);
 
   function handleAnswer(choice: 'a' | 'b') {
     const question = MM_QUESTIONS[questionIndex];
@@ -191,11 +186,38 @@ export default function ManagerMatchPage() {
   }
 
   function handleRetry() {
+    // Cleared so the guard lets the retry enqueue — it exists to stop a
+    // double-fire of one submission, not to make failure final.
+    hasFiredRef.current = false;
     submitAnswers(pendingAnswersRef.current);
   }
 
+  // ── Failed: enqueue rejected, job failed, poll rejected, or a status this
+  // client does not recognise. Checked before the spinner so a failed scoring
+  // cannot present as one that is merely taking its time. ──
+  if (scoringFailed) {
+    return (
+      <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
+        <div
+          className="max-w-sm w-full rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700"
+          role="alert"
+        >
+          <p className="font-medium mb-1">We couldn't generate your results right now.</p>
+          <p className="text-xs">{scoringError || "Please try again in a moment."}</p>
+          <button
+            type="button"
+            onClick={handleRetry}
+            className="mt-3 text-xs font-semibold text-red-700 underline"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ── Pending: queued or running on the worker ──
-  if (phase === 'submitting') {
+  if (scoring) {
     return (
       <div
         className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4"
@@ -206,31 +228,6 @@ export default function ManagerMatchPage() {
         <p className="text-xs text-ink-tertiary">
           This usually takes under a minute. You can leave this page open.
         </p>
-      </div>
-    );
-  }
-
-  // ── Failed ──
-  if (phase === 'error') {
-    return (
-      <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
-        <div
-          className="max-w-sm w-full rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700"
-          role="alert"
-        >
-          <p className="font-medium mb-1">We couldn't generate your results right now.</p>
-          {/* The scorer's own message where it authored one — never provider
-              text, which would carry prompt fragments and therefore the
-              respondent's answers. */}
-          <p className="text-xs">{scoringError || "Please try again in a moment."}</p>
-          <button
-            type="button"
-            onClick={handleRetry}
-            className="mt-3 text-xs font-semibold text-red-700 underline"
-          >
-            Try again
-          </button>
-        </div>
       </div>
     );
   }

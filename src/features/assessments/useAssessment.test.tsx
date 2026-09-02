@@ -3,11 +3,22 @@
  *
  * Covers the two things that are easy to get wrong and invisible when wrong: the block
  * boundaries must disappear without disturbing item order, and stored answers from a different
- * instrument must not be submitted.
+ * instrument must not be submitted. The prune that enforces the second one must run once per
+ * FETCH of the form, not once per mount — pinned below by refetching a changed form on a
+ * mounted hook.
  */
+import type { ReactNode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { flattenItems, useAssessment, type AssessmentForm } from "./useAssessment";
+import {
+  assessmentKeys,
+  flattenItems,
+  useAssessment,
+  type AssessmentForm,
+} from "./useAssessment";
+import { createQueryClient } from "../../shared/api/queryClient";
+import { ApiError } from "../../shared/api/apiError";
 
 const fetchWithAuth = vi.fn();
 
@@ -49,6 +60,19 @@ const FORM = makeForm([
   ["yankee", "bravo", "charlie"],
 ]);
 
+/** Fresh client per render — the established idiom; no cache crosses a test. */
+let queryClient: QueryClient;
+function createWrapper() {
+  queryClient = createQueryClient();
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+
+function renderAssessment() {
+  return renderHook(() => useAssessment(), { wrapper: createWrapper() });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   sessionStorage.clear();
@@ -79,7 +103,7 @@ describe("flattenItems", () => {
 describe("useAssessment", () => {
   it("loads the form from the server rather than from a bundled data file", async () => {
     fetchWithAuth.mockResolvedValueOnce(FORM);
-    const { result } = renderHook(() => useAssessment());
+    const { result } = renderAssessment();
 
     await waitFor(() => expect(result.current.items).not.toBeNull());
     expect(fetchWithAuth).toHaveBeenCalledWith("/assessments/core/form");
@@ -88,11 +112,32 @@ describe("useAssessment", () => {
   });
 
   it("surfaces a load failure instead of rendering an empty form", async () => {
-    fetchWithAuth.mockRejectedValueOnce(new Error("network down"));
-    const { result } = renderHook(() => useAssessment());
+    // A 4xx: not retryable in shouldRetry's classification, so it surfaces on
+    // the first attempt. The retried path is pinned separately below.
+    fetchWithAuth.mockRejectedValueOnce(new ApiError("That could not be found.", { status: 404 }));
+    const { result } = renderAssessment();
 
-    await waitFor(() => expect(result.current.loadError).toBe("network down"));
+    await waitFor(() => expect(result.current.loadError).toBe("That could not be found."));
     expect(result.current.items).toBeNull();
+    expect(fetchWithAuth).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a retryable load failure through shouldRetry's bounded retries", async () => {
+    // The conversion to a query adopts the shared retry policy ON PURPOSE —
+    // safe for this GET because Phase 3a removed every commit from GET
+    // handlers. A 503 gets retried; the second attempt lands.
+    fetchWithAuth
+      .mockRejectedValueOnce(new ApiError("upstream hiccup", { status: 503 }))
+      .mockResolvedValueOnce(FORM);
+    const { result } = renderAssessment();
+
+    await waitFor(
+      () => expect(result.current.items).not.toBeNull(),
+      // The first retry waits ~1s of real backoff.
+      { timeout: 5000 }
+    );
+    expect(result.current.loadError).toBeNull();
+    expect(fetchWithAuth).toHaveBeenCalledTimes(2);
   });
 
   it("restores answers from session storage on a resumed session", async () => {
@@ -101,7 +146,7 @@ describe("useAssessment", () => {
       JSON.stringify({ zulu: "A", mike: "B" })
     );
     fetchWithAuth.mockResolvedValueOnce(FORM);
-    const { result } = renderHook(() => useAssessment());
+    const { result } = renderAssessment();
 
     await waitFor(() => expect(result.current.items).not.toBeNull());
     expect(result.current.answers).toEqual({ zulu: "A", mike: "B" });
@@ -117,15 +162,40 @@ describe("useAssessment", () => {
       JSON.stringify({ zulu: "A", "token-from-an-older-item-file": "B" })
     );
     fetchWithAuth.mockResolvedValueOnce(FORM);
-    const { result } = renderHook(() => useAssessment());
+    const { result } = renderAssessment();
 
     await waitFor(() => expect(result.current.items).not.toBeNull());
     await waitFor(() => expect(result.current.answers).toEqual({ zulu: "A" }));
   });
 
+  it("prunes again on every fetch, not only on the first mount", async () => {
+    // The regression the conversion to a query invites: an onSuccess wired to
+    // the first load only, leaving a refetch that returns a rotated form free
+    // to submit answers to items this respondent was never shown.
+    fetchWithAuth.mockResolvedValueOnce(FORM);
+    const { result } = renderAssessment();
+    await waitFor(() => expect(result.current.items).not.toBeNull());
+
+    act(() => result.current.setAnswer("zulu", "A"));
+    await waitFor(() => expect(result.current.answers).toEqual({ zulu: "A" }));
+
+    // The active item file changed server-side: a refetch serves new tokens.
+    const ROTATED = makeForm([["xray", "victor", "tango"]]);
+    fetchWithAuth.mockResolvedValueOnce(ROTATED);
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: assessmentKeys.coreForm() });
+    });
+
+    await waitFor(() =>
+      expect(result.current.items!.map((i) => i.token)).toEqual(["xray", "victor", "tango"])
+    );
+    // The answer to the old form's item is gone — pruned by the second fetch.
+    await waitFor(() => expect(result.current.answers).toEqual({}));
+  });
+
   it("refuses to submit an incomplete set", async () => {
     fetchWithAuth.mockResolvedValueOnce(FORM);
-    const { result } = renderHook(() => useAssessment());
+    const { result } = renderAssessment();
     await waitFor(() => expect(result.current.items).not.toBeNull());
 
     act(() => result.current.setAnswer("zulu", "A"));
@@ -142,7 +212,7 @@ describe("useAssessment", () => {
 
   it("refuses to submit when the server did not return 24 items", async () => {
     fetchWithAuth.mockResolvedValueOnce(FORM); // 6 items
-    const { result } = renderHook(() => useAssessment());
+    const { result } = renderAssessment();
     await waitFor(() => expect(result.current.items).not.toBeNull());
 
     act(() => {
@@ -163,7 +233,7 @@ describe("useAssessment", () => {
       Array.from({ length: 12 }, (_, i) => `b${i}`),
     ]);
     fetchWithAuth.mockResolvedValueOnce(full);
-    const { result } = renderHook(() => useAssessment());
+    const { result } = renderAssessment();
     await waitFor(() => expect(result.current.items).not.toBeNull());
 
     act(() => {
@@ -195,7 +265,7 @@ describe("useAssessment", () => {
     // the place that notices -- returning them hands a retaker a gradient to optimise against.
     const full = makeForm([Array.from({ length: 24 }, (_, i) => `t${i}`)]);
     fetchWithAuth.mockResolvedValueOnce(full);
-    const { result } = renderHook(() => useAssessment());
+    const { result } = renderAssessment();
     await waitFor(() => expect(result.current.items).not.toBeNull());
 
     act(() => {
