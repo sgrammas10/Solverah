@@ -6,6 +6,12 @@ Answers to the 13 "QUESTIONS FOR THE USER" at the end of
 
 Status legend: ✅ answered · ⏳ pending · ❓ open (couldn't be answered)
 
+> **⚠️ READ THE ADDENDUM AT THE BOTTOM FIRST.** After the intake closed, the
+> read-only prod DB query revealed that **production runs the legacy `main`
+> codebase, not the audited `causal_bayesian_model` architecture** — several
+> conclusions below describe the *post-merge* future, not today, and one new
+> deploy-blocking landmine was found. The addendum corrects the record.
+
 ---
 
 ## Q6 — How do migrations run on deploy? ✅
@@ -336,3 +342,60 @@ the queue, pending user go-ahead.
 **Deferred / larger (gap 7, gap 12):** refresh-token rotation,
 idempotency keys, managed secrets, staging environment — real projects,
 scheduled separately.
+
+---
+
+## ADDENDUM (2026-09-02, post-intake): production runs the legacy codebase
+
+The Q12 read-only query came back **empty — 0 outbox rows ever, 0 scoring
+jobs ever** — which contradicted "email verification worked today" until the
+deployed branch was checked. The finding, verified against git and a second
+read-only query:
+
+**`main` (what Render deploys, per Q7) is the pre-architecture flat-layout
+app** — root `app.py`/`model.py`/`email_utils.py`, no `solverah/` package.
+The entire audited codebase (`causal_bayesian_model` @ c4d6041: outbox,
+scoring jobs, structured logging, `/readyz`, fatal config, `gunicorn.conf.py`)
+**has never been deployed**. The audit graded the *next* production, not the
+current one.
+
+Corrections to the record above:
+
+1. **Q12 / "Scenario A confirmed empirically" — RETRACTED.** Verification
+   email works because `main`'s `email_utils.py` calls Resend directly; the
+   outbox isn't deployed, hence 0 rows. Scenario A remains the correct
+   **post-merge forecast** (no `REDIS_URL` → eager mode), but nothing has
+   exercised that code path in production yet. Query results for the record:
+   `outbox`: 0 rows; `scoring_jobs`: 0 rows; `users`: 6.
+
+2. **Q4 / prod gunicorn geometry — worse than stated.** `main` has no
+   `gunicorn.conf.py`, so today's bare `gunicorn app:app` runs true gunicorn
+   defaults: **1 sync worker, one request at a time**. The 1w×8t analysis
+   (and the `workers = 3` fix, committed on the branch as 9536f82) applies
+   only after the merge.
+
+3. **NEW — deploy-blocking landmine (top of the fix queue).** Prod's
+   `alembic_version` is **`20260901_scoring_jobs`** — a revision that exists
+   only on the branch chain — and the DB holds all 48 branch-schema tables
+   (outbox, scoring_jobs, weight_posterior, …). Someone ran the branch's
+   migrations against prod, so **the schema is ahead of the deployed code**.
+   Consequence: the Pre-Deploy Command `flask db upgrade` on any push to
+   `main` as it stands will **fail** ("Can't locate revision
+   '20260901_scoring_jobs'" — main's chain ends at
+   `20260414_work_environment_to_text`), which fails the deploy. Cleanly —
+   the old version keeps serving — but it means: **no deploy from `main` can
+   succeed until `causal_bayesian_model` is merged** (merging brings the full
+   chain and clears the error). The legacy code evidently tolerates the
+   additive branch schema, which is why the site still works.
+
+4. **Re-grade table — reinterpret as post-merge.** The LIVE/MOOT/DOWNGRADED
+   grades describe production *after* the merge ships the audited code.
+   Today's production is strictly worse on the LIVE items (no structured
+   logs, no `/readyz`, no fatal config, no outbox at all) and the merge
+   itself is now the gating event for every batch in the fix queue.
+
+5. **Unchanged by the addendum:** all dashboard facts (Q1–Q11, Q13), the
+   `S3_Region` typo (main also reads `S3_REGION`), the three inert env vars
+   (read by neither branch), the migration Pre-Deploy answer, PITR/logs/
+   domains. The fix queue stands, with a new item 0: **merge the branch —
+   it is both the largest fix and the unblocker for all deploys.**
