@@ -156,7 +156,7 @@ def test_a_schema_failure_is_a_problem_document(client):
 
 
 def test_a_handler_raised_error_is_still_the_legacy_shape(client):
-    """The two error shapes still coexist, and `src/utils/apiError.ts` reads both.
+    """The two error shapes still coexist, and `src/shared/api/apiError.ts` reads both.
 
     A body that satisfies the schema reaches the handler, and the handler's own
     refusals are unchanged -- they are business rules, not shape checks. Phase 2

@@ -29,12 +29,15 @@ The wiring order below is not arbitrary and is preserved from the original:
      services, and a cycle is only avoided by that import happening once
      everything else exists.
 
-Configuration validation stays non-fatal.  Phase 0 left a note saying it would
-become fatal "in Phase 1 when create_app() owns configuration"; that is
-deliberately not being done in the same change that moves 38 routes.  Turning a
-strict check fatal is a deploy-breaking behaviour change and deserves to land on
-its own, where a failure is unambiguously attributable to it.  The problems are
-still logged at CRITICAL.
+Configuration validation is fatal.  Phase 0 left it at a CRITICAL log with a
+note that it would become fatal "in Phase 1 when create_app() owns
+configuration"; Phase 1 landed the factory, and the promotion landed on its own
+(2026-09-02) so a boot failure is unambiguously attributable to it.  Invalid or
+missing required configuration now raises ``ConfigError`` -- after logging the
+full problem list at CRITICAL, so the operator still gets every fix in one log
+line.  Fatal means *invalid* config, never *testing* config: CI's five
+variables, the worker, ``flask db`` and ``Scripts/capture_contract.py`` all
+satisfy ``Settings.from_env()`` and boot exactly as before.
 """
 
 from __future__ import annotations
@@ -207,7 +210,9 @@ def _load_settings() -> Tuple[Optional[Settings], list]:
     ``Settings.from_env()`` reads and validates the whole environment at once
     and raises ``ConfigError`` listing every problem, rather than the older
     pattern of scattered ``os.environ`` reads that fail one variable per
-    restart.  Non-fatal -- see the module docstring for why.
+    restart.  The caller logs the problems at CRITICAL and then re-raises --
+    fatal, per the module docstring -- so this returns them rather than letting
+    the exception skip the log line.
     """
     try:
         return Settings.from_env(), []
@@ -383,11 +388,14 @@ def create_app(config: Optional[Mapping[str, Any]] = None) -> Flask:
     )
 
     if config_problems:
+        # Logged before raising so the operator sees the complete problem list
+        # even when the traceback is swallowed by a supervisor.
         logging.getLogger("solverah.config").critical(
             "configuration_invalid",
             extra={"event": "configuration_invalid", "problems": config_problems},
         )
-    elif settings is not None:
+        raise ConfigError(config_problems)
+    if settings is not None:
         for warning in settings.warnings:
             logging.getLogger("solverah.config").warning(
                 "configuration_warning",

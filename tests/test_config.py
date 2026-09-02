@@ -1,5 +1,7 @@
 """Tests for solverah.config — environment validation and engine options."""
 
+import os
+
 import pytest
 
 from solverah.config import ConfigError, Settings
@@ -307,6 +309,68 @@ def test_the_postgres_job_is_the_gate_and_is_the_only_backend_job():
     assert "pgvector/pgvector:pg" in _io.open(
         ".github/workflows/tests.yml", encoding="utf-8"
     ).read(), "the Postgres service container is gone"
+
+
+# ---------------------------------------------------------------------------
+# Fatal validation (2026-09-02).
+#
+# Phase 0 logged ConfigError at CRITICAL and booted anyway, with a note that it
+# would become fatal once create_app() owned configuration. Phase 1 landed the
+# factory, so create_app() now raises. The line being drawn: fatal means
+# *invalid* config, never *testing* config -- the five CI variables must keep
+# booting every entrypoint (web, worker, flask db, capture_contract).
+# ---------------------------------------------------------------------------
+
+
+def test_create_app_refuses_to_boot_when_a_required_var_is_missing(monkeypatch):
+    """A genuinely missing DATABASE_URL must kill boot, naming the variable.
+
+    The pre-promotion behaviour -- log CRITICAL, keep booting -- deferred the
+    failure to the first query, where it surfaces as a pool error that says
+    nothing about configuration.
+    """
+    from solverah.factory import create_app
+
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    with pytest.raises(ConfigError) as exc:
+        create_app()
+
+    assert "DATABASE_URL" in str(exc.value)
+
+
+def test_create_app_boots_under_exactly_the_ci_environment():
+    """The five variables CI sets are sufficient to boot -- nothing else.
+
+    The worker, `flask db`, and Scripts/capture_contract.py all boot the app
+    under this environment; if this test fails, so do they, before any of
+    their own code runs.
+    """
+    from unittest import mock
+
+    from solverah.factory import create_app
+
+    # Process-level variables the interpreter and libraries need to function;
+    # everything app-shaped is cleared so a developer's .env cannot leak in.
+    keep = {
+        k: v
+        for k, v in os.environ.items()
+        if k in {"PATH", "SYSTEMROOT", "TEMP", "TMP", "HOME", "USERPROFILE", "COMSPEC"}
+    }
+    ci_env = dict(
+        keep,
+        APP_ENV="testing",
+        DATABASE_URL=os.environ["DATABASE_URL"],
+        JWT_SECRET_KEY="test-jwt-secret-not-a-real-one-32-bytes-min",
+        JWT_COOKIE_SECURE="false",
+        JWT_COOKIE_SAMESITE="Lax",
+    )
+
+    with mock.patch.dict(os.environ, ci_env, clear=True):
+        app = create_app()
+
+    assert app.extensions["solverah_settings"] is not None
+    assert app.extensions["solverah_settings"].is_testing is True
 
 
 def _yaml_jobs(workflow: str) -> dict:

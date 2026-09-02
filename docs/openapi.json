@@ -1848,7 +1848,7 @@
       },
       "LegacyError": {
         "additionalProperties": false,
-        "description": "The pre-Phase-1 error body: ``{\"error\": \"...\"}``.\n\nHandlers return this from their own explicit failure branches, and Phase 1a\nkeeps every one of them byte-for-byte.  It coexists with\n:class:`ProblemDetailResponse`, which is what the Phase 0 error handlers\nproduce for anything a handler did not catch itself.\n\nThe two shapes are why ``src/utils/apiError.ts`` reads both.  Phase 1b\ncollapses them by moving handlers onto ``solverah.errors.ApiError``.",
+        "description": "The pre-Phase-1 error body: ``{\"error\": \"...\"}``.\n\nHandlers return this from their own explicit failure branches, and Phase 1a\nkeeps every one of them byte-for-byte.  It coexists with\n:class:`ProblemDetailResponse`, which is what the Phase 0 error handlers\nproduce for anything a handler did not catch itself.\n\nThe two shapes are why ``src/shared/api/apiError.ts`` reads both.  Phase 1b\ncollapses them by moving handlers onto ``solverah.errors.ApiError``.",
         "properties": {
           "error": {
             "description": "Human-readable failure message.",

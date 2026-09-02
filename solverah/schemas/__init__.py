@@ -62,7 +62,7 @@ class LegacyError(SolverahModel):
     :class:`ProblemDetailResponse`, which is what the Phase 0 error handlers
     produce for anything a handler did not catch itself.
 
-    The two shapes are why ``src/utils/apiError.ts`` reads both.  Phase 1b
+    The two shapes are why ``src/shared/api/apiError.ts`` reads both.  Phase 1b
     collapses them by moving handlers onto ``solverah.errors.ApiError``.
     """
 
