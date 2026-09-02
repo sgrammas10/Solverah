@@ -37,13 +37,15 @@ timeout = 30
 # sync worker holds one in-flight request total; a second caller queues behind
 # whichever request -- ordinary or streaming -- already has the worker.
 #
-# `gthread` and 8 threads match `infra/docker/Dockerfile.api`'s production
-# CMD, so the two configurations stop disagreeing about the one thing that
-# matters here. `workers` is left unset (gunicorn's default) rather than
-# copied from the Dockerfile's `--workers 3`: on the command line those flags
-# always win over this file (see the module docstring), so pinning `workers`
-# here only changes behaviour for a deploy that dropped the Dockerfile's flags
-# entirely, at which point matching thread *behaviour* (gthread, not sync)
-# matters more than matching the exact replica count.
+# `gthread`, 8 threads, and 3 workers match `infra/docker/Dockerfile.api`'s
+# production CMD, so the two configurations agree. The open question above is
+# now answered: the 2026-09-02 prod-readiness intake
+# (docs/audits/PROD_READINESS_2026-09_ANSWERS.md) confirmed Render runs a
+# native Python runtime with a bare `gunicorn app:app` -- no flags at all --
+# so this file IS the production geometry. Leaving `workers` unset meant prod
+# ran 1 worker x 8 threads, a third of the load-tested capacity; hence the
+# explicit pin. Connection math stays inside Render's max_connections=103:
+# 3 workers x (pool 10 + overflow 5) = 45, 90 during a rolling overlap.
 worker_class = "gthread"
 threads = 8
+workers = 3
