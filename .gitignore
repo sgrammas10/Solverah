@@ -29,6 +29,11 @@ users.db
 *.db
 
 .env*
+# The example file is documentation, not configuration — without this negation
+# the `.env*` glob swallowed it and every edit to it reached nobody (found
+# 2026-08-27, fixed 2026-09-02). It is scanned for secret-shaped values before
+# each re-track; keep placeholders only.
+!.env.example
 # datasets/
 
 # Python
