@@ -1,28 +1,24 @@
 /**
- * RouteFallback.tsx — what the content area shows while a route's chunk is in flight.
+ * RouteFallback.tsx — what the content area shows while a route's content is
+ * not ready to draw.
  *
- * This is the file where the "two spinners fighting each other" problem gets
- * settled, so the reasoning lives here rather than in a commit message.
+ * Two waits end up here, and rendering them identically is deliberate:
  *
- * There are two loading states in this app and they answer different questions:
+ *   Chunk in flight — the route-level Suspense fallback: the code for this
+ *     particular screen is still downloading.
  *
- *   AuthProvider's spinner — "we do not know who you are yet." It owns the
- *     whole viewport, and correctly so: it renders *instead of* the Router, and
- *     even the Header cannot be drawn honestly before the session resolves,
- *     because the Header's own contents depend on whether anyone is signed in.
+ *   Session in flight — RequireAuth holds a protected route's subtree back
+ *     until `GET /auth/session` has said who the visitor is. (AuthProvider
+ *     used to answer this wait with a full-screen spinner that blocked the
+ *     whole app, public routes included; retiring that gate is what moved the
+ *     wait here, into the content area, beneath a Header that already works.)
  *
- *   This fallback — "we know who you are, the chrome around you is already
- *     correct, and the code for this particular screen is still downloading."
- *     It renders below a real Header, inside the content area, and never
- *     replaces the shell.
- *
- * So the two never appear at the same time and never in the same place: the
- * first is gone before the Router mounts, and the second only ever appears
- * beneath a Header the first one was blocking. Chaining a second *full-screen
- * centred spinner* behind the first is what would have read as a stutter — the
- * same shape restarting in the same spot for no reason the user can see. A
- * skeleton in the content region reads instead as the page filling in, which is
- * what is actually happening.
+ * To the user both are the same statement — "this screen is on its way, the
+ * chrome around you is real" — so they get the same skeleton, in the same
+ * place. Two different placeholders trading places in the same spot is the
+ * "stutter" this file exists to avoid: on a hard refresh of a protected
+ * screen, the session wait ends and the chunk wait begins with no visible
+ * seam, because the fallback never changes.
  *
  * The 240ms delay is the other half. Most chunks arrive in well under that on a
  * warm connection, and a placeholder that appears and vanishes inside 60ms is a

@@ -98,24 +98,34 @@ export interface User {
  * fetchWithAuth<T> is the general-purpose authenticated fetch helper:
  *   - Attaches the CSRF token to state-changing requests automatically.
  *   - Throws on non-2xx responses with the server's error message.
+ *
+ * The profile-document operations (`fetchProfileData`, `saveProfileData`,
+ * `updateProfileData`) lived here until the auth ⇄ profile cycle was broken:
+ * they are profile-cache concerns, so they now live in the profile slice as
+ * `useProfileActions()`, built on this context's `fetchWithAuth`. That is the
+ * legal dependency direction — profile depends on auth, never the reverse.
+ * `fetchProfile` (re-probe the session and invalidate the document) went with
+ * them; it had no remaining callers.
  */
 export interface AuthContextType {
   user: User | null;
+  /**
+   * True while the boot-time session restore (`GET /auth/session`) is still in
+   * flight. Routing no longer waits on it — AuthProvider renders its children
+   * immediately — so this flag is how `RequireAuth` knows to hold a protected
+   * route's content back (neither render it nor bounce to /login) until the
+   * probe has said who the visitor is. Public routes never read it.
+   */
+  sessionLoading: boolean;
   login: (email: string, password: string) => Promise<User>;
   /** Set auth state directly from a login response (e.g. OTP-based login). */
   loginWithData: (user: User, csrfToken: string) => void;
   register: (email: string, password: string, name: string, termsAccepted: boolean) => Promise<void>;
   logout: () => Promise<void>;
-  fetchProfile: () => Promise<void>;
   fetchWithAuth: <T = any>(endpoint: string, options?: RequestInit) => Promise<T>;
   streamFetch: (endpoint: string, options?: RequestInit) => Promise<globalThis.Response>;
-  fetchProfileData: () => Promise<{ profileData?: ProfileData } | null>;
-  saveProfileData: (profileData: ProfileData) => Promise<{ profileData?: ProfileData } | null>;
   /** Optimistically update the in-memory user object without a server round-trip. */
   updateProfile: (updates: Partial<User>) => void;
-  /** Merge partial profileData into the cached profile document, no round-trip.
-   *  Since Phase 4a the target is the query cache, not a field on `User`. */
-  updateProfileData: (profileData: ProfileData) => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);

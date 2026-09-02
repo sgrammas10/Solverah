@@ -18,10 +18,11 @@
  * `credentials: "include"` and `parseApiError` all live there and are correct;
  * this module changes who caches the answer, not how it is asked for.
  *
- * Writes still go through AuthContext's `saveProfileData` / `updateProfileData`,
- * which target this cache. Keeping one writer meant the four quiz components
- * that read-modify-write the document inside a submit handler — where a hook
- * cannot be called — did not have to change to share a cache with the readers.
+ * Writes go through `useProfileActions`'s `saveProfileData` /
+ * `updateProfileData` (this slice's own hook, formerly on AuthContext), which
+ * target this cache. Keeping one writer meant the four quiz components that
+ * read-modify-write the document inside a submit handler — where a hook cannot
+ * be called — did not have to change to share a cache with the readers.
  */
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 
@@ -114,10 +115,10 @@ export function seedProfileCache(client: QueryClient, profile: ProfileData | und
  * Two things make it safe rather than merely loud:
  *   - It fires after `shouldRetry` is exhausted, not on the first blip; a 429
  *     or 5xx still gets its two retries before anything reaches a boundary.
- *   - Writes are unaffected. `saveProfileData` and `fetchProfileData` go
- *     through `fetchWithAuth`/`fetchQuery` and still reject to their callers,
- *     which catch them and show inline form errors. Only *reads during render*
- *     escalate.
+ *   - Writes are unaffected. `useProfileActions`'s `saveProfileData` and
+ *     `fetchProfileData` go through `fetchWithAuth`/`fetchQuery` and still
+ *     reject to their callers, which catch them and show inline form errors.
+ *     Only *reads during render* escalate.
  *
  * The one behaviour deliberately given up: ManagerMatchResultsPage used to
  * treat a failed document as "no cached result" and fall through to

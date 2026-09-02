@@ -11,7 +11,7 @@
  * A fifth stage appears here that 6.5 does not name: SIGN IN, between verify and
  * assessment. It is not scope creep -- the app requires it. ConfirmEmail redirects
  * to /login on success and issues no session of its own, and /work-pulse is behind
- * ProtectedRoute. Without signing in, the assessment step would land on /login and
+ * RequireAuth. Without signing in, the assessment step would land on /login and
  * a test asserting "we reached the assessment" would be asserting a redirect.
  *
  * Read tests/e2e/fixtures/api.ts before trusting a green run here: the API is
@@ -92,7 +92,7 @@ test("register -> verify -> assessment -> matches", async ({ page }) => {
   await test.step("assessment", async () => {
     await page.goto("/work-pulse");
 
-    // Reaching the form at all is the ProtectedRoute assertion: a session that
+    // Reaching the form at all is the RequireAuth assertion: a session that
     // did not survive the reload would have redirected to /login instead.
     await expect(page.getByRole("heading", { name: "Work Pulse" })).toBeVisible();
 

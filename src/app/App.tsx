@@ -15,8 +15,12 @@
  *   *                         Catch-all → redirect to /
  *
  * Access control:
- *   ProtectedRoute checks user presence (redirect to /login if null) and role
- *   membership (redirect to / if the user's role is not in allowedRoles).
+ *   The authenticated routes are children of one pathless `RequireAuth` layout
+ *   route (ARCHITECTURE.md 6.3). It holds its subtree back while the session
+ *   probe is in flight, redirects to /login when nobody is signed in, and to /
+ *   when the signed-in role is not allowed. Public routes are its siblings and
+ *   render with zero wait on `GET /auth/session` — AuthProvider no longer
+ *   gates the tree; see RequireAuth.tsx.
  *
  * Header visibility:
  *   The global Header is hidden on the "/" route because PrelaunchLandingPage
@@ -26,8 +30,9 @@ import React, { lazy } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "../features/auth/AuthContext.tsx";
-import { useAuth } from "../features/auth/useAuth";
+import { ProfileCacheSync } from "../features/profile";
 import Header from "./Header";
+import { RequireAuth } from "./RequireAuth";
 import { RouteErrorBoundary } from "./RouteErrorBoundary";
 import { createQueryClient } from "../shared/api/queryClient";
 
@@ -96,29 +101,6 @@ const CompanyLensPage = lazy(() => import("../features/matching/components/Compa
 const ManagerMatchPage = lazy(() => import("../features/assessments/components/ManagerMatchPage"));
 const ManagerMatchResultsPage = lazy(() => import("../features/assessments/components/ManagerMatchResultsPage"));
 const PathIntelligencePage = lazy(() => import("../features/intelligence/components/PathIntelligencePage"));
-
-/**
- * ProtectedRoute — Wraps a route element with authentication and role checks.
- *
- * Unauthenticated users are redirected to /login.
- * Authenticated users whose role is not in allowedRoles are redirected to /.
- * This relies on AuthProvider completing the session-restore fetch before
- * rendering (AuthProvider shows a spinner while loading=true).
- */
-function ProtectedRoute({
-  children,
-  allowedRoles,
-}: {
-  children: React.ReactNode;
-  allowedRoles: string[];
-}) {
-  const { user } = useAuth();
-
-  if (!user) return <Navigate to="/login" replace />;
-  if (!allowedRoles.includes(user.role)) return <Navigate to="/" replace />;
-
-  return <>{children}</>;
-}
 
 // Routes that render their own full navigation bar (hide the global Header).
 const ROUTES_WITHOUT_HEADER = new Set(["/", "/start"]);
@@ -193,7 +175,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
  * Created once at module scope rather than inside App: a client rebuilt on
  * render would throw the cache away on every re-render, which defeats the
  * point. It sits outside AuthProvider because AuthProvider itself reaches for
- * it -- login seeds the profile document into the cache and logout clears it.
+ * it -- logout clears the whole cache so nothing outlives the session.
  */
 const queryClient = createQueryClient();
 
@@ -201,6 +183,14 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+      {/* The profile slice's subscriber to auth's signed-in announcement: it
+          seeds the profile cache from the login envelope. This mount is the
+          wiring — auth cannot import the profile slice (that import WAS the
+          barrel cycle), so the composition root connects the two. Removing it
+          does not break sign-in; it silently moves the document fetch onto the
+          first screen that renders it, which the tests in
+          ProfileCacheSync.test.tsx exist to catch. */}
+      <ProfileCacheSync />
       <Router>
         <AppShell>
           <Routes>
@@ -223,233 +213,68 @@ function App() {
               <Route path="/confirm-email" element={<CheckEmail />} />
               <Route path="/check-email" element={<CheckEmail />} />
 
-              {/* Agent chat route */}
-              <Route
-                path="/agent"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <AgentChat />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* Shared feed + search routes */}
-              <Route
-                path="/feed"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <Feed />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/search"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <SearchResults />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* Job Seeker routes */}
-              <Route
-                path="/job-seeker/dashboard"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <JobSeekerDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/job-seeker/profile"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <JobSeekerProfile />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* Quiz routes */}
-              <Route
-                path="/career-quizzes"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <CareerQuizzes />
-                  </ProtectedRoute>
-                }
-              />
+              {/* Guest quiz previews (public twins of the guarded quiz routes) */}
               <Route path="/quiz-preview/early-career" element={<CareerQuizzes quizKey="earlyCareer" guest />} />
               <Route path="/quiz-preview/career-transition" element={<CareerQuizzes quizKey="careerTransition" guest />} />
               <Route path="/quiz-preview/mid-career" element={<CareerQuizzes quizKey="midCareer" guest />} />
               <Route path="/quiz-preview/teen-focused" element={<CareerQuizzes quizKey="teenFocused" guest />} />
-              <Route
-                path="/career-quizzes/early-career"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <CareerQuizzes quizKey="earlyCareer" />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/career-quizzes/career-transition"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <CareerQuizzes quizKey="careerTransition" />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/career-quizzes/mid-career"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <CareerQuizzes quizKey="midCareer" />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/career-quizzes/teen-focused"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <CareerQuizzes quizKey="teenFocused" />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/career-job-search"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <NextChapterYourWayQuiz />
-                  </ProtectedRoute>
-                }
-              />
               <Route path="/quiz-preview/career-job-search" element={<NextChapterYourWayQuiz guest />} />
-              <Route
-                path="/future-your-way"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <SolverahYourFutureYourWayQuiz />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/quiz-insights"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <QuizInsights />
-                  </ProtectedRoute>
-                }
-              />
 
-              {/* Legacy alias. The person-side assessment ships as Work Pulse at /work-pulse;
-                  AssessmentPage is now a redirect kept so pre-rename links don't break. */}
-              <Route
-                path="/assessment"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <AssessmentPage />
-                  </ProtectedRoute>
-                }
-              />
+              {/* The authenticated application. One pathless layout route
+                  (ARCHITECTURE.md 6.3): RequireAuth holds this subtree back
+                  while the session probe is in flight, then either renders the
+                  matched child or redirects — /login when signed out, / when
+                  the role is not allowed. The children keep absolute paths;
+                  a pathless parent imposes no prefix. */}
+              <Route element={<RequireAuth allowedRoles={["job-seeker"]} />}>
+                {/* Agent chat route */}
+                <Route path="/agent" element={<AgentChat />} />
 
-              {/* Work Pulse routes */}
-              <Route
-                path="/work-pulse"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <WorkPulsePage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/work-pulse/results"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <WorkPulseResultsPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/solverah-profile"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <IntelligencePage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/intelligence"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <IntelligencePage />
-                  </ProtectedRoute>
-                }
-              />
+                {/* Shared feed + search routes */}
+                <Route path="/feed" element={<Feed />} />
+                <Route path="/search" element={<SearchResults />} />
 
-              {/* FocusType routes */}
-              <Route
-                path="/focus-type"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <FocusTypePage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/focus-type/results"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <FocusTypeResultsPage />
-                  </ProtectedRoute>
-                }
-              />
+                {/* Job Seeker routes */}
+                <Route path="/job-seeker/dashboard" element={<JobSeekerDashboard />} />
+                <Route path="/job-seeker/profile" element={<JobSeekerProfile />} />
 
-              {/* ManagerMatch routes */}
-              <Route
-                path="/manager-match"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <ManagerMatchPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/manager-match/results"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <ManagerMatchResultsPage />
-                  </ProtectedRoute>
-                }
-              />
+                {/* Quiz routes */}
+                <Route path="/career-quizzes" element={<CareerQuizzes />} />
+                <Route path="/career-quizzes/early-career" element={<CareerQuizzes quizKey="earlyCareer" />} />
+                <Route path="/career-quizzes/career-transition" element={<CareerQuizzes quizKey="careerTransition" />} />
+                <Route path="/career-quizzes/mid-career" element={<CareerQuizzes quizKey="midCareer" />} />
+                <Route path="/career-quizzes/teen-focused" element={<CareerQuizzes quizKey="teenFocused" />} />
+                <Route path="/career-job-search" element={<NextChapterYourWayQuiz />} />
+                <Route path="/future-your-way" element={<SolverahYourFutureYourWayQuiz />} />
+                <Route path="/quiz-insights" element={<QuizInsights />} />
 
-              {/* CompanyLens */}
-              <Route
-                path="/company-lens"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <CompanyLensPage />
-                  </ProtectedRoute>
-                }
-              />
+                {/* Legacy alias. The person-side assessment ships as Work Pulse at /work-pulse;
+                    AssessmentPage is now a redirect kept so pre-rename links don't break. */}
+                <Route path="/assessment" element={<AssessmentPage />} />
 
-              {/* Path Intelligence */}
-              <Route
-                path="/intelligence/paths"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <PathIntelligencePage />
-                  </ProtectedRoute>
-                }
-              />
+                {/* Work Pulse routes */}
+                <Route path="/work-pulse" element={<WorkPulsePage />} />
+                <Route path="/work-pulse/results" element={<WorkPulseResultsPage />} />
+                <Route path="/solverah-profile" element={<IntelligencePage />} />
+                <Route path="/intelligence" element={<IntelligencePage />} />
 
-              {/* Company detail */}
-              <Route
-                path="/companies/:id"
-                element={
-                  <ProtectedRoute allowedRoles={["job-seeker"]}>
-                    <CompanyDetailPage />
-                  </ProtectedRoute>
-                }
-              />
+                {/* FocusType routes */}
+                <Route path="/focus-type" element={<FocusTypePage />} />
+                <Route path="/focus-type/results" element={<FocusTypeResultsPage />} />
+
+                {/* ManagerMatch routes */}
+                <Route path="/manager-match" element={<ManagerMatchPage />} />
+                <Route path="/manager-match/results" element={<ManagerMatchResultsPage />} />
+
+                {/* CompanyLens */}
+                <Route path="/company-lens" element={<CompanyLensPage />} />
+
+                {/* Path Intelligence */}
+                <Route path="/intelligence/paths" element={<PathIntelligencePage />} />
+
+                {/* Company detail */}
+                <Route path="/companies/:id" element={<CompanyDetailPage />} />
+              </Route>
 
               {/* Catch-all fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />

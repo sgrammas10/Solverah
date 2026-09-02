@@ -7,5 +7,7 @@
  * they are not exported here.
  */
 export { useProfile, profileKeys, seedProfileCache } from "./useProfile";
+export { useProfileActions } from "./useProfileActions";
+export { ProfileCacheSync } from "./ProfileCacheSync";
 export { useProfileForm } from "./useProfileForm";
 export type { ProfileFormData } from "./types";

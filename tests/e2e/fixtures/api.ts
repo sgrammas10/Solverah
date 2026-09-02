@@ -21,8 +21,10 @@
  *
  *   - the built production bundle served by `vite preview`, including the lazy
  *     route chunks -- a broken dynamic import fails here and nowhere else;
- *   - real routing, real navigation, real redirects, and the ProtectedRoute
- *     role check on /work-pulse and /company-lens;
+ *   - real routing, real navigation, real redirects, and the RequireAuth
+ *     role check on /work-pulse and /company-lens — including that the
+ *     boundary holds the route back while the session probe is in flight
+ *     rather than bouncing a signed-in reload to /login;
  *   - real form state: the register page's own password rules and terms gate,
  *     the 6-digit verify guard, the stepper's per-question Next/Finish gating;
  *   - the REQUEST side of the contract. Every payload the SPA sends is recorded

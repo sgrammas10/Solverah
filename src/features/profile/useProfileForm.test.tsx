@@ -8,6 +8,7 @@ import {
 } from "./useProfileForm";
 import { useAuth } from "../auth";
 import { useProfile, profileKeys } from "./useProfile";
+import { useProfileActions } from "./useProfileActions";
 import { useStartResumeParseJob, useResumeParseJobStatus } from "./useResumeParseJob";
 import { createQueryClient } from "../../shared/api/queryClient";
 
@@ -21,18 +22,24 @@ vi.mock("./useProfile", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./useProfile")>();
   return { ...actual, useProfile: vi.fn() };
 });
+vi.mock("./useProfileActions");
 vi.mock("./useResumeParseJob");
 
 const mockAuth = {
   user: null as any,
   updateProfile: vi.fn(),
-  updateProfileData: vi.fn(),
-  saveProfileData: vi.fn(),
   fetchWithAuth: vi.fn(),
   login: vi.fn(),
   register: vi.fn(),
   logout: vi.fn(),
-  fetchProfile: vi.fn(),
+};
+
+// The document writes come from the profile slice's own hook now, so they are
+// stubbed on it rather than on the auth context.
+const mockActions = {
+  fetchProfileData: vi.fn(),
+  saveProfileData: vi.fn(),
+  updateProfileData: vi.fn(),
 };
 
 /** The profile document the query hands back. Set per test before rendering. */
@@ -62,7 +69,8 @@ globalThis.fetch = mockUploadFetch as any;
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(useAuth).mockReturnValue(mockAuth as any);
-  mockAuth.saveProfileData.mockResolvedValue({});
+  vi.mocked(useProfileActions).mockReturnValue(mockActions as any);
+  mockActions.saveProfileData.mockResolvedValue({});
   mockAuth.fetchWithAuth.mockResolvedValue({});
   // The hook loads the document through useProfile() rather than by calling
   // fetchProfileData() on mount -- one source for the form, not two racing ones.

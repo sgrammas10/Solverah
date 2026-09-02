@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from '../../auth';
+import { useProfileActions } from '../../profile';
 import { useNavigate } from "react-router-dom";
 import QuizInsightModal from "./QuizInsightModal";
 import { API_BASE } from "../../../shared/api/api";
@@ -278,8 +279,9 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
     handleInsightClose,
   } = useQuizInsight();
 
-  // Get profile-related actions from AuthContext
-  const { fetchProfileData, saveProfileData, fetchWithAuth } = useAuth();
+  // Transport from auth; profile-document actions from the profile slice
+  const { fetchWithAuth } = useAuth();
+  const { fetchProfileData, saveProfileData } = useProfileActions();
   const navigate = useNavigate();
 
   const visibleQuizzes = useMemo(() => {
@@ -394,7 +396,7 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
    * Submit all quiz answers at once:
    * - Fetch existing profile data (if available)
    * - Merge quiz results into profileData
-   * - Save via saveProfileData from AuthContext
+   * - Save via saveProfileData from the profile slice's useProfileActions
    */
   const onSubmitAll = () => {
     (async () => {
@@ -523,8 +525,8 @@ export default function CareerQuizzesArchetypesTab({ quizKey, guest }: CareerQui
             }
           }
         } else {
-          // If AuthContext doesn't expose saveProfileData, log and show a fallback message
-          console.warn("saveProfileData not available on AuthContext");
+          // If useProfileActions doesn't expose saveProfileData, log and show a fallback message
+          console.warn("saveProfileData not available on useProfileActions");
           alert("Unable to save responses (not authenticated).");
         }
       } catch (err) {

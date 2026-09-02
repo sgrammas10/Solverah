@@ -2,26 +2,32 @@
  * AuthContext.tsx — AuthProvider and all stateful authentication logic.
  *
  * Session lifecycle:
- *   1. On mount, attempt to restore an existing session by calling GET /api/profile
- *      (the JWT lives in an HttpOnly cookie, so no token management needed here).
+ *   1. On mount, attempt to restore an existing session by calling
+ *      GET /auth/session (the JWT lives in an HttpOnly cookie, so no token
+ *      management needed here).
  *   2. On successful restore, store the User object and the CSRF token in state.
  *   3. login() / register() / logout() mutate state and the HttpOnly cookie via
  *      the Flask API.
  *
  * CSRF protection:
  *   The backend issues a CSRF token inside the JSON response body (not in a
- *   readable cookie) on login/profile-read.  fetchWithAuth() attaches it as the
+ *   readable cookie) on login/session-probe.  fetchWithAuth() attaches it as the
  *   X-CSRF-TOKEN header on all state-changing requests (POST/PUT/PATCH/DELETE).
  *
  * Loading state:
- *   While the initial profile fetch is in-flight, a spinner is rendered instead
- *   of children to prevent flicker on protected routes.
+ *   The provider renders its children unconditionally. It used to render a
+ *   full-screen spinner instead of the tree while the restore was in flight,
+ *   which made the public landing page's first paint wait on an authenticated
+ *   round trip (ARCHITECTURE.md 6.3, defect 2). The restore's in-flight state
+ *   is now `sessionLoading` on the context, and the only place that waits on
+ *   it is `RequireAuth` — the route boundary that guards the screens which
+ *   actually need a session.
  */
-import { useState, useEffect, ReactNode } from "react";
+import { useState, useEffect, useRef, ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { AuthContext, ProfileData, SessionResponse, User } from "./authContext";
-import { profileKeys, seedProfileCache } from "../profile";
+import { emitAuthEvent } from "./authEvents";
 import { API_BASE } from "../../shared/api/api";
 import { parseApiError } from "../../shared/api/apiError";
 
@@ -52,8 +58,9 @@ function toUser(session: SessionResponse): User {
  *
  * `POST /auth/login` still returns `profileData` inside `user` -- the wire is
  * unchanged and deliberately so. It simply is not part of the `User` the app
- * holds any more, so it is split out here and seeded into the query cache
- * instead of being carried in auth state.
+ * holds any more, so it is split out here and announced on the signed-in event
+ * for the profile slice to seed its cache from, instead of being carried in
+ * auth state.
  */
 function splitLoginUser(
   raw: User & { profileData?: ProfileData },
@@ -68,6 +75,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [csrfToken, setCsrfToken] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  // True once login()/loginWithData() has set auth state. The boot probe's
+  // continuation checks it: children render while the probe is in flight now,
+  // so a visitor can complete a sign-in on /login before a slow probe -- issued
+  // pre-login, without the new cookie -- comes back 401. Letting that stale
+  // response null out the user would sign them straight back out. An explicit
+  // login is always fresher than the probe that raced it.
+  const signedInExplicitly = useRef(false);
 
   // Restore session automatically using secure cookies.
   //
@@ -92,19 +107,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           credentials: "include",
         });
 
-        if (sessionRes.ok) {
+        if (sessionRes.ok && !signedInExplicitly.current) {
           const session = await sessionRes.json();
           setUser(toUser(session));
           // Read CSRF token from response body (cookie is inaccessible cross-origin)
           if (session.csrf_token) {
             setCsrfToken(session.csrf_token);
           }
-        } else {
-          setUser(null);
         }
+        // A failed probe sets nothing: `user` starts as null, and if a login
+        // beat the probe (see signedInExplicitly) the stale 401 must not undo it.
       } catch (e) {
         console.error("Session restore failed:", e);
-        setUser(null);
       }
       setLoading(false);
     })();
@@ -174,15 +188,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithData = (userData: User, token: string) => {
     const { user: identity, profile } = splitLoginUser(userData);
+    signedInExplicitly.current = true;
     setUser(identity);
     setCsrfToken(token);
-    // OTP sign-in returns the summary user, which carries no profileData (see
-    // PasswordResetVerifyResponse). Seeding `undefined` would pin an empty
-    // document into the cache and suppress the first real fetch, so only a
-    // response that actually carried one writes through.
-    if (profile) {
-      seedProfileCache(queryClient, profile);
-    }
+    // What the envelope carried is announced as it is: OTP sign-in returns the
+    // summary user, which carries no profileData (see
+    // PasswordResetVerifyResponse), and the profile slice's listener is the one
+    // that knows an absent document must not be seeded as an empty one.
+    emitAuthEvent({ type: "signed-in", user: identity, profileData: profile });
   };
 
   // LOGIN — backend sets an HttpOnly JWT cookie
@@ -205,20 +218,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Unexpected response from server (no JSON body).");
     }
 
-    // The login envelope still carries the profile document. It goes to the
-    // query cache rather than into auth state, so the first screen that renders
-    // it does not pay for a request the sign-in already answered.
+    // The login envelope still carries the profile document. It is split off
+    // the `User` here and announced on the signed-in event; the profile slice
+    // reacts by seeding its query cache (ProfileCacheSync), so the first screen
+    // that renders the document does not pay for a request the sign-in already
+    // answered. Auth itself no longer touches the profile cache — that import
+    // was the auth ⇄ profile cycle.
     const { user: userData, profile } = splitLoginUser(data.user);
+    signedInExplicitly.current = true;
     setUser(userData);
-    // Guarded for the same reason loginWithData is: `splitLoginUser` hands back
-    // `undefined` when the envelope carried no profileData, and seeding that
-    // writes the empty document into the cache -- resolved rather than missing
-    // -- which suppresses the first real fetch for the whole staleTime window.
-    // The password envelope does carry the field today; correctness here must
-    // not depend on it continuing to.
-    if (profile) {
-      seedProfileCache(queryClient, profile);
-    }
+    emitAuthEvent({ type: "signed-in", user: userData, profileData: profile });
 
     // Read CSRF token from response body (cookie is inaccessible cross-origin)
     if (data.csrfToken) {
@@ -263,81 +272,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.error(e);
     } finally {
+      signedInExplicitly.current = false;
       setUser(null);
       setCsrfToken(null);
-      // The cached profile document belongs to the session that just ended. It
-      // must not survive into the next sign-in on this tab.
-      queryClient.removeQueries({ queryKey: profileKeys.all });
+      // Every cached query belongs to the session that just ended -- the
+      // profile document, matches, dashboard rows, all of it -- and none of it
+      // may survive into the next sign-in on this tab. Clearing the whole cache
+      // is deliberately broader than the profile-only removal this used to be:
+      // it needs no knowledge of any other slice's query keys (removing that
+      // knowledge is what broke the auth ⇄ profile cycle), and it closes the
+      // same leak for every slice that has since moved onto the query cache.
+      queryClient.clear();
     }
   };
 
-
-  /** Refetch identity and flags, and mark the profile document stale.
-   *
-   * One request now. The session probe is the only source of what `User` holds;
-   * the document is refetched by whichever mounted `useProfile()` needs it,
-   * which is nobody on a screen that does not render it.
-   */
-  const fetchProfile = async () => {
-    const session = await fetchWithAuth<SessionResponse>("/auth/session", { method: "GET" });
-    setUser(toUser(session));
-    await queryClient.invalidateQueries({ queryKey: profileKeys.all });
-  };
-
-  /** Read the profile document, through the cache.
-   *
-   * Kept on the context for the four quiz components that read-modify-write the
-   * document imperatively inside a submit handler, where a hook cannot be
-   * called. `fetchQuery` -- not a bare fetch -- so those callers share the same
-   * cached copy as every `useProfile()` consumer instead of opening a second,
-   * invisible one.
-   */
-  const fetchProfileData = async () => {
-    const profile = await queryClient.fetchQuery<ProfileData>({
-      queryKey: profileKeys.document(),
-      queryFn: async () => {
-        const data = await fetchWithAuth<{ profile?: ProfileData }>("/me/profile", {
-          method: "GET",
-        });
-        return data.profile ?? {};
-      },
-    });
-    return { profileData: profile };
-  };
-
-  /** Persist updated profileData (PATCH /api/v1/me/profile).
-   *
-   * Still a merge, not a replace: the server folds these keys over the stored
-   * document. The server's copy of the result replaces the cache, so anything
-   * the write allowlist dropped or normalised is what consumers see next.
-   *
-   * `data.profile ?? {}` used to make that write unconditional, which is the
-   * same conflation the login path had: a *missing* `profile` key is the
-   * response failing to carry the document, not the document being empty, and
-   * writing `{}` for it would replace a good cached copy with an empty one and
-   * mark it fresh for the staleTime window. A *present* `{}` is a different
-   * statement -- the server describing the document it just wrote -- so that
-   * value is written through, and an object is truthy, so the check below keeps
-   * it. When nothing usable came back the cache is invalidated instead: the
-   * PATCH landed, so the cached copy is out of date either way, and a refetch
-   * gets the truth rather than this function guessing at it.
-   *
-   * Truthiness rather than `!== undefined` because a `null` would otherwise be
-   * written as cache data. `ProfileData` is not nullable, so every consumer
-   * spreading or indexing the document would throw on it.
-   */
-  const saveProfileData = async (profileData: ProfileData) => {
-    const data = await fetchWithAuth<{ profile?: ProfileData }>("/me/profile", {
-      method: "PATCH",
-      body: JSON.stringify({ profile: profileData }),
-    });
-    if (data.profile) {
-      queryClient.setQueryData<ProfileData>(profileKeys.document(), data.profile);
-    } else {
-      await queryClient.invalidateQueries({ queryKey: profileKeys.all });
-    }
-    return { profileData: data.profile };
-  };
 
   /**
    * Optimistically patch the in-memory User without a server round-trip.
@@ -347,44 +295,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser((prev) => (prev ? { ...prev, ...updates } : prev));
   };
 
-  /**
-   * Shallow-merge partial profileData into the cached document.
-   *
-   * Same contract as before -- a merge, no round trip -- but the target is the
-   * query cache rather than a field on `User`. That is what keeps this working
-   * across the move: FocusTypePage still writes its result here on submit, and
-   * FocusTypeResultsPage still finds it, now via `useProfile()`.
-   */
-  const updateProfileData = (profileData: ProfileData) => {
-    queryClient.setQueryData<ProfileData>(profileKeys.document(), (prev) => ({
-      ...(prev ?? {}),
-      ...profileData,
-    }));
-  };
-
 
   const value = {
     user,
+    sessionLoading: loading,
     login,
     loginWithData,
     register,
     logout,
-    fetchProfile,
     fetchWithAuth,
     streamFetch,
-    fetchProfileData,
-    saveProfileData,
     updateProfile,
-    updateProfileData,
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-400"></div>
-      </div>
-    );
-  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

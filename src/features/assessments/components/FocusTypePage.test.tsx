@@ -21,9 +21,14 @@ vi.mock("react-router-dom", async (importOriginal) => {
 vi.mock("../../auth/useAuth", () => ({
   useAuth: () => ({
     fetchWithAuth: mocks.fetchWithAuth,
-    updateProfileData: mocks.updateProfileData,
     user: mocks.user,
   }),
+}));
+
+// The cache merge moved to the profile slice with the auth ⇄ profile cycle
+// kill; the page takes it from useProfileActions() now.
+vi.mock("../../profile/useProfileActions", () => ({
+  useProfileActions: () => ({ updateProfileData: mocks.updateProfileData }),
 }));
 
 // The saved result comes from the profile query now, not off `user`.

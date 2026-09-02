@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth";
-import { useProfile } from "../../profile";
+import { useProfile, useProfileActions } from "../../profile";
 import Scene1 from "./focustype/Scene1";
 import Scene2 from "./focustype/Scene2";
 import Scene3 from "./focustype/Scene3";
@@ -80,7 +80,8 @@ export default function FocusTypePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const isRetake = (location.state as { retake?: boolean } | null)?.retake === true;
-  const { fetchWithAuth, updateProfileData } = useAuth();
+  const { fetchWithAuth } = useAuth();
+  const { updateProfileData } = useProfileActions();
   const { data: profile, isLoading: profileLoading } = useProfile();
 
   const [phase, setPhase] = useState<Phase>("intro");

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../auth";
+import { useProfileActions } from "../../profile";
 import {
   yourFutureYourWayIntro,
   yourFutureYourWayQuestions,
@@ -45,7 +46,8 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
     handleInsightClose,
   } = useQuizInsight();
 
-  const { fetchProfileData, saveProfileData, fetchWithAuth } = useAuth();
+  const { fetchWithAuth } = useAuth();
+  const { fetchProfileData, saveProfileData } = useProfileActions();
   const navigate = useNavigate();
   useEffect(() => {
     (async () => {
@@ -106,7 +108,7 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
      ---------------------------------------------------------
      - Fetch existing profile data
      - Adds/overwrites quizResults.yourFutureYourWay
-     - Saves via saveProfileData from AuthContext
+     - Saves via saveProfileData from the profile slice's useProfileActions
   --------------------------------------------------------- */
   const onSubmit = () => {
     (async () => {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../auth";
+import { useProfileActions } from "../../profile";
 import { nextChapterSections } from "../data/nextChapterYourWayQuiz";
 import QuizInsightModal from "./QuizInsightModal";
 import { API_BASE } from "../../../shared/api/api";
@@ -41,7 +42,8 @@ export default function CareerAndJobSearchTab({ guest }: CareerAndJobSearchTabPr
     handleInsightClose,
   } = useQuizInsight();
 
-  const { fetchProfileData, saveProfileData, fetchWithAuth } = useAuth();
+  const { fetchWithAuth } = useAuth();
+  const { fetchProfileData, saveProfileData } = useProfileActions();
   const navigate = useNavigate();
   useEffect(() => {
     (async () => {
@@ -103,7 +105,7 @@ export default function CareerAndJobSearchTab({ guest }: CareerAndJobSearchTabPr
      ---------------------------------------------------------
      - Fetch existing profile data (if any)
      - Merge in this quiz's results under quizResults.careerJobSearch
-     - Save via saveProfileData from AuthContext
+     - Save via saveProfileData from the profile slice's useProfileActions
   --------------------------------------------------------- */
   const handleSubmit = () => {
     (async () => {

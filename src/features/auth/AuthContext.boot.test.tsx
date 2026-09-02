@@ -46,9 +46,15 @@ const { requests } = recordRequests();
 const SESSION = "GET /api/v1/auth/session";
 const PROFILE = "GET /api/v1/me/profile";
 
-/** Renders nothing but proves the provider finished booting. */
+/** Renders nothing but proves the provider finished booting.
+ *
+ * Reading `sessionLoading` is what makes "anonymous" mean "the probe answered
+ * signed-out": the provider renders children during the restore now (the
+ * app-wide gate is retired), so without it the signed-out tests would assert
+ * on the request list before the request had necessarily been recorded. */
 function Shell() {
-  const { user } = useAuth();
+  const { user, sessionLoading } = useAuth();
+  if (sessionLoading) return <span data-testid="shell">restoring</span>;
   return <span data-testid="shell">{user ? user.email : "anonymous"}</span>;
 }
 

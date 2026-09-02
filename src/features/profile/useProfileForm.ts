@@ -19,6 +19,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../auth";
 import { useProfile, profileKeys } from "./useProfile";
+import { useProfileActions } from "./useProfileActions";
 import { useStartResumeParseJob, useResumeParseJobStatus } from "./useResumeParseJob";
 import { errorMessage } from "../../shared/api/apiError";
 import { ProfileFormData, PendingResumeUpload, ResumeParseUiState, SkillLevel, Certification } from "./types";
@@ -107,13 +108,10 @@ export function normalizeProfileData(
 }
 
 export function useProfileForm() {
-  const {
-    user,
-    updateProfile,
-    updateProfileData,
-    saveProfileData,
-    fetchWithAuth,
-  } = useAuth();
+  const { user, updateProfile, fetchWithAuth } = useAuth();
+  // The document writes come from the profile slice's own hook now; only
+  // identity (`user`, `updateProfile`) and the transport stay on auth.
+  const { updateProfileData, saveProfileData } = useProfileActions();
 
   // The profile document, from the query rather than off `user`. This hook used
   // to do both -- read `user.profileData` in one effect and call

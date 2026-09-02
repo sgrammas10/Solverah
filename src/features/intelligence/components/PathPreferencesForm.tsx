@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../../auth";
+import { useProfileActions } from "../../profile";
 import type { MoveIntent, SeniorityIntent, Priority } from "../types";
 
 interface PathPreferencesFormProps {
@@ -44,7 +45,8 @@ type Answers = {
 };
 
 export default function PathPreferencesForm({ onComplete }: PathPreferencesFormProps) {
-  const { fetchWithAuth, updateProfileData } = useAuth();
+  const { fetchWithAuth } = useAuth();
+  const { updateProfileData } = useProfileActions();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Answers>({
     move_intent: null,
