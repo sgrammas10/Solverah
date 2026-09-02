@@ -1,0 +1,8 @@
+# Dev-only tooling. Install into a venv OUTSIDE the repo (an in-repo venv
+# fails the rglob guard tests — see .claude/CLAUDE.md).
+#
+# Currently: Scripts/load_baseline.py (httpx drives the load; psycopg reads
+# OTPs / seeds culture prefs; redis flushes the dashboard cache for cold runs).
+httpx==0.28.1
+psycopg[binary]==3.2.10
+redis==8.1.0
