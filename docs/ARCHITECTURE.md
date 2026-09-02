@@ -1750,12 +1750,14 @@ constructor, and constructors key on attributes.
 **Two pre-existing defects found while verifying this, neither fixed here.**
 
 - `alembic_version.version_num` is `VARCHAR(32)` and the revision id
-  `20260203_add_email_confirmation_to_user` is 39 characters, so `flask db
-  upgrade` cannot build a database from scratch. It has been true since February
-  and nothing caught it because no test runs the migration chain — the fixtures
-  use `db.create_all()`. It does not affect deploying to an existing database,
-  whose `alembic_version` already holds a shorter id and whose next value
-  (`20260827_profile_tables`, 23 characters) fits.
+  `20260203_add_email_confirmation_to_user` was 39 characters, so `flask db
+  upgrade` could not build a database from scratch. It had been true since
+  February and nothing caught it because no test runs the migration chain — the
+  fixtures use `db.create_all()`. It never affected deploying to an existing
+  database, whose `alembic_version` already held a shorter id. **Fixed
+  2026-09-02**: the four over-long ids were renamed (that one is now
+  `20260203_email_confirmation`) and `tests/test_migrations_chain.py` caps every
+  id at 32 characters.
 - `make migrate-check` (`flask db check`) already reported drift before this
   phase: `company_slug_key` versus `ix_company_slug`, and
   `ix_resume_parse_correction_user_id`. The six tables added here contribute

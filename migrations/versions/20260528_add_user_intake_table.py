@@ -1,14 +1,14 @@
 """add user_intake table
 
 Revision ID: 20260528_user_intake
-Revises: 20260526_add_password_reset_token
+Revises: 20260526_password_reset_token
 Create Date: 2026-05-28
 """
 from alembic import op
 import sqlalchemy as sa
 
 revision = "20260528_user_intake"
-down_revision = "20260526_add_password_reset_token"
+down_revision = "20260526_password_reset_token"
 branch_labels = None
 depends_on = None
 

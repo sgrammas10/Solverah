@@ -4,14 +4,14 @@ Stores company profiles with the 8 culture dimensions as queryable columns
 alongside a full profile JSON blob.
 
 Revision ID: 20260330_add_company
-Revises: 20260312_add_resume_parse_corrections
+Revises: 20260312_resume_corrections
 Create Date: 2026-03-30
 """
 from alembic import op
 import sqlalchemy as sa
 
 revision = "20260330_add_company"
-down_revision = "20260312_add_resume_parse_corrections"
+down_revision = "20260312_resume_corrections"
 branch_labels = None
 depends_on = None
 
