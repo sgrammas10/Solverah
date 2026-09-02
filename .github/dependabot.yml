@@ -18,6 +18,12 @@ updates:
     groups:
       pip-minor-and-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      # numpy 2.5 dropped Python 3.11 (Requires-Python >=3.12), which CI and
+      # the Dockerfile still run; Dependabot doesn't read that metadata and
+      # proposed an uninstallable pin (#131). Lift when the runtime is 3.12+.
+      - dependency-name: "numpy"
+        versions: [">=2.5.0"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
