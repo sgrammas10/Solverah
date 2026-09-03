@@ -155,6 +155,103 @@ jobs:
           pip-audit
 
   # ---------------------------------------------------------------------------
+  # THE OTHER GATE. Runs the migration chain production actually runs.
+  #
+  # The pytest job above never executes a migration: its fixtures build schema
+  # with db.create_all(), so a green suite proves the *models* work and says
+  # nothing about the *chain*. Production runs `flask db upgrade` as Render's
+  # Pre-Deploy Command on every deploy — until this job, that command shipped
+  # unexecuted by CI (2026-09 audit, gap 5). tests/test_migrations_chain.py
+  # guards the chain's structure (revision-id length, single head, linkage)
+  # without touching a database; this job is the execution half: an EMPTY pg18
+  # database taken to head, exactly as a deploy would.
+  #
+  # Postgres 18 for the same load-bearing reason as the job above (prod is
+  # 18.3, uuidv7() is a native built-in the migrations use) — same digest, keep
+  # the two in lockstep, and never downgrade the container to make a migration
+  # pass. `flask db check` (autogenerate drift) is deliberately NOT run here:
+  # as of 2026-09-03 it false-positives on the partition child tables
+  # (rec_action_2026_*, audit_log_*, match_recommendation_*), which exist in
+  # the database but not in the models; making it clean needs include_object
+  # filtering in migrations/env.py first.
+  # ---------------------------------------------------------------------------
+  backend-migrations-postgres:
+    name: Backend (flask db upgrade · Postgres)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a
+        env:
+          POSTGRES_USER: solverah
+          POSTGRES_PASSWORD: solverah
+          POSTGRES_DB: solverah
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U solverah -d solverah"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+
+      # Same three extensions as the pytest job, same reason: the service
+      # container starts before checkout, so infra/docker/initdb cannot run.
+      # Render's managed Postgres has these pre-installed; a deploy's upgrade
+      # never creates them, so neither does the chain — they are precondition,
+      # not migration output.
+      - name: Enable required extensions
+        env:
+          PGPASSWORD: solverah
+        run: |
+          psql -h localhost -U solverah -d solverah -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS citext;
+          CREATE EXTENSION IF NOT EXISTS pg_trgm;
+          CREATE EXTENSION IF NOT EXISTS vector;
+          SQL
+
+      # DATABASE_URL alone, verified sufficient 2026-09-03 against a scratch
+      # pg18: `flask db upgrade` imports app.py → create_app(), and with
+      # APP_ENV unset the config runs on dev defaults, none of which are
+      # fatal. No new variables beyond the five the pytest job already sets.
+      - name: Upgrade from empty database
+        env:
+          DATABASE_URL: postgresql://solverah:solverah@localhost:5432/solverah
+        run: flask db upgrade
+
+      # Belt for the silent-no-op failure mode: if env.py ever stopped seeing
+      # DATABASE_URL (see its own 2026-08-19 war story), upgrade could "pass"
+      # against the wrong target. Prove the service container itself now sits
+      # at the single head the repo declares.
+      - name: Assert database is at the chain head
+        env:
+          DATABASE_URL: postgresql://solverah:solverah@localhost:5432/solverah
+          PGPASSWORD: solverah
+        run: |
+          # The app's own INFO log lines share stdout with the revision list,
+          # so match the "<revision> (head)" line rather than trusting line 1.
+          head=$(flask db heads | awk '/\(head\)/ {print $1; exit}')
+          current=$(psql -h localhost -U solverah -d solverah -tAc \
+            "SELECT version_num FROM alembic_version")
+          echo "repo head: $head"
+          echo "database:  $current"
+          test -n "$head" && test "$head" = "$current"
+
+  # ---------------------------------------------------------------------------
   # RETIRED 2026-08-27 (Phase 2a). There was a `backend-tests-sqlite` job here.
   #
   # It was never a gate — `continue-on-error: true` — and the only argument for

@@ -1,0 +1,147 @@
+# Render Blueprint — Solverah production topology.
+#
+# ⚠️  THIS FILE GOVERNS NOTHING TODAY. Render only applies render.yaml through
+# a Blueprint instance, and production's web service + database were created
+# by hand in the dashboard, which no Blueprint manages. Merging this file
+# changes no infrastructure. It exists to make production reviewable in the
+# repo (the 1-worker-gunicorn surprise of 2026-09-02 is what dashboard-only
+# config costs) and to be ready if a Blueprint is ever adopted. The two
+# adoption paths and their risks: docs/RENDER_DEPLOYMENT.md.
+#
+# Source of truth for what is written here: the 2026-09-02 dashboard intake
+# (docs/audits/PROD_READINESS_2026-09_ANSWERS.md). Env vars are listed as
+# KEYS ONLY (sync: false) — values live in Render, never in this repo.
+#
+# Not captured in the intake, so deliberately omitted (Render would apply its
+# defaults on Blueprint adoption — fill these from the dashboard first):
+#   - `plan` for the web service and the database
+#   - `region`
+#   - a pinned Python version (native runtime; prod runs Render's default —
+#     CI uses 3.11; pin via PYTHON_VERSION when adopting)
+
+services:
+  # ---------------------------------------------------------------- web (API)
+  # Exists today, dashboard-created. Native Python runtime, NOT
+  # infra/docker/Dockerfile.api. Bare `gunicorn app:app` auto-loads the
+  # repo-root gunicorn.conf.py from the working directory (gthread, threads=8;
+  # `workers` comes from that file, not from here).
+  #
+  # The Pre-Deploy Command is the load-bearing line: `flask db upgrade` runs
+  # once per deploy, before instances swap — a failed migration fails the
+  # deploy and the old version keeps serving. CI executes the same chain
+  # against pg18 (job `migrations-postgres` in .github/workflows/tests.yml).
+  - type: web
+    name: solverah-api
+    runtime: python
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    preDeployCommand: flask db upgrade
+    startCommand: gunicorn app:app
+    autoDeployTrigger: commit   # dashboard: auto-deploy on push to main
+    domains:
+      - api.solverah.com        # live; frontend at solverah.com is Vercel, not Render
+    envVars:
+      - fromGroup: solverah-prod
+      - key: DATABASE_URL
+        fromDatabase:
+          name: solverah-db
+          property: connectionString
+
+  # ------------------------------------------------------------ cron: outbox
+  # Does NOT exist in the dashboard yet. The command names are a contract with
+  # the round that is building the CLI (`flask outbox sweep`): drains/retries
+  # unpublished outbox rows, the job that eager mode (no Redis, no worker)
+  # otherwise never runs — a row that fails its single inline send attempt is
+  # parked forever without this.
+  - type: cron
+    name: solverah-outbox-sweep
+    runtime: python
+    branch: main
+    schedule: "*/5 * * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: flask outbox sweep
+    envVars:
+      - fromGroup: solverah-prod
+      - key: DATABASE_URL
+        fromDatabase:
+          name: solverah-db
+          property: connectionString
+
+  # --------------------------------------------------------- cron: retention
+  # Does NOT exist in the dashboard yet. `flask retention run` is the same
+  # contract: retention/purge work (delivered outbox rows hold email addresses
+  # and one-time codes — the PII-retention hole in the 2026-09 audit, gap 1).
+  # 04:30 UTC is arbitrary off-peak; any daily time works.
+  - type: cron
+    name: solverah-retention
+    runtime: python
+    branch: main
+    schedule: "30 4 * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: flask retention run
+    envVars:
+      - fromGroup: solverah-prod
+      - key: DATABASE_URL
+        fromDatabase:
+          name: solverah-db
+          property: connectionString
+
+# ------------------------------------------------------------------ database
+# Exists today, dashboard-created. Measured 2026-08-27 as PostgreSQL 18.3 —
+# uuidv7() is a native built-in the schema depends on (DEFAULT uuidv7()), so
+# 18 is load-bearing; never downgrade this to make anything pass. PITR window
+# 7 days (re-confirmed 2026-09-02); no scheduled logical backups.
+databases:
+  - name: solverah-db
+    postgresMajorVersion: "18"
+
+# ---------------------------------------------------------------- env group
+# The dashboard currently sets these directly on the web service, not in a
+# group. A group is used here so the web service and both cron jobs share one
+# set — on Blueprint adoption Render prompts for every sync: false value.
+#
+# Present in the dashboard but NOT codified:
+#   - CONFIRM_TOKEN_EXP_HOURS, FRONTEND_URL, JWT_COOKIE_DOMAIN — read by no
+#     code on either branch (intake Q5); inert. Delete from the dashboard or
+#     wire them up rather than carrying dead config forward.
+#   - `S3_Region` (sic) — a casing typo the 2026-09-02 intake found (the code
+#     reads `S3_REGION`, storage.py, so the value was ignored and the region
+#     fell back to "auto"). FIXED in the dashboard 2026-09-03; recorded here
+#     because the intake snapshot this file transcribes predates the fix.
+envVarGroups:
+  - name: solverah-prod
+    envVars:
+      - key: APP_ENV
+        value: production       # confirmed value; gates every prod-only config rule
+      - key: JWT_SECRET_KEY
+        sync: false             # fatal at boot if missing or <32 chars in prod
+      - key: JWT_COOKIE_SECURE
+        sync: false             # prod requires effective true; explicit false is fatal
+      - key: JWT_COOKIE_SAMESITE
+        sync: false             # cross-subdomain auth (solverah.com ↔ api.solverah.com)
+      - key: SOLVERAH_FORM_TOKEN_SECRET
+        sync: false             # no default by design (D-05); read at call time —
+                                # missing = every assessment route 500s, boot stays green
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ONET_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_BUCKET_NAME
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_REGION
+        sync: false             # casing typo fixed 2026-09-03 — see note above
+      - key: SENTRY_DSN
+        sync: false             # optional: error tracking is disabled when unset
+                                # (added 6b8584d; not yet in the 2026-09-02 intake list)
