@@ -105,6 +105,18 @@ def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_passwor
     # deleting the rows by hand means a field added to the profile in future is
     # erased here without anyone having to remember to come back.
     profile_repository.update_document(user.id, lambda _existing: {"deleted_at": now_iso})
+    # The pre-Phase-2a copy of that same document. `users.profile_data` is no
+    # longer read or written (model.py), and is kept only so a rollback of the
+    # decomposition is a redeploy -- but "nothing reads it" is not "nothing
+    # holds it": for every account created before Phase 2a the column still has
+    # the phone number, LinkedIn URL, parsed resume text, employment history and
+    # quiz results verbatim, and none of that was reachable by the line above.
+    # SECURITY_AUDIT_2026-09 4.1: a deletion that leaves it is a deletion in
+    # name only. Emptied rather than nulled so the shape still matches the
+    # column default, and here rather than in a sweep so it lands in the same
+    # transaction as the tombstone -- a scrub that can be committed separately
+    # is a scrub that can be missed.
+    user.profile_data = {}
     user.email_confirmed = False
     # `users.status`, added in Phase 2c. `users.deleted_at` is deliberately *not*
     # set: the address is still freed by the rewrite above, so the partial unique
