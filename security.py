@@ -423,3 +423,45 @@ WPLL_ANON_PER_IP_LIMIT = "5 per minute;20 per hour;50 per day"
 #: Like every ceiling here it is only a ceiling if the counter is shared -- which
 #: is now enforced at boot rather than hoped for; see the module docstring.
 WPLL_ANON_GLOBAL_LIMIT = "500 per day"
+
+
+# ---------------------------------------------------------------------------
+# The refresh endpoint (`POST /auth/refresh`) -- S3
+# ---------------------------------------------------------------------------
+#
+# Unauthenticated by cookie: it is reached precisely when the access token has
+# expired, so nothing above it has decided who the caller is. It therefore needs
+# a limit of its own, and sizing it wrong breaks the product in one of two
+# directions.
+#
+# **What this limit is NOT for.** It is not brute-force protection. The token is
+# 256 bits of CSPRNG output (`domain.auth.REFRESH_TOKEN_BYTES`), so guessing one
+# is not a strategy at any rate a limiter could permit, and a stolen token needs
+# exactly one call. What the limit bounds is *work*: every accepted refresh
+# writes two rows and reads an index, and an unbounded loop against this door is
+# a database write amplifier pointed at the auth path.
+#
+# **Why it is generous, and why that is not a weakening.** With a fifteen-minute
+# access token a legitimate browser refreshes four times an hour, and this limit
+# is keyed on the IP -- so behind a corporate NAT gateway the bucket is shared by
+# the whole office and behind mobile CGNAT by a carrier segment. `1 per day per
+# IP` on the guest quiz endpoint is the same mistake already made and already
+# removed in this file (see GUEST_INSIGHTS_PER_IP_LIMIT): a number sized for one
+# person becomes a number sized for a building, and the second person to arrive
+# is signed out for reasons no log explains. Thirty per minute is roughly thirty
+# distinct browsers hitting a refresh in the same minute, which is a plausible
+# 9 a.m. and is nowhere near a loop.
+#
+# **No day term, deliberately**, which is the one place this shape differs from
+# WPLL_ANON_PER_IP_LIMIT above. That endpoint spends money per call and a daily
+# ceiling is the budget; this one spends two INSERTs, and four refreshes per
+# browser per hour times an office is a legitimately large daily number. A day
+# term sized to survive that would bound nothing a minute term had not already
+# bounded, and a day term sized to look tight would sign an office out every
+# afternoon.
+#
+# `shared_limit` with an explicit scope, like every other limit in this
+# application, and `override_defaults=True` (its default) is intended here
+# rather than incidental: DEFAULT_LIMITS' `200 per day` is exactly the per-IP
+# day term the paragraph above rules out.
+REFRESH_PER_IP_LIMIT = "30 per minute;300 per hour"

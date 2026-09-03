@@ -22,6 +22,7 @@ __all__ = [
     "PasswordResetRequest",
     "PasswordResetVerifyRequest",
     "PasswordResetVerifyResponse",
+    "RefreshResponse",
     "RegisterRequest",
     "RegisterResponse",
     "ResendConfirmationRequest",
@@ -39,13 +40,34 @@ class MessageResponse(SolverahModel):
 
 
 class LogoutResponse(MessageResponse):
-    """Always ``{"message": "logout successful"}``.
+    """Always ``{"message": "logout successful"}``, session or no session.
 
-    The cookie is cleared with ``Set-Cookie`` on this response.  Note that the
-    JWT itself remains valid until it expires -- clearing the cookie ends the
-    browser session but cannot revoke the token, which is exactly what Part 5.3's
-    database-backed refresh tokens are for.
+    Both cookies are cleared with ``Set-Cookie`` on this response, and as of S3
+    the refresh-token family behind the session is revoked server-side -- which
+    is what makes a logout mean something to a stolen cookie.  The access token
+    already issued is a signed JWT and stays valid for the remainder of its
+    fifteen minutes; see the handler for why that residue is the deliberate
+    price of not putting a denylist lookup on every authenticated request.
     """
+
+
+class RefreshResponse(SolverahModel):
+    """``POST /auth/refresh`` -- a rotated session.
+
+    Deliberately narrow.  It carries what the client cannot get anywhere else
+    (the new CSRF token, since the access token behind it is new) and nothing
+    else: no user, no flags.  A client that needs those asks
+    ``GET /auth/session``, which is one request and is what it was already going
+    to call on the boot path.  Duplicating that payload here would be a second
+    place for the session shape to drift.
+
+    The tokens themselves are not in the body.  The access token arrives as an
+    HttpOnly cookie exactly as it does on login, and the refresh token as a
+    second HttpOnly cookie scoped to this route.
+    """
+
+    message: str
+    csrfToken: str = Field(description="Echo as X-CSRF-TOKEN on POST/PUT/PATCH/DELETE.")
 
 
 class SummaryUser(SolverahModel):

@@ -13,16 +13,20 @@ the boundary rather than by sleeping.
 from __future__ import annotations
 
 import datetime
+import hashlib
 import os
 import secrets
 from typing import Any, Dict, Optional
 
 __all__ = [
     "DEFAULT_VERIFY_CODE_EXP_MINUTES",
+    "REFRESH_TOKEN_BYTES",
     "TIMING_EQUALISER_HASH",
     "code_expiry_minutes",
     "default_profile",
+    "generate_refresh_token",
     "generate_verification_code",
+    "hash_refresh_token",
     "is_code_expired",
     "lockout_until",
     "utcnow",
@@ -98,6 +102,59 @@ def generate_verification_code() -> str:
     from coming back here or anywhere else under ``solverah/``.
     """
     return str(secrets.randbelow(900000) + 100000)
+
+
+#: Entropy behind a refresh token, in bytes drawn from the OS CSPRNG.
+#:
+#: 32 bytes is 256 bits.  The token is a bearer credential with a thirty-day
+#: life and no second factor behind it, so the only bound that matters is that
+#: guessing one is not a strategy: at 256 bits it is not, by any margin that
+#: will ever be relevant.  ``token_urlsafe`` renders it as 43 URL-safe
+#: characters, which is what makes it safe to carry in a cookie value without
+#: quoting or encoding.
+REFRESH_TOKEN_BYTES = 32
+
+
+def generate_refresh_token() -> str:
+    """Return one opaque refresh token: 256 bits of CSPRNG output, URL-safe.
+
+    **Opaque, not a JWT, and that is the design.**  A JWT refresh token is
+    self-describing and self-validating, which is exactly the property that
+    makes it unrevocable -- the server can check the signature without ever
+    consulting a row, so there is nothing for a logout to change.  This value
+    means nothing on its own; the only thing that makes it a session is a row in
+    ``user_sessions`` that has not been retired, so revoking one is a single
+    ``UPDATE``.
+
+    The token is never stored.  :func:`hash_refresh_token` is what reaches the
+    database; see its docstring for why the digest is SHA-256 and not bcrypt.
+    """
+    return secrets.token_urlsafe(REFRESH_TOKEN_BYTES)
+
+
+def hash_refresh_token(raw: str) -> str:
+    """Return the hex SHA-256 digest a refresh token is stored as.
+
+    **Hashed at rest for the same reason passwords are.**  A database dump, a
+    log line, or a backup that leaks the table must not hand the reader a
+    working session for every live user; with only digests it hands them
+    nothing they can present.
+
+    **SHA-256 rather than bcrypt, and the difference from passwords is the
+    reason.**  Bcrypt's cost parameter exists to make a *dictionary* attack
+    expensive, and a dictionary attack needs a candidate list -- which a human
+    password has and 256 bits of CSPRNG output does not.  There is nothing to
+    slow down here.  What a per-row salted digest *would* cost is the lookup:
+    the presented token has to find its row, and with bcrypt that is a scan of
+    every session in the table rather than one indexed equality on
+    ``token_hash``.  Paying a table scan per refresh to defend against a
+    dictionary that cannot exist is the wrong trade.
+
+    Deterministic and unsalted for the same reason: the digest *is* the index
+    key.  A salt would make two encodings of one token differ, which is the one
+    thing a lookup key may not do.
+    """
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def is_code_expired(

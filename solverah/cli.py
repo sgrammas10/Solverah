@@ -5,8 +5,8 @@ Postgres database: no Redis, no Celery worker, no beat.  Everything in
 ``BEAT_SCHEDULE`` is therefore dead in production, and two of those jobs are
 load-bearing: the outbox sweep is what turns "the inline send failed once" into
 "sent a few minutes later" instead of "never sent", and the retention purge is
-what stops delivered outbox rows -- addresses and one-time codes -- accumulating
-forever.
+what stops delivered outbox rows -- addresses and one-time codes -- and dead
+refresh-session rows accumulating forever.
 
 These commands are those two jobs as Flask CLI entry points, so a separate
 Render **Cron Job** service can run them with nothing but the repo and the
@@ -111,7 +111,15 @@ def outbox_sweep(limit: int) -> None:
     show_default=True,
     help="Delete terminal resume_parse_jobs rows older than this many days.",
 )
-def retention_run(outbox_hours: int, scoring_days: int, resume_days: int) -> None:
+@click.option(
+    "--session-days",
+    default=30,  # refresh_tokens.PURGE_DAYS; ditto
+    show_default=True,
+    help="Delete dead user_sessions rows older than this many days.",
+)
+def retention_run(
+    outbox_hours: int, scoring_days: int, resume_days: int, session_days: int
+) -> None:
     """Purge rows whose retention window has passed.  Deletes are narrow by design:
 
     * outbox: only rows that are BOTH delivered (published_at set) AND older
@@ -119,11 +127,28 @@ def retention_run(outbox_hours: int, scoring_days: int, resume_days: int) -> Non
       email still owed.
     * scoring_jobs / resume_parse_jobs: only terminal (succeeded/failed) rows
       past their window.  Queued/running rows belong to the reapers, not here.
+    * user_sessions: only rows that are BOTH dead -- retired, or past
+      ``expires_at`` -- AND older than the window.  A live session is somebody
+      signed in right now, and deleting one signs them out with no event
+      anywhere saying why.
 
-    No foreign key references any of the three tables, so nothing cascades.
+    The sessions pass has two steps and the order is the point.  ``expire_stale``
+    stamps ``retired_reason = 'expired'`` on rows whose ``expires_at`` has passed
+    without anyone ever coming back for them -- which is most of them, since a
+    token is only ever examined when it is presented -- so the audit trail says
+    how each row died rather than leaving the majority blank.  The delete then
+    applies one window to one column.  It stamps ``retired_at`` with the
+    ``expires_at`` that already passed, never with the clock, so a row whose
+    window is long gone is stamped and removed in the same pass instead of
+    being granted a fresh thirty days for having been noticed.
+
+    ``user_sessions`` has two self-referencing foreign keys (parent/successor),
+    both ``ON DELETE SET NULL``, so deleting an old row breaks a link and takes
+    nothing with it.  No other table references any of the four.
+
     Prints what it deleted; exits non-zero only if the pass itself crashed.
     """
-    from solverah.services import outbox, resume_jobs, scoring_jobs
+    from solverah.services import outbox, refresh_tokens, resume_jobs, scoring_jobs
 
     summary = {
         "event": "retention_run",
@@ -133,6 +158,9 @@ def retention_run(outbox_hours: int, scoring_days: int, resume_days: int) -> Non
         "scoring_window_days": scoring_days,
         "resume_jobs_deleted": resume_jobs.purge_terminal(older_than_days=resume_days),
         "resume_window_days": resume_days,
+        "sessions_expired": refresh_tokens.expire_stale(),
+        "sessions_deleted": refresh_tokens.purge_terminal(older_than_days=session_days),
+        "session_window_days": session_days,
     }
     click.echo(json.dumps(summary))
 

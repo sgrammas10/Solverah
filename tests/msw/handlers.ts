@@ -99,6 +99,59 @@ export function loginFails(message = "Invalid email or password") {
 }
 
 /**
+ * `POST /auth/refresh` succeeding: the refresh cookie was rotated and a new
+ * access token is in the response's cookies.
+ *
+ * Note what the body does NOT carry -- no user, no flags. The real endpoint
+ * answers with the new CSRF token and nothing else, so a client that wants to
+ * know who it is has to re-probe `GET /auth/session`. A double that returned
+ * the session here would let a broken boot path pass.
+ */
+export function refreshSucceeds(csrfToken = "refreshed-csrf-token") {
+  return mock("post", "/api/v1/auth/refresh").reply(200, {
+    message: "refreshed",
+    csrfToken,
+  });
+}
+
+/**
+ * `GET /auth/session` answering 401 once and then as a signed-in user.
+ *
+ * The state either side of a successful rotation, which is what a returning
+ * visitor's page load actually looks like: the access token aged out, the
+ * refresh cookie is still good, and the second probe -- issued after the
+ * exchange -- succeeds. A double that answered 200 from the start could not
+ * tell a boot path that refreshes from one that never needed to.
+ */
+export function sessionExpiredThenSignedIn() {
+  let probes = 0;
+  return mock("get", "/api/v1/auth/session").resolve(() => {
+    probes += 1;
+    if (probes === 1) {
+      return HttpResponse.json({ error: "Token has expired" }, { status: 401 });
+    }
+    return HttpResponse.json({
+      user: TEST_USER,
+      csrf_token: "refreshed-csrf-token",
+      flags: NO_FLAGS,
+    });
+  });
+}
+
+/**
+ * `POST /auth/refresh` refusing. This is the default.
+ *
+ * One body for every reason -- stale, stolen, expired, never issued -- because
+ * that is what the endpoint does: a response that distinguished them would tell
+ * an attacker whether a token they hold was ever real.
+ */
+export function refreshFails() {
+  return mock("post", "/api/v1/auth/refresh").reply(401, {
+    error: "invalid_refresh_token",
+  });
+}
+
+/**
  * The baseline every suite starts from: a signed-out browser.
  *
  * Only the routes the migrated tests actually exercise are listed. An
@@ -108,6 +161,8 @@ export function loginFails(message = "Invalid email or password") {
  */
 export const defaultHandlers = [
   signedOut(),
+  // A signed-out browser has no refresh cookie either, so the baseline refuses.
+  refreshFails(),
   mock("post", "/api/v1/auth/logout").reply(200, { message: "logout successful" }),
   profileDocument(),
   profilePatchEchoes(),

@@ -24,6 +24,7 @@ from model import (
     ResumeParseCorrection,
     User,
     UserIntake,
+    UserSession,
     db,
 )
 from solverah.repositories import assessment_repository, profile_repository
@@ -83,6 +84,21 @@ def delete_personal_rows(user_id: int, intakes: List[IntakeSubmission]) -> None:
     # tests/test_account_lifecycle.py -- and they are behind D-01's doorway,
     # which is exactly why the submission row it is joined to holds none of them.
     assessment_repository.delete_for_user(user_id)
+    # Refresh sessions (S3). Not personal *content* like everything above it,
+    # but live credentials: `tombstone_user` frees the address by rewriting it
+    # and every other route back into the account dies with the password -- a
+    # surviving refresh token would be the one that did not, and it would mint
+    # access tokens for the tombstoned row indefinitely.
+    #
+    # Deleted rather than retired, which is the opposite of what happens to
+    # these rows everywhere else. A retired row is kept because it is the audit
+    # trail of a session that ended; there is no account left for that trail to
+    # be about, and `family_id` plus `user_id` on a deleted user is retention
+    # with no reader -- the shape SECURITY_AUDIT_2026-09 #7 and #18 are both
+    # about. The `ON DELETE CASCADE` on `user_id` never fires here because
+    # deletion tombstones the user row instead of removing it, so the delete has
+    # to be explicit; the same reasoning as the assessment submissions above.
+    UserSession.query.filter_by(user_id=user_id).delete()
 
 
 def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_password: str) -> None:

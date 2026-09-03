@@ -249,10 +249,44 @@ def _configure(app: Flask, settings: Optional[Settings], is_production: bool) ->
     app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY")
     if not app.config["JWT_SECRET_KEY"]:
         raise RuntimeError("JWT_SECRET_KEY is not set")
-    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)  # token expires in 1 hour
+    # Fifteen minutes, down from an hour (S3, audit finding 1.1).
+    #
+    # The hour was the whole exposure window: logout revoked nothing, so a
+    # captured access cookie stayed valid for up to sixty minutes after the
+    # victim clicked "log out" and no operator action short of rotating
+    # JWT_SECRET_KEY fleet-wide shortened that. The number cannot come all the
+    # way down on its own -- a short-lived access token with nothing behind it
+    # is a login screen every fifteen minutes -- which is why this line and the
+    # refresh cookie below are one change and not two.
+    #
+    # What this does NOT do is revoke tokens already issued. `exp` is inside the
+    # JWT and fixed at minting time, so a user holding an hour-long token from
+    # before the deploy keeps it for the rest of its hour. That is deliberate:
+    # nobody is signed out mid-session by the deploy, and the exposure window
+    # closes for everyone within an hour of it. See the S3 round report.
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=15)
 
     # Tell JWTs to live in cookies instead of headers
     app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
+
+    # The refresh cookie is scoped to the one route that reads it, so an
+    # ordinary API call does not carry a thirty-day credential it has no use
+    # for. Every request to /me, /assessments, /companies and the rest is one
+    # fewer place the token can be logged by a proxy, captured by a misbehaving
+    # extension, or reflected back by a debug endpoint.
+    #
+    # The value has to match the mounted rule exactly, prefix included -- the
+    # blueprint carries `/auth/refresh` and the factory mounts it under
+    # V1_PREFIX -- because the browser compares against the request path and a
+    # cookie scoped to a path nothing serves is a cookie that is never sent.
+    # `tests/test_refresh_tokens.py` asserts the two agree rather than trusting
+    # this string.
+    #
+    # Both `set_cookie` (solverah/api/v1/auth.py) and flask-jwt-extended's
+    # `unset_jwt_cookies` read this key, which is what makes the clear on
+    # logout hit the same cookie the login set. A Set-Cookie whose path differs
+    # by one character deletes nothing and leaves the credential in the jar.
+    app.config["JWT_REFRESH_COOKIE_PATH"] = V1_PREFIX + "/auth/refresh"
 
     # In dev (http://localhost) this must be False; in prod over HTTPS, True.
     app.config["JWT_COOKIE_SECURE"] = _parse_bool_env(
@@ -300,6 +334,25 @@ LOCAL_CORS_ORIGINS = [
 ]
 
 
+def _cors_origin_rules(is_production: bool) -> Tuple[list, list]:
+    """The allowlist split into ``(exact origins, regex patterns)``.
+
+    Two lists rather than one because two consumers need different things from
+    them.  flask-cors takes them merged and matches each entry with ``re.match``
+    regardless of which kind it is; the CSRF guard on ``POST /auth/refresh``
+    (``solverah/api/v1/auth.py``) has to know the difference, because treating
+    an exact origin as a pattern *widens* it -- ``https://solverah.com`` read as
+    a regex matches ``https://solverahXcom``, which is a registrable domain
+    somebody else can own.
+
+    :func:`_cors_origins` merges them back in the order flask-cors has always
+    seen, so the CORS configuration is unchanged by this split.
+    """
+    if is_production:
+        return list(PRODUCTION_CORS_ORIGINS), []
+    return list(PRODUCTION_CORS_ORIGINS), list(LOCAL_CORS_ORIGINS)
+
+
 def _cors_origins(is_production: bool) -> list:
     """The credentialed-CORS allowlist for this environment.
 
@@ -323,9 +376,8 @@ def _cors_origins(is_production: bool) -> list:
     Wiring them up is the ``CORS_ORIGINS`` decision recorded there, and it is
     not this round's to make.
     """
-    if is_production:
-        return list(PRODUCTION_CORS_ORIGINS)
-    return LOCAL_CORS_ORIGINS + PRODUCTION_CORS_ORIGINS
+    exact, patterns = _cors_origin_rules(is_production)
+    return patterns + exact
 
 
 def _install_http_middleware(app: Flask, is_production: bool) -> None:
@@ -521,4 +573,10 @@ def create_app(config: Optional[Mapping[str, Any]] = None) -> Flask:
 
     app.extensions["solverah_settings"] = settings
     app.extensions["solverah_is_production"] = is_production
+    # The allowlist the CSRF guard on `POST /auth/refresh` checks `Origin`
+    # against. Stashed here rather than imported, because a blueprint importing
+    # the factory is the circular import the factory exists to avoid -- and
+    # because one resolved value means the guard and the CORS configuration
+    # cannot come to different conclusions about which origins are ours.
+    app.extensions["solverah_cors_rules"] = _cors_origin_rules(is_production)
     return app

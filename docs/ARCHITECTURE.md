@@ -460,9 +460,25 @@ CREATE TABLE user_consents (          -- GDPR / ToS evidence, append-only
 
 #### As built · **2026-08-27**
 
-Shipped as `migrations/versions/20260827_users_table.py`. `users` is built; neither
-`user_sessions` nor `user_consents` is, and both stay declared-only until there is
-a caller. Six things differ from the SQL above.
+Shipped as `migrations/versions/20260827_users_table.py`. `users` is built;
+`user_consents` stays declared-only until there is a caller. Six things differ from
+the SQL above.
+
+**`user_sessions` is built as of 2026-09-03** —
+`migrations/versions/20260903_user_sessions.py`, security round S3 (A24), because
+finding 1.1 in `docs/audits/SECURITY_AUDIT_2026-09.md` is precisely the cost of
+its absence. Four shapes differ from the SQL above and each is a decision:
+`revoked_at` becomes `retired_at` + `retired_reason` over a fixed four-value
+vocabulary (`rotated` / `logged_out` / `reused` / `expired`), because a single
+timestamp cannot tell an incident review which of the four happened;
+`family_id`, `parent_id` and `successor_id` are added, because rotation-on-use
+and family-wide reuse detection are not expressible without them; and
+`user_agent`, `ip` and `public_id` are **not** built. The first two are
+per-request identifying data whose only reader would be a device-list screen
+that does not exist — the same audit raised #18 and #7 against exactly that
+shape, identifying columns retained past any reader — and `public_id` has no
+reader at all, since the client's handle on a session is the token and the
+family id travels only inside a signed JWT claim.
 
 **`user_role` is hyphenated.** `'job-seeker'`, not `'job_seeker'`. The underscore
 is the tidier SQL and it is the wrong value: `job-seeker` is what is stored, what
@@ -959,7 +975,7 @@ Redis stream and drained by a worker — never a synchronous commit on a read.
 | `audit_events` | 13 months | Drop partition |
 | `assessment_responses` | 24 months | Drop partition (scores are kept) |
 | `match_recommendations`, `rec_actions` | 13 months hot | Drop partition after export |
-| `user_sessions` | 30 days past expiry | Nightly job |
+| `user_sessions` | 30 days past expiry | `flask retention run` (`refresh_tokens.expire_stale` then `purge_terminal`) — **built in S3** |
 | `idempotency_keys` | 24 h | Nightly job |
 | Deleted users | 30-day grace, then purge | `retention_cleanup.py`, extended |
 
@@ -1031,7 +1047,7 @@ from, and rows marked *not built* say what they are waiting on — Part 8's Phas
 | POST | `/register` | `POST /api/register` |
 | POST | `/login` | `POST /api/login` |
 | POST | `/logout` | `POST /api/logout` |
-| POST | `/refresh` | *not built* — needs `user_sessions` (A7). Phase 2. |
+| POST | `/refresh` | *new* — **built in S3** (A24). Rotates the refresh cookie and mints a 15-minute access token. |
 | GET | `/session` | *new* — cheap session probe, replaces `GET /api/profile` for auth restore |
 | POST | `/email/verify` | `POST /api/confirm-email` |
 | POST | `/email/verify/resend` | `POST /api/resend-confirmation` |
@@ -1123,12 +1139,26 @@ branch.
 
 ### 5.3 Auth model
 
+**Built in security round S3, 2026-09-03 (A24)**, apart from "sign out everywhere",
+which needs a screen to drive it.
+
 - **Access token**: JWT, 15 min, HttpOnly + `Secure` + `SameSite=None`, CSRF token in
-  the body (the current scheme — kept, it is correct).
+  the body (the current scheme — kept, it is correct). Was 1 hour until S3.
 - **Refresh token**: opaque, 30 days, HttpOnly, hashed in `user_sessions`, **rotated on
-  every use** with reuse detection. This is what makes logout, "sign out everywhere",
-  and stolen-token revocation actually possible — none of which the current 1-hour
-  access-token-only scheme supports.
+  every use** with reuse detection. This is what makes logout and stolen-token
+  revocation actually possible — neither of which the 1-hour access-token-only
+  scheme supported. Its cookie is path-scoped to `/api/v1/auth/refresh`, so an
+  ordinary API call does not carry a thirty-day credential it has no use for.
+  Presenting a retired token revokes the whole family; a 30-second grace window
+  keeps that from firing on two tabs refreshing at once, and the client is
+  single-flight so the window is rarely reached.
+  - *Not built:* "sign out everywhere". The rows support it — one `UPDATE` per
+    `user_id` — and there is no screen that asks for it, so it is an endpoint with
+    no caller.
+  - *Residue, stated:* an access token already issued survives logout for the
+    remainder of its fifteen minutes. A7 buys revocation at one lookup per
+    refresh rather than one per request, and this is the other side of that
+    trade.
 - **Rate limits**, shared across workers via Redis:
 
   | Scope | Limit |
@@ -1581,7 +1611,7 @@ Part 5.2 lists these; each is gated on something Phase 1b does not have.
 | Not built | Gated on |
 |---|---|
 | `/me/experiences`, `/me/educations` | These replace `profileData.experience[]` *inside the blob*. Building them now means CRUD endpoints doing read-modify-write on sub-arrays of a JSON column — starting the decomposition with none of the row-level storage that makes it safe, and widening P0-1's lost-update window once per list item. Phase 2. |
-| `POST /auth/refresh` | Needs the `user_sessions` table (A7). Phase 2. |
+| ~~`POST /auth/refresh`~~ | ~~Needs the `user_sessions` table (A7).~~ **Built in security round S3, 2026-09-03 (A24)**, together with the table. |
 | `202` + job handle on resume-complete, recommendations-refresh, path-suggestions | Needs a queue. Returning 202 for work that then runs inline hands the client a job to poll that has already finished. Phase 3. **Built in Phase 3 for the parse and the path fan-out (3a/3b), and 3c deleted their synchronous halves (A21); recommendations-refresh alone stays a 200 stub — there is still no pipeline behind it to queue (A17).** |
 | `POST /me/matches/{id}/actions` | Needs the `rec_actions` table. Phase 2. |
 | `GET /assessments/{kind}/submissions/{id}` | Only the person-side instrument has submission ids to serve it from. Phase 2's `assessment_*` unification. |
@@ -1800,7 +1830,8 @@ needs it to prove the opposite result, that the bytes *did* change and only wher
 intended.
 
 **Not done here, and named so it is not mistaken for done.** `user_sessions` and
-`user_consents` are still declared-only. `users.profile_data` is still not dropped
+`user_consents` are still declared-only. (`user_sessions` was built later, in
+security round S3 on 2026-09-03 — A24. `user_consents` still is not.) `users.profile_data` is still not dropped
 — 2a's one-release stay is still running. Every `user_id` child column is still
 `INTEGER` against a `BIGINT` parent. `last_login_at` and `deleted_at` exist and
 are never written. And `status` is maintained at exactly two transitions,
@@ -2121,6 +2152,8 @@ in parallel with the rest of Phase 4.
 
 | A22 | Security round S1: make the rate-limit store fatal at boot and tolerant at runtime; close the forgot/resend enumeration oracles and the login timing oracle; mint OTPs from `secrets`; bound the anonymous `wpll` enqueue; drop localhost from production CORS. **Leave register-flow enumeration alone.** (2026-09-03) | **The contract fixture proved zero diff and that is NOT the same as "nothing changed on the wire".** `Scripts/capture_contract.py` was run against `docs/contract_baseline.json` and all 55 steps came back byte-identical, so there is no re-baseline in this round -- but two of these changes *do* change response bytes, and the fixture is simply blind to them: its scenario never calls `/auth/password/forgot` or `/auth/email/verify/resend`, and it sends no `Origin` header, so neither the enumeration fix nor the CORS fix is in its field of view. Recorded here rather than left to be rediscovered, because the next reader's reasonable inference from "zero diff" is the wrong one. *The two wire changes:* `/auth/password/forgot` answered `404 "No account found with that email address."` for an unknown or unconfirmed address and now answers the same `200 reset_sent` a real account gets; `/auth/email/verify/resend` answered `404 "Account not found"` / `400 "Email already confirmed"` / `200` across three populations and now answers `200 confirmation_sent` to all three. Both were probed live in the 2026-09 audit (finding 2.3): POST a mailing list, keep the 200s, and the result is a verified list of this product's users. `docs/openapi.json` loses the two `404` branches, `src/shared/api/schema.ts` is regenerated from it, and the malformed-email `400` stays because it depends on the string rather than on who owns it. *The register oracle is deliberately untouched:* `POST /auth/register` still answers `400 "User already exists"`, because `Register.tsx:11` reads that message and renders "An account with that email already exists" -- changing it is a product decision about signup UX, not a security fix, and the options are written up in the S1 round report rather than chosen here. *The rate-limit change is asymmetric on purpose:* `memory://` in production and a Redis URI with no driver are now `ConfigError` at boot (audit 9.1/9.2, 9.1 being the report's highest-impact finding -- per-worker counters make every limit N-workers looser and reset each deploy, so the auth brute-force bounds and the anonymous spend ceilings stop bounding anything), while a store that dies *after* boot degrades to per-worker counters with a WARNING and recovers on its own (`RATELIMIT_IN_MEMORY_FALLBACK_ENABLED` + `RATELIMIT_SWALLOW_ERRORS`). Entering the degraded posture by accident is impossible; entering it because Redis died is survivable, because a rate limiter is a control *on* the service and not a dependency of it. **⚠ This carries a deploy dependency: production has no Redis today, so the next deploy fails at boot until `REDIS_URL` is set. That ordering is the fix, not a side effect** -- `render.yaml` and `.env.example` now say so. *One scoping call inside the limiter work:* the anonymous global spend ceiling went on `POST /assessments/wpll/scoring-jobs` only, never on the `410`-answering `submissions` route, because that route spends nothing for `wpll` and counting free refusals into a bucket shared by every caller would let anyone close the teaser for real visitors. | Soften the fatal to avoid the deploy dependency; regenerate the contract baseline to "record" a change the fixture never saw; fix register's enumeration in the same round and break the signup UX contract on a security ticket |
 | A23 | Extend the contract scenario to cover `/auth/password/forgot` and `/auth/email/verify/resend` for a known **and** an unknown address, and re-baseline deliberately (2026-09-03) | **A22 recorded that the fixture was blind to the enumeration fix; this closes that blind spot rather than leaving the caveat standing.** The five appended steps are in the baseline for a different reason from every step above them: elsewhere the fixture notices when *a* response changes, here it notices when *two responses stop being identical to each other*. Byte-identity between the known-address answer and the unknown-address answer **is** the security property (audit 2.3) — a `404` for a stranger sorts a mailing list into "has a Solverah account" and "does not" — and no other guard in the repo would catch a future handler reintroducing a distinguishing branch on a path the unit tests do not construct. *Read the new records in pairs:* `forgot-password-known` ≡ `forgot-password-unknown`, and all three `resend-verification-*` records ≡ each other. A future diff that moves both halves of a pair together is a wording change; one that moves a single half is the regression this exists to catch. *Verified at capture time, not assumed:* the run recorded 60 responses, the original 55 came back with **zero drift** (so the extension perturbs no existing step), and all three pairs compared identical across every recorded field — status, mimetype, body, cookies, path. That is also the first wire-level confirmation of S1's fix; the unit tests asserted it, the fixture could not see it. *Appended rather than inserted* so the existing 55 keep their positions, and placed after `logout` so the reset token these mint cannot reach an earlier step. Step counts fit the live limits deliberately: forgot is 3/minute and gets 2 calls, resend is 5/minute and gets 3 — a scenario that trips a limiter would record a `429` as if it were the contract. **CORS remains outside the fixture's field of view** (it sends no `Origin` header); that half of A22's caveat still stands. | Leave the caveat standing and trust unit tests alone for a wire-level property; insert the steps mid-scenario and shift 55 records for no reason; capture straight over the baseline without first proving the original 55 unchanged |
+
+| A24 | Security round S3: build `user_sessions` and make logout actually revoke — opaque refresh tokens hashed at rest, rotated on use, with family-wide reuse detection behind a 30-second concurrency grace window; access tokens down to 15 minutes; the refresh POST guarded by an **Origin** check rather than the double-submit token every other write uses; contract re-baselined to 71 steps (2026-09-03) | **The second deliberate contract change in the project's history, and the diff is smaller than A21's by design: of the 60 steps standing at A23, exactly ONE moved.** `login`'s `cookies_set` gains `refresh_token_cookie`, and nothing else in those 60 differs by a byte — `logout` included, because `unset_jwt_cookies` already cleared all four cookie names and `cookies_set` records names rather than values, so a logout that now revokes a family server-side is wire-identical to one that did not. That was verified BEFORE the recapture, on the unextended scenario, and it is the reason this row can be short: a diff against another commit that touches any of the other 59 is still a defect. Eleven steps are appended (positions 61–71), after the A23 block so the existing records keep their positions. *Read two of them as a pair, the way A23's anti-enumeration records are read:* `refresh` and `refresh-replayed-in-grace` are both `200` with the same body, and the property is that their `cookies_set` **differ** — the first rotates and returns a new refresh cookie, the second is the second tab in a stampede and returns none, because the successor the first request minted is already in the shared jar. A future diff that made those two identical is a design regression no unit test phrases as a wire fact. The three `401`s (`refresh-replayed-after-grace`, `refresh-after-family-revoked`, `refresh-after-logout`) are byte-identical to each other on purpose, S1's uniform-answer rule applied here: a response that distinguished stale from stolen from never-issued would tell an attacker whether a token they hold was ever real. *The design, and what was rejected:* the token is opaque, not a JWT, because a JWT refresh token is self-validating and therefore unrevocable — which is the whole of finding 1.1. It is SHA-256 at rest, not bcrypt: bcrypt's cost defends a dictionary attack and 256 bits of CSPRNG output has no dictionary, while a per-row salt would turn every refresh into a table scan instead of one indexed equality. Reuse detection revokes the **family**, not the row, because once both copies have been seen they are indistinguishable and killing one has even odds of killing the victim's. The 30-second grace window is the concurrency answer and it hands back an access token **without** rotating — re-minting on a grace hit was tried on paper and is actively dangerous, because it leaves the jar holding whichever response landed last, and fifteen minutes later that token is outside the window and revokes the family it was supposed to save. *One departure from the round's brief, flagged rather than silently taken:* the refresh POST is CSRF-protected by an `Origin`/`Referer` allowlist check plus a JSON content-type requirement, not by the double-submit token. The double-submit token is exactly what a client does not have at the moment it needs this endpoint — a returning visitor's first request after fifteen minutes away is a page load, and the CSRF cookie flask-jwt-extended writes is unreadable from `solverah.com` because the API is on `api.solverah.com` (which is why the token is echoed in the login body in the first place). Requiring it would sign out every visitor who closed the tab. The `Origin` check is stronger than double-submit against an attacker who can *write* cookies, and it reuses the S1 CORS allowlist so the two cannot disagree; `_cors_origin_rules` splits exact origins from regex patterns for that check, because reading `https://solverah.com` as a regex also matches `https://solverahXcom`. *The residue, named:* an access token already minted stays valid for the rest of its fifteen minutes after logout — A7 chose one lookup per *refresh* over a denylist lookup on every authenticated request, and this is the price. What was an hour is now a quarter of an hour. *No deploy dependency and no forced sign-out:* `exp` is inside the JWT, so tokens issued before the deploy keep their hour and mid-session users are untouched; they acquire a refresh token at their next login. | Store the refresh token as a JWT and keep the revocation problem; revoke only the presented row on reuse and leave the attacker's copy alive; ship rotation with no grace window and sign multi-tab users out at random; re-mint on a grace hit; require a double-submit token on refresh and log out every returning visitor; treat the one-cookie login diff as a mistake and try to suppress it |
 
 ## Appendix B — What already works and is not being changed
 
