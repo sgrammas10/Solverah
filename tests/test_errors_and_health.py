@@ -187,10 +187,12 @@ def test_custom_api_error_subclass_is_handled(app):
 
 
 # ------------------------------------------------------------------- probes
-def _health_app(checks):
+def _health_app(checks, info=None):
     application = Flask(__name__)
     register_error_handlers(application)
-    application.register_blueprint(create_health_blueprint(checks=checks, release="v1.2.3"))
+    application.register_blueprint(
+        create_health_blueprint(checks=checks, release="v1.2.3", info=info)
+    )
     return application.test_client()
 
 
@@ -255,6 +257,44 @@ def test_readyz_does_not_disclose_the_failure_reason():
 
     assert "password authentication" not in repr(res.get_json())
     assert "solverah_prod" not in repr(res.get_json())
+
+
+def test_readyz_reports_informational_fields_in_the_payload():
+    res = _health_app(
+        {"database": lambda: None},
+        info={"outbox": lambda: {"pending": 2, "parked": 1}},
+    ).get("/readyz")
+    body = res.get_json()
+
+    assert res.status_code == 200
+    assert body["status"] == "ready"
+    assert body["outbox"] == {"pending": 2, "parked": 1}
+
+
+def test_readyz_info_fields_never_flip_readiness():
+    """A deep outbox means email is behind, not that the process cannot serve.
+
+    The trap this guards: wiring the depth counter into `checks` instead of
+    `info` would 503 the probe on a backlog, pulling every instance out of
+    rotation at once over a condition that does not affect serving traffic.
+    """
+    res = _health_app(
+        {"database": lambda: None},
+        info={"outbox": lambda: {"pending": 10_000, "parked": 10_000}},
+    ).get("/readyz")
+
+    assert res.status_code == 200
+    assert res.get_json()["status"] == "ready"
+
+
+def test_readyz_survives_a_broken_info_provider():
+    """Reporting must not break the probe: a raising provider is omitted, not fatal."""
+    res = _health_app({"database": lambda: None}, info={"outbox": _raise}).get("/readyz")
+    body = res.get_json()
+
+    assert res.status_code == 200
+    assert body["status"] == "ready"
+    assert "outbox" not in body
 
 
 def _raise():

@@ -71,6 +71,14 @@ openai==3.3.1
 # happened to drag in. openai==3.3.1 requires
 # `pydantic!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,<3,>=1.10.13`, which this satisfies.
 pydantic==2.13.4
+
+# Error tracking (PROD_READINESS_2026-09 finding 4: production errors are
+# invisible on both tiers). Initialised in create_app() only when SENTRY_DSN is
+# set -- CI sets five variables and none of them is that one, so the suite and
+# any environment without the variable never construct a client. The [flask]
+# extra's requirements (flask, blinker, markupsafe) are all already installed.
+sentry-sdk[flask]==2.68.1
+
 pytest==9.1.1
 pytest-cov==7.1.0
 

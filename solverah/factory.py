@@ -61,6 +61,7 @@ from solverah.extensions import bcrypt, db, jwt, limiter, migrate
 from solverah.infra.cache import init_cache
 from solverah.infra.queue import init_celery
 from solverah.observability.logging import init_logging, install_request_logging
+from solverah.observability.sentry import init_sentry
 from solverah.validation import install_request_validation
 
 __all__ = [
@@ -339,6 +340,16 @@ def _init_extensions(app: Flask) -> None:
     init_rate_limiter(app, limiter=limiter)
 
 
+def _outbox_depth() -> dict:
+    """Outbox depth for the /readyz payload.  Informational, never readiness:
+    a deep outbox means email is behind, not that this process cannot serve."""
+    # Imported here rather than at module scope: outbox pulls in model and the
+    # email infrastructure, which the factory must not need at import time.
+    from solverah.services import outbox
+
+    return outbox.depth()
+
+
 def _register_platform_blueprints(app: Flask) -> None:
     """Health probes plus their Talisman and rate-limit exemptions."""
     # Liveness and readiness. /healthz checks nothing external on purpose: if it
@@ -347,6 +358,7 @@ def _register_platform_blueprints(app: Flask) -> None:
     app.register_blueprint(
         create_health_blueprint(
             checks={"database": database_check(db)},
+            info={"outbox": _outbox_depth},
             release=os.environ.get("RELEASE", "dev"),
         )
     )
@@ -401,6 +413,14 @@ def create_app(config: Optional[Mapping[str, Any]] = None) -> Flask:
                 "configuration_warning",
                 extra={"event": "configuration_warning", "detail": warning},
             )
+
+    # Error tracking, gated on SENTRY_DSN being present (a malformed value was
+    # already fatal above, with the other config problems). Initialised before
+    # the Flask app exists so the SDK's integrations observe everything the
+    # factory wires -- and skipped entirely when unset, so CI and any
+    # environment without the variable boots exactly as before.
+    if settings is not None and settings.sentry_dsn:
+        init_sentry(settings)
 
     # Named "app" rather than __name__ so the Flask app, its logger, and its
     # static/template roots keep the identity they had when this was

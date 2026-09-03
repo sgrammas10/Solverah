@@ -151,6 +151,44 @@ def test_out_of_range_numeric_is_rejected():
     assert any("DB_POOL_SIZE" in p for p in exc.value.problems)
 
 
+def test_sentry_dsn_is_optional_and_absent_means_off():
+    """CI sets five variables and none of them is SENTRY_DSN; boot must not change."""
+    s = Settings.from_env(BASE_ENV)
+
+    assert s.sentry_dsn is None
+
+
+def test_valid_sentry_dsn_is_kept():
+    dsn = "https://abc123def@o4507.ingest.sentry.io/4509"
+    s = Settings.from_env(dict(BASE_ENV, SENTRY_DSN=dsn))
+
+    assert s.sentry_dsn == dsn
+    assert s.redacted()["providers"]["sentry"] is True
+
+
+@pytest.mark.parametrize(
+    "bad_dsn",
+    [
+        "not-a-dsn",
+        "https://o4507.ingest.sentry.io/4509",   # no public key
+        "https://abc123def@o4507.ingest.sentry.io/",  # no project id
+        "https://abc123def@o4507.ingest.sentry.io/not-a-number",
+        "ftp://abc123def@o4507.ingest.sentry.io/4509",  # wrong scheme
+    ],
+)
+def test_malformed_sentry_dsn_is_fatal_at_boot(bad_dsn):
+    """Set-and-malformed is a config problem, not the SDK's error to raise.
+
+    The c4d6041 policy: a variable that is set but unusable stops boot through
+    ConfigError with every other problem listed, rather than sentry_sdk raising
+    its own exception mid-init where the operator gets one problem per restart.
+    """
+    with pytest.raises(ConfigError) as exc:
+        Settings.from_env(dict(BASE_ENV, SENTRY_DSN=bad_dsn))
+
+    assert any("SENTRY_DSN" in p for p in exc.value.problems)
+
+
 def test_redacted_never_exposes_secrets():
     s = Settings.from_env(
         dict(BASE_ENV, OPENAI_API_KEY="sk-live-abcdef", DATABASE_URL="postgresql://u:hunter2@db:5432/app")

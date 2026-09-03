@@ -23,9 +23,9 @@ The two probes answer deliberately different questions:
 
 Neither is rate limited (probes fire continuously), neither is logged as traffic
 (see ``_QUIET_PATHS`` in ``solverah.observability.logging``), and neither
-requires authentication -- but ``/readyz`` reports only booleans and durations,
-never a driver message, since an unauthenticated endpoint that echoes a database
-error discloses topology.
+requires authentication -- but ``/readyz`` reports only booleans, durations, and
+counts, never a driver message, since an unauthenticated endpoint that echoes a
+database error discloses topology.
 """
 
 from __future__ import annotations
@@ -50,6 +50,7 @@ def create_health_blueprint(
     checks: Optional[Dict[str, Callable[[], None]]] = None,
     release: str = "dev",
     started_at: Optional[float] = None,
+    info: Optional[Dict[str, Callable[[], Any]]] = None,
 ) -> Blueprint:
     """Build the health blueprint.
 
@@ -60,11 +61,20 @@ def create_health_blueprint(
             and so this module depends on no particular extension.
         release: Deployed version string, echoed for deploy verification.
         started_at: Process start time (``time.time()``), for uptime reporting.
+        info: Named informational providers, reported in the ``/readyz`` payload
+            but **never** consulted for the status code.  This is the home for
+            "email is behind"-shaped facts (outbox depth): real conditions an
+            operator should see, but not ones that mean the process cannot serve
+            traffic -- flipping readiness on them would take every instance out
+            of rotation at once over a non-fatal backlog.  A provider that
+            raises is logged and omitted, so a broken counter cannot break the
+            probe either way.
 
     Returns:
         A blueprint exposing ``/healthz`` and ``/readyz``.
     """
     checks = checks or {}
+    info = info or {}
     boot_time = started_at if started_at is not None else time.time()
     bp = Blueprint("health", __name__)
 
@@ -97,6 +107,21 @@ def create_health_blueprint(
                 )
 
         body = {"status": "ready" if ready else "not_ready", "release": release, "checks": results}
+
+        # Informational only, by design: these fields never touch `ready`.
+        for name, provider in info.items():
+            try:
+                body[name] = provider()
+            except Exception as exc:  # noqa: BLE001 - reporting must not break the probe
+                logger.warning(
+                    "readiness_info_failed",
+                    extra={
+                        "event": "readiness_info_failed",
+                        "info": name,
+                        "reason": "%s: %s" % (type(exc).__name__, exc),
+                    },
+                )
+
         return jsonify(body), (200 if ready else 503)
 
     return bp

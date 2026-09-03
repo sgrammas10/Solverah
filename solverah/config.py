@@ -26,6 +26,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from typing import List, Mapping, Optional, Sequence
+from urllib.parse import urlsplit
 
 __all__ = ["ConfigError", "Settings", "is_truthy"]
 
@@ -116,6 +117,28 @@ def _read_int(
     return value
 
 
+def _is_valid_sentry_dsn(dsn: str) -> bool:
+    """Whether *dsn* has the ``https://<key>@<host>/<project-id>`` shape.
+
+    Mirrors what ``sentry_sdk``'s own ``Dsn`` parser requires (scheme, public
+    key, host, decimal project id), so a value this accepts cannot make the SDK
+    raise its own error inside ``create_app()`` -- the invalid-config-is-fatal
+    policy (c4d6041) wants that failure reported through :class:`ConfigError`
+    with every other problem, not as a bare traceback at init time.
+    """
+    try:
+        parts = urlsplit(dsn)
+    except ValueError:
+        return False
+    project_id = parts.path.rsplit("/", 1)[-1]
+    return (
+        parts.scheme in {"http", "https"}
+        and bool(parts.username)
+        and bool(parts.hostname)
+        and project_id.isdigit()
+    )
+
+
 @dataclass(frozen=True)
 class Settings:
     """Fully resolved application configuration.
@@ -170,6 +193,12 @@ class Settings:
     resend_api_key: Optional[str] = None
     s3_endpoint_url: Optional[str] = None
     s3_bucket_name: Optional[str] = None
+
+    # Optional like the providers above -- absent means error tracking is off and
+    # boot is identical to today -- but set-and-malformed is fatal, because a
+    # typo'd DSN silently reporting nothing is the same class of failure as
+    # JWT_COOKIE_SECURE=TRU silently reading as false.
+    sentry_dsn: Optional[str] = None
 
     # -- Derived -------------------------------------------------------------
     warnings: List[str] = field(default_factory=list)
@@ -317,6 +346,16 @@ class Settings:
             env, "JWT_ACCESS_TOKEN_MINUTES", 60, problems, minimum=1, maximum=1440
         )
 
+        # Unset disables Sentry entirely (CI sets five variables and none of
+        # them is this one).  Set means the operator intends error tracking, so
+        # a value the SDK could not parse is a problem to fix, not a warning.
+        sentry_dsn = (env.get("SENTRY_DSN") or "").strip() or None
+        if sentry_dsn is not None and not _is_valid_sentry_dsn(sentry_dsn):
+            problems.append(
+                "SENTRY_DSN is malformed: expected https://<key>@<host>/<project-id>"
+                " (unset it to disable error tracking)"
+            )
+
         if problems:
             raise ConfigError(problems)
 
@@ -351,6 +390,7 @@ class Settings:
             resend_api_key=(env.get("RESEND_API_KEY") or "").strip() or None,
             s3_endpoint_url=(env.get("S3_ENDPOINT_URL") or "").strip() or None,
             s3_bucket_name=(env.get("S3_BUCKET_NAME") or "").strip() or None,
+            sentry_dsn=sentry_dsn,
             warnings=warnings,
         )
 
@@ -405,6 +445,7 @@ class Settings:
                 "onet": self.onet_api_key is not None,
                 "resend": self.resend_api_key is not None,
                 "s3": self.s3_bucket_name is not None,
+                "sentry": self.sentry_dsn is not None,
             },
         }
 

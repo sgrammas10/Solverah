@@ -328,3 +328,41 @@ def test_purge_removes_delivered_rows_and_keeps_owed_ones(ctx, monkeypatch, sent
     assert outbox.purge_published(older_than_hours=24) == 1
     assert outbox.entry_state(delivered_id) is None
     assert outbox.entry_state(owed_id) is not None
+
+
+# ── Readiness reporting ─────────────────────────────────────────────────────
+
+
+def test_readyz_stays_200_with_parked_rows_and_reports_the_depth(client, ctx, sent):
+    """Depth is information, never readiness.
+
+    A parked row is somebody's email permanently undelivered -- worth surfacing
+    -- but the process can still serve traffic, and a /readyz that 503'd on it
+    would pull every instance out of the load balancer at once over a backlog.
+    So: the counts must appear in the payload, and the status code must stay on
+    the database check alone.
+    """
+    import sqlalchemy as sa
+
+    from model import Outbox, db
+    from solverah.services import outbox
+
+    outbox.enqueue(TOPIC, _payload("111111"))                # pending
+    parked_id = outbox.enqueue(TOPIC, _payload("222222"))    # parked below
+    delivered_id = outbox.enqueue(TOPIC, _payload("333333")) # published: not counted
+    db.session.commit()
+    outbox.publish(delivered_id)
+
+    with db.engine.begin() as connection:
+        connection.execute(
+            sa.update(Outbox.__table__)
+            .where(Outbox.__table__.c.id == parked_id)
+            .values(attempts=outbox.MAX_ATTEMPTS)
+        )
+
+    res = client.get("/readyz")
+    body = res.get_json()
+
+    assert res.status_code == 200
+    assert body["status"] == "ready"
+    assert body["outbox"] == {"pending": 1, "parked": 1}

@@ -68,6 +68,7 @@ __all__ = [
     "TOPIC_EMAIL_INTAKE_NOTIFICATION",
     "TOPIC_EMAIL_PASSWORD_RESET",
     "TOPIC_EMAIL_VERIFICATION",
+    "depth",
     "drain",
     "enqueue",
     "publish",
@@ -324,6 +325,23 @@ def unpublished_count(include_parked: bool = True) -> int:
                 sa.select(sa.func.count()).select_from(_table).where(*clauses)
             ).scalar_one()
         )
+
+
+def depth() -> Dict[str, int]:
+    """Unpublished rows split into the two states an operator acts on differently.
+
+    ``pending`` rows are waiting on a publisher and will clear on their own once
+    one runs; ``parked`` rows exhausted :data:`MAX_ATTEMPTS` (under eager
+    execution that is a single failed inline send) and clear only by hand.
+
+    Reported in the ``/readyz`` payload as information, never as readiness: a
+    deep outbox means email is behind, not that the process cannot serve
+    traffic, and failing readiness on it would pull the whole service out of
+    rotation over a non-fatal condition.
+    """
+    pending = unpublished_count(include_parked=False)
+    total = unpublished_count(include_parked=True)
+    return {"pending": pending, "parked": total - pending}
 
 
 def entry_state(entry_id: int) -> Optional[Dict[str, Any]]:
