@@ -98,6 +98,10 @@ BASELINE = REPO_ROOT / "docs" / "contract_baseline.json"
 
 EMAIL = "contract-primary@example.test"
 UNCONFIRMED_EMAIL = "contract-unconfirmed@example.test"
+#: An address no scenario step ever registers.  It exists so the two
+#: anti-enumeration endpoints can be asked about a stranger and about a real
+#: user in the same run, and the answers compared.
+ABSENT_EMAIL = "contract-absent@example.test"
 PASSWORD = "Strongpass1!"
 
 #: Same literal every person-side test uses. `respondent_id_for_user` has no
@@ -701,6 +705,64 @@ def run_scenario() -> List[Dict[str, Any]]:
     )
     call("logout", "POST", "/api/v1/auth/logout", headers=csrf)
     call("session-after-logout", "GET", "/api/v1/auth/session")
+
+    # -- the two anti-enumeration endpoints (S1, audit 2.3) ----------------
+    #
+    # These five steps exist for a different reason from every step above.
+    # Elsewhere the baseline's job is to notice when a response changes; here
+    # it is to notice when two responses stop being *the same as each other*.
+    # S1 made forgot-password and resend-verification answer identically
+    # whether or not the address exists, which is the entire fix -- a 404 for
+    # an unknown address is an oracle that sorts a mailing list into "has a
+    # Solverah account" and "does not".  That identity is invisible to every
+    # other guard in the repo: the unit tests assert it directly, but nothing
+    # would catch a future handler that reintroduced a distinguishing branch
+    # in some path the unit tests do not construct.  Recording both answers
+    # here means the diff shows it.
+    #
+    # Read these records in PAIRS.  `forgot-password-known` and
+    # `forgot-password-unknown` must stay byte-identical to each other, and so
+    # must the three `resend-verification-*` records.  A future diff that
+    # changes both halves of a pair together is a deliberate wording change; a
+    # diff that changes only one half is the security regression.
+    #
+    # Appended rather than inserted so the 55 records above keep their
+    # positions, and placed after logout so the reset token these mint cannot
+    # affect an earlier step.  Counts fit the live limits: forgot is 3/minute
+    # and gets 2 calls, resend is 5/minute and gets 3.
+    call(
+        "forgot-password-known",
+        "POST",
+        "/api/v1/auth/password/forgot",
+        json={"email": EMAIL},
+    )
+    call(
+        "forgot-password-unknown",
+        "POST",
+        "/api/v1/auth/password/forgot",
+        json={"email": ABSENT_EMAIL},
+    )
+    # Three populations, one answer.  The confirmed account is the case that
+    # used to answer `400 Email already confirmed`, and the unconfirmed one is
+    # the only address here for which the endpoint does real work.
+    call(
+        "resend-verification-unconfirmed",
+        "POST",
+        "/api/v1/auth/email/verify/resend",
+        json={"email": UNCONFIRMED_EMAIL},
+    )
+    call(
+        "resend-verification-confirmed",
+        "POST",
+        "/api/v1/auth/email/verify/resend",
+        json={"email": EMAIL},
+    )
+    call(
+        "resend-verification-unknown",
+        "POST",
+        "/api/v1/auth/email/verify/resend",
+        json={"email": ABSENT_EMAIL},
+    )
 
     return records
 
