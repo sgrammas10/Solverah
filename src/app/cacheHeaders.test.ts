@@ -145,29 +145,57 @@ describe('vercel.json cache policy', () => {
 });
 
 describe('vercel.json rewrites', () => {
-  it('lets a missing /assets/ path 404 instead of reaching the SPA catch-all', () => {
-    // Measured against production before this rule existed:
-    //   GET /assets/entry-DEADBEEF.js -> 200, Content-Type: text/html
-    // because '/(.*)' -> '/index.html' answers every path the build did not
-    // emit. Harmless while everything revalidated; with the immutable header
-    // above, a chunk dropped by a deploy pins the HTML shell at that URL for a
-    // year in any browser that asked for it. An identity rewrite matched first
-    // leaves the request an ordinary static lookup, which misses and 404s.
-    //
-    // The immutable header is safe *because* of this rule, so removing it has
-    // to break a test rather than quietly widen what gets cached for a year.
-    const passthrough = vercelConfig().rewrites.find((r) => r.source === '/assets/(.*)');
+  // This asserts the OUTCOME -- no SPA rewrite may match a path under
+  // /assets/ -- rather than any particular way of achieving it, because the
+  // first attempt at achieving it did not work and passed a test anyway.
+  //
+  // What was tried: an identity rewrite `/assets/(.*)` -> `/assets/$1` placed
+  // ahead of the catch-all, on the theory that matching it first would leave
+  // the request an ordinary static lookup that misses and 404s. Measured in
+  // production after deploying exactly that:
+  //   GET /assets/entry-DEADBEEF.js -> 200, text/html,
+  //                                    cache-control: max-age=31536000, immutable
+  // Vercel checks the filesystem BEFORE rewrites, so a real asset never
+  // reaches this list at all -- and a missing one, having missed the
+  // filesystem twice, keeps falling through to the catch-all. The identity
+  // rule cannot stop a fallthrough; only not matching can. Hence the negative
+  // lookahead on the catch-all itself.
+  //
+  // The immutable header above is safe *because* of this property, so a
+  // regression has to fail here rather than quietly pin the HTML shell at a
+  // hashed URL for a year -- which no redeploy can reach, because the browser
+  // never asks again.
+  const MISSING_ASSET = '/assets/entry-DEADBEEF.js';
 
-    expect(passthrough).toBeDefined();
-    expect(passthrough!.destination).toBe('/assets/$1');
+  it('has no SPA rewrite that can answer a missing /assets/ path', () => {
+    const spaRewrites = vercelConfig().rewrites.filter(
+      (r) => r.destination === '/index.html'
+    );
+
+    // At least one must exist or client-side routing is broken entirely.
+    expect(spaRewrites.length).toBeGreaterThan(0);
+
+    for (const rule of spaRewrites) {
+      const pattern = new RegExp(`^${rule.source}$`);
+      expect(
+        pattern.test(MISSING_ASSET),
+        `rewrite ${rule.source} -> /index.html answers ${MISSING_ASSET}, which the ` +
+          `immutable header would then cache for a year`
+      ).toBe(false);
+    }
   });
 
-  it('orders the /assets/ passthrough ahead of the SPA catch-all', () => {
-    // Rewrites are first-match, so behind the catch-all the passthrough is
-    // dead config and the shell is served again.
-    const sources = vercelConfig().rewrites.map((r) => r.source);
+  it('still routes ordinary SPA paths to index.html', () => {
+    // The exclusion must be surgical: narrowing it until deep links break is
+    // the obvious way to make the test above pass for the wrong reason.
+    const spaRewrites = vercelConfig().rewrites.filter(
+      (r) => r.destination === '/index.html'
+    );
+    const matches = (path: string) =>
+      spaRewrites.some((rule) => new RegExp(`^${rule.source}$`).test(path));
 
-    expect(sources).toContain('/assets/(.*)');
-    expect(sources.indexOf('/assets/(.*)')).toBeLessThan(sources.indexOf('/(.*)'));
+    for (const path of ['/', '/login', '/job-seeker/dashboard', '/companies/1']) {
+      expect(matches(path), `${path} must still reach the SPA shell`).toBe(true);
+    }
   });
 });
