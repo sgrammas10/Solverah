@@ -14,13 +14,19 @@
  * this change that cannot be rolled back, which is why it is tested rather
  * than reviewed.
  *
- * Two properties hold the line:
+ * Three properties hold the line:
  *   1. the long cache is scoped to `/assets/`, and nothing else;
  *   2. every file Vite emits into `/assets/` carries a content hash, so being
- *      under that prefix is the same claim as being immutable.
+ *      under that prefix is the same claim as being immutable;
+ *   3. a path under `/assets/` that the build did *not* emit 404s, rather than
+ *      falling through the SPA catch-all and being answered with the HTML
+ *      shell — which the immutable header would then pin for a year.
  *
  * (2) is asserted against `vite.config.ts` rather than against a build, so it
- * fails at the moment someone configures an unhashed output name.
+ * fails at the moment someone configures an unhashed output name. (3) is a
+ * property of the rewrite list rather than of the headers, so it is asserted
+ * there; measured against production before the passthrough rule existed,
+ * `GET /assets/entry-DEADBEEF.js` returned `200 text/html`.
  */
 
 import { readFileSync } from 'node:fs';
@@ -35,13 +41,23 @@ interface VercelHeaderRule {
   headers: { key: string; value: string }[];
 }
 
-function headerRules(): VercelHeaderRule[] {
+interface VercelRewriteRule {
+  source: string;
+  destination: string;
+}
+
+interface VercelConfig {
+  rewrites: VercelRewriteRule[];
+  headers: VercelHeaderRule[];
+}
+
+function vercelConfig(): VercelConfig {
   const raw = readFileSync(resolve(REPO_ROOT, 'vercel.json'), 'utf8');
-  return (JSON.parse(raw) as { headers: VercelHeaderRule[] }).headers;
+  return JSON.parse(raw) as VercelConfig;
 }
 
 function cacheControlRules(): VercelHeaderRule[] {
-  return headerRules().filter((rule) =>
+  return vercelConfig().headers.filter((rule) =>
     rule.headers.some((h) => h.key.toLowerCase() === 'cache-control'),
   );
 }
@@ -92,15 +108,66 @@ describe('vercel.json cache policy', () => {
   });
 
   it('emits no unhashed filename into /assets/', () => {
-    // The immutable header's safety rests entirely on this: a file under
-    // /assets/ without a content hash would be cached for a year under a name
-    // the next deploy reuses.
+    // The immutable header's safety rests on this: a file under /assets/ with
+    // no content hash would be cached for a year under a name the next deploy
+    // reuses.
+    //
+    // Only a quoted string literal can be checked for '[hash]' by reading the
+    // file. A template literal, a function, or a variable is not statically
+    // verifiable, and those FAIL rather than pass — a guard that goes quiet
+    // the moment the config gets clever is not a guard. Keys left unconfigured
+    // fall back to Vite's own hashed defaults and so have nothing to report.
     const config = readFileSync(resolve(REPO_ROOT, 'vite.config.ts'), 'utf8');
 
-    for (const [, name] of config.matchAll(
-      /(?:entry|chunk|asset)FileNames:\s*'([^']+)'/g,
-    )) {
-      expect(name).toContain('[hash]');
+    const unhashed: string[] = [];
+    const unverifiable: string[] = [];
+
+    for (const match of config.matchAll(/(entry|chunk|asset)FileNames\s*:/g)) {
+      const key = `${match[1]}FileNames`;
+      const rest = config.slice(match.index! + match[0].length);
+      // Both quote styles; the backreference stops the other one from closing
+      // the literal early.
+      const literal = /^[ \t]*(['"])((?:(?!\1).)*)\1/.exec(rest);
+
+      if (literal === null) {
+        unverifiable.push(`${key}:${rest.split('\n')[0]}`);
+      } else if (!literal[2].includes('[hash]')) {
+        unhashed.push(`${key}: ${literal[2]}`);
+      }
     }
+
+    expect(unhashed, 'output name under /assets/ carries no content hash').toEqual([]);
+    expect(
+      unverifiable,
+      'value is not a string literal, so [hash] cannot be checked by reading vite.config.ts',
+    ).toEqual([]);
+  });
+});
+
+describe('vercel.json rewrites', () => {
+  it('lets a missing /assets/ path 404 instead of reaching the SPA catch-all', () => {
+    // Measured against production before this rule existed:
+    //   GET /assets/entry-DEADBEEF.js -> 200, Content-Type: text/html
+    // because '/(.*)' -> '/index.html' answers every path the build did not
+    // emit. Harmless while everything revalidated; with the immutable header
+    // above, a chunk dropped by a deploy pins the HTML shell at that URL for a
+    // year in any browser that asked for it. An identity rewrite matched first
+    // leaves the request an ordinary static lookup, which misses and 404s.
+    //
+    // The immutable header is safe *because* of this rule, so removing it has
+    // to break a test rather than quietly widen what gets cached for a year.
+    const passthrough = vercelConfig().rewrites.find((r) => r.source === '/assets/(.*)');
+
+    expect(passthrough).toBeDefined();
+    expect(passthrough!.destination).toBe('/assets/$1');
+  });
+
+  it('orders the /assets/ passthrough ahead of the SPA catch-all', () => {
+    // Rewrites are first-match, so behind the catch-all the passthrough is
+    // dead config and the shell is served again.
+    const sources = vercelConfig().rewrites.map((r) => r.source);
+
+    expect(sources).toContain('/assets/(.*)');
+    expect(sources.indexOf('/assets/(.*)')).toBeLessThan(sources.indexOf('/(.*)'));
   });
 });
