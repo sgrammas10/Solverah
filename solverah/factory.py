@@ -55,6 +55,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from security import init_rate_limiter
 from solverah.api.health import create_health_blueprint, database_check
 from solverah.api.v1 import register_v1_blueprints
+from solverah.cli import register_cli
 from solverah.config import ConfigError, Settings
 from solverah.errors import register_error_handlers
 from solverah.extensions import bcrypt, db, jwt, limiter, migrate
@@ -464,6 +465,11 @@ def create_app(config: Optional[Mapping[str, Any]] = None) -> Flask:
     # registered would only work by accident.
     init_cache(app, settings)
     init_celery(app, settings)
+
+    # `flask outbox sweep` / `flask retention run` -- the Render cron service's
+    # entry points (solverah/cli.py). Registered on every app so a cron run
+    # boots through this factory and gets config validation and Sentry for free.
+    register_cli(app)
 
     app.extensions["solverah_settings"] = settings
     app.extensions["solverah_is_production"] = is_production

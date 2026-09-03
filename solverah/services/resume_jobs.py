@@ -46,11 +46,13 @@ from solverah.services import resume_service
 
 __all__ = [
     "FAILED",
+    "PURGE_DAYS",
     "QUEUED",
     "RUNNING",
     "STALL_MINUTES",
     "SUCCEEDED",
     "create",
+    "purge_terminal",
     "reap_stalled",
     "run",
     "status_for",
@@ -70,6 +72,15 @@ FAILED = "failed"
 #: one, and failing those would turn a rolling restart into a wave of bogus
 #: errors.
 STALL_MINUTES = 30
+
+#: How long a terminal job's row survives before :func:`purge_terminal` deletes it.
+#:
+#: Longer than ``scoring_jobs``' seven days because these rows are the support
+#: record for "my resume didn't parse" -- ``attempts``, the object key, and the
+#: failure reason -- and that conversation can start a while after the upload.
+#: Thirty days is a support window; keeping name-bearing filenames past it is
+#: retention with no reader (SECURITY_AUDIT_2026-09 #7).
+PURGE_DAYS = 30
 
 #: The only failure text a client is ever shown.
 #:
@@ -278,3 +289,35 @@ def pending_ids(limit: int = 100) -> List[int]:
                 .limit(limit)
             )
         ]
+
+
+def purge_terminal(older_than_days: int = PURGE_DAYS) -> int:
+    """Delete terminal rows past their retention window.
+
+    SECURITY_AUDIT_2026-09 finding #7: these rows carry ``resume_name`` (often a
+    person's own name in the filename) and ``object_key``, ``user_id`` cascades
+    on a hard DELETE that account *tombstoning* never issues, and no purge
+    existed -- so they survived forever.  The parse result itself lives in the
+    profile tables; after :data:`PURGE_DAYS` the row is a stale receipt.
+
+    Only ``succeeded``/``failed`` rows are deleted.  A ``queued`` or ``running``
+    row -- however old -- is :func:`reap_stalled`'s to fail first; deleting it
+    would turn a pollable job into a 404.
+    """
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+        days=older_than_days
+    )
+    with db.engine.begin() as connection:
+        result = connection.execute(
+            sa.delete(_table).where(
+                _table.c.status.in_((SUCCEEDED, FAILED)),
+                _table.c.created_at < cutoff,
+            )
+        )
+    purged = result.rowcount or 0
+    if purged:
+        logger.info(
+            "resume_jobs_purged",
+            extra={"event": "resume_jobs_purged", "count": purged},
+        )
+    return purged

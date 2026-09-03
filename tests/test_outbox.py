@@ -268,6 +268,140 @@ def test_a_row_past_max_attempts_is_no_longer_swept(ctx, monkeypatch, sent):
     assert outbox.unpublished_count(include_parked=False) == 0
 
 
+# ── Backoff: retries respect the row's age ──────────────────────────────────
+
+
+def test_a_retried_row_waits_out_its_backoff_window(ctx, sent):
+    """A row with failed attempts behind it is not retried by every sweep.
+
+    ``RETRY_MIN_AGE`` was added for the cron cadence: under the old flat design
+    8 attempts burned in ~4 minutes of provider outage. Here a row with two
+    attempts must be at least 15 minutes old before try 3 -- a fresh one is
+    skipped, and the same row backdated past the threshold is picked up.
+    """
+    import sqlalchemy as sa
+
+    from model import Outbox, db
+    from solverah.services import outbox
+
+    entry_id = outbox.enqueue(TOPIC, _payload("515151"))
+    db.session.commit()
+
+    with db.engine.begin() as connection:
+        connection.execute(
+            sa.update(Outbox.__table__)
+            .where(Outbox.__table__.c.id == entry_id)
+            .values(attempts=2)
+        )
+
+    assert outbox.drain() == {"selected": 0}
+    assert sent == []
+
+    # Age the row past the attempts=2 threshold (15 minutes) and sweep again.
+    with db.engine.begin() as connection:
+        connection.execute(
+            sa.update(Outbox.__table__)
+            .where(Outbox.__table__.c.id == entry_id)
+            .values(created_at=sa.text("now() - interval '16 minutes'"))
+        )
+
+    assert outbox.drain() == {"selected": 1, outbox.PUBLISHED: 1}
+    assert sent == [(EMAIL, "515151")]
+
+
+def test_a_first_failure_is_retried_by_the_very_next_sweep(ctx, monkeypatch, sent):
+    """The Scenario A case that started all this: one failed inline send.
+
+    ``attempts == 1`` must be eligible immediately -- the user is waiting on a
+    sign-in code, and the next cron pass (minutes away) is the retry. Only the
+    later attempts back off.
+    """
+    from model import db
+    from solverah.services import outbox
+
+    entry_id = outbox.enqueue(TOPIC, _payload("616161"))
+    db.session.commit()
+
+    monkeypatch.setattr(
+        "solverah.infra.email.send_confirmation_email",
+        lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("provider blip")),
+    )
+    assert outbox.publish(entry_id) == outbox.FAILED
+
+    monkeypatch.setattr(
+        "solverah.infra.email.send_confirmation_email",
+        lambda to, code: sent.append((to, code)),
+    )
+    assert outbox.drain() == {"selected": 1, outbox.PUBLISHED: 1}
+    assert sent == [(EMAIL, "616161")]
+
+
+def test_the_backoff_schedule_matches_max_attempts():
+    """One entry per allowed try, or the CASE in ``drain`` silently misroutes."""
+    from solverah.services import outbox
+
+    assert len(outbox.RETRY_MIN_AGE) == outbox.MAX_ATTEMPTS
+
+
+# ── Concurrency: two sweeps, one row, one email ─────────────────────────────
+
+
+def test_two_concurrent_sweeps_cannot_both_claim_one_row(ctx, monkeypatch):
+    """The double-send trap, exercised with a real second connection.
+
+    Sweep A claims the row and is held *inside the provider call* -- where
+    ``publish`` holds the row's ``FOR UPDATE`` lock. Sweep B runs a full drain
+    while A is in flight: its ``SKIP LOCKED`` select must skip the row, select
+    nothing, and send nothing. Exactly one email leaves.
+
+    (The other interleaving -- both sweeps collecting the id before either
+    publishes -- is serialised by the same row lock inside ``publish`` and is
+    covered by ``test_publishing_an_already_published_row_sends_nothing``.)
+    """
+    import threading
+
+    from app import app
+    from model import db
+    from solverah.services import outbox
+
+    entry_id = outbox.enqueue(TOPIC, _payload("717171"))
+    db.session.commit()
+
+    in_send = threading.Event()
+    release = threading.Event()
+    sends = []
+
+    def held_send(to, code):
+        sends.append((to, code))
+        in_send.set()
+        if not release.wait(timeout=15):
+            raise RuntimeError("test never released the provider call")
+
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", held_send)
+
+    results = {}
+
+    def sweep_a():
+        with app.app_context():
+            results["a"] = outbox.drain()
+
+    thread = threading.Thread(target=sweep_a, daemon=True)
+    thread.start()
+    assert in_send.wait(timeout=15), "sweep A never reached the provider call"
+
+    # A holds the row lock across its send; B's whole pass runs meanwhile.
+    results["b"] = outbox.drain()
+
+    release.set()
+    thread.join(timeout=15)
+    assert not thread.is_alive(), "sweep A never finished"
+
+    assert results["b"] == {"selected": 0}, "sweep B claimed a row sweep A held"
+    assert results["a"] == {"selected": 1, outbox.PUBLISHED: 1}
+    assert sends == [(EMAIL, "717171")], "one row produced more than one send"
+    assert outbox.entry_state(entry_id)["published_at"] is not None
+
+
 # ── Topics ──────────────────────────────────────────────────────────────────
 
 
@@ -328,6 +462,48 @@ def test_purge_removes_delivered_rows_and_keeps_owed_ones(ctx, monkeypatch, sent
     assert outbox.purge_published(older_than_hours=24) == 1
     assert outbox.entry_state(delivered_id) is None
     assert outbox.entry_state(owed_id) is not None
+
+
+def test_purge_spares_pending_parked_and_recently_delivered_rows(ctx, sent):
+    """Every class of row the purge must NOT delete, in one pass.
+
+    Deletion requires BOTH delivered AND past the window. A pending row (owed),
+    a parked row (owed, exhausted -- an operator's to-do, and old enough that
+    age alone would qualify it), and a freshly delivered row (inside the window)
+    must all survive a purge, whatever their age.
+    """
+    import sqlalchemy as sa
+
+    from model import Outbox, db
+    from solverah.services import outbox
+
+    pending_id = outbox.enqueue(TOPIC, _payload("111111"))
+    parked_id = outbox.enqueue(TOPIC, _payload("222222"))
+    fresh_id = outbox.enqueue(TOPIC, _payload("333333"))
+    db.session.commit()
+    outbox.publish(fresh_id)  # delivered just now: inside any sane window
+
+    with db.engine.begin() as connection:
+        # Parked, and old enough that only the published_at IS NOT NULL guard
+        # (never age) can be what protects it.
+        connection.execute(
+            sa.update(Outbox.__table__)
+            .where(Outbox.__table__.c.id == parked_id)
+            .values(
+                attempts=outbox.MAX_ATTEMPTS,
+                created_at=sa.text("now() - interval '30 days'"),
+            )
+        )
+        connection.execute(
+            sa.update(Outbox.__table__)
+            .where(Outbox.__table__.c.id == pending_id)
+            .values(created_at=sa.text("now() - interval '30 days'"))
+        )
+
+    assert outbox.purge_published(older_than_hours=24) == 0
+    assert outbox.entry_state(pending_id) is not None
+    assert outbox.entry_state(parked_id) is not None
+    assert outbox.entry_state(fresh_id) is not None
 
 
 # ── Readiness reporting ─────────────────────────────────────────────────────

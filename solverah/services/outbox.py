@@ -63,6 +63,7 @@ __all__ = [
     "MAX_ATTEMPTS",
     "MISSING",
     "PUBLISHED",
+    "RETRY_MIN_AGE",
     "TOPICS",
     "TOPIC_EMAIL_EARLY_ACCESS",
     "TOPIC_EMAIL_INTAKE_NOTIFICATION",
@@ -110,6 +111,44 @@ MISSING = "missing"
 #: not know) would otherwise be retried by every sweep forever, and the sweep
 #: would spend its budget on it instead of on the rows behind it.
 MAX_ATTEMPTS = 8
+
+#: Backoff: the age a row must reach before try ``n + 1`` is allowed.
+#:
+#: Indexed by ``attempts`` -- the number of tries already made -- and measured
+#: from ``created_at``, so no schema change is needed: ``attempts`` only ever
+#: goes up, which makes age-at-attempt a monotonic stand-in for
+#: time-since-last-attempt.
+#:
+#: The schedule assumes the sweep runs on a coarse cadence (production is a
+#: cron every ~5 minutes; see docs/RUNBOOK_SCENARIO_A_CRON.md) rather than the
+#: 30-second beat loop the original flat design was written for.  Under that
+#: beat loop, 8 flat attempts spanned ~4 minutes and a Resend outage longer
+#: than that parked every row it touched.  With the entries below and a 5-minute
+#: cadence, the tries land at roughly 0 (inline), 5m, 15m, 45m, 2h, 4h, 8h and
+#: 16h of row age -- so only an outage longer than ~16 hours can park a row,
+#: and a healthy provider still gets the user their code on the next sweep.
+#:
+#: The first two entries are zero on purpose: a row that has never been tried
+#: (a lost ``publish_soon``) and a row whose single inline attempt just failed
+#: are both worth retrying at the very next sweep.
+#:
+#: One degenerate case, accepted: eligibility is age-based, so if the sweep
+#: itself was down for hours, a backlogged row old enough to clear every
+#: threshold can burn its remaining attempts across consecutive sweeps.  That
+#: still gives it ~30 minutes of retries after the sweep recovers, which is the
+#: old design's whole budget.
+RETRY_MIN_AGE = (
+    datetime.timedelta(0),           # try 1: never attempted
+    datetime.timedelta(0),           # try 2: first (inline) attempt failed
+    datetime.timedelta(minutes=15),  # try 3
+    datetime.timedelta(minutes=45),  # try 4
+    datetime.timedelta(hours=2),     # try 5
+    datetime.timedelta(hours=4),     # try 6
+    datetime.timedelta(hours=8),     # try 7
+    datetime.timedelta(hours=16),    # try 8: parks if this one fails
+)
+
+assert len(RETRY_MIN_AGE) == MAX_ATTEMPTS
 
 
 def _send_verification(payload: Dict[str, Any]) -> None:
@@ -267,11 +306,25 @@ def drain(limit: int = 100) -> Dict[str, int]:
     and a row another worker is mid-send on should be left to it rather than
     waited on.  The ids are collected in one short transaction and published one
     per transaction after it, so the selecting transaction is not held open
-    across N provider calls.
+    across N provider calls.  Two overlapping sweeps that both collect the same
+    id are still safe: :func:`publish` locks the row across the provider call,
+    so the loser waits and then reads ``published_at`` -- one send, never two.
+
+    A row is only selected once it is old enough for its next try -- see
+    :data:`RETRY_MIN_AGE`.  A row still inside its backoff window is left where
+    it is and counted by nothing here; it stays visible in :func:`depth` as
+    ``pending``.
 
     Returns:
         Counts keyed by outcome, plus ``selected``.
     """
+    now = datetime.datetime.now(datetime.timezone.utc)
+    # attempts -> the latest created_at that makes the row old enough to retry.
+    eligible_cutoff = sa.case(
+        {tries: now - min_age for tries, min_age in enumerate(RETRY_MIN_AGE)},
+        value=_table.c.attempts,
+        else_=now - RETRY_MIN_AGE[-1],
+    )
     with db.engine.begin() as connection:
         ids: List[int] = [
             row.id
@@ -280,6 +333,7 @@ def drain(limit: int = 100) -> Dict[str, int]:
                 .where(
                     _table.c.published_at.is_(None),
                     _table.c.attempts < MAX_ATTEMPTS,
+                    _table.c.created_at <= eligible_cutoff,
                 )
                 .order_by(_table.c.created_at)
                 .limit(limit)
