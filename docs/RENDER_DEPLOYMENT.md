@@ -35,8 +35,10 @@ merging, editing, or deleting `render.yaml` changes zero infrastructure.
 Today the file is *reviewed documentation* — nothing more. Do not treat a
 merged change to it as deployed.
 
-There are two ways to live with that. **The choice is deliberately left
-open — decide before anyone "fixes" prod by editing the YAML.**
+There are two ways to live with that. **DECIDED 2026-09-03: Path B** — it
+matches how production has been operated all along; revisit Path A at the
+next restore-to-new-instance per the deciding factor below. Last verified
+against dashboard: 2026-09-03.
 
 ### Path A — link a Blueprint (render.yaml becomes enforcement)
 
