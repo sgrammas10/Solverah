@@ -532,7 +532,133 @@ attacker controls the input.
 
 ---
 
+## Post-review fixes (ultrareview on PR #145)
+
+Three findings came back against the round as first written. All three are
+fixed here; the first is the only one that changed behaviour on the wire's
+meaning rather than in the log.
+
+### R1 — grace required a live family, and did not check for one (normal)
+
+`_outcome_for_retired` decided the grace window from the presented row's own two
+columns. `revoke_family` retires **live** rows only — deliberately, so an
+ancestor goes on saying it died of rotation, which is true and is what an audit
+needs to read — so a *rotated ancestor* still read `rotated` after logout or
+reuse detection killed its family, and walked into the window.
+
+Reproduced before the fix, against Postgres: login → refresh → logout → present
+the pre-rotation token.
+
+```
+AFTER LOGOUT: [(1, 'rotated'), (2, 'logged_out')]
+refresh_token_grace  family_id=01a06873-… user_id=1
+ANCESTOR PRESENTED AFTER LOGOUT -> 200 {"csrfToken":"…","message":"refreshed"}
+```
+
+A fifteen-minute access token minted *after* logout, repeatable for the rest of
+the window — the one property this round exists to establish, defeated by the
+window that makes rotation usable. The same held for a family revoked for reuse.
+
+Grace is now two conditions: retired by rotation inside `GRACE_SECONDS`, **and**
+no sibling in the family retired as `logged_out` or `reused` (`_family_revoked`).
+A dead family's ancestor is *refused* — a new `revoked` outcome, WARNING
+`refresh_token_dead_family`, no second `AuditLog` — rather than re-detected as
+reuse: nothing live remains to revoke, and the caller is at least as likely to
+be a tab whose refresh was in flight when the logout committed as it is to be a
+thief. The fix is on the read path on purpose; rewriting history in
+`revoke_family` would make every ancestor of a stolen chain claim it was stolen.
+
+**Cost.** One `EXISTS` on `ix_user_sessions_family`, paid only on the grace
+branch and never on the ordinary rotate path. Measured on pg18 with 42,880 rows:
+a typical four-rotation family **0.028 ms** (3 buffers); a worst-case 2,880-row
+family — a 15-minute access token rotated across a 30-day refresh life, alive,
+so the whole family is walked — **0.67 ms** (66 buffers). A partial index on
+`(family_id) WHERE retired_reason IN ('logged_out','reused')` is available if a
+family ever gets larger than that; at these numbers it would be premature.
+
+**The race, and why the answer is correct.** `engine_options()` sets no
+`isolation_level`, so READ COMMITTED. Each *statement* takes a fresh snapshot
+even inside an open transaction, so the `EXISTS` sees any logout that committed
+before it started, and a logout landing between the row read and the family
+check resolves conservatively — the newer state wins and the token is refused.
+The only surviving ordering is a logout committing *after* the `EXISTS`, where
+the refresh genuinely preceded the logout; that access token is the same
+fifteen-minute residue `logout()` already documents and bounds, and since the
+grace path mints no cookie and no row, the family cannot outlive the logout.
+Closing that last window needs the per-request denylist A7 traded away.
+
+### R2 — an already-stamped `expired` row was treated as reuse (nit)
+
+Because the window test required `retired_reason == 'rotated'`, a row already
+stamped `expired` — by `expire_stale()` in `flask retention run`, or by an
+`_expire` on an earlier presentation — fell through to `_detect_reuse` and wrote
+a false `refresh_token_reuse` event. Rows sit in that state for `PURGE_DAYS`, so
+every user returning after thirty days away raised the alarm this module exists
+to raise. `_outcome_for_retired` now answers `expired` directly, matching the
+module docstring's "Expiry is not reuse" on the second presentation as well as
+the first.
+
+### R3 — a comment named a variable that does not exist (nit)
+
+`fetchWithAuth`'s 401 handler credited the at-most-one-retry guarantee to a
+`retried` flag. There is none; the guarantee is structural — a plain `if`, no
+loop, no path back in from the replay. Comment corrected, no code change.
+
+### What did not move
+
+The three concurrency tests
+(`test_replaying_a_just_rotated_token_inside_the_grace_window_succeeds`,
+`test_two_simultaneous_refreshes_of_one_token_do_not_revoke_the_family`,
+`test_the_grace_window_does_not_extend_the_family`) pass **unedited** — in each
+the successor is live, so the family reads alive and grace is preserved. The
+diff to `tests/test_refresh_tokens.py` is purely additive.
+
+`Scripts/verify_contract.py`: **0 differences across 71 responses**. Expected —
+every refusal shares one 401 body — but note what that does *not* prove: the
+scenario calls `_age_retirements` before its dead-family steps, so all of them
+land outside the window and reach `_detect_reuse`. The contract exercises no
+part of the new `revoked` branch; `tests/test_refresh_tokens.py` is its only
+cover. Worth knowing before the contract is read as evidence about this path.
+
 ## Not implemented, deliberately
+
+### Follow-up S3-F1 — a `logged_out` or `reused` row presented later is still labelled reuse
+
+**Not fixed in the post-review pass, and scoped out on purpose** — R1 covers a
+dead family's *ancestor*; this is the row that was itself retired by logout or
+by reuse detection. It still reaches `_detect_reuse` and still writes an
+`AuditLog(action='refresh_token_reuse')`.
+
+**Frequency: ordinary, not an edge case.** Every logout with a refresh in flight
+hits it. Tab A logs out; tab B's refresh was already on the wire carrying the
+cookie from the shared jar, arrives after `revoke_family` commits, and is filed
+as a security event. That is a normal multi-tab logout, not an attack, and it is
+the same mislabelling as R2: presenting a `logged_out` token is not evidence of
+theft — the user ended the session, and the token they are presenting is the one
+the server told them to stop using. `revoked_siblings` is `0` on every such row,
+which is the tell.
+
+**Why it was left.** The change is not free the way R1 and R2 were. A token
+retired by logout *is* worth seeing when it shows up days later from an address
+the user has never used — the event is not always noise, and the right answer is
+probably a distinct action (`refresh_token_after_revocation`) rather than
+silence, which means deciding what an operator should be paged on. That is a
+design call for a round with the audit-consumer in scope, not a nit to fold into
+a review fix.
+
+**For whoever picks it up.** The branch is the final `return _detect_reuse(row)`
+in `_outcome_for_retired` (`solverah/services/refresh_tokens.py`). The
+`_refuse_dead_family` helper added by R1 is the shape to reuse — WARNING, no
+`AuditLog`, uniform 401 — but the reason string and log event should
+distinguish "presented after the session ended" from "ancestor of a dead
+family". A regression test needs a client whose refresh cookie survives the
+logout response's `unset_jwt_cookies`: build it with `_fresh_client()` and
+`_set_refresh_cookie(...)` after the logout, the way
+`test_a_refresh_token_captured_before_logout_is_worthless_after_it` already
+does, then assert `AuditLog.query.filter_by(action='refresh_token_reuse')` stays
+empty. Note that `refresh-after-logout` in `Scripts/capture_contract.py` looks
+like this case but is not: it re-presents `login_token` from the *first* family,
+whose retirements were aged out of the window earlier in the scenario.
 
 ### "Sign out everywhere"
 

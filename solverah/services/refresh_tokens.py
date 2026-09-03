@@ -49,6 +49,23 @@ already happened, and gets a fresh access token without a second rotation.
   token replayed a week later would also find a live successor and be waved
   through.  The clock is the whole control.
 
+  **Grace also requires the family to be alive, and that is a second condition
+  rather than a detail of the first.**  A token belonging to a revoked family is
+  never in grace.  :func:`revoke_family` retires live rows only -- so that an
+  ancestor goes on saying it died of rotation, which is true and is what an
+  audit needs to read -- which means the presented row cannot tell you whether
+  its session is over.  Checking only the row let a *rotated ancestor* of a
+  logged-out family through the window and mint a fifteen-minute access token
+  after the user logged out, defeating the property this module exists to
+  establish.  The fix belongs here, on the read path, and not in
+  :func:`revoke_family`: rewriting history on revocation would make every
+  ancestor of a stolen chain claim it was stolen, which is a worse answer to a
+  different question.
+
+  An ancestor of a dead family is *refused*, not treated as reuse.  Nothing
+  live remains to revoke, and the caller is at least as likely to be a tab
+  whose refresh was in flight when the logout committed as it is to be a thief.
+
 **Expiry is not reuse.**  A token past `expires_at` is retired as `expired` and
 refused, and its family is left alone: an expired token is the system working,
 and revoking a family for it would sign a user out of a session they had
@@ -168,10 +185,13 @@ class RefreshOutcome:
     """What :func:`rotate` decided, in terms the HTTP layer can act on.
 
     Attributes:
-        status: One of ``rotated``, ``grace``, ``reused``, ``expired``,
-            ``unknown``.  ``rotated`` and ``grace`` are the two successes and
-            they differ in exactly one way: only ``rotated`` carries a token to
-            put in a cookie.
+        status: One of ``rotated``, ``grace``, ``reused``, ``revoked``,
+            ``expired``, ``unknown``.  ``rotated`` and ``grace`` are the two
+            successes and they differ in exactly one way: only ``rotated``
+            carries a token to put in a cookie.  The four refusals are separate
+            because they mean different things in the log -- on the wire they
+            are one uniform 401, which is what stops the response telling a
+            caller which one it hit.
         user: The account behind the presented token, when there was one.  Its
             email is the JWT identity and its session family is the ``sid``
             claim, so the API layer needs the row rather than just an id.
@@ -247,10 +267,14 @@ def rotate(raw_token: str) -> RefreshOutcome:
     1. No row -> ``unknown``.  Not "reused": there is no family to revoke and
        no evidence of anything except a caller with a value that was never a
        token here.
-    2. Already retired -> ``grace`` if it was retired by *rotation* inside
-       :data:`GRACE_SECONDS`, otherwise ``reused``, which revokes the family.
-       A token retired by logout is never in grace, whenever it is presented:
-       the user said the session was over.
+    2. Already retired -> ``expired`` if that is what it was stamped as, since
+       expiry is not theft on the second presentation either; ``grace`` if it
+       was retired by *rotation* inside :data:`GRACE_SECONDS` **and** no
+       sibling in its family was retired by logout or reuse; ``revoked`` if the
+       family is dead, which refuses without revoking anything further;
+       otherwise ``reused``, which revokes the family.  No token belonging to a
+       revoked family is ever in grace, whenever it is presented: the user said
+       the session was over.
     3. Past ``expires_at`` -> ``expired``, stamped as such, family untouched.
     4. Otherwise rotate: claim the row, mint the successor, link the two.
 
@@ -335,16 +359,89 @@ def rotate(raw_token: str) -> RefreshOutcome:
     )
 
 
+def _family_revoked(family_id) -> bool:
+    """Whether anything in *family_id* was retired by logout or reuse detection.
+
+    The second half of the grace test, and the reason grace is not decided by
+    the presented row alone.  :func:`revoke_family` only touches rows that are
+    still live -- deliberately, so an ancestor goes on saying it died of
+    rotation, which is true -- so the presented row cannot tell you whether the
+    session it belonged to is over.  Only its siblings can.
+
+    ``expired`` is not in the list and must not be: expiry is not revocation,
+    and a family whose live tip merely ran out has no ancestor within seconds
+    of its rotation anyway.
+
+    One index probe on ``ix_user_sessions_family``, paid only on the grace
+    branch -- a row retired by rotation inside :data:`GRACE_SECONDS` -- and
+    never on the ordinary rotate path.
+    """
+    return bool(
+        db.session.execute(
+            sa.select(
+                sa.exists().where(
+                    _table.c.family_id == family_id,
+                    _table.c.retired_reason.in_((REASON_LOGGED_OUT, REASON_REUSED)),
+                )
+            )
+        ).scalar()
+    )
+
+
+def _refuse_dead_family(row) -> RefreshOutcome:
+    """Refuse an ancestor of a family that has already been revoked.
+
+    Refused rather than re-detected as reuse, and the distinction is the point.
+    There is nothing left to revoke -- every live row in this family died when
+    the family did -- and the caller is at least as likely to be a tab whose
+    refresh was in flight when the user logged out as it is to be a thief.
+    Writing a second ``refresh_token_reuse`` row would make one incident read as
+    two and would put an ordinary logout race in the same column as a theft.
+
+    A WARNING, though, because a token presented after its session was revoked
+    is worth seeing; and the same uniform 401 on the wire as every other
+    refusal, so the response still tells a caller nothing.
+    """
+    logger.warning(
+        "refresh_token_dead_family",
+        extra={
+            "event": "refresh_token_dead_family",
+            "user_id": row.user_id,
+            "family_id": str(row.family_id),
+            "retired_reason": row.retired_reason,
+        },
+    )
+    return RefreshOutcome(status="revoked", family_id=str(row.family_id))
+
+
 def _outcome_for_retired(row) -> Optional[RefreshOutcome]:
     """Answer for an already-retired row, or None if the row is still live."""
     if row.retired_at is None:
         return None
+
+    if row.retired_reason == REASON_EXPIRED:
+        # Stamped by `expire_stale` in the retention cron, or by an `_expire` on
+        # an earlier presentation of this same token. Either way the answer is
+        # the one `_expire` gives, and the row sits in this state for
+        # `PURGE_DAYS` -- so falling through to reuse detection here raised a
+        # security event for every user coming back after thirty days away.
+        logger.info(
+            "refresh_token_expired",
+            extra={
+                "event": "refresh_token_expired",
+                "user_id": row.user_id,
+                "family_id": str(row.family_id),
+            },
+        )
+        return RefreshOutcome(status="expired", family_id=str(row.family_id))
 
     within_grace = (
         row.retired_reason == REASON_ROTATED
         and (_utcnow() - _aware(row.retired_at)).total_seconds() <= GRACE_SECONDS
     )
     if within_grace:
+        if _family_revoked(row.family_id):
+            return _refuse_dead_family(row)
         logger.info(
             "refresh_token_grace",
             extra={

@@ -326,9 +326,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // if the refresh fails there is no session left to salvage, so drop the
     // local one and let the original error surface.
     //
-    // ONE retry, unconditionally. A loop here would turn an expired family into
-    // an infinite refresh storm against the auth endpoint, and `retried` is
-    // what makes the second 401 mean what it says.
+    // ONE retry, unconditionally, and it is the shape that guarantees it: a
+    // plain `if`, no loop, and no path back into here from the replay. A loop
+    // would turn an expired family into an infinite refresh storm against the
+    // auth endpoint; because there is none, a second 401 falls straight through
+    // to the throw below and means what it says.
     if (res.status === 401) {
       if (await refreshSession()) {
         res = await send();

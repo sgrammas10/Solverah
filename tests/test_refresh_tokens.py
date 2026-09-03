@@ -283,6 +283,89 @@ def test_a_token_retired_by_logout_is_never_inside_the_grace_window(client):
     assert _refresh(attacker).status_code == 401
 
 
+def test_a_rotated_ancestor_is_refused_after_logout_kills_the_family(client):
+    """Grace needs a live family, not just a recent rotation.
+
+    The test above covers a token that was *itself* retired by logout. This one
+    covers its ancestor, and they fail differently: `revoke_family` retires live
+    rows only -- deliberately, so an ancestor goes on saying it died of
+    rotation, which is true -- so an ancestor reads exactly like the second half
+    of a stampede long after the session ended. Before the family-liveness
+    check it was handed a fifteen-minute access token *after the user logged
+    out*, which is the one property this round exists to establish.
+
+    No clock is moved: the ancestor is presented well inside `GRACE_SECONDS`,
+    because that is the whole point -- the window is what let it through.
+    """
+    _register_confirmed(client)
+    _csrf, ancestor = _login(client)
+
+    rotated = _refresh(client)
+    assert rotated.status_code == 200
+    csrf = rotated.get_json()["csrfToken"]
+
+    logout = client.post("/api/v1/auth/logout", headers={"X-CSRF-TOKEN": csrf})
+    assert logout.status_code == 200
+
+    attacker = _fresh_client()
+    _set_refresh_cookie(attacker, ancestor)
+    response = _refresh(attacker)
+
+    assert response.status_code == 401, "a rotated ancestor outlived the logout"
+    assert response.get_json() == {"error": "invalid_refresh_token"}, (
+        "a dead family answers something a stale token does not"
+    )
+
+
+def test_a_rotated_ancestor_is_refused_after_reuse_revoked_the_family(client):
+    """The same hole, reached through reuse detection instead of logout.
+
+    Built so one ancestor is *outside* the window (it triggers the detection)
+    while another is *inside* it, which is the state that matters: a family can
+    be killed while one of its rotations is seconds old. The second ancestor
+    must be refused, and must not write a second `refresh_token_reuse` row --
+    the family is already dead, there is nothing left to revoke, and a duplicate
+    event makes one incident read as two.
+    """
+    from app import app
+    from model import AuditLog
+
+    _register_confirmed(client)
+    _csrf, first = _login(client)
+
+    assert _refresh(client).status_code == 200  # first -> second
+    second = _cookie_value(client)
+    _age_retirements(minutes=5)                 # ages `first` out of the window
+    assert _refresh(client).status_code == 200  # second -> third, retired just now
+
+    attacker = _fresh_client()
+    _set_refresh_cookie(attacker, first)
+    assert _refresh(attacker).status_code == 401, "reuse detection did not fire"
+
+    rows = _sessions()
+    assert rows[-1].retired_reason == refresh_tokens.REASON_REUSED, (
+        "the live token survived a detected reuse"
+    )
+    assert rows[1].retired_reason == refresh_tokens.REASON_ROTATED, (
+        "the middle ancestor should still say it died of rotation"
+    )
+
+    with app.app_context():
+        before = AuditLog.query.filter_by(action="refresh_token_reuse").count()
+    assert before == 1
+
+    second_ancestor = _fresh_client()
+    _set_refresh_cookie(second_ancestor, second)
+    response = _refresh(second_ancestor)
+
+    assert response.status_code == 401, (
+        "an ancestor inside the window minted a token for a revoked family"
+    )
+    with app.app_context():
+        after = AuditLog.query.filter_by(action="refresh_token_reuse").count()
+    assert after == before, "refusing a dead family wrote a second reuse event"
+
+
 def test_an_expired_token_is_refused_without_revoking_the_family(client):
     """Expiry is not theft.
 
@@ -310,6 +393,52 @@ def test_an_expired_token_is_refused_without_revoking_the_family(client):
 
     rows = _sessions()
     assert rows[0].retired_reason == refresh_tokens.REASON_EXPIRED
+
+
+def test_a_token_already_stamped_expired_is_still_not_reuse(client):
+    """"Expiry is not reuse" has to hold on the second presentation too.
+
+    The test above proves it for the first, where `rotate` does the stamping.
+    Afterwards the row sits there reading `expired` for thirty days -- that is
+    `PURGE_DAYS`, and `expire_stale` in `flask retention run` puts it in that
+    state for every session nobody came back for. Checking only
+    ``retired_reason == 'rotated'`` for grace sent all of them to reuse
+    detection, so an ordinary returning user raised the alarm this module
+    exists to raise.
+
+    Stamped here the way the cron does it, by calling `expire_stale` rather
+    than hand-writing the columns, so the test breaks if the cron's notion of
+    "expired" and this one ever drift apart.
+    """
+    from app import app
+    from model import AuditLog, UserSession, db
+
+    _register_confirmed(client)
+    _csrf, raw = _login(client)
+
+    table = UserSession.__table__
+    with app.app_context():
+        db.session.execute(
+            sa.update(table).values(
+                expires_at=datetime.datetime.now(datetime.timezone.utc)
+                - datetime.timedelta(days=1)
+            )
+        )
+        db.session.commit()
+        assert refresh_tokens.expire_stale() == 1
+
+    assert _sessions()[0].retired_reason == refresh_tokens.REASON_EXPIRED
+
+    returning = _fresh_client()
+    _set_refresh_cookie(returning, raw)
+    assert _refresh(returning).status_code == 401
+
+    assert _sessions()[0].retired_reason == refresh_tokens.REASON_EXPIRED, (
+        "presenting an expired token rewrote how it died"
+    )
+    with app.app_context():
+        events = AuditLog.query.filter_by(action="refresh_token_reuse").count()
+    assert events == 0, "an expired token was logged as a security event"
 
 
 def test_an_unknown_token_is_refused_and_revokes_nothing(client):
