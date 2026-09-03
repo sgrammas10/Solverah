@@ -117,6 +117,81 @@ def _read_int(
     return value
 
 
+#: The backup object store's four credentials, read as one group.
+#:
+#: Deliberately *not* the app's ``S3_*``: the whole point of the backup bucket
+#: is that a compromised application key cannot read or delete what is in it.
+#: There is therefore no fallback anywhere in this file or in
+#: ``solverah/infra/backup_storage.py`` -- an operator who sets three of these
+#: gets a refusal naming the fourth, never a backup silently written with the
+#: application's own credentials into a bucket the application can empty.
+BACKUP_S3_KEYS = (
+    "BACKUP_S3_ENDPOINT_URL",
+    "BACKUP_S3_BUCKET_NAME",
+    "BACKUP_S3_ACCESS_KEY_ID",
+    "BACKUP_S3_SECRET_ACCESS_KEY",
+)
+
+
+def _read_backup_s3(env: Mapping[str, str], problems: List[str]) -> dict:
+    """Read ``BACKUP_S3_*`` as an all-or-nothing group.
+
+    Same shape as the other optionals (c4d6041): absent is fine and means the
+    backup cron has nowhere to upload and says so when it runs; *partially* set
+    is fatal, because a half-configured backup destination is the failure that
+    looks configured right up until the restore.
+
+    Two collisions are fatal too, and both are the audit posture rather than
+    hygiene:
+
+    * the same **bucket** as the app's -- backups the app can delete are not
+      backups, and this is the mistake a copy-paste makes;
+    * the same **access key id** as the app's -- two distinct tokens never share
+      an id, so equality here means the credential separation this group exists
+      to create does not exist.
+    """
+    present = {key: (env.get(key) or "").strip() for key in BACKUP_S3_KEYS}
+    supplied = {k: v for k, v in present.items() if v}
+
+    if not supplied:
+        return {}
+
+    missing = [key for key in BACKUP_S3_KEYS if not present[key]]
+    if missing:
+        problems.append(
+            "BACKUP_S3_* is partially configured: %s set, %s missing. Set the whole "
+            "group or none of it; the backup cron never falls back to the "
+            "application's S3_* credentials." % (", ".join(sorted(supplied)), ", ".join(missing))
+        )
+        return {}
+
+    app_bucket = (env.get("S3_BUCKET_NAME") or "").strip()
+    if app_bucket and present["BACKUP_S3_BUCKET_NAME"] == app_bucket:
+        problems.append(
+            "BACKUP_S3_BUCKET_NAME must not be the application's S3_BUCKET_NAME "
+            "(%s): backups stored where the app can delete them do not survive the "
+            "compromise they exist for." % app_bucket
+        )
+
+    app_key_id = (env.get("S3_ACCESS_KEY_ID") or "").strip()
+    if app_key_id and present["BACKUP_S3_ACCESS_KEY_ID"] == app_key_id:
+        problems.append(
+            "BACKUP_S3_ACCESS_KEY_ID must not be the application's S3_ACCESS_KEY_ID: "
+            "the backup credentials exist to be a separate, app-unreachable identity."
+        )
+
+    return {
+        "backup_s3_endpoint_url": present["BACKUP_S3_ENDPOINT_URL"],
+        "backup_s3_bucket_name": present["BACKUP_S3_BUCKET_NAME"],
+        "backup_s3_access_key_id": present["BACKUP_S3_ACCESS_KEY_ID"],
+        "backup_s3_secret_access_key": present["BACKUP_S3_SECRET_ACCESS_KEY"],
+        # Region is not part of the group: R2 has exactly one ("auto"), and
+        # requiring it would make the common case a four-line configuration
+        # error away from working.
+        "backup_s3_region": (env.get("BACKUP_S3_REGION") or "").strip() or "auto",
+    }
+
+
 def _is_valid_sentry_dsn(dsn: str) -> bool:
     """Whether *dsn* has the ``https://<key>@<host>/<project-id>`` shape.
 
@@ -193,6 +268,17 @@ class Settings:
     resend_api_key: Optional[str] = None
     s3_endpoint_url: Optional[str] = None
     s3_bucket_name: Optional[str] = None
+
+    # -- Backup object store --------------------------------------------------
+    # A separate identity from the four above, on purpose: the backup bucket is
+    # the one place the application must not be able to reach.  Optional as a
+    # group (absent = `flask backups run` has nowhere to upload and refuses),
+    # fatal when partially set.  See _read_backup_s3.
+    backup_s3_endpoint_url: Optional[str] = None
+    backup_s3_bucket_name: Optional[str] = None
+    backup_s3_access_key_id: Optional[str] = None
+    backup_s3_secret_access_key: Optional[str] = None
+    backup_s3_region: str = "auto"
 
     # Optional like the providers above -- absent means error tracking is off and
     # boot is identical to today -- but set-and-malformed is fatal, because a
@@ -356,6 +442,8 @@ class Settings:
                 " (unset it to disable error tracking)"
             )
 
+        backup_s3 = _read_backup_s3(env, problems)
+
         if problems:
             raise ConfigError(problems)
 
@@ -392,6 +480,7 @@ class Settings:
             s3_bucket_name=(env.get("S3_BUCKET_NAME") or "").strip() or None,
             sentry_dsn=sentry_dsn,
             warnings=warnings,
+            **backup_s3,
         )
 
     # ------------------------------------------------------------- SQLAlchemy
@@ -446,8 +535,20 @@ class Settings:
                 "resend": self.resend_api_key is not None,
                 "s3": self.s3_bucket_name is not None,
                 "sentry": self.sentry_dsn is not None,
+                # Presence only, like every other entry here -- but this one is
+                # the answer to "are backups going anywhere?", which is worth
+                # having in the boot log of every service, not just the cron's.
+                "backup_s3": self.backup_s3_bucket_name is not None,
             },
         }
+
+    def has_backup_storage(self) -> bool:
+        """Whether the ``BACKUP_S3_*`` group is fully configured.
+
+        The group is validated all-or-nothing at boot, so one field answers for
+        all four; this exists so callers say what they mean.
+        """
+        return self.backup_s3_bucket_name is not None
 
 
 def _redact_dsn(dsn: str) -> str:

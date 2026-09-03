@@ -189,6 +189,104 @@ def test_malformed_sentry_dsn_is_fatal_at_boot(bad_dsn):
     assert any("SENTRY_DSN" in p for p in exc.value.problems)
 
 
+# ---------------------------------------------------------------------------
+# BACKUP_S3_* — the backup object store's own credentials.
+#
+# The group exists because a compromised application key must not be able to
+# read or delete the backups. That property is worth nothing if the code will
+# quietly use the app's S3_* when the group is absent or half-set, so the rules
+# below are the feature, not validation hygiene around it.
+# ---------------------------------------------------------------------------
+
+BACKUP_ENV = {
+    "BACKUP_S3_ENDPOINT_URL": "https://backups.r2.example",
+    "BACKUP_S3_BUCKET_NAME": "solverah-backups",
+    "BACKUP_S3_ACCESS_KEY_ID": "backup-key-id",
+    "BACKUP_S3_SECRET_ACCESS_KEY": "backup-secret",
+}
+
+APP_S3_ENV = {
+    "S3_ENDPOINT_URL": "https://app.r2.example",
+    "S3_BUCKET_NAME": "solverah-resumes",
+    "S3_ACCESS_KEY_ID": "app-key-id",
+    "S3_SECRET_ACCESS_KEY": "app-secret",
+}
+
+
+def test_backup_credentials_are_optional_as_a_group():
+    """CI sets five variables; boot must be identical without these."""
+    s = Settings.from_env(BASE_ENV)
+
+    assert s.has_backup_storage() is False
+    assert s.backup_s3_bucket_name is None
+    assert s.redacted()["providers"]["backup_s3"] is False
+
+
+def test_a_complete_backup_group_is_read_and_defaults_the_region():
+    s = Settings.from_env(dict(BASE_ENV, **BACKUP_ENV))
+
+    assert s.has_backup_storage() is True
+    assert s.backup_s3_endpoint_url == "https://backups.r2.example"
+    assert s.backup_s3_bucket_name == "solverah-backups"
+    assert s.backup_s3_region == "auto"      # R2 has exactly one
+    assert s.redacted()["providers"]["backup_s3"] is True
+
+
+@pytest.mark.parametrize("omitted", sorted(BACKUP_ENV))
+def test_a_partially_set_backup_group_is_fatal(omitted):
+    """Each member missing on its own, because the failure this prevents is a
+    backup destination that looks configured until the restore."""
+    partial = {k: v for k, v in BACKUP_ENV.items() if k != omitted}
+
+    with pytest.raises(ConfigError) as exc:
+        Settings.from_env(dict(BASE_ENV, **partial))
+
+    problems = " ".join(exc.value.problems)
+    assert omitted in problems
+    assert "partially configured" in problems
+
+
+def test_the_backup_group_never_falls_back_to_the_apps_s3_values():
+    """A configured app bucket must not make an unconfigured backup group look
+    configured -- the cron has to refuse, not write the database next to the
+    resumes."""
+    s = Settings.from_env(dict(BASE_ENV, **APP_S3_ENV))
+
+    assert s.has_backup_storage() is False
+    assert s.backup_s3_bucket_name is None
+    assert s.backup_s3_endpoint_url is None
+
+
+def test_backups_pointed_at_the_apps_own_bucket_are_fatal():
+    """Backups the application can delete do not survive the compromise they
+    exist for, and this is the mistake a copy-paste makes."""
+    collided = dict(BACKUP_ENV, BACKUP_S3_BUCKET_NAME=APP_S3_ENV["S3_BUCKET_NAME"])
+
+    with pytest.raises(ConfigError) as exc:
+        Settings.from_env(dict(BASE_ENV, **APP_S3_ENV, **collided))
+
+    assert any("BACKUP_S3_BUCKET_NAME" in p for p in exc.value.problems)
+
+
+def test_reusing_the_apps_access_key_for_backups_is_fatal():
+    """Two distinct tokens never share an id, so equality here means the
+    credential separation the group exists to create does not exist."""
+    collided = dict(BACKUP_ENV, BACKUP_S3_ACCESS_KEY_ID=APP_S3_ENV["S3_ACCESS_KEY_ID"])
+
+    with pytest.raises(ConfigError) as exc:
+        Settings.from_env(dict(BASE_ENV, **APP_S3_ENV, **collided))
+
+    assert any("BACKUP_S3_ACCESS_KEY_ID" in p for p in exc.value.problems)
+
+
+def test_backup_secrets_never_reach_the_redacted_view():
+    s = Settings.from_env(dict(BASE_ENV, **BACKUP_ENV))
+    blob = repr(s.redacted())
+
+    assert "backup-secret" not in blob
+    assert "backup-key-id" not in blob
+
+
 def test_redacted_never_exposes_secrets():
     s = Settings.from_env(
         dict(BASE_ENV, OPENAI_API_KEY="sk-live-abcdef", DATABASE_URL="postgresql://u:hunter2@db:5432/app")

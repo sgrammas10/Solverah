@@ -14,6 +14,7 @@ dashboard env vars:
 
     flask outbox sweep       # suggested: every 5 minutes
     flask retention run      # suggested: daily
+    flask backups run        # suggested: daily, 03:30 UTC
 
 Both boot through ``create_app()`` (the Flask CLI imports ``app.py``), so fatal
 config validation and Sentry apply exactly as they do to the web service --
@@ -29,6 +30,16 @@ provider is the outbox's normal weather, the rows are still there, and the next
 sweep retries them.  A non-zero exit means the pass *itself* crashed (config,
 database, a bug) and the sweeper needs a human.
 
+``backups run`` draws that line in the same place and lands on the other side of
+it: there is no "individual row" in a backup pass, so a failed dump, a dump that
+will not verify, or a failed upload IS the pass failing and must page.  What
+does *not* page is a prune refusal -- the retention rails declining to delete are
+the system working, reported in the JSON line at exit 0.
+
+Unlike the other two, ``backups run`` shells out to ``pg_dump``, so it runs on
+the ``infra/docker/Dockerfile.backup`` image rather than Render's native Python
+runtime, which guarantees no PostgreSQL client of any version.
+
 Service imports happen inside the command bodies: this module is imported by the
 factory, which must stay importable without pulling in ``model`` and the email
 infrastructure.
@@ -41,10 +52,11 @@ import json
 import click
 from flask.cli import AppGroup
 
-__all__ = ["outbox_cli", "register_cli", "retention_cli"]
+__all__ = ["backups_cli", "outbox_cli", "register_cli", "retention_cli"]
 
 outbox_cli = AppGroup("outbox", help="Transactional-outbox operations (cron entry points).")
 retention_cli = AppGroup("retention", help="Data-retention purges (cron entry points).")
+backups_cli = AppGroup("backups", help="Database backups (cron entry point).")
 
 #: Retention window for *delivered* outbox rows, in hours.
 #:
@@ -125,7 +137,110 @@ def retention_run(outbox_hours: int, scoring_days: int, resume_days: int) -> Non
     click.echo(json.dumps(summary))
 
 
+@backups_cli.command("run")
+@click.option(
+    "--retention-days",
+    default=None,
+    type=click.IntRange(min=1),
+    help="Delete artifacts older than this many days (default: 30).",
+)
+@click.option(
+    "--min-retained",
+    default=None,
+    type=click.IntRange(min=1),
+    help="Refuse to prune at all if fewer than this many artifacts would remain "
+    "(default: 7).",
+)
+@click.option(
+    "--prefix",
+    default=None,
+    help="Key prefix to write under and prune within (default: daily/).",
+)
+@click.option(
+    "--local-dir",
+    default=None,
+    type=click.Path(file_okay=False),
+    help="REHEARSAL ONLY: store artifacts in this directory instead of the backup "
+    "bucket. Refused when APP_ENV is production.",
+)
+@click.option(
+    "--timeout-seconds",
+    default=None,
+    type=click.IntRange(min=1),
+    help="Ceiling on the pg_dump and pg_restore invocations (default: 1800).",
+)
+def backups_run(
+    retention_days: int,
+    min_retained: int,
+    prefix: str,
+    local_dir: str,
+    timeout_seconds: int,
+) -> None:
+    """Dump the database, verify it, upload it, and prune what has expired.
+
+    One pass, in that order, and the order is the safety property: nothing is
+    uploaded that ``pg_restore --list`` could not read, and nothing is deleted
+    until a verified artifact is in the store beside it.
+
+    Exits non-zero if the dump, the verification, the upload, or a delete fails
+    -- all four are the pass failing, and cron alerting keys on that.  A prune
+    the retention rails refuse (too few artifacts, a listing that does not
+    contain what was just uploaded) exits 0 with ``prune_refused`` explaining
+    itself: a bucket in its first week prunes nothing, every day, correctly.
+    """
+    import tempfile
+
+    from flask import current_app
+
+    from solverah.infra import backup_storage
+    from solverah.services import backups
+
+    settings = current_app.extensions["solverah_settings"]
+
+    if local_dir:
+        # The rehearsal store writes to whatever disk the process is on, which
+        # on a Render cron is ephemeral and gone when the job exits. Producing a
+        # green JSON line and no backup is the exact failure this whole command
+        # exists to end, so production cannot reach it by flag or by accident.
+        if settings.is_production:
+            raise click.ClickException(
+                "--local-dir is a rehearsal aid and is refused when APP_ENV is "
+                "production: a backup on a cron container's ephemeral disk is not "
+                "a backup. Configure BACKUP_S3_* and run without the flag."
+            )
+        store = backup_storage.local_backup_store(local_dir)
+    else:
+        try:
+            store = backup_storage.s3_backup_store(settings)
+        except backup_storage.BackupStorageError as exc:
+            # A destination-less pass is a failed pass, not a quiet no-op: a
+            # daily job reporting success while storing nothing is how a backup
+            # gap survives to the restore.
+            raise click.ClickException(str(exc)) from exc
+
+    # Every option defaults to None and unset ones are dropped, so the policy's
+    # own constants stay the single definition of the defaults -- click cannot
+    # show them with `show_default` here because importing the service at module
+    # scope is what this module's header rules out.
+    kwargs = {
+        "prefix": prefix,
+        "retention_days": retention_days,
+        "min_retained": min_retained,
+        "timeout_seconds": timeout_seconds,
+    }
+    with tempfile.TemporaryDirectory(prefix="solverah-backup-") as work_dir:
+        summary = backups.run_backup(
+            store,
+            settings.database_url,
+            work_dir=work_dir,
+            **{k: v for k, v in kwargs.items() if v is not None},
+        )
+
+    click.echo(json.dumps(summary))
+
+
 def register_cli(app) -> None:
     """Attach the operational command groups to *app*'s CLI."""
     app.cli.add_command(outbox_cli)
     app.cli.add_command(retention_cli)
+    app.cli.add_command(backups_cli)
