@@ -1,12 +1,14 @@
 # Dependabot — automated dependency-update PRs (GAP-07d, added 2026-08-20).
-# Weekly cadence, grouped minor/patch bumps to keep PR noise low; security
-# updates arrive regardless of schedule.
+# Monthly cadence (was weekly — retuned 2026-09-03 for a one-person review
+# queue), grouped minor/patch bumps, and a per-ecosystem cap on open PRs.
+# Security updates ignore the schedule and arrive immediately regardless.
 version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
     groups:
       npm-minor-and-patch:
         update-types: ["minor", "patch"]
@@ -14,7 +16,8 @@ updates:
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
     groups:
       pip-minor-and-patch:
         update-types: ["minor", "patch"]
@@ -28,4 +31,5 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
