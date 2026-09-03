@@ -72,6 +72,12 @@ Before declaring a suite green, run it the way CI does — the app honors
 
     SOLVERAH_IGNORE_DOTENV=1 pytest --tb=short -q
 
+Two extra leaks that flag does NOT stop (each produced a false "CI-parity
+verified" claim on 2026-09-03): this machine sets `JWT_SECRET_KEY` OS-wide,
+so clear it explicitly when proving something works without it; and the
+Flask CLI (`flask db ...`, `flask outbox ...`) loads `.env` itself BEFORE
+app.py's guard — set `FLASK_SKIP_DOTENV=1` for any honest CLI run.
+
 Build verification venvs OUTSIDE the repo (e.g. a sibling directory or the
 session scratchpad). Guard tests walk the whole tree with rglob and a .venv
 inside the repo fails them on third-party source — two agents have each

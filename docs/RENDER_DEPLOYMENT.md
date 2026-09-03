@@ -112,10 +112,13 @@ failing the next deploy's pre-deploy step.
 
 Notes for whoever sees it fail:
 
-- The job sets only `DATABASE_URL`. Verified 2026-09-03: `flask db upgrade`
-  imports `app.py` → `create_app()`, and with `APP_ENV` unset the config
-  falls back to dev defaults, none fatal. No sixth CI variable was
-  introduced.
+- The job sets `DATABASE_URL` and `JWT_SECRET_KEY` (the pytest job's test
+  value). `JWT_SECRET_KEY` is unconditionally required in every environment
+  (`config.py`); the job's first live run failed on it because the local
+  verification had inherited the variable invisibly from the developer
+  machine. Honest local repro: `FLASK_SKIP_DOTENV=1` and explicitly clear
+  `JWT_SECRET_KEY` — a machine that sets it OS-wide can never simulate CI
+  by omission alone.
 - **Never downgrade the Postgres container to make a migration pass** — prod
   is 18.3 and the schema uses `uuidv7()`. This has been relearned before;
   see the container comment in the workflow.

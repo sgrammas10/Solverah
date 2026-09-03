@@ -224,13 +224,18 @@ jobs:
           CREATE EXTENSION IF NOT EXISTS vector;
           SQL
 
-      # DATABASE_URL alone, verified sufficient 2026-09-03 against a scratch
-      # pg18: `flask db upgrade` imports app.py → create_app(), and with
-      # APP_ENV unset the config runs on dev defaults, none of which are
-      # fatal. No new variables beyond the five the pytest job already sets.
+      # DATABASE_URL + JWT_SECRET_KEY (same test value as the pytest job).
+      # JWT_SECRET_KEY is unconditionally required by config.py in EVERY
+      # environment. The original "DATABASE_URL alone suffices" local
+      # verification passed only because the developer machine supplies the
+      # variable invisibly (a machine-wide env var there; .env via the Flask
+      # CLI's own dotenv load is a second route) — the runner has neither, and
+      # the first live run failed on it (2026-09-03). An honest local repro
+      # needs FLASK_SKIP_DOTENV=1 AND explicitly clearing JWT_SECRET_KEY.
       - name: Upgrade from empty database
         env:
           DATABASE_URL: postgresql://solverah:solverah@localhost:5432/solverah
+          JWT_SECRET_KEY: test-jwt-secret-not-a-real-one-32-bytes-min
         run: flask db upgrade
 
       # Belt for the silent-no-op failure mode: if env.py ever stopped seeing
@@ -240,6 +245,7 @@ jobs:
       - name: Assert database is at the chain head
         env:
           DATABASE_URL: postgresql://solverah:solverah@localhost:5432/solverah
+          JWT_SECRET_KEY: test-jwt-secret-not-a-real-one-32-bytes-min
           PGPASSWORD: solverah
         run: |
           # The app's own INFO log lines share stdout with the revision list,
