@@ -159,6 +159,20 @@ envVarGroups:
       - key: SOLVERAH_FORM_TOKEN_SECRET
         sync: false             # no default by design (D-05); read at call time —
                                 # missing = every assessment route 500s, boot stays green
+      # ⚠ DEPLOY DEPENDENCY (S1, 2026-09-03). NOT SET IN PRODUCTION TODAY, and
+      # as of S1 the app will not boot in production without it: `memory://`
+      # rate-limit storage raises ConfigError instead of warning, because
+      # per-worker counters make every limit in the application decorative
+      # (2026-09 audit 9.1, its highest-impact finding). Provision a Render
+      # Key-Value instance and set this BEFORE merging S1 to main — a deploy in
+      # the other order fails at boot, not at first request.
+      #
+      # One variable, three consumers: the rate limiter (fatal, above), the
+      # Celery broker/result backend (warns), and the read cache (silent).
+      # RATELIMIT_STORAGE_URI / CELERY_BROKER_URL split them if they ever need
+      # separate instances.
+      - key: REDIS_URL
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: GROQ_API_KEY

@@ -300,13 +300,24 @@ def verify_email():
     # No 500 branch any more: Phase 3 made the send an outbox row committed with
     # the token rotation, so an unreachable provider is a delayed email rather
     # than a failed request. `SendEmailFailureResponse` went with it.
+    #
+    # No 404 branch either, as of S1: an unknown address and an already-confirmed
+    # one both answer 200 now, because a status code that separates them is a
+    # user-enumeration oracle. The remaining 400 is malformed-email only, which
+    # depends on the string and not on who owns it.
     responses={
         200: MessageResponse,
         400: LegacyError,
-        404: LegacyError,
     },
     security=[],
     enforce=True,
+    description=(
+        "Answers `200` whether or not the address names an unconfirmed "
+        "account. The three outcomes -- code sent, already confirmed, no such "
+        "account -- are deliberately indistinguishable to the caller (S1); "
+        "only the addressee learns which happened. A `400` here means the "
+        "address itself did not parse."
+    ),
 )
 @auth_bp.route("/auth/email/verify/resend", methods=["POST"])
 @limiter.shared_limit("5 per minute", scope=_SCOPE_RESEND)
@@ -333,9 +344,19 @@ def resend_verification():
     "Send a sign-in code to a confirmed account",
     tags=["auth"],
     request=PasswordResetRequest,
-    responses={200: MessageResponse, 404: LegacyError},
+    # 200 is the only answer as of S1. The 404 that used to mean "no account
+    # found with that email address" was a user-enumeration oracle: POST a
+    # mailing list, keep the 200s, get a verified user list.
+    responses={200: MessageResponse},
     security=[],
     enforce=True,
+    description=(
+        "Answers `200 reset_sent` whether or not the address names a "
+        "confirmed account, so the response cannot be used to test whether "
+        "someone has an account here (S1). A code is sent only when one does. "
+        "`POST /auth/password/reset` holds up the other half: all of its "
+        "failures answer the same `invalid_or_expired_code`."
+    ),
 )
 @auth_bp.route("/auth/password/forgot", methods=["POST"])
 @limiter.shared_limit("3 per minute", scope=_SCOPE_FORGOT)

@@ -29,12 +29,36 @@ def _make_confirmed_user(client, monkeypatch):
     return email
 
 
-def test_request_reset_unknown_email_returns_404(client, monkeypatch):
+def test_request_reset_unknown_email_looks_exactly_like_a_known_one(client, monkeypatch):
+    """S1 replaces the 404 this asserted with the same 200 a real account gets.
+
+    The old behaviour -- ``404 "No account found with that email address."`` --
+    was the cleanest user-enumeration oracle in the application, probed live in
+    the 2026-09 audit. The byte-level comparison against a *real* account lives
+    in tests/test_user_enumeration.py; this one holds the line at the point the
+    old assertion stood, so the change cannot be reverted here unnoticed.
+    """
     monkeypatch.setattr("solverah.infra.email.send_password_reset_email", _noop)
 
     res = client.post("/api/v1/auth/password/forgot", json={"email": "nobody@example.com"})
-    assert res.status_code == 404
-    assert "error" in res.get_json()
+    assert res.status_code == 200
+    assert res.get_json() == {"message": "reset_sent"}
+
+
+def test_request_reset_for_an_unknown_email_sends_nothing(client, monkeypatch):
+    """Uniform *responses*, not uniform work: no row, no outbox entry, no mail."""
+    monkeypatch.setattr("solverah.infra.email.send_password_reset_email", _noop)
+
+    from app import app
+    from model import Outbox
+
+    with app.app_context():
+        before = Outbox.query.count()
+
+    client.post("/api/v1/auth/password/forgot", json={"email": "nobody@example.com"})
+
+    with app.app_context():
+        assert Outbox.query.count() == before
 
 
 def test_request_reset_stores_token(client, monkeypatch):

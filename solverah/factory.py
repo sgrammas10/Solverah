@@ -273,6 +273,61 @@ def _configure(app: Flask, settings: Optional[Settings], is_production: bool) ->
     app.config["JWT_CSRF_HEADER_NAME"] = "X-CSRF-TOKEN"
 
 
+#: Origins allowed to make credentialed cross-site requests in production.
+#: The four the product actually runs on: the apex and www that serve the SPA,
+#: the API's own host, and the Vercel alias behind the custom domain. Exact
+#: strings, never patterns -- flask-cors matches literals with equality, so
+#: there is no suffix to slip past (``https://solverah.com.evil.net`` does not
+#: match ``https://solverah.com``).
+PRODUCTION_CORS_ORIGINS = [
+    "https://solverah.vercel.app",
+    "https://solverah.com",
+    "https://www.solverah.com",
+    "https://api.solverah.com",
+]
+
+#: Dev/test only, and that gating is the whole finding.
+#:
+#: Anchored with ``\Z``. flask-cors 6.0.5 matches an origin pattern with
+#: ``re.match``, which is unanchored at the right, so the unanchored form also
+#: matched ``http://localhost:3000.evil.com``. Not browser-reachable -- no
+#: browser emits an Origin with that authority -- but the anchor costs one
+#: character and removes the question. ``\Z`` rather than ``$`` because ``$``
+#: also matches before a trailing newline.
+LOCAL_CORS_ORIGINS = [
+    r"http://localhost:\d+\Z",
+    r"http://127\.0\.0\.1:\d+\Z",
+]
+
+
+def _cors_origins(is_production: bool) -> list:
+    """The credentialed-CORS allowlist for this environment.
+
+    Until S1 the two localhost patterns were in the list unconditionally, and
+    the 2026-09 audit probed the consequence against a production-configured
+    app: ``Origin: http://localhost:9999`` came back reflected in
+    ``Access-Control-Allow-Origin`` alongside ``Access-Control-Allow-Credentials:
+    true``. Production cookies are ``SameSite=None``, so the browser attaches
+    them -- meaning anything the victim's browser loads from a local listener
+    (a dev server, an Electron app, a malicious npm package that binds a port)
+    was a permitted credentialed origin and could read ``/me``, ``/me/profile``
+    and ``/me/export`` in full. Writes still needed the CSRF header; reads did
+    not.
+
+    Splitting it by environment is the whole fix: local development genuinely
+    needs those two, and production genuinely never does -- the SPA is served
+    from ``solverah.com`` and calls ``api.solverah.com``, both listed below.
+
+    Vercel *preview* deployments are not listed and stay CORS-blocked, which is
+    the status quo (2026-09 prod-readiness Q10) rather than a change here.
+    Wiring them up is the ``CORS_ORIGINS`` decision recorded there, and it is
+    not this round's to make.
+    """
+    if is_production:
+        return list(PRODUCTION_CORS_ORIGINS)
+    return LOCAL_CORS_ORIGINS + PRODUCTION_CORS_ORIGINS
+
+
 def _install_http_middleware(app: Flask, is_production: bool) -> None:
     """Install ProxyFix, CORS, and Talisman, in that order."""
     _apply_proxy_fix(
@@ -295,14 +350,7 @@ def _install_http_middleware(app: Flask, is_production: bool) -> None:
     CORS(
         app,
         resources=r"/api/*",
-        origins=[
-            r"http://localhost:\d+",
-            r"http://127\.0\.0\.1:\d+",
-            "https://solverah.vercel.app",
-            "https://solverah.com",
-            "https://www.solverah.com",
-            "https://api.solverah.com",
-        ],
+        origins=_cors_origins(is_production),
         supports_credentials=True,
         allow_headers=["Content-Type", "X-CSRF-TOKEN"],
     )

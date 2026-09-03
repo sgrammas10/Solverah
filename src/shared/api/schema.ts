@@ -180,10 +180,7 @@ export interface paths {
         put?: never;
         /**
          * Issue a fresh verification code for an unconfirmed account
-         * @description POST /auth/email/verify/resend - Issue a fresh OTP for unconfirmed accounts.
-         *
-         *     Regenerates and re-sends the 6-digit verification code. Rate-limited to 5
-         *     per minute to prevent abuse.
+         * @description Answers `200` whether or not the address names an unconfirmed account. The three outcomes -- code sent, already confirmed, no such account -- are deliberately indistinguishable to the caller (S1); only the addressee learns which happened. A `400` here means the address itself did not parse.
          */
         post: operations["post_auth_resend_verification"];
         delete?: never;
@@ -255,7 +252,7 @@ export interface paths {
         put?: never;
         /**
          * Send a sign-in code to a confirmed account
-         * @description POST /auth/password/forgot - Send a 6-digit OTP for passwordless login.
+         * @description Answers `200 reset_sent` whether or not the address names a confirmed account, so the response cannot be used to test whether someone has an account here (S1). A code is sent only when one does. `POST /auth/password/reset` holds up the other half: all of its failures answer the same `invalid_or_expired_code`.
          */
         post: operations["post_auth_forgot_password"];
         delete?: never;
@@ -2069,7 +2066,7 @@ export interface components {
          *     :class:`ProblemDetailResponse`, which is what the Phase 0 error handlers
          *     produce for anything a handler did not catch itself.
          *
-         *     The two shapes are why ``src/utils/apiError.ts`` reads both.  Phase 1b
+         *     The two shapes are why ``src/shared/api/apiError.ts`` reads both.  Phase 1b
          *     collapses them by moving handlers onto ``solverah.errors.ApiError``.
          */
         LegacyError: {
@@ -3624,15 +3621,6 @@ export interface operations {
                     "application/json": components["schemas"]["LegacyError"];
                 };
             };
-            /** @description Not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyError"];
-                };
-            };
             /** @description Unexpected error (RFC 9457 problem document) */
             default: {
                 headers: {
@@ -3753,15 +3741,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageResponse"];
-                };
-            };
-            /** @description Not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyError"];
                 };
             };
             /** @description Unexpected error (RFC 9457 problem document) */

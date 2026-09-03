@@ -380,6 +380,11 @@ def test_the_rehearsal_store_is_refused_in_production(ctx, store_dir, monkeypatc
             "JWT_SECRET_KEY": "x" * 40,
             "JWT_COOKIE_SECURE": "true",
             "JWT_COOKIE_SAMESITE": "None",
+            # Required to build a *valid* production Settings since S1 made
+            # memory:// rate-limit storage fatal there. Nothing in this test is
+            # about Redis; without it `from_env` raises ConfigError and the
+            # assertions below are never reached.
+            "REDIS_URL": "redis://cache:6379/0",
         }
     )
     monkeypatch.setitem(ctx.extensions, "solverah_settings", production)

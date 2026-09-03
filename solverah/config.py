@@ -353,11 +353,33 @@ class Settings:
             (env.get("RATELIMIT_STORAGE_URI") or "").strip() or redis_url or "memory://"
         )
         if is_production and ratelimit_storage_uri == "memory://":
-            # Per-worker counters mean the configured limit is N-workers times
-            # looser and resets on every deploy.  Loud, but not fatal.
-            warnings.append(
-                "RATELIMIT_STORAGE_URI is memory://: rate limits are per-worker and "
-                "reset on deploy. Set REDIS_URL or RATELIMIT_STORAGE_URI."
+            # Fatal since S1; a warning until then, and the 2026-09 audit rated
+            # that the highest-impact-per-line fix in the report.
+            #
+            # ``memory://`` counts per *process*.  With N gunicorn workers the
+            # login limit is 5/minute/IP/worker -- N times looser than it reads
+            # -- the OTP-verification throttle that is the only bound on
+            # guessing a 6-digit code resets on every deploy, and the global
+            # spend ceilings on the anonymous LLM endpoints stop being ceilings
+            # at all, because a "global" bucket that each worker keeps its own
+            # copy of bounds nothing.  Every limit in the application is
+            # decorative in exactly the deployment where it is load-bearing.
+            #
+            # A warning was the wrong instrument for that: it is one line in a
+            # boot log nobody reads, and the failure it predicts is silent.
+            # Refusing to boot is loud, immediate, and fixed by setting one
+            # variable -- the c4d6041 "invalid configuration is fatal" policy,
+            # applied to a value that was already known to be wrong.
+            #
+            # OPERATIONAL CONSEQUENCE, stated because it is not optional: a
+            # production deployment with no Redis will now fail to start.
+            # Provision the instance and set REDIS_URL *before* this reaches
+            # production, not after.
+            problems.append(
+                "RATELIMIT_STORAGE_URI is memory:// in production: rate limits would "
+                "be per-worker and would reset on every deploy, which makes every "
+                "limit in the application decorative. Set REDIS_URL (or "
+                "RATELIMIT_STORAGE_URI) to a shared store."
             )
 
         # Celery rides the same Redis as the rate limiter and the cache, for the

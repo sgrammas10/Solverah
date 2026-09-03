@@ -12,11 +12,19 @@ BASE_ENV = {
     "JWT_SECRET_KEY": "x" * 40,
 }
 
+#: A *valid* production environment.
+#:
+#: ``REDIS_URL`` is here as of S1 and is not decoration: a production
+#: environment with no shared rate-limit store no longer builds at all
+#: (``test_memory_rate_limit_in_production_is_fatal`` below is the cover), so
+#: leaving it out would make every other test in this file fail for that one
+#: reason instead of testing what it says it tests.
 PROD_ENV = dict(
     BASE_ENV,
     APP_ENV="production",
     JWT_COOKIE_SECURE="true",
     JWT_COOKIE_SAMESITE="None",
+    REDIS_URL="redis://cache:6379/0",
 )
 
 
@@ -112,12 +120,35 @@ def test_invalid_samesite_value_rejected():
         Settings.from_env(dict(BASE_ENV, JWT_COOKIE_SAMESITE="Loose"))
 
 
-def test_memory_rate_limit_in_production_warns_but_does_not_fail():
-    """Per-worker limits are wrong, but not a reason to refuse to boot."""
-    s = Settings.from_env(PROD_ENV)
+def test_memory_rate_limit_in_production_is_fatal():
+    """Production with no shared rate-limit store must not boot.
+
+    S1, reversing this test's own earlier verdict ("wrong, but not a reason to
+    refuse to boot"). ``memory://`` counts per process, so with N gunicorn
+    workers every limit is N times looser than configured and every deploy
+    hands attackers a fresh budget -- including the OTP-verification throttle
+    that is the only bound on guessing a 6-digit session-granting code, and the
+    "global" spend ceilings on the anonymous LLM endpoints, which are not
+    ceilings at all when each worker keeps a private copy.
+
+    A warning was the wrong instrument: one line in a boot log, predicting a
+    failure that is otherwise silent. Fails against a build that only warns.
+    """
+    env = dict(PROD_ENV)
+    del env["REDIS_URL"]
+
+    with pytest.raises(ConfigError) as exc:
+        Settings.from_env(env)
+
+    assert any("memory://" in p for p in exc.value.problems)
+
+
+def test_memory_rate_limit_outside_production_is_fine():
+    """Development is the environment memory:// is *for*: one process, no deploys."""
+    s = Settings.from_env(BASE_ENV)
 
     assert s.ratelimit_storage_uri == "memory://"
-    assert any("RATELIMIT_STORAGE_URI" in w for w in s.warnings)
+    assert s.warnings == []
 
 
 def test_redis_url_backs_rate_limiting_when_set():

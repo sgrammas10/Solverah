@@ -72,13 +72,37 @@ describe("ForgotPassword - happy path", () => {
 });
 
 describe("ForgotPassword - error handling", () => {
+  // 429, not the 404 this used to mock. S1 made the endpoint answer 200 for an
+  // unknown address -- a 404 there was a user-enumeration oracle -- so it is no
+  // longer a documented response and `reply` will not type-check it. The branch
+  // under test is the generic "show the server's wording" one, and the limiter
+  // (`3 per minute`) is what actually reaches it now, so `resolve` is used the
+  // same way the fallback test below uses it: off the typed response map on
+  // purpose, because that is where a 429 lives.
   it("shows server error message when response is not ok", async () => {
     server.use(
-      mock("post", "/api/v1/auth/password/forgot").reply(404, { error: "Email not found" }),
+      mock("post", "/api/v1/auth/password/forgot").resolve(
+        () => HttpResponse.json({ error: "3 per 1 minute" }, { status: 429 }),
+      ),
     );
     renderForgotPassword();
     await submitEmail();
-    expect(screen.getByText(/Email not found/i)).toBeInTheDocument();
+    expect(screen.getByText(/3 per 1 minute/i)).toBeInTheDocument();
+  });
+
+  it("navigates to the code screen for an unknown address, like a known one", async () => {
+    // The user-visible half of S1's anti-enumeration change: the server no
+    // longer distinguishes the two, so neither can this screen. It advances to
+    // the code entry step and the code simply never arrives -- the standard
+    // shape of this flow, and the reason no copy change was needed.
+    server.use(
+      mock("post", "/api/v1/auth/password/forgot").reply(200, { message: "reset_sent" }),
+    );
+    renderForgotPassword();
+    await submitEmail("nobody@example.com");
+    expect(mocks.navigate).toHaveBeenCalledWith("/forgot-password/verify", {
+      state: { email: "nobody@example.com" },
+    });
   });
 
   it("shows fallback message when server error has no message", async () => {
