@@ -19,6 +19,26 @@
  * all; what makes it a fix rather than a deletion is that the document still
  * arrives on the screens that render it. So: nothing on boot, and exactly one
  * `GET /me/profile` when something actually asks for the document.
+ *
+ * ── S3 and the refresh exchange ─────────────────────────────────────────────
+ *
+ * The access token is fifteen minutes now, so a 401 on the boot probe is the
+ * ordinary state of a returning visitor rather than a signed-out one, and the
+ * boot path answers it with `POST /auth/refresh` and a second probe. That is a
+ * second request, and the P0-3 exit condition is a claim about how many
+ * requests a page load costs -- so the two have to be reconciled rather than
+ * one quietly weakening the other.
+ *
+ * They are reconciled by *who* pays for it. The refresh is attempted only when
+ * this browser has had a session before (the `solverah.hasSession` hint), so an
+ * anonymous visitor's boot is still exactly one request -- and the anonymous
+ * landing page is the highest-volume boot in the product. A returning
+ * signed-in visitor pays three (probe, refresh, probe) instead of being signed
+ * out, which is the trade this round exists to make.
+ *
+ * `localStorage` is therefore part of this file's fixture and is cleared
+ * between tests: without that, the signed-in test above leaves the hint behind
+ * and the "anonymous visitor" test is no longer testing an anonymous visitor.
  */
 import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -38,13 +58,25 @@ import {
   recordRequests,
   signedIn,
   profileDocument,
+  refreshSucceeds,
+  sessionExpiredThenSignedIn,
 } from "../../../tests/msw/server";
 
 useApiMocks();
 const { requests } = recordRequests();
 
+// See the module docstring: the boot path reads this, so a test that does not
+// clear it inherits the previous test's browser.
+beforeEach(() => localStorage.clear());
+
 const SESSION = "GET /api/v1/auth/session";
 const PROFILE = "GET /api/v1/me/profile";
+const REFRESH = "POST /api/v1/auth/refresh";
+
+/** Mark this browser as one that has signed in before. */
+function withPriorSession() {
+  localStorage.setItem("solverah.hasSession", "1");
+}
 
 /** Renders nothing but proves the provider finished booting.
  *
@@ -90,10 +122,56 @@ describe("boot path", () => {
     // The default handler 401s. A failed probe must not trigger a profile fetch
     // either -- `useProfile` is gated on `user`, and an anonymous landing page
     // is the highest-volume boot there is.
+    //
+    // Nor a refresh: this browser has never had a session, so there is no
+    // refresh cookie and the exchange would be a guaranteed 401 against a
+    // rate-limited endpoint. Behind one NAT gateway that is how real users
+    // start seeing 429s on refreshes that matter.
     mount();
     await waitFor(() => expect(screen.getByTestId("shell")).toHaveTextContent("anonymous"));
 
     expect(requests).toEqual([SESSION]);
+  });
+
+  it("refreshes and re-probes when a returning visitor's access token has expired", async () => {
+    // The S3 case, and the one that decides whether a fifteen-minute access
+    // token is a security improvement or a fifteen-minute session. The probe
+    // 401s because the token aged out; the thirty-day refresh cookie is still
+    // good; the visitor never sees a login screen.
+    withPriorSession();
+    server.use(sessionExpiredThenSignedIn(), refreshSucceeds());
+
+    mount();
+    await waitFor(() =>
+      expect(screen.getByTestId("shell")).toHaveTextContent("ada@example.com"),
+    );
+
+    // Order is the assertion: refresh between the two probes. A boot path that
+    // re-probed without refreshing would get the same 401 twice, and one that
+    // refreshed without re-probing would never learn who the visitor is.
+    expect(requests).toEqual([SESSION, REFRESH, SESSION]);
+  });
+
+  it("does not retry the refresh in a loop when it fails", async () => {
+    // A returning visitor whose family was revoked -- logged out elsewhere, or
+    // reuse detection fired. One refresh, one refusal, done. A loop here would
+    // be an unbounded storm against the auth endpoint from every open tab.
+    withPriorSession();
+
+    mount();
+    await waitFor(() => expect(screen.getByTestId("shell")).toHaveTextContent("anonymous"));
+
+    expect(requests).toEqual([SESSION, REFRESH]);
+  });
+
+  it("forgets the session hint once the refresh has failed", async () => {
+    // So the next page load is one request again rather than two forever.
+    withPriorSession();
+
+    mount();
+    await waitFor(() => expect(screen.getByTestId("shell")).toHaveTextContent("anonymous"));
+
+    expect(localStorage.getItem("solverah.hasSession")).toBeNull();
   });
 
   it("fetches the profile document only when a screen renders it", async () => {

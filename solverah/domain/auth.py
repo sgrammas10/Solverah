@@ -13,16 +13,20 @@ the boundary rather than by sleeping.
 from __future__ import annotations
 
 import datetime
+import hashlib
 import os
-import random
 import secrets
 from typing import Any, Dict, Optional
 
 __all__ = [
     "DEFAULT_VERIFY_CODE_EXP_MINUTES",
+    "REFRESH_TOKEN_BYTES",
+    "TIMING_EQUALISER_HASH",
     "code_expiry_minutes",
     "default_profile",
+    "generate_refresh_token",
     "generate_verification_code",
+    "hash_refresh_token",
     "is_code_expired",
     "lockout_until",
     "utcnow",
@@ -31,6 +35,29 @@ __all__ = [
 #: How long a 6-digit email/reset code stays valid.  Overridable with
 #: VERIFY_CODE_EXP_MINUTES, read per call because the handlers it replaces did.
 DEFAULT_VERIFY_CODE_EXP_MINUTES = 15
+
+#: A real bcrypt digest, verified against on the "no such account" login branch
+#: so that branch costs what a real one costs.
+#:
+#: The 2026-09 audit probed a timing oracle: ``login`` short-circuits on
+#: ``if not user or not check_password(...)``, so an unknown address answered
+#: 401 without bcrypt ever running, while a known address answered the same 401
+#: several tens of milliseconds later.  The bodies matched; the clock did not.
+#:
+#: The fix is to spend the work rather than to hide it.  Hashing a *dummy*
+#: rather than the submitted password matters: verification cost in bcrypt is
+#: set by the digest's own cost parameter, not by the candidate, so this is a
+#: constant amount of work regardless of what an attacker sends.
+#:
+#: ``$2b$12$`` matches flask-bcrypt's default ``BCRYPT_LOG_ROUNDS`` of 12, which
+#: is what every stored ``password_hash`` in this application carries -- nothing
+#: sets the config key.  If that default is ever overridden, re-mint this at the
+#: new cost, or the branches diverge again in the other direction.
+#:
+#: It is not a secret and it is not a password: the plaintext behind it was 32
+#: bytes from ``secrets.token_bytes`` and was never recorded.  No candidate can
+#: match it, so a caller cannot use it to authenticate as anyone.
+TIMING_EQUALISER_HASH = "$2b$12$EQUirQt4sCsr7BnlsiS44./t8QypkRLv7Ymy4cpqKD9cwU.GoXhFG"
 
 
 def utcnow() -> datetime.datetime:
@@ -50,16 +77,84 @@ def code_expiry_minutes(env: Optional[Dict[str, str]] = None) -> int:
 
 
 def generate_verification_code() -> str:
-    """Return a 6-digit numeric code.
+    """Return a 6-digit numeric code from the system CSPRNG.
 
-    ``random`` rather than ``secrets`` is what the handlers used, and changing it
-    is a security improvement that does not belong in a batch whose contract is
-    "behaviour is unchanged" -- a code generator swap wants its own change and
-    its own test, not to ride along inside a 38-route move.  Tracked, not fixed
-    here: ``random`` is a Mersenne Twister, so observing enough codes recovers
-    the state and predicts the next one.
+    This code is a bearer credential.  ``/auth/password/reset`` exchanges it for
+    a full session cookie without ever consulting ``password_hash``, so
+    predicting one is equivalent to knowing the password.
+
+    Until S1 it came from ``random.randint``, and the docstring that stood here
+    said why that was tolerated (it was what the pre-Phase-1 handlers used, and
+    the batch that moved them promised "behaviour is unchanged").  The 2026-09
+    audit priced it: ``random`` is a Mersenne Twister, its state is recoverable
+    from ~624 consecutive outputs, and the attack needs no access to the
+    victim's inbox -- harvest codes by self-registering, reconstruct the state,
+    call ``/auth/password/forgot`` for the victim, predict the code.
+
+    ``secrets.randbelow`` draws from the OS entropy source, whose output is not
+    a function of previously observed output.  The arithmetic keeps the format
+    the wire and the UI already depend on: ``randbelow(900000)`` yields
+    ``0..899999``, and ``+ 100000`` shifts that onto ``100000..999999`` -- every
+    6-digit value, none shorter, uniformly.  ``str`` of that never needs
+    zero-padding, which is why the code is safe to compare as text.
+
+    The module-level guard in ``tests/test_otp_entropy.py`` keeps ``random``
+    from coming back here or anywhere else under ``solverah/``.
     """
-    return str(random.randint(100000, 999999))
+    return str(secrets.randbelow(900000) + 100000)
+
+
+#: Entropy behind a refresh token, in bytes drawn from the OS CSPRNG.
+#:
+#: 32 bytes is 256 bits.  The token is a bearer credential with a thirty-day
+#: life and no second factor behind it, so the only bound that matters is that
+#: guessing one is not a strategy: at 256 bits it is not, by any margin that
+#: will ever be relevant.  ``token_urlsafe`` renders it as 43 URL-safe
+#: characters, which is what makes it safe to carry in a cookie value without
+#: quoting or encoding.
+REFRESH_TOKEN_BYTES = 32
+
+
+def generate_refresh_token() -> str:
+    """Return one opaque refresh token: 256 bits of CSPRNG output, URL-safe.
+
+    **Opaque, not a JWT, and that is the design.**  A JWT refresh token is
+    self-describing and self-validating, which is exactly the property that
+    makes it unrevocable -- the server can check the signature without ever
+    consulting a row, so there is nothing for a logout to change.  This value
+    means nothing on its own; the only thing that makes it a session is a row in
+    ``user_sessions`` that has not been retired, so revoking one is a single
+    ``UPDATE``.
+
+    The token is never stored.  :func:`hash_refresh_token` is what reaches the
+    database; see its docstring for why the digest is SHA-256 and not bcrypt.
+    """
+    return secrets.token_urlsafe(REFRESH_TOKEN_BYTES)
+
+
+def hash_refresh_token(raw: str) -> str:
+    """Return the hex SHA-256 digest a refresh token is stored as.
+
+    **Hashed at rest for the same reason passwords are.**  A database dump, a
+    log line, or a backup that leaks the table must not hand the reader a
+    working session for every live user; with only digests it hands them
+    nothing they can present.
+
+    **SHA-256 rather than bcrypt, and the difference from passwords is the
+    reason.**  Bcrypt's cost parameter exists to make a *dictionary* attack
+    expensive, and a dictionary attack needs a candidate list -- which a human
+    password has and 256 bits of CSPRNG output does not.  There is nothing to
+    slow down here.  What a per-row salted digest *would* cost is the lookup:
+    the presented token has to find its row, and with bcrypt that is a scan of
+    every session in the table rather than one indexed equality on
+    ``token_hash``.  Paying a table scan per refresh to defend against a
+    dictionary that cannot exist is the wrong trade.
+
+    Deterministic and unsalted for the same reason: the digest *is* the index
+    key.  A salt would make two encodings of one token differ, which is the one
+    thing a lookup key may not do.
+    """
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def is_code_expired(

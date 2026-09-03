@@ -17,7 +17,12 @@ from __future__ import annotations
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_request
 
-from security import DEFAULT_LIMITS
+from security import (
+    DEFAULT_LIMITS,
+    WPLL_ANON_GLOBAL_LIMIT,
+    WPLL_ANON_PER_IP_LIMIT,
+    global_rate_limit_key,
+)
 from solverah.errors import GoneError, NotFoundError
 from solverah.extensions import limiter
 from solverah.openapi import document
@@ -86,17 +91,28 @@ DEFAULT_SUBMISSION_LIMIT = "5 per minute"
 #: fixed in passing.
 POLL_LIMIT = "60 per minute;2000 per day"
 
-#: Per-instrument limits, preserved exactly as the five separate handlers had
-#: them. ``wpll`` carries no per-endpoint limit today and therefore runs on the
-#: global defaults; they are spelled out because ``@limiter.limit`` defaults to
-#: ``override_defaults=True``, so a bare "5 per minute" there would have removed
-#: its 200-per-day cap while looking like a tightening.
+#: Per-instrument, per-IP limits. Four are preserved exactly as the five
+#: separate handlers had them.
+#:
+#: ``wpll`` is the one that changed, in S1. It used to be spelled
+#: ``";".join(DEFAULT_LIMITS)`` -- the global defaults, restated so that
+#: decorating the route could not silently drop the 200-per-day backstop
+#: (``shared_limit`` defaults to ``override_defaults=True``). Restating them was
+#: right; *those numbers* were not the right numbers for the application's one
+#: unauthenticated door onto a paid provider. 200/day with no burst term meant
+#: the 2026-09 audit could fire 40 enqueues from one address in 49 seconds and
+#: collect 40 ``202``s.
+#:
+#: It now carries ``WPLL_ANON_PER_IP_LIMIT``, which keeps a day term (so the
+#: backstop is still not dropped) and adds the minute and hour terms the door
+#: needed. The paired global ceiling lives on the routes themselves, below --
+#: it cannot live in this table, because it is keyed differently.
 SUBMISSION_LIMITS = {
     "core": DEFAULT_SUBMISSION_LIMIT,
     "work_pulse": DEFAULT_SUBMISSION_LIMIT,
     "focus_type": DEFAULT_SUBMISSION_LIMIT,
     "manager_match": DEFAULT_SUBMISSION_LIMIT,
-    "wpll": ";".join(DEFAULT_LIMITS),
+    "wpll": WPLL_ANON_PER_IP_LIMIT,
 }
 
 
@@ -199,6 +215,37 @@ def _submission_scope(_endpoint: str) -> str:
     return "%s%s" % (SUBMIT_SCOPE_PREFIX, kind)
 
 
+def _anonymous_submission_scope(_endpoint: str) -> str:
+    """Bucket for the *global* spend ceiling on an anonymous instrument.
+
+    Keyed by instrument like ``_submission_scope``, and for the same reason --
+    the two anonymous doors this application has must not be able to close each
+    other. It carries its own ``:global`` suffix rather than reusing that scope
+    because the bucket underneath it is keyed on a constant, not on the caller;
+    the same name with two key functions would be one name for two different
+    counters.
+    """
+    kind = (request.view_args or {}).get("kind") or "unknown"
+    return "%s%s:global" % (SUBMIT_SCOPE_PREFIX, kind)
+
+
+def _is_authenticated_kind() -> bool:
+    """Whether the instrument being submitted needs a JWT.
+
+    Used as ``exempt_when`` on the global ceiling below, so the ceiling applies
+    to the anonymous instruments and to nothing else. Derived from the registry
+    rather than from a literal ``kind == "wpll"``, so a second anonymous
+    instrument inherits the control instead of quietly arriving without one.
+
+    An unknown ``{kind}`` counts as authenticated and is therefore exempt: it is
+    about to be a 404 from ``_job_kind_or_404``, and spending the anonymous
+    budget on requests that reach no provider would let anyone close the door
+    for real visitors by typing a name that does not exist.
+    """
+    kind = assessment_service.find_kind((request.view_args or {}).get("kind") or "")
+    return kind is None or kind.requires_auth
+
+
 def _submission_limit() -> str:
     """The limit string for the instrument being submitted.
 
@@ -296,6 +343,14 @@ def assessment_kind_form(kind: str):
         "operation that took it."
     ),
 )
+# NOTE: the anonymous *global* ceiling is deliberately NOT on this route, only
+# on the enqueue below. It bounds provider spend, and this route spends nothing
+# for `wpll`: `_sync_kind_or_410` refuses before auth and before the body is
+# read. Counting refusals into a shared bucket would hand anyone a way to close
+# the real teaser for every visitor by hammering a door that is already gone --
+# 500 free hits, no provider call, no cost to the attacker. The per-IP bucket
+# below still counts them, and should: it is per-caller, so it bounds only the
+# caller doing it. Same distinction POLL_LIMIT makes for the same reason.
 @assessments_bp.route("/assessments/<kind>/submissions", methods=["POST"])
 @limiter.shared_limit(_submission_limit, scope=_submission_scope)
 def assessment_kind_submit(kind: str):
@@ -427,6 +482,8 @@ def _job_kind_or_404(kind: str):
     ),
 )
 @assessments_bp.route("/assessments/<kind>/scoring-jobs", methods=["POST"])
+@limiter.shared_limit(WPLL_ANON_GLOBAL_LIMIT, scope=_anonymous_submission_scope,
+                      key_func=global_rate_limit_key, exempt_when=_is_authenticated_kind)
 @limiter.shared_limit(_submission_limit, scope=_submission_scope)
 def assessment_kind_scoring_job(kind: str):
     """POST /assessments/{kind}/scoring-jobs - queue the scoring, return 202.
@@ -444,6 +501,20 @@ def assessment_kind_scoring_job(kind: str):
     a 400 here exactly as it is on the synchronous route; letting it through
     would convert an immediate, actionable error into a 202, a poll, and a
     failed job several seconds later.
+
+    **The second decorator is S1's, and it does a different job.** For `wpll` --
+    the one instrument with `requires_auth=False` -- this is an unauthenticated
+    route that commits a row and makes a paid provider call. A per-IP limit
+    cannot bound that, because the quantity an abuser controls freely is the
+    number of distinct addresses: N addresses buy N times the budget. The
+    `global_rate_limit_key` bucket is keyed on a constant, so it is one counter
+    for the whole deployment and it is the control that actually caps the bill.
+    `exempt_when=_is_authenticated_kind` keeps it off the other four, which have
+    an account behind them and are bounded by that instead.
+
+    This is the same two-limit shape `POST /intake/quiz-preview/insights`
+    already used; see `security.WPLL_ANON_GLOBAL_LIMIT` for what is shared with
+    it, what is not, and why.
     """
     resolved = _job_kind_or_404(kind)
     _require_auth_for(resolved)

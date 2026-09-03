@@ -115,11 +115,14 @@ class User(db.Model):
     # Email confirmation.
     #
     # `confirmation_token` and `confirmation_sent_at` are absent from Part 4.2,
-    # which assumes a separate token store alongside `user_sessions`. Neither
-    # exists yet and both columns are live behind `POST /auth/email/verify`, so
-    # they are carried forward rather than dropped -- deleting a live column
-    # because the target diagram does not draw it is deleting a feature by
-    # omission. They move when the token table lands.
+    # which assumes a separate token store alongside `user_sessions`. The
+    # sessions table exists as of S3 (2026-09-03) and holds *refresh* tokens
+    # only -- it is not the general token store Part 4.2 draws, and one-time
+    # email codes have a different shape, a different lifetime, and no rotation
+    # chain. Both columns are still live behind `POST /auth/email/verify`, so
+    # they stay here rather than being folded into a table that does not model
+    # them; deleting a live column because the target diagram does not draw it
+    # is deleting a feature by omission.
     email_confirmed_at = db.Column(db.DateTime(timezone=True))
     confirmation_token = db.Column(db.String(64), nullable=True, index=True)
     confirmation_sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
@@ -128,10 +131,12 @@ class User(db.Model):
     reset_token = db.Column(db.String(64), nullable=True)
     reset_sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
-    #: Declared by Part 4.2 and not yet maintained. The row that knows a login
-    #: happened is `user_sessions`, which this phase does not create; writing it
-    #: from the login handler would put a write on the login path for a column
-    #: nothing reads.
+    #: Declared by Part 4.2 and still not maintained. `user_sessions` exists as
+    #: of S3, and its `issued_at` answers the same question without a second
+    #: write on the login path -- `SELECT max(issued_at) FROM user_sessions
+    #: WHERE user_id = ?`. That is the argument that left this column alone in
+    #: Phase 2c, and building the sessions table strengthens it rather than
+    #: retiring it.
     last_login_at = db.Column(db.DateTime(timezone=True))
     failed_login_count = db.Column(db.SmallInteger, nullable=False, default=0)
     # TIMESTAMPTZ, where this was `timestamp without time zone`. `domain.utcnow()`
@@ -204,6 +209,126 @@ class User(db.Model):
     def _email_confirmed_expression(cls):
         """So `filter(User.email_confirmed)` means the same thing in SQL."""
         return cls.email_confirmed_at.isnot(None)
+
+
+class UserSession(db.Model):
+    """One refresh token: the row that makes a session revocable.
+
+    Part 4.2 declared this table and nothing built it, which is audit finding
+    1.1 (HIGH): `POST /auth/logout` cleared the cookie and the access JWT stayed
+    valid for the rest of its hour, so a stolen cookie survived the victim
+    logging out and no operator action short of rotating `JWT_SECRET_KEY`
+    fleet-wide revoked it.  A bare JWT is self-validating, which is exactly the
+    property that makes it unrevocable -- there is nothing for a logout to
+    change.  A row is.
+
+    **The token is never here.**  `token_hash` is the SHA-256 of a value that
+    exists in one place, the user's cookie; see `domain.auth.hash_refresh_token`
+    for why the digest is SHA-256 rather than bcrypt.
+
+    **A family is a login.**  Every rotation carries `family_id` forward, so the
+    chain minted by one sign-in shares one id however many times it rotates.
+    That is what makes reuse detection possible: a token presented after it was
+    retired means the chain leaked, and the whole family dies rather than the
+    one row -- the attacker's copy and the victim's copy are indistinguishable
+    once both have been seen, so leaving either alive leaves the attacker in.
+
+    **Rows outlive their tokens on purpose.**  A retired row is not deleted; it
+    keeps `retired_at` and `retired_reason`, which is what turns the table into
+    an audit trail -- "this session ended because the user logged out", not
+    "this session is gone".  `flask retention run` deletes them once they are
+    past `refresh_tokens.PURGE_DAYS`, which is the 30-days-past-expiry row in
+    the Part 4.8 retention table.
+
+    **`user_agent` and `ip` are deliberately not built**, though Part 4.2 draws
+    them.  They are per-request identifying data, and the feature that would
+    read them -- a device list, "sign out everywhere else" -- does not exist.
+    The same audit that raised finding 1.1 raised #18 and #7 against exactly
+    this shape: identifying columns retained past any reader.  They arrive with
+    the screen that shows them.
+    """
+
+    __tablename__ = "user_sessions"
+
+    id = db.Column(db.BigInteger, db.Identity(always=True), primary_key=True)
+
+    #: Every descendant of one sign-in shares this. Rotation carries it
+    #: forward; reuse detection revokes on it.
+    family_id = db.Column(
+        UUID(as_uuid=True), nullable=False, server_default=db.text("uuidv7()")
+    )
+    #: Named explicitly, unlike most foreign keys in this file, so the schema
+    #: `db.create_all()` builds and the schema the migration builds carry the
+    #: same constraint names. Unnamed, SQLAlchemy leaves it to Postgres and the
+    #: test database ends up with `user_sessions_user_id_fkey` while production
+    #: has `fk_user_sessions_user` -- a divergence that is invisible until
+    #: something addresses a constraint by name.
+    user_id = db.Column(
+        db.BigInteger,
+        db.ForeignKey("users.id", ondelete="CASCADE", name="fk_user_sessions_user"),
+        nullable=False,
+    )
+
+    #: Hex SHA-256 of the opaque token. Unique, because it is the lookup key.
+    token_hash = db.Column(db.Text, nullable=False)
+
+    #: The row this one replaced, and the row that replaced this one. Two
+    #: columns rather than one because both directions are read: the parent
+    #: gives the audit chain, and the successor is what tells a stampede's
+    #: second request that rotation already happened and which row it landed on.
+    parent_id = db.Column(
+        db.BigInteger,
+        db.ForeignKey(
+            "user_sessions.id", ondelete="SET NULL", name="fk_user_sessions_parent"
+        ),
+    )
+    successor_id = db.Column(
+        db.BigInteger,
+        db.ForeignKey(
+            "user_sessions.id", ondelete="SET NULL", name="fk_user_sessions_successor"
+        ),
+    )
+
+    issued_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, server_default=db.func.now()
+    )
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
+
+    #: When this token stopped being usable, and why. Both or neither -- a death
+    #: with no cause is an audit row that cannot answer the question it exists
+    #: for, and the check constraint refuses it.
+    retired_at = db.Column(db.DateTime(timezone=True))
+    retired_reason = db.Column(db.Text)
+
+    __table_args__ = (
+        db.Index("uq_user_sessions_token_hash", "token_hash", unique=True),
+        db.Index("ix_user_sessions_family", "family_id"),
+        db.Index("ix_user_sessions_user_issued", "user_id", db.text("issued_at DESC")),
+        # The retention pass reads exactly these two halves, and they are
+        # disjoint: live rows by `expires_at`, dead rows by `retired_at`. One
+        # index over both would make each scan the other's rows, and in steady
+        # state the dead half is almost all of them.
+        db.Index(
+            "ix_user_sessions_live",
+            "expires_at",
+            postgresql_where=db.text("retired_at IS NULL"),
+        ),
+        db.Index(
+            "ix_user_sessions_retired",
+            "retired_at",
+            postgresql_where=db.text("retired_at IS NOT NULL"),
+        ),
+        db.CheckConstraint(
+            "(retired_at IS NULL AND retired_reason IS NULL) OR "
+            "(retired_at IS NOT NULL AND retired_reason IS NOT NULL)",
+            name="ck_user_sessions_retirement_complete",
+        ),
+        db.CheckConstraint(
+            "retired_reason IS NULL OR retired_reason IN "
+            "('rotated', 'logged_out', 'reused', 'expired')",
+            name="ck_user_sessions_retired_reason",
+        ),
+    )
 
 
 class UserIntake(db.Model):

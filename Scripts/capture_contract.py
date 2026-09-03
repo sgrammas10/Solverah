@@ -72,6 +72,22 @@ computing nothing and answering 404 with ``start_job_url`` is the new promise.
 Job handles are random per run and masked as ``<JID>`` -- in bodies and in the
 recorded poll *path*, which is the first path here to embed a per-run value.
 
+**Extended for S3 (database-backed refresh tokens).**  The second deliberate
+contract change in the project's history, and A24 (docs/ARCHITECTURE.md) is the
+ledger of what moved.  One of the sixty steps above changed on its own --
+``login`` now sets a third cookie -- and eleven steps are appended for the
+surface that did not exist: the rotation, the concurrency grace answer, reuse
+detection, the two halves of the CSRF guard on the refresh POST, and a logout
+that revokes.
+
+Two of those records exist to be read as a *pair*, in the way A23's
+anti-enumeration records do.  ``refresh`` and ``refresh-replayed-in-grace`` are
+both ``200``, and the whole property is that their ``cookies_set`` differ: the
+first rotates and hands back a new refresh cookie, the second is the second tab
+in a stampede and must NOT, because the successor is already in the shared
+cookie jar.  A future diff that made them the same is a design regression that
+no unit test phrases as a wire fact.
+
 **The LLM is stubbed, and the prompt builders with it.** Three instruments call a
 provider; a fixture that depended on one could not produce stable bytes, and the
 narrative text is the whole payload for two of them. `_chat_json` is replaced by a
@@ -98,6 +114,10 @@ BASELINE = REPO_ROOT / "docs" / "contract_baseline.json"
 
 EMAIL = "contract-primary@example.test"
 UNCONFIRMED_EMAIL = "contract-unconfirmed@example.test"
+#: An address no scenario step ever registers.  It exists so the two
+#: anti-enumeration endpoints can be asked about a stranger and about a real
+#: user in the same run, and the answers compared.
+ABSENT_EMAIL = "contract-absent@example.test"
 PASSWORD = "Strongpass1!"
 
 #: Same literal every person-side test uses. `respondent_id_for_user` has no
@@ -353,6 +373,49 @@ def _seed_company(db) -> None:
         )
     )
     db.session.commit()
+
+
+#: The refresh cookie and the path it is scoped to.  Both are configuration in
+#: the app (`JWT_REFRESH_COOKIE_NAME`, `JWT_REFRESH_COOKIE_PATH`); spelled out
+#: here because the test client's jar is keyed on the path, so a capture that
+#: guessed it would silently read `None` and record a scenario in which no
+#: token was ever presented.
+REFRESH_COOKIE = "refresh_token_cookie"
+REFRESH_PATH = "/api/v1/auth/refresh"
+
+
+def _put_refresh_cookie(client, raw: str) -> None:
+    """Put a specific refresh token back in the jar.
+
+    Replaying an ancestor is the only way to capture reuse detection, and the
+    jar holds one token at a time.
+    """
+    client.set_cookie(REFRESH_COOKIE, raw, path=REFRESH_PATH, domain="localhost")
+
+
+def _age_retirements(app) -> None:
+    """Move every retirement out of the rotation grace window.
+
+    The alternative is `time.sleep(31)` in a fixture that runs on every capture,
+    for a constant chosen by the application. This moves the clock instead.
+    """
+    import datetime
+
+    import sqlalchemy as sa
+
+    from model import UserSession, db
+
+    table = UserSession.__table__
+    with app.app_context():
+        db.session.execute(
+            sa.update(table)
+            .where(table.c.retired_at.isnot(None))
+            .values(
+                retired_at=datetime.datetime.now(datetime.timezone.utc)
+                - datetime.timedelta(minutes=5)
+            )
+        )
+        db.session.commit()
 
 
 def run_scenario() -> List[Dict[str, Any]]:
@@ -701,6 +764,152 @@ def run_scenario() -> List[Dict[str, Any]]:
     )
     call("logout", "POST", "/api/v1/auth/logout", headers=csrf)
     call("session-after-logout", "GET", "/api/v1/auth/session")
+
+    # -- the two anti-enumeration endpoints (S1, audit 2.3) ----------------
+    #
+    # These five steps exist for a different reason from every step above.
+    # Elsewhere the baseline's job is to notice when a response changes; here
+    # it is to notice when two responses stop being *the same as each other*.
+    # S1 made forgot-password and resend-verification answer identically
+    # whether or not the address exists, which is the entire fix -- a 404 for
+    # an unknown address is an oracle that sorts a mailing list into "has a
+    # Solverah account" and "does not".  That identity is invisible to every
+    # other guard in the repo: the unit tests assert it directly, but nothing
+    # would catch a future handler that reintroduced a distinguishing branch
+    # in some path the unit tests do not construct.  Recording both answers
+    # here means the diff shows it.
+    #
+    # Read these records in PAIRS.  `forgot-password-known` and
+    # `forgot-password-unknown` must stay byte-identical to each other, and so
+    # must the three `resend-verification-*` records.  A future diff that
+    # changes both halves of a pair together is a deliberate wording change; a
+    # diff that changes only one half is the security regression.
+    #
+    # Appended rather than inserted so the 55 records above keep their
+    # positions, and placed after logout so the reset token these mint cannot
+    # affect an earlier step.  Counts fit the live limits: forgot is 3/minute
+    # and gets 2 calls, resend is 5/minute and gets 3.
+    call(
+        "forgot-password-known",
+        "POST",
+        "/api/v1/auth/password/forgot",
+        json={"email": EMAIL},
+    )
+    call(
+        "forgot-password-unknown",
+        "POST",
+        "/api/v1/auth/password/forgot",
+        json={"email": ABSENT_EMAIL},
+    )
+    # Three populations, one answer.  The confirmed account is the case that
+    # used to answer `400 Email already confirmed`, and the unconfirmed one is
+    # the only address here for which the endpoint does real work.
+    call(
+        "resend-verification-unconfirmed",
+        "POST",
+        "/api/v1/auth/email/verify/resend",
+        json={"email": UNCONFIRMED_EMAIL},
+    )
+    call(
+        "resend-verification-confirmed",
+        "POST",
+        "/api/v1/auth/email/verify/resend",
+        json={"email": EMAIL},
+    )
+    call(
+        "resend-verification-unknown",
+        "POST",
+        "/api/v1/auth/email/verify/resend",
+        json={"email": ABSENT_EMAIL},
+    )
+
+    # -- refresh tokens (S3, audit 1.1) ------------------------------------
+    #
+    # Appended after the anti-enumeration block so the 60 records above keep
+    # their positions, exactly as A23 appended after `logout`.  These nine need
+    # a session of their own -- `logout` ended the one the scenario had -- and
+    # they leave the account logged out again at the end, which is where they
+    # found it.
+    #
+    # Every call sends `json={}`.  That is not padding: the refresh endpoint
+    # requires `application/json`, which is half of its CSRF control (a
+    # cross-site HTML form can send three content types and none of them is
+    # this one).  `refresh-form-content-type` below captures the refusal.
+    #
+    # Well inside the live limit -- the endpoint allows 30 per minute per IP and
+    # this block makes seven calls to it -- so a scenario step can never record
+    # a 429 as if it were the contract (A23's rule).
+    call(
+        "login-for-refresh",
+        "POST",
+        "/api/v1/auth/login",
+        json={"email": EMAIL, "password": PASSWORD},
+    )
+    login_token = client.get_cookie(
+        REFRESH_COOKIE, path=REFRESH_PATH, domain="localhost"
+    ).value
+
+    call("refresh", "POST", REFRESH_PATH, json={})
+    call("refresh-rotated", "POST", REFRESH_PATH, json={})
+    live_token = client.get_cookie(
+        REFRESH_COOKIE, path=REFRESH_PATH, domain="localhost"
+    ).value
+
+    # The stampede's second request: a token this scenario rotated past seconds
+    # ago.  200, and -- the part that is the property -- no `refresh_token_cookie`
+    # in `cookies_set`.  Read this record against `refresh` above.
+    _put_refresh_cookie(client, login_token)
+    call("refresh-replayed-in-grace", "POST", REFRESH_PATH, json={})
+
+    # The same token, now outside the grace window.  Ageing the retirements
+    # rather than sleeping thirty seconds, and rather than lowering the constant
+    # -- a capture taken with the window set to zero would record the behaviour
+    # of a design without a grace window, which is the design being ruled out.
+    _age_retirements(app)
+    call("refresh-replayed-after-grace", "POST", REFRESH_PATH, json={})
+
+    # Reuse detection revoked the family, so the token that WAS live is dead
+    # too.  Identical bytes to the record above it: every refusal answers the
+    # same thing, so the endpoint cannot be used to tell a stale token from a
+    # stolen one from one that never existed.
+    _put_refresh_cookie(client, live_token)
+    call("refresh-after-family-revoked", "POST", REFRESH_PATH, json={})
+
+    # The two halves of the CSRF guard.  Neither reaches the token at all.
+    call(
+        "refresh-cross-site-origin",
+        "POST",
+        REFRESH_PATH,
+        json={},
+        headers={"Origin": "https://evil.example"},
+    )
+    call(
+        "refresh-form-content-type",
+        "POST",
+        REFRESH_PATH,
+        data="not-json",
+        content_type="text/plain",
+    )
+
+    # Logout, and the finding itself: the refresh token minted by this sign-in
+    # is worthless afterwards.  `logout-revoking` is byte-identical to the
+    # `logout` record above -- the revocation is server-side and shows up in the
+    # database, not in the response -- and `refresh-after-logout` is what makes
+    # it visible on the wire.
+    login = call(
+        "login-for-logout",
+        "POST",
+        "/api/v1/auth/login",
+        json={"email": EMAIL, "password": PASSWORD},
+    )
+    call(
+        "logout-revoking",
+        "POST",
+        "/api/v1/auth/logout",
+        headers={"X-CSRF-TOKEN": login.get_json()["csrfToken"]},
+    )
+    _put_refresh_cookie(client, login_token)
+    call("refresh-after-logout", "POST", REFRESH_PATH, json={})
 
     return records
 

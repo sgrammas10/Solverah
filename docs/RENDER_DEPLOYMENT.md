@@ -19,12 +19,29 @@ env-var facts are presence-only, never values.
 | Domains | `api.solverah.com` on the Render web service; `solverah.com` is the Vercel frontend (not Render's concern) |
 | Not present | No worker, no beat, no Redis, no cron jobs (as of the intake) |
 
-`render.yaml` at the repo root transcribes exactly this, plus two **cron job
+`render.yaml` at the repo root transcribes exactly this, plus three **cron job
 services that do not exist yet**: `solverah-outbox-sweep` (`flask outbox
-sweep`, every 5 minutes) and `solverah-retention` (`flask retention run`,
-daily). Those two commands are a contract with the round building the CLI —
-the names are fixed; the cron services themselves still have to be created
-(in the dashboard, or via Blueprint adoption below).
+sweep`, every 5 minutes), `solverah-retention` (`flask retention run`, daily
+04:30 UTC) and `solverah-backups` (`flask backups run`, daily 03:30 UTC). The
+commands are a contract with the CLI (`solverah/cli.py`) — the names are fixed;
+the cron services themselves still have to be created (in the dashboard, or via
+Blueprint adoption below).
+
+Two things about the third one differ from everything else on this page, and
+both are deliberate ([RUNBOOK_SCENARIO_A_CRON.md](RUNBOOK_SCENARIO_A_CRON.md)
+has the reasoning):
+
+- **It is the only Docker-runtime service here.** It shells out to `pg_dump`,
+  whose major must be >= the server's 18.3, and the native Python runtime
+  guarantees no PostgreSQL client at all. It builds
+  `infra/docker/Dockerfile.backup` (postgresql-client-18, pinned).
+- **It has its own env var group, `solverah-backups`, and must not share the
+  web service's.** `BACKUP_S3_*` are separate credentials for a separate
+  bucket, so that a stolen application key cannot read or delete the backups.
+  `solverah/config.py` refuses to boot if the backup bucket or access key id
+  matches the app's, and never falls back to `S3_*`. If these are created by
+  hand in the dashboard, creating them *on the web service* would defeat the
+  whole control.
 
 ## ⚠️ render.yaml governs nothing until a Blueprint adopts it
 

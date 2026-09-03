@@ -1,0 +1,106 @@
+# Solverah backup cron — image for `flask backups run`.
+#
+# Build from the repository root so the whole source tree is in context:
+#     docker build -f infra/docker/Dockerfile.backup -t solverah-backup .
+#
+# WHY THIS IMAGE EXISTS, when the other two crons need no image at all:
+# `flask backups run` shells out to pg_dump and pg_restore, and Render's native
+# Python runtime guarantees neither — nor, if one happens to be present, its
+# version. pg_dump refuses outright to dump a server newer than itself, and
+# production's managed Postgres is 18.3 (measured 2026-08-27; uuidv7() in the
+# schema makes 18 load-bearing, so it will not be going backwards). A client
+# major >= the server's is therefore a hard requirement, and pinning
+# postgresql-client-18 here is what makes it a property of the image rather
+# than of whatever the platform happened to bake in this month.
+#
+# Everything else follows Dockerfile.api's conventions, and for its reasons:
+#   * Multi-stage — the compiler lives in a stage the runtime does not keep.
+#   * Non-root — the process cannot write to its own code.
+#   * Dependencies installed before the source is copied, so an application
+#     edit does not invalidate the dependency layer.
+#   * Same pinned base as the API image, so both move together.
+#
+# The one difference worth naming: no HEALTHCHECK. This container runs one
+# command and exits, and its health is its exit code — non-zero means the pass
+# failed and cron alerting must fire (solverah/cli.py).
+
+# ---------------------------------------------------------------- build stage
+FROM python:3.11-slim-bookworm AS builder
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential libpq-dev \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY requirements.txt .
+RUN pip wheel --wheel-dir /wheels -r requirements.txt
+
+
+# -------------------------------------------------------------- runtime stage
+FROM python:3.11-slim-bookworm AS runtime
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    APP_ENV=production \
+    LOG_FORMAT=json
+
+# PostgreSQL 18 client, from PGDG — Debian bookworm's own archive carries 15,
+# which cannot dump an 18 server at all. The keyring is written to a file and
+# referenced with signed-by rather than piped into apt-key: apt-key is
+# deprecated and trusts the key for every repository on the system.
+#
+# curl and gnupg are build-time only and are removed in the same layer, so the
+# final image has no HTTP client and no toolchain — the same reasoning that
+# keeps gcc out of the API runtime.
+#
+# libpq5 is psycopg2's runtime and comes in as a dependency of the client
+# package; it is named explicitly so a future repackaging cannot drop it
+# silently and break the app's own database access.
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ca-certificates curl gnupg; \
+    install -d /usr/share/postgresql-common/pgdg; \
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+        -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc; \
+    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends libpq5 postgresql-client-18; \
+    apt-get purge -y --auto-remove curl gnupg; \
+    rm -rf /var/lib/apt/lists/*; \
+    useradd --create-home --shell /usr/sbin/nologin --uid 10001 solverah
+
+# Fail the BUILD, not the 03:30 cron pass, if the client is ever not 18+.
+# A silently downgraded client produces a backup that pg_dump refuses to take,
+# discovered by an alert at night rather than by a red build.
+RUN pg_dump --version && pg_dump --version | grep -qE '\(PostgreSQL\) 1[89]|\(PostgreSQL\) [2-9][0-9]'
+
+WORKDIR /app
+
+COPY --from=builder /wheels /wheels
+COPY requirements.txt .
+RUN pip install --no-index --find-links=/wheels -r requirements.txt \
+ && rm -rf /wheels
+
+# Ownership at copy time; a later `chown -R` would duplicate every file into a
+# second layer (see Dockerfile.api).
+COPY --chown=solverah:solverah . .
+
+USER solverah
+
+# The dump is written to a temporary directory and deleted when the pass ends,
+# so the container needs room for one artifact — not for the retention window,
+# which lives in the bucket. TMPDIR is named explicitly because the default
+# would put it wherever the platform's /tmp is, and "the disk filled at 90%" is
+# one of the two failures `pg_restore --list` is here to catch.
+ENV TMPDIR=/tmp
+
+# Render's Cron Job service supplies its own command; this documents the one
+# the service is expected to run, and makes `docker run` do the right thing.
+CMD ["flask", "backups", "run"]

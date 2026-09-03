@@ -70,7 +70,8 @@
     "mimetype": "application/json",
     "cookies_set": [
       "access_token_cookie",
-      "csrf_access_token"
+      "csrf_access_token",
+      "refresh_token_cookie"
     ],
     "body": "{\"csrfToken\":\"<CSRF>\",\"message\":\"login successful\",\"user\":{\"email\":\"contract-primary@example.test\",\"id\":1,\"name\":\"Contract User\",\"profileData\":{\"certifications\":[],\"education\":[],\"email\":\"contract-primary@example.test\",\"experience\":[],\"firstName\":\"Contract\",\"lastName\":\"User\",\"legal_acceptance\":{\"accepted_at\":\"<TS>\",\"age_16_plus_attested\":true,\"terms_version\":\"unversioned\"},\"linkedinUrl\":\"\",\"location\":\"\",\"performanceReviews\":[],\"phone\":\"\",\"primaryLocation\":\"\",\"psychometricResults\":{\"communication\":{\"completed\":false,\"percentile\":null,\"score\":null},\"creativity\":{\"completed\":false,\"percentile\":null,\"score\":null},\"leadership\":{\"completed\":false,\"percentile\":null,\"score\":null},\"problemSolving\":{\"completed\":false,\"percentile\":null,\"score\":null},\"teamwork\":{\"completed\":false,\"percentile\":null,\"score\":null}},\"secondaryLocations\":[],\"skill_levels\":{},\"skills\":[],\"summary\":\"\"},\"role\":\"job-seeker\",\"wp_v2_completed\":false,\"wpl_completed\":false,\"wpll_completed\":false}}\n"
   },
@@ -501,5 +502,188 @@
     "mimetype": "application/json",
     "cookies_set": [],
     "body": "{\"msg\":\"Missing cookie \\\"access_token_cookie\\\"\"}\n"
+  },
+  {
+    "step": "forgot-password-known",
+    "method": "POST",
+    "path": "/api/v1/auth/password/forgot",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"message\":\"reset_sent\"}\n"
+  },
+  {
+    "step": "forgot-password-unknown",
+    "method": "POST",
+    "path": "/api/v1/auth/password/forgot",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"message\":\"reset_sent\"}\n"
+  },
+  {
+    "step": "resend-verification-unconfirmed",
+    "method": "POST",
+    "path": "/api/v1/auth/email/verify/resend",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"message\":\"confirmation_sent\"}\n"
+  },
+  {
+    "step": "resend-verification-confirmed",
+    "method": "POST",
+    "path": "/api/v1/auth/email/verify/resend",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"message\":\"confirmation_sent\"}\n"
+  },
+  {
+    "step": "resend-verification-unknown",
+    "method": "POST",
+    "path": "/api/v1/auth/email/verify/resend",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"message\":\"confirmation_sent\"}\n"
+  },
+  {
+    "step": "login-for-refresh",
+    "method": "POST",
+    "path": "/api/v1/auth/login",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"csrfToken\":\"<CSRF>\",\"message\":\"login successful\",\"user\":{\"email\":\"contract-primary@example.test\",\"id\":1,\"name\":\"Renamed User\",\"profileData\":{\"career_status\":\"employed\",\"certifications\":[\"AWS SAA\"],\"culture_preferences\":{\"adaptability\":0.6,\"creative_drive\":0.65,\"data_orientation\":0.625,\"empathy\":0.5167,\"futuristic\":0.665,\"harmony\":0.6,\"pace\":\"moderate\",\"work_environment\":[\"collaborative\"]},\"education\":[{\"degree\":\"BS\",\"endDate\":\"2018\",\"field\":\"Computer Science\",\"gpa\":\"3.8\",\"id\":2,\"school\":\"State University\"}],\"email\":\"contract-primary@example.test\",\"experience\":[{\"company\":\"Acme\",\"description\":\"Built things.\",\"endDate\":\"Present\",\"id\":1,\"startDate\":\"2019-01-01\",\"title\":\"Engineer\"}],\"firstName\":\"Contract\",\"focus_type_result\":{\"archetype\":\"Deep Diver\",\"dimension_scores\":{\"burst_energy\":2,\"deep_focus\":11,\"reactivity\":1,\"social_fuel\":1,\"structure_need\":3,\"urgency_drive\":3},\"recommendations\":[\"Block 3\\u20134 hour focus windows every morning before meetings\",\"Work in environments with zero notifications \\u2014 phone on Do Not Disturb\",\"Batch all async communication into 2 dedicated windows per day\",\"Avoid open-plan offices or hot-desking \\u2014 you need a consistent, quiet space\",\"Best tools: time-blocking calendar, noise-cancelling headphones, single-tab browser sessions\"]},\"lastName\":\"User\",\"legal_acceptance\":{\"accepted_at\":\"<TS>\",\"age_16_plus_attested\":true,\"terms_version\":\"unversioned\"},\"linkedinUrl\":\"https://example.test/in/contract\",\"location\":\"Austin, TX\",\"manager_match_result\":{\"archetype\":\"The Operator\",\"archetype_description\":\"Autonomy with an explicit target.\",\"dimension_scores\":{\"autonomy\":0.25,\"feedback_style\":0.8,\"growth_focus\":0.7875000000000001,\"relationship\":0.39999999999999997},\"narrative\":\"You want a manager who sets direction and then gets out of the way.\",\"red_flags\":[\"decisions that only happen in the room\"],\"what_to_look_for\":[\"clear written goals\",\"few standing meetings\"]},\"performanceReviews\":[],\"phone\":\"\",\"primaryLocation\":\"\",\"psychometricResults\":{\"communication\":{\"completed\":false,\"percentile\":null,\"score\":null},\"creativity\":{\"completed\":false,\"percentile\":null,\"score\":null},\"leadership\":{\"completed\":false,\"percentile\":null,\"score\":null},\"problemSolving\":{\"completed\":false,\"percentile\":null,\"score\":null},\"teamwork\":{\"completed\":false,\"percentile\":null,\"score\":null}},\"secondaryLocations\":[],\"skill_levels\":{\"Node.js\":\"intermediate\",\"Python\":\"advanced\"},\"skills\":[\"Python\",\"Node.js\",\"C++\"],\"skills_proficiency_confirmed\":true,\"summary\":\"A profile that exercises every promoted column.\"},\"role\":\"job-seeker\",\"wp_v2_completed\":true,\"wpl_completed\":true,\"wpll_completed\":true}}\n"
+  },
+  {
+    "step": "refresh",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"csrfToken\":\"<CSRF>\",\"message\":\"refreshed\"}\n"
+  },
+  {
+    "step": "refresh-rotated",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"csrfToken\":\"<CSRF>\",\"message\":\"refreshed\"}\n"
+  },
+  {
+    "step": "refresh-replayed-in-grace",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token"
+    ],
+    "body": "{\"csrfToken\":\"<CSRF>\",\"message\":\"refreshed\"}\n"
+  },
+  {
+    "step": "refresh-replayed-after-grace",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "status": 401,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "csrf_refresh_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"error\":\"invalid_refresh_token\"}\n"
+  },
+  {
+    "step": "refresh-after-family-revoked",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "status": 401,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "csrf_refresh_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"error\":\"invalid_refresh_token\"}\n"
+  },
+  {
+    "step": "refresh-cross-site-origin",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "status": 403,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"cross_site_request_refused\"}\n"
+  },
+  {
+    "step": "refresh-form-content-type",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "status": 415,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"unsupported_media_type\"}\n"
+  },
+  {
+    "step": "login-for-logout",
+    "method": "POST",
+    "path": "/api/v1/auth/login",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"csrfToken\":\"<CSRF>\",\"message\":\"login successful\",\"user\":{\"email\":\"contract-primary@example.test\",\"id\":1,\"name\":\"Renamed User\",\"profileData\":{\"career_status\":\"employed\",\"certifications\":[\"AWS SAA\"],\"culture_preferences\":{\"adaptability\":0.6,\"creative_drive\":0.65,\"data_orientation\":0.625,\"empathy\":0.5167,\"futuristic\":0.665,\"harmony\":0.6,\"pace\":\"moderate\",\"work_environment\":[\"collaborative\"]},\"education\":[{\"degree\":\"BS\",\"endDate\":\"2018\",\"field\":\"Computer Science\",\"gpa\":\"3.8\",\"id\":2,\"school\":\"State University\"}],\"email\":\"contract-primary@example.test\",\"experience\":[{\"company\":\"Acme\",\"description\":\"Built things.\",\"endDate\":\"Present\",\"id\":1,\"startDate\":\"2019-01-01\",\"title\":\"Engineer\"}],\"firstName\":\"Contract\",\"focus_type_result\":{\"archetype\":\"Deep Diver\",\"dimension_scores\":{\"burst_energy\":2,\"deep_focus\":11,\"reactivity\":1,\"social_fuel\":1,\"structure_need\":3,\"urgency_drive\":3},\"recommendations\":[\"Block 3\\u20134 hour focus windows every morning before meetings\",\"Work in environments with zero notifications \\u2014 phone on Do Not Disturb\",\"Batch all async communication into 2 dedicated windows per day\",\"Avoid open-plan offices or hot-desking \\u2014 you need a consistent, quiet space\",\"Best tools: time-blocking calendar, noise-cancelling headphones, single-tab browser sessions\"]},\"lastName\":\"User\",\"legal_acceptance\":{\"accepted_at\":\"<TS>\",\"age_16_plus_attested\":true,\"terms_version\":\"unversioned\"},\"linkedinUrl\":\"https://example.test/in/contract\",\"location\":\"Austin, TX\",\"manager_match_result\":{\"archetype\":\"The Operator\",\"archetype_description\":\"Autonomy with an explicit target.\",\"dimension_scores\":{\"autonomy\":0.25,\"feedback_style\":0.8,\"growth_focus\":0.7875000000000001,\"relationship\":0.39999999999999997},\"narrative\":\"You want a manager who sets direction and then gets out of the way.\",\"red_flags\":[\"decisions that only happen in the room\"],\"what_to_look_for\":[\"clear written goals\",\"few standing meetings\"]},\"performanceReviews\":[],\"phone\":\"\",\"primaryLocation\":\"\",\"psychometricResults\":{\"communication\":{\"completed\":false,\"percentile\":null,\"score\":null},\"creativity\":{\"completed\":false,\"percentile\":null,\"score\":null},\"leadership\":{\"completed\":false,\"percentile\":null,\"score\":null},\"problemSolving\":{\"completed\":false,\"percentile\":null,\"score\":null},\"teamwork\":{\"completed\":false,\"percentile\":null,\"score\":null}},\"secondaryLocations\":[],\"skill_levels\":{\"Node.js\":\"intermediate\",\"Python\":\"advanced\"},\"skills\":[\"Python\",\"Node.js\",\"C++\"],\"skills_proficiency_confirmed\":true,\"summary\":\"A profile that exercises every promoted column.\"},\"role\":\"job-seeker\",\"wp_v2_completed\":true,\"wpl_completed\":true,\"wpll_completed\":true}}\n"
+  },
+  {
+    "step": "logout-revoking",
+    "method": "POST",
+    "path": "/api/v1/auth/logout",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "csrf_refresh_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"message\":\"logout successful\"}\n"
+  },
+  {
+    "step": "refresh-after-logout",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "status": 401,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "csrf_refresh_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"error\":\"invalid_refresh_token\"}\n"
   }
 ]

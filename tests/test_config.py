@@ -12,11 +12,19 @@ BASE_ENV = {
     "JWT_SECRET_KEY": "x" * 40,
 }
 
+#: A *valid* production environment.
+#:
+#: ``REDIS_URL`` is here as of S1 and is not decoration: a production
+#: environment with no shared rate-limit store no longer builds at all
+#: (``test_memory_rate_limit_in_production_is_fatal`` below is the cover), so
+#: leaving it out would make every other test in this file fail for that one
+#: reason instead of testing what it says it tests.
 PROD_ENV = dict(
     BASE_ENV,
     APP_ENV="production",
     JWT_COOKIE_SECURE="true",
     JWT_COOKIE_SAMESITE="None",
+    REDIS_URL="redis://cache:6379/0",
 )
 
 
@@ -112,12 +120,35 @@ def test_invalid_samesite_value_rejected():
         Settings.from_env(dict(BASE_ENV, JWT_COOKIE_SAMESITE="Loose"))
 
 
-def test_memory_rate_limit_in_production_warns_but_does_not_fail():
-    """Per-worker limits are wrong, but not a reason to refuse to boot."""
-    s = Settings.from_env(PROD_ENV)
+def test_memory_rate_limit_in_production_is_fatal():
+    """Production with no shared rate-limit store must not boot.
+
+    S1, reversing this test's own earlier verdict ("wrong, but not a reason to
+    refuse to boot"). ``memory://`` counts per process, so with N gunicorn
+    workers every limit is N times looser than configured and every deploy
+    hands attackers a fresh budget -- including the OTP-verification throttle
+    that is the only bound on guessing a 6-digit session-granting code, and the
+    "global" spend ceilings on the anonymous LLM endpoints, which are not
+    ceilings at all when each worker keeps a private copy.
+
+    A warning was the wrong instrument: one line in a boot log, predicting a
+    failure that is otherwise silent. Fails against a build that only warns.
+    """
+    env = dict(PROD_ENV)
+    del env["REDIS_URL"]
+
+    with pytest.raises(ConfigError) as exc:
+        Settings.from_env(env)
+
+    assert any("memory://" in p for p in exc.value.problems)
+
+
+def test_memory_rate_limit_outside_production_is_fine():
+    """Development is the environment memory:// is *for*: one process, no deploys."""
+    s = Settings.from_env(BASE_ENV)
 
     assert s.ratelimit_storage_uri == "memory://"
-    assert any("RATELIMIT_STORAGE_URI" in w for w in s.warnings)
+    assert s.warnings == []
 
 
 def test_redis_url_backs_rate_limiting_when_set():
@@ -187,6 +218,104 @@ def test_malformed_sentry_dsn_is_fatal_at_boot(bad_dsn):
         Settings.from_env(dict(BASE_ENV, SENTRY_DSN=bad_dsn))
 
     assert any("SENTRY_DSN" in p for p in exc.value.problems)
+
+
+# ---------------------------------------------------------------------------
+# BACKUP_S3_* — the backup object store's own credentials.
+#
+# The group exists because a compromised application key must not be able to
+# read or delete the backups. That property is worth nothing if the code will
+# quietly use the app's S3_* when the group is absent or half-set, so the rules
+# below are the feature, not validation hygiene around it.
+# ---------------------------------------------------------------------------
+
+BACKUP_ENV = {
+    "BACKUP_S3_ENDPOINT_URL": "https://backups.r2.example",
+    "BACKUP_S3_BUCKET_NAME": "solverah-backups",
+    "BACKUP_S3_ACCESS_KEY_ID": "backup-key-id",
+    "BACKUP_S3_SECRET_ACCESS_KEY": "backup-secret",
+}
+
+APP_S3_ENV = {
+    "S3_ENDPOINT_URL": "https://app.r2.example",
+    "S3_BUCKET_NAME": "solverah-resumes",
+    "S3_ACCESS_KEY_ID": "app-key-id",
+    "S3_SECRET_ACCESS_KEY": "app-secret",
+}
+
+
+def test_backup_credentials_are_optional_as_a_group():
+    """CI sets five variables; boot must be identical without these."""
+    s = Settings.from_env(BASE_ENV)
+
+    assert s.has_backup_storage() is False
+    assert s.backup_s3_bucket_name is None
+    assert s.redacted()["providers"]["backup_s3"] is False
+
+
+def test_a_complete_backup_group_is_read_and_defaults_the_region():
+    s = Settings.from_env(dict(BASE_ENV, **BACKUP_ENV))
+
+    assert s.has_backup_storage() is True
+    assert s.backup_s3_endpoint_url == "https://backups.r2.example"
+    assert s.backup_s3_bucket_name == "solverah-backups"
+    assert s.backup_s3_region == "auto"      # R2 has exactly one
+    assert s.redacted()["providers"]["backup_s3"] is True
+
+
+@pytest.mark.parametrize("omitted", sorted(BACKUP_ENV))
+def test_a_partially_set_backup_group_is_fatal(omitted):
+    """Each member missing on its own, because the failure this prevents is a
+    backup destination that looks configured until the restore."""
+    partial = {k: v for k, v in BACKUP_ENV.items() if k != omitted}
+
+    with pytest.raises(ConfigError) as exc:
+        Settings.from_env(dict(BASE_ENV, **partial))
+
+    problems = " ".join(exc.value.problems)
+    assert omitted in problems
+    assert "partially configured" in problems
+
+
+def test_the_backup_group_never_falls_back_to_the_apps_s3_values():
+    """A configured app bucket must not make an unconfigured backup group look
+    configured -- the cron has to refuse, not write the database next to the
+    resumes."""
+    s = Settings.from_env(dict(BASE_ENV, **APP_S3_ENV))
+
+    assert s.has_backup_storage() is False
+    assert s.backup_s3_bucket_name is None
+    assert s.backup_s3_endpoint_url is None
+
+
+def test_backups_pointed_at_the_apps_own_bucket_are_fatal():
+    """Backups the application can delete do not survive the compromise they
+    exist for, and this is the mistake a copy-paste makes."""
+    collided = dict(BACKUP_ENV, BACKUP_S3_BUCKET_NAME=APP_S3_ENV["S3_BUCKET_NAME"])
+
+    with pytest.raises(ConfigError) as exc:
+        Settings.from_env(dict(BASE_ENV, **APP_S3_ENV, **collided))
+
+    assert any("BACKUP_S3_BUCKET_NAME" in p for p in exc.value.problems)
+
+
+def test_reusing_the_apps_access_key_for_backups_is_fatal():
+    """Two distinct tokens never share an id, so equality here means the
+    credential separation the group exists to create does not exist."""
+    collided = dict(BACKUP_ENV, BACKUP_S3_ACCESS_KEY_ID=APP_S3_ENV["S3_ACCESS_KEY_ID"])
+
+    with pytest.raises(ConfigError) as exc:
+        Settings.from_env(dict(BASE_ENV, **APP_S3_ENV, **collided))
+
+    assert any("BACKUP_S3_ACCESS_KEY_ID" in p for p in exc.value.problems)
+
+
+def test_backup_secrets_never_reach_the_redacted_view():
+    s = Settings.from_env(dict(BASE_ENV, **BACKUP_ENV))
+    blob = repr(s.redacted())
+
+    assert "backup-secret" not in blob
+    assert "backup-key-id" not in blob
 
 
 def test_redacted_never_exposes_secrets():

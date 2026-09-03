@@ -15,11 +15,8 @@ from __future__ import annotations
 
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import (
-    create_access_token,
-    get_csrf_token,
     get_jwt_identity,
     jwt_required,
-    set_access_cookies,
     verify_jwt_in_request,
 )
 
@@ -28,6 +25,7 @@ from security import (
     GUEST_INSIGHTS_PER_IP_LIMIT,
     global_rate_limit_key,
 )
+from solverah.api.v1.auth import start_session
 from solverah.extensions import bcrypt, limiter
 from solverah.openapi import document
 from solverah.repositories import user_repository
@@ -78,15 +76,21 @@ CLAIM_SCOPE_PREFIX = "intake:claim:"
 
 
 def _respond(result: intake_service.IntakeResult):
-    """Turn an :class:`IntakeResult` into a Flask response, minting a JWT if asked."""
+    """Turn an :class:`IntakeResult` into a Flask response, opening a session if asked.
+
+    Delegates to ``auth.start_session`` rather than minting the access token
+    here, which it did until S3.  This is a third sign-in path -- ``POST
+    /intake/claims`` in ``signin`` mode -- and a sign-in path that mints an
+    access token without a refresh token hands the user a session that dies
+    fifteen minutes later with nothing to renew it.  One function means the
+    third path cannot quietly diverge from the two in ``auth.py``;
+    ``tests/test_refresh_tokens.py`` asserts every ``issue_token`` path sets the
+    refresh cookie, so a fourth one cannot be added without noticing either.
+    """
     if not result.issue_token:
         return jsonify(result.body), result.status
 
-    access_token = create_access_token(identity=result.user.email)
-    body = dict(result.body)
-    body["csrfToken"] = get_csrf_token(access_token)
-    response = jsonify(body)
-    set_access_cookies(response, access_token)
+    response, _ = start_session(result.user, result.body)
     return response, result.status
 
 

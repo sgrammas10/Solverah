@@ -24,6 +24,7 @@ from model import (
     ResumeParseCorrection,
     User,
     UserIntake,
+    UserSession,
     db,
 )
 from solverah.repositories import assessment_repository, profile_repository
@@ -83,6 +84,21 @@ def delete_personal_rows(user_id: int, intakes: List[IntakeSubmission]) -> None:
     # tests/test_account_lifecycle.py -- and they are behind D-01's doorway,
     # which is exactly why the submission row it is joined to holds none of them.
     assessment_repository.delete_for_user(user_id)
+    # Refresh sessions (S3). Not personal *content* like everything above it,
+    # but live credentials: `tombstone_user` frees the address by rewriting it
+    # and every other route back into the account dies with the password -- a
+    # surviving refresh token would be the one that did not, and it would mint
+    # access tokens for the tombstoned row indefinitely.
+    #
+    # Deleted rather than retired, which is the opposite of what happens to
+    # these rows everywhere else. A retired row is kept because it is the audit
+    # trail of a session that ended; there is no account left for that trail to
+    # be about, and `family_id` plus `user_id` on a deleted user is retention
+    # with no reader -- the shape SECURITY_AUDIT_2026-09 #7 and #18 are both
+    # about. The `ON DELETE CASCADE` on `user_id` never fires here because
+    # deletion tombstones the user row instead of removing it, so the delete has
+    # to be explicit; the same reasoning as the assessment submissions above.
+    UserSession.query.filter_by(user_id=user_id).delete()
 
 
 def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_password: str) -> None:
@@ -105,6 +121,18 @@ def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_passwor
     # deleting the rows by hand means a field added to the profile in future is
     # erased here without anyone having to remember to come back.
     profile_repository.update_document(user.id, lambda _existing: {"deleted_at": now_iso})
+    # The pre-Phase-2a copy of that same document. `users.profile_data` is no
+    # longer read or written (model.py), and is kept only so a rollback of the
+    # decomposition is a redeploy -- but "nothing reads it" is not "nothing
+    # holds it": for every account created before Phase 2a the column still has
+    # the phone number, LinkedIn URL, parsed resume text, employment history and
+    # quiz results verbatim, and none of that was reachable by the line above.
+    # SECURITY_AUDIT_2026-09 4.1: a deletion that leaves it is a deletion in
+    # name only. Emptied rather than nulled so the shape still matches the
+    # column default, and here rather than in a sweep so it lands in the same
+    # transaction as the tombstone -- a scrub that can be committed separately
+    # is a scrub that can be missed.
+    user.profile_data = {}
     user.email_confirmed = False
     # `users.status`, added in Phase 2c. `users.deleted_at` is deliberately *not*
     # set: the address is still freed by the rewrite above, so the partial unique

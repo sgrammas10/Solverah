@@ -180,10 +180,7 @@ export interface paths {
         put?: never;
         /**
          * Issue a fresh verification code for an unconfirmed account
-         * @description POST /auth/email/verify/resend - Issue a fresh OTP for unconfirmed accounts.
-         *
-         *     Regenerates and re-sends the 6-digit verification code. Rate-limited to 5
-         *     per minute to prevent abuse.
+         * @description Answers `200` whether or not the address names an unconfirmed account. The three outcomes -- code sent, already confirmed, no such account -- are deliberately indistinguishable to the caller (S1); only the addressee learns which happened. A `400` here means the address itself did not parse.
          */
         post: operations["post_auth_resend_verification"];
         delete?: never;
@@ -228,14 +225,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Clear the JWT cookie
-         * @description POST /auth/logout - Clear the JWT cookie server-side.
-         *
-         *     Flask-JWT-Extended's unset_jwt_cookies removes the access-token cookie from
-         *     the response, effectively ending the session. The JWT itself stays valid
-         *     until it expires -- clearing the cookie ends the browser session but cannot
-         *     revoke the token, which is what Part 5.3's database-backed refresh tokens
-         *     are for.
+         * End the session: revoke its refresh family and clear the cookies
+         * @description Revokes the refresh-token family behind the session server-side and clears both cookies. Answers `200` whether or not there was a session to end. The access token already issued is not revoked and remains valid for the rest of its fifteen minutes -- see the handler's docstring for why that residue is bounded and deliberate.
          */
         post: operations["post_auth_logout"];
         delete?: never;
@@ -255,7 +246,7 @@ export interface paths {
         put?: never;
         /**
          * Send a sign-in code to a confirmed account
-         * @description POST /auth/password/forgot - Send a 6-digit OTP for passwordless login.
+         * @description Answers `200 reset_sent` whether or not the address names a confirmed account, so the response cannot be used to test whether someone has an account here (S1). A code is sent only when one does. `POST /auth/password/reset` holds up the other half: all of its failures answer the same `invalid_or_expired_code`.
          */
         post: operations["post_auth_forgot_password"];
         delete?: never;
@@ -281,6 +272,26 @@ export interface paths {
          *     plus CSRF token so the user is fully logged in without a password.
          */
         post: operations["post_auth_reset_password"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Exchange the refresh cookie for a new access token
+         * @description Rotates the refresh token: the presented one is retired and a new one replaces it in the cookie. Presenting a token that was already retired -- outside the short concurrency grace window -- is treated as evidence the token leaked and revokes every token in that sign-in's family. Every failure answers the same `401 invalid_refresh_token`, so the response cannot be used to tell a stale token from a stolen one from one that never existed.
+         */
+        post: operations["post_auth_refresh"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2069,7 +2080,7 @@ export interface components {
          *     :class:`ProblemDetailResponse`, which is what the Phase 0 error handlers
          *     produce for anything a handler did not catch itself.
          *
-         *     The two shapes are why ``src/utils/apiError.ts`` reads both.  Phase 1b
+         *     The two shapes are why ``src/shared/api/apiError.ts`` reads both.  Phase 1b
          *     collapses them by moving handlers onto ``solverah.errors.ApiError``.
          */
         LegacyError: {
@@ -2106,12 +2117,14 @@ export interface components {
         };
         /**
          * LogoutResponse
-         * @description Always ``{"message": "logout successful"}``.
+         * @description Always ``{"message": "logout successful"}``, session or no session.
          *
-         *     The cookie is cleared with ``Set-Cookie`` on this response.  Note that the
-         *     JWT itself remains valid until it expires -- clearing the cookie ends the
-         *     browser session but cannot revoke the token, which is exactly what Part 5.3's
-         *     database-backed refresh tokens are for.
+         *     Both cookies are cleared with ``Set-Cookie`` on this response, and as of S3
+         *     the refresh-token family behind the session is revoked server-side -- which
+         *     is what makes a logout mean something to a stolen cookie.  The access token
+         *     already issued is a signed JWT and stays valid for the remainder of its
+         *     fifteen minutes; see the handler for why that residue is the deliberate
+         *     price of not putting a denylist lookup on every authenticated request.
          */
         LogoutResponse: {
             /** Message */
@@ -2713,6 +2726,30 @@ export interface components {
              * @default null
              */
             next_cursor: string | null;
+        };
+        /**
+         * RefreshResponse
+         * @description ``POST /auth/refresh`` -- a rotated session.
+         *
+         *     Deliberately narrow.  It carries what the client cannot get anywhere else
+         *     (the new CSRF token, since the access token behind it is new) and nothing
+         *     else: no user, no flags.  A client that needs those asks
+         *     ``GET /auth/session``, which is one request and is what it was already going
+         *     to call on the boot path.  Duplicating that payload here would be a second
+         *     place for the session shape to drift.
+         *
+         *     The tokens themselves are not in the body.  The access token arrives as an
+         *     HttpOnly cookie exactly as it does on login, and the refresh token as a
+         *     second HttpOnly cookie scoped to this route.
+         */
+        RefreshResponse: {
+            /**
+             * Csrftoken
+             * @description Echo as X-CSRF-TOKEN on POST/PUT/PATCH/DELETE.
+             */
+            csrfToken: string;
+            /** Message */
+            message: string;
         };
         /**
          * RegisterRequest
@@ -3624,15 +3661,6 @@ export interface operations {
                     "application/json": components["schemas"]["LegacyError"];
                 };
             };
-            /** @description Not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyError"];
-                };
-            };
             /** @description Unexpected error (RFC 9457 problem document) */
             default: {
                 headers: {
@@ -3755,15 +3783,6 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
-            /** @description Not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyError"];
-                };
-            };
             /** @description Unexpected error (RFC 9457 problem document) */
             default: {
                 headers: {
@@ -3799,6 +3818,62 @@ export interface operations {
             };
             /** @description Bad request */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    post_auth_refresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefreshResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Response */
+            415: {
                 headers: {
                     [name: string]: unknown;
                 };

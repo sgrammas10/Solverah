@@ -1908,7 +1908,7 @@
       },
       "LogoutResponse": {
         "additionalProperties": false,
-        "description": "Always ``{\"message\": \"logout successful\"}``.\n\nThe cookie is cleared with ``Set-Cookie`` on this response.  Note that the\nJWT itself remains valid until it expires -- clearing the cookie ends the\nbrowser session but cannot revoke the token, which is exactly what Part 5.3's\ndatabase-backed refresh tokens are for.",
+        "description": "Always ``{\"message\": \"logout successful\"}``, session or no session.\n\nBoth cookies are cleared with ``Set-Cookie`` on this response, and as of S3\nthe refresh-token family behind the session is revoked server-side -- which\nis what makes a logout mean something to a stolen cookie.  The access token\nalready issued is a signed JWT and stays valid for the remainder of its\nfifteen minutes; see the handler for why that residue is the deliberate\nprice of not putting a denylist lookup on every authenticated request.",
         "properties": {
           "message": {
             "title": "Message",
@@ -2850,6 +2850,27 @@
           }
         },
         "title": "RecommendationsPage",
+        "type": "object"
+      },
+      "RefreshResponse": {
+        "additionalProperties": false,
+        "description": "``POST /auth/refresh`` -- a rotated session.\n\nDeliberately narrow.  It carries what the client cannot get anywhere else\n(the new CSRF token, since the access token behind it is new) and nothing\nelse: no user, no flags.  A client that needs those asks\n``GET /auth/session``, which is one request and is what it was already going\nto call on the boot path.  Duplicating that payload here would be a second\nplace for the session shape to drift.\n\nThe tokens themselves are not in the body.  The access token arrives as an\nHttpOnly cookie exactly as it does on login, and the refresh token as a\nsecond HttpOnly cookie scoped to this route.",
+        "properties": {
+          "csrfToken": {
+            "description": "Echo as X-CSRF-TOKEN on POST/PUT/PATCH/DELETE.",
+            "title": "Csrftoken",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message",
+          "csrfToken"
+        ],
+        "title": "RefreshResponse",
         "type": "object"
       },
       "RegisterRequest": {
@@ -4151,7 +4172,7 @@
     },
     "/api/v1/auth/email/verify/resend": {
       "post": {
-        "description": "POST /auth/email/verify/resend - Issue a fresh OTP for unconfirmed accounts.\n\nRegenerates and re-sends the 6-digit verification code. Rate-limited to 5\nper minute to prevent abuse.",
+        "description": "Answers `200` whether or not the address names an unconfirmed account. The three outcomes -- code sent, already confirmed, no such account -- are deliberately indistinguishable to the caller (S1); only the addressee learns which happened. A `400` here means the address itself did not parse.",
         "operationId": "post_auth_resend_verification",
         "requestBody": {
           "content": {
@@ -4183,16 +4204,6 @@
               }
             },
             "description": "Bad request"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
-                }
-              }
-            },
-            "description": "Not found"
           },
           "default": {
             "content": {
@@ -4287,7 +4298,7 @@
     },
     "/api/v1/auth/logout": {
       "post": {
-        "description": "POST /auth/logout - Clear the JWT cookie server-side.\n\nFlask-JWT-Extended's unset_jwt_cookies removes the access-token cookie from\nthe response, effectively ending the session. The JWT itself stays valid\nuntil it expires -- clearing the cookie ends the browser session but cannot\nrevoke the token, which is what Part 5.3's database-backed refresh tokens\nare for.",
+        "description": "Revokes the refresh-token family behind the session server-side and clears both cookies. Answers `200` whether or not there was a session to end. The access token already issued is not revoked and remains valid for the rest of its fifteen minutes -- see the handler's docstring for why that residue is bounded and deliberate.",
         "operationId": "post_auth_logout",
         "responses": {
           "200": {
@@ -4312,7 +4323,7 @@
           }
         },
         "security": [],
-        "summary": "Clear the JWT cookie",
+        "summary": "End the session: revoke its refresh family and clear the cookies",
         "tags": [
           "auth"
         ]
@@ -4320,7 +4331,7 @@
     },
     "/api/v1/auth/password/forgot": {
       "post": {
-        "description": "POST /auth/password/forgot - Send a 6-digit OTP for passwordless login.",
+        "description": "Answers `200 reset_sent` whether or not the address names a confirmed account, so the response cannot be used to test whether someone has an account here (S1). A code is sent only when one does. `POST /auth/password/reset` holds up the other half: all of its failures answer the same `invalid_or_expired_code`.",
         "operationId": "post_auth_forgot_password",
         "requestBody": {
           "content": {
@@ -4342,16 +4353,6 @@
               }
             },
             "description": "OK"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
-                }
-              }
-            },
-            "description": "Not found"
           },
           "default": {
             "content": {
@@ -4419,6 +4420,69 @@
         },
         "security": [],
         "summary": "Exchange a sign-in code for a session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "description": "Rotates the refresh token: the presented one is retired and a new one replaces it in the cookie. Presenting a token that was already retired -- outside the short concurrency grace window -- is treated as evidence the token leaked and revokes every token in that sign-in's family. Every failure answers the same `401 invalid_refresh_token`, so the response cannot be used to tell a stale token from a stolen one from one that never existed.",
+        "operationId": "post_auth_refresh",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Response"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [],
+        "summary": "Exchange the refresh cookie for a new access token",
         "tags": [
           "auth"
         ]

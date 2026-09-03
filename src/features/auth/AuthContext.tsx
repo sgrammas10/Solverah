@@ -4,7 +4,8 @@
  * Session lifecycle:
  *   1. On mount, attempt to restore an existing session by calling
  *      GET /auth/session (the JWT lives in an HttpOnly cookie, so no token
- *      management needed here).
+ *      management needed here).  A 401 there is not the end of the session any
+ *      more — see "Refresh" below.
  *   2. On successful restore, store the User object and the CSRF token in state.
  *   3. login() / register() / logout() mutate state and the HttpOnly cookie via
  *      the Flask API.
@@ -13,6 +14,31 @@
  *   The backend issues a CSRF token inside the JSON response body (not in a
  *   readable cookie) on login/session-probe.  fetchWithAuth() attaches it as the
  *   X-CSRF-TOKEN header on all state-changing requests (POST/PUT/PATCH/DELETE).
+ *
+ * Refresh (S3):
+ *   The access token is fifteen minutes now, not an hour, and a thirty-day
+ *   opaque refresh token sits behind it in a cookie the browser sends only to
+ *   POST /auth/refresh.  So a 401 means "the access token aged out", not "you
+ *   are signed out", and the answer is refresh-then-retry — once, never in a
+ *   loop.  Both places that talk to the API do it: the boot probe and
+ *   fetchWithAuth.
+ *
+ *   The boot probe only attempts a refresh when this browser has had a session
+ *   before (`hasHadSession()`).  An anonymous landing page is the
+ *   highest-volume boot in the product and it has no refresh cookie to
+ *   exchange, so without the gate every visitor would spend a second request on
+ *   a guaranteed 401 — against a rate-limited endpoint, which behind one NAT
+ *   gateway is how real users start getting 429s on genuine refreshes.
+ *
+ *   `refreshSession()` is SINGLE-FLIGHT, and that is a security property rather
+ *   than an optimisation.  Refresh tokens rotate on use and a token presented
+ *   after it was retired is treated as evidence of theft — the server revokes
+ *   the whole family and the user is signed out.  Two queries hitting a 401 at
+ *   the same instant would present the same token twice, which is exactly that
+ *   shape.  The server has a short grace window for it (see
+ *   solverah/services/refresh_tokens.py) and this ref is the other half: the
+ *   second caller awaits the first one's promise instead of issuing a second
+ *   refresh, so under normal concurrency the grace window is never even needed.
  *
  * Loading state:
  *   The provider renders its children unconditionally. It used to render a
@@ -70,11 +96,59 @@ function splitLoginUser(
 }
 
 
+/**
+ * Key under which this browser records that it has had a session.
+ *
+ * Not a credential and not a claim to be signed in — the refresh cookie is
+ * HttpOnly and cross-origin, so nothing on this page can read or forge its way
+ * to a session. All this decides is whether the boot path is worth spending one
+ * request on: present means "try the refresh", absent means "this visitor has
+ * never signed in here, do not ask".
+ *
+ * Forging it costs the forger one extra 401. Losing it (private window, cleared
+ * site data) costs a returning user one sign-in. Both are the right failure.
+ */
+const SESSION_HINT_KEY = "solverah.hasSession";
+
+function hasHadSession(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(SESSION_HINT_KEY) === "1";
+  } catch {
+    // Safari in private mode, and any browser configured to block site data,
+    // throws on access rather than returning null. A visitor whose storage is
+    // unreadable simply signs in again.
+    return false;
+  }
+}
+
+function rememberSession(remembered: boolean): void {
+  try {
+    if (remembered) globalThis.localStorage?.setItem(SESSION_HINT_KEY, "1");
+    else globalThis.localStorage?.removeItem(SESSION_HINT_KEY);
+  } catch {
+    // See hasHadSession: unreadable storage is not a reason to fail a sign-in.
+  }
+}
+
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [csrfToken, setCsrfToken] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  // The CSRF token, in a ref rather than in state.
+  //
+  // It was state until S3 and nothing ever rendered off it -- only the two
+  // fetch helpers read it. State is now actively wrong here: a 401 retry
+  // refreshes and replays in the same tick, and a `setState` is not visible to
+  // the closure that has to attach the NEW token to that replay. The ref is,
+  // and dropping the state removes a re-render nothing was waiting for.
+  const csrfTokenRef = useRef<string | null>(null);
+
+  // The in-flight refresh, if there is one. See the module docstring: this is
+  // what stops two simultaneous 401s presenting the same refresh token twice
+  // and tripping the server's reuse detection.
+  const refreshInFlight = useRef<Promise<boolean> | null>(null);
 
   // True once login()/loginWithData() has set auth state. The boot probe's
   // continuation checks it: children render while the probe is in flight now,
@@ -83,6 +157,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // response null out the user would sign them straight back out. An explicit
   // login is always fresher than the probe that raced it.
   const signedInExplicitly = useRef(false);
+
+  /** Record the CSRF token the next state-changing request must echo. */
+  const applyCsrfToken = (token: string | null) => {
+    csrfTokenRef.current = token;
+  };
+
+  /**
+   * Exchange the refresh cookie for a new access token. Resolves to whether it
+   * worked.
+   *
+   * Single-flight: every caller during one exchange awaits the same promise, so
+   * N simultaneous 401s produce ONE POST /auth/refresh. That is what keeps the
+   * client off the server's reuse-detection tripwire — the refresh token
+   * rotates on use, and presenting the retired one is indistinguishable from
+   * theft once the grace window closes.
+   *
+   * The ref is cleared when the exchange settles, not when it succeeds, so a
+   * failed refresh does not wedge every later attempt behind a promise that
+   * already resolved false.
+   */
+  const refreshSession = (): Promise<boolean> => {
+    if (!refreshInFlight.current) {
+      refreshInFlight.current = (async () => {
+        try {
+          const res = await fetch(`${API_BASE}/auth/refresh`, {
+            method: "POST",
+            // The server requires application/json on this route: a cross-site
+            // HTML form cannot send it, which is half of the CSRF control that
+            // replaces the double-submit token here (the token is exactly what
+            // this call does not have yet). See the handler's docstring.
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: "{}",
+          });
+          if (!res.ok) return false;
+          const data = await res.json().catch(() => null);
+          if (data?.csrfToken) applyCsrfToken(data.csrfToken);
+          rememberSession(true);
+          return true;
+        } catch (e) {
+          console.error("Session refresh failed:", e);
+          return false;
+        }
+      })().finally(() => {
+        refreshInFlight.current = null;
+      });
+    }
+    return refreshInFlight.current;
+  };
+
+  /**
+   * Drop every trace of the session this tab was holding.
+   *
+   * The local half of logout, reached when a refresh fails: the session is over
+   * server-side and there is nothing to tell it. Same cache hygiene as logout()
+   * for the same reason -- every cached query belongs to the session that just
+   * ended -- but no request, because the thing that would authenticate one is
+   * exactly what is gone.
+   */
+  const clearSessionLocally = () => {
+    signedInExplicitly.current = false;
+    setUser(null);
+    applyCsrfToken(null);
+    rememberSession(false);
+    queryClient.clear();
+  };
+
 
   // Restore session automatically using secure cookies.
   //
@@ -102,17 +243,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const sessionRes = await fetch(`${API_BASE}/auth/session`, {
-          method: "GET",
-          credentials: "include",
-        });
+        const probe = () =>
+          fetch(`${API_BASE}/auth/session`, {
+            method: "GET",
+            credentials: "include",
+          });
+
+        let sessionRes = await probe();
+
+        // A 401 on boot is the ordinary case for a returning visitor: the
+        // access token is fifteen minutes and they have been away longer. The
+        // refresh cookie is thirty days, so one exchange restores the session
+        // and the visitor never sees a login screen. Without this, S3's shorter
+        // access token would sign everyone out a quarter of an hour after they
+        // closed the tab — the feature inverted.
+        //
+        // Exactly one retry. `refreshSession` resolving false means there is no
+        // usable refresh token (never had one, expired, revoked, or the family
+        // was killed by reuse detection), and re-probing after that would ask
+        // the same question and get the same answer forever.
+        //
+        // Gated on `hasHadSession()` so an anonymous visitor's boot stays one
+        // request: they have no refresh cookie, the exchange is a certain 401,
+        // and the landing page is the highest-volume boot there is.
+        if (sessionRes.status === 401 && hasHadSession()) {
+          if (await refreshSession()) sessionRes = await probe();
+          else rememberSession(false);
+        }
 
         if (sessionRes.ok && !signedInExplicitly.current) {
           const session = await sessionRes.json();
           setUser(toUser(session));
+          rememberSession(true);
           // Read CSRF token from response body (cookie is inaccessible cross-origin)
           if (session.csrf_token) {
-            setCsrfToken(session.csrf_token);
+            applyCsrfToken(session.csrf_token);
           }
         }
         // A failed probe sets nothing: `user` starts as null, and if a login
@@ -122,6 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setLoading(false);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- boot-once probe
   }, []);
 
 
@@ -131,21 +297,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ): Promise<T> => {
     const method = (options.method || "GET").toUpperCase();
 
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
+    const send = () => {
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      };
+
+      // attach CSRF token for state-changing requests. Read from the ref, not
+      // from state: a retry after a refresh happens in the same tick as the
+      // refresh, and the new token has to reach this line before React has
+      // re-rendered anything.
+      const token = csrfTokenRef.current;
+      if (token && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+        (headers as any)["X-CSRF-TOKEN"] = token;
+      }
+
+      return fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers,
+        credentials: "include",
+      });
     };
 
-    // attach CSRF token for state-changing requests
-    if (csrfToken && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
-      (headers as any)["X-CSRF-TOKEN"] = csrfToken;
-    }
+    let res = await send();
 
-    const res = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers,
-      credentials: "include",
-    });
+    // A 401 means the fifteen-minute access token aged out mid-session, which
+    // is now routine rather than terminal. Refresh once and replay the request;
+    // if the refresh fails there is no session left to salvage, so drop the
+    // local one and let the original error surface.
+    //
+    // ONE retry, unconditionally, and it is the shape that guarantees it: a
+    // plain `if`, no loop, and no path back into here from the replay. A loop
+    // would turn an expired family into an infinite refresh storm against the
+    // auth endpoint; because there is none, a second 401 falls straight through
+    // to the throw below and means what it says.
+    if (res.status === 401) {
+      if (await refreshSession()) {
+        res = await send();
+      } else {
+        clearSessionLocally();
+      }
+    }
 
     const data = await res.json().catch((e) => {
       console.error("fetchWithAuth: failed to parse JSON response:", e);
@@ -176,8 +368,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       "Content-Type": "application/json",
       ...((options.headers as Record<string, string>) || {}),
     };
-    if (csrfToken && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
-      headers["X-CSRF-TOKEN"] = csrfToken;
+    const token = csrfTokenRef.current;
+    if (token && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+      headers["X-CSRF-TOKEN"] = token;
     }
     return fetch(`${API_BASE}${endpoint}`, {
       ...options,
@@ -190,7 +383,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { user: identity, profile } = splitLoginUser(userData);
     signedInExplicitly.current = true;
     setUser(identity);
-    setCsrfToken(token);
+    applyCsrfToken(token);
+    rememberSession(true);
     // What the envelope carried is announced as it is: OTP sign-in returns the
     // summary user, which carries no profileData (see
     // PasswordResetVerifyResponse), and the profile slice's listener is the one
@@ -227,11 +421,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { user: userData, profile } = splitLoginUser(data.user);
     signedInExplicitly.current = true;
     setUser(userData);
+    rememberSession(true);
     emitAuthEvent({ type: "signed-in", user: userData, profileData: profile });
 
     // Read CSRF token from response body (cookie is inaccessible cross-origin)
     if (data.csrfToken) {
-      setCsrfToken(data.csrfToken);
+      applyCsrfToken(data.csrfToken);
     }
 
     return userData;
@@ -265,7 +460,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!res.ok) throw parseApiError(res, data, "Registration failed");
   };
 
-  // LOGOUT — clears cookie on backend
+  // LOGOUT — the backend revokes the refresh family and clears both cookies
+  //
+  // The request matters more than it used to. Until S3 this was a courtesy: the
+  // server cleared a cookie the client was about to forget anyway, and the JWT
+  // stayed valid for the rest of its hour regardless. It now revokes the
+  // refresh-token family server-side, so a failed logout request leaves a live
+  // thirty-day session behind. Local state is still cleared either way — a user
+  // who clicked "log out" is logged out of this tab no matter what the network
+  // did — and the residue is the same one the endpoint's docstring names.
   const logout = async () => {
     try {
       await fetchWithAuth("/auth/logout", { method: "POST" });
@@ -274,7 +477,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       signedInExplicitly.current = false;
       setUser(null);
-      setCsrfToken(null);
+      applyCsrfToken(null);
+      rememberSession(false);
       // Every cached query belongs to the session that just ended -- the
       // profile document, matches, dashboard rows, all of it -- and none of it
       // may survive into the next sign-in on this tab. Clearing the whole cache

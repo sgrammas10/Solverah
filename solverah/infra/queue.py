@@ -2,9 +2,10 @@
 
 Phase 3, item 1.  Before this there was no job queue anywhere in the system
 (P0-6): OpenAI, Groq, O*NET, Resend, and R2 calls all ran inline, and
-``gunicorn.conf.py`` carries a 120-second timeout to accommodate them.  With sync
+``gunicorn.conf.py`` carried a 120-second timeout to accommodate them.  With sync
 workers one slow provider occupies a whole worker for up to two minutes, so a
-provider slowdown becomes a full outage.
+provider slowdown becomes a full outage.  (That timeout is 30 now -- the Phase 3
+close-out dropped it, measured -- and the workers are ``gthread``.)
 
 **Five queues, and they are separate for isolation rather than for tidiness.**
 An LLM call that takes 40 seconds and an email that takes 200ms do not belong in
