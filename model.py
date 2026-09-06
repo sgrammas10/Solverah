@@ -805,6 +805,34 @@ FUNNEL_ACTIONS = (
 )
 
 
+class ScorerRun(db.Model):
+    """One run of the LLM company-culture extractor: what produced a set of scraped scores.
+
+    Separate from ModelRun on purpose (S1-6, and the PROPOSED DDL argues it at length). The
+    two version axes are unrelated: the scorer's moves when a vendor ships a model update,
+    the Bayesian model's when priors or dimensions change. Fused into one table neither is
+    independently queryable, so a "did the rubric change this, or did the model?" question
+    -- the question the whole scorer sprint exists to answer -- could not be asked.
+
+    This is what makes anchor wording a re-run rather than a rebuild: every scraped score
+    points at the exact rubric text, packet build and pinned model snapshot behind it.
+    """
+
+    __tablename__ = "scorer_run"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    model = db.Column(db.Text, nullable=False)
+    temperature = db.Column(db.Numeric, nullable=True)
+    temperature_honored = db.Column(db.Boolean, nullable=False)
+    reasoning_effort = db.Column(db.Text, nullable=True)
+    rubric_version = db.Column(db.Text, nullable=False)
+    packet_version = db.Column(db.Text, nullable=False)
+    run_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    notes = db.Column(db.Text, nullable=True)
+
+
 class CompanyDimensionScore(db.Model):
     """Per company per dimension, with SOURCE + CONFIDENCE -- the cold-start wedge.
 
@@ -825,11 +853,24 @@ class CompanyDimensionScore(db.Model):
     is_ground_truth = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     as_of = db.Column(db.Date, nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+    # Which LLM run produced this row (S1-6). NULL for 'researched' (human) and 'declared'
+    # (from the company) rows, which have no scorer run and never will.
+    scorer_run_id = db.Column(
+        db.BigInteger, db.ForeignKey("scorer_run.id"), nullable=True, index=True
+    )
 
     __table_args__ = (
+        # NULLS NOT DISTINCT is load-bearing, not a flourish. scorer_run_id joined this key
+        # so one company can be scored twice on one day under two rubrics -- but Postgres
+        # treats NULLs as distinct, so a PLAIN unique constraint over these five columns
+        # would silently stop de-duplicating the rows that have no scorer run: two human
+        # 'researched' rows for the same company/dimension/day would both insert where the
+        # second is refused today. NULLS NOT DISTINCT keeps both halves. Requires PG15+;
+        # this repo runs 18. Both halves are tested in tests/test_company_side_tables.py.
         db.UniqueConstraint(
-            "company_id", "dimension_key", "source", "as_of",
+            "company_id", "dimension_key", "source", "as_of", "scorer_run_id",
             name="uq_cscore_company_dim_source_asof",
+            postgresql_nulls_not_distinct=True,
         ),
         db.CheckConstraint("score >= 0 AND score <= 1", name="ck_cscore_score_range"),
         db.CheckConstraint(
@@ -841,6 +882,62 @@ class CompanyDimensionScore(db.Model):
     )
 
     company = db.relationship("Company", backref="dimension_scores")
+    scorer_run = db.relationship("ScorerRun", backref="dimension_scores")
+
+
+class DimensionScoreCitation(db.Model):
+    """The evidence quotes behind one company dimension score, and whether each verified.
+
+    Nothing had anywhere to put a citation before this: nothing produced evidence quotes
+    until the scorer pipeline (S1-1). `matched` / `matched_excerpt_id` / `source_tag` are
+    the citation VERIFIER's output (S1-5), never the model's self-report -- provenance is
+    computed downstream by matching each quote to the packet's addressable excerpts, whose
+    source class is already deterministic, rather than trusted from the thing being checked.
+
+    An UNMATCHED quote is stored, not discarded. A quote that fails to verify -- invented,
+    or garbled past recognition -- is exactly the failure this table exists to make visible,
+    and dropping it would leave the score looking better evidenced than it is. The CHECK
+    below is the other half of that: an unverified quote carries no provenance, because it
+    has none to report.
+
+    Makes the 08-10 decision-3 measurement a real query (does a score above 0.7 have any
+    non-company-authored source behind it?) instead of a rater's manual flag. See
+    company_score_store.noncompany_support.
+    """
+
+    __tablename__ = "dimension_score_citation"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    # Integer rather than BigInteger: it references company_dimension_score.id, which the
+    # applied 20260819 migration made INTEGER even though schema.sql had declared it
+    # BIGSERIAL. Matching the column actually referenced beats matching the proposal.
+    company_dimension_score_id = db.Column(
+        db.Integer,
+        db.ForeignKey("company_dimension_score.id", name="fk_citation_score"),
+        nullable=False,
+    )
+    quote_text = db.Column(db.Text, nullable=False)
+    matched = db.Column(db.Boolean, nullable=False)
+    matched_excerpt_id = db.Column(db.Text, nullable=True)
+    source_tag = db.Column(db.Text, nullable=True)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "(matched AND matched_excerpt_id IS NOT NULL AND source_tag IS NOT NULL) "
+            "OR (NOT matched AND matched_excerpt_id IS NULL AND source_tag IS NULL)",
+            name="ck_citation_provenance_iff_matched",
+        ),
+        # Named explicitly rather than via index=True: the PROPOSED DDL and the migration
+        # both call it ix_citation_score, and index=True would generate
+        # ix_dimension_score_citation_company_dimension_score_id instead -- the exact
+        # model-vs-migration drift this repo already has elsewhere and does not need more of.
+        db.Index("ix_citation_score", "company_dimension_score_id"),
+    )
+
+    score = db.relationship("CompanyDimensionScore", backref="citations")
 
 
 class CompanyConfounderValue(db.Model):
