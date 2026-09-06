@@ -1,0 +1,216 @@
+#!/usr/bin/env python3
+"""Check a de-identified packet against the raw packet it came from.
+
+    python Scripts/verify_scrub.py P-07 --company "Cummins"
+
+Deliberately lives HERE and not in `_scrub_env/`. The scrubber connects that folder and
+can read everything in it; a verifier sitting next to the brief would tell it exactly what
+is checked, and a model that can see the test can satisfy the test rather than the rule.
+The check has to be somewhere the scrubbed artifact cannot have been written against.
+
+What it proves, in order of how badly it would hurt to get wrong:
+
+ 1. The packet still PARSES. The citation harness reads only what lies between
+    `########## SECTION 1` and `########## END OF PACKET ##########` and finds excerpts by
+    regex. A reformatted bullet does not error -- the excerpt silently vanishes, and the
+    packet still looks fine to a human.
+ 2. Quote bodies are character-identical to the raw packet except where the scrubber
+    declared an edit ON that line (amendment A4). This is the em-dash defect: P-02 and
+    P-05 were retyped rather than edited, ASCII hyphens became em dashes inside quote
+    bodies, and three quotes failed citation verification on punctuation alone.
+ 3. The excerpt count did not shrink. Under A3 a claim recurring in two sections is kept
+    in both with a note, never deleted -- a scrubber that "deduplicates" destroys evidence.
+ 4. The identifiers that were supposed to go, went: no URLs, no company name outside a
+    bracketed substitution.
+
+Exit code is 0 only if every check passes.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import sys
+import unicodedata
+from collections import Counter
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "causal_graph"))
+
+# A bracketed declaration on the excerpt line, e.g.
+#   -- [proper noun rewritten in brackets; clause otherwise verbatim]
+DECLARATION_RE = re.compile(r"\[[^\]]*(?:rewritten|substitut|stripped|replaced|redact"
+                            r"|magnitude|verbatim|the company|a named|the chief)[^\]]*\]",
+                            re.I)
+QUOTE_RE = re.compile(r'"([^"]*)"')
+URL_RE = re.compile(r"https?://", re.I)
+
+
+def die(msg: str) -> None:
+    print("FATAL: %s" % msg, file=sys.stderr)
+    raise SystemExit(2)
+
+
+def norm_for_display(s: str) -> str:
+    return s if len(s) <= 90 else s[:87] + "..."
+
+
+def char_diff(a: str, b: str) -> str:
+    """First differing position, described in a way that names the usual culprit."""
+    for i, (x, y) in enumerate(zip(a, b)):
+        if x != y:
+            return "col %d: raw %r (%s) -> scrubbed %r (%s)" % (
+                i, x, unicodedata.name(x, "?"), y, unicodedata.name(y, "?"))
+    return "length differs: raw %d, scrubbed %d" % (len(a), len(b))
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("packet_id", help="e.g. P-07")
+    ap.add_argument("--company", action="append", default=[],
+                    help="company name or short form that must not survive; repeatable")
+    ap.add_argument("--ip-dir", default=os.environ.get(
+        "SOLVERAH_IP_DIR", str(REPO / "Solverah_IP")))
+    args = ap.parse_args(argv)
+
+    ip = Path(args.ip_dir)
+    pid = args.packet_id
+    raw_candidates = list((ip / "ground_truth" / "packets").glob("%s_*/%s_packet.txt" % (pid, pid)))
+    raw_candidates += list((ip / "ground_truth" / "_scrub_env" / "packets_raw").glob("%s_packet.txt" % pid))
+    scrubbed_candidates = [
+        ip / "ground_truth" / "_scrub_env" / "packets_out" / ("%s_packet_ANON.txt" % pid),
+        ip / "ground_truth" / "anonymization" / ("%s_packet_ANON.txt" % pid),
+    ]
+    raw = next((p for p in raw_candidates if p.exists()), None)
+    scrubbed = next((p for p in scrubbed_candidates if p.exists()), None)
+    if not raw:
+        die("no raw packet found for %s" % pid)
+    if not scrubbed:
+        die("no scrubbed packet found for %s (looked in packets_out/ and anonymization/)" % pid)
+
+    print("raw       : %s" % raw)
+    print("scrubbed  : %s" % scrubbed)
+    print()
+
+    import scorer_pipeline as sp  # noqa: E402  -- after sys.path is set
+
+    failures: list[str] = []
+
+    # ---- 1. it parses -----------------------------------------------------
+    def body_of(path: Path, *, tolerant: bool) -> str:
+        """`tolerant` is for RAW packets only. Builds before v4.6-ish carry the SECTION 1
+        marker but no END OF PACKET marker (P-01 is one), so the harness refuses them --
+        which is fine, because the harness never reads a raw packet. The SCRUBBED packet
+        gets no such latitude: it is the artifact the scorer actually reads, and a missing
+        end marker there is the defect this check exists to catch."""
+        try:
+            return sp.load_packet_section1(path)
+        except Exception:
+            if not tolerant:
+                raise
+            text = path.read_text(encoding="utf-8")
+            i = text.find("########## SECTION 1")
+            if i < 0:
+                raise
+            return text[i:].strip()
+
+    try:
+        raw_body = body_of(raw, tolerant=True)
+    except Exception as exc:
+        die("the RAW packet %s does not parse: %s" % (raw.name, exc))
+    try:
+        scr_body = body_of(scrubbed, tolerant=False)
+    except Exception as exc:
+        die("the SCRUBBED packet %s does not parse: %s\n"
+            "Both markers must be present and literal: '########## SECTION 1' and "
+            "'########## END OF PACKET ##########'." % (scrubbed.name, exc))
+
+    try:
+        version = sp.packet_version_for(scrubbed)
+    except ValueError as exc:
+        version = None
+        failures.append("header carries no 'build vX.Y' marker -- %s" % exc)
+
+    raw_ex = sp.parse_excerpts(raw_body)
+    scr_ex = sp.parse_excerpts(scr_body)
+    raw_by = Counter(e.section for e in raw_ex)
+    scr_by = Counter(e.section for e in scr_ex)
+
+    print("1. PARSE")
+    print("   build version   : %s" % (version or "MISSING"))
+    print("   raw excerpts    : %-4d %s" % (len(raw_ex), dict(sorted(raw_by.items()))))
+    print("   scrubbed        : %-4d %s" % (len(scr_ex), dict(sorted(scr_by.items()))))
+    if len(scr_ex) < 10:
+        failures.append("only %d excerpts parsed -- the bullets stopped matching; the "
+                        "packet is effectively empty" % len(scr_ex))
+
+    # ---- 2. excerpt count preserved, section by section -------------------
+    print("\n2. EXCERPT COUNT (A3: recurrence is a note, never a deletion)")
+    for sec in sorted(set(raw_by) | set(scr_by)):
+        mark = "ok" if raw_by[sec] == scr_by[sec] else "MISMATCH"
+        if mark != "ok":
+            failures.append("section %s: raw has %d excerpts, scrubbed has %d"
+                            % (sec, raw_by[sec], scr_by[sec]))
+        print("   %s  raw %-3d scrubbed %-3d  %s" % (sec, raw_by[sec], scr_by[sec], mark))
+
+    # ---- 3. quote bodies unchanged unless declared ------------------------
+    print("\n3. QUOTE FIDELITY (the em-dash defect)")
+    checked = undeclared = declared = 0
+    for sec in sorted(set(raw_by) & set(scr_by)):
+        r_list = [e for e in raw_ex if e.section == sec]
+        s_list = [e for e in scr_ex if e.section == sec]
+        for r, s in zip(r_list, s_list):
+            r_q = QUOTE_RE.findall(r.text)
+            s_q = QUOTE_RE.findall(s.text)
+            if not r_q or not s_q:
+                continue
+            checked += 1
+            if r_q[0] == s_q[0]:
+                continue
+            if DECLARATION_RE.search(s.text):
+                declared += 1
+                continue
+            undeclared += 1
+            failures.append(
+                "%s/%s quote changed with NO bracketed declaration on the line\n"
+                "        %s\n     raw: %s\n     scr: %s"
+                % (sec, s.eid, char_diff(r_q[0], s_q[0]),
+                   norm_for_display(r_q[0]), norm_for_display(s_q[0])))
+    print("   quotes compared        : %d" % checked)
+    print("   changed WITH a declared edit : %d  (allowed -- R2/R3/R4/R6)" % declared)
+    print("   changed with NO declaration  : %d  %s"
+          % (undeclared, "" if not undeclared else "<-- these are defects"))
+
+    # ---- 4. identifiers actually gone -------------------------------------
+    print("\n4. IDENTIFIERS")
+    whole = scrubbed.read_text(encoding="utf-8")
+    urls = len(URL_RE.findall(whole))
+    print("   URLs remaining  : %d %s" % (urls, "" if not urls else "<-- R1 violated"))
+    if urls:
+        failures.append("%d URL(s) survive the scrub (R1)" % urls)
+    for name in args.company:
+        # a bracketed substitution legitimately contains the word "company"; a bare
+        # company NAME never should.
+        hits = len(re.findall(re.escape(name), whole, re.I))
+        print("   %-22s: %d %s" % ("'%s'" % name, hits, "" if not hits else "<-- survives"))
+        if hits:
+            failures.append("company identifier %r appears %d time(s)" % (name, hits))
+    if not args.company:
+        print("   (no --company given; name check skipped)")
+
+    # ---- verdict ----------------------------------------------------------
+    print("\n" + "=" * 70)
+    if failures:
+        print("FAILED -- %d problem(s):\n" % len(failures))
+        for f in failures:
+            print("  * %s" % f)
+        return 1
+    print("PASSED -- packet parses, excerpt count preserved, every quote-body change is")
+    print("declared on its line, and no URLs or company identifiers survive.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

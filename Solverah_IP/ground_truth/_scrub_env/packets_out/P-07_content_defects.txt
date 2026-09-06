@@ -1,0 +1,100 @@
+P-07 — CONTENT DEFECTS FOUND DURING THE SCRUB PASS
+==================================================
+Recorded 2026-09-06 by the scrub pass. NONE OF THESE WAS FIXED. The packet was scrubbed
+around them, so the build is what needs correcting, not this file's contents.
+
+Three defects found. Items checked and cleared are listed at the end so an absent entry is
+distinguishable from an unchecked one.
+
+
+CD-1  STATED COUNT DISAGREES WITH THE NUMBER OF ITEMS — section E header
+------------------------------------------------------------------------
+The section E marker reads:
+
+    --- E. RECENT NEWS (yield: 2 excerpts · 4 searches logged) ---
+
+Section E contains FOUR excerpt lines, not two: the joint-venture pause, the layoff notice,
+the vice-president promotions, and the chief executive's statement. The build record agrees
+with the items and not with the header — section 2a of the raw packet reads "E excerpts: 4
+(2 events)", and section 2f records both events.
+
+The header looks like a transposition: the excerpt count and the event count have been
+swapped, so it should read "yield: 4 excerpts (2 events) · 4 searches logged".
+
+Why it matters beyond tidiness: a rater who reads the header as authoritative sees a section
+declaring less evidence than it contains, and section E is exactly the section the proposed
+0.7 rule leans on for non-company-authored support. Undercounting it understates the
+corroboration available.
+
+The header is reproduced verbatim in the scrubbed packet, wrong count and all.
+
+
+CD-2  ATTRIBUTION CONTRADICTS THE EXCERPT — section B, rev-04
+--------------------------------------------------------------
+The 2026-07-22 Support Specialist review carries the source review headline
+
+    "Overall good company to work for"
+
+while the body of the same review is uniformly negative: the first manager left, the second
+was "terrible, no prior management experience", the internal union "was useless when it
+actually came to needing their help", and "shop stewards were a joke". The truncation cuts
+mid-sentence on "President wasn't", so nothing later in the body reconciles the two.
+
+This is the P-06 shape — an attribution title contradicting the reviewer's own body text.
+It is possible the headline is genuinely what the reviewer typed (reviewers do write
+mismatched headlines, and Indeed prints a separate star rating that the packet does not
+carry). But the packet gives the rater no way to tell, and the star rating that would settle
+it was not collected.
+
+It is worth more than a single line because this entry is TRIPLICATED: the source site
+renders it three times and all three entries are retained under A3, so the contradiction is
+put in front of the rater three times over. If the headline is an artefact rather than the
+reviewer's own words, the packet is amplifying an artefact.
+
+Suggested build-side follow-up: capture the per-review star rating for section B, or drop
+the headline field. One of the two disambiguates this class of defect permanently.
+
+
+CD-3  STATED COUNT DISAGREES WITH THE NUMBER OF ITEMS — section B header
+-------------------------------------------------------------------------
+The section B marker reads:
+
+    --- B. EMPLOYEE REVIEWS (15, one per line, most recent first) ---
+
+Seventeen excerpt lines follow. The NOTE TO RATER immediately beneath the marker does
+reconcile it — 15 voices, 17 entries, because one review is rendered three times by the
+source site — so this is a labelling ambiguity rather than a miscount, and it is recorded
+at lower severity than CD-1 for that reason.
+
+It is recorded at all because the stated count and the item count disagree on the face of
+the section, and because any tooling that parses the header count and compares it to the
+parsed bullet count will flag P-07 as malformed. Section A ("8 excerpts"), section C ("10
+excerpts from 4 open postings"), section D ("6 passages across 3 sources") and section F
+("6 excerpts") all parse clean; B and E do not.
+
+Suggested wording, decided build-side and not applied here: "(15 reviews in 17 entries, one
+per line, most recent first)".
+
+
+CHECKED AND CLEARED — not defects
+---------------------------------
+· rev-01's attribution states the job title as "not stated (Anonymous)" while the body says
+  "I was an intern". This looks like a contradiction and is not one. The raw packet's
+  fidelity note records that the source page prints "Anonymous" and that only the
+  paraphrasing plain-fetch layer reported "Intern", inferring it from the body. The
+  attribution is correct and should NOT be "fixed" to say Intern.
+· Excerpt counts in sections A, C, D and F match their headers exactly.
+· The truncation note's arithmetic: 7 of 15 reviews truncated, stated as 47%. Nine excerpt
+  lines carry the truncation flag, but three of them are the one triplicated review, so the
+  distinct count is 7 and 7/15 = 46.7%. Correct as stated.
+· Section E date arithmetic: layoff notice filed 2026-03-31, effect by 2026-05-30, reported
+  2026-06-26. Internally consistent and consistent with section 2f.
+· Section D's voice-composition flag claims three sources, all company-published, all
+  non-executive: three distinct sources are present and none is an executive. Correct.
+· Apparent tension between section A's "flexible work environments" and section F's in-person
+  time policy. Examined as a possible internal contradiction between two company-authored
+  excerpts. It is not one — the following F excerpt explicitly reconciles them with on-site
+  and off-site role classifications. Left alone, and no rater-facing note added, because
+  reading that tension is the rater's job.
+· No quote in the packet is attributed to a section it does not belong to (the P-06 defect).
+  Every excerpt's source class matches its section.
