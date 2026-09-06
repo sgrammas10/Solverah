@@ -59,7 +59,7 @@ HONEST LIMITS -- read before trusting a green run
 Usage:
     python check_state.py --state STATE.md
     ... | python check_state.py --state -
-    python check_state.py --state STATE.md --repo ~/Solverah --ip ~/Solverah_IP
+    python check_state.py --state STATE.md --repo ~/Solverah --ip ~/Solverah/Solverah_IP
     python check_state.py --list-claims
 """
 from __future__ import annotations

@@ -11,7 +11,7 @@ New-Item -ItemType Directory -Force -Path ..\decision_test\ip_test\ground_truth\
 
 Copy-Item causal_graph\scorer_variance_test_v2.py ..\decision_test\causal_graph\ -Force
 Copy-Item causal_graph\_test_anchors_v1_with_v3decision.json ..\decision_test\ip_test\ground_truth\rater_app\anchors.json -Force
-Copy-Item ..\Solverah_IP\ground_truth\anonymization\P-0*_packet_ANON.txt ..\decision_test\ip_test\ground_truth\anonymization\ -Force
+Copy-Item Solverah_IP\ground_truth\anonymization\P-0*_packet_ANON.txt ..\decision_test\ip_test\ground_truth\anonymization\ -Force
 Copy-Item .env ..\decision_test\.env -Force
 
 Set-Location ..\decision_test\causal_graph

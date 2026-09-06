@@ -30,48 +30,54 @@ CALIBRATION_ADDENDUM = (
     "not as a general caution."
 )
 
-api_key = os.environ.get("OPENAI_API_KEY")
-if not api_key:
-    raise SystemExit("OPENAI_API_KEY not set")
-
-client = OpenAI(api_key=api_key)
-
-anchors = sp.load_anchors()
-rubric = sp.build_rubric_text(anchors)
-print(f"Loaded rubric {anchors.get('rubric_version')} ({len(rubric)} chars)")
-print(f"Calibration addendum length: {len(CALIBRATION_ADDENDUM)} chars\n")
-
-instruction = (
-    "Score the evidence packet against the rubric on these six dimensions: "
-    + ", ".join(sp.DIMENSIONS) + ". For each dimension, choose a score from exactly "
-    f"these band values: {sp.SCORE_BAND_VALUES}, a confidence from exactly these band "
-    f"values: {sp.CONFIDENCE_BAND_VALUES}, and 1-3 short verbatim quotes from the "
-    "packet supporting the score. Base your scoring only on the rubric and packet "
-    "text provided. Do not use any outside knowledge, web search, or tools, even "
-    "if you recognise the company from the evidence." + CALIBRATION_ADDENDUM
-)
-
 BASELINE = {
     ("P-01", "autonomy"): 0.3,
     ("P-06", "autonomy"): 0.3,
     ("P-06", "innovation"): 0.3,
 }
 
-for pk in ["P-01", "P-06"]:
-    packet_path = sp.packet_path_for(pk)
-    packet_text = sp.load_packet_section1(packet_path)
-    messages = [{"role": "user", "content": f"RUBRIC:\n{rubric}\n\nEVIDENCE PACKET:\n{packet_text}\n\n{instruction}"}]
-    response, temp_honored = sp.call_with_retry(client, messages, sp.MODEL, sp.TEMPERATURE, sp.REASONING_EFFORT)
-    parsed = json.loads(response.choices[0].message.content)
 
-    print("=" * 80)
-    print(pk)
-    for dim in sp.DIMENSIONS:
-        d = parsed[dim]
-        flag = ""
-        if (pk, dim) in BASELINE:
-            base = BASELINE[(pk, dim)]
-            flag = f"   <-- baseline was {base}, {'MOVED to ' + str(d['score']) if d['score'] != base else 'UNCHANGED'}"
-        print(f"  [{dim}] score={d['score']} confidence={d['confidence']}{flag}")
-        for q in d.get("evidence_quotes", []):
-            print(f"      \"{q}\"")
+def main() -> None:
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise SystemExit("OPENAI_API_KEY not set")
+
+    client = OpenAI(api_key=api_key)
+
+    anchors = sp.load_anchors()
+    rubric = sp.build_rubric_text(anchors)
+    print(f"Loaded rubric {anchors.get('rubric_version')} ({len(rubric)} chars)")
+    print(f"Calibration addendum length: {len(CALIBRATION_ADDENDUM)} chars\n")
+
+    instruction = (
+        "Score the evidence packet against the rubric on these six dimensions: "
+        + ", ".join(sp.DIMENSIONS) + ". For each dimension, choose a score from exactly "
+        f"these band values: {sp.SCORE_BAND_VALUES}, a confidence from exactly these band "
+        f"values: {sp.CONFIDENCE_BAND_VALUES}, and 1-3 short verbatim quotes from the "
+        "packet supporting the score. Base your scoring only on the rubric and packet "
+        "text provided. Do not use any outside knowledge, web search, or tools, even "
+        "if you recognise the company from the evidence." + CALIBRATION_ADDENDUM
+    )
+
+    for pk in ["P-01", "P-06"]:
+        packet_path = sp.packet_path_for(pk)
+        packet_text = sp.load_packet_section1(packet_path)
+        messages = [{"role": "user", "content": f"RUBRIC:\n{rubric}\n\nEVIDENCE PACKET:\n{packet_text}\n\n{instruction}"}]
+        response, temp_honored = sp.call_with_retry(client, messages, sp.MODEL, sp.TEMPERATURE, sp.REASONING_EFFORT)
+        parsed = json.loads(response.choices[0].message.content)
+
+        print("=" * 80)
+        print(pk)
+        for dim in sp.DIMENSIONS:
+            d = parsed[dim]
+            flag = ""
+            if (pk, dim) in BASELINE:
+                base = BASELINE[(pk, dim)]
+                flag = f"   <-- baseline was {base}, {'MOVED to ' + str(d['score']) if d['score'] != base else 'UNCHANGED'}"
+            print(f"  [{dim}] score={d['score']} confidence={d['confidence']}{flag}")
+            for q in d.get("evidence_quotes", []):
+                print(f"      \"{q}\"")
+
+
+if __name__ == "__main__":
+    main()
