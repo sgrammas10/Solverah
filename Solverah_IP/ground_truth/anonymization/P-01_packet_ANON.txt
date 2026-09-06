@@ -1,0 +1,189 @@
+PACKET P-01
+  scrubbed from : P-01_packet.txt (build v4.6, model claude-opus-5, built 2026-08-13)
+  ruleset       : ANONYMIZATION_RULES_DRAFT.md  — DRAFT, not signed off
+  scrubbed      : 2026-08-14
+  status        : DRAFT. Not rater-ready. Source packet is a one-method build and is
+                  scheduled for rebuild under v4.7.
+
+  DO NOT SEARCH FOR ANY PHRASE IN THIS PACKET. If you recognise the company, that is
+  expected and is not a failure — record it on the recognition flag and keep scoring
+  from the evidence in front of you, not from what you know.
+
+
+########## SECTION 1 — EVIDENCE PACKET ##########
+
+SCOPE DECLARATION
+   "The employee reviews in this packet come from front-line and mid-level operations
+    staff at a health insurer — member and provider services, claims processing,
+    utilization-review nursing, pharmacy, case management, and their immediate
+    supervisors and managers. Other parts of this company — engineering, product,
+    design, data, actuarial, finance, marketing and legal — are almost entirely absent
+    from them. Company-authored sources describe the whole organisation."
+
+
+--- A. CAREERS / VALUES PAGE (8 excerpts) ---
+
+   • "[The company] is the first health insurance company built around a full stack technology platform and a relentless focus on serving its members. [The company] is powered by people from all kinds of backgrounds. They all have one thing in common: they care deeply and have a strong desire to make a frustrating healthcare system easier, more human and better for absolutely everyone."  — [company careers page] — company-authored — retrieved 2026-08-13, no modification date published (needed JS: N)
+
+   • "No genius without grit. Be relentless. Be scrappy. Trying and failing beats not trying and changing nothing."  — [company values page] — company-authored, value 03 — retrieved 2026-08-13 (needed JS: N)
+
+   • "Seek the truth. … but never assume you've found it. Be scientific."  — [company values page] — company-authored, value 04 — retrieved 2026-08-13 (needed JS: N)
+
+   • "Inspire & provoke. Develop and display leadership at all levels. Fight to be the best."  — [company values page] — company-authored, value 05 — retrieved 2026-08-13 (needed JS: N)
+
+   • "Be transparent. Give and ask for direct feedback. Be grateful for and excited by the help of others."  — [company values page] — company-authored, value 06 — retrieved 2026-08-13 (needed JS: N)
+
+   • "Make it right. Admit your mistakes. Then learn from them. Never build alone."  — [company values page] — company-authored, value 07 — retrieved 2026-08-13 (needed JS: N)
+
+   • "Healthcare is hard. Our technology team makes it better by building scalable and sustainable applications, infrastructure, and interfaces."  — [company careers page, tech section] — company-authored — retrieved 2026-08-13 (needed JS: N)
+
+   • "Your development as a professional matters. That's why we offer structured performance reviews, employee-led workshops, and an executive speaker series to help you grow your career."  — [company careers page, early-career section] — company-authored — retrieved 2026-08-13 (needed JS: N)
+
+
+--- B. EMPLOYEE REVIEWS (15 reviews, one per line, most recent first) ---
+
+NOTE TO RATER — TWO THINGS YOU CANNOT SEE FROM THE EXCERPTS THEMSELVES:
+
+   (1) TRUNCATION. 12 of the 15 reviews below were cut off at the source by a
+   "Show more" control that does not expand on fetch. That is 80% of this sample —
+   far above the level at which truncation stops being incidental. The cut is
+   length-based: the three reviews that survive in full are the three shortest ones.
+   You are reading the opening paragraph of every detailed account and the whole of
+   every brief one. Cuts are marked […].
+
+   (2) A CROSS-SITE RECENCY GAP. The site supplying this text holds 237 reviews and
+   its newest is dated 2026-04-13. A second review site holds 924 reviews for the same
+   employer and its newest is dated 2026-08-06 — roughly four months more current, on
+   roughly four times the volume. The prose below is therefore drawn from the thinner
+   and slightly staler of the two review populations. The four months of evidence
+   visible only on the other site are not in this packet, because that site renders
+   review bodies as bullet fragments rather than prose and is barred from Section 1.
+
+   • "Despite frequent messaging around internal mobility, promotions are not granted even when employees are already performing the responsibilities of the role to which they're applying and beyond. Despite going above and beyond, they'll subjectively evaluate you and rate your performance as meeting expectations." […]  — [employee review rev-01] — title: not stated · location: not stated — 2026-04-13 (needed JS: N)
+
+   • "As a Utilization Management RN, I was concerned that supervision structures, where vocational nurses/LVN managed Registered Nurses, didn't align with state Nurse Practice Act regulations regarding scope of practice. / I felt this structure created potential risk to member safety and licensing integrity," […]  — [employee review rev-02] — title: Utilization Review Nurse · location: [Site A] — 2026-03-13 (needed JS: N)
+
+   • "You have significant autonomy to do your job with appropriate support when needed. There is not much room for growth. My position is fully remote which was excellent for work/life balance."  — [employee review rev-03] — title: not stated · location: not stated — 2026-01-12 (needed JS: N) [rendered in full, not truncated]
+
+   • "Heartless company, constant uncertainty. After years working there and through staff shortage, they finally repaid me by laying me off with no severance and no care. Used to be great company to work for but now it's run by people who care for their own power in each team. Highly do not recommend working" […]  — [employee review rev-04] — title: Engineer · location: [Site B] — 2025-12-13 (needed JS: N)
+
+   • "What is the best part of working at the company? / The benefits! Nothing more than that. Sad to say. / What is the most stressful part about working at the company? / The constant changes & yearly layoffs! / What is the work environment and culture like at the company? / Frequent management changes, chaotic." […]  — [employee review rev-05] — title: Clinical Coordinator · location: [Region F] — 2025-09-11 (needed JS: N)
+
+   • "[The company] is a great company to work for, but sometimes unorganized! They offer remote work answering there [sic] members benefit questions, prior authorization questions. They often change work processes, KPI and you are expected to keep up with any and all changes at the last minute. Not much room for growth" […]  — [employee review rev-06] — title: Care Guide · location: Remote — 2025-09-06 (needed JS: N)
+
+   • "[The company] is full of people who will stab you in the back at a moment's notice. This may include your direct manager, peers on the same team, stakeholders, or really just anyone who wants to. / Enormous mistakes are made at the Director+ level with no accountability. Instead, it gets pinned on others" […]  — [employee review rev-07] — title: not stated · location: [Site C] — 2025-08-27 (needed JS: N)
+
+   • "It was a wonderful first corporate job. Moving around in the company just depends on what is available at the time. As my time there continued, they started to get more strict and micro-managey. Towards the end, the company only started to care about their profit and making money. The flexibility of" […]  — [employee review rev-08] — title: Insurance Operations Claims Processor · location: not stated — 2025-08-23 (needed JS: N)
+
+   • "Not a good job for parents that want to work from home with kids. Very micromanage. They want you to learn how to do every roll [sic] with no extra pay or change in salary." […]  — [employee review rev-09] — title: Claims Specialist · location: [Site D] — 2025-06-27 (needed JS: N)
+
+   • "Great place to work I only left because I went back to school to finish my degree. But I would have stayed and possibly retired there. Hopefully I can go back once I obtain my degree"  — [employee review rev-10] — title: UM · location: Remote — 2025-06-25 (needed JS: N) [rendered in full, not truncated]
+
+   • "Friendly vibe, good team and good supervisor. Not a lot of growth opportunities as they are getting saturated with pharmacist. May be good if you want a small or not looking for growing right away"  — [employee review rev-11] — title: Pharmacist · location: not stated — 2025-06-24 (needed JS: N) [rendered in full, not truncated]
+
+   • "Very stressful and not positive work place. They don't set you up for success at your job. They will hire from outside the company before promoting from within." […]  — [employee review rev-12] — title: Insurance Operations Supervisor · location: [Site E] — 2025-06-07 (needed JS: N)
+
+   • "Heavy micromanagement. Good culture. Not so great work life balance. Management could be better. Frequently changing processes and quality. Management does not seem supportive of staff." […]  — [employee review rev-13] — title: Complex Case Manager · location: [Region G] — 2025-04-19 (needed JS: N)
+
+   • "Training was too bad and unorganized for me to stay. Training manuals was outdated and trainers was confused at times themselves but expected the employees to know the answers. Wouldn't take responsibility for the training being updated before start date. Felt like a robot because every training module" […]  — [employee review rev-14] — title: Care guide · location: Remote — 2025-04-14 (needed JS: N)
+
+   • "The training class was horrible.The trainers themselves were confused about a lot of the outdated training material and yet they would stress the expectations of the employee. The trainers accelerated the training bexause [sic] they were behind and expected one to keep up.Gave employees a labtop [sic] and a monitor" […]  — [employee review rev-15] — title: Customer Service · location: Remote — 2025-04-14 (needed JS: N)
+
+
+--- C. JOB POSTINGS (10 excerpts from 3 open postings, different functions) ---
+
+All three postings were opened individually on 2026-08-13. None carried a removal
+notice; all three rendered a live "Apply now" control and full posting body.
+
+POSTING 1 — function label: Risk Adjustment / healthcare operations
+
+   • "Develop an in-depth understanding of day-to-day workflows at [the company]"  — [job posting] — company-authored, Responsibilities block — confirmed open 2026-08-13 (needed JS: N)
+
+   • "Become acquainted with internal tools and technical processes, and highlight areas of opportunity for improvement"  — [job posting] — company-authored, Responsibilities block — confirmed open 2026-08-13 (needed JS: N)
+
+   • "Support your manager by guiding decisions on an ongoing basis"  — [job posting] — company-authored, Responsibilities block — confirmed open 2026-08-13 (needed JS: N)
+
+   • "Support team with monitoring, tracking, and statusing our inventory"  — [job posting] — company-authored, Responsibilities block — confirmed open 2026-08-13 (needed JS: N)
+
+POSTING 2 — function label: Regulatory Operations / compliance
+
+   • "Be the advisor to your teammates and teams to lead the accurate completion of filing deliverables as a subject matter expert"  — [job posting] — company-authored, Responsibilities block — confirmed open 2026-08-13 (needed JS: N)
+
+   • "Develop sustainable processes which simplify outputs while ensuring high quality deliverables, including maintenance of a repository of guidance and resources"  — [job posting] — company-authored, Responsibilities block — confirmed open 2026-08-13 (needed JS: N)
+
+   • "Manage other projects in support of filings while achieving deadlines and managing competing priorities"  — [job posting] — company-authored, Responsibilities block — confirmed open 2026-08-13 (needed JS: N)
+
+   • "Thursdays are a required in-office day for team meetings and events, while your other two office days are flexible to suit your schedule."  — [job posting] — company-authored, Work Location block — confirmed open 2026-08-13 (needed JS: N)
+
+POSTING 3 — function label: Member & Provider Escalations / member services
+
+   • "Identify, investigate, and resolve issues within determined SLAs"  — [job posting] — company-authored, Responsibilities block — confirmed open 2026-08-13 (needed JS: N)
+
+   • "Collaborate with colleagues, Experts, and Leads to identify trends and roadblocks"  — [job posting] — company-authored, Responsibilities block — confirmed open 2026-08-13 (needed JS: N)
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 3 · ladder fully attempted) ---
+
+VOICE COMPOSITION: 0 executive / 3 non-executive. All three passages are by a Senior
+Product Designer writing in first person about her own team's practice. Not an
+all-executive section; the D0 extra-rung requirement did not fire.
+
+   • "Late in 2025, my product and engineering team integrated vibe coding into the early stage of a brand-new medical coding platform. By leveraging [a third-party AI prototyping tool] as our primary tool for rapid concept validation, we were able to align with stakeholders faster and gather more grounded user feedback, ultimately compressing our discovery timeline from months of traditional scoping into just a few weeks."  — [company engineering/design blog] — a Senior Product Designer, company-authored — 2026-05-15 (needed JS: N)
+
+   • "We had to move fast without skipping the de-risking process. By making the system tangible early, we could answer critical questions before we would typically surface in a traditional build."  — [company engineering/design blog] — a Senior Product Designer, company-authored — 2026-05-15 (needed JS: N)
+
+   • "Traditionally, the design process relies on a rigorous cycle of divergence and convergence, exploring a wide range of possibilities before narrowing down. But the sheer velocity of vibe coding can trick us into skipping those steps. When a prototype looks and feels functional, there's a natural temptation to trust it immediately."  — [company engineering/design blog] — a Senior Product Designer, company-authored — 2026-05-15 (needed JS: N)
+
+
+--- E. RECENT NEWS (yield: 3 · searches logged) ---
+
+   • "The insurer expects [a substantial sum] in administrative cost savings next year, half driven by a reduction in workforce and half from "AI-driven efficiencies" and "medical cost affordability initiatives." [The company] did not immediately respond to a request for comment about upcoming layoffs."  — [trade press reporting] — independent, not company-authored — 2025-08-06 (needed JS: N)
+
+   • ""We are focused on what we can control," [the chief executive] said simply. He added he expects the market to turn around favorably in 2026."  — [trade press reporting, quoting the chief executive] — independent, not company-authored — 2025-08-06 (needed JS: N)
+
+   • "[The company] Thursday reported [a substantial] third quarter loss but predicts "a return to profitability" as the health insurance industry works its way through a period of rising costs and Washington gridlock."  — [business press reporting] — independent, not company-authored — 2025-11-06 (needed JS: N)
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 6 · public/private: PUBLIC) ---
+
+Source: Item 1 Business, "HUMAN CAPITAL RESOURCES", Form 10-K for fiscal year ended
+2025-12-31, filed 2026-02-13. Company-authored legal filing; subject to the same
+marketing-inflation caution as the careers page. All headcounts, dollar figures and
+percentages stripped at collection.
+
+   • "At [the company], we are powered by people from varied and broad backgrounds, experiences, and industries. We foster a culture in which our employees share a common connection to our mission: they are passionate about making a frustrating healthcare system easier, more human, and better for everyone."  — [10-K Item 1 Human Capital] — company-authored — filed 2026-02-13 (needed JS: N)
+
+   • "This centers around what we believe to be a compelling employee value proposition, that includes competitive pay, and benefits, flexible work styles, opportunity to make a real impact towards the [company] mission, and ongoing performance development."  — [10-K Item 1 Human Capital, Talent Recruitment and Retention] — company-authored — filed 2026-02-13 (needed JS: N)
+
+   • "We believe our compensation philosophy and practice, which is rooted in data and benchmarked to a cohort of peer and broader industry companies, is transparent, systematic, and equitable."  — [10-K Item 1 Human Capital, Talent Recruitment and Retention] — company-authored — filed 2026-02-13 (needed JS: N)
+
+   • "We also believe in the importance of investing in developmental opportunities for our employees, and all employees have access to internally created and third party skills and training programs."  — [10-K Item 1 Human Capital, Health and Wellbeing] — company-authored — filed 2026-02-13 (needed JS: N)
+
+   • "Internally, we aim to promote a transparent, systematic approach to our human capital frameworks and operations."  — [10-K Item 1 Human Capital, Building Community] — company-authored — filed 2026-02-13 (needed JS: N)
+
+   • "Our employees are able to view their total compensation package, including their salary band and leveling, which helps employees understand their pay and encourages proactive conversation between managers and employees."  — [10-K Item 1 Human Capital, Building Community] — company-authored — filed 2026-02-13 (needed JS: N)
+
+
+########## END OF PACKET ##########
+
+
+SCRUB LOG — for the run record, not for the rater
+  R1 attribution stripped : 41 excerpt lines (company name + URL removed, source class
+                            and date retained). Review URLs replaced with rev-01..rev-15.
+  R2 in-quote name subs   : 8  (A×2 in one excerpt, B×2, C×1, E×2, F×2)
+  R3 names stripped       : 3  (1 named employee, 1 executive, 2 journalist bylines →
+                            publication class)
+  R4 programmes rewritten : 1  ("Executive Speaker series")
+  R5 locations tokenised  : 7 places → Site A–E, Region F–G. "Remote" ×4 retained.
+  R6 figures stripped     : 2  (Section E — NOT covered by the current prompt's rule)
+  R7 typos retained       : 6  (there / every roll / bexause / labtop / horrible.The /
+                            keep up.Gave)
+
+  KNOWN RESIDUAL EXPOSURE, ACCEPTED UNDER THE RULESET
+   · "the first health insurance company built around a full stack technology platform"
+     — near-unique string, retained per JC-1
+   · "making a frustrating healthcare system easier, more human, and better for everyone"
+     — appears in A and F, retained per JC-1
+   · the six value names, appearing in A and again inside F — retained per JC-1
+   · the six preserved typos — exact-match searchable, retained per R7
+   · industry is inferable from job titles alone and was not treated as a leak

@@ -1,0 +1,743 @@
+BUILD RECORD
+  prompt version : v4.6
+  model          : claude-opus-5
+  built          : 2026-08-14
+  environment    : clean session, one company, no prior packet context
+  assisted       : NO
+
+  RETRIEVAL METHODS AVAILABLE THIS BUILD: plain HTTP fetch ONLY.
+  The JavaScript-rendering browser was not connected at any point in this session
+  (three attempts, all returned "Claude in Chrome is not connected"). Every source
+  below was retrieved by plain HTTP fetch. Sources that require rendering are
+  recorded as "existed but could not be reached", never as absent. See defect S3.
+
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE DECLARATION
+"The employee reviews in this packet come from a small, unclaimed review profile
+ holding 34 reviews for a global agency network — mostly New York creative,
+ production and account roles, plus single reviews from Buenos Aires, San
+ Francisco and Chicago. Other parts of this company — engineering and technology,
+ product, media, data/analytics, and the Brazil, UK, Japan, Singapore, Germany,
+ Indonesia and Australia offices — are not represented in them. Company-authored
+ sources describe the whole organisation."
+
+
+--- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
+
+   • "We want you to bring your whole self to work, and believe we're at our best when we can tap into our differences and collaborate across varied personal experiences and perspectives to arrive at impactful ideas."  — [careers page, company-authored] — R/GA — https://www.rga.com/careers — retrieved 2026-08-14 · needed JS: N
+
+   • "Our hybrid model came from conversations with employees about how to enable them to do their best work. Our leadership team champions the importance of a truly flexible workplace that better suits both our people and our business."  — [careers page, company-authored] — R/GA — https://www.rga.com/careers — retrieved 2026-08-14 · needed JS: N
+
+   • "At R/GA, our people drive our culture, and we place high value on what they have to say. We foster trusting relationships through listening sessions that encourage creativity and lead to better solutions, both in our work and how we work together."  — [careers page, company-authored] — R/GA — https://www.rga.com/careers — retrieved 2026-08-14 · needed JS: N
+
+   • "R/GA is constantly changing, contantly envolving. This is both a necessity of your business and an ongoing opportunity for you to bring your imagination and talent to the work. Get ready to iterate and rethink often. And don't be afraid of little chaos."  [sic — "contantly envolving"; "a necessity of your business"; "a little chaos" written as "little chaos" — source typos preserved]  — [careers page, company-authored] — R/GA — https://www.rga.com/careers — retrieved 2026-08-14 · needed JS: N
+
+   • "More than an a collection of offices, R/GA is a network of people who can make your work better and help you grow professionally. Go ahead, reach outside your department, your city, even your country, to find help and share ideas."  [sic — "More than an a collection"]  — [careers page, company-authored] — R/GA — https://www.rga.com/careers — retrieved 2026-08-14 · needed JS: N
+
+   • "We're all accountable for reaching the same goal: breakthrough creative work. But if we think and operate in silos, we'll never get there. Focus on your contributions, yes, but also on how they fit within the bigger picture. And look for ways to push the work forward even when your part is "done"."  — [careers page, company-authored] — R/GA — https://www.rga.com/careers — retrieved 2026-08-14 · needed JS: N
+
+   • "We're at our best when diverse voices and disciplines intersect. Innovation often happens when people with disparate perspectives come together as a team. Look for these intersections, and cultivate relationships that make them possible."  — [careers page, company-authored] — R/GA — https://www.rga.com/careers — retrieved 2026-08-14 · needed JS: N
+
+   • "The best ideas, and ways of working are simple. Complexity is the enemy, whether it is a dense slide or a call with 40 people. Look at the work, and the process, with an eye toward less: shorter copy, smaller decks, fewer meetings."  — [careers page, company-authored] — R/GA — https://www.rga.com/careers — retrieved 2026-08-14 · needed JS: N
+
+   A yield: 8/8 (at cap).
+
+
+--- B. EMPLOYEE REVIEWS (12–15, one per line, most recent first) ---
+
+NOTE TO RATER — THREE THINGS YOU CANNOT SEE FROM THE EXCERPTS BELOW.
+
+1. AGE. The newest employee review in this section is dated 4 July 2024 —
+   twenty-five months before this packet was built. ZERO of the fifteen reviews
+   fall inside the 24-month window. The median review is roughly 42 months old
+   and the oldest is roughly 84 months old.
+
+2. A STRUCTURAL EVENT POSTDATES EVERY REVIEW. The company changed ownership on
+   3 March 2025 — sold by its holding-company parent of 23 years to a private
+   equity firm in a partial management buyout — and has since acquired a company,
+   appointed its first global chief brand officer, and restructured leadership on
+   a major account. All of that is AFTER the newest review below. The reviews and
+   the news section of this packet describe two different organisations.
+
+3. TRUNCATION. Nine of the fifteen reviews (60%) were cut off at source by a
+   "Show more" control that does not expand on fetch, and could not be expanded
+   from the review's own permalink either. The reviews that survived intact are
+   systematically the SHORT ones. You are reading the opening paragraph of every
+   long, detailed review and the whole of every brief one.
+
+A SECOND REVIEW SOURCE HOLDS CURRENT REVIEWS FOR THIS COMPANY THAT ARE NOT
+QUOTED HERE. Its newest is dated 26 June 2026. Section B's collection rules
+restrict verbatim review text to the source used below. See QA 2e and defect S1.
+
+   • "R/GA ya no es lo que era. Falta muchísimo liderazgo. - Hay poco sentido de propósito y dirección. - Cada vez hay menos clientes y no parece que eso vaya a cambiar. - No se siente que las promotions sean meritocráticas."  [review posted in Spanish; reproduced verbatim, untranslated]  — [employee review] — Director, Buenos Aires — https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews/deprimente?id=faedc67b0f246234 — 2024-07-04 · needed JS: N
+
+   • "Awesome work life balance. Great benefits. Excellent management and support staff. Opportunity for growth. Lots of flexibility as well as remote options."  — [employee review] — Paralegal, California, MD — https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews/excellent-benefits?id=3db994f0f9fdbdad — 2024-02-21 · needed JS: N
+
+   • "I worked on Nike back in 2011, it was fun work but the team culture wasn't great. There were to many cooks in the kitchen and often the work hours were very long."  [sic — "to many cooks"]  — [employee review] — Design Director, New York, NY — https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews/innovative?id=d9a27a89d722086c — 2023-11-14 · needed JS: N
+
+   • "They talk humanity and inclusion but it's actually very corporate. The schedule and staffing is dictated by aggressive margins. They swap creative teams around like they're cells in an excel sheet, with no regard to who would be best for what project, or who is already invested in something. […]"  [truncated at source]  — [employee review] — Art Director, New York, NY — https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews/flesh-on-the-outside-machine-on-the-inside?id=3713646975f893f8 — 2023-09-29 · needed JS: N
+
+   • "Efficient, effective, innovative. Always trying new things. Into wellbeing and diversity, equity and inclusion. Variety of clients and projects, strong teamwork."  — [employee review] — Director, NY — https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews/smart-hard-working-people?id=67452ce1ec56b160 — 2023-08-17 · needed JS: N
+
+   • "I worked as a UI designer here for six months and I enjoyed the experience. The agency has a diverse portfolio of clients and projects, ranging from web design to mobile apps to social media campaigns. The team is creative, collaborative and supportive, and I learned a lot from my colleagues and mentors. […]"  [truncated at source]  — [employee review] — Designer, San Francisco, CA — https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews/great-group-of-people?id=df633f22f65da865 — 2023-04-01 · needed JS: N
+
+   • "Good. Staffs were nice. Work life balance is a bit off. Great environment. Seems to have room to grow. Everyone seems nice and productive. Management seems good […]"  [truncated at source]  — [employee review] — Internship, "Good" [source-site location field contains the literal string "Good"; see 2e]  — https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews/good?id=59fbe1cba650276d — 2023-03-26 · needed JS: N
+
+   • "Overall the best of RGA is the great people you get to work with, excellent culture and fun projects. Although the career development can feel a bit slow."  — [employee review] — Software Engineer, California — https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews/excellent-workplace-and-people?id=7569e4eb171f2980 — 2023-02-17 · needed JS: N
+
+   • "It was over 3 years ago and I was trying to get out of the mailroom. I did gain a lot of attention but had a new manager who made it seem like I was messing up at work (found out he was in on having me fired all along). The job itself is great, but very toxic people there. I do not know how it is now […]"  [truncated at source]  — [employee review] — Mailroom Services Coordinator, New York, NY — https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews/great-place-toxic-environment-from-staff-and-managers?id=a29ac3ad192bfd00 — 2022-03-21 · needed JS: N
+
+   • "Company produces amazing work. Always on the cutting edge. Office looks great but difficult to focus in the full open floor plan environment. Toxic environment. […]"  [truncated at source]  — [employee review] — title: not stated ("Anonymous"), New York, NY — https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews/very-political?id=561b81ac11e130ce — 2021-05-25 · needed JS: N
+
+   • "I learned a lot during my time at R/GA but ultimately felt the company promoted a really unhealthy work life balance. I constantly found myself performing above my pay grade without feeling recognized or appreciated. […]"  [truncated at source]  — [employee review] — Associate Producer, New York, NY — https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews/not-for-me?id=43f36314f25dd825 — 2021-02-09 · needed JS: N
+
+   • "Great place to work and grow as an employee. great staff to be around, supportive bunch of workers really working for a common goal to work on work together. […]"  [truncated at source; sic — "Crative" as self-reported title]  — [employee review] — Crative, New York — https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews/great-place?id=19159d008f598596 — 2020-10-01 · needed JS: N
+
+   • "Overall a fantastic place to succeed in your career. Unfortunately, the Chicago branch is no longer active. The best and most talented people you will ever meet, along with fantastic clients. […]"  [truncated at source]  — [employee review] — Art Director, Chicago, IL — https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews/great-place-to-work-at?id=bc2f41d6fed76da4 — 2020-05-07 · needed JS: N
+
+   • "It's a true boys club - I was shocked because of the forward-thinking work they create and the breakthrough thinking overall. They do prioritize diversity and there are some strong, excellent leaders who understand what modernity is. But there are also many people - leaders and partners - stuck in their […]"  [truncated at source]  — [employee review] — Talent Team, New York, NY — https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews/just-terrible-and-leaders-are-absolutely-deluding-themselves?id=7ef5f5f42a5e4578 — 2019-09-07 · needed JS: N
+
+   • "Working with incredibly smart people in a fascinating office...great combination. My least favorite part? The group structure for accounts. Creates silos."  — [employee review] — GAD, New York, NY — https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews/loved-my-time-with-r-ga?id=a3c12473a99f72cc — 2019-08-05 · needed JS: N
+
+   B yield: 15/12 minimum. 0/15 within 24 months.
+   Employer responses found in the review stream: NONE. Interview write-ups excluded: NONE found.
+
+
+--- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+
+Four currently-open postings, four different functions. Every posting was opened
+individually on 2026-08-14 and each was confirmed live by appearing in the
+employer's applicant-tracking-system list API on the same date. Location strings
+and stated hiring ranges have been stripped as instructed.
+
+POSTING 1 — function: technology / engineering leadership
+
+   • "We build with agents: a substantial share of our code is agent-generated, and every team member is an expert at directing agents to produce production-quality work. We are engineering-led, small by design, and just getting started."  — [job posting, company-authored] — R/GA — https://www.rga.com/careers/7992365?gh_jid=7992365 — first published 2026-06-11, confirmed open 2026-08-14 · needed JS: N
+
+   • "You will write production code daily across the stack, directing agents fluently and writing by hand where it matters most."  — [job posting, company-authored] — R/GA — https://www.rga.com/careers/7992365?gh_jid=7992365 — first published 2026-06-11, confirmed open 2026-08-14 · needed JS: N
+
+   • "Ensure every product ships as a working demo, a marketing deck, and a reusable codebase. Hold the line against one-off custom work."  — [job posting, company-authored] — R/GA — https://www.rga.com/careers/7992365?gh_jid=7992365 — first published 2026-06-11, confirmed open 2026-08-14 · needed JS: N
+
+   • "A strong bias for shipping. A tight v0 in two weeks beats a perfect roadmap in two months."  — [job posting, company-authored] — R/GA — https://www.rga.com/careers/7992365?gh_jid=7992365 — first published 2026-06-11, confirmed open 2026-08-14 · needed JS: N
+
+   • "Work within a senior, intentionally small team. No politics, no process tax, no committees."  — [job posting, company-authored] — R/GA — https://www.rga.com/careers/7992365?gh_jid=7992365 — first published 2026-06-11, confirmed open 2026-08-14 · needed JS: N
+
+POSTING 2 — function: product management
+
+   • "own the rhythm by which bets move from concept to shippable product, defining the demo, the deck, and the codebase scope for each."  — [job posting, company-authored] — R/GA — https://www.rga.com/careers/8026076?gh_jid=8026076 — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N
+
+   • "run customer discovery with R/GA Client Leads, prospects, and pitch teams to validate assumptions early and kill bets that do not hold up."  — [job posting, company-authored] — R/GA — https://www.rga.com/careers/8026076?gh_jid=8026076 — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N
+
+   • "prototype, validate, and iterate using AI agents to build working artifacts yourself rather than waiting on engineering for every check."  — [job posting, company-authored] — R/GA — https://www.rga.com/careers/8026076?gh_jid=8026076 — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N
+
+   • "define and report on success metrics, building the dashboard that the team and the Global Leadership Team live by to track pitch-to-win lift, margin uplift, engagement extension, software revenue, and industry signal."  — [job posting, company-authored] — R/GA — https://www.rga.com/careers/8026076?gh_jid=8026076 — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N
+
+   • "is a high-agency operator who fills in gaps without requiring a formalized process and brings rigor without bureaucracy."  — [job posting, company-authored] — R/GA — https://www.rga.com/careers/8026076?gh_jid=8026076 — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N
+
+POSTING 3 — function: design / motion direction
+
+   • "Nobody's handing you a brief and walking away. We want someone who spots what's next before we ask for it, who's energised by change rather than waiting for permission to make it."  — [job posting, company-authored] — R/GA — https://www.rga.com/careers/8093780?gh_jid=8093780 — first published 2026-07-29, confirmed open 2026-08-14 · needed JS: N
+
+   • "Comfort with ambiguity and change. You act on instinct and initiative, not instruction."  — [job posting, company-authored] — R/GA — https://www.rga.com/careers/8093780?gh_jid=8093780 — first published 2026-07-29, confirmed open 2026-08-14 · needed JS: N
+
+   • "Collaborate with creative directors, strategists and technologists to turn big ideas into crafted, moving solutions."  — [job posting, company-authored] — R/GA — https://www.rga.com/careers/8093780?gh_jid=8093780 — first published 2026-07-29, confirmed open 2026-08-14 · needed JS: N
+
+POSTING 4 — function: post-production / editorial
+
+   • "Collaborative spirit and honesty—you speak up when something isn't working"  — [job posting, company-authored] — R/GA — https://www.rga.com/careers/8059875?gh_jid=8059875 — first published 2026-07-13, confirmed open 2026-08-14 · needed JS: N
+
+   • "Deliver polished work on deadline without compromising craft"  — [job posting, company-authored] — R/GA — https://www.rga.com/careers/8059875?gh_jid=8059875 — first published 2026-07-13, confirmed open 2026-08-14 · needed JS: N
+
+   • "Editors who care equally about the quality of the frame and the speed of delivery"  — [job posting, company-authored] — R/GA — https://www.rga.com/careers/8059875?gh_jid=8059875 — first published 2026-07-13, confirmed open 2026-08-14 · needed JS: N
+
+   C yield: 16 excerpts / 4 postings / 4 functions. 3 of 4 postings outside engineering.
+   C exemption claimed: NO. Eleven roles were open on the employer's ATS on 2026-08-14.
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 3 · ladder fully attempted) ---
+
+VOICE COMPOSITION FLAG FOR THE RATER: two of the three passages below are
+C-suite voices (global chief executive; chair and global chief creative officer)
+describing an ownership transition. The third is a function head (VP level).
+No individual-contributor first-person account was found on any rung.
+
+   • "R/GA has always been an outlier inside a holding company. The holding company model has often focused on slotting agencies into specific silos. As a result of that, we were always a little bit of an anomaly in that model."  — [long-form trade press profile; direct quote] — Robin Forbes, global CEO, R/GA, speaking to Campaign US — https://www.campaignlive.com/article/indie-holdco-back-again-r-gas-pe-owned-independence/1952106 — 2026-03-18 · needed JS: N
+
+   • "Independence has allowed us to transform and change the work. [It] gives you that freedom to let go of things, because you're not part of some structure that you're expected to behave in."  [bracketed insertion is the publication's, reproduced as printed]  — [long-form trade press profile; direct quote] — Tiffany Rolfe, chair and global CCO, R/GA, speaking to Campaign US — https://www.campaignlive.com/article/indie-holdco-back-again-r-gas-pe-owned-independence/1952106 — 2026-03-18 · needed JS: N
+
+   • "Now that models allow anyone to make anything in seconds, execution alone is a commodity. Our value has shifted. We are getting back to what has always been our most valuable asset: our taste and curation. At R/GA, we talk about this as 'Intelligent Brand DNA'. We are moving past static, siloed guidelines and toward code that carries character, memory, and behaviour. […] We aren't interested in being frozen by trepidation. We are training our teams to use these tools to amplify their intuition, not replace it."  — [trade press feature; signed first-person contribution] — Augustus Cook, VP, head of brand design, R/GA — https://lbbonline.com/news/adland-technologists-geeking-out-excited — 2026-07-20 · needed JS: N
+
+
+--- E. RECENT NEWS (yield: 3 · searches logged) ---
+
+Company events reported in the last 12 months (2025-08-14 to 2026-08-14).
+
+   • "Ren Rigby has been selected as R/GA's first global Chief Brand Officer. Rigby rejoins the agency after serving as global head, design in 2021." … "The new hire reports to Tiffany Rolfe, chair/global CCO at R/GA. Their duties include branding new AI products and aiding the strategic growth of the agency's clients."  — [trade press reporting] — Fern Siegel, MediaPost — https://www.mediapost.com/publications/article/408987/rga-appoints-rigby-global-chief-brand-officer.html — byline date 2025-09-15 (page metadata date 2025-09-16; see 2e) · needed JS: N
+
+   • "This strategic move is the latest in a series of significant investments by R/GA following its transition to an independent, privately held company in partnership with private equity firm Truelink Capital. Since its move to independence, the company has invested in new talent, product development, partnerships, and acquisitions – most recently with the acquisition of AI system design studio Addition."  — [trade press reporting] — LBBOnline — https://lbbonline.com/news/RGA-Appoints-Ren-Rigby-as-Global-Chief-Brand-Officer — 2025-09-12 · needed JS: N
+
+   • "When news of IPG's plans to sell R/GA was leaked, it wasn't just clients who were surprised; as it turns out, R/GA's leadership had no idea and were already starting their own process of selling."  — [long-form trade press profile] — Emma Thumann, Campaign US — https://www.campaignlive.com/article/indie-holdco-back-again-r-gas-pe-owned-independence/1952106 — 2026-03-18 · needed JS: N
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 0 · public/private: PRIVATE) ---
+
+   N/A — PRIVATE. R/GA has been a privately held company since 3 March 2025, when
+   its holding-company parent sold it to a private equity firm in a partial
+   management buyout. It files no annual report and has no Item 1 Human Capital
+   disclosure. No EDGAR route was attempted; the company's private status was
+   established from trade reporting before Section F was reached.
+
+
+########## SECTION 2 — RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+**2a. YIELD AUDIT**
+
+    REQUIRED TO YIELD — a shortfall here means go back and collect more:
+       A excerpts: 8/5 (at the 8 cap)   B reviews: 15/12   C excerpts: 16/6
+       C postings: 4/3                  C outside engineering: 3/1
+       B reviews within 24 months: 0/15      ** every review predates the gate **
+
+    C EXEMPTION CLAIMED (company not hiring)?  NO
+       Eleven roles open on the employer ATS list API on 2026-08-14.
+       NOTE: the review site's own Jobs tab affirmatively states "There are no
+       open jobs at R/GA Careers Page currently." That statement is false at the
+       date checked. Had the exemption been claimed on that page's authority it
+       would have been wrong — this is the C-exemption trap firing live.
+
+    REQUIRED TO ATTEMPT — record the yield, do not gate on it:
+       D passages: 3      ladder rungs logged: 7/7
+       D voice composition: 2 executive (C-suite) / 1 non-executive (VP, function head)
+                            extra rung worked when D looked all-executive? YES —
+                            rung 6 was re-worked specifically for a non-executive
+                            voice, which is where the third passage came from.
+                            stale non-executive material found and rejected? NONE
+                            found at any vintage; see D2/D3 below.
+       E excerpts: 3      searches logged: 6
+       F excerpts: 0      public? NO — PRIVATE      10-K filing date: N/A
+
+**2b. EVIDENCE COVERAGE**
+
+       autonomy: COVERED   pace: COVERED       collaboration: COVERED
+       feedback: THIN      innovation: COVERED  decision: COVERED
+
+    Feedback is THIN because the review population is 25+ months old and says
+    almost nothing about review cycles or critique norms; the only feedback-bearing
+    lines are company-authored (one job posting, one careers-page listening-session
+    claim). The one current, detailed employee account of how feedback is delivered
+    at this company sits on the review source Section B is not permitted to quote.
+
+**2c. LADDER CHECKLIST**
+
+       D1 handbook          attempted Y   URL: https://www.rga.com/ (full nav + footer surveyed: Work, What We Do, News, Careers, Offices, Our Companies, Terms, Cookies, CCPA, Privacy, Press & Media, Scam Alert)   outcome: NOT FOUND — no handbook, manual or "how we work" doc appears anywhere in site navigation or footer. Absence established by navigation survey, not by URL guessing.
+       D2 eng/product blog  attempted Y   URL: https://www.rga.com/news   newest post date: 2026-07-22   outcome: PUBLICATION EXISTS AND IS CURRENT, BODY COULD NOT BE REACHED. The index renders in full on plain fetch. Individual articles return only the headline, author, date and section headings — the article body does not render without JavaScript. Three articles opened (2026-07-22, 2026-05-21, 2026-04-15); two of the three additionally sit behind a lead-capture subscribe wall on the company's own thought-leadership platform. NOT an absence. Not quotable without the renderer. This is the single biggest retrieval loss of the build.
+       D3 culture microsite attempted Y   URL: https://www.rga.com/careers   outcome: NARRATIVE TEXT FOUND ("7 things that guide how we do what we do") but it is the SAME material already quoted in section A. Per the double-counting rule it does not count toward D. Continued down the ladder.
+       D4 leader interview  attempted Y   URL: searched; no dedicated interview or podcast transcript on decision-making located. Nearest hit is the trade profile logged at D6.   date: n/a   outcome: NOT FOUND as a distinct rung
+       D5 public repos      attempted Y   URL: https://github.com/orgs/rgadigital/repositories   outcome: CORRECT ORGANISATION CONFIRMED ("GitHub is where R/GA builds software") and it affirmatively renders "This organization has no public repositories." — a true zero, not a retrieval failure. NAME COLLISION ALSO CONFIRMED: https://github.com/rga is the Rensselaer Gaming Alliance, one repository, last updated 2012-06-25, unrelated to this company. The obvious handle is the wrong one.
+       D6 press profile     attempted Y   URL: https://www.campaignlive.com/article/indie-holdco-back-again-r-gas-pe-owned-independence/1952106   date: 2026-03-18   outcome: YIELDED 2 passages (both C-suite). Re-worked for non-executive voice → https://lbbonline.com/news/adland-technologists-geeking-out-excited (2026-07-20) yielded the third passage. Also attempted https://adage.com/events-awards/a-list-creativity/aa-rga-2026/ (2026-03-09) — page returns image, date and promo furniture only; article body could not be reached on plain fetch. EXISTED, NOT REACHED.
+       D7 conference talk   attempted Y   URL: https://sxswlondon.com/speakers/robin-forbes-a4be1df5   date: session listed 2026-06-03   outcome: SPEAKER AND SESSION CONFIRMED ("Can Brands Think for Themselves?"). No transcript, recording text or abstract beyond a supplied bio. A listing is not evidence; nothing quotable. Note the bio renders the company name as "R/Ga" — third-party casing, not the company's own.
+       Rungs rejected as stale (>18 months): NONE. Nothing on any rung failed on age. The losses were access losses, not vintage losses.
+       C fallbacks tried: reviews-site job view — FAILED (profile unclaimed; Jobs tab returns "There are no open jobs")  ·  ATS param found — YES (gh_jid on the company's own careers URLs identifies Greenhouse, slug "rga")  ·  greenhouse list API — SUCCESS FIRST TRY, 11 roles with dates  ·  lever — not needed  ·  workday — not needed  ·  ashby — not needed  ·  aggregator — not needed
+       E news searches run: 6
+         q1 "R/GA agency ownership 2026 Truelink Capital IPG sale"
+         q2 "R/GA layoffs restructuring 2026 agency news"
+         q3 ""R/GA" 2026 acquisition OR leadership OR reorganization Adweek Ad Age Campaign"
+         q4 "R/GA agency news July 2026 OR June 2026 The Drum Adweek independent"
+         q5 ""R/GA" agency wins account new business 2026 return to office hiring"
+         q6 ""R/GA" appoints OR names OR hires chief 2026 agency announcement"
+
+**2d. SOURCE ACCESS LOG**
+
+  https://www.indeed.com/cmp/R/GA/reviews — EMPTY (malformed slug) — needed JS: N
+  https://www.indeed.com/cmp/R-ga/reviews → redirects to /cmp/R-Ga/reviews — RENDERED; entity holds ZERO reviews, "Be the first to review", Unclaimed — needed JS: N
+  https://www.indeed.com/cmp/R__ga/reviews?fcountry=ALL&sort=date → redirects to /cmp/R-Ga-Careers-Page/reviews — RENDERED (same entity as below) — needed JS: N
+  https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews?fcountry=ALL&sort=date — RENDERED, 20 reviews page 1, newest-first — needed JS: N
+  https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews?fcountry=ALL&start=20 — EMPTY DOCUMENT — needed JS: N
+  https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews?fcountry=ALL&start=20&sort=date — EMPTY DOCUMENT — needed JS: N
+  https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews?start=20 — RENDERED IN FULL (8 reviews, 2017–2012, US-filtered set). Same page-2 request, one parameter different, empty vs full. — needed JS: N
+  https://www.indeed.com/cmp/R-Ga-Careers-Page/job-titles — RENDERED, 20 titles / 24 reviews across 9 function categories — needed JS: N
+  https://www.indeed.com/cmp/R-Ga-Careers-Page/reviews/flesh-on-the-outside-machine-on-the-inside?id=... — RENDERED; permalink does NOT expand the "Show more" truncation — needed JS: N
+  https://www.indeed.com/cmp/R-Ga-Careers-Page/jobs — RENDERED; "There are no open jobs at R/GA Careers Page currently." (contradicted by ATS, see 2e) — needed JS: N
+  https://www.glassdoor.com/Reviews/R-GA-Reviews-E23929.htm?sort.sortType=RD&sort.ascending=false — RENDERED IN FULL on plain fetch, no bot wall, 3 review bodies + full rating block. Newest review 2026-06-26. — needed JS: N
+  https://www.rga.com/ — RENDERED (note: renders the literal string "Join R/GAnull open roles" — a template bug) — needed JS: N
+  https://www.rga.com/careers — RENDERED IN FULL including all values copy. "Open roles" list does NOT render (JS-gated). — needed JS: N
+  https://www.rga.com/careers/5261837 — EMPTY DOCUMENT — needed JS: N
+  https://www.rga.com/news — INDEX RENDERED (8 items, newest 2026-07-22) — needed JS: N
+  https://www.rga.com/news/ai-corporate-websites — HEADLINE, AUTHOR, DATE AND SECTION HEADINGS ONLY; body did not render — needed JS: Y (unavailable)
+  https://www.rga.com/news/designing-brands-win-agentic-commerce — LEAD-CAPTURE WALL, no article body — needed JS: Y (unavailable)
+  https://www.rga.com/news/ai-taste-gap — HEADLINE, AUTHOR, DATE ONLY, then subscribe prompt — needed JS: Y (unavailable)
+  https://www.rga.com/news/rga-google-leadership-team — HEADLINE, AUTHOR, DATE ONLY — needed JS: Y (unavailable)
+  https://www.rga.com/our-companies — HEADING ONLY, body did not render — needed JS: Y (unavailable)
+  https://boards-api.greenhouse.io/v1/boards/rga/jobs — RENDERED, JSON, 11 open roles with first_published and updated_at — needed JS: N
+  https://www.rga.com/careers/7992365?gh_jid=7992365 — FULL POSTING BODY — needed JS: N
+  https://job-boards.greenhouse.io/rga/jobs/8026076 → redirects to rga.com — FULL POSTING BODY — needed JS: N
+  https://boards.greenhouse.io/rga/jobs/8093780 → redirects to rga.com — FULL POSTING BODY — needed JS: N
+  https://www.rga.com/careers/8059875?gh_jid=8059875 — FULL POSTING BODY — needed JS: N
+  https://www.marketingdive.com/news/rga-indie-ipg-truelink-pivot-gen-ai-consolidation/741350/ — FULL (2025-03-03; outside the E window, used for Section 3 and the vintage block) — needed JS: N
+  https://www.campaignlive.com/article/indie-holdco-back-again-r-gas-pe-owned-independence/1952106 — FULL — needed JS: N
+  https://www.mmm-online.com/news/from-indie-to-holdco-and-back-again-r-ga-pe-owned-independence/ — EMPTY DOCUMENT (syndicated copy of the Campaign feature; not counted separately) — needed JS: N
+  https://www.mediapost.com/publications/article/408987/... — FULL (registration prompts render but do not gate the body) — needed JS: N
+  https://lbbonline.com/news/RGA-Appoints-Ren-Rigby-as-Global-Chief-Brand-Officer — FULL — needed JS: N
+  https://lbbonline.com/news/adland-technologists-geeking-out-excited — FULL — needed JS: N
+  https://adage.com/events-awards/a-list-creativity/aa-rga-2026/ — PARTIAL: image, dateline 2026-03-09 and unrelated promo blocks only. Body not reached. — needed JS: Y (unavailable)
+  https://www.thedrum.com/topics/rga-0 — RENDERED; newest item 2024-10-01, entire topic page stale for section E — needed JS: N
+  https://github.com/rga — RENDERED; WRONG ORGANISATION (Rensselaer Gaming Alliance), 1 repo, last updated 2012-06-25 — needed JS: N
+  https://github.com/orgs/rgadigital/repositories — RENDERED; correct organisation, 0 public repositories — needed JS: N
+  https://sxswlondon.com/speakers/robin-forbes-a4be1df5 — RENDERED; bio + session listing, no transcript — needed JS: N
+  Claude-in-Chrome renderer — NOT CONNECTED on all three attempts (session start, mid-build, late-build).
+
+**2e. FIDELITY NOTE**
+
+  PARAPHRASES: none. Every excerpt in Section 1 is verbatim from an opened page.
+
+  ENTITY CHECK (run BEFORE any review was collected). Two entities found on the
+  primary review site:
+    1. "R GA" — https://www.indeed.com/cmp/R-Ga — 0 reviews, no rating, UNCLAIMED.
+       Renders "We currently don't have any reviews for R GA."
+    2. "R/GA Careers Page" — https://www.indeed.com/cmp/R-Ga-Careers-Page —
+       34 reviews, 3.7 rating, UNCLAIMED. A third slug tried (/cmp/R__ga)
+       redirects here, so it is not a distinct entity.
+  A second review site holds one entity: "R/GA", employer ID E23929, 768 reviews,
+  3.6 rating, "Is this your company?" (i.e. unclaimed).
+
+  IMPLAUSIBLE COUNTS — STATED EXPLICITLY AS REQUIRED. 34 reviews is implausibly
+  low for a global agency network with offices on four continents, and the
+  profile carrying them is named "R/GA Careers Page" and is unclaimed. The
+  second site holds 768 for the same company — 22x more. The 34-review profile
+  is very likely a partial, auto-generated slice rather than the company's
+  employer record. I did not proceed on a single-entity assumption; I tested for
+  others and found the zero-review duplicate above.
+
+  POSTING OPEN/CLOSED STATUS: all four quoted postings confirmed open by the ATS
+  list API on the build date. None showed a removal notice on its own page.
+
+  PRESERVED SOURCE TYPOS (all flagged inline, all are unique-string identifiers —
+  see Section 4): "contantly envolving", "More than an a collection of offices",
+  "a necessity of your business", "lease apply" (careers page, not quoted);
+  "to many cooks" (review); "Crative" (self-reported job title); "Staffs were
+  nice" (review). The Spanish-language review is reproduced untranslated.
+
+  ODD SOURCE FIELDS: one review's location field contains the literal string
+  "Good" and the site has generated a location page for "Good, WV" from it. The
+  review's title is also "Good". This is a source-data artifact, not a place.
+
+  DATELINE DISCREPANCY: the MediaPost article carries "September 15, 2025" in its
+  byline and "09/16/2025" in its page metadata and title tag. The LBB report of
+  the same appointment is dated 12/09/2025 (DD/MM). Recorded, not reconciled.
+
+  SEARCH-SUMMARY VS PAGE DISCREPANCY: a search engine's summary of the second
+  review site asserted "1,124 reviews". The opened page states 768 in five
+  separate elements. The page was used; the summary was not.
+
+  SYNDICATION: the Campaign US feature appears verbatim under a second
+  publisher's masthead. Counted once.
+
+  KO-SEGMENT CHECK (defect D2): the only secondary-site URL opened this build is
+  the company-level review page /Reviews/R-GA-Reviews-E23929.htm with sort
+  parameters. It contains NO "KO<start>,<end>" segment, so no keyword-filtered
+  pseudo-bucket was mistaken for a job-title filter. Several KO-form URLs appear
+  as links on that page (e.g. …EI_IE23929.0,4_KO5,13.htm for "Designer"); none
+  was followed and nothing was taken from one.
+
+  ARITHMETIC SHOWN FOR THE ACHIEVABILITY GATE: at n=768 the step is 100/768 =
+  0.130 points. 499/768 = 64.97% and 500/768 = 65.10%, so a printed 65% is
+  reachable. 253/768 = 32.94%, so a printed 33% is reachable. Both PASS on
+  arithmetic and are excluded from Section 1 on construct grounds (Rule 8), not
+  on the gate.
+
+**2f. VINTAGE BLOCK**
+
+       Review entities found: 2 on the primary site, 1 on the secondary site.
+          (a) https://www.indeed.com/cmp/R-Ga — 0 reviews — no rating — UNCLAIMED
+          (b) https://www.indeed.com/cmp/R-Ga-Careers-Page — 34 reviews — 3.7 — UNCLAIMED
+          (c) https://www.glassdoor.com/Reviews/R-GA-Reviews-E23929.htm — 768 reviews — 3.6 — unclaimed ("Is this your company?")
+       Review counts BY SITE, each with the ELEMENT it came from:
+          Primary site, entity (b):
+             "34 Reviews" — nav tab element
+             "Working at R/GA Careers Page: 34 Reviews" — page H1
+             "Based on 34 reviews" — overall-rating block
+             "## 34 reviews" — review-list section heading (fcountry=ALL)
+             "Working at R/GA Careers Page: 28 Reviews" — page H1 on the SAME
+                entity with fcountry=US, while the rating block on that same page
+                still reads "Based on 34 reviews" and the nav tab still reads
+                "34 Reviews"
+          Secondary site, entity (c):
+             "R/GA Reviews (768)" — og:title / page title
+             "(768 total reviews)" — headline rating block
+             "768 reviews" — sort control label
+             "Viewing 1 - 3 of 768 Reviews" — pagination footer
+             "Glassdoor has 768 R/GA reviews submitted anonymously" — page boilerplate
+       Conflicting counts observed on a single page: YES — 28 (H1 and list heading)
+          against 34 (rating block and nav tab) on the US-filtered review page of
+          the primary site. D4 recurs.
+       Headline ratings BY SITE: primary 3.7 overall, work-life balance 2.9.
+          Secondary 3.6 overall, work/life balance 3.2. Divergence recorded,
+          not reconciled: 2.9 vs 3.2 on the same construct, 0.1 apart on overall.
+       Job titles sampled: NONE — the frame is recency, per v4.6. Titles recorded
+          as per-review metadata only (see section B lines).
+       Job-title INDEX as collected (title — review count — element: the
+          /job-titles index page, each entry rendering "<rating><title><n> review(s)"):
+             Senior Producer 3 · Art Director 2 · Director 2 · Design Director 1 ·
+             Production Artist 1 · Presenter 1 · Content Strategist 1 · Designer 1 ·
+             Associate Director 1 · Managing Director 1 · Analytics and Insight
+             Manager 1 · Vice President 1 · Service Coordinator 1 · Office Assistant 1 ·
+             Associate Producer 1 · Intern 1 · Production 1 · Paralegal 1 ·
+             User Interface Designer 1 · Software Engineer 1
+             TOTAL 20 titles / 24 reviews indexed, against 34 reviews held.
+       THE INDEX IS NOT AUTHORITATIVE HERE (D21 recurs, and worse than on P-01):
+          10 of 34 reviews are unaccounted for by the index; and "Crative" and
+          "GAD" appear in the page's OWN "popular job titles" block and carry
+          rendered reviews, while appearing nowhere in the index.
+       INDEX LABEL vs RENDERED TITLE MISMATCHES (B4):
+          index "Service Coordinator" — rendered review title "Mailroom Services Coordinator"
+          index "Vice President" — rendered review title "Vice President, Group Managing Director"
+          index "Production" — rendered review title "Production Key"
+          index "Intern" — rendered review title "Internship"
+          index "Designer" / "User Interface Designer" — one review self-titled
+             "Designer" whose body says "I worked as a UI designer here"
+       Per-title subratings: NOT COLLECTED — removed in v4.5, see section B
+       Achievability gate run on every percentage recorded anywhere in the packet: YES
+       Percentages encountered and their disposition:
+          "65% would recommend to a friend", n=768 → step 0.130 points → 65%
+             ACHIEVABLE. PASS. But EVALUATIVE (Rule 8) → QA metadata only, never
+             Section 1.
+          "33% positive business outlook", n=768 → ACHIEVABLE. PASS. EVALUATIVE →
+             QA metadata only.
+          "45% approve of CEO" → STRUCK, and not on arithmetic. The site names
+             the chief executive as Sean Lyons. That person is not the current
+             chief executive: two independent trade sources dated 2025-09 and
+             2026-03 name Robin Forbes as global CEO. Per B3b, CEO approval is
+             ignored entirely unless the named executive is confirmed current.
+             It is not. STRUCK.
+          Demographic subgroup ratings on the secondary site (e.g. "Men 60
+             ratings", "Women 53 ratings") — star ratings, not percentages; also
+             evaluative. Not recorded as evidence.
+          "revenue from the second half of 2025 expanded by over 30%",
+          "six of the agency's top 10 clients collectively grew 40% YoY",
+          "Q1 of 2026 experienced a revenue growth of 25% YoY" (Campaign US,
+             company-supplied figures) → GATE CANNOT BE RUN: no n is stated
+             beside any of them, and "top 10 clients" is a count of clients, not
+             of the quantity being averaged. Not entered in Section 1. Logged in
+             Section 3 with that caveat.
+       Percentages struck for failing the gate: NONE failed on arithmetic. One
+          struck on currency-of-source instead (CEO approval, above).
+       Titles present but NOT sampled, with counts: not applicable — the recency
+          frame took the newest 15 company-wide and did not sample by title.
+       Interview write-ups excluded from review lists: 0 (none present)
+       Newest review date BY SITE: primary site 2024-07-04 · secondary site
+          2026-06-26.  ** 23-month divergence — this is the P-03/P-04 failure
+          signature, and it fires on this company. **
+       Oldest review used: 2019-08-05 (~84 months)
+       Median age of reviews used: ~42 months
+       Reviews truncated at source: 9/15 = 60%   ** >33% → NOTE TO RATER added **
+          Truncation could not be defeated: the review permalink renders the same
+          truncated text as the list page.
+       Source-site duplicates retained: 0 (none found)
+       Newest careers-page modification date: NOT EXPOSED. No page on the
+          company's site carries a modified date. The only date-like token is a
+          CDN asset version string (v1761766474 ≈ 2025-10-29) which is an image
+          upload timestamp, not a page modification date. Recording it as one
+          would be an invention.
+       Structural events found and their dates:
+          2025-03-03  Sold by holding-company parent to a private equity firm;
+                      partial management buyout; ownership change; $50m innovation
+                      fund committed.
+          2025-07-23  Acquired an AI system design studio.
+          2025-09-12  First-ever global chief brand officer appointed.
+          2026-01-10  Global leadership team on its largest client expanded.
+          (pre-window, for context only) 2022–2023 multiple rounds of layoffs,
+                      restructures and the departure of the previous chief
+                      executive, per trade reporting.
+       Does any structural event postdate the newest review?  YES — four of them,
+          starting with the change of ownership 8 months after the newest review.
+
+**2g. SCOPE BLOCK**
+
+       A careers / values     population: company-wide, global, company-authored
+       B employee reviews     population: predominantly New York creative,
+                              production, account and administrative roles at one
+                              office, 2019–2024; one Buenos Aires director, one
+                              Buenos Aires HR associate, one San Francisco
+                              designer, one Chicago art director, one California
+                              software engineer, one review with no title stated
+       C job postings         population: technology/engineering leadership,
+                              product management, design/motion direction,
+                              post-production/editorial — i.e. the functions the
+                              company is hiring for NOW, which is the AI-product
+                              and studio side, not the account or media side
+       D first-person         population: global executive leadership (2 of 3) and
+                              brand design leadership (1 of 3)
+       E news                 population: company-wide / corporate
+       F human capital        population: N/A — private company
+
+       Working environments known to exist in this company but ABSENT from the
+       review population: the entire engineering and technology organisation
+       beyond a single 2023 review; product management; media and performance;
+       data and analytics; every office outside the US except Buenos Aires — the
+       company lists offices in Argentina, Australia, Brazil, Germany, Indonesia,
+       Japan, Singapore, the UK and the US, and seven of those nine appear
+       nowhere in the reviews. The AI Products team that three of the four quoted
+       job postings belong to did not exist when any review was written.
+
+       Does the company-authored evidence (A, F) describe a wider population than
+       the experiential evidence (B)?  YES — and by an unusually large margin
+       here. Section A describes a nine-country network; Section B is
+       substantially one office, and none of it describes the company under its
+       current owner.
+
+
+########## SECTION 3 — ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+
+- Approx. headcount: NOT ESTABLISHED FROM AN OPENED, RELIABLE SOURCE. No
+  company-sourced headcount appears anywhere on the company's own site (the
+  "Our Companies" page did not render its body). A third-party company-profile
+  aggregator was surfaced in search reporting c.2,392 as of 2026-05-31, but that
+  page was not opened and aggregator headcounts are not company-sourced.
+  CONFIDENCE: LOW. What IS documented from opened trade reporting: offices in
+  nine countries; described by trade press as a "global creative innovation
+  company"; the previous ownership era saw US headcount cut by a reported figure
+  in the low twenties as a percentage, per 2023 trade reporting outside this
+  packet's window. Treat stage_index as "mid-size global agency network,
+  post-contraction", not as a number.
+
+- Stage/size cues: PRIVATE since 2025-03-03. Private-equity majority owner
+  (Truelink Capital) with a partial management buy-in by the global CEO and the
+  chair/global CCO. Previously a subsidiary of a publicly traded holding company
+  for 23 years (2001–2025); before that owned by another holding company from
+  1995; founded 1977 as an independent production company. A minimum $50m
+  innovation fund was committed at the transaction. Company-supplied growth
+  figures reported by Campaign US 2026-03-18: H2 2025 revenue "expanded by over
+  30%" against H1 2025; "six of the agency's top 10 clients collectively grew 40%
+  YoY from 2024 to 2025"; Q1 2026 revenue growth "25% YoY". NONE of these carry a
+  stated sample size and none are independently audited — they are the company's
+  own numbers relayed by a trade publication. Sources:
+  https://www.marketingdive.com/news/rga-indie-ipg-truelink-pivot-gen-ai-consolidation/741350/ (2025-03-03),
+  https://www.campaignlive.com/article/indie-holdco-back-again-r-gas-pe-owned-independence/1952106 (2026-03-18).
+
+- Pay-posture EVIDENCE (band NOT assigned): two of the four open postings state
+  hiring ranges inline in the posting body — a senior individual-contributor-plus-
+  leadership technology role and a senior product role, both New York, both in the
+  low-to-mid six figures. The correct reference class is NEW YORK AI-PRODUCT AND
+  PRODUCT-MANAGEMENT TALENT AT PRODUCT COMPANIES AND STUDIOS, not agency creative
+  scales — the postings themselves say they are hiring founding-team product and
+  engineering people, and explicitly recruit against "startup, studio, or product
+  organization" backgrounds. Two review-side data points cut the other way and are
+  older: a 2019 Buenos Aires HR review says compensation "is not their best
+  aspect", and a 2021 New York producer review reports "performing above my pay
+  grade". The pay posture of the roles being hired now and the pay posture
+  described in the reviews are not the same population.
+
+- Industry: TECH-ADJACENT MARKETING SERVICES. Classified by the primary review
+  site under "Media & Communication". Self-described as a "creative innovation
+  company" and a "design and innovation network"; the currently open roles are
+  predominantly software, product and post-production. If the schema forces one
+  of tech/finance/healthcare/retail/other, this is OTHER (agency/marketing
+  services) with a technology-heavy hiring profile — placing it in "tech" would
+  overstate it and placing it in "other" understates the engineering content of
+  the current postings. Recorded, not resolved.
+
+
+########## SECTION 4 — ANONYMIZATION PRE-FLAGS ##########
+
+COMPANY NAME OCCURRENCES IN SECTION 1: "R/GA" appears in section A (2x within
+quoted text), section B (3x within quoted review text, incl. one Spanish-language
+instance and one as "RGA"), section C (3x within quoted posting text: "R/GA
+Client Leads", "R/GA's Studio", "At R/GA, we talk about this"), section D (3x),
+section E (5x). Also present in every URL.
+
+PRODUCT / BRAND / PROGRAMME NAMES INSIDE QUOTED TEXT:
+  "Nike" (review, 2023-11-14) — named client, inside an employee quote
+  "Intelligent Brand DNA" (D passage) — named internal framework, and the single
+     most searchable string in section D
+  "AI Products (AIP)" / "Global Leadership Team" (postings) — named internal team
+     and body
+  "/ASSOCIATES" (careers page, not quoted but on the page)
+  "Culture Collectives" and the six named affinity groups (careers page, not
+     quoted) — highly identifying if quoted later
+  "FutureVision" (blog platform, not quoted)
+  Tool names inside the editorial posting: "Premiere Pro", "After Effects",
+     "Figma", "Runway", "Kling", "Gemini Omni", "Magnific" — generic to the
+     industry, low re-identification risk, but the exact list is distinctive
+
+EXECUTIVE AND AUTHOR NAMES IN SECTION 1: Robin Forbes (global CEO), Tiffany Rolfe
+(chair/global CCO), Augustus Cook (VP head of brand design), Ren Rigby (global
+CBO), Emma Thumann (Campaign US, byline), Fern Siegel (MediaPost, byline).
+Also in quoted posting text: "Paul and Nick" (first names of the AI Products
+leadership, inside the technology posting) — first-name-only but re-identifying
+in combination.
+
+REVIEW LOCATIONS — DO NOT DELETE, REPLACE WITH GENERIC TOKENS:
+  New York, NY (7 reviews) → [Site A]
+  Buenos Aires / Capital Federal, Buenos Aires (1 in the 15) → [Site B]
+  San Francisco, CA (1) → [Site C]
+  Chicago, IL (1) → [Site D]
+  California, MD (1) → [Site E]
+  California (1) → [Site F]
+  "NY" (1), "New York" (1) → variants of [Site A]; preserve as distinct strings
+     if the dispersion field needs the source's own inconsistency
+  "Good" (1) — source-data artifact, not a location; do not tokenise as a site
+
+VERBATIM SELF-DESCRIPTIONS — SEARCHABLE EVEN AFTER THE NAME IS REMOVED (flagged
+separately as required):
+  "We're always 80% finished"
+  "One R/GA, countless allies"
+  "Creativity is everyone's job"
+  "Innovation happens at intersections"
+  "We are purpose driven" / "We are active listeners"
+  "a more human future"
+  "high technology and high humanity"
+  "shift the business from service-as-labor to service-as-software"
+  "a creative innovation company for the intelligence age"
+  "We design intelligent brand systems that help businesses get ahead."
+  "Don't just work here. Belong here."
+  "Flesh on the outside, machine on the inside." (review headline — unique)
+  "They swap creative teams around like they're cells in an excel sheet"
+
+PRESERVED SOURCE TYPOS — UNIQUE-STRING IDENTIFIERS, FLAGGED AS REQUIRED:
+  "contantly envolving"  ·  "More than an a collection of offices"  ·
+  "a necessity of your business"  ·  "lease apply"  ·  "to many cooks"  ·
+  "Crative"  ·  "Staffs were nice"
+Each of these is individually sufficient to re-identify the source page by search.
+
+OTHER RE-IDENTIFYING TOKENS: the Spanish-language review is the only
+non-English review in the set and is re-identifiable by its first clause alone.
+The founding-year and film-title references inside the quoted technology posting
+("pioneering computer-assisted film production") were not carried into Section 1;
+if any later step re-adds them they are instant fingerprints.
+
+
+########## SELF-REPORTED DEFECTS — v4.6 ##########
+
+STRUCTURAL — changed what evidence reached Section 1, or how a section was scoped.
+
+S1. §B1 ("Never quote Glassdoor review bodies into Section 1 in any case").
+    The rule's stated premise — that the secondary site renders bodies as
+    "Pros/Cons bullet fragments" that are "not prose" — is FALSE for this
+    company. Its newest reviews render as multi-paragraph continuous prose with
+    named sub-topics (turnover, escalation to HR, how client feedback is
+    relayed). The consequence is not cosmetic: the primary site's newest review
+    is 2024-07-04 and the secondary site's is 2026-06-26, so obeying the rule as
+    written means Section B contains ZERO evidence inside the 24-month gate and
+    ZERO evidence describing the company under the ownership it has had for
+    seventeen months. The rule was written from a measurement on a 40,000-review
+    US retailer (P-02); it does not generalise to a small multinational
+    professional-services profile. MY CHOICE: I followed the rule exactly as
+    written and quoted nothing from that site into Section 1, because "in any
+    case" admits no researcher discretion. I am recording the cost rather than
+    taking the discretion. Structural: this single rule determined the entire
+    vintage of Section 1's experiential half.
+
+S2. §B1 (Glassdoor recency cross-check) — the check has no consequent.
+    The prompt says: if the primary site's newest review is materially older,
+    "you must say so — this is the P-03/P-04 failure and the check is what
+    catches it." It catches it. It then does nothing. There is no instruction to
+    widen the sample, no instruction to block, no instruction to substitute, and
+    S1 explicitly forbids the one substitution available. A check whose only
+    output is a note is a detector, not a control. This is the third packet on
+    which the same detector has fired (P-03, P-04, and P-04 again now).
+
+S3. §"YOU NEED TWO RETRIEVAL METHODS" / defect D13 — the prompt mandates two
+    retrieval methods and gives no procedure for a build where one is
+    unavailable. The JavaScript renderer was not connected for this entire
+    session. The prompt's own routing ("First-party sites — careers, values,
+    culture, handbooks, blogs — are frequently JavaScript single-page apps …
+    Use the renderer") points at exactly the sources I could not fully reach:
+    every article body on the company's own publication returned headline,
+    author, date and section headings and nothing else. Section D rung 2 is
+    therefore "existed, current, could not be reached" — which under the
+    shipping posture is a recorded limitation, but the prompt never says whether
+    a one-method build should proceed, and the FINAL CHECK does not ask.
+    Structural: it decided what Section D could contain. I proceeded, on the
+    shipping posture.
+
+S4. §C ("Do NOT quote or report job titles as a group, office locations, site
+    names, or salary bands") applied to sentences that carry BOTH. Two postings
+    state hiring ranges and one states an office-attendance requirement inside
+    sentences that also carry pace and autonomy signal ("Hybrid working with a
+    minimum of two days a week in our … office. Flexible hours allowing you to
+    design a workday that fits your lifestyle."). The prompt supplies the right
+    tool for this — §F's "REWRITE THE PROPER NOUN, KEEP THE CLAUSE" — and then
+    explicitly scopes it to Section F ("Do not use the drop-the-excerpt rule
+    applied elsewhere"). So Section C is required to use the blunt rule on
+    sentences that are structurally identical to the ones Section F is required
+    to use the sharp rule on. I dropped the sentences. Real remote-work and
+    flexibility evidence was lost from Section 1 as a result.
+
+S5. §D0 — "executive" is never defined, and the definition decides whether the
+    extra-rung requirement fires. My D came back 2 C-suite passages and 1
+    VP-level function head. If "executive" means C-suite, D is 67% executive and
+    no extra rung is required. If it means "management", D is 100% executive and
+    one is. I treated VP-level as NON-executive and worked the extra rung
+    anyway — which is how the third passage was found — but a builder reading it
+    the other way would have stopped at two C-suite quotes and shipped a Section
+    D that was entirely an ownership-transition narrative. The header flag the
+    prompt requires is also undefined for the mixed case.
+
+S6. §B2c / defect D21 — the prompt now instructs that the job-titles index
+    "belongs in 2f" and is "the best artifact for understanding the review
+    POPULATION", but gives no instruction for when the index materially
+    disagrees with the review stream. Here the index accounts for 24 of 34
+    reviews, and two titles that carry rendered reviews and appear in the page's
+    OWN "popular job titles" block are missing from the index entirely. On P-01
+    this was one omitted title; here it is roughly 30% of the sample. I recorded
+    the index, the totals, the shortfall and the label-vs-rendered-title
+    mismatches, and used none of it for sampling. But "the best artifact for
+    understanding the population" is, on this company, wrong by a third and the
+    prompt gives the rater no way to know that unless the builder volunteers it.
+
+COSMETIC — confusing, but changed nothing.
+
+C1. §B2c step 3's URL template. `?fcountry=ALL&start=20` returns an EMPTY
+    DOCUMENT on every variant tried, while `?start=20` — which silently drops to
+    the US-filtered set — returns page 2 in full. Two requests for the same page,
+    one parameter apart, empty versus complete. This is the prompt's own
+    meta-pattern ("an empty or implausible response is not an absence") firing
+    inside the prompt's own recommended route, and the route is not flagged.
+
+C2. §2f asks for "Newest careers-page modification date". No page on this
+    company's site exposes one. The nearest token is a CDN asset version integer.
+    The field is unanswerable as written for any site that does not publish
+    Last-Modified, which is most of them; the prompt should say what to write.
+
+C3. §B3b instructs "Run three checks on each title" and lists per-title checks —
+    but §B/v4.5 removed per-title collection entirely. The rule has no object.
+    "Retained for any block you still encounter" does not say what to encounter
+    it on now that no title pages are opened.
+
+C4. §"OUTPUT FORMAT — plain text only (no markdown tables, no code blocks, no
+    artifacts)" while 2a, 2c, 2f and 2g are themselves supplied as fenced code
+    blocks containing a fill-in template. It is unclear whether the ban applies
+    to the packet only or to the QA section too, and whether the templates are to
+    be reproduced literally. I reproduced their content without the fences.
+
+C5. §E's exclusion list (recruiting-SEO, interview-prep, aggregators, content
+    farms, encyclopedias) is silent on trade-press SYNDICATION. The Campaign US
+    feature appears verbatim under a second publisher's masthead with a different
+    URL. Two URLs, one act of reporting. I counted it once; the prompt does not
+    say to.
+
+C6. §C's fallback chain is ordered wrongly for this company, and the
+    misordering is instructive. Route 1 (the reviews-site job view) does not just
+    fail, it AFFIRMATIVELY STATES "There are no open jobs at R/GA Careers Page
+    currently" on the same day eleven roles were open — i.e. route 1 hands you a
+    false proof-of-absence for the C exemption. Route 3 (the Greenhouse list API)
+    fetched cleanly on the first attempt and answered the open/closed question
+    for every posting. Route 3 should be first and route 1 should carry a warning.
+
+C7. Three different recency windows are in force — 24 months (reviews), 18 months
+    (section D ladder), 12 months (section E) — none of them named, all referred
+    to as recency or staleness. In a packet where the reviews are 25 months old
+    and the news is 5 months old, having to hold three unnamed windows is a
+    real source of error.
+
+C8. Defect register row D17 lists the impossible-percentage failure as found on
+    "P-03, P-04, P-05" and hard rule 9 says the same. On this build the gate
+    fired zero times on arithmetic and once on source-currency (the CEO-approval
+    figure names a chief executive replaced years ago). The prompt's currency
+    check for CEO approval lives in §B3b as a trailing "also ignore…", not in
+    the gate, so a builder running only hard rule 9 would have passed a figure
+    that should be struck.
+
+
+########## END OF PACKET ##########

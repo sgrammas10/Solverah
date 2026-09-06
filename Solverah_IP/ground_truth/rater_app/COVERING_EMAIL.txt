@@ -1,0 +1,47 @@
+Subject: The company scoring — here are your six
+
+
+Hi,
+
+Thanks again for doing this. Here's everything you need.
+
+Attached are six web pages and a short instructions PDF. Each web page is one company:
+the evidence about it, and the scoring form, in the same window. Just double-click a file
+and it opens in your browser. Nothing installs, nothing gets uploaded, and none of it
+touches the internet.
+
+All six of your files have the same letter in the name — that letter is you. The
+instructions PDF has a table near the end showing which order to open them in. It's
+different for each of you on purpose, so please go in that order rather than 1 to 6.
+
+Rough shape of it: about 40 minutes per company, six companies, so four hours or so
+total. Do them at whatever pace works for you — there's no rule about how many in a day.
+Just finish one before you open the next, and take a real break in between. Each page
+locks itself when you submit, so you can't drift back and revise an earlier one.
+
+Two things I'd ask before you start:
+
+Don't look anything up. Not the company, not a phrase from the text. If you work out who
+it is anyway, that's completely fine and expected — there's a box to tell me so, and it's
+useful information rather than a problem. Just keep scoring from what's in front of you.
+
+Don't talk to the other two about it. Not the companies, not your scores, not your
+reasoning — not even in passing. The whole point of three people doing this separately is
+to see where three independent readings disagree, and once we've compared notes there's no
+way to untangle it afterwards.
+
+On that: disagreement is the goal here, not a failure. If the three of you split on
+something, that tells me the wording of that scale is unclear and needs rewriting. That's
+the actual output. So please don't try to guess what the "right" answer is or what I'm
+hoping to see — there isn't one, and there's nothing I'm hoping for.
+
+When you finish a company and hit submit, your browser drops a small file into your
+Downloads folder, something like solverah_P-03_raterB.json. Send that back to me. If you
+can send each one as you finish rather than saving them all up, that's easier on both of
+us. And hold off clearing your browser data until I've confirmed I've got them.
+
+If anything breaks, looks wrong, or a description doesn't seem to fit anything in the
+text — tell me. Rough edges are expected and hearing about them is genuinely useful.
+
+Thanks,
+Sebastian

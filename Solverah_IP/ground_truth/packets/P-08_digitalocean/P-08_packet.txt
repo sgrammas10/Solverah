@@ -1,0 +1,636 @@
+BUILD RECORD
+  prompt version : v4.6
+  model          : claude-opus-5  (session-configured identifier; the runtime states the
+                   serving model may differ and cannot be verified from inside the session.
+                   Treat as UNVERIFIED — operator to confirm against the run log.)
+  built          : 2026-08-27
+  environment    : clean session, one company, no prior packet context. Two files in the
+                   window: BUILD_BRIEF.md and Company_Culture_Evidence_Collector_v4.6.md.
+                   No folder connected; packet delivered as text.
+  assisted       : NO
+  company        : DigitalOcean (DigitalOcean Holdings, Inc.) — NOT ON THE ROSTER. The brief's
+                   Step 1 table lists P-01..P-06 and contains no DigitalOcean and no P-ID for
+                   it. The operator named it explicitly, so per Step 1 ("If the operator named
+                   one, use it") the build proceeded. ID assigned ad hoc as P-XX. See defect S1.
+  retrieval      : plain HTTP fetch (primary) + JavaScript renderer (one page, see 2d/defect S7)
+
+POST-BUILD CORRECTION — 2026-08-27 (Sebastian + agent, not part of the original build)
+  The three reviews flagged in the original NOTE TO RATER (3 of 3) as "possibly a different
+  company" were checked against live sources:
+    - Tillamook OR, 2015, "Junior Technician" — CONFIRMED a different company. "Digital Ocean
+      LLC" is a real, unrelated 5-9 person IT consulting shop in Tillamook OR (founded 1998,
+      SIC 5734, Manta.com business record), not DigitalOcean Holdings Inc. REMOVED from Section
+      1 below. Section B's true available population from the required source is 11, not 12 —
+      this is a hard ceiling, not a sampling shortfall, since Indeed's required page is
+      exhausted and no other text source is permitted into Section 1 (see defect S2).
+    - Kansas City, 2012, "COO" — CHECKED, appears LEGITIMATE. DigitalOcean was founded in 2012;
+      a Kansas City business-license record for "DigitalOcean LLC" lists the same address as
+      the real company's HQ (101 Avenue of the Americas, NY) under "Data Processing Hosting,"
+      consistent with the real company, not a homonym. Caveat lifted; RETAINED without flag.
+    - Ortigas, Philippines, 2019, "Volunteer Staff" — UNRESOLVED. DigitalOcean does run
+      community meetups in the Manila area, so this is plausible, but not confirmed either way.
+      RETAINED, flag stands.
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE DECLARATION
+The employee reviews in this packet come from a review population of eleven reviews (originally
+twelve; one removed 2026-08-27 as a confirmed different company — see POST-BUILD CORRECTION)
+spread over fourteen years, drawn from sales, software engineering, executive assistance,
+marketing, administration, customer success management, trust and safety, volunteer staff, and
+an intern, with only one review posted in the last twenty-four months. Other parts of this
+company — the data-centre, infrastructure, security, product-management, legal and finance
+organisations, and the company's large non-US engineering population — are not represented in
+them. Company-authored sources describe the whole organisation.
+
+NOTE TO RATER (1 of 3) — REVIEW VINTAGE AND STRUCTURAL EVENTS
+The newest employee review in section B is dated 2025-01-29. Since that date the company appointed
+a Chief Product and Technology Officer (2026-01-20) and three further C-suite officers — Chief
+Revenue Officer, Chief Marketing Officer, and Chief Legal & Administrative Officer (2026-06-10),
+and repositioned itself around AI inference. Every structural event in section E postdates every
+review in section B. Sections B and E describe the company at different times.
+
+NOTE TO RATER (2 of 3) — TRUNCATION
+Eight of the twelve reviews were cut off at the source's "Show more" control and are marked […].
+The reviews that survived intact are the short ones. The longer, more detailed accounts are present
+only as opening sentences.
+
+NOTE TO RATER (3 of 3) — REVIEW SOURCE COVERAGE AND POPULATION PURITY
+The required review source holds eleven usable reviews for this employer (originally twelve; one
+removed as a confirmed different company — see POST-BUILD CORRECTION above); a second review site
+holds roughly 453–456 and carries reviews from within the last month. Section B therefore rests on
+the whole of a very small and very old review population, not on a recent sample of a large one.
+One further review (2019, volunteer staff entry) remains unconfirmed as to whether it describes
+this employer or a different one of a similar name; it is retained because removing it on
+suspicion alone would be curation — read it with that caveat.
+
+--- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
+
+   • "We think big, bold, and scrappy. We are not afraid to disrupt the status quo, challenge conventional thinking, and push the boundaries to think 10x."  — [company careers page, core value "Bold"] — DigitalOcean (company-authored) — https://www.digitalocean.com/careers — accessed 2026-08-27 — needed JS: N
+   • "We operate with a bias to action. We move quickly, adapt to change, and seize opportunities with urgency. Speed and progress are more important than perfection."  — [company careers page, core value "Fast"] — DigitalOcean (company-authored) — https://www.digitalocean.com/careers — accessed 2026-08-27 — needed JS: N
+   • "We embrace a growth mindset, empowering Sharks to learn, evolve, and excel. As leaders, we create a safe environment for Sharks to be curious, think big, move fast, and learn quickly."  — [company careers page, core value "Learning"] — DigitalOcean (company-authored) — https://www.digitalocean.com/careers — accessed 2026-08-27 — needed JS: N
+   • "We act like OWNERS by demonstrating a bias for action and a powerful sense of responsibility for customers, products, employees, and decisions."  — [company careers page, core value "Proud"] — DigitalOcean (company-authored) — https://www.digitalocean.com/careers — accessed 2026-08-27 — needed JS: N
+   • "Journey alongside a strong community of top talent who are relentless in their drive to build the agentic inference cloud. If you have a growth mindset, like to think big and bold, and are energized by the fast-paced environment of a true industry disruptor, you'll find your place here. We value winning together—while learning, having fun, and making a profound difference for the dreamers and builders in the world."  — [company careers page, "Why Join"] — DigitalOcean (company-authored) — https://www.digitalocean.com/careers — accessed 2026-08-27 — needed JS: N
+   • "DigitalOcean provides a foundation for employees to do the best work of their careers with a commitment to both remote work and in-person collaboration."  — [company careers page, work arrangements] — DigitalOcean (company-authored) — https://www.digitalocean.com/careers — accessed 2026-08-27 — needed JS: N
+   • "We hire for potential: It is our belief that general talent and learning agility is a huge asset, and enables high performing individuals to reach their full potential."  — [company careers resources page, hiring philosophy] — DigitalOcean (company-authored) — https://www.digitalocean.com/careers/resources — accessed 2026-08-27 — needed JS: N
+   • "Dive into the Future. If you like to move fast, deliver excellence, and be part of a bold growth story, we invite you to apply to join DigitalOcean."  — [company careers page, open-roles header] — DigitalOcean (company-authored) — https://www.digitalocean.com/careers/open-roles — accessed 2026-08-27 — needed JS: Y
+
+--- B. EMPLOYEE REVIEWS (12–15, one per line, most recent first) ---
+
+   • "From their structure to their culture, they are amazing. Everyone from the top down is supportive. I had to leave for health reasons or would stayed forever. […]"  — [employee review] — Sales Manager, Remote — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2025-01-29 — needed JS: N
+   • "Good for an entry-level job and enjoyed making connections with other individuals in the same scene. Had an overall pleasant time with the people I worked with."  — [employee review] — Software Developer, Los Angeles CA — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2024-08-12 — needed JS: N
+   • "Great work life balance! Hate that we lost Sammy recharge days. They were random days off, and they were huge benefit. The benefits are great with an internet and wellness credit."  — [employee review] — Executive Assistant, Remote — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2023-06-06 — needed JS: N
+   • "Great colleagues, everyone is extremely supportive and there to help. We get competitive salaries and the stock options are a really good benefit! Growth is also pretty straightforward"  — [employee review] — Marketing Manager, United States — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2023-04-12 — needed JS: N
+   • "The people are generally pretty great. All very friendly and eager to help. Remote work is the norm, and teams seem to do a good job of fostering camaraderie in spite of it. Pay is ok. You don't need to work over 40 hours unless you want to. […]"  — [employee review] — Software Engineer, Remote — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2022-04-26 — needed JS: N
+   • "I just love the place but as me, pay was too little and I needed to be busier. It's little bit boring in the office. But I love the work culture a lot. […]"  — [employee review] — "Administrate office coordinator" [sic — reviewer's own spelling], Cambridge MA — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2021-04-02 — needed JS: N
+   • "A lot of thrash and mis-direction. Too much daily back and forth on what the overall direction and focus was. This caused a lot of false starts among the CS team. […]"  — [employee review] — Director of Customer Success, Raleigh NC — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2020-03-02 — needed JS: N
+   • "Should provide more benefits and work life balance with trust worthy leadership and open minded HR. Should listen to employees there is no job security. […]"  — [employee review] — Trust And Safety Specialist, Bangalore City Karnataka — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2019-08-25 — needed JS: N
+   • "Good company. Good place and people. The free lectures and seminar are so great. Meeting new people who also a IT related individual. It gives us so much knowledge that will help us to learn new things. […]"  — [employee review] — Volunteer Staff, Ortigas — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2019-07-12 — needed JS: N
+   • "really fun place to work at and you learn alot , hands on experience, pushed to your limits . relaxes place to work at as well people are very helpful […]"  — [employee review] — Cloud Computing Team Intern, New York NY — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2018-03-08 — needed JS: N
+   • "Company I helped develop many years ago. Great clients and projects. Small business that is growing. […]"  — [employee review] — COO, Kansas City MO — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2012-07-25 — needed JS: N
+
+--- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+
+Four currently-open postings across four functions. Open status confirmed 2026-08-27 by the
+company's live applicant-tracking-system feed, which returns only open requisitions, and by
+fetching each posting's own record. Locations and pay bands stripped per prompt instruction.
+
+   • "Lead the technical strategy for benchmarking and performance optimizations at the inference engine and GPU kernel layers"  — [job posting — Engineering] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7722835 — published 2026-07-23, updated 2026-08-18 — needed JS: N
+   • "Develop and deploy state-of-the-art quantization techniques (FP8, INT8, and experimental FP4)"  — [job posting — Engineering] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7722835 — published 2026-07-23, updated 2026-08-18 — needed JS: N
+   • "Maintain a strong presence in the GPU infrastructure and model performance optimization communities"  — [job posting — Engineering] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7722835 — published 2026-07-23, updated 2026-08-18 — needed JS: N
+   • "Define and author the overarching global communication strategy in order to align long-term enterprise goals with a compelling public voice that elevates our corporate authority."  — [job posting — Marketing Communications] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/8027190 — published 2026-07-29, updated 2026-08-04 — needed JS: N
+   • "Establish advanced operational KPIs and attribution metrics across all communication vectors in order to measure and prove business impact, brand sentiment, and pipeline influence."  — [job posting — Marketing Communications] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/8027190 — published 2026-07-29, updated 2026-08-04 — needed JS: N
+   • "Lead, mentor, and scale a high-performing team of communication specialists and content creators in order to cultivate internal talent, maximize operational velocity, and foster a world-class culture of accountability."  — [job posting — Marketing Communications] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/8027190 — published 2026-07-29, updated 2026-08-04 — needed JS: N
+   • "A growth-mindset approach: A natural appetite for constructive feedback, a relentless drive to challenge stale brand paradigms, and a 'leave it better than you found it' attitude."  — [job posting — Marketing Communications] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/8027190 — published 2026-07-29, updated 2026-08-04 — needed JS: N
+   • "Fearlessness: Marketing has to create compelling stories from highly technical products and concepts, with new ones emerging almost every day. We must learn all the time, ask the basic questions, and be willing to fail in order to learn more."  — [job posting — Marketing Communications] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/8027190 — published 2026-07-29, updated 2026-08-04 — needed JS: N
+   • "Establish performance metrics (KPIs/SLAs) and conduct regular 1:1s, performance reviews, and career development planning."  — [job posting — Customer Success] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7807707 — first published 2026-04-13, updated 2026-08-18 — needed JS: N
+   • "Own the development and maintenance of SOPs, escalation runbooks, HVC support playbooks, and knowledge base content"  — [job posting — Customer Success] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7807707 — first published 2026-04-13, updated 2026-08-18 — needed JS: N
+   • "Serve as the Voice of the Customer (VoC) to Product and Engineering teams, synthesizing support data to advocate for bug fixes, feature requests, and UX improvements."  — [job posting — Customer Success] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7807707 — first published 2026-04-13, updated 2026-08-18 — needed JS: N
+   • "Contribute to the vision for AI and automation within support—building intelligent tooling and driving the team toward an automation-first model"  — [job posting — Customer Success] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7807707 — first published 2026-04-13, updated 2026-08-18 — needed JS: N
+   • "2+ years of people management experience leading technical, customer-facing teams, preferably in a high-growth, post-acquisition, or rapidly scaling environment."  — [job posting — Customer Success] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7807707 — first published 2026-04-13, updated 2026-08-18 — needed JS: N
+   • "Co-develop scalable self-service legal playbooks, templates, and automated workflows"  — [job posting — Legal] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/8099103 — published 2026-07-31, updated 2026-08-06 — needed JS: N
+
+--- D. FIRST-PERSON ACCOUNT (yield: 4 · ladder fully attempted) ---
+
+VOICE COMPOSITION FLAG FOR THE RATER: three of the four passages below are senior-leadership or
+executive voice (Deputy Chief Information Security Officer; Chief Executive Officer). One is an
+individual-contributor engineer. Read the leadership passages as leadership description of how the
+company works, not as an account from the level at which the work is done.
+
+   • "Faced with a working-but-unproven patch on one side and a slower-but-durable path on the other, our team made the call to evacuate and upgrade the affected hosts entirely."  — [company engineering blog, rung 2] — Tim Lisko, Deputy CISO, DigitalOcean — https://www.digitalocean.com/blog/patching-januscape-amd-safe-ret — 2026-08-24 — needed JS: N
+   • "The Security, Capacity, Product, and Fleet Management teams got creative."  — [company engineering blog, rung 2] — Tim Lisko, Deputy CISO, DigitalOcean — https://www.digitalocean.com/blog/patching-januscape-amd-safe-ret — 2026-08-24 — needed JS: N
+   • "Patches were built, validated in our staging environment, and promoted through a gradual production ramp."  — [company engineering blog, rung 2] — Tim Lisko, Deputy CISO, DigitalOcean — https://www.digitalocean.com/blog/patching-januscape-amd-safe-ret — 2026-08-24 — needed JS: N
+   • "In order to keep the accelerated remediation running smoothly, an incident was formally declared."  — [company engineering blog, rung 2] — Tim Lisko, Deputy CISO, DigitalOcean — https://www.digitalocean.com/blog/patching-januscape-amd-safe-ret — 2026-08-24 — needed JS: N
+   • "Purpose-built models beat general-purpose models for routing—if you have the training data."  — [company engineering blog, rung 2, individual-contributor voice] — Adil Hafeez, Principal Engineer, DigitalOcean — https://www.digitalocean.com/blog/inference-router-architecture — 2026-06-15 — needed JS: N
+   • "Arch-Router outperforms every frontier model we tested on routing accuracy, at a fraction of the latency"  — [company engineering blog, rung 2, individual-contributor voice] — Adil Hafeez, Principal Engineer, DigitalOcean — https://www.digitalocean.com/blog/inference-router-architecture — 2026-06-15 — needed JS: N
+   • "the quality of your routing depends heavily on how you write those descriptions"  — [company engineering blog, rung 2, individual-contributor voice] — Adil Hafeez, Principal Engineer, DigitalOcean — https://www.digitalocean.com/blog/inference-router-architecture — 2026-06-15 — needed JS: N
+   • "First: if you're unsure or afraid of _anything_, just ask or submit the issue or pull request anyways. You won't be yelled at for giving your best effort."  — [public repository contribution guidelines, rung 5] — DigitalOcean doctl maintainers (company-authored) — https://raw.githubusercontent.com/digitalocean/doctl/main/CONTRIBUTING.md — undated file; repository last updated 2026-07-24 — needed JS: N
+   • "Pull requests must always be opened from a fork of `doctl`, even if you have commit rights to the repository so that all contributors follow the same process."  — [public repository contribution guidelines, rung 5] — DigitalOcean doctl maintainers (company-authored) — https://raw.githubusercontent.com/digitalocean/doctl/main/CONTRIBUTING.md — undated file; repository last updated 2026-07-24 — needed JS: N
+   • "Respond as promptly as possible to any questions made by the _doctl_ team to your issue. Stale issues will be closed."  — [public repository contribution guidelines, rung 5] — DigitalOcean doctl maintainers (company-authored) — https://raw.githubusercontent.com/digitalocean/doctl/main/CONTRIBUTING.md — undated file; repository last updated 2026-07-24 — needed JS: N
+   • "They're scaling faster and they're scaling leaner in as an AI native company."  — [press interview, rung 6] — Paddy Srinivasan, Chief Executive Officer, DigitalOcean, quoted by Larry Dignan — https://www.constellationr.com/insights/news/digitalocean-ceo-paddy-srinivasan-ai-natives-inferencing-agentic-ai-adoption — 2025-07-28 — needed JS: N
+
+--- E. RECENT NEWS (yield: 3 · searches logged) ---
+
+   • "Just as important is how we are growing: attractive margins, positive free cash flow, capacity delivered on or ahead of schedule, and a stronger balance sheet."  — [company press release, quarterly results] — Paddy Srinivasan, Chief Executive Officer, DigitalOcean — https://www.businesswire.com/news/home/20260803098656/en/DigitalOcean-Announces-Second-Quarter-2026-Financial-Results — 2026-08-04 — needed JS: N
+   • "Kevin, Leo and Brady have scaled category-defining companies, and they bring exactly what this chapter demands: commercial firepower, a sharp market understanding, and operational rigor."  — [company press release, three C-suite appointments: Chief Revenue Officer, Chief Marketing Officer, Chief Legal & Administrative Officer] — Paddy Srinivasan, Chief Executive Officer, DigitalOcean — https://investors.digitalocean.com/news/news-details/2026/DigitalOcean-Adds-Three-Executives-to-Power-the-Next-Chapter-of-Growth-as-AI-Native-Demand-Accelerates/default.aspx — 2026-06-10 — needed JS: N
+   • "I'm excited to work with the team to advance the platform, solidify our infrastructure and security posture, and accelerate the execution that will drive real-world AI applications at scale."  — [company press release, appointment of Chief Product and Technology Officer] — Vinay Kumar, incoming Chief Product and Technology Officer, DigitalOcean — https://www.businesswire.com/news/home/20260120383451/en/DigitalOcean-Appoints-Vinay-Kumar-as-Chief-Product-and-Technology-Officer — 2026-01-20 — needed JS: N
+   • "Vinay has built cloud and AI platforms at scale, has tremendous product strategy acumen, understands the operational rigor required for mission-critical workloads, brings a strong track record of disciplined product execution, and will elevate our product and technology leadership."  — [company press release, appointment of Chief Product and Technology Officer] — Paddy Srinivasan, Chief Executive Officer, DigitalOcean — https://www.businesswire.com/news/home/20260120383451/en/DigitalOcean-Appoints-Vinay-Kumar-as-Chief-Product-and-Technology-Officer — 2026-01-20 — needed JS: N
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 4 · public/private: PUBLIC) ---
+
+Item 1, "Human Capital Management", Form 10-K for the fiscal year ended 2025-12-31. Company-authored
+legal filing. All headcounts, dollar figures and percentages stripped at collection.
+
+   • "None of our employees are represented by a labor union or covered by a collective bargaining agreement. We have not experienced any work stoppages, and we consider our relations with our employees to be good."  — [10-K Item 1 Human Capital Management] — DigitalOcean Holdings, Inc. (company-authored) — https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm — FY ended 2025-12-31 — needed JS: N
+   • "Talent development and employee engagement are key to attracting and retaining talented employees."  — [10-K Item 1 Human Capital Management] — DigitalOcean Holdings, Inc. (company-authored) — https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm — FY ended 2025-12-31 — needed JS: N
+   • "We facilitate employee review cycles where employees have development conversations with their managers multiple times throughout the year. We also offer thousands of training courses and videos on a wide range of topics to further support employee development."  — [10-K Item 1 Human Capital Management] — DigitalOcean Holdings, Inc. (company-authored) — https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm — FY ended 2025-12-31 — needed JS: N
+   • "Finally, we conduct anonymous global engagement surveys regularly to measure the effectiveness of our business and people initiatives and identify areas of strength and development opportunities among teams."  — [10-K Item 1 Human Capital Management] — DigitalOcean Holdings, Inc. (company-authored) — https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm — FY ended 2025-12-31 — needed JS: N
+
+########## SECTION 2 — RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+2a. YIELD AUDIT
+
+    REQUIRED TO YIELD:
+       A excerpts: 8/5       B reviews: 11/12 (post-build correction 2026-08-27; was 12/12 at build time, one review removed as a confirmed different company — see top of packet)      C excerpts: 14/6
+       C postings: 4/3       C outside engineering: 3/1
+       B reviews within 24 months: 1/12   (only 2025-01-29; 2024-08-12 falls ~24.5 months out)
+
+    C EXEMPTION CLAIMED (company not hiring)?  NO
+       (Note: an exemption was superficially available and would have been WRONG — see defect S5.)
+
+    REQUIRED TO ATTEMPT:
+       D passages: 11 excerpts across 4 distinct sources    ladder rungs logged: 7/7
+       D voice composition: 3 executive / senior-leadership sources (Deputy CISO ×1, CEO ×1,
+                            maintainer-collective ×1 treated as company voice) /
+                            1 non-executive individual-contributor source (Principal Engineer)
+                            → MIXED, so the D0 extra-rung trigger did not fire. Extra rung worked
+                            anyway: NO. Stale non-executive material found and rejected: YES —
+                            "How DigitalOcean supports employees as they balance work and life",
+                            Selome Kidane, Senior Technical Recruiter, 2022-04-22, containing a
+                            first-person non-executive passage ("There is autonomy in the way that
+                            everyone approaches their day and their work that allows for me to
+                            truly own my schedule from a day-to-day perspective."), rejected on age
+                            (~52 months). Also rejected on yield: "Unstoppable Velocity: Why 2026 is
+                            the Year to Join DigitalOcean", 2026-01-06 — in-date, author byline
+                            "ccarpenter" with no role stated, yields nothing on working practice.
+       E excerpts: 4    searches logged: 4
+       F excerpts: 4    public? YES     10-K period: FY ended 2025-12-31 (accession 0001582961-26-000019)
+
+2b. EVIDENCE COVERAGE
+       autonomy: THIN   pace: COVERED   collaboration: COVERED
+       feedback: THIN   innovation: COVERED   decision: COVERED
+
+2c. LADDER CHECKLIST
+       D1 handbook          attempted Y   URL: site navigation + footer survey of digitalocean.com;
+                            targeted search for a public handbook   outcome: NOT FOUND — no public
+                            employee handbook or "how we work" documentation. docs.digitalocean.com
+                            is product documentation only.
+       D2 eng/product blog  attempted Y   URL: https://www.digitalocean.com/blog   newest post date:
+                            2026-08-26   outcome: YIELD — two usable posts (2026-08-24 Deputy CISO;
+                            2026-06-15 Principal Engineer). Category sub-URLs /blog/culture and
+                            /blog/engineering both 404; the blog index itself carries the category
+                            groupings and was used instead.
+       D3 culture microsite attempted Y   URL: https://www.digitalocean.com/careers (rendered);
+                            https://www.digitalocean.com/careers/culture (404);
+                            https://www.digitalocean.com/careers/resources (rendered)
+                            outcome: DOUBLE-COUNT — the narrative culture text is the same
+                            careers/values material already quoted in section A. Does not count
+                            toward D. careers/resources is candidate-facing hiring material, also
+                            counted to A rather than D.
+       D4 leader interview  attempted Y   URL: https://www.digitalocean.com/resources/podcasts/hang10-episode-1-paddy-srinivasan-digitalocean-ceo
+                            date: NOT STATED ON PAGE   outcome: FOUND BUT UNDATED — the 18-month
+                            gate cannot be applied, so nothing was quoted from it into Section 1.
+                            Content is CEO + Head of Developer Relations. See defect C4.
+       D5 public repos      attempted Y   URL: https://github.com/digitalocean (verified official —
+                            GitHub domain-verified badge for digitalocean.com; 360 public repos;
+                            top repos last updated 2026-07-23..25);
+                            https://raw.githubusercontent.com/digitalocean/doctl/main/CONTRIBUTING.md
+                            outcome: YIELD — contribution guidelines quoted. No name collision.
+       D6 press profile     attempted Y   URL: https://www.constellationr.com/insights/news/digitalocean-ceo-paddy-srinivasan-ai-natives-inferencing-agentic-ai-adoption
+                            date: 2025-07-28   outcome: YIELD — in-date (~13 months), CEO voice.
+       D7 conference talk   attempted Y   URL: searches over conference programmes and talk archives
+                            (KubeCon EU/NA 2025–2026 schedules; general "DigitalOcean + talk/slides
+                            + Staff/Principal Engineer 2026")   date: n/a
+                            outcome: NOT FOUND within 18 months — the company hosts its own
+                            developer event ("deploy") and appears at investor conferences
+                            (Goldman Sachs Communacopia 2025, UBS Global Technology and AI), but no
+                            individual employee technical talk with a first-person account of
+                            working practice was retrievable. Target was already met at rungs 2, 5
+                            and 6.
+       Rungs rejected as stale (>18 months): 0 rungs rejected outright. One in-rung item rejected on
+                            age: the 2022-04-22 work-life-balance post (see 2a).
+       C fallbacks tried: reviews-site job view — reached the company Jobs tab
+                            (https://www.indeed.com/cmp/Digitalocean/jobs), which rendered ~69
+                            listings but returned "#" placeholders instead of viewjob permalinks,
+                            so individual bodies were not reachable from it.
+                          ATS param found — YES: https://www.digitalocean.com/careers/position/apply?gh_jid=<id>
+                            in indexed apply URLs → Greenhouse.
+                          greenhouse — list API: boards-api…/boards/digitalocean/jobs → 404;
+                            boards-api…/boards/digitaloceancitesremotes/jobs → 0 jobs, and the
+                            matching board page renders "There are no current openings.";
+                            boards-api…/boards/digitalocean98/jobs → 120 open roles, USED;
+                            job-boards.greenhouse.io/digitalocean98 → 403 to plain fetch.
+                          lever — N/A, ATS identified as Greenhouse, not guessed.
+                          workday — N/A, same reason.
+                          ashby — N/A, same reason.
+                          aggregator — not needed; the ATS record API returned full posting bodies.
+       E news searches run: 4
+                          queries used:
+                            (1) "DigitalOcean news August 2026 layoffs leadership restructuring CEO Paddy Srinivasan"
+                            (2) "DigitalOcean 2026 news acquisition restructuring earnings DigitalOcean reorganization workforce"
+                            (3) "DigitalOcean 2026 inference cloud strategy shift reporting analysis TechCrunch CNBC Reuters"
+                            (4) "DigitalOcean appoints new chief 2026 executive hire announcement investors.digitalocean.com"
+
+2d. SOURCE ACCESS LOG  (method: PF = plain HTTP fetch, JS = JavaScript renderer)
+       https://www.digitalocean.com/careers — PF — rendered in full, values/work-arrangements/why-join present — USED (A)
+       https://www.digitalocean.com/careers/resources — PF — rendered — USED (A)
+       https://www.digitalocean.com/careers/open-roles — PF — LOADING SHELL ("Loading roles...") — retried JS — JS ALSO returned "Loading roles..." with no listings; page header text captured — header USED (A), listings NOT obtained here
+       https://www.digitalocean.com/careers/culture — PF — 404
+       https://www.indeed.com/cmp/Digitalocean — PF — rendered, no sign-in wall — USED (2f)
+       https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — PF — rendered — USED (B)
+       https://www.indeed.com/cmp/Digitalocean/reviews?fcountry=ALL&sort=date — PF — rendered, same 12 reviews — USED (B, full bodies)
+       https://www.indeed.com/cmp/Digitalocean/job-titles — PF — rendered full title index — USED (2f)
+       https://www.indeed.com/cmp/Digitalocean/jobs — PF — rendered ~69 listings, apply links returned as "#" — NOT USED
+       https://www.indeed.com/companies/search?q=digitalocean — PF — rendered, one entity only — USED (B0)
+       https://www.indeed.com/cmp/Digital-Ocean — PF — resolves to the same single profile — USED (B0)
+       https://www.glassdoor.com/Reviews/DigitalOcean-Reviews-E823482.htm — PF — rendered, no bot wall — USED (recency cross-check only)
+       https://www.glassdoor.com/Reviews/DigitalOcean-Reviews-E823482.htm?sort.sortType=RD&sort.ascending=false — PF — rendered — USED (recency cross-check only)
+       https://boards-api.greenhouse.io/v1/boards/digitalocean/jobs — PF — 404
+       https://boards-api.greenhouse.io/v1/boards/digitaloceancitesremotes/jobs — PF — 0 jobs
+       https://job-boards.greenhouse.io/digitaloceancitesremotes — PF — "There are no current openings."
+       https://job-boards.greenhouse.io/digitalocean98 — PF — 403
+       https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs — PF — 120 open roles — USED (C)
+       https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7722835 — PF — full body — USED (C)
+       https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/8027190 — PF — full body — USED (C)
+       https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/8099103 — PF — full body — USED (C)
+       https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7807707 — PF — full body — USED (C)
+       https://www.digitalocean.com/blog — PF — rendered index — USED (D2)
+       https://www.digitalocean.com/blog/patching-at-fleet-scale-januscape-amd-safe-ret — PF — 404 (guessed slug)
+       https://www.digitalocean.com/blog/patching-januscape-amd-safe-ret — PF — rendered — USED (D)
+       https://www.digitalocean.com/blog/inference-router-architecture — PF — rendered — USED (D)
+       https://www.digitalocean.com/blog/why-2026-is-the-year-to-join-digitalocean — PF — rendered — NOT USED (no working-practice content)
+       https://www.digitalocean.com/blog/digitalocean-work-life-balance — PF — rendered — REJECTED ON AGE (2022-04-22)
+       https://www.digitalocean.com/blog/building-inference-cloud-what-comes-next — PF — rendered — NOT USED (external product narrative)
+       https://www.digitalocean.com/blog/culture — PF — 404
+       https://www.digitalocean.com/blog/engineering — PF — 404
+       https://github.com/digitalocean — PF — rendered — USED (D5)
+       https://raw.githubusercontent.com/digitalocean/doctl/main/CONTRIBUTING.md — PF — rendered — USED (D)
+       https://www.digitalocean.com/resources/podcasts/hang10-episode-1-paddy-srinivasan-digitalocean-ceo — PF — rendered, undated — NOT USED
+       https://www.constellationr.com/insights/news/digitalocean-ceo-paddy-srinivasan-ai-natives-inferencing-agentic-ai-adoption — PF — rendered — USED (D)
+       https://www.businesswire.com/news/home/20260803098656/en/... (Q2 2026 results) — PF — rendered — USED (E)
+       https://investors.digitalocean.com/news/news-details/2026/DigitalOcean-Adds-Three-Executives-... — PF — rendered — USED (E)
+       https://www.businesswire.com/news/home/20260120383451/en/DigitalOcean-Appoints-Vinay-Kumar-... — PF — rendered — USED (E)
+       https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm — PF — rendered in full — USED (F)
+       (browse-edgar and data.sec.gov/submissions were NOT attempted — the prompt records both as
+        dead routes; the archive document URL was resolved by search per section F and worked
+        first time.)
+
+2e. FIDELITY NOTE
+       • [PARAPHRASE] markers: none. Every line in Section 1 is a verbatim string.
+       • RETRIEVAL-LAYER CAVEAT, and it is the most important line in this block. My fetch tool
+         returns pages already processed by an intermediate reader rather than as raw source. It
+         marked some strings as quoted and rendered others as its own restatement. I admitted into
+         Section 1 ONLY strings the tool returned inside quotation marks, and discarded every
+         restated line — including several substantive job-posting bullets. Section 1 is therefore
+         verbatim, but WHICH verbatim sentences appear was partly determined by the tool rather
+         than by date or position on the page. See defect S7.
+       • Preserved source typos, all in section B and all unique-string identifiers:
+         "Administrate office coordinator" (reviewer's own job-title spelling); "you learn alot ,
+         hands on experience, pushed to your limits . relaxes place to work at"; "Meeting new
+         people who also a IT related individual"; "A lot of thrash and mis-direction" ("thrash"
+         is retained as written and is not corrected to "thrash/trash").
+       • Posting open/closed status: all four postings quoted in C were confirmed open on
+         2026-08-27 via the live ATS feed and by fetching each record individually. No posting was
+         quoted whose status could not be confirmed.
+       • ENTITY CHECK RESULT: one employer entity only on the required review site
+         (indeed.com/cmp/Digitalocean; the /cmp/Digital-Ocean variant resolves to the same page;
+         the site's own company search returns a single result). Claimed/unclaimed status is NOT
+         DISPLAYED on the profile; company-authored blocks ("Why Join Us", company description)
+         are present, which suggests a claimed profile but is not a claim marker.
+       • IMPLAUSIBLE REVIEW COUNT: 12 reviews for an employer the same page sizes at 1,001–5,000
+         employees, against 453–456 on the optional second site. Stated explicitly per B0.
+       • POPULATION PURITY, and this is a finding rather than a correction: at least three of the
+         twelve reviews are hard to reconcile with this employer — a 2012 COO in Kansas City
+         describing a small business he "helped develop many years ago"; a 2015 junior technician
+         in Tillamook OR whose "pay was sliding regularly due to lack of sales"; a 2019 "Volunteer
+         Staff" entry in Ortigas. The subject company was founded in 2012 and does not have a
+         volunteer workforce. The profile appears to pool at least one other similarly-named
+         employer. All were retained (excluding them is curation, and rule 6 forbids it) and are
+         flagged to the rater in Section 1. See defect S4.
+       • CONFLICTING SELF-REPORTED HEADCOUNT: the company's own podcast page transcript states an
+         employee figure roughly an order of magnitude above the figure in its own 10-K for the
+         same period. Nothing from that page was quoted. Section 3 uses the 10-K figure. See
+         defect S6.
+       • Employer responses: none present on any of the twelve reviews.
+       • Interview write-ups: none present in the review list.
+
+2f. VINTAGE BLOCK
+       Review entities found: 1 —
+          https://www.indeed.com/cmp/Digitalocean · 12 reviews · 4.1 overall · claimed/unclaimed
+          NOT DISPLAYED
+          (optional cross-check site, not an entity used for text:
+           https://www.glassdoor.com/Reviews/DigitalOcean-Reviews-E823482.htm · 453–456 reviews
+           depending on element and fetch · 3.4–3.5 overall)
+       Review counts BY SITE, each with the ELEMENT it came from:
+          Indeed — "12 Reviews" on the Reviews nav tab; "Working at DigitalOcean: 10 Reviews" as
+             the reviews-page heading; "Based on 12 reviews" in the rating block.
+             THREE DIFFERENT VALUES ACROSS TWO ELEMENTS ON ONE PAGE (10 vs 12).
+          Indeed job-title index — nine titles carrying 10 reviews in total (Software Engineer 2;
+             Director of Customer Success 1; Chief Operating Officer 1; Junior Technician 1;
+             Executive Assistant 1; Administrative Coordinator 1; Sales Manager 1; Intern 1;
+             Marketing Manager 1). The index therefore accounts for 10 of the 12 reviews the nav
+             tab reports, and OMITS the Trust And Safety Specialist and Volunteer Staff entries
+             that the reviews page itself renders — the D21 pattern, reproduced here.
+          Glassdoor — "453 reviews" with a 3.4 headline on the default profile page; "456 total
+             reviews" with a 3.5 headline on the recency-sorted profile page, fetched minutes
+             apart; "(454)" in the page title returned by search. THREE VALUES.
+       Conflicting counts observed on a single page: YES — Indeed, 10 (heading) vs 12 (nav tab and
+          rating block). Glassdoor, count and headline rating both moved between two fetches of the
+          same profile.
+       Headline ratings BY SITE: Indeed 4.1 overall (work/life balance sub-rating not displayed on
+          the profile header). Glassdoor 3.4–3.5 overall, 3.7 work/life balance.
+          DIVERGENCE RECORDED, NOT RECONCILED: 4.1 vs 3.4–3.5 overall on populations of 12 and
+          ~454 respectively.
+       Job titles sampled, each with review count and the element the count came from: NOT
+          APPLICABLE — the v4.6 frame is recency and the entire review population (12) was taken.
+          Title metadata is recorded per review in Section 1.
+       Per-title subratings: NOT COLLECTED — removed in v4.5.
+       Achievability gate run on every percentage recorded anywhere in the packet: YES.
+          Percentages encountered: Glassdoor "58% would recommend" at n≈453 (step 0.22 points —
+          ACHIEVABLE, PASSES, but EVALUATIVE and therefore barred from Section 1 by rule 8;
+          recorded here as source metadata only). Indeed "CEO 50% approval" — no sample size is
+          printed beside it, so achievability CANNOT BE TESTED; it is also evaluative; excluded
+          from the packet entirely. No percentage appears anywhere in Section 1: every figure in
+          the 10-K human-capital paragraph was stripped at collection per section F.
+       Percentages struck for failing the gate, with title and figure: NONE struck on
+          achievability. One excluded as untestable (Indeed CEO approval, no n printed) and two
+          excluded on construct grounds (rule 8).
+       Titles present but NOT sampled, with counts: NONE — the whole population was taken.
+       Interview write-ups excluded from review lists: 0
+       Newest review date BY SITE: Indeed 2025-01-29 · Glassdoor 2026-07-28 (default sort) and
+          2026-08-18 (recency sort) — the two Glassdoor fetches disagree.
+          DIVERGENCE: roughly 18–19 months between the required source and the cross-check source.
+          THIS IS THE P-03/P-04 FAILURE SIGNATURE AND IT IS FIRING. The required review source's
+          coverage of this company is thin and stale; current employee evidence exists in volume
+          and is barred from Section 1 by B1.
+       Oldest review used: 2012-07-25
+       Median age of reviews used: ~71 months (~5.9 years), computed at 2026-08-27 as the mean of
+          the 6th and 7th ordered review dates (2021-04-02 and 2020-03-02).
+       Reviews truncated at source: 8/12 = 67%  — EXCEEDS 33%, NOTE TO RATER ISSUED
+       Source-site duplicates retained: 0
+       Newest careers-page modification date: NOT DETERMINABLE — no published or modified date is
+          exposed on /careers, /careers/resources or /careers/open-roles.
+       Structural events found and their dates:
+          2026-01-20 Chief Product and Technology Officer appointed
+          2026-06-10 Chief Revenue Officer, Chief Marketing Officer and Chief Legal &
+                     Administrative Officer appointed
+          2026-08-04 Q2 2026 results; repositioning around AI inference stated by the CEO
+          (earlier, outside the news window and not quoted: CEO succession announced 2024-01-17,
+           incumbent CEO Paddy Srinivasan — confirmed current against the company's own executive
+           management page and its 2026 releases, per B3b's caution)
+       Does any structural event postdate the newest review?  YES — all of them.
+
+2g. SCOPE BLOCK
+       A careers / values     population: company-wide, candidate-facing
+       B employee reviews     population: twelve individuals over fourteen years — sales
+                              management, software engineering ×2, executive assistance, marketing
+                              management, office administration, customer-success management,
+                              trust and safety, volunteer staff, an intern, a junior technician,
+                              a chief operating officer. Untitled reviews: 0 (every review carries
+                              a self-reported title). Nine of the twelve predate 2024.
+       C job postings         population: the functions currently hiring — engineering
+                              (inference/GPU, security, data centre, platform), product
+                              management, customer success, marketing communications, legal,
+                              revenue operations, recruiting, internal audit
+       D first-person         population: security leadership and platform engineering, plus the
+                              chief executive; i.e. the technology organisation and the C-suite
+       E news                 population: company-wide / C-suite
+       F human capital        population: company-wide
+       Working environments known to exist in this company but ABSENT from the review population:
+          data-centre operations and facilities; infrastructure, kernel and virtualisation
+          engineering; security engineering; product management; legal; finance and internal
+          audit; the large India-based engineering organisation (a substantial share of open roles
+          sit in Bengaluru and Hyderabad, and the 10-K states the majority of employees are
+          outside the United States) — none of which appear in the twelve reviews. Note also the
+          inverse: three reviews in the population may not belong to this employer at all.
+       Does the company-authored evidence (A, F) describe a wider population than the
+       experiential evidence (B)?  YES — emphatically. A, C and F describe the whole organisation
+       and its current hiring; B describes twelve people, mostly from before 2023, at least three
+       of whom may work somewhere else.
+
+########## SECTION 3 — ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+
+- Approx. headcount: 1,462 as of 2025-12-31, of whom 848 outside the United States. Source: the
+  company's own Form 10-K, Item 1 Human Capital Management
+  (sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm). CONFIDENCE: HIGH —
+  company-sourced, in a legal filing, dated. Contradicted by two lower-confidence sources: the
+  required review site sizes the employer at "1,001 to 5,000 employees" (consistent), and the
+  company's own podcast page transcript states a figure roughly an order of magnitude higher
+  (inconsistent; treated as a transcription artefact, not used).
+- Stage/size cues: PUBLIC. DigitalOcean Holdings, Inc., NYSE: DOCN, CIK 0001582961. Files a 10-K.
+  Revenue disclosed in quarterly releases; the review site's profile lists a revenue band of
+  "$1B to $5B (USD)" which is a third-party estimate and is NOT company-sourced. Founded 2012.
+  Q2 2026 release states year-over-year revenue growth of 29% and forward guidance above 50%
+  growth for 2027 (achievability gate not applicable — these are growth rates, not proportions of
+  a sample; recorded here, kept out of Section 1).
+- Pay-posture EVIDENCE vs. talent-market peers: US postings publish bands on the reviews-site
+  listing page (e.g. staff-level inference engineering, senior-director inference products,
+  manager-level customer success engineering — bands stripped from Section 1 per prompt rule).
+  Two reviews speak to pay directly and disagree: a 2023 marketing manager writes "We get
+  competitive salaries and the stock options are a really good benefit!"; a 2022 software engineer
+  writes "Pay is ok." The 10-K states equity awards and an employee stock purchase plan are part
+  of global compensation. CORRECT REFERENCE CLASS: US public cloud-infrastructure companies
+  competing for GPU/inference engineering talent — not the general software market, and not the
+  hyperscalers. NO BAND ASSIGNED.
+- Industry: TECH. Cloud infrastructure and AI inference platform; sells compute, storage,
+  databases and GPU/inference services to developers and AI-native companies.
+
+########## SECTION 4 — ANONYMIZATION PRE-FLAGS ##########
+
+COMPANY NAME AND LEGAL ENTITY
+  "DigitalOcean" — throughout Sections 1A, 1C, 1D, 1E, 1F and in every URL.
+  "DigitalOcean Holdings, Inc." — 1F attribution.
+  "DO" — in the value text "making cloud application development ... easy on DO" and in the
+  posting heading "What You'll Add to DigitalOcean"; also inside "everything we DO" capitalisation.
+
+SELF-DESCRIPTIONS AND DISTINCTIVE PHRASES — SEARCHABLE EVEN AFTER THE NAME IS REMOVED
+  "Sharks" (the company's term for its employees) — 1A, twice, and "our own 'tank'".
+  "the agentic inference cloud" — 1A "Why Join".
+  "Dive into the Future." — 1A.
+  "Sammy recharge days" — 1B, a named internal programme inside an employee review.
+  "What You'll Add to DO" / "What You'll Add to DigitalOcean" — 1C section heading convention.
+  The value-word set "Bold / Fast / Learning / Simple / Love / Community / Proud" as a group.
+
+PRODUCT, BRAND AND INTERNAL TOOL NAMES
+  1C/1D: "DOKS", "Inference Engine", "Inference Router", "Arch-Router", "Plano-Orchestrator",
+  "llm_gateway.wasm", "doctl", "GPU Droplets", "Gradient".
+  1D: "Januscape", "AMD Safe RET", "AITER", "MI355X", "GLM-5", "Envoy", "WASM", "Async Rust",
+  "Prometheus", and the named third-party model providers listed in the router post.
+  1D: "HVC support playbooks", "VoC", "EBRs", "TAMs", "GAM" — internal acronyms.
+
+PERSON NAMES AND TITLES
+  Paddy Srinivasan (CEO) — 1D, 1E ×3.
+  Vinay Kumar (incoming CPTO) — 1E.
+  Kevin Van Gundy, Leo Leung, Brady Mickelsen — named inside the 1E quote.
+  Tim Lisko (Deputy CISO) — 1D ×4.
+  Adil Hafeez (Principal Engineer) — 1D ×3.
+  Larry Dignan (journalist) — 1D attribution.
+  Selome Kidane, ccarpenter, Jeff Blankenburg — 2a/2c only, not in Section 1.
+
+REVIEW LOCATIONS — REPLACE WITH GENERIC TOKENS, DO NOT DELETE
+  Remote ×3 → [Remote]; Los Angeles CA → [Site A]; United States → [Country-level];
+  Cambridge MA → [Site B]; Raleigh NC → [Site C]; Bangalore City Karnataka → [Site D];
+  Ortigas → [Site E]; New York NY → [Site F]; Kansas City MO → [Site H].
+  (Tillamook OR → [Site G] dropped 2026-08-27: that review was removed as a confirmed different
+  company — see POST-BUILD CORRECTION at the top of the packet.)
+  The dispersion signal depends on keeping these distinct.
+
+PRESERVED SOURCE TYPOS — UNIQUE-STRING IDENTIFIERS, FLAGGED PER PROMPT
+  "Administrate office coordinator"; "you learn alot , hands on experience, pushed to your
+  limits . relaxes place to work at"; "Meeting new people who also a IT related individual";
+  "A lot of thrash and mis-direction"; "would stayed forever".
+  Each of these is exact-searchable and will re-identify the review and therefore the company.
+
+URLS
+  Every URL in Sections 1 and 2 contains the company name or its ATS slug ("digitalocean98"),
+  its CIK (1582961), or its review-site employer ID (E823482).
+
+OTHER
+  The 10-K accession number and filing period.
+  The value-card structure itself (seven named values with one-sentence definitions) is
+  reproducible from the careers page and is identifying as a set.
+
+########## SECTION 5 — BUILDER'S DEFECT REPORT ON PROMPT v4.6 (NEVER IN THE PACKET) ##########
+
+Classified by the builder. Not fixed, not softened.
+
+--- STRUCTURAL ---
+
+S1. NO ROSTER ENTRY FOR THE COMPANY BUILT. (Brief Step 1; brief Step 4 filename pattern.)
+    The brief's company table lists P-01..P-06 and contains no DigitalOcean. Step 1 says "If the
+    operator named one, use it" and Step 4 hardcodes the path packets/P-0X_<slug>/P-0X_packet.txt,
+    which presumes a roster ID. The two instructions conflict for any off-roster company. I built
+    it and assigned P-XX. Structural because it changes what the packet IS — an unplanned seventh
+    company enters a six-company calibration set whose confounder balance (public/private, size,
+    industry) was presumably chosen deliberately. Whether this packet belongs in the ground-truth
+    set is a decision I could not make and the brief does not cover.
+
+S2. THE GLASSDOOR RECENCY CROSS-CHECK FIRES AND THE PROMPT PROVIDES NO REMEDY. (B1.)
+    v4.5 made Indeed the only required text source and demoted Glassdoor to "OPTIONAL ... supplies
+    only a recency cross-check", instructing: if Indeed's newest review is materially older,
+    "Indeed's coverage of that company is thin and you must say so". Here Indeed's newest review is
+    2025-01-29 and Glassdoor's is 2026-07-28/2026-08-18 — an 18-to-19-month gap, against review
+    populations of 12 and ~454. So the check fires as loudly as it can, and the only permitted
+    response is to note it. Section B is consequently built from a population whose median age is
+    ~5.9 years while several hundred current reviews exist and are barred from Section 1 by B1's
+    "Never quote Glassdoor review bodies into Section 1 in any case".
+    This is precisely the P-03/P-04 staleness failure that v4.3 was written to correct and that
+    v4.5's cross-check was written to detect — detection now works and the correction has been
+    removed. Structural: it determines what evidence reaches Section 1 for the largest section in
+    the packet.
+
+S3. THE REQUIRED MINIMUM EQUALS THE ENTIRE AVAILABLE POPULATION, WHICH VOIDS THE SAMPLING RULES.
+    (B2, hard rule 6, 2a.)
+    Section B's minimum is 12 reviews; this entity holds 12. "Take the most recent reviews
+    company-wide, in date order, until you reach the minimum" and rule 6's no-curation guarantee
+    both become vacuous — there is no sampling decision left to make, and the yield audit reports
+    12/12 exactly as it would for a company where 12 were drawn from thousands. Nothing in the
+    audit distinguishes "the twelve newest of many" from "everything, including 2012". The prompt
+    has no floor rule for total-available < ~2× the minimum, and no instruction on whether a
+    company whose required source cannot supply an independent sample should yield a packet at all.
+    Structural: it changes the meaning of the section's pass condition.
+
+S4. B0's ENTITY CHECK HANDLES SPLIT PROFILES BUT NOT MERGED ONES. (B0, hard rule 6.)
+    B0 is written entirely for the case where one employer is split across several profile pages
+    and tells you to merge them. The failure here is the inverse: one profile page appears to POOL
+    more than one employer. At least three of twelve reviews are inconsistent with the subject
+    company (a 2012 COO describing a small business he helped develop, a 2015 technician whose pay
+    slid "due to lack of sales", a 2019 "Volunteer Staff" entry). The prompt offers no procedure,
+    and rule 6 forbids dropping them, so I retained all twelve and flagged it. Structural: a
+    quarter of Section B's evidence may describe a different company, and no downstream rater can
+    detect that without the flag.
+
+S5. THE SECTION C FALLBACK CHAIN CAN MANUFACTURE A FALSE "PROOF OF ABSENCE". (C, fallback routes
+    2–4, and the C exemption test.)
+    The obvious Greenhouse slug (boards-api…/digitalocean/jobs) 404s. A DIFFERENT, real, indexed
+    Greenhouse board for this company (digitaloceancitesremotes) returns zero jobs from the list
+    API and renders "There are no current openings." on its board page. The C exemption requires
+    "a rendered list that is empty, or an explicit 'no open roles' statement" — which is exactly
+    what that decoy board produces. A researcher working the ladder as written could satisfy the
+    exemption's first condition with an affirmative zero and never learn that 120 roles are open on
+    the board at digitalocean98, a slug reachable only by noticing it in an unrelated search result.
+    The prompt says "Identify the ATS, don't guess it" but the gh_jid apply-URL parameter names
+    the SYSTEM, not the BOARD SLUG, and there is no instruction to test whether a found board is
+    the company's live one. Structural: it decides whether Section C exists at all.
+
+S6. THE "NEVER SIGN IN" / SOURCE-PARITY RULES ARE SILENT ON A COMPANY-AUTHORED SOURCE THAT
+    CONTRADICTS THE COMPANY'S OWN LEGAL FILING. (Section 3; section F; 2e.)
+    The company's own podcast page states an employee count roughly an order of magnitude above
+    the figure in its own 10-K for the same period. Section 3 asks for headcount "+ source" and to
+    "state confidence", but gives no rule for choosing between two company-authored sources of
+    different evidentiary weight, and no instruction to record the loser. I used the 10-K and
+    recorded the conflict. Structural under the brief's "when genuinely torn, call it structural":
+    headcount feeds stage_index, a confounder in the model.
+
+S7. THE PROMPT ASSUMES RAW PAGE ACCESS; MY RETRIEVAL LAYER RETURNS PROCESSED TEXT, AND THAT
+    BECOMES A HIDDEN SELECTION STEP. (Hard rule 2; the two-retrieval-methods section.)
+    "Quote source text exactly, inside quotation marks, word for word" assumes the researcher sees
+    the page. My plain-fetch tool returns pages already read and re-rendered by an intermediate
+    model, which quotes some sentences and restates others. I admitted into Section 1 only strings
+    the tool returned inside quotation marks and discarded the rest — which keeps Section 1
+    verbatim but means WHICH sentences appear was determined partly by the intermediary, not by
+    date or page position. This is a selection effect of the same family as the truncation bias in
+    B7, and the prompt does not name it or ask for it to be reported. It bit Section C hardest.
+
+S8. THE TWO-RETRIEVAL-METHOD RULE HAS NO THIRD STEP WHEN BOTH METHODS FAIL IDENTICALLY. (Two
+    retrieval methods; D13.)
+    The prompt's model is that plain fetch and the renderer fail on DIFFERENT source classes, so
+    trying both resolves the absence. On the company's own open-roles page both methods returned
+    the same "Loading roles..." shell — the listings are fetched client-side from an API that
+    neither text-extraction path observes. The prompt's proof-of-absence rule is satisfied on its
+    face (both methods tried, both empty) while the roles plainly exist. What actually resolved it
+    was routing to the ATS, i.e. a Section C-specific instruction, and the general rule contains
+    nothing equivalent. Structural: the general rule licenses an absence finding that would be
+    false, in any section other than C.
+
+--- COSMETIC ---
+
+C1. BRIEF STEP 4's OUTPUT PATH is hardcoded to a roster ID (packets/P-0X_<slug>/P-0X_packet.txt)
+    and is unusable for an off-roster company. Wording only; I substituted P-XX.
+
+C2. 2f ASKS FOR "Newest careers-page modification date" WITH NO RETRIEVAL METHOD. None of the
+    three careers URLs exposes a published or modified date. The field is unfillable for this
+    company and I recorded NOT DETERMINABLE. Cosmetic — nothing downstream changed.
+
+C3. B2c's LEGACY PROCEDURE IS RETAINED "only for the case in B2 above", but B2's case ("IF a title
+    bucket is both large and current") is undefined — no threshold for either word. I did not
+    invoke it. Cosmetic; it changed nothing here, but two builders could reasonably differ.
+
+C4. THE 18-MONTH STALENESS GATE CANNOT BE APPLIED TO AN UNDATED SOURCE, and the prompt does not
+    say what to do. The company's own podcast page (ladder rung 4, a leadership interview — the
+    exact rung the gate was extended to cover in v4.2) carries no publication date. I quoted
+    nothing from it. The prompt's instruction is "Check the publication date before quoting
+    anything", which is silent on absence of a date. Cosmetic because a dated rung-6 press
+    interview covered the same voice; it would be structural on a company whose only leadership
+    material were undated.
+
+C5. D0's VOICE BINARY IS UNDEFINED IN THE MIDDLE. "executive / non-executive" has no rule for
+    senior leaders below the C-suite. I classified a Deputy CISO as leadership voice and a
+    Principal Engineer as non-executive, which made section D "mixed" and left the extra-rung
+    trigger unfired. Classifying the Deputy CISO the other way would have made D all-executive and
+    required an additional rung. Borderline — it did not change what reached Section 1 here only
+    because a genuine individual-contributor source existed; on a company where it did not, this
+    ambiguity would decide whether extra work happens. Listed cosmetic only because no evidence
+    moved; the operator may reasonably promote it.
+
+C6. THE JOB-TITLE INDEX IS NON-AUTHORITATIVE AGAIN — D21, reproduced. The index at /job-titles
+    accounts for 10 reviews across nine titles while the reviews page renders 12, omitting the
+    Trust And Safety Specialist and Volunteer Staff entries. Already in the register as D21; noting
+    that it recurs on a small company as well as a large one. No action needed under the v4.6
+    recency frame, which is the point.
+
+C7. SECTION D's DOUBLE-COUNTING RULE COVERS RUNG 3 ONLY. The careers/resources page is
+    candidate-facing hiring material — arguably rung 1 or rung 3 — and I counted it to Section A.
+    The rule as written ("If the only narrative text you find at rung 3 is the same careers/values
+    material already quoted in section A") does not address material that is NEW but still
+    careers-site company marketing. I chose A. Recorded per brief Step 3.

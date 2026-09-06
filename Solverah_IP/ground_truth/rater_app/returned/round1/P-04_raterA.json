@@ -1,0 +1,299 @@
+{
+  "packet_id": "P-04",
+  "rater": "A",
+  "rubric_version": "v1-frozen-2026-08-15",
+  "anchors_hash": "55c4501b25c5",
+  "session_start": "2026-08-28T02:45:04.312Z",
+  "submitted_at": "2026-08-28T03:10:24.471Z",
+  "duration_seconds": 1520,
+  "commit_order": [
+    "decision",
+    "innovation",
+    "feedback",
+    "collaboration",
+    "pace",
+    "autonomy"
+  ],
+  "recognition": "no",
+  "recognition_detail": "",
+  "searched": "no",
+  "search_detail": "",
+  "free_note": "",
+  "scores": [
+    {
+      "dimension": "autonomy",
+      "score": 0.5,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "• \"Comfort with ambiguity and change. You act on instinct and initiative, not instruction.\" — [job posting] — company-authored — first published 2026-07-29, confirmed open 2026-08-14 · needed JS: N",
+          "eid": "C12",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "• \"Now that models allow anyone to make anything in seconds, execution alone is a commodity. Our value has shifted. We are getting back to what has always been our most valuable asset: our taste and curation. At [the company], we talk about this as [a named internal framing for brand systems]. We are moving past static, siloed guidelines and toward code that carries character, memory, and behaviour. […] We aren't interested in being frozen by trepidation. We are training our teams to use these tools to amplify their intuition, not replace it.\" — [trade press feature; signed first-person contribution] — a VP, head of brand design — 2026-07-20 · needed JS: N",
+          "eid": "D3",
+          "sec": "D",
+          "src": "noncompany"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-28T03:10:16.333Z",
+      "commit_position": 6,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 1,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "C12",
+        "D3"
+      ]
+    },
+    {
+      "dimension": "pace",
+      "score": 0.5,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "• \"own the rhythm by which bets move from concept to shippable product, defining the demo, the deck, and the codebase scope for each.\" — [job posting] — company-authored — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N",
+          "eid": "C6",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "• \"run customer discovery with [company] Client Leads, prospects, and pitch teams to validate assumptions early and kill bets that do not hold up.\" — [job posting] — company-authored — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N",
+          "eid": "C7",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "• \"is a high-agency operator who fills in gaps without requiring a formalized process and brings rigor without bureaucracy.\" — [job posting] — company-authored — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N",
+          "eid": "C10",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "• \"I learned a lot during my time at [the company] but ultimately felt the company promoted a really unhealthy work life balance. I constantly found myself performing above my pay grade without feeling recognized or appreciated. […]\" [truncated at source] — [employee review rev-11] — Associate Producer · [Site C] — 2021-02-09 · needed JS: N",
+          "eid": "B11",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "• \"Awesome work life balance. Great benefits. Excellent management and support staff. Opportunity for growth. Lots of flexibility as well as remote options.\" — [employee review rev-02] — Paralegal · [Site B] — 2024-02-21 · needed JS: N",
+          "eid": "B2",
+          "sec": "B",
+          "src": "noncompany"
+        }
+      ],
+      "note": "Similar to my previous comments",
+      "committed_at": "2026-08-28T03:09:53.333Z",
+      "commit_position": 5,
+      "source_mix": {
+        "company": 3,
+        "noncompany": 2,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "C6",
+        "C7",
+        "C10",
+        "B11",
+        "B2"
+      ]
+    },
+    {
+      "dimension": "collaboration",
+      "score": 0.5,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "• \"We want you to bring your whole self to work, and believe we're at our best when we can tap into our differences and collaborate across varied personal experiences and perspectives to arrive at impactful ideas.\" — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N",
+          "eid": "A1",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "• \"At [the company], our people drive our culture, and we place high value on what they have to say. We foster trusting relationships through listening sessions that encourage creativity and lead to better solutions, both in our work and how we work together.\" — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N",
+          "eid": "A3",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "• \"We're all accountable for reaching the same goal: breakthrough creative work. But if we think and operate in silos, we'll never get there. Focus on your contributions, yes, but also on how they fit within the bigger picture. And look for ways to push the work forward even when your part is \"done\".\" — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N",
+          "eid": "A6",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "• \"We're at our best when diverse voices and disciplines intersect. Innovation often happens when people with disparate perspectives come together as a team. Look for these intersections, and cultivate relationships that make them possible.\" — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N",
+          "eid": "A7",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "• \"Work within a senior, intentionally small team. No politics, no process tax, no committees.\" — [job posting] — company-authored — first published 2026-06-11, confirmed open 2026-08-14 · needed JS: N",
+          "eid": "C5",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "• \"Collaborate with creative directors, strategists and technologists to turn big ideas into crafted, moving solutions.\" — [job posting] — company-authored — first published 2026-07-29, confirmed open 2026-08-14 · needed JS: N",
+          "eid": "C13",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "• \"Great place to work and grow as an employee. great staff to be around, supportive bunch of workers really working for a common goal to work on work together. […]\" [truncated at source; sic — \"Crative\" as self-reported title] — [employee review rev-12] — Crative · [Site C] — 2020-10-01 · needed JS: N",
+          "eid": "B12",
+          "sec": "B",
+          "src": "noncompany"
+        }
+      ],
+      "note": "All info came from career page and one employee review however it is 6 years ago. Were there any other data sources searched?",
+      "committed_at": "2026-08-28T03:05:42.295Z",
+      "commit_position": 4,
+      "source_mix": {
+        "company": 6,
+        "noncompany": 1,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "A1",
+        "A3",
+        "A6",
+        "A7",
+        "C5",
+        "C13",
+        "B12"
+      ]
+    },
+    {
+      "dimension": "feedback",
+      "score": 0.3,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "• \"Our hybrid model came from conversations with employees about how to enable them to do their best work. Our leadership team champions the importance of a truly flexible workplace that better suits both our people and our business.\" — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N",
+          "eid": "A2",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "• \"We're all accountable for reaching the same goal: breakthrough creative work. But if we think and operate in silos, we'll never get there. Focus on your contributions, yes, but also on how they fit within the bigger picture. And look for ways to push the work forward even when your part is \"done\".\" — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N",
+          "eid": "A6",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "• \"We're at our best when diverse voices and disciplines intersect. Innovation often happens when people with disparate perspectives come together as a team. Look for these intersections, and cultivate relationships that make them possible.\" — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N",
+          "eid": "A7",
+          "sec": "A",
+          "src": "company"
+        }
+      ],
+      "note": "Most of the evidence came from career page which is not a balanced look.",
+      "committed_at": "2026-08-28T03:01:12.526Z",
+      "commit_position": 3,
+      "source_mix": {
+        "company": 3,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A2",
+        "A6",
+        "A7"
+      ]
+    },
+    {
+      "dimension": "innovation",
+      "score": 0.7,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "• \"Efficient, effective, innovative. Always trying new things. Into wellbeing and diversity, equity and inclusion. Variety of clients and projects, strong teamwork.\" — [employee review rev-05] — Director · [Site C] — 2023-08-17 · needed JS: N",
+          "eid": "B5",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "• \"prototype, validate, and iterate using AI agents to build working artifacts yourself rather than waiting on engineering for every check.\" — [job posting] — company-authored — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N",
+          "eid": "C8",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "• \"This strategic move is the latest in a series of significant investments by [the company] following its transition to an independent, privately held company in partnership with [a private equity firm]. Since its move to independence, the company has invested in new talent, product development, partnerships, and acquisitions – most recently with the acquisition of [an AI system design studio].\" — [trade press reporting] — independent, not company-authored — 2025-09-12 · needed JS: N",
+          "eid": "E2",
+          "sec": "E",
+          "src": "noncompany"
+        }
+      ],
+      "note": "The reviews are hard to rely upon because the company was sold in 2025.  SECOND REVIEW SOURCE HOLDS CURRENT REVIEWS FOR THIS COMPANY THAT ARE NOT\nQUOTED HERE. Its newest is dated 26 June 2026. Section B's collection rules\nrestrict verbatim review text to the source used below.Why?",
+      "committed_at": "2026-08-28T02:59:49.040Z",
+      "commit_position": 2,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 2,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "B5",
+        "C8",
+        "E2"
+      ]
+    },
+    {
+      "dimension": "decision",
+      "score": 0.1,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "• \"define and report on success metrics, building the dashboard that the team and the Global Leadership Team live by to track pitch-to-win lift, margin uplift, engagement extension, software revenue, and industry signal.\" — [job posting] — company-authored — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N",
+          "eid": "C9",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "• \"Now that models allow anyone to make anything in seconds, execution alone is a commodity. Our value has shifted. We are getting back to what has always been our most valuable asset: our taste and curation. At [the company], we talk about this as [a named internal framing for brand systems]. We are moving past static, siloed guidelines and toward code that carries character, memory, and behaviour. […] We aren't interested in being frozen by trepidation. We are training our teams to use these tools to amplify their intuition, not replace it.\" — [trade press feature; signed first-person contribution] — a VP, head of brand design — 2026-07-20 · needed JS: N",
+          "eid": "D3",
+          "sec": "D",
+          "src": "noncompany"
+        },
+        {
+          "text": "• \"When news of [the holding company]'s plans to sell [the company] was leaked, it wasn't just clients who were surprised; as it turns out, [the company]'s leadership had no idea and were already starting their own process of selling.\" — [long-form trade press profile] — independent, not company-authored — 2026-03-18 · needed JS: N",
+          "eid": "E3",
+          "sec": "E",
+          "src": "noncompany"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-28T02:59:01.656Z",
+      "commit_position": 1,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 2,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "C9",
+        "D3",
+        "E3"
+      ]
+    }
+  ]
+}

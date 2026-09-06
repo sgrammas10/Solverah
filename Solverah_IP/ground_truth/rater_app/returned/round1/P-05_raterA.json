@@ -1,0 +1,236 @@
+{
+  "packet_id": "P-05",
+  "rater": "A",
+  "rubric_version": "v1-frozen-2026-08-15",
+  "anchors_hash": "55c4501b25c5",
+  "session_start": "2026-08-28T03:11:02.527Z",
+  "submitted_at": "2026-08-28T12:54:15.888Z",
+  "duration_seconds": 34993,
+  "commit_order": [
+    "pace",
+    "autonomy",
+    "collaboration",
+    "feedback",
+    "innovation",
+    "decision"
+  ],
+  "recognition": "no",
+  "recognition_detail": "",
+  "searched": "no",
+  "search_detail": "",
+  "free_note": "SCAM",
+  "scores": [
+    {
+      "dimension": "autonomy",
+      "score": 0.9,
+      "confidence": 0.1,
+      "quotes": [
+        {
+          "text": "• \"I was tasked with solving this issue and I was quite happy about it. I love performance tuning tasks.\"",
+          "eid": "D8",
+          "sec": "D",
+          "src": "disputed"
+        },
+        {
+          "text": "• \"[Company team members] can work from anywhere in the world. We never place restrictions on locations.\" — [company careers page] — company-authored — retrieved 2026-08-14, page undated — needed JS: N",
+          "eid": "A1",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "• \"Work during the time of day that's best for you. [Company team members] are encouraged to work 8-hour days and no more than 40 hours/week.\" — [company careers page] — company-authored — retrieved 2026-08-14, page undated — needed JS: N",
+          "eid": "A2",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "• \"Others can trust that you'll deliver on time. You keep your word and trust your teammates to do the same. You are proactive, take ownership, and remain accountable with little or no direction.\" — [company values page, core value \"Independence\"] — company-authored — retrieved 2026-08-14, page undated — needed JS: N",
+          "eid": "A5",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "• \"Autonomy and transparency are more effective motivators than time tracking and micromanagement.\" — [company values page, \"We trust our teammates by default\"] — company-authored — retrieved 2026-08-14, page undated — needed JS: N",
+          "eid": "A8",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "• \"For freelancing roles, we usually do not supply equipment but supply a $3000 - $5000 perk to allow for equipment as well as welcome perk for equipment of an additional $600, for all fulltime opportunities.\" — [employer response] — company-authored, same response as above — review date 2025-08-08; response approximately 2025-09 — needed JS: N — source typo \"fulltime\" preserved",
+          "eid": "B2",
+          "sec": "B",
+          "src": "company"
+        }
+      ],
+      "note": "This actually feels like a scam company based upon the freelancing roles  At this point, I would not want Solverah to proceed. We need to have some sort of \"Quarantine\" for companies that appear to be scams. If I am wrong, let me know.",
+      "committed_at": "2026-08-28T12:50:34.012Z",
+      "commit_position": 2,
+      "source_mix": {
+        "company": 5,
+        "noncompany": 0,
+        "disputed": 1,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "D8",
+        "A1",
+        "A2",
+        "A5",
+        "A8",
+        "B2"
+      ]
+    },
+    {
+      "dimension": "pace",
+      "score": 0.7,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "• \"You care deeply about the quality of your work. You're continuously learning and pushing yourself to the limits of your ability. As a champion of your craft, you are also a champion of your well-being — you work intensely, then disconnect completely.\" — [company values page, core value \"Mastery\"] — company-authored — retrieved 2026-08-14, page undated — needed JS: N",
+          "eid": "A4",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "• \"Your communication is clear, concise, and engaging. You keep others in the loop and never go radio silent. You speak respectfully and foster warm relationships through your interactions.\" — [company values page, core value \"Communication\"] — company-authored — retrieved 2026-08-14, page undated — needed JS: N",
+          "eid": "A6",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "• \"People have the space and trust to disconnect to focus on deep work. No one is expected to respond to messages immediately.\" — [company values page, \"We embrace asynchronous teamwork\"] — company-authored — retrieved 2026-08-14, page undated — needed JS: N",
+          "eid": "A7",
+          "sec": "A",
+          "src": "company"
+        }
+      ],
+      "note": "The job postings contradict each other -one states - you never go radio silent, yet the next one says no one is expected to respond to messages immediately. Since all of the evidence packet is company authored, Solverah would need to dig much deeper to get more insight. This actually feels like a scam company, too good to be true however not smart enough to see the contradictions. At this point, I would not want Solverah to proceed. We need to have some sort of \"Quarantine\" for companies that appear to be scams.",
+      "committed_at": "2026-08-28T12:48:55.664Z",
+      "commit_position": 1,
+      "source_mix": {
+        "company": 3,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A4",
+        "A6",
+        "A7"
+      ]
+    },
+    {
+      "dimension": "collaboration",
+      "score": 0.1,
+      "confidence": 0.1,
+      "quotes": [
+        {
+          "text": "• \"Your communication is clear, concise, and engaging. You keep others in the loop and never go radio silent. You speak respectfully and foster warm relationships through your interactions.\" — [company values page, core value \"Communication\"] — company-authored — retrieved 2026-08-14, page undated — needed JS: N",
+          "eid": "A6",
+          "sec": "A",
+          "src": "company"
+        }
+      ],
+      "note": "This actually feels like a scam company, too good to be true however not smart enough to see the contradictions. At this point, I would not want Solverah to proceed. We need to have some sort of \"Quarantine\" for companies that appear to be scams.",
+      "committed_at": "2026-08-28T12:51:33.936Z",
+      "commit_position": 3,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A6"
+      ]
+    },
+    {
+      "dimension": "feedback",
+      "score": 0.1,
+      "confidence": 0.1,
+      "quotes": [
+        {
+          "text": "• \"The unreliability of our test suite and the growing flakiness were recurring topics of discussion in my 1:1s with my manager.\"",
+          "eid": "D2",
+          "sec": "D",
+          "src": "disputed"
+        }
+      ],
+      "note": "This actually feels like a scam company, too good to be true however not smart enough to see the contradictions. At this point, I would not want Solverah to proceed. We need to have some sort of \"Quarantine\" for companies that appear to be scams.",
+      "committed_at": "2026-08-28T12:52:04.087Z",
+      "commit_position": 4,
+      "source_mix": {
+        "company": 0,
+        "noncompany": 0,
+        "disputed": 1,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "D2"
+      ]
+    },
+    {
+      "dimension": "innovation",
+      "score": 0.5,
+      "confidence": 0.1,
+      "quotes": [
+        {
+          "text": "• \"At [the company], we love making smart bets. Sometimes, the smartest decision isn't to pick the biggest or shiniest tool out there but to build a small tool that does exactly what's needed.\"",
+          "eid": "D11",
+          "sec": "D",
+          "src": "company"
+        }
+      ],
+      "note": "This actually feels like a scam company, too good to be true however not smart enough to see the contradictions. At this point, I would not want Solverah to proceed. We need to have some sort of \"Quarantine\" for companies that appear to be scams.",
+      "committed_at": "2026-08-28T12:52:39.090Z",
+      "commit_position": 5,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "D11"
+      ]
+    },
+    {
+      "dimension": "decision",
+      "score": 0.1,
+      "confidence": 0.1,
+      "quotes": [
+        {
+          "text": "• \"Others can trust that you'll deliver on time. You keep your word and trust your teammates to do the same. You are proactive, take ownership, and remain accountable with little or no direction.\" — [company values page, core value \"Independence\"] — company-authored — retrieved 2026-08-14, page undated — needed JS: N",
+          "eid": "A5",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "• \"Autonomy and transparency are more effective motivators than time tracking and micromanagement.\" — [company values page, \"We trust our teammates by default\"] — company-authored — retrieved 2026-08-14, page undated — needed JS: N",
+          "eid": "A8",
+          "sec": "A",
+          "src": "company"
+        }
+      ],
+      "note": "This actually feels like a scam company, too good to be true however not smart enough to see the contradictions. At this point, I would not want Solverah to proceed. We need to have some sort of \"Quarantine\" for companies that appear to be scams.",
+      "committed_at": "2026-08-28T12:54:01.723Z",
+      "commit_position": 6,
+      "source_mix": {
+        "company": 2,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A5",
+        "A8"
+      ]
+    }
+  ]
+}

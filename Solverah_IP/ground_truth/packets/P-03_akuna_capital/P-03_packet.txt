@@ -1,0 +1,612 @@
+BUILD RECORD
+  prompt version : v4.6
+  model          : claude-opus-5
+  built          : 2026-08-13
+  environment    : clean session, one company, no prior packet context
+  assisted       : NO
+
+  Retrieval methods available this build: PLAIN HTTP FETCH ONLY.
+  The JavaScript-rendering browser was NOT reachable (extension not connected). The v4.4/v4.6
+  two-method requirement could therefore not be satisfied. Every "absent" finding below rests on
+  one method. See defect S-1.
+
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE DECLARATION
+"The employee reviews in this packet come from Chicago-headquarters trading, software development,
+ IT/infrastructure and intern roles, plus four reviews from the Sydney, Shanghai and wider APAC
+ offices. Other parts of this company — quantitative research, business operations, middle office,
+ compliance, finance, risk, and the London and Singapore offices — are not represented in them.
+ Company-authored sources describe the whole organisation."
+
+NOTE TO RATER (1 of 3) — EVIDENCE AGE.
+The newest employee review in Section B is dated 2026-02-22. Only 3 of the 15 reviews collected fall
+inside the 24-month window; the median review is about 40 months old and the oldest is from 2019.
+Section C (job postings) and Section A (careers pages) are current as of August 2026. Sections B and
+C therefore describe the company at different times.
+
+NOTE TO RATER (2 of 3) — SOURCE COVERAGE.
+The review source used for Section B holds 22 reviews for this employer. A second review site holds
+294 for the same employer, and its newest review is dated 2026-08-03 — 5.3 months
+newer than the newest review available here. The prompt's rules bar that second site's review bodies
+from Section 1, so this packet's review coverage is measurably thinner and older than what exists
+publicly. Read Section B as a partial slice, not as the company's full review record.
+
+NOTE TO RATER (3 of 3) — TRUNCATION.
+9 of the 15 reviews below (60%) were cut off at the source by a "Show more" control that does not
+expand on retrieval, and review permalinks did not expand them either. Cut points are marked […].
+Short reviews survive intact; long and detailed ones are visible only as opening paragraphs.
+
+
+--- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
+
+   • "Own your impact on day one"  — [company careers page, headline] — Akuna Capital (company-authored) — https://akunacapital.com/careers/ — page modified 2025-11-24, retrieved 2026-08-13 — needed JS: N
+
+   • "From the start, you'll team up with top minds in trading and technology, take on meaningful challenges, and quickly see the direct impact of your work."  — [company careers page] — Akuna Capital (company-authored) — https://akunacapital.com/careers/ — page modified 2025-11-24, retrieved 2026-08-13 — needed JS: N
+
+   • "We are driven to be the best, and teamwork is key to achieving that."  — [company culture page, "Life at Akuna"] — Akuna Capital (company-authored) — https://akunacapital.com/work-with-us/life-at-akuna/ — page modified 2025-11-26, retrieved 2026-08-13 — needed JS: N
+
+   • "We champion new ideas and empower people to turn them into impact-creating an environment where innovation and growth thrive."  — [company culture page, "Life at Akuna"] — Akuna Capital (company-authored) — https://akunacapital.com/work-with-us/life-at-akuna/ — page modified 2025-11-26, retrieved 2026-08-13 — needed JS: N — [sic: "impact-creating" appears with no space or dash before "creating"; reproduced as printed]
+
+   • "Akuna has no clients or external investors, we trade only with the company's capital. We strongly value long-term initiative and impact and offer top performers the opportunity to earn meaningful ownership in the firm."  — [company culture page, "Life at Akuna", section headed "// Grow / Ownership opportunity"] — Akuna Capital (company-authored) — https://akunacapital.com/work-with-us/life-at-akuna/ — page modified 2025-11-26, retrieved 2026-08-13 — needed JS: N
+
+   • "Through regular talks and workshops, employees can expand their skill sets in areas specific to Akuna while also exploring broader topics that spark curiosity and innovation. Sessions are led by Akuna team members, offering diverse perspectives and practical insights."  — [company culture page, "Life at Akuna", section headed "// Learn"] — Akuna Capital (company-authored) — https://akunacapital.com/work-with-us/life-at-akuna/ — page modified 2025-11-26, retrieved 2026-08-13 — needed JS: N
+
+   • "Our Traders operate in some of the world's most competitive and fast-moving markets, making real-time decisions using data-driven strategies and cutting-edge trading systems to drive results."  — [company department page, Trading] — Akuna Capital (company-authored) — https://akunacapital.com/what-we-do/trading/ — page modified 2025-11-26, retrieved 2026-08-13 — needed JS: N
+
+   • "The team values intellectual curiosity, creative problem solving, and fast iteration in a high-performance environment."  — [company department page, Quant] — Akuna Capital (company-authored) — https://akunacapital.com/what-we-do/quant/ — page modified 2025-11-24, retrieved 2026-08-13 — needed JS: N
+
+
+--- B. EMPLOYEE REVIEWS (12–15, one per line, most recent first) ---
+
+Frame: recency, company-wide, all countries, sorted newest-first. Job title is metadata, not the
+sampling unit. No review was skipped for content. See the three NOTES TO RATER above.
+
+   • "Great place to learn and hone your skills for the financial industry. Work life balance isn't ideal. Total compensation is well below the industry standard."  — [employee review] — reviewer job title: "Infrastructure Team"; location: not stated — https://www.indeed.com/cmp/Akuna-Capital/reviews/great-place-to-start-out-in-the-financial-sector?id=9aa67a0bdd8cf38f — 2026-02-22 — needed JS: N
+
+   • "Great place to learn and hone your skills for the financial industry. Work life balance isn't ideal. Total compensation is well below the industry standard."  — [employee review — SOURCE-SITE DUPLICATE of the line above: identical text and date under a different review ID; retained per rule B8. Do not read these as two independent voices.] — reviewer job title: "Infrastructure Team"; location: not stated — https://www.indeed.com/cmp/Akuna-Capital/reviews/great-place-to-start-out-in-the-financial-sector?id=68eec3ca17ab812d — 2026-02-22 — needed JS: N
+
+   • "Training program is excellent. Have liked all the people I work with and generally think everyone tries to help each other out as much as possible. Like every workplace - some people I would avoid. Nice views from office. […]"  — [employee review, truncated at source] — reviewer job title: "Trader"; location: Chicago — https://www.indeed.com/cmp/Akuna-Capital/reviews/great-place-especially-for-juniors?id=5e20fb318361b8dd — 2025-01-06 — needed JS: N
+
+   • "So many people regret joining the company and are stuck. You'd think the bad reviews were exaggerated but they're not. You spend more time brown nosing than doing actual work. Nothing you do here will be transferrable to another job. Company has a long and consistent history of shafting employees even […]"  — [employee review, truncated at source] — reviewer job title: "Trader"; location: Chicago, IL — https://www.indeed.com/cmp/Akuna-Capital/reviews/stay-away-sinking-ship-led-by-incompetent-and-arrogant-management?id=5b155fde08cb86dc — 2024-03-12 — needed JS: N
+
+   • "What is the best part of working at the company? Nice offices, free coffee and snacks What is the most stressful part about working at the company? Long hours, self interested management"  — [employee review, rendered in the source's prompted question-and-answer format] — reviewer job title: "IT Engineer"; location: Chicago, IL — https://www.indeed.com/cmp/Akuna-Capital/reviews/stressful-brown-nosing-culture?id=fc35d66a3da9d475 — 2024-02-22 — needed JS: N
+
+   • "This job was my first 9-5 situation. They employed me my junior year of high school thru my first year of college. Taught me about the world outside of the southside of chicago. Will forever be grateful. […]"  — [employee review, truncated at source] — reviewer job title: "IT Specialist"; location: Chicago, IL — https://www.indeed.com/cmp/Akuna-Capital/reviews/best-job-i-ever-had?id=f396d34d805db4ca — 2023-11-09 — needed JS: N
+
+   • "Challenging work, work life balance depends on team. The people were the best part of the work. Managers could be better. Uncertainty was a common theme. Not ideal"  — [employee review] — reviewer job title: "Software Engineer"; location: Sydney — https://www.indeed.com/cmp/Akuna-Capital/reviews/hard-work?id=75f73b962b80ac28 — 2023-07-20 — needed JS: N
+
+   • "I do not trust the leadership in this firm. There is a constant turnover of talent, a constant drive to recruit junior talent/interns/new grads with minimal or no experience, and no focus on a mentorship model, nor appreciation for what the senior talent brings to the table with their lessons learned, […]"  — [employee review, truncated at source] — reviewer job title: "Senior Developer"; location: Chicago, IL — https://www.indeed.com/cmp/Akuna-Capital/reviews/a-junior-heavy-environment-with-no-mentorship-focus?id=180540067c3da063 — 2023-04-24 — needed JS: N
+
+   • "A huge red flag is that they rescinded offers in January 2023 without any notice in advance. No lunch is offered. Great coffee Bristo and a great view of the lake though. […]"  — [employee review, truncated at source] — reviewer job title: "Software Engineering Intern"; location: Chicago, IL — https://www.indeed.com/cmp/Akuna-Capital/reviews/rescind-ng-offer?id=9f23dafbc72cbe2c — 2023-02-11 — needed JS: N — [borderline retention: describes an offer rescission rather than the interview process; see 2e]
+
+   • "It is a good company for new grad. People can lear lots of things here, but be aware of the recent major layoff. (Most from Developers and PMs side)."  — [employee review] — reviewer job title: "Junior Software Developer"; location: Chicago, IL — https://www.indeed.com/cmp/Akuna-Capital/reviews/developers-are-second-class-citizen?id=81e7d2665276879b — 2023-01-30 — needed JS: N — [sic: "lear" for "learn"; reproduced as printed]
+
+   • "Great place to work. Great work life balance. good people Good pay. Good office . Good leadership . Good people good office and nice computers ."  — [employee review] — reviewer job title: "Trader"; location: Chicago, IL — https://www.indeed.com/cmp/Akuna-Capital/reviews/great-place?id=91e32d830970fe47 — 2022-07-18 — needed JS: N — [sic: spacing before full stops reproduced as printed]
+
+   • "There is a lot of nepotism, and people quit suddenly. The company belongs to the trading industry. On average, it pays a good salary, but the company only cares about profits, not employees. Making mistakes at work can be very stressful, even if it's not your fault. IMO it's hard for you to feel happy […]"  — [employee review, truncated at source] — reviewer job title: "Software Developer"; location: APAC — https://www.indeed.com/cmp/Akuna-Capital/reviews/weird-environment-toxic-culture?id=7013fcbea40735ed — 2022-05-13 — needed JS: N
+
+   • "The structure of the firm allows for personal growth and the firm overall is very technical and dynamic. You can definitely learn a lot. Hours are also very good given that you work hard during official hours. […]"  — [employee review, truncated at source] — reviewer job title: "Quantitative Research Intern"; location: 上海市 [Shanghai] — https://www.indeed.com/cmp/Akuna-Capital/reviews/good-place-to-learn?id=dde7621c8133c86c — 2019-09-02 — needed JS: N
+
+   • "Junior Developers at Akuna have the opportunity to use cutting-edge technology while working on high performance/low latency systems. We offer a team-based approach to trading and software engineering, believing that productive integration of the two groups is vital for success in this industry. […]"  — [employee review as labelled by the source, truncated at source — CAUTION: written in the first-person plural company voice ("We offer…"), which is not how an employee describes their own employer. The source does not tag it as an employer response. Treat its provenance as uncertain; see 2e.] — reviewer job title: "Junior Software Developer"; location: Chicago, IL — https://www.indeed.com/cmp/Akuna-Capital/reviews/review?id=cceb6a068ad337e3 — 2019-06-12 — needed JS: N
+
+   • "Everyone is a number to the company and they only care about extracting profit. Despite making tons of money they do not share with anyone except a small group of people. They treat their support staff like complete dirt. Required to occasionally support oversea shifts and Sundays but don't get any […]"  — [employee review, truncated at source] — reviewer job title: not stated (posted as "Anonymous"); location: Chicago — https://www.indeed.com/cmp/Akuna-Capital/reviews/toxic-environment?id=ae14fe90b36fc80d — 2019-02-12 — needed JS: N
+
+
+--- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+
+All five postings quoted below were confirmed OPEN on 2026-08-13 by direct retrieval from the
+company's applicant-tracking-system list endpoint, which returns only live requisitions. Postings
+are identified by function label only.
+
+   • "The Project Manager will be responsible for overseeing multiple projects at once, driving timelines, motivating our teams, and achieving project execution. This person will have no problem diving in headfirst and holding employees accountable to their commitments, responsibilities, and deadlines."  — [job posting, project management function] — Akuna Capital (company-authored) — https://www.indeed.com/viewjob?jk=04a407c5f2f2cbb6 — posting live 2026-08-13 — needed JS: N
+
+   • "Ability to quickly adapt to changing business requirements, manage conflicting priorities, and respond well to a fast-paced work environment"  — [job posting, project management function] — Akuna Capital (company-authored) — https://www.indeed.com/viewjob?jk=04a407c5f2f2cbb6 — posting live 2026-08-13 — needed JS: N
+
+   • "Experience creating and refining processes rather than just following them"  — [job posting, project management function] — Akuna Capital (company-authored) — https://www.indeed.com/viewjob?jk=04a407c5f2f2cbb6 — posting live 2026-08-13 — needed JS: N
+
+   • "You will work at the intersection of trading, technology, and quantitative research. Akuna's SOFR desk combines systematic pricing infrastructure with trader judgment – you'll be expected to manage your positions decisively while actively contributing to the automation and tooling that drives the desk's edge forward. This is a role for someone who takes genuine ownership, brings intellectual curiosity to every aspect of the business, and thrives in a high-performance, collaborative environment."  — [job posting, trading function] — Akuna Capital (company-authored) — https://www.indeed.com/viewjob?jk=709efb84f068e609 — posting live 2026-08-13 — needed JS: N
+
+   • "Identify structural opportunities and flow-driven inefficiencies in the short-end rates market and act on them decisively"  — [job posting, trading function] — Akuna Capital (company-authored) — https://www.indeed.com/viewjob?jk=709efb84f068e609 — posting live 2026-08-13 — needed JS: N
+
+   • "Analyze desk data and market microstructure to continuously improve pricing, execution quality, and risk-adjusted returns"  — [job posting, trading function] — Akuna Capital (company-authored) — https://www.indeed.com/viewjob?jk=709efb84f068e609 — posting live 2026-08-13 — needed JS: N
+
+   • "Successful candidates will work closely with an industry-leading team of options Traders who participate fully in the design and ongoing enhancements to our proprietary trading platform"  — [job posting, software engineering function] — Akuna Capital (company-authored) — https://boards-api.greenhouse.io/v1/boards/akunacapital/jobs/7496397 — posting live 2026-08-13 — needed JS: N
+
+   • "Participate in design sessions and code reviews"  — [job posting, software engineering function] — Akuna Capital (company-authored) — https://boards-api.greenhouse.io/v1/boards/akunacapital/jobs/7496397 — posting live 2026-08-13 — needed JS: N
+
+   • "This role is best suited for candidates who thrive in autonomous, high-expectation environments."  — [job posting, business operations function] — Akuna Capital (company-authored) — https://boards-api.greenhouse.io/v1/boards/akunacapital/jobs/8108733 — posting live 2026-08-13 — needed JS: N
+
+   • "Demonstrated ability to work independently and take full ownership of responsibilities without the need for repeated instruction or hand-holding"  — [job posting, business operations function] — Akuna Capital (company-authored) — https://boards-api.greenhouse.io/v1/boards/akunacapital/jobs/8108733 — posting live 2026-08-13 — needed JS: N
+
+   • "Support ad hoc projects that require analytical thinking, ownership, and execution rather than task-based administrative support"  — [job posting, business operations function] — Akuna Capital (company-authored) — https://boards-api.greenhouse.io/v1/boards/akunacapital/jobs/8108733 — posting live 2026-08-13 — needed JS: N
+
+   • "This is an exciting role where you will be given the opportunity to take ownership of projects and make them your own."  — [job posting, platform/infrastructure engineering function] — Akuna Capital (company-authored) — https://boards-api.greenhouse.io/v1/boards/akunacapital/jobs/7974805 — posting live 2026-08-13 — needed JS: N
+
+   • "This role is available hybrid from our Chicago office or fully remote."  — [job posting, platform/infrastructure engineering function] — Akuna Capital (company-authored) — https://boards-api.greenhouse.io/v1/boards/akunacapital/jobs/7974805 — posting live 2026-08-13 — needed JS: N
+
+   • "Demonstrated ability to lead technical initiatives, influence architectural decisions, and mentor engineers"  — [job posting, platform/infrastructure engineering function] — Akuna Capital (company-authored) — https://boards-api.greenhouse.io/v1/boards/akunacapital/jobs/7974805 — posting live 2026-08-13 — needed JS: N
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 0 · ladder fully attempted) ---
+
+   NOT FOUND. All seven rungs were attempted and logged in 2c. No first-person narrative account of
+   how this company works was retrievable from any public, unauthenticated source.
+
+   Recorded distinctly, because these are three different findings:
+   - DOES NOT EXIST: no public handbook; no engineering, product or design blog anywhere in the
+     company's own site navigation or footer; no public code repositories (the company's own code
+     host organisation exists and affirmatively renders "AkunaCapital doesn't have any public
+     repositories yet").
+   - EXISTED BUT STALE: the only leadership-voice material located is a CEO speaking appearance
+     described on a university programme page and a 2016 university "tech talk" listing — both far
+     outside the 18-month gate and neither reproducing quotable narrative on working practice.
+   - EXISTED BUT COULD NOT BE REACHED: one company-published video ("Akuna Capital: The New Wave in
+     Tech and Trading") was identified but is a video asset with no retrievable dated transcript;
+     no quotable passage text could be taken from it.
+
+   Voice composition: 0 executive / 0 non-executive. The section is empty rather than
+   executive-skewed, so the D0 all-executive flag does not apply and the D0 extra rung was not
+   triggered.
+
+
+--- E. RECENT NEWS (yield: 0 · searches logged) ---
+
+   NOT FOUND. Six differently-phrased searches were run and are logged in 2c. No reporting from a
+   qualifying source — that is, journalism rather than a recruiting page, interview-prep site, job
+   aggregator, company database, content farm or encyclopedia entry — covering this company in the
+   last 12 months was located.
+
+   Two candidate items were identified and DELIBERATELY EXCLUDED because their only sources are
+   company-profile databases and content aggregators, which rule E bars:
+   - a venture investment by the company in another firm, dated variously February and April 2026
+     by two different database profiles;
+   - a stated annual revenue figure for 2026.
+   Neither is quoted and neither should be treated as evidence.
+
+   One dated, first-party structural signal IS available and is recorded here without inference:
+   the company's live requisition list shows a Prediction Markets desk with roles first published
+   2026-04-28 and a Singapore trading role first published 2025-01-13. Source:
+   https://boards-api.greenhouse.io/v1/boards/akunacapital/jobs — retrieved 2026-08-13.
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: N/A · public/private: PRIVATE) ---
+
+   N/A — PRIVATE. This is a proprietary trading firm that files no annual report. Confirmed from the
+   company's own culture page: "Akuna has no clients or external investors, we trade only with the
+   company's capital."
+   (https://akunacapital.com/work-with-us/life-at-akuna/, retrieved 2026-08-13)
+   No 10-K exists and no EDGAR route was applicable.
+
+
+########## SECTION 2 — RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+**2a. YIELD AUDIT**
+
+    REQUIRED TO YIELD:
+       A excerpts: 8/5 (at cap)   B reviews: 15/12   C excerpts: 14/6
+       C postings: 5/3            C outside engineering: 3/1  (project management, trading,
+                                  business operations)
+       B reviews within 24 months: 3/15
+
+    C EXEMPTION CLAIMED (company not hiring)?  NO
+       34 live requisitions returned by the ATS list endpoint on 2026-08-13.
+
+    REQUIRED TO ATTEMPT — record the yield, do not gate on it:
+       D passages: 0    ladder rungs logged: 7/7
+       D voice composition: 0 executive / 0 non-executive   (all-executive extra rung: N/A, section
+                            is empty not skewed · stale non-executive material found and rejected:
+                            NONE found at any vintage)
+       E excerpts: 0    searches logged: 6
+       F excerpts: N/A  public? NO — PRIVATE     10-K filing date: N/A
+
+**2b. EVIDENCE COVERAGE**
+
+       autonomy: COVERED   pace: COVERED       collaboration: COVERED
+       feedback: THIN      innovation: COVERED decision: COVERED
+
+    Feedback is THIN because the only feedback-bearing lines are review references to performance
+    evaluation ("Periodic evaluation of performance is arbitrary and whimsical", 2018 — outside the
+    sample) and one in-sample line about code reviews and design sessions from a job posting. No
+    current source describes review cadence or feedback delivery norms.
+
+**2c. LADDER CHECKLIST**
+
+       D1 handbook          attempted Y   URL: akunacapital.com site navigation + footer survey, plus
+                                          /work-with-us/ and all six child pages
+                                          outcome: NOT FOUND — no handbook, manual or "how we work"
+                                          documentation exists anywhere in the site's own navigation
+       D2 eng/product blog  attempted Y   URL: akunacapital.com nav + footer survey; https://akunacapital.com/news/
+                                          newest post date: N/A
+                                          outcome: NOT FOUND — /news/ returned an empty document, AND
+                                          a full navigation and footer survey (the P-04 lesson) shows
+                                          no blog, news, insights or publications section exists at
+                                          all. This is a navigation-confirmed absence, not a guessed URL.
+       D3 culture microsite attempted Y   URL: https://akunacapital.com/work-with-us/life-at-akuna/
+                                          outcome: FOUND but DOES NOT COUNT — narrative text exists,
+                                          but it is the same material already quoted in Section A.
+                                          Double-counting rule applied; continued down the ladder.
+       D4 leader interview  attempted Y   URL: quanttradingprinceton.wordpress.com/andrew-killion/ ;
+                                          college.columbia.edu/events/akuna-capital-information-session-tech-talk
+                                          date: undated programme page; 2016 event listing
+                                          outcome: STALE / NOT QUOTABLE — no leadership interview or
+                                          podcast transcript inside the 18-month gate. The Princeton
+                                          programme page describes a discussion led by the CEO but
+                                          reproduces no narrative on working practice.
+       D5 public repos      attempted Y   URL: https://github.com/akunacapital
+                                          outcome: AFFIRMATIVE ZERO — organisation confirmed as this
+                                          company (logo and account match, not a name collision) and
+                                          the page renders "AkunaCapital doesn't have any public
+                                          repositories yet". No RFCs, discussions or contribution
+                                          guidelines exist.
+       D6 press profile     attempted Y   URL: searches logged below; en.wikipedia.org/wiki/Akuna_Capital
+                                          date: n/a
+                                          outcome: NOT FOUND — no long-form press profile with direct
+                                          employee or executive quotes. The encyclopedia entry is
+                                          explicitly barred as a source.
+       D7 conference talk   attempted Y   URL: cppcon.org and CppCon 2015/2019 schedule directories;
+                                          plus two technical-talk searches
+                                          date: n/a
+                                          outcome: NOT FOUND — company employees appear in CppCon
+                                          ATTENDEE directories, not in speaker or session listings.
+                                          Attendance is not a talk. No presented technical talk located.
+                                          NOTE: this rung was added in v4.2 specifically to reach
+                                          private technical firms like this one, and it has now
+                                          returned nothing for this company on two separate builds.
+       Rungs rejected as stale (>18 months): D4 (2016 event listing; undated programme page)
+       C fallbacks tried: reviews-site job view YES (worked, full bodies)
+                          ATS param found YES (gh_jid in company careers URLs → Greenhouse, slug
+                          "akunacapital")
+                          greenhouse YES (list API returned 34 live roles; per-job endpoint returned
+                          full body text — note this contradicts the prompt's "metadata only" claim,
+                          see defect S-4)
+                          lever N/A  workday N/A  ashby N/A  (ATS positively identified, so
+                          alternatives were unnecessary rather than unattempted)
+                          aggregator YES (Indeed viewjob)
+       E news searches run: 6
+       queries used:
+         1. "Akuna Capital news 2026 layoffs leadership CEO"
+         2. "\"Akuna Capital\" 2026 prediction markets expansion trading firm announcement"
+         3. "Akuna Capital Chicago trading firm news article Crain's Bloomberg Reuters 2026"
+         4. "efinancialcareers OR risk.net OR \"Chicago Business\" Akuna Capital 2026 hiring traders story"
+         5. "\"Akuna Capital\" acquires OR invests OR \"new office\" OR restructure 2025 2026 news"
+         6. "\"Andrew Killion\" Akuna Capital interview"
+
+**2d. SOURCE ACCESS LOG**
+
+  FIRST-PARTY (all plain fetch, all rendered fully; needed JS: N)
+   akunacapital.com/ — OK
+   akunacapital.com/careers/ — OK for page chrome and copy; the job list itself renders only
+     "Loading open roles…" (JS-gated). Routed around via the ATS rather than the renderer.
+   akunacapital.com/who-we-are/ — OK
+   akunacapital.com/work-with-us/ — OK
+   akunacapital.com/work-with-us/life-at-akuna/ — OK
+   akunacapital.com/work-with-us/experienced/ — OK
+   akunacapital.com/work-with-us/early-careers/ — OK
+   akunacapital.com/work-with-us/internships/ — OK
+   akunacapital.com/what-we-do/technology/ — OK
+   akunacapital.com/what-we-do/trading/ — OK
+   akunacapital.com/what-we-do/quant/ — OK
+   akunacapital.com/what-we-do/operations/ — OK
+   akunacapital.com/news/ — EMPTY DOCUMENT (guessed URL; absence confirmed separately by nav survey)
+   akunacapital.com/options-market-making — EMPTY DOCUMENT (linked from the site's own footer;
+     recorded as unreachable, NOT as absent — see defect S-2)
+
+  REVIEW SITES (plain fetch; renderer unavailable)
+   indeed.com/cmp/Akuna-Capital/reviews?sort=date — OK, 18 reviews (US filter)
+   indeed.com/cmp/Akuna-Capital/reviews?fcountry=ALL&sort=date — OK, 20 of 22 reviews on page 1
+   indeed.com/cmp/Akuna-Capital/reviews?fcountry=ALL&sort=date&start=20 — EMPTY DOCUMENT
+   indeed.com/cmp/Akuna-Capital/reviews?fcountry=ALL&start=20 — EMPTY DOCUMENT
+     → page 2 (the 2 OLDEST reviews) unreachable by either pagination form. Under a recency frame
+       these 2 fall outside the sample anyway, so the sample is unaffected. Recorded, not repaired.
+   indeed.com/cmp/Akuna-Capital/job-titles — OK, full title index with counts
+   indeed.com/cmp/Akuna-Capital/reviews/stay-away-…?id=5b155fde08cb86dc — OK but STILL TRUNCATED
+   indeed.com/cmp/Akuna-Capital/reviews/a-junior-heavy-…?id=180540067c3da063 — OK but STILL TRUNCATED
+     → review permalinks do NOT expand "Show more". Truncation is unrecoverable by plain fetch.
+   indeed.com/cmp/Akuna-Technologies/reviews — OK — DIFFERENT COMPANY, see 2e
+   indeed.com/cmp/Akuna-Capital-Llc/reviews — 301 redirect to the single Akuna-Capital entity
+   glassdoor.com/Reviews/Akuna-Capital-Reviews-E784396.htm — WRONG EMPLOYER ID (guessed). Redirected
+     silently to an unrelated aerospace organisation and returned a complete, plausible page for it.
+     Caught only by reading the page title. Employer ID then resolved by search. See defect S-3.
+   glassdoor.com/Reviews/AKUNA-CAPITAL-Reviews-E608116.htm?sort.sortType=RD&sort.ascending=false —
+     OK, correct employer, 3 newest reviews rendered, 294 total. Used for the recency cross-check
+     ONLY; no review body from this site appears in Section 1.
+
+  JOB SOURCES
+   boards-api.greenhouse.io/v1/boards/akunacapital/jobs — OK, 34 live roles, JSON
+   boards-api.greenhouse.io/v1/boards/akunacapital/jobs/7496397 — OK, full body
+   boards-api.greenhouse.io/v1/boards/akunacapital/jobs/8108733 — OK, full body
+   boards-api.greenhouse.io/v1/boards/akunacapital/jobs/7974805 — OK, full body
+   indeed.com/viewjob?jk=04a407c5f2f2cbb6 — OK, full body
+   indeed.com/viewjob?jk=709efb84f068e609 — OK, full body
+
+  OTHER
+   github.com/akunacapital — OK, affirmative zero repositories
+   JavaScript renderer — NOT CONNECTED for the entire build. Zero pages retrieved by this method.
+
+**2e. FIDELITY NOTE**
+
+  [PARAPHRASE] markers used: NONE. Every excerpt in Section 1 is verbatim.
+
+  PRESERVED SOURCE TYPOS (all are unique-string identifiers; flagged again in Section 4):
+   - "impact-creating" with no space or dash (careers/culture page, Section A)
+   - "lear" for "learn" (2023-01-30 review)
+   - " ." spacing before full stops (2022-07-18 review)
+   - "Rescind ng offer" in a review title (not quoted into Section 1, but present at the cited URL)
+
+  ENTITY CHECK RESULT — run BEFORE any review was collected.
+   Variants tested on the primary review site: "Akuna Capital", "AKUNA CAPITAL", "Akuna Capital LLC",
+   "Akuna Technologies", "Akuna Technologies LLC".
+   - ONE entity holds this employer's reviews: /cmp/Akuna-Capital. It carries a "Why Join Us" tab and
+     employer-provided salary data on its job cards, i.e. it is a CLAIMED profile. The second review
+     site labels the same employer "Engaged Employer".
+   - "Akuna-Capital-Llc" is an alias that 301-redirects to the same entity. Not a second entity.
+   - "Akuna Technologies" IS A DIFFERENT COMPANY — a 2-review, 5.0-rated web-development firm in
+     Mysore and Bangalore, India, whose reviewers name Shopify, BigCommerce, OpenCart, WordPress and
+     PrestaShop. This is a genuine name collision that matters, because the trading firm's own site
+     footer reads "© 2011-2026 Akuna Technologies LLC". A researcher who trusted the legal-entity
+     name would have merged two unrelated employers. NOT merged; excluded.
+   - Second review site: one entity, employer ID E608116, 294 reviews.
+
+  IMPLAUSIBLE REVIEW COUNT — STATED EXPLICITLY AS REQUIRED BY B0.
+   The primary source holds 22 reviews for an employer with 34 currently open requisitions across
+   five offices on three continents. The secondary source holds 294 for the same employer. A 13-fold
+   gap between two sites owned by the same parent company is not a sampling artefact of company size.
+   The primary source's coverage of this employer is thin, and Section B inherits that thinness.
+
+  PROVENANCE FLAG (2019-06-12 review). The review titled "Review" is written in first-person plural
+   company voice — "We offer a team-based approach to trading and software engineering, believing
+   that productive integration of the two groups is vital…" — under the job title "Junior Software
+   Developer". The site does not tag it as an employer response, so under v4.6 rule B2b it is not
+   formally excludable. It is retained, labelled in Section 1 with a caution, and counted toward the
+   B minimum. This is a defensible-choice-recorded decision, not a resolved one; see defect S-5.
+
+  BORDERLINE RETENTION (2023-02-11 review). "Rescind ng offer" describes an offer being rescinded
+   before employment began, plus office amenities. Rule B5 excludes interview write-ups — text about
+   questions asked and the hiring process. This is neither clearly that nor clearly an account of
+   working there. RETAINED, on the reasoning that an offer rescission is a fact about the employment
+   relationship rather than about an interview. Recorded rather than resolved; see defect C-2.
+
+  POSTING OPEN/CLOSED STATUS: all five quoted postings CONFIRMED OPEN via the ATS list endpoint,
+   which returns only live requisitions. No posting was quoted on the strength of a listing-page
+   recency label. Zero unconfirmed.
+
+  EVALUATIVE METRICS: recorded in 2f as source metadata only. NONE appears in Section 1. Rule 8 held.
+
+**2f. VINTAGE BLOCK**
+
+       Review entities found: 2 relevant + 1 name collision
+          (1) indeed.com/cmp/Akuna-Capital — count 22 ("22 Reviews", nav tab element) — rating 3.1
+              ("3.1 out of 5 stars", header element) — CLAIMED
+          (2) glassdoor.com/…-E608116 — count 294 ("294 total reviews", review-header element) —
+              rating 4.0 ("4.0", review-header element) — CLAIMED ("Engaged Employer")
+          (X) indeed.com/cmp/Akuna-Technologies — 2 reviews — UNRELATED COMPANY, excluded
+
+       Review counts BY SITE, each with the ELEMENT it came from:
+          Site 1: "22 Reviews" — navigation tab
+                  "Based on 22 reviews" — overall-rating block
+                  "Working at AKUNA CAPITAL: 22 Reviews" — H1, on the all-countries view
+                  "Working at AKUNA CAPITAL: 18 Reviews" — H1, on the US-filtered view
+                  "## 18 reviews" — list heading, US-filtered view
+                  "all AKUNA CAPITAL reviews worldwide (22 reviews)" — footer link
+          Site 2: "294 total reviews" — review-header element
+                  "294 AKUNA CAPITAL reviews" — page meta description
+                  "Viewing 1 - 3 of 294 Reviews" — pagination element
+                  293 — returned by a search index for the same page on the same day
+
+       Conflicting counts observed on a single page: YES — the US-filtered view of site 1 displays
+          "22 Reviews" in its nav tab and "Based on 22 reviews" in its rating block while its H1 and
+          list heading both read 18, and 18 reviews render. The 22/18 split is the country filter
+          (4 reviews from Sydney, APAC and Shanghai), but the page does not say so anywhere, and the
+          rating block is computed on 22 while the list shows 18. D4 confirmed on this company.
+
+       Headline ratings BY SITE:
+          Site 1: overall 3.1 · work-life balance 3.1 · pay and benefits 3.5 · job security and
+                  advancement 2.7 · management 2.8 · culture 3.2
+          Site 2: overall 4.0 · work/life balance 4.2 · compensation and benefits 4.2 · career
+                  opportunities 4.2 · culture and values 4.1 · diversity and inclusion 4.0 ·
+                  senior management 3.9
+          DIVERGENCE RECORDED, NOT RECONCILED: 3.1 vs 4.0 overall, and 3.1 vs 4.2 on work-life
+          balance — a 1.1-point gap on the same employer on the same day, at n=22 and n=294.
+
+       Job titles sampled: not applicable — the frame is recency, not title. Titles as recorded per
+          review: Infrastructure Team ×2, Trader ×3, IT Engineer, IT Specialist, Software Engineer,
+          Senior Developer, Software Engineering Intern, Junior Software Developer ×2, Software
+          Developer, Quantitative Research Intern, not stated ×1.
+
+       Title index (collected for population understanding, NOT used as a frame), each count with the
+          element it came from — all from the "N reviews" label beside each title on
+          indeed.com/cmp/Akuna-Capital/job-titles:
+          Sales category:               Junior Trader 3 · Trader 3 · Head of Sales 1
+          Software Development category: Junior Software Engineer 2 · Software Engineer 1 ·
+                                         Senior Developer 1 · IT Engineer 1 · Software Engineer
+                                         Intern 1 · Quantitative Developer 1
+          IT Operations & Helpdesk:      IT Technician 1
+          INDEX TOTAL: 15 — against 22 reviews on the same site. The index omits 7 reviews.
+          D21 CONFIRMED AND EXTENDED: the index also omits "Infrastructure Team", which the reviews
+          page lists in its own "popular job titles" block AND which carries the two most recent
+          reviews on the site. The index is not authoritative.
+          CATEGORY-LABEL WARNING (D11 shape): "IT Engineer" is filed under "Software Development";
+          the categories are the site's, not the company's.
+
+       Per-title subratings: NOT COLLECTED — removed in v4.5, see section B.
+
+       Achievability gate run on every percentage recorded anywhere in the packet: YES
+       Percentages struck for failing the gate: NONE.
+          Only two percentages were encountered anywhere: "77% would recommend to a friend" and
+          "73% positive business outlook", both at n=294 on site 2, where the step is 0.34 points and
+          both values are reachable as rounded figures. Both PASS. Both are EVALUATIVE and are
+          therefore confined to this block under rule 8 regardless.
+          NOTE: this build encountered almost no percentages at all, because the source class that
+          generated the P-03/P-04/P-05 failures (per-title rating blocks) is no longer collected.
+
+       Titles present but NOT sampled, with counts: none excluded by choice. Every review reachable
+          under the recency frame was taken until the target of 15 was met. Reviews 16–20 on page 1
+          (dated 2019-01-15 back to 2016-09-12) were not needed; reviews 21–22 were unreachable.
+
+       Interview write-ups excluded from review lists: 0 excluded. One borderline case retained and
+          documented in 2e.
+
+       Newest review date BY SITE:
+          Site 1 (used for text): 2026-02-22
+          Site 2 (cross-check):   2026-08-03
+          ** DIVERGENCE PRESENT — 5.3 months. This is the P-03/P-04 failure signature and the
+             cross-check is what caught it. Site 1's coverage of this employer is thin. Flagged to
+             the rater in NOTE TO RATER 2. **
+
+       Oldest review used: 2019-02-12
+       Median age of reviews used: ~39.6 months
+       Reviews truncated at source: 9/15 = 60%  ** exceeds 33% — NOTE TO RATER 3 issued **
+          Permalinks were tested as an expansion route and do not expand. Renderer unavailable.
+       Source-site duplicates retained: 1 (the 2026-02-22 pair; labelled in Section 1)
+
+       Newest careers-page modification date: 2025-11-26 (declared in page metadata on the culture
+          and trading pages; the careers landing page declares 2025-11-24)
+
+       Structural events found and their dates:
+          - Offer rescissions, January 2023 — dated from an employee review, not from reporting
+          - A layoff described as recent and concentrated in developers and project managers,
+            reported in a review dated 2023-01-30 — not corroborated by any qualifying news source
+          - Prediction Markets desk build-out — roles first published 2026-04-28 (ATS metadata)
+          - Singapore trading role first published 2025-01-13 (ATS metadata); Singapore appears in
+            the current office list on the company's own site
+          - An APAC workforce reduction circa mid-2023 appeared in search summaries only. NOT
+            verified from an opened qualifying source and therefore NOT recorded as a finding.
+
+       Does any structural event postdate the newest review?  YES
+          The Prediction Markets build-out (2026-04-28) postdates the newest review used
+          (2026-02-22) by about two months. All other verified events predate the review sample.
+          The margin is small; the rater should weigh it as such rather than as a regime change.
+
+**2g. SCOPE BLOCK**
+
+       A careers / values     population: company-wide, all four departments and all five offices
+       B employee reviews     population: Chicago HQ trading, software development and IT/
+                              infrastructure staff and interns (11 of 15), plus Sydney, Shanghai and
+                              unspecified APAC (3 of 15), plus one untitled reviewer (1 of 15)
+       C job postings         population: the five functions posted for and quoted — project
+                              management, trading, software engineering, business operations/middle
+                              office, platform and infrastructure engineering. The full live
+                              requisition list is more heavily weighted to quantitative research,
+                              trading and engineering internships than these five suggest.
+       D first-person         population: N/A — section empty
+       E news                 population: N/A — section empty
+       F human capital        population: N/A — private company
+
+       Working environments known to exist in this company but ABSENT from the review population:
+          Quantitative research and quant development (a whole department by the company's own
+          four-department structure, with 11 open requisitions, and zero reviews under any quant
+          title in the sample apart from a 2019 intern); business operations and middle office;
+          compliance; finance; risk; the London office (opened per third-party profiles in 2022) and
+          the Singapore office — neither appears anywhere in the review population; facilities.
+
+       Untitled reviews: 1 of 15 (posted as "Anonymous", 2019-02-12). Collected per B2a. It cannot
+          be assigned to a function and is excluded from the function mix above.
+
+       Does the company-authored evidence (A) describe a wider population than the experiential
+       evidence (B)?  YES — decisively. Section A speaks for four departments and five offices.
+       Section B is three functions in one office plus four scattered APAC reviews, and its median
+       entry is over three years old. Any scoring rule that requires non-company-authored support
+       will find that support unevenly available across dimensions and populations.
+
+       One-line scope declaration: reproduced at the head of Section 1.
+
+
+########## SECTION 3 — ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+
+- Approx. headcount: NO COMPANY-SOURCED FIGURE AVAILABLE. The company publishes no headcount on its
+  own site. Third-party profiles retrieved during searching give figures ranging from "over 200
+  employees" (an older undated profile) to "around 400-500" (a 2026 aggregator profile). CONFIDENCE:
+  LOW. These are third-party estimates, not company-sourced, they disagree with one another by a
+  factor of two, and they were seen in search summaries rather than opened pages. Do not use either
+  as a stage_index input without independent verification.
+  A better-grounded lower bound from an opened first-party source: five offices (Chicago HQ, Sydney,
+  Shanghai, Singapore, London) and 34 simultaneously open requisitions on 2026-08-13.
+
+- Stage/size cues: PRIVATE. Proprietary trading firm, no external capital. Company-sourced and
+  unambiguous: "Akuna has no clients or external investors, we trade only with the company's
+  capital." Founded conceptually in Sydney; first office Chicago 2011 (company-sourced). Legal
+  entity in the site footer: Akuna Technologies LLC. Employee equity exists as a stated programme —
+  "offer top performers the opportunity to earn meaningful ownership in the firm" — so ownership is
+  partner/employee-held rather than institutionally backed. No funding rounds, no investors, no
+  revenue disclosed by the company itself.
+
+- Pay-posture EVIDENCE vs. talent-market peers — no band assigned:
+  Company-authored disclosed minimums (Illinois Equal Pay Act statements on live postings, all
+  described as base salary with a discretionary performance bonus on top): $145,000 for experienced
+  software engineering, experienced trading and platform engineering; $120,000 for project
+  management; $75,000 for the operations analyst role; $36,000 for a part-time facilities role.
+  Counter-evidence from employees, twice, five years apart and from different functions: the most
+  recent review in the packet says "Total compensation is well below the industry standard"
+  (2026-02-22), and a 2026-06-24 review on the cross-check site says "low transparency, poor
+  benefits and base pay compared to similar firms". An older review says "On average, it pays a good
+  salary" (2022-05-13) and another "Good pay" (2022-07-18).
+  CORRECT REFERENCE CLASS: Chicago-headquartered proprietary options market-making and quantitative
+  trading firms — NOT general software employers and NOT general financial services. Against that
+  class the disclosed base minimums are the relevant comparison only in combination with the
+  undisclosed discretionary bonus, which is where compensation in this class actually sits. The
+  company-authored figures and the employee statements are not necessarily in conflict, because they
+  may be describing base and total compensation respectively. Recorded, not reconciled.
+
+- Industry: FINANCE (with a substantial in-house technology organisation). Justification: the company
+  describes itself as "a proprietary trading firm specializing in options market making", and the
+  cross-check review site classifies it under Financial Services; its four departments are Trading,
+  Technology, Quant and Operations, so technology is a large internal function rather than the
+  product.
+
+
+########## SECTION 4 — ANONYMIZATION PRE-FLAGS ##########
+
+COMPANY NAME OCCURRENCES in Section 1: "Akuna" or "Akuna Capital" appears in A1–A8 (headings and
+  body), in the B review dated 2019-06-12 ("Junior Developers at Akuna have the opportunity…"), and
+  in C excerpts from the trading, software engineering and platform postings ("Akuna's SOFR desk…",
+  "…our proprietary trading platform"). Also in the scope declaration and all three NOTES TO RATER
+  by implication of the URLs.
+
+URLS: every citation URL contains the company slug — akunacapital.com, /cmp/Akuna-Capital/,
+  boards-api.greenhouse.io/v1/boards/akunacapital/. The URL field is a complete re-identifier on its
+  own and must be tokenised, not merely have the visible name stripped.
+
+NAMED INTERNAL PROGRAMMES AND TOOLS (high-fingerprint, and in this packet also dimension-bearing —
+  apply rewrite-the-proper-noun-keep-the-clause, not deletion):
+  - "Akuna U" (internal knowledge-sharing programme) → "a named internal knowledge-sharing programme"
+  - "Trading 101: Trading for Non-Traders" (eight-week lecture series) → "a multi-week internal
+    lecture series introducing non-traders to the firm's market"
+  - "Akuna Clubs" → "named internal interest clubs"
+  - "Akunacademy" (internship programme) → "a named internship programme"
+  - "Sneak Peek Weeks" → "named one-week introductory programmes"
+  - "Options 101" course → "a free public introductory course on the firm's market"
+  Third-party tool names in postings (Jira, Confluence, Terraform, Ansible, Jenkins, GitLab,
+  Kubernetes, EKS, Spark, Kafka) are generic and NOT identifying; retain.
+
+PRODUCT / MARKET NAMES: "SOFR", "SR3, S0, S2", "CME", "options market making", "SPX" — the specific
+  contract codes narrow the firm to a small set of Chicago desks and should be generalised to
+  "a short-term interest rate options complex".
+
+EXECUTIVE AND AUTHOR NAMES: none appear in Section 1. "Andrew Killion" appears in 2c and Section 3
+  context only — confirm it is stripped if any QA text is carried forward.
+
+OFFICE LOCATIONS: Chicago, Sydney, Shanghai, Singapore, London, and the street address in Section 3.
+  The five-city combination is itself a fingerprint even without the company name.
+REVIEW LOCATIONS — DO NOT DELETE, TOKENISE:
+  Chicago / Chicago, IL → [Site A]   Sydney → [Site B]   上海市 (Shanghai) → [Site C]
+  APAC → [Region D]                  not stated → leave as not stated
+  The dispersion signal depends on the Site A / Site B / Site C distinction surviving.
+
+VERBATIM SELF-DESCRIPTIONS (searchable even after the name is removed — flag separately):
+  - "Own your impact on day one"
+  - "Akuna has no clients or external investors, we trade only with the company's capital."
+  - "Trading at Akuna means making hundreds of decisions a day"
+  - "A Culture Built on Collaboration"
+  - the phrase "flowing water" and the Aboriginal-word etymology on the who-we-are page (not quoted
+    into Section 1, but note it as an instant identifier if any Section 3 text is carried forward)
+
+PRESERVED SOURCE TYPOS — UNIQUE-STRING IDENTIFIERS, FLAGGED:
+  - "impact-creating" (no space/dash) — Section A
+  - "lear" for "learn" — B, 2023-01-30
+  - " ." spacing before full stops — B, 2022-07-18
+  Each of these is exact-match searchable and will re-identify the source page immediately.
+
+PAY BANDS: stripped from all Section C excerpts as required. The disclosed minimums appear ONLY in
+  Section 3 and must not migrate into Section 1.

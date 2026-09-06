@@ -1,0 +1,231 @@
+PACKET P-04   ·   ANONYMIZED   ·   RATER-FACING
+  scrubbed from : P-04_packet.txt (build v4.6, model claude-opus-5, built 2026-08-14)
+  ruleset       : ANONYMIZATION_RULES_DRAFT.md
+  scrubbed      : 2026-08-14
+  status        : DRAFT. Source packet is a one-method build.
+
+  DO NOT SEARCH FOR ANY PHRASE IN THIS PACKET. If you recognise the company, that is
+  expected and is not a failure — record it on the recognition flag and keep scoring
+  from the evidence in front of you, not from what you know.
+
+
+########## SECTION 1 — EVIDENCE PACKET ##########
+
+SCOPE DECLARATION
+"The employee reviews in this packet come from a small, unclaimed review profile
+ holding 34 reviews for a global agency network — mostly creative, production and
+ account roles at the largest office, plus single reviews from three other cities.
+ Other parts of this company — engineering and technology, product, media,
+ data/analytics, and its seven other international offices — are not represented in
+ them. Company-authored sources describe the whole organisation."
+
+
+--- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
+
+   • "We want you to bring your whole self to work, and believe we're at our best when we can tap into our differences and collaborate across varied personal experiences and perspectives to arrive at impactful ideas."  — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N
+
+   • "Our hybrid model came from conversations with employees about how to enable them to do their best work. Our leadership team champions the importance of a truly flexible workplace that better suits both our people and our business."  — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N
+
+   • "At [the company], our people drive our culture, and we place high value on what they have to say. We foster trusting relationships through listening sessions that encourage creativity and lead to better solutions, both in our work and how we work together."  — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N
+
+   • "[The company] is constantly changing, contantly envolving. This is both a necessity of your business and an ongoing opportunity for you to bring your imagination and talent to the work. Get ready to iterate and rethink often. And don't be afraid of little chaos."  [sic — "contantly envolving"; "a necessity of your business"; "a little chaos" written as "little chaos" — source typos preserved]  — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N
+
+   • "More than an a collection of offices, [the company] is a network of people who can make your work better and help you grow professionally. Go ahead, reach outside your department, your city, even your country, to find help and share ideas."  [sic — "More than an a collection"]  — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N
+
+   • "We're all accountable for reaching the same goal: breakthrough creative work. But if we think and operate in silos, we'll never get there. Focus on your contributions, yes, but also on how they fit within the bigger picture. And look for ways to push the work forward even when your part is "done"."  — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N
+
+   • "We're at our best when diverse voices and disciplines intersect. Innovation often happens when people with disparate perspectives come together as a team. Look for these intersections, and cultivate relationships that make them possible."  — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N
+
+   • "The best ideas, and ways of working are simple. Complexity is the enemy, whether it is a dense slide or a call with 40 people. Look at the work, and the process, with an eye toward less: shorter copy, smaller decks, fewer meetings."  — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N
+
+   A yield: 8/8 (at cap).
+
+
+--- B. EMPLOYEE REVIEWS (12–15, one per line, most recent first) ---
+
+NOTE TO RATER — THREE THINGS YOU CANNOT SEE FROM THE EXCERPTS BELOW.
+
+1. AGE. The newest employee review in this section is dated 4 July 2024 —
+   twenty-five months before this packet was built. ZERO of the fifteen reviews
+   fall inside the 24-month window. The median review is roughly 42 months old
+   and the oldest is roughly 84 months old.
+
+2. A STRUCTURAL EVENT POSTDATES EVERY REVIEW. The company changed ownership in
+   early 2025 — sold by its holding-company parent of 23 years to a private
+   equity firm in a partial management buyout — and has since acquired a company,
+   appointed its first global chief brand officer, and restructured leadership on
+   a major account. All of that is AFTER the newest review below. The reviews and
+   the news section of this packet describe two different organisations.
+
+3. TRUNCATION. Nine of the fifteen reviews (60%) were cut off at source by a
+   "Show more" control that does not expand on fetch, and could not be expanded
+   from the review's own permalink either. The reviews that survived intact are
+   systematically the SHORT ones. You are reading the opening paragraph of every
+   long, detailed review and the whole of every brief one.
+
+A SECOND REVIEW SOURCE HOLDS CURRENT REVIEWS FOR THIS COMPANY THAT ARE NOT
+QUOTED HERE. Its newest is dated 26 June 2026. Section B's collection rules
+restrict verbatim review text to the source used below.
+
+   • "[La empresa] ya no es lo que era. Falta muchísimo liderazgo. - Hay poco sentido de propósito y dirección. - Cada vez hay menos clientes y no parece que eso vaya a cambiar. - No se siente que las promotions sean meritocráticas."  [review posted in Spanish; reproduced verbatim, untranslated]  — [employee review rev-01] — Director · [Site A] — 2024-07-04 · needed JS: N
+
+   • "Awesome work life balance. Great benefits. Excellent management and support staff. Opportunity for growth. Lots of flexibility as well as remote options."  — [employee review rev-02] — Paralegal · [Site B] — 2024-02-21 · needed JS: N
+
+   • "I worked on [a major global client] back in 2011, it was fun work but the team culture wasn't great. There were to many cooks in the kitchen and often the work hours were very long."  [sic — "to many cooks"]  — [employee review rev-03] — Design Director · [Site C] — 2023-11-14 · needed JS: N
+
+   • "They talk humanity and inclusion but it's actually very corporate. The schedule and staffing is dictated by aggressive margins. They swap creative teams around like they're cells in an excel sheet, with no regard to who would be best for what project, or who is already invested in something. […]"  [truncated at source]  — [employee review rev-04] — Art Director · [Site C] — 2023-09-29 · needed JS: N
+
+   • "Efficient, effective, innovative. Always trying new things. Into wellbeing and diversity, equity and inclusion. Variety of clients and projects, strong teamwork."  — [employee review rev-05] — Director · [Site C] — 2023-08-17 · needed JS: N
+
+   • "I worked as a UI designer here for six months and I enjoyed the experience. The agency has a diverse portfolio of clients and projects, ranging from web design to mobile apps to social media campaigns. The team is creative, collaborative and supportive, and I learned a lot from my colleagues and mentors. […]"  [truncated at source]  — [employee review rev-06] — Designer · [Site D] — 2023-04-01 · needed JS: N
+
+   • "Good. Staffs were nice. Work life balance is a bit off. Great environment. Seems to have room to grow. Everyone seems nice and productive. Management seems good […]"  [truncated at source]  — [employee review rev-07] — Internship · location field unusable [the source-site location field contains the literal string "Good"]  — 2023-03-26 · needed JS: N
+
+   • "Overall the best of [the company] is the great people you get to work with, excellent culture and fun projects. Although the career development can feel a bit slow."  — [employee review rev-08] — Software Engineer · [Region E] — 2023-02-17 · needed JS: N
+
+   • "It was over 3 years ago and I was trying to get out of the mailroom. I did gain a lot of attention but had a new manager who made it seem like I was messing up at work (found out he was in on having me fired all along). The job itself is great, but very toxic people there. I do not know how it is now […]"  [truncated at source]  — [employee review rev-09] — Mailroom Services Coordinator · [Site C] — 2022-03-21 · needed JS: N
+
+   • "Company produces amazing work. Always on the cutting edge. Office looks great but difficult to focus in the full open floor plan environment. Toxic environment. […]"  [truncated at source]  — [employee review rev-10] — title: not stated ("Anonymous") · [Site C] — 2021-05-25 · needed JS: N
+
+   • "I learned a lot during my time at [the company] but ultimately felt the company promoted a really unhealthy work life balance. I constantly found myself performing above my pay grade without feeling recognized or appreciated. […]"  [truncated at source]  — [employee review rev-11] — Associate Producer · [Site C] — 2021-02-09 · needed JS: N
+
+   • "Great place to work and grow as an employee. great staff to be around, supportive bunch of workers really working for a common goal to work on work together. […]"  [truncated at source; sic — "Crative" as self-reported title]  — [employee review rev-12] — Crative · [Site C] — 2020-10-01 · needed JS: N
+
+   • "Overall a fantastic place to succeed in your career. Unfortunately, the [Site F] branch is no longer active. The best and most talented people you will ever meet, along with fantastic clients. […]"  [truncated at source]  — [employee review rev-13] — Art Director · [Site F] — 2020-05-07 · needed JS: N
+
+   • "It's a true boys club - I was shocked because of the forward-thinking work they create and the breakthrough thinking overall. They do prioritize diversity and there are some strong, excellent leaders who understand what modernity is. But there are also many people - leaders and partners - stuck in their […]"  [truncated at source]  — [employee review rev-14] — Talent Team · [Site C] — 2019-09-07 · needed JS: N
+
+   • "Working with incredibly smart people in a fascinating office...great combination. My least favorite part? The group structure for accounts. Creates silos."  — [employee review rev-15] — GAD · [Site C] — 2019-08-05 · needed JS: N
+
+   B yield: 15/12 minimum. 0/15 within 24 months.
+   Employer responses found in the review stream: NONE. Interview write-ups excluded: NONE found.
+
+
+--- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+
+Four currently-open postings, four different functions. Every posting was opened
+individually on 2026-08-14 and each was confirmed live by appearing in the
+employer's applicant-tracking-system list API on the same date. Location strings
+and stated hiring ranges have been stripped as instructed.
+
+POSTING 1 — function: technology / engineering leadership
+
+   • "We build with agents: a substantial share of our code is agent-generated, and every team member is an expert at directing agents to produce production-quality work. We are engineering-led, small by design, and just getting started."  — [job posting] — company-authored — first published 2026-06-11, confirmed open 2026-08-14 · needed JS: N
+
+   • "You will write production code daily across the stack, directing agents fluently and writing by hand where it matters most."  — [job posting] — company-authored — first published 2026-06-11, confirmed open 2026-08-14 · needed JS: N
+
+   • "Ensure every product ships as a working demo, a marketing deck, and a reusable codebase. Hold the line against one-off custom work."  — [job posting] — company-authored — first published 2026-06-11, confirmed open 2026-08-14 · needed JS: N
+
+   • "A strong bias for shipping. A tight v0 in two weeks beats a perfect roadmap in two months."  — [job posting] — company-authored — first published 2026-06-11, confirmed open 2026-08-14 · needed JS: N
+
+   • "Work within a senior, intentionally small team. No politics, no process tax, no committees."  — [job posting] — company-authored — first published 2026-06-11, confirmed open 2026-08-14 · needed JS: N
+
+POSTING 2 — function: product management
+
+   • "own the rhythm by which bets move from concept to shippable product, defining the demo, the deck, and the codebase scope for each."  — [job posting] — company-authored — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N
+
+   • "run customer discovery with [company] Client Leads, prospects, and pitch teams to validate assumptions early and kill bets that do not hold up."  — [job posting] — company-authored — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N
+
+   • "prototype, validate, and iterate using AI agents to build working artifacts yourself rather than waiting on engineering for every check."  — [job posting] — company-authored — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N
+
+   • "define and report on success metrics, building the dashboard that the team and the Global Leadership Team live by to track pitch-to-win lift, margin uplift, engagement extension, software revenue, and industry signal."  — [job posting] — company-authored — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N
+
+   • "is a high-agency operator who fills in gaps without requiring a formalized process and brings rigor without bureaucracy."  — [job posting] — company-authored — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N
+
+POSTING 3 — function: design / motion direction
+
+   • "Nobody's handing you a brief and walking away. We want someone who spots what's next before we ask for it, who's energised by change rather than waiting for permission to make it."  — [job posting] — company-authored — first published 2026-07-29, confirmed open 2026-08-14 · needed JS: N
+
+   • "Comfort with ambiguity and change. You act on instinct and initiative, not instruction."  — [job posting] — company-authored — first published 2026-07-29, confirmed open 2026-08-14 · needed JS: N
+
+   • "Collaborate with creative directors, strategists and technologists to turn big ideas into crafted, moving solutions."  — [job posting] — company-authored — first published 2026-07-29, confirmed open 2026-08-14 · needed JS: N
+
+POSTING 4 — function: post-production / editorial
+
+   • "Collaborative spirit and honesty—you speak up when something isn't working"  — [job posting] — company-authored — first published 2026-07-13, confirmed open 2026-08-14 · needed JS: N
+
+   • "Deliver polished work on deadline without compromising craft"  — [job posting] — company-authored — first published 2026-07-13, confirmed open 2026-08-14 · needed JS: N
+
+   • "Editors who care equally about the quality of the frame and the speed of delivery"  — [job posting] — company-authored — first published 2026-07-13, confirmed open 2026-08-14 · needed JS: N
+
+   C yield: 16 excerpts / 4 postings / 4 functions. 3 of 4 postings outside engineering.
+   C exemption claimed: NO. Eleven roles were open on the employer's ATS on 2026-08-14.
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 3 · ladder fully attempted) ---
+
+VOICE COMPOSITION FLAG FOR THE RATER: two of the three passages below are
+C-suite voices (global chief executive; chair and global chief creative officer)
+describing an ownership transition. The third is a function head (VP level).
+No individual-contributor first-person account was found on any rung.
+
+   • "[The company] has always been an outlier inside a holding company. The holding company model has often focused on slotting agencies into specific silos. As a result of that, we were always a little bit of an anomaly in that model."  — [long-form trade press profile; direct quote] — the global chief executive, speaking to trade press — 2026-03-18 · needed JS: N
+
+   • "Independence has allowed us to transform and change the work. [It] gives you that freedom to let go of things, because you're not part of some structure that you're expected to behave in."  [bracketed insertion is the publication's, reproduced as printed]  — [long-form trade press profile; direct quote] — the chair and global chief creative officer, speaking to trade press — 2026-03-18 · needed JS: N
+
+   • "Now that models allow anyone to make anything in seconds, execution alone is a commodity. Our value has shifted. We are getting back to what has always been our most valuable asset: our taste and curation. At [the company], we talk about this as [a named internal framing for brand systems]. We are moving past static, siloed guidelines and toward code that carries character, memory, and behaviour. […] We aren't interested in being frozen by trepidation. We are training our teams to use these tools to amplify their intuition, not replace it."  — [trade press feature; signed first-person contribution] — a VP, head of brand design — 2026-07-20 · needed JS: N
+
+
+--- E. RECENT NEWS (yield: 3 · searches logged) ---
+
+Company events reported in the last 12 months (2025-08-14 to 2026-08-14).
+
+   • "[A returning executive] has been selected as [the company]'s first global Chief Brand Officer. [They rejoin] the agency after serving as global head, design in 2021." … "The new hire reports to [the] chair/global CCO at [the company]. Their duties include branding new AI products and aiding the strategic growth of the agency's clients."  — [trade press reporting] — independent, not company-authored — byline date 2025-09-15 · needed JS: N
+
+   • "This strategic move is the latest in a series of significant investments by [the company] following its transition to an independent, privately held company in partnership with [a private equity firm]. Since its move to independence, the company has invested in new talent, product development, partnerships, and acquisitions – most recently with the acquisition of [an AI system design studio]."  — [trade press reporting] — independent, not company-authored — 2025-09-12 · needed JS: N
+
+   • "When news of [the holding company]'s plans to sell [the company] was leaked, it wasn't just clients who were surprised; as it turns out, [the company]'s leadership had no idea and were already starting their own process of selling."  — [long-form trade press profile] — independent, not company-authored — 2026-03-18 · needed JS: N
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 0 · public/private: PRIVATE) ---
+
+   N/A — PRIVATE. The company has been privately held since early 2025, when
+   its holding-company parent sold it to a private equity firm in a partial
+   management buyout. It files no annual report and has no Item 1 Human Capital
+   disclosure. No regulatory-filing route was attempted; the company's private status
+   was established from trade reporting before Section F was reached.
+
+
+########## END OF PACKET ##########
+
+
+SCRUB LOG — for the run record, not for the rater
+  R1 attribution stripped : 45 excerpt lines. Review URLs replaced with rev-01..rev-15.
+                            ATS URLs carried the company domain and requisition IDs and were
+                            removed entirely.
+  R2 in-quote name subs   : 11 (A×3, B×4 including the Spanish-language review, C×1, D×2, E×3+)
+  R3 names stripped       : 8  (global CEO, chair/global CCO, VP head of brand design, the
+                            incoming chief brand officer, and four journalist bylines →
+                            role tokens and publication class). The chair is referenced twice
+                            across sections D and E; both were reduced to the same role token
+                            so the rater can still see it is one person.
+  R4 programmes rewritten : 1  (the named internal brand-systems framing in section D)
+  R5 locations tokenised  : 6 → Site A–D, Region E, Site F. The scope declaration's list of
+                            seven named international offices was reduced to a count — the
+                            specific combination is a fingerprint on its own. "[Site F] branch
+                            is no longer active" tokenised inside the review body as well as
+                            the attribution.
+  R6 figures stripped     : 1  (exact ownership-transfer date reduced to "early 2025" in both
+                            the rater note and Section F — a precise date plus "sold by holding
+                            company to private equity" is a one-query identification)
+  R7 typos retained       : 4  (contantly envolving / More than an a / to many cooks / Crative)
+  Client and third-party  : 4  (a named athletic-apparel client, the holding-company parent,
+                            the private equity acquirer, the acquired design studio) → generic
+                            descriptors. Named clients had not appeared in any previous packet;
+                            this is the first, and the collector prompt has no rule for them.
+                            ADD ONE IN v4.7.
+
+  KNOWN RESIDUAL EXPOSURE, ACCEPTED UNDER THE RULESET
+   · Sections D and E are structurally identifying even fully scrubbed: an agency sold by a
+     long-time holding-company parent to private equity in a management buyout, in early 2025,
+     that subsequently acquired an AI design studio. Anyone who follows the advertising trade
+     press will place this immediately. This is the strongest case in the six packets for
+     dropping Section E — the events carry very little dimension signal and near-total
+     identifying power. Set against that: the ownership change is the single most important
+     fact for reading Section B, because every review predates it. FLAGGED — this is JC-2 at
+     its hardest, and P-04 is the packet on which to decide it.
+   · The Spanish-language review is unusual enough to be memorable and searchable.
+   · "We build with agents: a substantial share of our code is agent-generated" — a distinctive
+     posting line, retained under JC-1 and heavily dimension-bearing.
+   · the four preserved typos — exact-match searchable, retained per R7.
+   · industry is obvious from the roles and the work described, and was not treated as a leak.

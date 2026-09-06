@@ -1,0 +1,679 @@
+BUILD RECORD
+  prompt version : v4.6
+  model          : claude-opus-5
+                   (this is the exact published model string available to me; I could not
+                    confirm a dated build suffix from inside the session, and the brief
+                    prefers a blank to a guess, so no suffix is asserted)
+  built          : 2026-08-13
+  environment    : clean session, one company, no prior packet context
+  assisted       : NO
+
+########## SECTION 1 - EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE DECLARATION: The employee reviews in this packet come from store-level and
+distribution-centre roles at Best Buy - sales advisors, Geek Squad agents, customer
+service and product-flow/warehouse staff. Other parts of this company - its corporate,
+engineering, product, finance and marketing organisations - are not represented in them.
+Company-authored sources describe the whole organisation.
+
+RETRIEVAL LIMITATION AFFECTING THIS PACKET: Best Buy's own careers site
+(jobs.bestbuy.com / careers.bestbuy.com) is a JavaScript application that returns only a
+"Loading..." shell to a plain HTTP fetch, and no JavaScript-rendering browser was
+available during this build. Section A was therefore built from the company's
+server-rendered corporate site and its published Code of Ethics rather than from the
+careers/values pages themselves. The careers pages are NOT absent - they were reached and
+returned a shell. See 2d.
+
+
+--- A. CAREERS / VALUES PAGE (5-8 excerpts) ---
+
+   - "At Best Buy, our purpose is to enrich lives through technology. We do that by leveraging our unique combination of tech expertise and human touch to meet our customers' everyday needs, whether they come to us online, visit our stores or invite us into their homes."  - [company website, About page] - Best Buy (company-authored) - https://corporate.bestbuy.com/about-best-buy/ - page last modified 2026-04-15 - needed JS: N
+
+   - "Inclusion and belonging are the heart and soul of Best Buy."  - [company website, Inclusion & Belonging page] - Best Buy (company-authored) - https://corporate.bestbuy.com/inclusion-and-belonging/ - page last modified 2025-07-23 - needed JS: N
+
+   - "At my core, I believe our people are the secret to our success. It is my responsibility as CEO to unleash their power by nurturing a culture of belonging and engagement, one in which employees can bring their whole selves - their best selves - to work each day."  - [company website, Inclusion & Belonging page] - attributed on the page to "Best Buy CEO Corie Barry" - https://corporate.bestbuy.com/inclusion-and-belonging/ - page last modified 2025-07-23 - needed JS: N
+
+   - "For more than 50 years, Best Buy has been a purposeful, values-driven, human organization."  - [company website, Ethics page] - Best Buy (company-authored) - https://corporate.bestbuy.com/ethics/ - page last modified 2025-08-27 - needed JS: N
+
+   - "Courage: empowering everyone to speak up and take action for what is right."  - [company Code of Ethics, "Inclusive Behaviors" list] - Best Buy (company-authored) - https://corporate.bestbuy.com/wp-content/uploads/2025/08/FY26_Code%20of%20Ethics.pdf - FY26 edition, published 2025-08 - needed JS: N
+
+   - "Grace: creating an environment to take calculated risks and learn from mistakes."  - [company Code of Ethics, "Inclusive Behaviors" list] - Best Buy (company-authored) - https://corporate.bestbuy.com/wp-content/uploads/2025/08/FY26_Code%20of%20Ethics.pdf - FY26 edition, published 2025-08 - needed JS: N
+
+   - "Foster an environment in which employees feel comfortable coming to you with questions and concerns."  - [company Code of Ethics, "Our leaders' responsibilities"] - Best Buy (company-authored) - https://corporate.bestbuy.com/wp-content/uploads/2025/08/FY26_Code%20of%20Ethics.pdf - FY26 edition, published 2025-08 - needed JS: N
+
+   - "Remember your moral compass when things get tough. Because ultimately, no document, including this Code, is a substitute for your good judgment."  - [company Code of Ethics] - Best Buy (company-authored) - https://corporate.bestbuy.com/wp-content/uploads/2025/08/FY26_Code%20of%20Ethics.pdf - FY26 edition, published 2025-08 - needed JS: N
+
+
+--- B. EMPLOYEE REVIEWS (12-15, one per line, most recent first) ---
+
+NOTE TO RATER: 9 of the 15 reviews below were cut off by the source site at a "Show more"
+control that does not expand when the page is fetched, and the cut point is marked […].
+That is 60% of this sample. The reviews that survived intact are systematically the SHORT
+ones, so the longer and more detailed accounts appear here only as their opening
+paragraphs. Read the sample with that in mind.
+
+SECOND NOTE TO RATER: 4 of the 15 reviews were posted with no job title and appear as
+"title: not stated". They cannot be assigned to a function.
+
+   - "My coworkers were great and were the only reason I stayed as long as I did. The managers however where either incompetent or didn't want to help, and would frequently scream at employees and customers for small things.[…]"  - [employee review] - employee, title: Verizon Representative, Williston, VT - https://www.indeed.com/cmp/Best-Buy/reviews/coworkers-are-great-management-is-terrible?id=1507af09d71d600c - 2026-08-12 - needed JS: N - [truncated at source] - ["where" appears for "were" in the source; preserved]
+
+   - "Great to try and get your foot in the door for IT or to try and build experience, but very stressful in my experience. Expect to be busy all day long, every appointment slot booked especially if you work in a store that services Apple products, on top of having multiple other tasks that pile up while[…]"  - [employee review] - employee, title: Consultation Agent, Geek Squad, location not stated - https://www.indeed.com/cmp/Best-Buy/reviews/good-experience-but-very-stressful?id=bedf40856a3e3608 - 2026-08-12 - needed JS: N - [truncated at source]
+
+   - "You know what you're getting into. Customers are usually ok but some can be a nightmare. Overworked at times but it paid some bills when I needed it to"  - [employee review] - employee, title: not stated, location not stated - https://www.indeed.com/cmp/Best-Buy/reviews/it-s-fine?id=bb879233409caa67 - 2026-08-11 - needed JS: N
+
+   - "Overall it's a decent experience but for all the incoming workers for the holidays be prepared to work. Depending on the store the work environment can be stressful"  - [employee review] - employee, title: not stated, location not stated - https://www.indeed.com/cmp/Best-Buy/reviews/ok-but-stressful?id=ba7549ac7f5c26e8 - 2026-08-11 - needed JS: N
+
+   - "While I worked as a "Seasonal Employee", I was very interested to get hired on as a "regular" employee. I was looking for full time after my seasonal work, and would have been pleased gaining even part-time employment. Unfortunately, I did not receive an offer for either positon. I wish only the[…]"  - [employee review] - employee, title: Retail Sales Associate (Seasonal), Henderson, NV - https://www.indeed.com/cmp/Best-Buy/reviews/great-company-with-great-leadership-if-only?id=ce15c716708615d9 - 2026-08-10 - needed JS: N - [truncated at source] - ["positon" appears for "position" in the source; preserved]
+
+   - "Pay is low but they have great benefits and if you're manager is chill it can be a really fun environment. Great part time gig just don't sink your life into it go get a full time career gig too."  - [employee review] - employee, title: Geek Squad Agent, location not stated - https://www.indeed.com/cmp/Best-Buy/reviews/experience-highly-variable-by-manager?id=33cc0a6ef034eb93 - 2026-08-09 - needed JS: N - ["you're" appears for "your" in the source; preserved]
+
+   - "Good culture overall. Pay could've been better with better benefits.[…]"  - [employee review] - employee, title: CSS (Customer Service Specialist), Everett, WA - https://www.indeed.com/cmp/Best-Buy/reviews/decent-first-job?id=df23a9de3f6195ef - 2026-08-07 - needed JS: N - [truncated at source]
+
+   - "I liked working there for a long time but eventually it got too overwhelming, professional standards are way lower than they used to be, dramatic reduction in store leadership every year. Very very little opportunity for growth."  - [employee review] - employee, title: not stated, location not stated - https://www.indeed.com/cmp/Best-Buy/reviews/probably-still-decent-for-retail?id=e6c3cc353e6369d0 - 2026-08-07 - needed JS: N
+
+   - "Best Buy experienced market competition for decades with mixed results. At the store level the changes are obvious with our new layouts, house brands and sales experience. We are in our next transition and hope springs. Overall employee experience is mixed. You'll do fine if have a good work ethic,[…]"  - [employee review] - employee, title: Dept. Supervisor, location not stated - https://www.indeed.com/cmp/Best-Buy/reviews/a-brand-in-transition?id=eb5d2d42a48554bd - 2026-08-06 - needed JS: N - [truncated at source] - ["if have" appears for "if you have" in the source; preserved]
+
+   - "If it wasn't for the fact I list this job due to my own ignorance and neglect of my mental health during a personal crisis, I would still be working for this company because they gave me a chance when most didn't. The 5 years I was employed at the Davie location actually gave me a career path that I[…]"  - [employee review] - employee, title: Warehouse merchandise, Davie, FL - https://www.indeed.com/cmp/Best-Buy/reviews/best-job?id=9292abda9f6024f9 - 2026-08-03 - needed JS: N - [truncated at source] - ["list" appears for "lost" in the source; preserved]
+
+   - "Actual work in the store is fine, but there is a disconnect between corporate and all the stores. I was terminated because I touched Pokemon cards didn't steal them just moved them. There was a policy that was not told to anyone and I guess I broke that policy. Very bad communications.[…]"  - [employee review] - employee, title: Product Flow Associate, Washington, UT - https://www.indeed.com/cmp/Best-Buy/reviews/pay-is-not-the-greatest-the-more-you-work-the-more-work-they-give-you?id=817ac6d67f17c431 - 2026-08-03 - needed JS: N - [truncated at source]
+
+   - "Was a great job working for the company during my college years. Sales development is taken seriously if you take it seriously. Will depend on the management team of course, but great company, great benefits & discount is amazing"  - [employee review] - employee, title: not stated, New York, NY - https://www.indeed.com/cmp/Best-Buy/reviews/fun-workplace?id=6d3f3ce4b3b15193 - 2026-08-03 - needed JS: N
+
+   - "I had a lot of great experiences getting to learn new things, help people find actual solutions for their needs, and collaborate with great team members throughout my time in a sales position at Best Buy. Unfortunately, getting to help others always felt hampered by the sales goals that were set for[…]"  - [employee review] - employee, title: Sales Advisor, Houston, TX - https://www.indeed.com/cmp/Best-Buy/reviews/extreme-expectations-for-what-you-re-given?id=590f1343e4f7e6cc - 2026-08-01 - needed JS: N - [truncated at source]
+
+   - "Did not want to include location but I work at a particularly strong Best Buy. Constantly busy and the goals are not too hard to hit. Plenty of accommodations for employees and the hours were very easy to work with, and management at my particular location has been more than just that but they've treated[…]"  - [employee review] - employee, title: Sales Advisor, location withheld by the reviewer - https://www.indeed.com/cmp/Best-Buy/reviews/fun-work-environment-with-exceptional-management?id=6470161465332dca - 2026-07-30 - needed JS: N - [truncated at source]
+
+   - "Fun place to work with an amazing team and a positive atmosphere. Management and coworkers are great, but the pay could be more competitive overall good job for if you're young"  - [employee review] - employee, title: Retail Sales Associate, Greensboro, NC - https://www.indeed.com/cmp/Best-Buy/reviews/fun-workplace?id=6f04d986784ce3bc - 2026-07-30 - needed JS: N
+
+
+--- C. JOB POSTINGS (6-10 excerpts from 3+ open postings, different functions) ---
+
+All five postings below were opened individually on 2026-08-13 and each rendered as a live
+posting with no removal or "no longer accepting applications" notice.
+
+   - "We'll train you with the skills and knowledge you need to confidently recommend the right tech products and services to meet each person's unique needs."  - [job posting, retail sales function] - Best Buy (employer-authored posting body) - https://www.indeed.com/viewjob?jk=06665cb41436c977 - confirmed open 2026-08-13 - needed JS: N
+
+   - "3 months of experience working in retail or another fast-paced, team-oriented environment"  - [job posting, retail sales function] - Best Buy (employer-authored posting body) - https://www.indeed.com/viewjob?jk=06665cb41436c977 - confirmed open 2026-08-13 - needed JS: N
+
+   - "You'll work as part of a team to move products to their designated locations within the distribution center and safely use forklifts and other powered equipment."  - [job posting, supply chain / distribution function] - Best Buy (employer-authored posting body) - https://www.indeed.com/viewjob?jk=842ae850cff1e6af - confirmed open 2026-08-13 - needed JS: N
+
+   - "By working together to receive and ship products, you'll help ensure everything arrives to our customers when, where and how they want it."  - [job posting, supply chain / distribution function] - Best Buy (employer-authored posting body) - https://www.indeed.com/viewjob?jk=842ae850cff1e6af - confirmed open 2026-08-13 - needed JS: N
+
+   - "You'll perform repairs by troubleshooting and following our procedures."  - [job posting, in-store technical services function] - Best Buy (employer-authored posting body) - https://www.indeed.com/viewjob?jk=f4264e939abec3b9 - confirmed open 2026-08-13 - needed JS: N
+
+   - "Establish and maintain consistent rhythms for timely follow-up and ensure expectations are met or exceeded"  - [job posting, in-store technical services function] - Best Buy (employer-authored posting body) - https://www.indeed.com/viewjob?jk=f4264e939abec3b9 - confirmed open 2026-08-13 - needed JS: N
+
+   - "This role will be highly collaborative and responsible for communicating insights and recommendations from the data to drive positive results."  - [job posting, corporate analytics function] - Best Buy (employer-authored posting body) - https://www.indeed.com/viewjob?jk=e67bdf994088d579 - confirmed open 2026-08-13 - needed JS: N
+
+   - "This role is hybrid, which means you will be required to work on site Monday through Thursday at the […] corporate office […]. You can work virtually from home or another non-Best Buy location on Friday."  - [job posting, corporate analytics function] - Best Buy (employer-authored posting body) - https://www.indeed.com/viewjob?jk=e67bdf994088d579 - confirmed open 2026-08-13 - needed JS: N - [elisions remove the office location per collection rule; no other wording changed]
+
+   - "You'll focus on providing positive employee experiences, skill development and performance management."  - [job posting, retail store leadership function] - Best Buy (employer-authored posting body) - https://www.indeed.com/viewjob?jk=e08629691045a8c2 - confirmed open 2026-08-13 - needed JS: N
+
+   - "Lead efforts to maximize positive results or course-correct when needed"  - [job posting, retail store leadership function] - Best Buy (employer-authored posting body) - https://www.indeed.com/viewjob?jk=e08629691045a8c2 - confirmed open 2026-08-13 - needed JS: N
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 5 · ladder fully attempted) ---
+
+VOICE COMPOSITION FLAG FOR THE RATER: four of the five passages below are non-executive
+voices and one is executive. All four non-executive passages come from a single article
+published by the company itself, and all four speakers are summer interns. They are
+first-person accounts of working at this company, but they were selected and published by
+the employer, not volunteered independently.
+
+   - "They want you to learn, they want you to be challenged, and that's the beauty of it, right?" he said. "I think being able to challenge yourself to be the best version of yourself is what we should all strive for."  - [company newsroom article] - Jonathan, supply chain intern and operations supervisor at a reverse logistics centre (non-executive) - https://corporate.bestbuy.com/2026/from-career-growth-to-family-ties-why-interns-choose-best-buy/ - 2026-07-30 - needed JS: N
+
+   - "One thing that really stood out to me, whether it's in the stores or in corporate, is the people," she said. "This is who I am now today, helping out the interns because I love the people that were here for me, and I want to keep doing that."  - [company newsroom article] - Shay, Early Careers intern and store sales associate (non-executive) - https://corporate.bestbuy.com/2026/from-career-growth-to-family-ties-why-interns-choose-best-buy/ - 2026-07-30 - needed JS: N
+
+   - "Even without holding a formal title, as a three-time intern here, it's very easy for me to step into the shoes of an informal leader for my peers,"  - [company newsroom article] - Ethan, category management intern (non-executive) - https://corporate.bestbuy.com/2026/from-career-growth-to-family-ties-why-interns-choose-best-buy/ - 2026-07-30 - needed JS: N
+
+   - "The biggest thing that keeps me coming back year after year is the culture of the company," Ethan said. "I feel like people care, and I'm valued for who I am, not just what I bring to the business. It's easy to feel like I belong here."  - [company newsroom article] - Ethan, category management intern (non-executive) - https://corporate.bestbuy.com/2026/from-career-growth-to-family-ties-why-interns-choose-best-buy/ - 2026-07-30 - needed JS: N
+
+   - "Our four priorities give us a clear view of where we're headed, and there's an incredible foundation and momentum getting us there," said Jason Bonfig, incoming chief executive officer. "But to truly become the Best Buy we know we can be, we have to organize against the right work and with the right leaders."  - [company newsroom article] - Jason Bonfig, incoming CEO (executive) - https://corporate.bestbuy.com/2026/executive-team-updates/ - 2026-07-14 - needed JS: N
+
+
+--- E. RECENT NEWS (yield: 4 · searches logged) ---
+
+   - "In a planned departure, Best Buy CEO Corie Barry will step down from the top role and as a member of the board on Oct. 31, according to a Wednesday press release. She will remain at the company as a strategic adviser for six months after stepping down."  - [trade press reporting] - Dani James, Retail Dive - https://www.retaildive.com/news/best-buy-ceo-corie-barry-steps-down-jason-bonfig/818156/ - 2026-04-22 - needed JS: N
+
+   - "Barry's departure comes as the electronics retailer's growth has stagnated."  - [trade press reporting] - Dani James, Retail Dive - https://www.retaildive.com/news/best-buy-ceo-corie-barry-steps-down-jason-bonfig/818156/ - 2026-04-22 - needed JS: N
+
+   - "Best Buy has named five executives to restructured executive team roles reporting to incoming CEO Jason Bonfig, realigning strategy, revenue, retail, ads and fulfillment functions ahead of his October 31 handoff from Corie Barry."  - [trade press reporting] - Tiffany Montgomery, Retail TouchPoints - https://www.retailtouchpoints.com/news/best-buy-names-five-executives-to-restructured-leadership-roles-in-ceo-transition/620451/ - 2026-07-15 - needed JS: N
+
+   - "The restructuring follows a stretch of stabilizing performance. Best Buy posted its first positive full-year comparable sales since fiscal 2022 and disclosed plans to open six net new U.S. stores this year, its first domestic store count growth in more than a decade, leaning on a smaller-format prototype and continued investment in Marketplace and Best Buy Ads."  - [trade press reporting] - Tiffany Montgomery, Retail TouchPoints - https://www.retailtouchpoints.com/news/best-buy-names-five-executives-to-restructured-leadership-roles-in-ceo-transition/620451/ - 2026-07-15 - needed JS: N
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 6 · public/private: PUBLIC) ---
+
+Source for all six: Item 1, "Human Capital Management", Annual Report on Form 10-K for the
+fiscal year ended 2026-01-31, filed 2026-03-18. Company-authored and legally accountable.
+All headcounts, dollar figures and percentages stripped at collection. Named internal
+programmes rewritten in place, clause preserved.
+
+   - "We believe in the power of our people. Our culture is built on the belief that engaged and committed employees - supported by opportunities to learn, grow, innovate and explore - can lead to extraordinary outcomes."  - [10-K Item 1 Human Capital] - Best Buy Co., Inc. (company-authored regulatory filing) - https://www.sec.gov/Archives/edgar/data/764478/000076447826000009/bby-20260131.htm - filed 2026-03-18 - needed JS: N
+
+   - "We believe in a culture of belonging where everyone feels valued, can thrive and has equal opportunities at all levels in the organization. At the core of this inclusive environment are our company values, which were founded decades ago. One of our values - unleash the power of our people - emphasizes that everyone can learn, grow and be the best version of themselves."  - [10-K Item 1 Human Capital] - Best Buy Co., Inc. (company-authored regulatory filing) - https://www.sec.gov/Archives/edgar/data/764478/000076447826000009/bby-20260131.htm - filed 2026-03-18 - needed JS: N
+
+   - "Prioritizing foundational and leadership skill development helps to meet employees where they are at, which creates a more adaptable and resilient workforce and enhances our competitive advantage."  - [10-K Item 1 Human Capital] - Best Buy Co., Inc. (company-authored regulatory filing) - https://www.sec.gov/Archives/edgar/data/764478/000076447826000009/bby-20260131.htm - filed 2026-03-18 - needed JS: N
+
+   - "With the continued goal of creating learning opportunities that are tailored to the unique work of each role and a focus on solving the most important problems in our business, we expanded our variety of training experiences in fiscal 2026."  - [10-K Item 1 Human Capital] - Best Buy Co., Inc. (company-authored regulatory filing) - https://www.sec.gov/Archives/edgar/data/764478/000076447826000009/bby-20260131.htm - filed 2026-03-18 - needed JS: N
+
+   - "We evolved our leadership development offerings to grow and transform [the company] for its future. This included [a named leadership development programme] designed for corporate, supply chain and retail leaders, and expanding [a named leadership fundamentals programme] to build core leadership capabilities that help employees grow and succeed in leadership roles."  - [10-K Item 1 Human Capital] - Best Buy Co., Inc. (company-authored regulatory filing) - https://www.sec.gov/Archives/edgar/data/764478/000076447826000009/bby-20260131.htm - filed 2026-03-18 - needed JS: N - [proper nouns rewritten in brackets; clause otherwise verbatim]
+
+   - "We hosted a "Culture Weekend" with trained onboarding captains to train and prepare our seasonal workforce, while simultaneously helping foster a sense of belonging, connect staff and celebrate our company culture and values."  - [10-K Item 1 Human Capital] - Best Buy Co., Inc. (company-authored regulatory filing) - https://www.sec.gov/Archives/edgar/data/764478/000076447826000009/bby-20260131.htm - filed 2026-03-18 - needed JS: N
+
+
+########## SECTION 2 - RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+2a. YIELD AUDIT
+
+    REQUIRED TO YIELD:
+       A excerpts: 8/5       B reviews: 15/12     C excerpts: 10/6
+       C postings: 5/3       C outside engineering: 5/1
+       B reviews within 24 months: 15/15
+
+    C EXEMPTION CLAIMED (company not hiring)?  NO
+
+    REQUIRED TO ATTEMPT:
+       D passages: 5    ladder rungs logged: 7/7
+       D voice composition: 1 executive / 4 non-executive   (not all-executive, so the
+                            bounded extra rung was not triggered; no non-executive
+                            material was rejected on age)
+       E excerpts: 4    searches logged: 3
+       F excerpts: 6    public? YES     10-K filing date: 2026-03-18
+
+
+2b. EVIDENCE COVERAGE
+
+       autonomy: COVERED   pace: COVERED   collaboration: COVERED
+       feedback: THIN      innovation: THIN   decision: THIN
+
+       (feedback: reviews describe manager quality and micromanagement but almost never a
+        review cycle or how criticism is delivered; innovation and decision basis appear
+        mainly in company-authored sources and the one corporate posting, not in the
+        experiential evidence at all.)
+
+
+2c. LADDER CHECKLIST
+
+  D1 handbook          attempted Y  URL: https://corporate.bestbuy.com/wp-content/uploads/2025/08/FY26_Code%20of%20Ethics.pdf
+                       outcome: FOUND and current (FY26, published 2025-08). Substantive
+                       narrative on decision-making, speaking up and leader behaviour.
+                       NOT counted toward D - this same material is quoted in section A,
+                       and the prompt's double-counting rule bars counting it twice.
+  D2 eng/product blog  attempted Y  URL: https://corporate.bestbuy.com/category/technology/
+                       newest post date: 2026-08 (current)
+                       outcome: Publication found, current, yields nothing on working
+                       practice. The technology category is consumer product news (new TV
+                       formats, in-store partner labs), not an engineering or product blog.
+                       Two searches for a dedicated Best Buy engineering/tech blog returned
+                       none. This is "no engineering blog exists", not "could not reach it".
+  D3 culture microsite attempted Y  URLs: https://jobs.bestbuy.com/bby?id=item_detail&content_id=6a046f721bf5b010b4c011f18c4bcb33 (Our Values);
+                       https://jobs.bestbuy.com/bby?id=item_detail&content_id=5508239f1bfdf010b4c011f18c4bcbfd (Our Culture);
+                       https://careers.bestbuy.com/bby?id=people_of_best_buy (People of Best Buy)
+                       outcome: NOT RETRIEVABLE, NOT ABSENT. All three returned a page
+                       whose entire body is "Loading..." - a ServiceNow single-page app.
+                       The correct second method (a JavaScript renderer) was unavailable in
+                       this session, so the other method could not be exhausted. The page
+                       titles ("Our Values", "Our Culture", "People of Best Buy") come back
+                       in the HTML <title>, which proves the pages exist and have content.
+  D4 leader interview  attempted Y  URL: https://corporate.bestbuy.com/2026/executive-team-updates/
+                       date: 2026-07-14  outcome: YIELDED 1 executive passage. A CNBC video
+                       interview with the incoming CEO (2026-08-01) was identified but is
+                       video with no retrievable transcript; not quoted.
+  D5 public repos      attempted Y  URL: https://github.com/BestBuy
+                       outcome: Organisation confirmed genuine, not a name collision -
+                       listed location Richfield, MN and contact developer@bestbuy.com match
+                       the company. One public repository, an API teaching sandbox, last
+                       updated 2024-08-04. REJECTED AS STALE (>18 months). No discussions,
+                       RFCs or contribution guidelines bearing on working practice.
+  D6 press profile     attempted Y  URL: https://corporate.bestbuy.com/2026/from-career-growth-to-family-ties-why-interns-choose-best-buy/
+                       date: 2026-07-30  outcome: YIELDED 4 non-executive passages.
+  D7 conference talk   attempted Y  outcome: Searched for Best Buy technical conference
+                       talks and public presentations; nothing current found bearing on how
+                       the company works. Recorded as searched and empty.
+
+       Rungs rejected as stale (>18 months): D5 (public repositories, last activity 2024-08-04).
+
+       C fallbacks tried: reviews-site job view YES - WORKED (primary route, full posting
+                          bodies rendered on plain fetch)
+                          ATS param found NO - the careers site is a ServiceNow talent
+                          portal, not Greenhouse/Lever/Ashby/Workday; no gh_jid, lever,
+                          ashby or myworkdayjobs parameter is exposed
+                          greenhouse N/A  lever N/A  workday N/A  ashby N/A
+                          aggregator YES - the reviews site's SEO job-search route
+                          (indeed.com/q-best-buy-l-<city>-jobs.html) was the only route that
+                          exposed usable job identifiers; see 2e.
+
+       E news searches run: 3
+       queries used:
+         1. "Best Buy CEO transition Jason Bonfig Corie Barry 2026 restructuring layoffs corporate"
+         2. "Best Buy employees 2026 store operations changes hiring seasonal workforce news"
+         3. "Best Buy engineering blog tech team 'how we work' 2026" (run for ladder rung D2;
+            also surfaced the executive-team-updates item)
+
+
+2d. SOURCE ACCESS LOG
+
+  PLAIN HTTP FETCH - SUCCEEDED
+    indeed.com/cmp/Best-Buy/job-titles - full title index rendered - needed JS: N
+    indeed.com/cmp/Best-Buy/reviews?fcountry=US&sort=date - 20 reviews, newest first - N
+    indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Advisor&fcountry=US&sort=date - N
+    indeed.com/cmp/Best-Buy/reviews/<slug>?id=... (2 permalinks) - rendered but did NOT
+      expand truncation; identical cut point to the listing page - N
+    indeed.com/companies/search?q=Best+Buy - entity check - N
+    indeed.com/cmp/Best-Buy/about - N
+    indeed.com/cmp/Best-Buy/jobs and /jobs/l-Minneapolis,-MN - rendered listings but job
+      links were masked; unusable for retrieving posting bodies - N
+    indeed.com/q-best-buy-l-richfield,-mn-jobs.html - exposed real job identifiers - N
+    indeed.com/viewjob?jk=... (5 postings) - full bodies - N
+    glassdoor.com/Reviews/Best-Buy-Reviews-E97.htm?sort.sortType=RD - rendered, 3 reviews
+      with dates - N   (no bot wall encountered on plain fetch this session)
+    corporate.bestbuy.com/ , /about-best-buy/ , /inclusion-and-belonging/ , /ethics/ ,
+      /our-goals/ , /2026/from-career-growth-to-family-ties-why-interns-choose-best-buy/ ,
+      /2026/executive-team-updates/ - all server-rendered WordPress - N
+    corporate.bestbuy.com/wp-json/wp/v2/posts - WordPress REST API; used to enumerate
+      recent articles after the archive index failed - N
+    corporate.bestbuy.com/wp-content/uploads/2025/08/FY26_Code of Ethics.pdf - N
+    sec.gov/Archives/edgar/data/764478/000076447826000009/bby-20260131.htm - 10-K, full - N
+    sec.gov/Archives/edgar/data/764478/000076447826000005/bby-20260303.htm - 8-K - N
+    github.com/BestBuy - N
+    retaildive.com/news/best-buy-ceo-corie-barry-steps-down-jason-bonfig/818156/ - N
+    retailtouchpoints.com/news/best-buy-names-five-executives-.../620451/ - N
+
+  PLAIN HTTP FETCH - RETURNED EMPTY OR A SHELL
+    jobs.bestbuy.com/bby?id=item_detail&content_id=6a046f721bf5b010b4c011f18c4bcb33 - "Loading..."
+    jobs.bestbuy.com/bby?id=item_detail&content_id=5508239f1bfdf010b4c011f18c4bcbfd - "Loading..."
+    careers.bestbuy.com/bby?id=people_of_best_buy - "Loading..."
+    www.bestbuy-jobs.com/ - empty document
+    corporate.bestbuy.com/careers/ - empty document (redirects into the JS careers app)
+    corporate.bestbuy.com/our-purpose/ - empty document
+    corporate.bestbuy.com/archive/ - returned assets only; the article list is JS-injected.
+      Worked around via the WordPress REST API above.
+    indeed.com/jobs?q=%22Best+Buy%22&l=Richfield%2C+MN&radius=25 - empty document
+      (the parameterised job-search route is blocked; the SEO route is not)
+
+  JAVASCRIPT RENDERER - UNAVAILABLE
+    The browser extension providing the JS-rendering method was not connected for the
+    duration of this build. Two attempts were made at the start of the session and both
+    returned "Claude in Chrome is not connected". Every source above was therefore reached
+    by a single retrieval method. This is a material limitation and is listed as a
+    structural defect in the defect report.
+
+
+2e. FIDELITY NOTE
+
+  - No [PARAPHRASE] anywhere in this packet. Every Section 1 line is verbatim from an
+    opened page.
+  - Two deliberate elisions, both marked: the hybrid-working line in section C, where the
+    office location was removed under the collection rule barring office locations; and two
+    named internal programmes in section F, rewritten in brackets under the section F rule
+    that preserves the clause and kills the fingerprint.
+  - Preserved source typos, all flagged inline and all in section B: "where" for "were";
+    "positon" for "position"; "you're" for "your"; "if have" for "if you have"; "list" for
+    "lost". These are unique-string identifiers - see section 4.
+  - Posting open/closed status: all five section C postings were opened individually and
+    each rendered live with no removal notice. None unconfirmed.
+  - ENTITY CHECK RESULT. The review site holds twelve entities matching "Best Buy". Only
+    two are this employer: the main profile, and Best Buy Health, a genuine subsidiary
+    holding 359 reviews. The other ten are unrelated businesses that share the words -
+    a metals supplier, two insurance agencies, a supermarket, a window-treatment firm, a
+    pharmacy, a wholesaler, a defunct "Media Play/Best Buy Enterprise" entity with one
+    review, a "Best Buy 1971" with one review, and a "Magnolia Best Buy" with 24 reviews
+    which could not be confirmed as the company's in-store premium brand and was not used.
+    Best Buy Health was recorded but contributed no reviews to the sample: under a
+    company-wide recency frame its reviews would have to be newer than 2026-07-30 to enter
+    the top 15, and the main profile supplies 15 reviews inside a 13-day window.
+  - Review counts are NOT implausible for headcount here - the opposite. Roughly 40,000
+    reviews against roughly 82,000 employees is a dense sample, which is exactly why the
+    absence of corporate and engineering voices (see 2g) is a finding about the review
+    population rather than about sample size.
+  - The careers-page CEO quote in section A is attributed to Corie Barry, who is the
+    current CEO as at the build date but departs 2026-10-31. The company-authored culture
+    page will be stale on that point within eleven weeks of this build.
+  - The review-site permalink route does NOT defeat truncation. Two permalinks were opened
+    and both cut at exactly the same point as the listing page. Recorded because a
+    reasonable researcher would expect the permalink to expand and it does not.
+
+
+2f. VINTAGE BLOCK
+
+  Review entities found:
+    indeed.com/cmp/Best-Buy - count varies by element, see below - 3.8 stars - claimed
+      (carries an employer "Why Join Us" page and employer-posted updates)
+    indeed.com/cmp/Best-Buy-Health - 359 reviews (search-results element) - 3.5 - claimed
+    glassdoor.com/Overview/Working-at-Best-Buy-EI_IE97 - 41,952 (page title element) - 3.5
+      - claimed ("Engaged Employer" badge)
+    Ten further name-matching entities on the review site, all unrelated businesses; listed
+      in 2e and excluded.
+
+  Review counts BY SITE, each with the ELEMENT it came from:
+    Indeed: "35,162" in the HTML <title>; "35,162 reviews" in the meta description;
+            "35,162 reviews" as the review-list heading; "Based on 39,859 reviews" in the
+            overall-rating block; "39.9K Reviews" in the navigation tab; "39,858 reviews"
+            on the company search-results card; "39,859 reviews" on every job posting page.
+    Glassdoor: "41,952" in the page title, the meta description and the "Viewing 1 - 3 of"
+            footer; "42K reviews" in the sort header.
+
+  Conflicting counts observed on a single page: YES, on both sites, and worse than the
+    prompt's prior record for this company. One Indeed reviews page displayed 35,162 /
+    35,162 / 35,162 / 39,859 / 39.9K simultaneously - a spread of about 4,700 across five
+    elements of the same document. One Glassdoor page displayed 41,952 and 42K. No
+    site-reported total appears anywhere in Section 1.
+
+  Headline ratings BY SITE: Indeed overall 3.8, work-life balance 3.6.
+    Glassdoor overall 3.5, work/life balance 3.5. Divergence recorded, not reconciled.
+
+  Job titles sampled: NONE - the frame is recency, company-wide, per v4.6 B2. Titles are
+    recorded per review as metadata. The title index was collected for population analysis
+    only; counts and the element they came from are given in 2g.
+
+  Per-title subratings: NOT COLLECTED - removed in v4.5.
+    Additionally CONFIRMED UNCOLLECTABLE on this company by direct observation: the
+    title-filtered review page for one high-volume title displayed the identical
+    company-wide category ratings (3.6 / 3.5 / 3.3 / 3.4 / 3.7) and the identical
+    "Based on 39,859 reviews" as the unfiltered page. The site carries no per-title numbers.
+
+  Achievability gate run on every percentage recorded anywhere in the packet: YES.
+    Percentages encountered: 59% would recommend, 35% CEO approval, 39% positive business
+    outlook (all Glassdoor, n = 41,952 - all achievable, step size ~0.002 points); 32% of
+    interns joined from stores (company article, n > 100 - achievable); the truncation
+    fraction computed below (9/15 = 60.0% exactly, n = 15, step size 6.67 - achievable).
+  Percentages struck for failing the gate: NONE.
+    Note separately: the three Glassdoor figures are EVALUATIVE and are barred from
+    Section 1 by hard rule 8 regardless of passing the gate. They appear here only as
+    source metadata. The CEO-approval figure names Corie Barry, who is the current CEO as
+    at the build date, so the named-executive check passes - but she departs 2026-10-31.
+
+  Titles present but NOT sampled, with counts: not applicable under a recency frame. For
+    population context, from the title index (each count from that index's own list item):
+    Sales Associate 4,801 · Customer Service Representative 3,454 · Sales Consultant 2,497 ·
+    Technical Support Specialist 1,042 (and separately 711 under a different category) ·
+    Inventory Specialist 974 · Repair Technician 663 · Agent 659 · Sales Representative 578 ·
+    Sales 565 · Sales Advisor 538 · Asset Protection Specialist 499 · Cashier 462 ·
+    Warehouse Worker 425 - against Software Engineer 5 · Product Manager 4 ·
+    Front End Developer 4 · Java Developer 4 · Data Analyst 3 · Financial Analyst 3 ·
+    Marketing Manager 3 · Human Resources Generalist 3 · Lead Architect 1 · Counsel 1.
+
+  Interview write-ups excluded from review lists: 0 encountered in the sampled range.
+  Newest review date BY SITE: Indeed 2026-08-12 · Glassdoor 2026-08-11.
+    NO DIVERGENCE - the two sites agree to within one day. The P-03/P-04 failure signature
+    is absent here.
+  Oldest review used: 2026-07-30.
+  Median age of reviews used: approximately 0.4 months (the 15 reviews span 13 days).
+  Reviews truncated at source: 9/15 = 60%.  >33%, so a NOTE TO RATER opens section B.
+  Source-site duplicates retained: 0. Two reviews in the wider listing share the title
+    "Fun Workplace" but have different dates, authors and text; not duplicates.
+  Newest careers-page modification date: the careers site itself could not be read (JS
+    shell). Of the company-authored pages that were readable: About 2026-04-15,
+    Our Goals 2026-06-09, Ethics 2025-08-27, Inclusion & Belonging 2025-07-23.
+  Structural events found and their dates:
+    2026-04-22 CEO succession announced; Corie Barry to depart 2026-10-31, Jason Bonfig to
+               become CEO 2026-11-01
+    2026-07-14 Executive team restructured; five chief-officer roles created, effective
+               immediately
+    2026-07-31 CFO departure effective; external search opened
+    2026-08 (early) New CFO appointed
+    Also relevant: first positive full-year comparable sales since fiscal 2022, and the
+    first U.S. store-count growth in more than a decade, both reported 2026.
+  Does any structural event postdate the newest review?  NO.
+    All four events above precede 2026-08-12. The CEO handoff itself takes effect
+    2026-10-31, in the future relative to this build, so no employee in this sample has yet
+    worked under the incoming chief executive. That is the one thing a rater should hold
+    lightly about this packet's forward validity.
+
+
+2g. SCOPE BLOCK
+
+  A careers / values     population: company-wide (company-authored)
+  B employee reviews     population: store-level and distribution-centre staff. Titles
+                         actually present in the 15: Sales Advisor (x2), Retail Sales
+                         Associate, Retail Sales Associate (Seasonal), Verizon
+                         Representative, Consultation Agent (Geek Squad), Geek Squad Agent,
+                         Customer Service Specialist, Dept. Supervisor, Product Flow
+                         Associate, Warehouse merchandise, and 4 with no title stated.
+  C job postings         population: retail sales, supply chain / distribution, in-store
+                         technical services, corporate analytics, retail store leadership
+  D first-person         population: summer interns (corporate placements, two of whom came
+                         from store and logistics roles), plus one executive
+  E news                 population: company-wide, executive layer
+  F human capital        population: company-wide
+
+  Working environments known to exist in this company but ABSENT from the review
+  population: software engineering, product management, data and analytics, finance,
+  marketing, legal, and corporate HR. This is not a sampling artefact and cannot be fixed
+  by sampling differently - the reviews do not exist. The title index shows single-digit
+  counts for every one of those functions against four-figure counts for store roles.
+  Note also that the index's category labels are not function labels: the "Software
+  Development" category is dominated by a 1,042-review in-store technical support title,
+  and the same technical-support title appears again under "IT Operations & Helpdesk" with
+  a different count (711) and a different rating. Reading the category names as functions
+  would substantially overstate the technology population.
+
+  Does the company-authored evidence (A, F) describe a wider population than the
+  experiential evidence (B)?  YES. Sections A and F speak for the whole organisation
+  including the corporate and technology population; section B speaks almost entirely for
+  the store floor and the distribution centre. Any scoring rule requiring non-company-
+  authored support should be applied knowing that the non-company-authored half of this
+  packet describes a narrower population than the company-authored half.
+
+
+########## SECTION 3 - ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+
+  Approx. headcount: approximately 82,000 in the U.S. and Canada at the end of fiscal 2026
+    (10-K Item 1 Human Capital, filed 2026-03-18). Company-sourced and current; high
+    confidence. A company press release dated 2026-07-14 says "more than 80,000", and the
+    careers-facing About page still says "more than 85,000" - the 10-K figure is the one to
+    use. A third-party workforce-data vendor reports a materially lower worldwide figure
+    and a double-digit multi-year decline; not company-sourced, low confidence, noted only
+    because the direction of travel is consistent across all three.
+
+  Stage/size cues: Public company, NYSE: BBY, Minnesota incorporation, no controlling
+    owner. Revenue more than $41.6 billion in fiscal 2026 (company press release,
+    2026-07-14). More than 1,000 retail stores in North America. Mature large-cap
+    incumbent, not a growth-stage firm; recent trajectory is stagnation followed by
+    stabilisation, with the first positive full-year comparable sales since fiscal 2022 and
+    the first U.S. store-count growth in over a decade.
+
+  Pay-posture EVIDENCE vs. talent-market peers - band NOT assigned:
+    Store-level postings advertise hourly ranges starting at the federal-to-state minimum
+    band and topping out in the low-to-mid twenties; a store leadership posting tops out
+    around $31/hour; corporate analyst postings advertise annual ranges in the mid-five to
+    high-five figures. Reviews mention pay as a weakness far more often than as a strength
+    ("Pay is low but they have great benefits"; "the pay could be more competitive").
+    Benefits are repeatedly named as a relative strength by the same reviewers who call pay
+    weak, and the 10-K describes an unusually broad benefits programme including a no-cost
+    degree programme and long-service sabbaticals. CORRECT REFERENCE CLASS: big-box
+    specialty retail (Target, Home Depot, Lowe's, GameStop, Staples), not consumer
+    technology employers - the store population dominates the workforce.
+
+  Industry: RETAIL. Specialty consumer electronics retail with a large in-home and in-store
+    services arm and a growing retail-media and marketplace business. It employs technology
+    workers and files as a retailer; the working population is overwhelmingly retail.
+
+
+########## SECTION 4 - ANONYMIZATION PRE-FLAGS ##########
+
+  COMPANY NAME occurrences in Section 1: "Best Buy" appears throughout - in section A
+  excerpts (5 of 8 contain it), in 4 section B reviews, in section C posting bodies, in
+  section D quotes, in all 4 section E excerpts, and in the section F rewrite marker.
+
+  PRODUCT, BRAND AND SUB-BRAND NAMES: Geek Squad (section B, twice, and section D context);
+  Verizon and Apple as partner/product references inside section B reviews; Best Buy
+  Marketplace, Best Buy Ads, Best Buy Health and Best Buy Canada (sections D and E);
+  Pokemon (section B, a product category in a termination account).
+
+  EXECUTIVE AND AUTHOR NAMES: Corie Barry (section A quote attribution, sections D and E);
+  Jason Bonfig (sections D and E); Dani James and Tiffany Montgomery (section E reporter
+  bylines). First names of four interns - Jonathan, Shay, Ethan, Abdullahi context - in
+  section D; these are non-public individuals and should be replaced with role tokens
+  rather than deleted.
+
+  NAMED CLIENTS: none.
+
+  OFFICE AND STORE LOCATIONS in Section 1: Williston VT, Henderson NV, Everett WA, Davie FL,
+  Washington UT, New York NY, Houston TX, Greensboro NC (section B review attributions).
+  Per the review-location rule these must be REPLACED with generic site tokens
+  ([Site A]...[Site H]), NOT deleted - the dispersion signal depends on being able to see
+  that these are eight different places. One review explicitly withholds its location
+  ("Did not want to include location"); preserve that as stated. "Davie" also appears
+  inside the body text of one review, not only in its attribution - it must be tokenised in
+  both places or the attribution token will be defeated by the body.
+
+  NAMED INTERNAL PROGRAMS AND TOOLS: already rewritten in section F (two leadership
+  programmes). Still present and identifying: "Culture Weekend" and "onboarding captains"
+  (section F); "Tomorrow works here." trademark line appears in every section C posting
+  body but was not quoted into Section 1 - keep it out on any re-collection, it is a
+  perfect fingerprint. Retek and OptiTurn are named systems in the corporate posting; not
+  quoted into Section 1, keep out.
+
+  DISTINCTIVE PHRASES THAT COULD RE-IDENTIFY - flagged separately as verbatim
+  self-descriptions, searchable even after the name is removed:
+    "enrich lives through technology" (sections A and F context) - this is the company's
+      registered purpose statement and is the single most identifying string in the packet.
+    "At our best. Every decision. Every day." (section A) - trademarked internal slogan.
+    "unleash the power of our people" (section F) - named company value, quoted verbatim.
+    "Inclusion and belonging are the heart and soul of ___" (section A).
+    "Vulnerability, empathy, courage and grace" as a named four-part behaviour set
+      (section A, quoted as two of the four) - this exact quartet is unique to this company.
+
+  PRESERVED SOURCE TYPOS - unique-string identifiers, all in section B, all individually
+  searchable and each one sufficient to locate the original review:
+    "where" for "were" (2026-08-12 review)
+    "positon" for "position" (2026-08-10 review)
+    "you're" for "your" (2026-08-09 review)
+    "if have" for "if you have" (2026-08-06 review)
+    "list" for "lost" (2026-08-03 review)
+  Additionally, every section B review is reachable from its title slug in the URL, and the
+  URLs are printed in full. The URL set must be stripped or hashed at anonymization or the
+  typo flags are moot.
+
+
+########## SECTION 5 - BUILDER'S DEFECT REPORT ON PROMPT v4.6 ##########
+
+STRUCTURAL - changed what evidence reached Section 1, or how a section was scoped.
+
+S1. THE PROMPT MANDATES TWO RETRIEVAL METHODS AND GIVES NO INSTRUCTION FOR HAVING ONLY ONE.
+    Related section: the v4.4 two-methods block, and hard rule 4.
+    The JavaScript renderer was unavailable for this entire build. The prompt is emphatic
+    that plain fetch and a renderer reach different sources and that neither may be treated
+    as sufficient - but it says only "if you cannot open pages, stop and say so", which did
+    not apply because plain fetch opened pages fine. So the prompt offers a binary (can
+    browse / cannot browse) where the real state was one-of-two-methods, and it does not
+    say whether that is a stop condition, a proceed-and-record condition, or a defect. I
+    made a defensible choice - proceed under the shipping posture and record the limitation
+    precisely - but the prompt should say which. Structural because it determined Section
+    A's entire source basis: the company's actual careers and values pages were reached and
+    returned a "Loading..." shell, and section A was built instead from the corporate site
+    and the Code of Ethics. A packet built with a renderer would have a different Section A.
+
+S2. THE PROOF-OF-ABSENCE RULE HAS NO CATEGORY FOR "REACHED, EXISTS, UNREADABLE BY THE ONE
+    METHOD I HAVE."
+    Related section: hard rules 4 and 5, and the D-ladder proof-of-absence note.
+    The prompt gives me "NOT FOUND / NOT ACCESSIBLE" as a single compound outcome and tells
+    me to list what I tried. But ladder rung D3 is a case where I can prove the page EXISTS
+    and has content - the HTML <title> comes back as "Our Values", "Our Culture", "People of
+    Best Buy" - while the body is a shell. That is a third state, and it is much more
+    informative than either "not found" or "not accessible". I recorded it as NOT
+    RETRIEVABLE, NOT ABSENT and explained, but I invented that label. Step 6 of the build
+    brief distinguishes three findings (did not exist / stale / could not be reached); the
+    collector prompt's own vocabulary does not. Structural because it changes what a rater
+    concludes from a blank rung.
+
+S3. SECTION D'S VOICE-COMPOSITION RULE DOES NOT COVER WHO PUBLISHED THE VOICE.
+    Related section: D0, and B2b by analogy.
+    D0 makes me record executive vs non-executive and work an extra rung if all-executive.
+    This build came back 4 non-executive / 1 executive, so the trigger did not fire. But all
+    four non-executive passages come from one article on the company's own newsroom, and all
+    four speakers are summer interns selected and quoted by the employer. v4.6 added B2b
+    precisely because company-authored content sitting inside an experiential stream needed
+    tagging - and then did not apply the same logic to section D, where the whole section
+    routinely comes from company-published channels. On this company the D0 test passes
+    while the underlying concern (is this an independent account of how the place works?)
+    is not really satisfied. I flagged it in the section header, but D0 as written would let
+    a less careful builder report "mixed voice, no action needed" and move on. Structural
+    because it changes how a rater weights the entire section.
+
+S4. THE RECENCY FRAME HAS NO STOPPING RULE WHEN THE STREAM IS DENSE.
+    Related section: B2.
+    v4.6 says take the most recent reviews company-wide until you reach the minimum. On a
+    company posting several reviews a day, the newest 15 span thirteen days. That is
+    excellent for recency and quietly bad for coverage: a fortnight in August is a seasonal
+    slice, and four of my fifteen reviews mention holiday or seasonal work, which may be an
+    artefact of when I sampled rather than a property of the company. The v4.6 rationale is
+    written entirely from P-01, a low-volume company where the recency frame widened
+    coverage. At 40,000 reviews it narrows it to a window. The prompt gives no guidance on
+    whether to take 15 from thirteen days or to widen the window. I took the newest 15
+    exactly as written. Structural because it selects the evidence in Section 1.
+
+S5. THE PROMPT NAMES A REVIEW-SITE JOB ROUTE THAT NO LONGER WORKS, AND THE WORKING ROUTE IS
+    NOT IN THE FALLBACK CHAIN.
+    Related section: section C fallback chain, step 1.
+    "The reviews-site job view (indeed.com/viewjob?jk=...)" is correct and did render full
+    posting bodies - but the prompt says to "reach it from the company's reviews-site Jobs
+    tab", and that tab now masks its job links. The company jobs tab and its location-filtered
+    variants rendered listings whose links were placeholders. The only route that exposed
+    real job identifiers was the site's SEO job-search path
+    (indeed.com/q-<company>-l-<city>-jobs.html), which is in no version of this prompt.
+    Meanwhile the obvious parameterised search route (indeed.com/jobs?q=...) returns an empty
+    document. A builder following step 1 literally would have concluded the postings were
+    unreachable and dropped to the ATS chain, which is a dead end here because this employer
+    uses a ServiceNow talent portal with no exposed board API. Structural because without the
+    undocumented route section C yields nothing.
+
+S6. SECTION C FORBIDS QUOTING OFFICE LOCATIONS, AND THE MOST DIMENSION-BEARING SENTENCE IN
+    THE CORPORATE POSTING CONTAINS ONE.
+    Related section: section C capture rules.
+    The hybrid-working sentence - four days on site, one day remote, at a named office - is
+    the single strongest autonomy and collaboration signal in any of the five postings. The
+    rule says do not quote office locations; hard rule 2 says quote verbatim. Section F
+    resolves exactly this collision with "rewrite the proper noun, keep the clause", but that
+    instruction is scoped to section F. I applied a marked elision, which is the least-bad
+    option and which I believe is right, but I had to reason by analogy from another section.
+    Structural because the alternative reading - drop the excerpt - would have removed the
+    only remote-work evidence in the packet.
+
+COSMETIC - confusing, but changed nothing.
+
+C1. The prompt's own P-02 figures are now stale, and it does not say they are snapshots.
+    Related section: B1, B2c step 2, and defect-register rows D4 and D11.
+    v4.4 and v4.6 quote specific P-02 numbers as settled fact - 4,801 Sales Associate
+    reviews, 3,454 Customer Service Representative, "35,162 / 35,162 / 39,859 / 39.9K",
+    "roughly 40,000 reviews on each site", "more than 85,000 people". Several have moved:
+    Glassdoor now shows 41,952 not ~42,168, the headcount is approximately 82,000 per the
+    current 10-K, and the Indeed page now shows six conflicting counts rather than four.
+    Others matched exactly. Because this is the same company the prompt was written against,
+    a builder cannot tell which figures are historical illustrations and which are current
+    expectations - and quietly reusing one would be a training-data-memory violation of hard
+    rule 3. Cosmetic because I re-derived every number from the page; but on any other
+    company these lines would read as generic guidance, and here they read as answers.
+
+C2. B2c is retained "only for the case in B2 above", but B2's case is a named sub-sample and
+    B2c's six steps describe a full stratified build including Glassdoor subrating capture -
+    which v4.5 abolished and 2f explicitly records as NOT COLLECTED. Steps 5 and 6 of B2c
+    therefore instruct a collection the same prompt bars two sections earlier. I skipped
+    them. Numbering and scoping only.
+
+C3. The output format block prints a section-A heading of "5-8 excerpts" and section D/E/F
+    headings with "yield: __", but gives no place in the Section 1 line format for the
+    `needed JS: Y/N` field that the v4.4 block makes mandatory on every excerpt. I appended
+    it after the date. A downstream parser expecting the documented five-field line will not
+    find it.
+
+C4. Hard rule 8 is numbered twice. There is a "RULE 8 (new in v4.5)" on evaluative metrics
+    stated above the numbered list, and a separate "8. RECORD WHICH POPULATION YOUR EVIDENCE
+    DESCRIBES. New in v4.4" inside it. Rule 9 is likewise stated twice, once above the list
+    and once as B3. The v4.4 change history records fixing exactly this class of duplicate
+    numbering in section B; it has reappeared in the hard rules. The rules get cited by
+    number in this QA block, so it matters slightly.
+
+C5. Section E bars "job aggregators" and "content farms" as reporting, and the D-ladder bars
+    guessed URLs - but nothing in the prompt addresses using a site's own structured API
+    (here, the WordPress REST endpoint) when its human-facing index is JavaScript-gated. That
+    is how I enumerated the company's recent articles after the archive page returned assets
+    only. It is plainly legitimate and plainly first-party, but it is unaddressed, and a
+    cautious builder might not try it and would then record the newsroom as unreachable.
+
+C6. The build brief says to save to `packets/P-0X_<company_slug>/P-0X_packet.txt` if I can
+    write files, and the collector prompt says output format is "plain text only (no markdown
+    tables, no code blocks, no artifacts)". The collector's own OUTPUT FORMAT section then
+    presents its templates inside code fences. I followed the instruction, not the example.

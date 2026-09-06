@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solverah scoring &mdash; packet P-04 &mdash; rater A</title>
+<style>
+  :root {
+    --ink:#16181d; --muted:#6b7280; --line:#e2e5ea; --bg:#fbfbfc;
+    --accent:#1f4e79; --warn:#8a5a00; --warnbg:#fff8e6;
+    --ok:#1a6b3c; --okbg:#eef7f1; --okline:#b8dcc6; --sel:#fff3b0;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:1560px; margin:0 auto; padding:20px; }
+  header { border-bottom:2px solid var(--ink); padding-bottom:12px; margin-bottom:18px; }
+  header h1 { margin:0 0 4px; font-size:19px; }
+  header .meta { color:var(--muted); font-size:13px; }
+  .cols { display:grid; grid-template-columns: 1fr 1fr; gap:22px; align-items:start; }
+  @media (max-width:1150px){ .cols{ grid-template-columns:1fr; } }
+
+  .panel { background:#fff; border:1px solid var(--line); border-radius:8px; margin-bottom:16px; }
+  .panel > h2 { margin:0; padding:11px 15px; font-size:13px; text-transform:uppercase;
+                letter-spacing:.08em; color:var(--muted); border-bottom:1px solid var(--line); }
+  .panel .body { padding:15px; }
+
+  #packet { position:sticky; top:20px; max-height:calc(100vh - 40px);
+            display:flex; flex-direction:column; margin-bottom:0; }
+  #packetText { overflow:auto; white-space:pre-wrap; word-wrap:break-word;
+                font:12.5px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+                padding:15px; flex:1; }
+  #packetText::selection { background:var(--sel); }
+
+  #tagbar { border-top:1px solid var(--line); padding:10px 13px; background:#f7f9fb;
+            border-radius:0 0 8px 8px; }
+  #tagbar.off { display:none; }
+  #tagbar .lead { font-size:12px; color:var(--muted); margin-bottom:7px; }
+  #tagbar .quo { font:11.5px/1.45 ui-monospace,Menlo,Consolas,monospace; background:var(--sel);
+                 padding:5px 7px; border-radius:4px; margin-bottom:8px;
+                 max-height:52px; overflow:auto; }
+  #tagbar .btns { display:flex; gap:6px; flex-wrap:wrap; }
+  #tagbar button { border:1px solid #c3cad4; background:#fff; border-radius:5px;
+                   padding:6px 10px; font-size:12px; cursor:pointer; }
+  #tagbar button:hover:not(:disabled) { border-color:var(--accent); background:#f2f7fc; }
+  #tagbar button:disabled { opacity:.4; cursor:not-allowed; }
+  #tagbar button.added { background:var(--okbg); border-color:var(--okline); color:var(--ok); }
+
+  .gate { background:var(--warnbg); border:1px solid #e8d9a8; border-radius:8px;
+          padding:16px 18px; margin-bottom:18px; }
+  .gate h2 { margin:0 0 10px; font-size:14px; color:var(--warn);
+             text-transform:uppercase; letter-spacing:.06em; }
+  .gate ol { margin:0; padding-left:20px; }
+  .gate li { margin-bottom:7px; }
+
+  .dimhead { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .dimhead h3 { margin:0; font-size:17px; }
+  .poles { color:var(--muted); font-size:12.5px; }
+  .prose { font-size:13px; margin:8px 0; }
+  .prose b { color:var(--accent); }
+
+  details.dim > summary { list-style:none; cursor:pointer; padding:12px 15px;
+                          display:flex; justify-content:space-between; align-items:center;
+                          gap:10px; border-radius:8px; }
+  details.dim > summary::-webkit-details-marker { display:none; }
+  details.dim > summary:hover { background:#fafbfc; }
+  details.dim { border:1px solid var(--line); border-radius:8px; background:#fff; margin-bottom:11px; }
+  details.dim[open] > summary { border-bottom:1px solid var(--line); }
+  details.dim.done { border-color:var(--okline); background:var(--okbg); }
+  details.dim.done > summary { background:transparent; }
+  .sname { font-weight:600; font-size:15px; }
+  .sstat { font-size:12px; color:var(--muted); }
+  .sstat.ok { color:var(--ok); font-weight:600; }
+  .dimbody { padding:0 15px 15px; }
+
+  .bands { display:flex; flex-direction:column; gap:6px; margin:12px 0; }
+  .band { display:flex; gap:10px; align-items:flex-start; padding:9px 11px;
+          border:1px solid var(--line); border-radius:6px; cursor:pointer; background:#fff; }
+  .band:hover { border-color:#b9c2cf; background:#fafbfc; }
+  .band input { margin-top:3px; flex:none; }
+  .band .lbl { font-weight:600; display:block; margin-bottom:2px; font-size:13px; }
+  .band .txt { color:#3d434d; font-size:12.5px; }
+  .band.chosen { border-color:var(--accent); background:#f2f7fc; box-shadow:inset 3px 0 0 var(--accent); }
+  .storagewarn { margin:0; padding:14px 18px; background:#fdecea; border-bottom:3px solid #b3261e;
+                 color:#5f1512; font-size:15px; line-height:1.5; }
+  .selnote { padding:0 15px 8px; color:#b3261e; font-size:13px; min-height:0; }
+  #tagbar .prov { font-size:12px; color:var(--muted); margin:2px 0 8px; }
+  .ex:hover { background:#fbfcfd; }
+  .val { color:var(--muted); font-weight:400; font-size:11.5px; }
+
+  .cite { border:1px dashed #c3cad4; border-radius:6px; padding:10px 12px; margin:11px 0;
+          background:#fcfcfd; min-height:56px; }
+  .cite .hint { color:var(--muted); font-size:12.5px; font-style:italic; }
+  .q { background:var(--sel); padding:6px 8px; border-radius:4px; margin-bottom:6px;
+       font:11.5px/1.5 ui-monospace,Menlo,Consolas,monospace; position:relative; padding-right:26px; }
+  .q button { position:absolute; right:4px; top:4px; border:none; background:transparent;
+              cursor:pointer; color:#a33; font-size:14px; line-height:1; padding:2px 4px; }
+
+  .conf { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 4px; }
+  .conf label { flex:1; min-width:108px; border:1px solid var(--line); border-radius:6px;
+                padding:7px 9px; cursor:pointer; font-size:12px; background:#fff; }
+  .conf label:hover { border-color:#b9c2cf; }
+  .conf label.chosen { border-color:var(--accent); background:#f2f7fc; }
+  .conf .cl { font-weight:600; display:block; }
+  .conf .ct { color:var(--muted); font-size:11px; }
+
+  textarea { width:100%; border:1px solid var(--line); border-radius:6px; padding:9px;
+             font:inherit; font-size:13px; resize:vertical; }
+  button.act { background:var(--accent); color:#fff; border:none; border-radius:6px;
+               padding:9px 18px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  button.act:disabled { background:#c2c8d0; cursor:not-allowed; }
+  button.ghost { background:#fff; color:var(--ink); border:1px solid var(--line);
+                 border-radius:6px; padding:9px 16px; cursor:pointer; font-size:13px; }
+
+  .summary { font-size:13px; }
+  .summary .row { display:flex; gap:10px; padding:4px 0; border-bottom:1px solid #eef0f3; }
+  .summary .row:last-child { border-bottom:none; }
+  .summary .k { color:var(--muted); min-width:76px; }
+  .err { color:#a33; font-size:12.5px; margin-top:7px; min-height:17px; }
+  .fine { color:var(--muted); font-size:12px; }
+  fieldset { border:1px solid var(--line); border-radius:6px; padding:12px 14px; margin:0 0 14px; }
+  legend { font-size:12px; text-transform:uppercase; letter-spacing:.06em;
+           color:var(--muted); padding:0 6px; }
+  .radiorow { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  .locked { background:var(--okbg); border:1px solid var(--okline); border-radius:6px;
+            padding:11px 13px; margin-bottom:11px; font-size:13px; }
+  .locked b { color:var(--ok); }
+  .hidden { display:none !important; }
+  .counter { font-size:12.5px; color:var(--muted); margin-bottom:11px; }
+  .counter b { color:var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Solverah &mdash; company culture scoring</h1>
+  <div class="meta">
+    Packet <b>P-04</b> &nbsp;·&nbsp; Rater <b>A</b> &nbsp;·&nbsp;
+    Rubric <b>v1-frozen-2026-08-15</b> &nbsp;·&nbsp;
+    <span id="clock">session not started</span>
+  </div>
+</header>
+
+<div id="storageWarn" class="storagewarn hidden"></div>
+
+<div id="gatePanel" class="gate">
+  <h2>Read before you start &mdash; every session</h2>
+  <ol id="gateList"></ol>
+  <p class="fine" style="margin:12px 0 0">
+    <b>Finish this company before you open the next one</b>, and take a proper break between
+    packets &mdash; the reading is dense and the last packet of a long day is not the same
+    instrument as the first. All six dimensions are open at once so you only read the packet
+    once &mdash; score them in whatever order the evidence supports. But <b>committing a
+    dimension is final</b>, and once you submit, the packet cannot be reopened. That is
+    deliberate: a company you read later must not be able to change a company you read first.
+  </p>
+  <p style="margin:14px 0 0"><button class="act" id="startBtn">I have read these &mdash; start the session</button></p>
+</div>
+
+<div id="main" class="hidden">
+<div class="cols">
+
+  <section class="panel" id="packet">
+    <h2>Evidence packet &mdash; highlight text to cite it</h2>
+    <div id="packetText">PACKET P-04   ·   ANONYMIZED   ·   RATER-FACING
+  scrubbed from : P-04_packet.txt (build v4.6, model claude-opus-5, built 2026-08-14)
+  ruleset       : ANONYMIZATION_RULES_DRAFT.md
+  scrubbed      : 2026-08-14
+  status        : DRAFT. Source packet is a one-method build.
+
+  DO NOT SEARCH FOR ANY PHRASE IN THIS PACKET. If you recognise the company, that is
+  expected and is not a failure — record it on the recognition flag and keep scoring
+  from the evidence in front of you, not from what you know.
+
+
+########## SECTION 1 — EVIDENCE PACKET ##########
+
+SCOPE DECLARATION
+&quot;The employee reviews in this packet come from a small, unclaimed review profile
+ holding 34 reviews for a global agency network — mostly creative, production and
+ account roles at the largest office, plus single reviews from three other cities.
+ Other parts of this company — engineering and technology, product, media,
+ data/analytics, and its seven other international offices — are not represented in
+ them. Company-authored sources describe the whole organisation.&quot;
+
+
+--- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
+
+<span class="ex" data-eid="A1" data-sec="A" data-ix="1" data-src="company">   • &quot;We want you to bring your whole self to work, and believe we&#x27;re at our best when we can tap into our differences and collaborate across varied personal experiences and perspectives to arrive at impactful ideas.&quot;  — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="A2" data-sec="A" data-ix="2" data-src="company">   • &quot;Our hybrid model came from conversations with employees about how to enable them to do their best work. Our leadership team champions the importance of a truly flexible workplace that better suits both our people and our business.&quot;  — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="A3" data-sec="A" data-ix="3" data-src="company">   • &quot;At [the company], our people drive our culture, and we place high value on what they have to say. We foster trusting relationships through listening sessions that encourage creativity and lead to better solutions, both in our work and how we work together.&quot;  — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="A4" data-sec="A" data-ix="4" data-src="company">   • &quot;[The company] is constantly changing, contantly envolving. This is both a necessity of your business and an ongoing opportunity for you to bring your imagination and talent to the work. Get ready to iterate and rethink often. And don&#x27;t be afraid of little chaos.&quot;  [sic — &quot;contantly envolving&quot;; &quot;a necessity of your business&quot;; &quot;a little chaos&quot; written as &quot;little chaos&quot; — source typos preserved]  — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="A5" data-sec="A" data-ix="5" data-src="company">   • &quot;More than an a collection of offices, [the company] is a network of people who can make your work better and help you grow professionally. Go ahead, reach outside your department, your city, even your country, to find help and share ideas.&quot;  [sic — &quot;More than an a collection&quot;]  — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="A6" data-sec="A" data-ix="6" data-src="company">   • &quot;We&#x27;re all accountable for reaching the same goal: breakthrough creative work. But if we think and operate in silos, we&#x27;ll never get there. Focus on your contributions, yes, but also on how they fit within the bigger picture. And look for ways to push the work forward even when your part is &quot;done&quot;.&quot;  — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="A7" data-sec="A" data-ix="7" data-src="company">   • &quot;We&#x27;re at our best when diverse voices and disciplines intersect. Innovation often happens when people with disparate perspectives come together as a team. Look for these intersections, and cultivate relationships that make them possible.&quot;  — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="A8" data-sec="A" data-ix="8" data-src="company">   • &quot;The best ideas, and ways of working are simple. Complexity is the enemy, whether it is a dense slide or a call with 40 people. Look at the work, and the process, with an eye toward less: shorter copy, smaller decks, fewer meetings.&quot;  — [careers page] — company-authored — retrieved 2026-08-14 · needed JS: N</span>
+
+   A yield: 8/8 (at cap).
+
+
+--- B. EMPLOYEE REVIEWS (12–15, one per line, most recent first) ---
+
+NOTE TO RATER — THREE THINGS YOU CANNOT SEE FROM THE EXCERPTS BELOW.
+
+1. AGE. The newest employee review in this section is dated 4 July 2024 —
+   twenty-five months before this packet was built. ZERO of the fifteen reviews
+   fall inside the 24-month window. The median review is roughly 42 months old
+   and the oldest is roughly 84 months old.
+
+2. A STRUCTURAL EVENT POSTDATES EVERY REVIEW. The company changed ownership in
+   early 2025 — sold by its holding-company parent of 23 years to a private
+   equity firm in a partial management buyout — and has since acquired a company,
+   appointed its first global chief brand officer, and restructured leadership on
+   a major account. All of that is AFTER the newest review below. The reviews and
+   the news section of this packet describe two different organisations.
+
+3. TRUNCATION. Nine of the fifteen reviews (60%) were cut off at source by a
+   &quot;Show more&quot; control that does not expand on fetch, and could not be expanded
+   from the review&#x27;s own permalink either. The reviews that survived intact are
+   systematically the SHORT ones. You are reading the opening paragraph of every
+   long, detailed review and the whole of every brief one.
+
+A SECOND REVIEW SOURCE HOLDS CURRENT REVIEWS FOR THIS COMPANY THAT ARE NOT
+QUOTED HERE. Its newest is dated 26 June 2026. Section B&#x27;s collection rules
+restrict verbatim review text to the source used below.
+
+<span class="ex" data-eid="B1" data-sec="B" data-ix="1" data-src="noncompany">   • &quot;[La empresa] ya no es lo que era. Falta muchísimo liderazgo. - Hay poco sentido de propósito y dirección. - Cada vez hay menos clientes y no parece que eso vaya a cambiar. - No se siente que las promotions sean meritocráticas.&quot;  [review posted in Spanish; reproduced verbatim, untranslated]  — [employee review rev-01] — Director · [Site A] — 2024-07-04 · needed JS: N</span>
+
+<span class="ex" data-eid="B2" data-sec="B" data-ix="2" data-src="noncompany">   • &quot;Awesome work life balance. Great benefits. Excellent management and support staff. Opportunity for growth. Lots of flexibility as well as remote options.&quot;  — [employee review rev-02] — Paralegal · [Site B] — 2024-02-21 · needed JS: N</span>
+
+<span class="ex" data-eid="B3" data-sec="B" data-ix="3" data-src="noncompany">   • &quot;I worked on [a major global client] back in 2011, it was fun work but the team culture wasn&#x27;t great. There were to many cooks in the kitchen and often the work hours were very long.&quot;  [sic — &quot;to many cooks&quot;]  — [employee review rev-03] — Design Director · [Site C] — 2023-11-14 · needed JS: N</span>
+
+<span class="ex" data-eid="B4" data-sec="B" data-ix="4" data-src="noncompany">   • &quot;They talk humanity and inclusion but it&#x27;s actually very corporate. The schedule and staffing is dictated by aggressive margins. They swap creative teams around like they&#x27;re cells in an excel sheet, with no regard to who would be best for what project, or who is already invested in something. […]&quot;  [truncated at source]  — [employee review rev-04] — Art Director · [Site C] — 2023-09-29 · needed JS: N</span>
+
+<span class="ex" data-eid="B5" data-sec="B" data-ix="5" data-src="noncompany">   • &quot;Efficient, effective, innovative. Always trying new things. Into wellbeing and diversity, equity and inclusion. Variety of clients and projects, strong teamwork.&quot;  — [employee review rev-05] — Director · [Site C] — 2023-08-17 · needed JS: N</span>
+
+<span class="ex" data-eid="B6" data-sec="B" data-ix="6" data-src="noncompany">   • &quot;I worked as a UI designer here for six months and I enjoyed the experience. The agency has a diverse portfolio of clients and projects, ranging from web design to mobile apps to social media campaigns. The team is creative, collaborative and supportive, and I learned a lot from my colleagues and mentors. […]&quot;  [truncated at source]  — [employee review rev-06] — Designer · [Site D] — 2023-04-01 · needed JS: N</span>
+
+<span class="ex" data-eid="B7" data-sec="B" data-ix="7" data-src="noncompany">   • &quot;Good. Staffs were nice. Work life balance is a bit off. Great environment. Seems to have room to grow. Everyone seems nice and productive. Management seems good […]&quot;  [truncated at source]  — [employee review rev-07] — Internship · location field unusable [the source-site location field contains the literal string &quot;Good&quot;]  — 2023-03-26 · needed JS: N</span>
+
+<span class="ex" data-eid="B8" data-sec="B" data-ix="8" data-src="noncompany">   • &quot;Overall the best of [the company] is the great people you get to work with, excellent culture and fun projects. Although the career development can feel a bit slow.&quot;  — [employee review rev-08] — Software Engineer · [Region E] — 2023-02-17 · needed JS: N</span>
+
+<span class="ex" data-eid="B9" data-sec="B" data-ix="9" data-src="noncompany">   • &quot;It was over 3 years ago and I was trying to get out of the mailroom. I did gain a lot of attention but had a new manager who made it seem like I was messing up at work (found out he was in on having me fired all along). The job itself is great, but very toxic people there. I do not know how it is now […]&quot;  [truncated at source]  — [employee review rev-09] — Mailroom Services Coordinator · [Site C] — 2022-03-21 · needed JS: N</span>
+
+<span class="ex" data-eid="B10" data-sec="B" data-ix="10" data-src="noncompany">   • &quot;Company produces amazing work. Always on the cutting edge. Office looks great but difficult to focus in the full open floor plan environment. Toxic environment. […]&quot;  [truncated at source]  — [employee review rev-10] — title: not stated (&quot;Anonymous&quot;) · [Site C] — 2021-05-25 · needed JS: N</span>
+
+<span class="ex" data-eid="B11" data-sec="B" data-ix="11" data-src="noncompany">   • &quot;I learned a lot during my time at [the company] but ultimately felt the company promoted a really unhealthy work life balance. I constantly found myself performing above my pay grade without feeling recognized or appreciated. […]&quot;  [truncated at source]  — [employee review rev-11] — Associate Producer · [Site C] — 2021-02-09 · needed JS: N</span>
+
+<span class="ex" data-eid="B12" data-sec="B" data-ix="12" data-src="noncompany">   • &quot;Great place to work and grow as an employee. great staff to be around, supportive bunch of workers really working for a common goal to work on work together. […]&quot;  [truncated at source; sic — &quot;Crative&quot; as self-reported title]  — [employee review rev-12] — Crative · [Site C] — 2020-10-01 · needed JS: N</span>
+
+<span class="ex" data-eid="B13" data-sec="B" data-ix="13" data-src="noncompany">   • &quot;Overall a fantastic place to succeed in your career. Unfortunately, the [Site F] branch is no longer active. The best and most talented people you will ever meet, along with fantastic clients. […]&quot;  [truncated at source]  — [employee review rev-13] — Art Director · [Site F] — 2020-05-07 · needed JS: N</span>
+
+<span class="ex" data-eid="B14" data-sec="B" data-ix="14" data-src="noncompany">   • &quot;It&#x27;s a true boys club - I was shocked because of the forward-thinking work they create and the breakthrough thinking overall. They do prioritize diversity and there are some strong, excellent leaders who understand what modernity is. But there are also many people - leaders and partners - stuck in their […]&quot;  [truncated at source]  — [employee review rev-14] — Talent Team · [Site C] — 2019-09-07 · needed JS: N</span>
+
+<span class="ex" data-eid="B15" data-sec="B" data-ix="15" data-src="noncompany">   • &quot;Working with incredibly smart people in a fascinating office...great combination. My least favorite part? The group structure for accounts. Creates silos.&quot;  — [employee review rev-15] — GAD · [Site C] — 2019-08-05 · needed JS: N</span>
+
+   B yield: 15/12 minimum. 0/15 within 24 months.
+   Employer responses found in the review stream: NONE. Interview write-ups excluded: NONE found.
+
+
+--- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+
+Four currently-open postings, four different functions. Every posting was opened
+individually on 2026-08-14 and each was confirmed live by appearing in the
+employer&#x27;s applicant-tracking-system list API on the same date. Location strings
+and stated hiring ranges have been stripped as instructed.
+
+POSTING 1 — function: technology / engineering leadership
+
+<span class="ex" data-eid="C1" data-sec="C" data-ix="1" data-src="company">   • &quot;We build with agents: a substantial share of our code is agent-generated, and every team member is an expert at directing agents to produce production-quality work. We are engineering-led, small by design, and just getting started.&quot;  — [job posting] — company-authored — first published 2026-06-11, confirmed open 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="C2" data-sec="C" data-ix="2" data-src="company">   • &quot;You will write production code daily across the stack, directing agents fluently and writing by hand where it matters most.&quot;  — [job posting] — company-authored — first published 2026-06-11, confirmed open 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="C3" data-sec="C" data-ix="3" data-src="company">   • &quot;Ensure every product ships as a working demo, a marketing deck, and a reusable codebase. Hold the line against one-off custom work.&quot;  — [job posting] — company-authored — first published 2026-06-11, confirmed open 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="C4" data-sec="C" data-ix="4" data-src="company">   • &quot;A strong bias for shipping. A tight v0 in two weeks beats a perfect roadmap in two months.&quot;  — [job posting] — company-authored — first published 2026-06-11, confirmed open 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="C5" data-sec="C" data-ix="5" data-src="company">   • &quot;Work within a senior, intentionally small team. No politics, no process tax, no committees.&quot;  — [job posting] — company-authored — first published 2026-06-11, confirmed open 2026-08-14 · needed JS: N</span>
+
+POSTING 2 — function: product management
+
+<span class="ex" data-eid="C6" data-sec="C" data-ix="6" data-src="company">   • &quot;own the rhythm by which bets move from concept to shippable product, defining the demo, the deck, and the codebase scope for each.&quot;  — [job posting] — company-authored — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="C7" data-sec="C" data-ix="7" data-src="company">   • &quot;run customer discovery with [company] Client Leads, prospects, and pitch teams to validate assumptions early and kill bets that do not hold up.&quot;  — [job posting] — company-authored — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="C8" data-sec="C" data-ix="8" data-src="company">   • &quot;prototype, validate, and iterate using AI agents to build working artifacts yourself rather than waiting on engineering for every check.&quot;  — [job posting] — company-authored — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="C9" data-sec="C" data-ix="9" data-src="company">   • &quot;define and report on success metrics, building the dashboard that the team and the Global Leadership Team live by to track pitch-to-win lift, margin uplift, engagement extension, software revenue, and industry signal.&quot;  — [job posting] — company-authored — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="C10" data-sec="C" data-ix="10" data-src="company">   • &quot;is a high-agency operator who fills in gaps without requiring a formalized process and brings rigor without bureaucracy.&quot;  — [job posting] — company-authored — first published 2026-07-16, confirmed open 2026-08-14 · needed JS: N</span>
+
+POSTING 3 — function: design / motion direction
+
+<span class="ex" data-eid="C11" data-sec="C" data-ix="11" data-src="company">   • &quot;Nobody&#x27;s handing you a brief and walking away. We want someone who spots what&#x27;s next before we ask for it, who&#x27;s energised by change rather than waiting for permission to make it.&quot;  — [job posting] — company-authored — first published 2026-07-29, confirmed open 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="C12" data-sec="C" data-ix="12" data-src="company">   • &quot;Comfort with ambiguity and change. You act on instinct and initiative, not instruction.&quot;  — [job posting] — company-authored — first published 2026-07-29, confirmed open 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="C13" data-sec="C" data-ix="13" data-src="company">   • &quot;Collaborate with creative directors, strategists and technologists to turn big ideas into crafted, moving solutions.&quot;  — [job posting] — company-authored — first published 2026-07-29, confirmed open 2026-08-14 · needed JS: N</span>
+
+POSTING 4 — function: post-production / editorial
+
+<span class="ex" data-eid="C14" data-sec="C" data-ix="14" data-src="company">   • &quot;Collaborative spirit and honesty—you speak up when something isn&#x27;t working&quot;  — [job posting] — company-authored — first published 2026-07-13, confirmed open 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="C15" data-sec="C" data-ix="15" data-src="company">   • &quot;Deliver polished work on deadline without compromising craft&quot;  — [job posting] — company-authored — first published 2026-07-13, confirmed open 2026-08-14 · needed JS: N</span>
+
+<span class="ex" data-eid="C16" data-sec="C" data-ix="16" data-src="company">   • &quot;Editors who care equally about the quality of the frame and the speed of delivery&quot;  — [job posting] — company-authored — first published 2026-07-13, confirmed open 2026-08-14 · needed JS: N</span>
+
+   C yield: 16 excerpts / 4 postings / 4 functions. 3 of 4 postings outside engineering.
+   C exemption claimed: NO. Eleven roles were open on the employer&#x27;s ATS on 2026-08-14.
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 3 · ladder fully attempted) ---
+
+VOICE COMPOSITION FLAG FOR THE RATER: two of the three passages below are
+C-suite voices (global chief executive; chair and global chief creative officer)
+describing an ownership transition. The third is a function head (VP level).
+No individual-contributor first-person account was found on any rung.
+
+<span class="ex" data-eid="D1" data-sec="D" data-ix="1" data-src="noncompany">   • &quot;[The company] has always been an outlier inside a holding company. The holding company model has often focused on slotting agencies into specific silos. As a result of that, we were always a little bit of an anomaly in that model.&quot;  — [long-form trade press profile; direct quote] — the global chief executive, speaking to trade press — 2026-03-18 · needed JS: N</span>
+
+<span class="ex" data-eid="D2" data-sec="D" data-ix="2" data-src="noncompany">   • &quot;Independence has allowed us to transform and change the work. [It] gives you that freedom to let go of things, because you&#x27;re not part of some structure that you&#x27;re expected to behave in.&quot;  [bracketed insertion is the publication&#x27;s, reproduced as printed]  — [long-form trade press profile; direct quote] — the chair and global chief creative officer, speaking to trade press — 2026-03-18 · needed JS: N</span>
+
+<span class="ex" data-eid="D3" data-sec="D" data-ix="3" data-src="noncompany">   • &quot;Now that models allow anyone to make anything in seconds, execution alone is a commodity. Our value has shifted. We are getting back to what has always been our most valuable asset: our taste and curation. At [the company], we talk about this as [a named internal framing for brand systems]. We are moving past static, siloed guidelines and toward code that carries character, memory, and behaviour. […] We aren&#x27;t interested in being frozen by trepidation. We are training our teams to use these tools to amplify their intuition, not replace it.&quot;  — [trade press feature; signed first-person contribution] — a VP, head of brand design — 2026-07-20 · needed JS: N</span>
+
+
+--- E. RECENT NEWS (yield: 3 · searches logged) ---
+
+Company events reported in the last 12 months (2025-08-14 to 2026-08-14).
+
+<span class="ex" data-eid="E1" data-sec="E" data-ix="1" data-src="noncompany">   • &quot;[A returning executive] has been selected as [the company]&#x27;s first global Chief Brand Officer. [They rejoin] the agency after serving as global head, design in 2021.&quot; … &quot;The new hire reports to [the] chair/global CCO at [the company]. Their duties include branding new AI products and aiding the strategic growth of the agency&#x27;s clients.&quot;  — [trade press reporting] — independent, not company-authored — byline date 2025-09-15 · needed JS: N</span>
+
+<span class="ex" data-eid="E2" data-sec="E" data-ix="2" data-src="noncompany">   • &quot;This strategic move is the latest in a series of significant investments by [the company] following its transition to an independent, privately held company in partnership with [a private equity firm]. Since its move to independence, the company has invested in new talent, product development, partnerships, and acquisitions – most recently with the acquisition of [an AI system design studio].&quot;  — [trade press reporting] — independent, not company-authored — 2025-09-12 · needed JS: N</span>
+
+<span class="ex" data-eid="E3" data-sec="E" data-ix="3" data-src="noncompany">   • &quot;When news of [the holding company]&#x27;s plans to sell [the company] was leaked, it wasn&#x27;t just clients who were surprised; as it turns out, [the company]&#x27;s leadership had no idea and were already starting their own process of selling.&quot;  — [long-form trade press profile] — independent, not company-authored — 2026-03-18 · needed JS: N</span>
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 0 · public/private: PRIVATE) ---
+
+   N/A — PRIVATE. The company has been privately held since early 2025, when
+   its holding-company parent sold it to a private equity firm in a partial
+   management buyout. It files no annual report and has no Item 1 Human Capital
+   disclosure. No regulatory-filing route was attempted; the company&#x27;s private status
+   was established from trade reporting before Section F was reached.
+
+
+########## END OF PACKET ##########
+</div>
+    <div id="selNote" class="selnote"></div>
+    <div id="tagbar" class="off">
+      <div class="lead">File this quote under &mdash; pick as many dimensions as it supports:</div>
+      <div class="quo" id="tagQuote"></div>
+      <div class="prov" id="tagProv"></div>
+      <div class="btns" id="tagBtns"></div>
+    </div>
+  </section>
+
+  <section id="right">
+    <div class="counter" id="counter"></div>
+    <div id="dims"></div>
+
+    <div class="panel hidden" id="finalPanel">
+      <h2>Close out the sitting</h2>
+      <div class="body">
+        <fieldset>
+          <legend>Recognition</legend>
+          <p class="fine" style="margin-top:0">
+            Recognising the company is <b>expected and is not a failure</b>. It is recorded as a
+            variable, not held against you. Answer honestly &mdash; a hidden yes damages the data
+            far more than an admitted one.
+          </p>
+          <div class="radiorow">
+            <label><input type="radio" name="recog" value="yes"> I recognised the company</label>
+            <label><input type="radio" name="recog" value="suspect"> A suspicion, not a firm identification</label>
+            <label><input type="radio" name="recog" value="no"> No idea who this is</label>
+          </div>
+          <div id="recogDetailWrap" class="hidden" style="margin-top:11px">
+            <label class="fine" for="recogDetail">What gave it away, and at roughly what point?</label>
+            <textarea id="recogDetail" rows="2" placeholder="e.g. the values wording in Section A, second excerpt"></textarea>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Protocol check</legend>
+          <div class="radiorow">
+            <label><input type="radio" name="searched" value="no"> I did not search for anything in this packet</label>
+            <label><input type="radio" name="searched" value="yes"> I searched (say what, below)</label>
+          </div>
+          <div id="searchDetailWrap" class="hidden" style="margin-top:11px">
+            <textarea id="searchDetail" rows="2" placeholder="What did you look up?"></textarea>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Anything the rubric could not capture</legend>
+          <textarea id="freeNote" rows="3" placeholder="Anchors that did not fit, evidence you wanted and did not have, dimensions the packet could not support. This is how the rubric gets fixed — be blunt."></textarea>
+        </fieldset>
+
+        <div class="err" id="finalErr"></div>
+        <button class="act" id="submitBtn">Submit and lock this packet</button>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="donePanel">
+      <h2>Submitted</h2>
+      <div class="body">
+        <div class="locked"><b>This packet is locked.</b> Download the result file and send it to
+          Sebastian. Do not open another packet today.</div>
+        <button class="act" id="dlBtn">Download result file</button>
+        <button class="ghost" id="copyBtn">Copy to clipboard</button>
+        <p class="fine" id="dlNote" style="margin-bottom:0"></p>
+      </div>
+    </div>
+  </section>
+
+</div>
+</div>
+</div>
+
+<script>
+const CFG = {"_note": "Anchor text is a SWAP-IN. FROZEN 2026-08-15 for ground-truth round 1; Julie rewrites this file AFTER round 1, targeting the anchors that disagreement shows to be ambiguous, and the page regenerates. Wording below is lifted from Solverah_Company_Rating_Rubric v1 and is NOT final.", "rubric_version": "v1-frozen-2026-08-15", "band_values": [0.1, 0.3, 0.5, 0.7, 0.9], "agreement_rule": {"same_band": "agreement", "one_band_apart": "expected instrument resolution, not ambiguity", "two_or_more_bands_apart": "anchor ambiguity - reword, do not average"}, "gates": ["Neither pole is better. Every dimension runs between two legitimate cultures. \u201cDirected\u201d is not worse than \u201cself-directed.\u201d If you catch yourself scoring toward the pole you personally prefer, stop \u2014 that is bias, not signal.", "Score the company as it is, not as you would like it. You are describing a culture, not grading it. Aspirational careers-page copy is weak evidence; how people describe daily reality is strong evidence.", "Kill the halo. A well-liked brand tends to drag every score toward \u201cgood.\u201d Score each dimension only from evidence about that dimension.", "Evidence over gut. If you cannot point to a line in the packet that supports the number, lower your confidence. A guess dressed as a 0.9 poisons the ground truth more than an honest 0.5 at low confidence.", "Stale culture is wrong culture. Prefer recent evidence. Where the packet flags an evidence-age problem, let it lower your confidence.", "Do not search for anything in this packet. If you recognise the company, that is expected and is not a failure \u2014 tick the recognition box and keep scoring from the evidence in front of you."], "confidence_bands": [{"value": 0.9, "label": "High", "text": "Multiple corroborating sources of different types all point the same way."}, {"value": 0.6, "label": "Medium", "text": "Some real evidence but from one source type, or sources partly conflict. A defensible read, not a certain one."}, {"value": 0.3, "label": "Low", "text": "Thin or indirect evidence \u2014 a single ambiguous signal. You can defend a direction, but only weakly."}, {"value": 0.1, "label": "Very low", "text": "Almost nothing in the packet bears on this dimension. You are close to guessing."}], "dimensions": [{"key": "autonomy", "name": "Autonomy", "low_pole": "Directed", "high_pole": "Self-directed", "measures": "How much latitude individuals have to set their own approach, priorities and decisions, vs. following assigned direction, defined process and approval chains.", "where_to_look": "Job-post verbs (\u201cexecute against the roadmap\u201d vs. \u201cown your domain end-to-end\u201d), number of approval layers, presence of detailed SOP/process docs, review mentions of micromanagement vs. freedom, IC decision rights, remote-trust language.", "keep_distinct": "Not the same as Collaboration. A person can be highly self-directed AND work collectively. Autonomy is about who decides the how; Collaboration is about alone vs. together.", "bands": [{"value": 0.1, "reads_as": "Directed", "text": "Work is assigned and specified top-down. Most decisions need sign-off. Postings stress \u201cfollow established processes,\u201d reviews cite micromanagement or rigid procedure."}, {"value": 0.3, "reads_as": "Leaning directed", "text": "Manager sets direction and priorities; individual chooses tactics inside clear guardrails. Some latitude, but the frame is given."}, {"value": 0.5, "reads_as": "Mixed", "text": "Direction set at team level, individuals pick the how within it. No strong signal either way, or genuinely balanced."}, {"value": 0.7, "reads_as": "Leaning self-directed", "text": "ICs own outcomes and choose their approach with light approval. \u201cOwnership,\u201d results-over-process language present."}, {"value": 0.9, "reads_as": "Self-directed", "text": "Individuals set their own priorities and methods with minimal approval. High-trust, flat decision rights pervade the evidence."}]}, {"key": "pace", "name": "Pace", "low_pole": "Steady", "high_pole": "Fast", "measures": "The tempo and intensity of work \u2014 deliberate, sustainable cadence vs. rapid, high-urgency, quick-turnaround.", "where_to_look": "\u201cFast-paced\u201d in postings, release/ship frequency, deadline and crunch culture, review mentions of hours/intensity/burnout vs. calm, on-call expectations.", "keep_distinct": "Not the same as Innovation. A company can move fast while only optimizing, or invent slowly. Pace is tempo; Innovation is novelty.", "bands": [{"value": 0.1, "reads_as": "Steady", "text": "Deliberate cadence, long planning horizons, stability and quality emphasis. Reviews describe a calm, sustainable pace."}, {"value": 0.3, "reads_as": "Leaning steady", "text": "Generally measured tempo with occasional pushes. Deadlines exist but rarely dominate."}, {"value": 0.5, "reads_as": "Mixed", "text": "Ordinary business tempo \u2014 some crunch, some calm. No dominant signal."}, {"value": 0.7, "reads_as": "Leaning fast", "text": "Regular urgency, frequent releases, tight-ish timelines. Energy is up but not relentless."}, {"value": 0.9, "reads_as": "Fast", "text": "\u201cMove fast,\u201d rapid iteration, aggressive deadlines. Reviews cite long hours, intensity or hypergrowth."}]}, {"key": "collaboration", "name": "Collaboration", "low_pole": "Solo", "high_pole": "Collective", "measures": "How work actually gets produced \u2014 individual, heads-down ownership vs. group, cross-functional, in-the-room problem-solving.", "where_to_look": "Team structure (pods/squads vs. individual owners), meeting and pairing culture, open-plan vs. deep-work norms, \u201cwe win together\u201d vs. \u201cown your area\u201d language, async-individual vs. sync-group.", "keep_distinct": "Not the same as Autonomy. Collective teams can still hand individuals full ownership of the how. Score meeting and team density here, decision rights under Autonomy.", "bands": [{"value": 0.1, "reads_as": "Solo", "text": "Individual ownership, heads-down norm, low meeting load. Async and individual contribution valued."}, {"value": 0.3, "reads_as": "Leaning solo", "text": "Mostly individual work with periodic syncs. Collaboration is coordination, not co-production."}, {"value": 0.5, "reads_as": "Mixed", "text": "Balanced individual and group work; no dominant mode."}, {"value": 0.7, "reads_as": "Leaning collective", "text": "Cross-functional teamwork common, meetings frequent, decisions shared."}, {"value": 0.9, "reads_as": "Collective", "text": "Heavy pairing, meeting and consensus culture, cross-functional pods, \u201cwe win together\u201d throughout."}]}, {"key": "feedback", "name": "Feedback Culture", "low_pole": "Sparse / gentle", "high_pole": "Frequent / blunt", "measures": "How performance feedback flows \u2014 occasional and softened vs. frequent, direct and unfiltered.", "where_to_look": "\u201cRadical candor\u201d or \u201cdirect communication\u201d in values, review-cycle frequency, mentions of blunt vs. supportive delivery, debate and critique norms, conflict-avoidant vs. conflict-embracing signals.", "keep_distinct": "Score the delivery style and frequency of critique, not whether feedback is \u201cnice.\u201d Both poles are legitimate cultures, not good and bad.", "bands": [{"value": 0.1, "reads_as": "Sparse / gentle", "text": "Feedback is occasional and softened. Harmony valued, conflict avoided, supportive or nurturing framing."}, {"value": 0.3, "reads_as": "Leaning gentle", "text": "Feedback mostly on cycles, delivered with care. Directness is the exception."}, {"value": 0.5, "reads_as": "Mixed", "text": "Normal mix of scheduled and ad-hoc feedback, moderate directness."}, {"value": 0.7, "reads_as": "Leaning blunt", "text": "Frequent, fairly direct feedback; debate is normal; thicker skin helps."}, {"value": 0.9, "reads_as": "Frequent / blunt", "text": "Radical candor, constant unfiltered input, \u201cwe tell it straight,\u201d critique and debate are the default."}]}, {"key": "innovation", "name": "Innovation Stance", "low_pole": "Execute / optimize", "high_pole": "Invent / explore", "measures": "Where the work sits on the create-vs-refine axis \u2014 improving and scaling what exists vs. inventing what does not exist yet.", "where_to_look": "R&D emphasis, \u201c0-to-1\u201d vs. \u201coperational excellence\u201d language, product maturity, tolerance for failed bets, \u201cexperiment\u201d vs. \u201cscale what works.\u201d", "keep_distinct": "Not the same as Pace. Optimizing can be frantic; inventing can be slow. Score novelty of the work, not its speed.", "bands": [{"value": 0.1, "reads_as": "Execute / optimize", "text": "Operational excellence, refine and scale existing product, efficiency focus, mature offering."}, {"value": 0.3, "reads_as": "Leaning optimize", "text": "Mostly improving known things; occasional new bets at the edges."}, {"value": 0.5, "reads_as": "Mixed", "text": "Real split between maintaining and creating; no dominant stance."}, {"value": 0.7, "reads_as": "Leaning invent", "text": "New-product or new-capability work is common; experimentation encouraged."}, {"value": 0.9, "reads_as": "Invent / explore", "text": "R&D-forward, novel products, \u201c0-to-1,\u201d research culture, explicit tolerance for failed experiments."}]}, {"key": "decision", "name": "Decision Basis", "low_pole": "Intuition / judgement", "high_pole": "Data / analysis", "measures": "What decisions actually rest on \u2014 experience, taste and judgement vs. metrics, experiments and analysis.", "where_to_look": "\u201cData-driven\u201d language, A/B testing and analytics infrastructure, metrics-gated launches, dashboards, vs. founder-gut, design-led or \u201ctrust your judgement\u201d signals.", "keep_distinct": "Score the basis of decisions, not their quality. A taste-led company is not worse than a data-led one; they select for different people.", "bands": [{"value": 0.1, "reads_as": "Intuition / judgement", "text": "Taste, vision and experience lead. Founder gut or design-led; \u201ctrust your judgement.\u201d"}, {"value": 0.3, "reads_as": "Leaning intuition", "text": "Judgement-first, data used to confirm rather than decide."}, {"value": 0.5, "reads_as": "Mixed", "text": "Both judgement and data carry weight depending on the call."}, {"value": 0.7, "reads_as": "Leaning data", "text": "Metrics and experiments usually drive decisions; judgement fills gaps."}, {"value": 0.9, "reads_as": "Data / analysis", "text": "\u201cData-driven,\u201d experiment-gated, metrics-first, A/B-everything, analytics-heavy."}]}], "_anchors_hash": "55c4501b25c5"};
+const DIMS = CFG.dimensions, CONF = CFG.confidence_bands;
+const PACKET_ID = "P-04", RATER = "A";
+const STORE_KEY = "solverah_" + PACKET_ID + "_" + RATER;
+
+let state = {
+  packet_id: PACKET_ID, rater: RATER, rubric_version: CFG.rubric_version,
+  session_start: null, submitted_at: null, duration_seconds: null,
+  scores: {}, drafts: {}, commit_order: [],
+  recognition: null, recognition_detail: "", searched: null, search_detail: "", free_note: ""
+};
+
+/* ---------- storage availability ----------
+   Both the resume-after-crash behaviour AND the submit lock ride on localStorage. On a
+   file:// page it is the flakiest thing in the browser: some configurations refuse it
+   outright. The old code swallowed that failure silently, so a rater could score for forty
+   minutes into memory that vanishes on refresh, and the "already submitted" lock would not
+   persist either. Probe once, up front, and say so loudly if it is not there. */
+let STORAGE_OK = (function(){
+  try { const k = "__probe__" + Math.random();
+        localStorage.setItem(k, "1"); const v = localStorage.getItem(k);
+        localStorage.removeItem(k); return v === "1"; }
+  catch(e){ return false; }
+})();
+let SAVE_FAILED = false;
+
+function showStorageWarning(msg){
+  const el = document.getElementById("storageWarn");
+  if(!el) return;
+  el.innerHTML = msg;
+  el.classList.remove("hidden");
+}
+
+function save(){
+  if(!STORAGE_OK) return;
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+  catch(e){
+    /* Quota, private mode, or permission revoked mid-session. Fail loudly, once. */
+    if(!SAVE_FAILED){
+      SAVE_FAILED = true; STORAGE_OK = false;
+      showStorageWarning("<b>Your progress has stopped saving.</b> The browser refused to store " +
+        "it mid-session. Your answers are still on screen and will still download correctly — " +
+        "but <b>do not refresh or close this tab</b> before you submit and download the result " +
+        "file, or the work is lost.");
+    }
+  }
+}
+function load(){
+  if(!STORAGE_OK) return null;
+  try { const r = localStorage.getItem(STORE_KEY);
+        if(r){ const p = JSON.parse(r); if(p && p.packet_id === PACKET_ID) return p; } } catch(e){}
+  return null;
+}
+function draft(k){ if(!state.drafts[k]) state.drafts[k] = {quotes:[], band:null, conf:null, note:""}; return state.drafts[k]; }
+function committedCount(){ return Object.keys(state.scores).length; }
+
+function fmtDur(ms){ const s = Math.round(ms/1000);
+  return Math.floor(s/60) + "m " + String(s%60).padStart(2,"0") + "s"; }
+function tick(){
+  if(!state.session_start || state.submitted_at) return;
+  document.getElementById("clock").textContent =
+    "session running · " + fmtDur(Date.now() - new Date(state.session_start).getTime());
+}
+setInterval(tick, 1000);
+
+/* ---------- gates ---------- */
+const gl = document.getElementById("gateList");
+CFG.gates.forEach(g => { const li = document.createElement("li"); li.textContent = g; gl.appendChild(li); });
+
+document.getElementById("startBtn").onclick = () => {
+  if(!state.session_start) state.session_start = new Date().toISOString();
+  document.getElementById("gatePanel").classList.add("hidden");
+  document.getElementById("main").classList.remove("hidden");
+  save(); renderAll(); tick();
+};
+
+/* ---------- selection -> tag bar ---------- */
+let selText = null;
+const tagbar = document.getElementById("tagbar");
+
+const MIN_CITE = 25;
+const SRC_LABEL = s => ({company:"company-authored", noncompany:"not company-authored",
+  disputed:"employee byline, company-run outlet", researcher:"researcher observation"}[s] || s);
+
+/* Grow a selection out to whole words. A raw drag ends wherever the mouse stopped, which
+   produced citations like "e and ask for direct feedback. Be grateful for and" — a real
+   result from the first smoke test. Verification still passed, because matching is
+   substring-based; it was simply unreadable as evidence. */
+function snapToWords(container, raw){
+  const full = container.textContent;
+  let i = full.indexOf(raw);
+  if(i === -1) return raw.trim();
+  let j = i + raw.length;
+  const word = c => /[A-Za-z0-9'’-]/.test(c);
+  while(i > 0 && word(full[i-1]) && word(full[i])) i--;
+  while(j < full.length && word(full[j]) && word(full[j-1])) j++;
+  return full.slice(i, j).replace(/^[\s—–.,;:]+|[\s—–,;:]+$/g, "");
+}
+
+document.getElementById("packetText").addEventListener("mouseup", () => {
+  const sel = window.getSelection();
+  const raw = sel ? sel.toString() : "";
+  if(!raw.trim()){ return; }
+
+  /* Provenance. The excerpt a citation came from carries its source class, and the <=0.7
+     measurement turns on whether NON-COMPANY-AUTHORED evidence supports a score. Reading
+     that off the tail of the quote string only works when the rater happened to drag far
+     enough to include the attribution — five times out of six in the smoke test. Record it
+     instead of inferring it. */
+  let node = sel.anchorNode;
+  if(node && node.nodeType === 3) node = node.parentNode;
+  const ex = node && node.closest ? node.closest(".ex") : null;
+
+  const note = document.getElementById("selNote");
+  if(!ex){
+    note.textContent = "That selection is outside the evidence excerpts — cite a bulleted excerpt.";
+    tagbar.classList.add("off"); selText = null; return;
+  }
+  const text = snapToWords(ex, raw).replace(/\s+/g," ").trim();
+  if(text.length < MIN_CITE){
+    note.textContent = "Too short to be evidence — select at least a phrase (" +
+                       MIN_CITE + " characters).";
+    tagbar.classList.add("off"); selText = null; return;
+  }
+  note.textContent = "";
+  selText = { text: text, eid: ex.dataset.eid, sec: ex.dataset.sec, src: ex.dataset.src };
+  document.getElementById("tagQuote").textContent = '"' + text + '"';
+  document.getElementById("tagProv").textContent =
+    "section " + ex.dataset.sec + " · excerpt " + ex.dataset.eid + " · " +
+    ({company:"company-authored", noncompany:"not company-authored",
+      disputed:"employee byline on a company-run outlet",
+      researcher:"researcher observation"}[ex.dataset.src] || ex.dataset.src);
+  renderTagBtns();
+  tagbar.classList.remove("off");
+});
+
+function renderTagBtns(){
+  const box = document.getElementById("tagBtns"); box.innerHTML = "";
+  DIMS.forEach(d => {
+    const b = document.createElement("button");
+    const done = !!state.scores[d.key];
+    const already = !done && selText &&
+      draft(d.key).quotes.some(q => q.text === selText.text && q.eid === selText.eid);
+    b.textContent = d.name + (done ? " (locked)" : (already ? " ✓" : ""));
+    b.disabled = done || already;
+    if(already) b.className = "added";
+    b.onclick = () => {
+      draft(d.key).quotes.push(Object.assign({}, selText));
+      save(); renderTagBtns(); renderDim(d.key); renderCounter();
+    };
+    box.appendChild(b);
+  });
+  const close = document.createElement("button");
+  close.textContent = "done"; close.style.marginLeft = "auto";
+  close.onclick = () => { tagbar.classList.add("off"); selText = null; };
+  box.appendChild(close);
+}
+
+/* ---------- render ---------- */
+function renderCounter(){
+  const n = committedCount(), tot = DIMS.length;
+  const tagged = DIMS.filter(d => !state.scores[d.key] && draft(d.key).quotes.length).length;
+  document.getElementById("counter").innerHTML =
+    "<b>" + n + " of " + tot + "</b> dimensions committed" +
+    (tagged ? " · " + tagged + " more have evidence tagged and are ready to score" : "") +
+    " · score them in any order.";
+}
+
+function renderAll(){
+  const host = document.getElementById("dims"); host.innerHTML = "";
+  DIMS.forEach(d => {
+    const el = document.createElement("details");
+    el.className = "dim"; el.id = "dim_" + d.key;
+    host.appendChild(el);
+    renderDim(d.key);
+  });
+  renderCounter(); checkComplete();
+}
+
+function renderDim(key){
+  const d = DIMS.find(x => x.key === key);
+  const el = document.getElementById("dim_" + key);
+  if(!el) return;
+  const wasOpen = el.open;
+  const sc = state.scores[key];
+
+  if(sc){
+    el.className = "dim done"; el.open = false;
+    el.innerHTML =
+      '<summary><span class="sname">' + d.name + '</span>' +
+      '<span class="sstat ok">committed &nbsp;·&nbsp; score ' + sc.score.toFixed(1) +
+      ' &nbsp;·&nbsp; confidence ' + sc.confidence.toFixed(1) +
+      ' &nbsp;·&nbsp; ' + sc.quotes.length + ' quote' + (sc.quotes.length===1?'':'s') + '</span></summary>' +
+      '<div class="dimbody"><div class="summary">' +
+        '<div class="row"><span class="k">Band</span><span>' +
+          d.bands.find(b => b.value === sc.score).reads_as + '</span></div>' +
+        '<div class="row"><span class="k">Evidence</span><span>' +
+          sc.quotes.map(q => '&ldquo;' + esc(q.text) + '&rdquo;<br><span class="fine">' + q.eid + ' &middot; ' + SRC_LABEL(q.src) + '</span>').join('<br><br>') + '</span></div>' +
+        (sc.note ? '<div class="row"><span class="k">Note</span><span>' + esc(sc.note) + '</span></div>' : '') +
+        '<div class="row"><span class="k">Locked</span><span class="fine">' +
+          new Date(sc.committed_at).toLocaleTimeString() + ' &mdash; cannot be changed</span></div>' +
+      '</div></div>';
+    return;
+  }
+
+  const dr = draft(key);
+  el.className = "dim"; el.open = wasOpen;
+  let h = '<summary><span class="sname">' + d.name + '</span><span class="sstat">' +
+          d.low_pole + ' &rarr; ' + d.high_pole +
+          (dr.quotes.length ? ' &nbsp;·&nbsp; ' + dr.quotes.length + ' quote' + (dr.quotes.length===1?'':'s') + ' tagged' : '') +
+          '</span></summary><div class="dimbody">';
+
+  h += '<p class="prose"><b>Measures.</b> ' + d.measures + '</p>';
+  h += '<p class="prose"><b>Where to look.</b> ' + d.where_to_look + '</p>';
+  h += '<p class="prose"><b>Keep distinct.</b> ' + d.keep_distinct + '</p>';
+
+  h += '<div class="bands">';
+  d.bands.forEach(b => {
+    h += '<label class="band' + (dr.band === b.value ? ' chosen' : '') + '" data-v="' + b.value + '">' +
+         '<input type="radio" name="band_' + key + '" value="' + b.value + '"' +
+         (dr.band === b.value ? ' checked' : '') + '>' +
+         '<span><span class="lbl">' + b.reads_as + ' <span class="val">' + b.value.toFixed(1) + '</span></span>' +
+         '<span class="txt">' + b.text + '</span></span></label>';
+  });
+  h += '</div>';
+
+  h += '<div><b style="font-size:13px">Evidence for this score</b><div class="cite" id="cite_' + key + '"></div></div>';
+
+  h += '<div><b style="font-size:13px">How confident are you in this score?</b><div class="conf">';
+  CONF.forEach(c => {
+    h += '<label' + (dr.conf === c.value ? ' class="chosen"' : '') + ' data-v="' + c.value + '">' +
+         '<input type="radio" name="conf_' + key + '" value="' + c.value + '"' +
+         (dr.conf === c.value ? ' checked' : '') + '>' +
+         '<span class="cl">' + c.label + ' <span class="val">' + c.value.toFixed(1) + '</span></span>' +
+         '<span class="ct">' + c.text + '</span></label>';
+  });
+  h += '</div></div>';
+
+  h += '<div style="margin-top:11px"><label class="fine" for="note_' + key + '">One line on your reasoning (optional)</label>' +
+       '<textarea id="note_' + key + '" rows="2">' + esc(dr.note) + '</textarea></div>';
+  h += '<div class="err" id="err_' + key + '"></div>';
+  h += '<div style="margin-top:10px"><button class="act" id="commit_' + key + '">Commit ' +
+       d.name + ' &mdash; final</button></div></div>';
+
+  el.innerHTML = h;
+
+  el.querySelectorAll(".band").forEach(b => {
+    b.onclick = ev => { ev.preventDefault();
+      dr.band = parseFloat(b.dataset.v);
+      el.querySelectorAll(".band").forEach(x => x.classList.remove("chosen"));
+      b.classList.add("chosen"); b.querySelector("input").checked = true;
+      save(); validate(key); };
+  });
+  el.querySelectorAll(".conf label").forEach(b => {
+    b.onclick = ev => { ev.preventDefault();
+      dr.conf = parseFloat(b.dataset.v);
+      el.querySelectorAll(".conf label").forEach(x => x.classList.remove("chosen"));
+      b.classList.add("chosen"); b.querySelector("input").checked = true;
+      save(); validate(key); };
+  });
+  el.querySelector("#note_" + key).oninput = e => { dr.note = e.target.value; save(); };
+  el.querySelector("#commit_" + key).onclick = () => commit(key);
+
+  renderCites(key); validate(key);
+}
+
+function esc(s){ return (s||"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function renderCites(key){
+  const box = document.getElementById("cite_" + key); if(!box) return;
+  const dr = draft(key);
+  if(!dr.quotes.length){
+    box.innerHTML = '<div class="hint">Highlight a line in the packet on the left, then file it ' +
+                    'under this dimension. At least one quote is required.</div>';
+    return;
+  }
+  box.innerHTML = "";
+  dr.quotes.forEach((q, i) => {
+    const div = document.createElement("div");
+    div.className = "q"; div.textContent = '"' + q.text + '" (' + q.eid + ')';
+    const b = document.createElement("button");
+    b.textContent = "×"; b.title = "remove";
+    b.onclick = () => { dr.quotes.splice(i,1); save(); renderCites(key); validate(key);
+                        renderCounter(); if(selText) renderTagBtns(); };
+    div.appendChild(b); box.appendChild(div);
+  });
+}
+
+function validate(key){
+  const dr = draft(key);
+  const btn = document.getElementById("commit_" + key), err = document.getElementById("err_" + key);
+  if(!btn) return;
+  let msg = "";
+  if(dr.band === null) msg = "Pick a band.";
+  else if(!dr.quotes.length) msg = "File at least one quote from the packet under this dimension.";
+  else if(dr.conf === null) msg = "Record your confidence.";
+  err.textContent = msg; btn.disabled = msg !== "";
+}
+
+function commit(key){
+  const dr = draft(key);
+  state.scores[key] = {
+    dimension: key, score: dr.band, confidence: dr.conf,
+    quotes: dr.quotes.slice(), note: (dr.note || "").trim(),
+    committed_at: new Date().toISOString(),
+    commit_position: state.commit_order.length + 1
+  };
+  state.commit_order.push(key);
+  delete state.drafts[key];
+  save(); renderDim(key); renderCounter(); checkComplete();
+  if(selText) renderTagBtns();
+}
+
+function checkComplete(){
+  const done = committedCount() === DIMS.length;
+  document.getElementById("finalPanel").classList.toggle("hidden", !done || !!state.submitted_at);
+}
+
+/* ---------- close out ---------- */
+document.querySelectorAll('input[name="recog"]').forEach(r => r.onchange = () => {
+  state.recognition = r.value;
+  document.getElementById("recogDetailWrap").classList.toggle("hidden", r.value === "no"); save(); });
+document.querySelectorAll('input[name="searched"]').forEach(r => r.onchange = () => {
+  state.searched = r.value;
+  document.getElementById("searchDetailWrap").classList.toggle("hidden", r.value === "no"); save(); });
+
+document.getElementById("submitBtn").onclick = () => {
+  state.recognition_detail = (document.getElementById("recogDetail").value || "").trim();
+  state.search_detail = (document.getElementById("searchDetail").value || "").trim();
+  state.free_note = (document.getElementById("freeNote").value || "").trim();
+  const err = document.getElementById("finalErr");
+  if(!state.recognition){ err.textContent = "Answer the recognition question."; return; }
+  if(!state.searched){ err.textContent = "Answer the protocol question."; return; }
+  err.textContent = "";
+  state.submitted_at = new Date().toISOString();
+  state.duration_seconds = Math.round(
+    (new Date(state.submitted_at) - new Date(state.session_start)) / 1000);
+  save(); lockDown();
+  /* Fire the download automatically. The button stays as a fallback for browsers that
+     block programmatic downloads, and dlNote reports which of the two happened. */
+  const auto = downloadResult();
+  document.getElementById("dlNote").textContent = auto
+    ? "Saved automatically to your Downloads folder as solverah_" + PACKET_ID + "_rater" +
+      RATER + ".json — please send Sebastian that file."
+    : "Automatic save did not run in this browser. Press “Download result file” below now.";
+};
+
+function lockDown(){
+  document.getElementById("finalPanel").classList.add("hidden");
+  document.getElementById("dims").classList.add("hidden");
+  document.getElementById("counter").classList.add("hidden");
+  document.getElementById("packet").classList.add("hidden");
+  document.getElementById("donePanel").classList.remove("hidden");
+  document.getElementById("clock").textContent = state.duration_seconds
+    ? "submitted · sitting lasted " + fmtDur(state.duration_seconds * 1000)
+    : "submitted and locked";
+  document.getElementById("dlNote").textContent =
+    "File name: solverah_" + PACKET_ID + "_rater" + RATER + ".json";
+}
+
+function payload(){
+  const rows = DIMS.map(d => state.scores[d.key]).filter(Boolean);
+  return JSON.stringify({
+    packet_id: state.packet_id, rater: state.rater,
+    rubric_version: state.rubric_version, anchors_hash: CFG._anchors_hash || null,
+    session_start: state.session_start, submitted_at: state.submitted_at,
+    duration_seconds: state.duration_seconds, commit_order: state.commit_order,
+    recognition: state.recognition, recognition_detail: state.recognition_detail,
+    searched: state.searched, search_detail: state.search_detail,
+    free_note: state.free_note,
+    scores: rows.map(r => {
+      /* Source mix is derived here rather than left to whoever reads the file, so the
+         <=0.7 MEASUREMENT (08-10 decision 3: record whether non-company-authored evidence
+         supports the score; do NOT enforce it as a ceiling) is a recorded field.
+         'disputed' is reported separately and deliberately not folded into either side —
+         open question 5 decides which way it goes, and that answer can then be applied to
+         these files without re-rating anyone. */
+      const mix = {company:0, noncompany:0, disputed:0, researcher:0};
+      r.quotes.forEach(q => { if(q.src in mix) mix[q.src]++; });
+      return Object.assign({}, r, {
+        source_mix: mix,
+        noncompany_support: mix.noncompany > 0,
+        excerpts_cited: r.quotes.map(q => q.eid)
+      });
+    })
+  }, null, 2);
+}
+
+/* The result file is the ONLY artifact that leaves this machine. Everything else lives in
+   browser storage that the rater may clear, and on file:// pages may never have worked.
+   Do not make the handover depend on remembering to press a button. */
+let DOWNLOADED = false;
+
+function downloadResult(){
+  try {
+    const blob = new Blob([payload()], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "solverah_" + PACKET_ID + "_rater" + RATER + ".json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    DOWNLOADED = true;
+    return true;
+  } catch(e){ return false; }
+}
+
+document.getElementById("dlBtn").onclick = () => {
+  const ok = downloadResult();
+  document.getElementById("dlNote").textContent = ok
+    ? "Downloaded. Check your Downloads folder for solverah_" + PACKET_ID + "_rater" + RATER + ".json"
+    : "Download failed — use Copy to clipboard and paste the text into an email.";
+};
+document.getElementById("copyBtn").onclick = () => {
+  navigator.clipboard.writeText(payload()).then(
+    () => { document.getElementById("dlNote").textContent = "Copied to clipboard."; },
+    () => { document.getElementById("dlNote").textContent = "Copy failed — use the download button."; });
+};
+
+window.addEventListener("beforeunload", e => {
+  /* Two distinct losses to guard: an unfinished sitting, and — the one the old code missed —
+     a finished sitting whose result file was never actually saved anywhere. */
+  const unfinished = state.session_start && !state.submitted_at;
+  const unsaved    = state.submitted_at && !DOWNLOADED;
+  if(unfinished || unsaved){ e.preventDefault(); e.returnValue = ""; }
+});
+
+/* ---------- boot ---------- */
+if(!STORAGE_OK){
+  showStorageWarning(
+    "<b>This browser will not save your progress.</b> Your answers are kept on screen only, so " +
+    "<b>refreshing or closing this tab will lose everything</b>, and the packet will not stay " +
+    "locked after you submit. You can still score normally and the result file will still " +
+    "download correctly — but finish this packet in one sitting without reloading, and tell " +
+    "Sebastian you saw this message.");
+}
+
+/* ---------- resume ---------- */
+(function(){
+  const prev = load();
+  if(prev && prev.session_start){
+    state = Object.assign(state, prev);
+    if(!state.drafts) state.drafts = {};
+    if(!state.commit_order) state.commit_order = [];
+    if(state.submitted_at){
+      /* Reopening a packet submitted in an earlier sitting. The download already happened
+         then, so do not re-arm the unsaved-result guard — but leave the buttons live so a
+         lost file can be re-downloaded. */
+      DOWNLOADED = true;
+      document.getElementById("gatePanel").classList.add("hidden");
+      document.getElementById("main").classList.remove("hidden");
+      renderAll(); lockDown();
+      document.getElementById("clock").textContent = "already submitted and locked";
+      document.getElementById("dlNote").textContent =
+        "Already submitted. If you lost the result file, press “Download result file” again — " +
+        "it will be identical.";
+      return;
+    }
+    document.getElementById("startBtn").textContent =
+      "Resume this sitting (" + committedCount() + " of " + DIMS.length + " committed)";
+  }
+})();
+</script>
+</body>
+</html>
