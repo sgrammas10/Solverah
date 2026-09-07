@@ -1,6 +1,6 @@
 # SOLVERAH — Company Culture Evidence Collector
 
-**Researcher prompt · v4.7 · supersedes v4.6, v4.5, v4.4, v4.3, v4.2, v4.1, v4 and v3 · changes listed in the appendix**
+**Researcher prompt · v4.9 · supersedes v4.8, v4.7, v4.6, v4.5, v4.4, v4.3, v4.2, v4.1, v4 and v3 · changes listed in the appendix**
 
 > *v4.5 was superseded before any clean-room build ran against it. No packet was built under v4.5.*
 
@@ -402,18 +402,23 @@ Open the 10-K itself and quote from it — a summary of a filing is not a filing
 
 ## OUTPUT FORMAT — plain text only (no markdown tables, no code blocks, no artifacts)
 
-ONE EXCERPT PER LINE. Never merge multiple quotes, multiple reviews, or a quote and its aggregate statistics into a single paragraph.
+ONE EXCERPT PER LINE, AND ONE BLANK LINE BETWEEN EVERY TWO EXCERPTS. Never merge multiple quotes, multiple reviews, or a quote and its aggregate statistics into a single paragraph.
+
+**The blank line is not cosmetic and is not optional.** The citation harness finds an excerpt only when its bullet starts a blank-line-delimited block. Stacked bullets do not error -- every bullet after the first in a section silently disappears, and the packet still looks complete to anyone reading it. Measured against the raw builds: P-08 parses to 6 excerpts of 52, P-02 and P-05 to zero, P-07's section C to zero of ten. A packet that does not parse is evidence the scorer never sees.
 
 ```
 ########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
    • "<verbatim quote>"  — [source type] — <attribution> — <URL> — <date>
+
+   • "<the next verbatim quote>"  — [source type] — <attribution> — <URL> — <date>
 ```
 
 Keep the company's real name in the text for now; anonymization is a separate later step.
 
 ```
 --- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
---- B. EMPLOYEE REVIEWS (12–15, one per line, most recent first) ---
+--- B. EMPLOYEE REVIEWS (12–15, most recent first) ---
 --- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
 --- D. FIRST-PERSON ACCOUNT (yield: __ · ladder fully attempted) ---
 --- E. RECENT NEWS (yield: __ · searches logged) ---
@@ -585,6 +590,7 @@ List every identifying token left in Section 1: company name occurrences, produc
 - Did I confirm each quoted posting is currently open?
 - Did I place the company on ANY dimension or use a judging adjective? Remove it.
 - Is every excerpt verbatim, on its own line, with attribution, a URL and a date?
+- Is there a BLANK LINE above every excerpt bullet? Stacked bullets are invisible to the citation harness.
 - Did I preserve review job titles and locations, and strip locations and pay bands from job posts?
 - Are confounders kept OUT of Section 1 and only in Section 3?
 
@@ -630,6 +636,27 @@ if the thing existed, and try the other retrieval method.
 | D25 | **A dimension marked THIN records a symptom and no diagnosis.** Feedback returned THIN in 8 of the first 10 packets; 2b captured only the label, so the cause could not be narrowed from the packets themselves. The one hypothesis testable after the fact — exclusion of a fresher review source — was disconfirmed (THIN 4/4 where the recency check fired, 4/6 where it did not). Fixed by the 2b THIN/NONE reason line. | S-09 / S-58 analysis, 2026-09-01 |
 
 ## Appendix — change history
+
+### v4.9 -- after P-08 was verified, not after a build
+
+Written 2026-09-07. **Formatting only. No collection rule, sampling frame, section minimum,
+exemption or QA requirement is touched**, so a v4.9 packet and a v4.8 packet are built from
+identical evidence rules and remain directly comparable.
+
+1. **Every excerpt bullet must start a blank-line-delimited block (OUTPUT FORMAT, FINAL CHECK).**
+   The citation harness parses an excerpt only when a blank line precedes its bullet. "ONE EXCERPT
+   PER LINE" produced stacked bullets, and stacked bullets do not error -- every bullet after the
+   first in a section silently disappears. Measured by `Scripts/verify_scrub.py` against the raw
+   builds: **P-08 parses to 6 excerpts of 52, P-02 and P-05 to zero, P-07's section C to zero of
+   ten.** Ground truth escaped this because de-identification inserts the blank lines under its own
+   Rule Three, so the ANON packets parse. **Production has no de-identification step** -- a live
+   company goes collector to scorer directly, and would have been scored on roughly one excerpt per
+   section.
+2. **The header version line said v4.7 in the file named v4.8.** A build reading it stamped the
+   wrong version into its BUILD RECORD. Corrected here, and worth a standing check before any
+   future release: the header version, the filename and the newest change-history entry must agree.
+3. **Nothing is rebuilt.** Standing freeze rule -- existing packets stand as the version they were
+   built under.
 
 ### v4.8 — after the round-1 rater returns were analysed, not after a build
 
