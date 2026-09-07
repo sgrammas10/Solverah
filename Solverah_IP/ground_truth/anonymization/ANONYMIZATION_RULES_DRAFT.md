@@ -189,6 +189,15 @@ string it replaced.** Reuse the attribution's token where one exists — a rater
 `[Site G]` in an attribution and the city printed one clause later is worse off than under
 either consistent answer.
 
+**A6(a) — CORRECTED 2026-09-07, hours after A6 was written, by the run that first applied
+it.** The mapping goes in the **diff file or the run record. Never in the packet's own
+scrub log.** The scrub log sits after `########## END OF PACKET ##########` in the
+rater-facing file, so "`Marshall County` → `[County A]`" written there hands the rater the
+identifier the substitution just removed — the scrub log undoing the scrub, one screen
+below it. The packet's log records only that a token was minted and how many; the string it
+replaced lives where the rater never looks. Applies to every rule that logs a removed
+string, not only R5.
+
 **This also records a build-side gap, which is the durable fix.** The Section 4 pre-flag
 block does not reach past section B. Minting keeps today's packets clean; extending the
 pre-flag block across every section is what stops the scrubber from having to mint at all.

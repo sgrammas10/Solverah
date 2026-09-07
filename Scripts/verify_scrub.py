@@ -186,28 +186,53 @@ def main(argv=None) -> int:
             "invisible to the citation harness" % (len(scr_ex), total_declared))
 
     # ---- 3. quote bodies unchanged unless declared ------------------------
+    #
+    # Deliberately NOT built on parse_excerpts. That parser only sees a bullet that starts
+    # a blank-line-delimited block, so on a badly formatted RAW packet it yields almost
+    # nothing -- P-08's raw parses to 6 excerpts against 52 real ones. Pairing off those 6
+    # and reporting a pass is worse than not checking: it looks like verification.
+    #
+    # So pair bullets positionally within each section, reading the raw text between the
+    # packet markers, independent of blank lines. Position is safe because excerpt ORDER is
+    # preserved by rule and the counts are checked in step 2.
+    def bullets_in(text: str, sec: str) -> list[str]:
+        out, on = [], False
+        for line in text.splitlines():
+            if re.match(r"^---\s*([A-F])\.", line):
+                on = line.lstrip().startswith("--- %s." % sec)
+                continue
+            if on and line.lstrip().startswith(("•", "·")):
+                out.append(line.strip())
+        return out
+
+    BULLET_QUOTE = re.compile(r'^\s*[•·]\s*"(.*?)"\s*(?:—|--)')
+
     print("\n3. QUOTE FIDELITY (the em-dash defect)")
     checked = undeclared = declared = 0
-    for sec in sorted(set(raw_by) & set(scr_by)):
-        r_list = [e for e in raw_ex if e.section == sec]
-        s_list = [e for e in scr_ex if e.section == sec]
-        for r, s in zip(r_list, s_list):
-            r_q = QUOTE_RE.findall(r.text)
-            s_q = QUOTE_RE.findall(s.text)
-            if not r_q or not s_q:
+    for sec in "ABCDEF":
+        r_list, s_list = bullets_in(raw_body, sec), bullets_in(scr_body, sec)
+        for lr, ls in zip(r_list, s_list):
+            mr, ms = BULLET_QUOTE.match(lr), BULLET_QUOTE.match(ls)
+            if not (mr and ms):
                 continue
             checked += 1
-            if r_q[0] == s_q[0]:
+            if mr.group(1) == ms.group(1):
                 continue
-            if DECLARATION_RE.search(s.text):
+            if DECLARATION_RE.search(ls):
                 declared += 1
                 continue
             undeclared += 1
             failures.append(
-                "%s/%s quote changed with NO bracketed declaration on the line\n"
+                "section %s quote changed with NO bracketed declaration on the line\n"
                 "        %s\n     raw: %s\n     scr: %s"
-                % (sec, s.eid, char_diff(r_q[0], s_q[0]),
-                   norm_for_display(r_q[0]), norm_for_display(s_q[0])))
+                % (sec, char_diff(mr.group(1), ms.group(1)),
+                   norm_for_display(mr.group(1)), norm_for_display(ms.group(1))))
+
+    if checked < 0.5 * len(scr_ex):
+        failures.append(
+            "only %d quote bodies could be paired against the raw packet, against %d "
+            "excerpts in the scrubbed one -- too few to call this verified"
+            % (checked, len(scr_ex)))
     print("   quotes compared        : %d" % checked)
     print("   changed WITH a declared edit : %d  (allowed -- R2/R3/R4/R6)" % declared)
     print("   changed with NO declaration  : %d  %s"

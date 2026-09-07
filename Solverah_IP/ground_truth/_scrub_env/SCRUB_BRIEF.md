@@ -2,8 +2,12 @@
 
 You are de-identifying ONE finished company evidence packet for Solverah.
 
-**Say only this to start:** *"Read SCRUB_BRIEF.md and scrub P-0X."*
-Everything else is below.
+**Say only this to start:** *"Read SCRUB_BRIEF.md and scrub the packet in
+packets_raw."* Everything else is below.
+
+A scheduled run cannot name the packet, because the operator is asleep and the harvest
+chose it. You do not need the name: exactly one packet is put in front of you, and that
+is the one you scrub.
 
 This is the second of two passes. Someone else already built the packet. You are not
 collecting evidence, not judging the company, and not improving the writing. You are
@@ -151,8 +155,15 @@ that principle is the test to apply.
 
 1. **Read the ruleset end to end.** Then read the raw packet end to end, before editing
    anything.
-2. **Confirm exactly one file in `packets_raw/`.** Zero or more than one → stop and tell
-   the operator.
+2. **Confirm exactly one packet in `packets_raw/`** (ignore `.gitkeep`).
+
+   **Zero is normal and is a correct run** — it means nothing is waiting. Say so and
+   stop. Do not go looking for a packet elsewhere; every other packet on this machine
+   belongs to a company you must not see.
+
+   **Two or more is a failure state.** You cannot tell which is yours, and guessing
+   would scrub a packet that is already scrubbed or skip one that is not. Stop and
+   report it.
 3. **Work section by section.** Apply the ruleset. Preserve section order, section
    markers, and excerpt order exactly as the raw packet has them.
 4. **Preserve the excerpt count.** Under A3, a claim appearing in two sections is kept in
@@ -166,6 +177,11 @@ that principle is the test to apply.
 7. **Run the self-check** below and record its result.
 8. **Write `packets_out/P-0X_content_defects.txt`** if you found anything wrong with the
    packet itself — see "Content defects" below.
+9. **Write `packets_out/P-0X_run_report.md`** — which packet you scrubbed, the per-section
+   bullet table from self-check 13, all thirteen self-check results, every judgment call you
+   made, and anything you flagged rather than decided. The harvest carries it out and folds
+   it into `PIPELINE_LOG.md`. **Never leave a log file in this folder** — a running log would
+   name every company scrubbed so far, and the next session would read it.
 
 ---
 

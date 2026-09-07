@@ -1,0 +1,13 @@
+# TO BE SCRUBBED — packets whose research is finished, awaiting de-identification.
+#
+# The research task APPENDS a line here the moment a packet is written, and only then
+# removes that company from to_be_researched.txt. That order is deliberate: a run dying
+# between the two steps leaves a duplicate, which is visible and recoverable, rather than a
+# company removed from one list and never added to the other, which is silent and permanent.
+#
+# The HARVEST task consumes this file. It stages the named packet into
+# _scrub_env/packets_raw/ and removes the line. The scrub task never reads this file -- it
+# lives in a different connected folder and scrubs whatever single packet it is given.
+#
+# FORMAT: P-##<tab or spaces>Company Name<tab or spaces>researched YYYY-MM-DD (vX.Y)
+

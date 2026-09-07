@@ -1,0 +1,85 @@
+CONTENT DEFECTS — P-07
+  found during the de-identification pass, 2026-09-07
+  recorded, NOT fixed. Every one of these is reproduced verbatim in P-07_packet_ANON.txt.
+  The build is what needs correcting, not the scrubbed packet.
+
+Removed identifiers are not reproduced here. Where a defect turns on a string that the scrub
+removed, the string is described rather than quoted, and the exact text is in P-07_scrub_diff.txt.
+
+---------------------------------------------------------------------------------------------
+CD-1  Section E header undercounts its own section.
+      Header reads "--- E. RECENT NEWS (yield: 2 excerpts · 4 searches logged) ---".
+      The section contains FOUR excerpt bullets: two from the joint-venture pause story and two
+      from the vice-president appointments story. The "4 searches logged" figure is consistent
+      with section 2a; the "2 excerpts" figure is not, and section 2a itself records
+      "E excerpts: 4 (2 events)". The likely origin is that the header counts EVENTS and the
+      label says excerpts. Header reproduced verbatim; neither number corrected.
+      Impact: a rater or a harness reading the declared yield sees half the section.
+
+---------------------------------------------------------------------------------------------
+CD-2  A review headline contradicts its own review body.
+      rev-04 (2026-07-22, Support Specialist, [Site C], the entry the source site renders three
+      times) carries a positive headline about the company being good to work for. The body is
+      uniformly negative across all four of its clauses: an inexperienced replacement manager,
+      union representation described as useless, shop stewards dismissed, and a further negative
+      clause cut off by source truncation. The headline is the reviewer's own text and is kept
+      verbatim under A7 — the contradiction is itself evidence, and it only exists because the
+      headline is retained — but a rater skimming headlines will read this voice backwards.
+      Because the source site duplicates this entry, the same contradiction appears three times
+      in section B and could be mistaken for a pattern across three voices.
+
+---------------------------------------------------------------------------------------------
+CD-3  Section B's rater-facing scope declaration names role types that do not appear in the
+      section.
+      The scope declaration at the head of the packet says the reviews come from plant,
+      distribution and field-service roles "plus a small number of coordinator, analyst and
+      specialist roles". Specialist is present (Support Specialist, and arguably Technical
+      Support). NO coordinator and NO analyst title appears anywhere in the 15 reviews. The full
+      sampled title list is: two entries with no title stated, Material Handler, Team Lead,
+      Support Specialist (x3 entries, one voice), Credit Assistant, Forklift Operator/Material
+      Handler, Temporary Employee, Production Associate (x2), Service Writer, Line Technician,
+      Manufacturing Project Lead, Cross Functional Engineering Associate, Technical Support.
+      The only coordinator in the packet is in section D, which is company-published, not a
+      review. Section 2g additionally lists "one order-management specialist, one disability
+      specialist" in the B population; neither title appears in the 15 sampled reviews either.
+      Impact: the scope declaration is the block a rater uses to decide who the reviews speak
+      for, and it currently claims a slightly broader and more white-collar sample than exists.
+
+---------------------------------------------------------------------------------------------
+CD-4  Section E excerpt 3 is tagged as news reporting but is a company press release.
+      Its attribution credits the text to the company ("Courtesy-" the company name) in the raw
+      packet, i.e. the outlet reprinted a company release. It is tagged "[news reporting]".
+      Excerpt 4, taken from the SAME page and the same release, is correctly tagged
+      "[company statement quoted inside news reporting]". So one release yields two excerpts
+      with two different source classes.
+      Impact: this is not cosmetic. The source class is load-bearing — the proposed 0.7 rule
+      turns on company-authored versus not — and excerpt 3 will be counted as non-company-
+      authored corroboration when it is company-authored. Both excerpts reproduced as built;
+      the class tags were not changed.
+
+---------------------------------------------------------------------------------------------
+CD-5  Section C's introductory note refers to material that is not in the rater-facing packet.
+      The note tells the rater that "the source URLs, which Rule 3 requires, themselves contain
+      city names — see Section 4 and defect S3". In the scrubbed packet R1 has removed every
+      URL, and Sections 2-4 are not carried. The note therefore points a rater at URLs that are
+      not present and at a section and a defect register they cannot see.
+      Left verbatim: editing it would be rewriting the packet rather than de-identifying it.
+      The durable fix is build-side — the note should describe a condition of the raw packet in
+      terms that survive the scrub, or be marked as build-record-only.
+
+---------------------------------------------------------------------------------------------
+OBSERVATIONS — recorded for completeness, not believed to be defects
+---------------------------------------------------------------------------------------------
+OB-1  Section B header says 15, section B has 17 bullets. This is correct as built: the header
+      counts independent voices, the two extra entries are the source site's own duplicates of
+      rev-04, and both the section note and the two entries themselves say so explicitly.
+      Recorded only because self-check 13 requires every header/bullet disagreement to be
+      recorded rather than silently reconciled.
+
+OB-2  Nine "TRUNCATED AT SOURCE" markers against the section note's "7 of the 15 reviews".
+      Consistent: three of the nine markers are the one triplicated review. Not a defect.
+
+OB-3  Packet ID and roster. The build record states the ID P-07 was assigned by the builder and
+      that this company is not on the BUILD_BRIEF roster P-01..P-06 (the builder's own defect
+      S1). Carried into the scrubbed packet's status line so it is not lost. This is a build-
+      record issue, outside this pass's remit.

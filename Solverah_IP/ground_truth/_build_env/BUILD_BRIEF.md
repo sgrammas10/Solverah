@@ -28,20 +28,63 @@ you are in the wrong folder. Stop and tell the operator.
 **Do not ask for, and refuse if offered,** any handoff, decisions file, defect log, or another
 company's packet. Those carry findings from earlier builds and reading them invalidates this run.
 
+### The output folder must be EMPTY before you start. Check it first, every run.
+
+If `packets/` contains anything at all — a folder, a packet, a stray file — **stop
+immediately and report it. Do not build, and do not read what is there.**
+
+This is the failure mode a nightly schedule creates that a human operator never did. One
+company per session stops you building two. It does nothing about last night's finished
+packet still sitting in the folder you just connected: fresh session, one company, and the
+previous build in your context anyway. The harvest step is supposed to clear it before you
+run, so a non-empty folder means the harvest did not happen — which is worth one lost night
+to find out, because the alternative is a contaminated packet that nothing downstream can
+detect.
+
 ---
 
 ## Step 1 — Which company
 
-If the operator named one, use it. If not, ask, and stop until they answer.
+If the operator named one, use it.
 
-| ID | Company | State |
-|---|---|---|
-| P-07 | Cummins | built 08-27 (v4.6) |
-| P-08 | DigitalOcean | built 08-27 (v4.6, post-build correction in packet header) |
-| P-09 | Warby Parker | built 08-27 (v4.7) |
-| P-10 | Twilio | built 08-28 (v4.7) |
-| P-11 | Regeneron | not started |
-| P-12 | Duke Energy | not started |
+**If nobody named one — the normal case on a scheduled run — open `to_be_researched.txt`
+and take the topmost non-comment line. Do not ask.** There is no operator awake to answer,
+and a run that stops to ask has burned a night and produced nothing.
+
+Say which line you took, in one line, before you start.
+
+If the file has no company lines, **stop and say so.** That is a correct run. Do not choose
+a company yourself and do not go looking for one — which company enters the set is a
+recorded decision about dimension-pole coverage, not a gap for you to fill.
+
+### When the packet is written, update the two lists IN THIS ORDER
+
+1. **First**, append one line to `to_be_scrubbed.txt`:
+   `P-##    Company Name    researched YYYY-MM-DD (vX.Y)`
+2. **Then**, and only then, remove that company's line from `to_be_researched.txt`.
+
+**The order is not stylistic.** A run that dies between the two steps leaves the company on
+both lists — a duplicate, which is visible and recoverable. Reverse the order and the same
+crash removes it from one list without adding it to the other: the company is silently gone,
+and nothing downstream will ever notice it is missing.
+
+**Do neither of these until the packet file actually exists on disk.** A list that says a
+packet was built is worth nothing if the packet is not there.
+
+### Last step — write a run report beside the packet
+
+Write `packets/RUN_REPORT.md` (next to the packet folder, not inside it) covering:
+
+- which company you took, and what remained on `to_be_researched.txt` after you
+- the packet path, its section-by-section excerpt counts, and the collector version
+- anything you could not retrieve, and what you did instead
+- any defect you noticed in your own build
+- both list updates, confirmed as done
+
+The harvest carries this out and folds it into `PIPELINE_LOG.md`, which is what a human
+reads in the morning. **Do not create a log file that stays in this folder.** A running log
+here would name every company built so far, and the next session would read it — the exact
+cross-run leakage RULE ZERO exists to prevent.
 
 Do not look at any existing packet file for the company you are building, even your own. If one
 exists, ignore it completely — you are producing an independent build.
