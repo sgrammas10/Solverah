@@ -114,7 +114,12 @@ def main(argv=None) -> int:
             i = text.find("########## SECTION 1")
             if i < 0:
                 raise
-            return text[i:].strip()
+            # Stop at SECTION 2 even though there is no END OF PACKET marker. Without this
+            # the raw body runs to end of file and the QA sections' own bullets parse as
+            # excerpts -- P-10's raw reported 5 excerpts in section F against a real 4,
+            # which reads as an excerpt lost in the scrub and is nothing of the kind.
+            j = text.find("########## SECTION 2", i)
+            return (text[i:j] if j > 0 else text[i:]).strip()
 
     try:
         raw_body = body_of(raw, tolerant=True)
@@ -154,36 +159,63 @@ def main(argv=None) -> int:
     # another tells you nothing. The section header's own declared count is the only
     # independent statement of what the section is supposed to contain, so check against
     # that, and show the raw parse alongside as information rather than as a standard.
-    declared = {}
-    for m in re.finditer(r"^---\s*([A-F])\.[^\n]*?(\d+)\s*(?:excerpts|passages|,)",
-                         scr_body, re.M):
-        declared.setdefault(m.group(1), int(m.group(2)))
+    # A section header states one of two quite different things, and conflating them
+    # invents defects. A, B and C carry the PROMPT'S RANGE -- "(5-8 excerpts)",
+    # "(12-15, one per line...)" -- so those numbers are the minimum and maximum the build
+    # was required to hit, not a count of what is there. D, E and F carry the builder's own
+    # measured yield -- "(yield: 4 excerpts ...)", and D's is "3 passages / 5 excerpt lines",
+    # where the second number is the one the harness should see.
+    #
+    # Reading a range bound as a declared count is what made P-08's section B look like a
+    # header error. It is not: 11 parsed against "12-15" is a build that came in one review
+    # under the required minimum, which is a different and more serious finding.
+    RANGE_RE = re.compile(r"\((\d+)\s*[–—-]\s*(\d+)")
+    YIELD_RE = re.compile(r"yield:\s*(?:\d+\s*\w+\s*/\s*)?(\d+)")
+    spec = {}
+    for m in re.finditer(r"^---\s*([A-F])\.([^\n]*)$", scr_body, re.M):
+        sec, head = m.group(1), m.group(2)
+        y, r = YIELD_RE.search(head), RANGE_RE.search(head)
+        if y:
+            spec.setdefault(sec, ("yield", int(y.group(1)), int(y.group(1))))
+        elif r:
+            spec.setdefault(sec, ("range", int(r.group(1)), int(r.group(2))))
 
-    print("\n2. DOES THE HARNESS SEE THE EVIDENCE? (parsed vs the header's own count)")
-    print("   %-4s %-9s %-9s %-9s" % ("sec", "declared", "parsed", "raw"))
-    for sec in sorted(set(scr_by) | set(declared) | set(raw_by)):
-        dec = declared.get(sec)
+    build_notes: list[str] = []
+    print("\n2. DOES THE HARNESS SEE THE EVIDENCE?")
+    print("   %-4s %-14s %-8s %-8s" % ("sec", "header says", "parsed", "raw"))
+    for sec in sorted(set(scr_by) | set(spec) | set(raw_by)):
         got = scr_by.get(sec, 0)
-        if dec is None:
-            note = "header states no count"
-        elif got == dec:
-            note = "match"
-        elif got == 0:
-            note = "NONE PARSED -- section is invisible to the scorer"
-            failures.append(
-                "section %s declares %d excerpts and the harness parses ZERO. Every bullet "
-                "must start a blank-line-delimited block (Rule Three); as it stands this "
-                "evidence does not exist downstream." % (sec, dec))
+        entry = spec.get(sec)
+        if entry is None:
+            says, note = "-", "header states nothing"
         else:
-            note = "differs -- content defect if the header is wrong, not a scrub error"
-        print("   %-4s %-9s %-9d %-9d %s"
-              % (sec, dec if dec is not None else "-", got, raw_by.get(sec, 0), note))
-
-    total_declared = sum(declared.values()) if declared else 0
-    if declared and len(scr_ex) < 0.6 * total_declared:
-        failures.append(
-            "only %d of ~%d declared excerpts parse -- the packet is substantially "
-            "invisible to the citation harness" % (len(scr_ex), total_declared))
+            kind, lo, hi = entry
+            says = "yield %d" % lo if kind == "yield" else "range %d-%d" % (lo, hi)
+            if got == 0:
+                note = "NONE PARSED -- invisible to the scorer"
+                failures.append(
+                    "section %s is declared non-empty and the harness parses ZERO excerpts. "
+                    "Every bullet must start a blank-line-delimited block (Rule Three); as "
+                    "it stands this evidence does not exist downstream." % sec)
+            elif kind == "yield":
+                note = "match" if got == lo else "DIFFERS from the builder's own count"
+                if got != lo:
+                    build_notes.append(
+                        "section %s: the builder's header says %d, the harness parses %d"
+                        % (sec, lo, got))
+            elif got < lo:
+                note = "BELOW the prompt's minimum"
+                build_notes.append(
+                    "section %s holds %d against a required minimum of %d -- a build yield "
+                    "shortfall the required-to-yield audit should have caught" % (sec, got, lo))
+            elif got > hi:
+                note = "ABOVE the prompt's maximum"
+                build_notes.append(
+                    "section %s holds %d against a maximum of %d -- over cap"
+                    % (sec, got, hi))
+            else:
+                note = "within range"
+        print("   %-4s %-14s %-8d %-8d %s" % (sec, says, got, raw_by.get(sec, 0), note))
 
     # ---- 3. quote bodies unchanged unless declared ------------------------
     #
@@ -283,14 +315,24 @@ def main(argv=None) -> int:
             % len(found))
 
     # ---- verdict ----------------------------------------------------------
+    # Build notes are deliberately NOT failures. This tool's verdict is about the SCRUB --
+    # whether de-identification damaged the packet. A section that came in under the
+    # prompt's minimum is a defect in the BUILD which the scrub then faithfully preserved,
+    # and failing the scrub for it would make the verdict mean nothing.
+    if build_notes:
+        print("\nBUILD NOTES -- defects in the packet the scrub correctly did not touch:")
+        for n in build_notes:
+            print("  - %s" % n)
+
     print("\n" + "=" * 70)
     if failures:
         print("FAILED -- %d problem(s):\n" % len(failures))
         for f in failures:
             print("  * %s" % f)
         return 1
-    print("PASSED -- packet parses, excerpt count preserved, every quote-body change is")
-    print("declared on its line, and no URLs or company identifiers survive.")
+    print("PASSED -- the packet parses, every section is visible to the harness, every")
+    print("quote-body change is declared on its line, and no URLs, company identifiers or")
+    print("lookup keys survive. This says nothing about whether the BUILD was sound.")
     return 0
 
 

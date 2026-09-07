@@ -279,9 +279,10 @@ raters score on, and the finding is explicit that industry is not scrubbable and
 attempted. Whatever is decided has to preserve that signal.
 
 Two constraints on whoever decides it. P-01 through P-06 are frozen against the eighteen round-1
-rater JSONs and cannot be re-scrubbed, so any rule here applies forward only — from P-10, or
-from P-07 with two re-scrubs — and the set becomes deliberately inconsistent on this axis, the
-second such re-baseline after A21. And the exposure is T2 under R7's own framing: raters are
+rater JSONs and cannot be re-scrubbed, so any rule here applies forward only. **Updated 2026-09-07:
+the original wording named P-10 as the earliest boundary; P-10 has since been scrubbed without such a
+rule, so the earliest reachable boundary is now P-11, or P-07 with four re-scrubs.** Either way the
+set becomes deliberately inconsistent on this axis, the second such re-baseline after A21. And the exposure is T2 under R7's own framing: raters are
 instructed not to search and are asked at submit whether they did.
 
 ---

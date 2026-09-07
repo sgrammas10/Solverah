@@ -41,11 +41,33 @@ Starting state, verified clean: `_build_env/packets/`, `_scrub_env/packets_raw/`
 `_scrub_env/packets_out/` all empty. `to_be_researched.txt` holds P-11 Regeneron and P-12
 Duke Energy. `to_be_scrubbed.txt` is empty.
 
-P-07 Cummins and P-08 DigitalOcean were scrubbed by hand earlier the same day, verified, and
-promoted — the three runs that proved the prompt before it was scheduled. P-09 Warby Parker
-and P-10 Twilio remain unscrubbed and are deliberately left to the pipeline, as the first
-real test of a backlog on `to_be_scrubbed.txt`.
+All four remaining packets were scrubbed by hand during the day, each in its own fresh
+session, each verified by `Scripts/verify_scrub.py`, all four PASSED: **P-07 Cummins, P-08
+DigitalOcean, P-09 Warby Parker, P-10 Twilio.** The backlog is empty and
+`to_be_scrubbed.txt` has no entries. P-09 and P-10 came back clean on every section — inside
+the prompt's ranges on A/B/C, exact yield match on D/E/F, zero undeclared quote edits.
 
-**Expected tonight:** research builds P-11. The scrub finds `packets_raw/` empty and stops —
-that is a correct run, since nothing has been staged yet. The harvest then moves P-11 into
-`packets/`, stages a copy for tomorrow, and writes the first real entry above this one.
+Four defects were found by running them, and all four are fixed rather than noted:
+
+- **Collector v4.9** — excerpt bullets must start a blank-line-delimited block. Stacked
+  bullets silently vanish from the citation harness; P-08's raw parses to 6 excerpts of 52.
+  The scrub was repairing this invisibly, and production has no scrub step.
+- **Collector v4.10** — Section 1 must stand alone (P-08 and P-09 both shipped pointers into
+  removed QA sections), and company-authored material no longer counts toward section E's
+  yield.
+- **Amendments A8 and A9** — source-system record ids are covered by R1 wherever printed;
+  R8 keys on company voice on both sides rather than on the A↔F pair.
+- **The harvest now re-copies the ruleset into `_scrub_env/` every run.** The scrub folder's
+  copy had drifted a day behind the canonical one and predated amendment A6(a), which is why
+  P-09 printed five removed ATS requisition ids into its own rater-facing scrub log. The
+  scrubber followed the rules it was given.
+
+`verify_scrub.py` also gained a lookup-key check — requisition-style tokens, long digit runs,
+UUIDs, swept over the whole file including the scrub log, which is where both identifier leaks
+in this project have come from.
+
+**Expected tonight:** research builds P-11 Regeneron under collector v4.10. The scrub finds
+`packets_raw/` empty and stops — a correct run, because the backlog was cleared by hand rather
+than because nothing was ever staged. The harvest then moves P-11 into `packets/`, stages a
+copy for tomorrow night, refreshes the ruleset copy, and writes the first real entry above
+this one.
