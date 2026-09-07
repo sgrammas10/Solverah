@@ -77,3 +77,12 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+
+# _scrub_env staging areas are scratch: packets_raw/ holds a copy of a packet that
+# already lives in ground_truth/packets/, and packets_out/ is transient until the run is
+# promoted to anonymization/ or archived to _scrub_env_runs/. The run archives ARE tracked
+# deliberately -- they are the evidence a scrub was verified.
+Solverah_IP/ground_truth/_scrub_env/packets_raw/*
+Solverah_IP/ground_truth/_scrub_env/packets_out/*
+!Solverah_IP/ground_truth/_scrub_env/packets_raw/.gitkeep
+!Solverah_IP/ground_truth/_scrub_env/packets_out/.gitkeep
