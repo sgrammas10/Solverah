@@ -151,6 +151,26 @@ that principle is the test to apply.
 
 ---
 
+## THE PRE-FLAG BLOCK IS A CROSS-CHECK. IT IS NEVER THE SWEEP.
+
+Section 4 of the raw packet lists what the builder thinks needs removing. **Do not work from
+that list.** Sweep the full text yourself for every identifier class the ruleset names, then
+compare your sweep against the block and report every place the two disagree.
+
+The block is written by the build session — the one session that by definition could not see
+what it was missing. It has been measurably wrong. On P-10 it pinned the derived employee term
+on the wrong section A excerpt, omitted two section B reviews whose quote bodies carry the
+company name outright, and never flagged the review headline containing it: three separate
+routes by which a scrubber trusting the list ships the company name into a rater-facing packet.
+It also does not reach past section B, which is how P-07's section E quote kept a named state
+employment agency and a county.
+
+Where your sweep and the block disagree, that is a **build defect** and it goes in the
+content-defects file. Say which direction it failed in. A flag pointing at nothing costs you a
+moment; a miss ships an identifier.
+
+---
+
 ## Steps
 
 1. **Read the ruleset end to end.** Then read the raw packet end to end, before editing
