@@ -189,6 +189,15 @@ string it replaced.** Reuse the attribution's token where one exists — a rater
 `[Site G]` in an attribution and the city printed one clause later is worse off than under
 either consistent answer.
 
+**A6(a) — CORRECTED 2026-09-07, hours after A6 was written, by the run that first applied
+it.** The mapping goes in the **diff file or the run record. Never in the packet's own
+scrub log.** The scrub log sits after `########## END OF PACKET ##########` in the
+rater-facing file, so "`Marshall County` → `[County A]`" written there hands the rater the
+identifier the substitution just removed — the scrub log undoing the scrub, one screen
+below it. The packet's log records only that a token was minted and how many; the string it
+replaced lives where the rater never looks. Applies to every rule that logs a removed
+string, not only R5.
+
 **This also records a build-side gap, which is the durable fix.** The Section 4 pre-flag
 block does not reach past section B. Minting keeps today's packets clean; extending the
 pre-flag block across every section is what stops the scrubber from having to mint at all.
@@ -208,6 +217,72 @@ exists because the headline is there.
 
 **Keep headlines verbatim. Record the exposure in the run record, as R7 does. Do not strip
 them, and do not re-open this per packet.**
+
+---
+
+## Amendments from P-09 — DECIDED 2026-09-07
+
+Both came from the scrub pass flagging a gap and declining to close it alone, which is the
+behaviour the brief asks for. Recorded here so the next scrubber looks them up instead of
+deciding them a third time.
+
+**A8 — R1 covers SOURCE-SYSTEM RECORD IDS wherever they are printed, not only inside a URL.**
+Read R1's rev-NN treatment as covering any id that resolves to a source record: ATS posting
+and requisition ids, review ids, req numbers, order numbers. Replace each with a stable local
+token numbered within its section — `[posting 1]` … `[posting 5]` — so the fact that five
+distinct postings across five functions were sampled stays visible and traceable to a rater,
+while the searchable string does not survive.
+
+P-09 is why. Its five ATS posting ids appeared in the attribution as plain text *as well as*
+inside the URL. R1 stripped them from the URL and left them in the attribution, and one was an
+alphanumeric requisition string — an exact-match token that resolves straight to the company's
+job board. Every ATS-sourced packet will hit this, so it is a rule, not a judgment call.
+
+**The ATS vendor name stays.** A recruiting platform used by thousands of employers is
+retrieval-method signal, not a company fingerprint. The identifying hostname goes with the URL.
+
+**A6(a) governs how you log this, and P-09 is also the packet that proved why.** Its scrub log
+explained the removal by printing all five ids verbatim. The log sits after
+`########## END OF PACKET ##########`, so the citation harness never reads it and a rater
+always does — the scrub undone one screen below itself, exactly as A6(a) describes. Record the
+count and the shape of what was removed. The strings go in the diff.
+
+**A9 — R8 keys on COMPANY VOICE ON BOTH SIDES, not on the A↔F section pair.** Read R8 as
+*"where a company-authored claim is reproduced by another company-authored source, attach the
+recurrence note"* — whichever sections those two happen to be. The pair was never the point:
+what R8 prevents is a rater reading one company voice twice and counting it as corroboration.
+
+P-09's section D is three-quarters corporate voice, and one passage restates a section A claim
+in different words while quoting an A core value inside its own parenthesis. That is the
+false-triangulation pattern in full, across a boundary R8 as written did not reach. Under A3
+the treatment stays a rater-facing recurrence note; nothing is deleted.
+
+This has a build-side cause and the scrub cannot fix it: defect S-3 records that the collector
+has no slot for corporate voice in section D, which is how D filled up with it. Amending R8
+stops the damage reaching a rater. It does not stop section D being the wrong shape.
+
+---
+
+## OPEN — reviewer-level re-identification. Flag it; do not decide it.
+
+**Status: undecided as of 2026-09-07. A scrubber that meets this leaves it alone, records the
+exposure in the run record, and moves on.** Do not soften titles on your own initiative and do
+not treat this section's existence as authorisation.
+
+P-09 carries four review titles that are near-unique in the source's own index — two appear
+exactly once — each sitting beside a site token and a date. That combination identifies a
+**reviewer**, not the company, which is a category this ruleset has never covered: every rule
+above is written to protect the employer's identity.
+
+It collides with the industry finding directly. Titles carry sector and function signal that
+raters score on, and the finding is explicit that industry is not scrubbable and must not be
+attempted. Whatever is decided has to preserve that signal.
+
+Two constraints on whoever decides it. P-01 through P-06 are frozen against the eighteen round-1
+rater JSONs and cannot be re-scrubbed, so any rule here applies forward only — from P-10, or
+from P-07 with two re-scrubs — and the set becomes deliberately inconsistent on this axis, the
+second such re-baseline after A21. And the exposure is T2 under R7's own framing: raters are
+instructed not to search and are asked at submit whether they did.
 
 ---
 

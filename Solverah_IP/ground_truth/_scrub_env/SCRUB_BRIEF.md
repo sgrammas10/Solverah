@@ -183,6 +183,16 @@ that principle is the test to apply.
    it into `PIPELINE_LOG.md`. **Never leave a log file in this folder** — a running log would
    name every company scrubbed so far, and the next session would read it.
 
+**`packets_out/` holds exactly those four files and nothing else.** Assembling the packet from
+intermediate files is encouraged -- it is how Rule One gets followed mechanically rather than
+promised -- but write intermediates to the system temp directory, never into `packets_out/`.
+
+Two reasons, and the second is the one that bites. A stray `_body.tmp` is another packet's text
+sitting in a folder the next session connects. And a scrubber that has to tidy up after itself
+ends up asking for permission to delete files in the only folder holding its own output -- on a
+scheduled overnight run there is nobody awake to answer, and no scrub has any business holding
+that right to begin with.
+
 ---
 
 ## Output format

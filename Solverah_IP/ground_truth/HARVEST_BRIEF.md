@@ -139,6 +139,16 @@ if a scrub failed or was skipped; the oldest waiting packet goes first.
 If `to_be_scrubbed.txt` has no entries, leave `packets_raw/` empty. Tomorrow's scrub will
 correctly find nothing to do.
 
+**Then refresh the ruleset, every run, whether or not you staged a packet.** Copy
+`anonymization/ANONYMIZATION_RULES_DRAFT.md` over `_scrub_env/ANONYMIZATION_RULES_DRAFT.md`.
+
+The scrub folder holds a *copy* rather than the file itself, because a session that could see
+`anonymization/` could see every packet already scrubbed. A copy drifts. On 2026-09-07 the
+scrub env's copy predated amendment A6(a) by a day, and P-09 duly printed five removed ATS
+requisition ids into its own rater-facing scrub log — the exact thing A6(a) forbids — because
+the rule had never reached the session applying it. The scrubber followed the rules it was
+given. Overwriting the copy nightly is what keeps that sentence true.
+
 ---
 
 ## Step 5 — Append to the pipeline log

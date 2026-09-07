@@ -255,6 +255,33 @@ def main(argv=None) -> int:
     if not args.company:
         print("   (no --company given; name check skipped)")
 
+    # Lookup-key shaped tokens ANYWHERE in the file -- including the scrub log, which sits
+    # after END OF PACKET and so is invisible to the harness but fully visible to a rater.
+    # Both leaks so far came from exactly there. P-09's scrub log printed all five removed
+    # ATS requisition ids verbatim while explaining that it had removed them; "REQ212547" is
+    # an exact-match string that resolves straight to the company's job board. Amendment
+    # A6(a) puts that mapping in the diff and the run record. This is what enforces it.
+    lookup_keys = [
+        ("requisition-style token", re.compile(r"\b[A-Z]{2,}[-_]?\d{4,}\b")),
+        ("long digit run", re.compile(r"(?<![\d.])\d{6,}(?![\d.])")),
+        ("UUID", re.compile(r"\b[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\b", re.I)),
+    ]
+    # Fiscal-period tokens look exactly like requisition ids and are not identifiers --
+    # "FY2025" appears in every Section F human-capital disclosure.
+    NOT_A_KEY = re.compile(r"^(?:FY|CY|H[12]FY|Q[1-4]FY)\d{4}$", re.I)
+    found = sorted({(label, hit) for label, rx in lookup_keys for hit in rx.findall(whole)
+                    if not NOT_A_KEY.match(hit)})
+    print("   lookup-key tokens : %d %s" % (len(found), "" if not found else "<-- A6(a)"))
+    for label, hit in found:
+        print("       %-24s %s" % (label, hit))
+    if found:
+        failures.append(
+            "%d lookup-key shaped token(s) survive -- an exact-match string resolves to the "
+            "source record. Check the SCRUB LOG as well as the packet body: the log sits "
+            "after END OF PACKET, so the harness never reads it and a rater always does, and "
+            "a log that names what it removed hands the identifier straight back (A6(a))."
+            % len(found))
+
     # ---- verdict ----------------------------------------------------------
     print("\n" + "=" * 70)
     if failures:
