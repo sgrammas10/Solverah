@@ -1,6 +1,6 @@
 # SOLVERAH — Company Culture Evidence Collector
 
-**Researcher prompt · v4.9 · supersedes v4.8, v4.7, v4.6, v4.5, v4.4, v4.3, v4.2, v4.1, v4 and v3 · changes listed in the appendix**
+**Researcher prompt · v4.10 · supersedes v4.9, v4.8, v4.7, v4.6, v4.5, v4.4, v4.3, v4.2, v4.1, v4 and v3 · changes listed in the appendix**
 
 > *v4.5 was superseded before any clean-room build ran against it. No packet was built under v4.5.*
 
@@ -373,6 +373,8 @@ Company events from the LAST 12 MONTHS that bear on how it operates (reorg, layo
 
 Recruiting-SEO pages, interview-prep sites, job aggregators, content farms and encyclopedia entries are not reporting. Do not quote them.
 
+**Company-authored material is not reporting either.** A press release, an SEC earnings release, an investor-day transcript or a company blog post is the company's own voice — the same voice section A is built from. Quote one only where independent reporting on the event does not exist, tag it `[company-authored]` on the excerpt line, and **do not count it toward the target.** The event signal is worth keeping; the yield slot belongs to the outside voice. A section E that fills up with company statements hands the rater section A a second time and reads as corroboration.
+
 ### F. HUMAN CAPITAL DISCLOSURE — target 3, maximum 6 excerpts. [ATTEMPT] · NEW IN v4.4
 
 **Public companies only. Mark N/A — PRIVATE and move on otherwise.** This section was decided into packets on 2026-08-10 and was missing from v4.3 by oversight; it went unnoticed because every company built before P-02 was private.
@@ -426,6 +428,11 @@ Keep the company's real name in the text for now; anonymization is a separate la
 ```
 
 Open the packet with the one-line scope declaration from 2g, in plain language. The rater needs it and cannot see Section 2.
+
+**SECTION 1 MUST STAND ALONE. Nothing inside it may point at a Section 2, 3 or 4 artifact by name.**
+No "see POST-BUILD CORRECTION", no "see the fidelity note", no "see 2f". Those sections are cut before the rater opens the file, so a pointer into them is an instruction the rater cannot follow and cannot even tell is broken. If the rater needs the substance, restate it inside Section 1 in de-identifiable form. If it cannot be restated de-identifiably, do not point at it at all.
+
+This generalises three instructions that each already patch one case — the scope declaration from 2g, the vintage NOTE TO RATER from 2f, and the section C absence line. Adding a fourth patch per build is how P-08 and P-09 both shipped a dangling pointer: P-08's aimed a rater at a correction block naming the company, a homonym company, a city and a street address, and P-09's at a fidelity note that no longer existed.
 
 If the vintage block in 2f shows the newest review is older than 24 months, or that a structural event postdates the newest review, open section B with a plain-language NOTE TO RATER saying so. The rater cannot see 2f.
 
@@ -591,6 +598,8 @@ List every identifying token left in Section 1: company name occurrences, produc
 - Did I place the company on ANY dimension or use a judging adjective? Remove it.
 - Is every excerpt verbatim, on its own line, with attribution, a URL and a date?
 - Is there a BLANK LINE above every excerpt bullet? Stacked bullets are invisible to the citation harness.
+- Does anything in Section 1 point at a Section 2, 3 or 4 artifact by name? Restate it in Section 1 or remove the pointer.
+- Is every section E excerpt independent reporting? Company-authored ones are tagged and do not count toward the target.
 - Did I preserve review job titles and locations, and strip locations and pay bands from job posts?
 - Are confounders kept OUT of Section 1 and only in Section 3?
 
@@ -636,6 +645,33 @@ if the thing existed, and try the other retrieval method.
 | D25 | **A dimension marked THIN records a symptom and no diagnosis.** Feedback returned THIN in 8 of the first 10 packets; 2b captured only the label, so the cause could not be narrowed from the packets themselves. The one hypothesis testable after the fact — exclusion of a fresher review source — was disconfirmed (THIN 4/4 where the recency check fired, 4/6 where it did not). Fixed by the 2b THIN/NONE reason line. | S-09 / S-58 analysis, 2026-09-01 |
 
 ## Appendix — change history
+
+### v4.10 -- after P-09 was scrubbed and verified, not after a build
+
+Written 2026-09-07, the same day as v4.9. Two defects, each already seen on more than one packet,
+each previously handled as a per-packet judgment call.
+
+1. **Section 1 must stand alone (OUTPUT FORMAT, FINAL CHECK).** The prompt says "the rater cannot
+   see Section 2" three times and patches three specific cases; it never forbade the general act of
+   pointing into a removed section. P-08 aimed a rater at a POST-BUILD CORRECTION block naming the
+   company, a homonym company, a city and a street address. P-09 aimed one at a fidelity note and
+   asserted section coverage whose evidence had been cut. Both are broken instructions the rater
+   cannot even detect as broken. The rule now replaces the case-by-case patches.
+2. **Company-authored material does not count toward section E's yield (section E).** E says
+   "quote the reporting" and lists what is not reporting -- recruiting-SEO, interview-prep,
+   aggregators, content farms, encyclopedias -- but never named the company's own voice. P-09
+   counted an SEC earnings release toward a three-excerpt yield beside two genuine press excerpts.
+   Company-authored items may still be quoted where independent reporting does not exist; they are
+   tagged and excluded from the count. This is the same concern amendment A9 settled for R8 on the
+   scrub side: one company voice read twice is not corroboration.
+
+**Comparability.** Change 1 is structural and alters no evidence. Change 2 alters what counts
+toward section E's yield, so a v4.10 packet's section E may differ from a v4.9 one. E is [ATTEMPT]
+tier, target 2 and maximum 4, the least load-bearing section in the packet -- the trade was taken
+deliberately rather than overlooked.
+
+3. **Nothing is rebuilt.** Standing freeze rule -- existing packets stand as the version they were
+   built under.
 
 ### v4.9 -- after P-08 was verified, not after a build
 

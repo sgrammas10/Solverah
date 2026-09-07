@@ -94,7 +94,8 @@ exists, ignore it completely — you are producing an independent build.
 ## Step 2 — Load the collector prompt
 
 **If it was attached to this conversation as a file, use that.** Otherwise read the
-**highest-numbered** `Company_Culture_Evidence_Collector_v*.md` available to you. Read it in full,
+**highest-numbered** `Company_Culture_Evidence_Collector_v*.md` available to you. **Version
+numbers are numeric, not alphabetical — v4.10 is newer than v4.9.** Read it in full,
 including its defect-register appendix — the register is there because rules that live outside the
 prompt have repeatedly failed to reach the person doing the work.
 
