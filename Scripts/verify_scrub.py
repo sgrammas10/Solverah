@@ -146,14 +146,44 @@ def main(argv=None) -> int:
         failures.append("only %d excerpts parsed -- the bullets stopped matching; the "
                         "packet is effectively empty" % len(scr_ex))
 
-    # ---- 2. excerpt count preserved, section by section -------------------
-    print("\n2. EXCERPT COUNT (A3: recurrence is a note, never a deletion)")
-    for sec in sorted(set(raw_by) | set(scr_by)):
-        mark = "ok" if raw_by[sec] == scr_by[sec] else "MISMATCH"
-        if mark != "ok":
-            failures.append("section %s: raw has %d excerpts, scrubbed has %d"
-                            % (sec, raw_by[sec], scr_by[sec]))
-        print("   %s  raw %-3d scrubbed %-3d  %s" % (sec, raw_by[sec], scr_by[sec], mark))
+    # ---- 2. does the harness see the evidence the packet claims to hold? --
+    #
+    # The obvious check -- scrubbed count == raw count -- is worthless here, because the
+    # RAW packets do not parse reliably either: P-02 and P-05 parse to zero excerpts and
+    # P-06 to six, purely on blank-line placement. Comparing one unreliable number to
+    # another tells you nothing. The section header's own declared count is the only
+    # independent statement of what the section is supposed to contain, so check against
+    # that, and show the raw parse alongside as information rather than as a standard.
+    declared = {}
+    for m in re.finditer(r"^---\s*([A-F])\.[^\n]*?(\d+)\s*(?:excerpts|passages|,)",
+                         scr_body, re.M):
+        declared.setdefault(m.group(1), int(m.group(2)))
+
+    print("\n2. DOES THE HARNESS SEE THE EVIDENCE? (parsed vs the header's own count)")
+    print("   %-4s %-9s %-9s %-9s" % ("sec", "declared", "parsed", "raw"))
+    for sec in sorted(set(scr_by) | set(declared) | set(raw_by)):
+        dec = declared.get(sec)
+        got = scr_by.get(sec, 0)
+        if dec is None:
+            note = "header states no count"
+        elif got == dec:
+            note = "match"
+        elif got == 0:
+            note = "NONE PARSED -- section is invisible to the scorer"
+            failures.append(
+                "section %s declares %d excerpts and the harness parses ZERO. Every bullet "
+                "must start a blank-line-delimited block (Rule Three); as it stands this "
+                "evidence does not exist downstream." % (sec, dec))
+        else:
+            note = "differs -- content defect if the header is wrong, not a scrub error"
+        print("   %-4s %-9s %-9d %-9d %s"
+              % (sec, dec if dec is not None else "-", got, raw_by.get(sec, 0), note))
+
+    total_declared = sum(declared.values()) if declared else 0
+    if declared and len(scr_ex) < 0.6 * total_declared:
+        failures.append(
+            "only %d of ~%d declared excerpts parse -- the packet is substantially "
+            "invisible to the citation harness" % (len(scr_ex), total_declared))
 
     # ---- 3. quote bodies unchanged unless declared ------------------------
     print("\n3. QUOTE FIDELITY (the em-dash defect)")

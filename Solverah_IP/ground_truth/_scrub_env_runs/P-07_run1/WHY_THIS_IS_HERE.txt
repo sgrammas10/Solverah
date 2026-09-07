@@ -1,0 +1,12 @@
+Run 1 of the P-07 scrub, 2026-09-06 — the first execution of SCRUB_BRIEF.md.
+
+Kept for comparison, moved OUT of _scrub_env so a re-run cannot see it. A scrubber that
+can read its own previous answer anchors on it instead of re-deriving one, which would
+make run 2 a review of run 1 rather than an independent pass.
+
+Verdict on this run: quote fidelity clean (0 undeclared quote-body edits across 41
+excerpts, vs 3 in the hand-scrubbed P-01), no URLs, no company name. One failure —
+section C declares 10 excerpts and the citation harness parses ZERO, because the posting
+headers sit against their bullets with no blank line. That is what Rule Three was added
+to the brief to fix, along with R5 in the in-body list, which this run correctly flagged
+as a gap rather than resolving on its own.

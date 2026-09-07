@@ -1,8 +1,18 @@
 # Packet anonymization — ruleset
 
 **Status: SIGNED OFF 2026-08-15 by Sebastian.** R1–R8 and JC-1 through JC-4 stand as written below,
-with the three P-06 amendments recorded in "Amendments from P-06" immediately after the rules.
+with the P-06 amendments (A1–A4) recorded in "Amendments from P-06" immediately after the rules.
 Derived by running the pass by hand on P-01, then applied to P-02 through P-06.
+
+**AMENDED 2026-09-07 — A5, A6, A7, from the first prompt-driven scrub (P-07).** See
+"Amendments from P-07". A5 extends R4 to branded names generally; A6 puts R5 inside quote
+bodies and permits minting a token where the pre-flag block does not reach; A7 settles that
+review headlines are kept. **Every packet scrubbed before 2026-09-07 predates all three**, and
+P-01–P-06 additionally predate A3 and A4 — a mechanical check on 2026-09-06 found P-01 short one
+section F excerpt (original R8, which A3 reversed) and carrying three undeclared quote-body edits
+(the defect A4 was written for). **Those six are not to be re-scrubbed.** They are the bytes round 1
+was rated against and the 18 returned rater JSONs are tied to them; re-scrubbing would orphan that
+data. The divergence is recorded, not corrected.
 
 **Destination — CHANGED 2026-08-15.** The earlier plan was to fold these rules into the collector
 prompt as v4.7 so Section 1 is born anonymized. That is superseded. **Anonymization becomes a
@@ -148,6 +158,58 @@ fidelity audit of 2026-08-15 found two real quote-body edits (P-01's `Executive 
 applications of R4 and R3 respectively but were invisible where a rater would encounter them. One
 was declared in a scrub log nobody reads while rating. **An edit recorded only in a scrub log is
 not a recorded edit** — the same shape as "a rule that lives only in a handoff is not a rule."
+
+## Amendments from P-07 — DECIDED 2026-09-07
+
+The first packet scrubbed by prompt rather than by hand. All three came from the scrub pass
+flagging a gap and declining to close it on its own initiative, which is the behaviour the
+brief asks for — each is recorded here so the next scrubber looks it up instead of deciding
+it again.
+
+**A5 — R4 covers BRANDED NAMES generally, not only internal programmes.** Read R4 as
+*"rewrite the branded proper noun, keep the clause"* across internal programmes, external
+brand names, joint ventures, subsidiaries, and internal organisation abbreviations. P-07
+carried an energy-technology brand and a named battery joint venture inside quote bodies,
+plus an internal works-unit abbreviation across three review excerpts. Each is a one-query
+identification at least as strong as the company name R2 already removes, and in every case
+the surrounding clause survives the rewrite untouched — which is the test. The scrub pass
+extended R4 to all three and declared each on its line; this amendment makes that a lookup
+rather than a judgment call, so two scrubbers cannot answer it differently.
+
+**A6 — R5 applies inside quote bodies, and a place with no pre-flag token gets one minted.**
+The scrub brief originally permitted in-body edits only for places already tokenised in the
+Section 4 pre-flag block, to keep the substitution mechanical. P-07 showed the cost: its
+section E layoff excerpt names a state employment agency and a county inside a quote body,
+neither pre-flagged, so both correctly survived into the rater-facing packet. A WARN filing
+plus a named state agency plus a county plus a date is a stronger identification than the
+city names R5 already removes.
+
+So: **tokenise it, mint a new token if none exists, and log every minted token with the
+string it replaced.** Reuse the attribution's token where one exists — a rater who sees
+`[Site G]` in an attribution and the city printed one clause later is worse off than under
+either consistent answer.
+
+**This also records a build-side gap, which is the durable fix.** The Section 4 pre-flag
+block does not reach past section B. Minting keeps today's packets clean; extending the
+pre-flag block across every section is what stops the scrubber from having to mint at all.
+
+**A7 — review headlines are KEPT, and this is now explicit rather than an omission.** R1
+replaces review URLs partly *because the slug derives from the headline* — and the packet
+then prints that headline in the attribution, leaving the same exact-match search string by
+another route. That is a real hole and it was correctly flagged rather than patched
+mid-scrub.
+
+It is nonetheless the same trade R7 already settles for preserved source typos: an
+exact-match searchable string is **T2 exposure**, and T2 *"is a protocol violation, not an
+instrument property."* Raters are instructed not to search and are asked at submit whether
+they did. Against that, the headline is the reviewer's own words and carries evidence — P-07's
+CD-2 turns on a headline contradicting its own review body, which is a signal that only
+exists because the headline is there.
+
+**Keep headlines verbatim. Record the exposure in the run record, as R7 does. Do not strip
+them, and do not re-open this per packet.**
+
+---
 
 ## What anonymization CANNOT do — record this rather than fight it
 

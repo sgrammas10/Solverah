@@ -58,9 +58,29 @@ So, inside a quote body, never change:
 - spacing, line wrapping, or capitalisation
 - spelling — including misspellings. R7 keeps source typos deliberately.
 
-The only edits permitted inside a quote body are the ones the ruleset names: R2 (company
-name), R3 (named humans), R4 (branded internal programmes), R6/A1 (identifying figures).
+The only edits permitted inside a quote body are the ones the ruleset names:
+
+- **R2** — the company name
+- **R3** — named humans
+- **R4 / A5** — branded names: internal programmes, external brands, joint ventures,
+  subsidiaries, and internal organisation abbreviations
+- **R6 / A1** — identifying figures, replaced with magnitude language
+- **R5 / A6** — place names, including named agencies and administrative regions
+
 Nothing else. Not one character.
+
+**On R5 (amendment A6):** reuse the token the attribution already uses where one exists —
+a rater who sees `[Site G]` in an attribution and the city printed one clause later is
+worse off than under either consistent answer. Where the place has **no** pre-flag token,
+**mint one** and log it with the string it replaced. The Section 4 pre-flag block does not
+reach past section B, so this will happen; P-07 carried a named state employment agency and
+a county in a section E quote body, and a WARN filing plus an agency plus a county plus a
+date identifies harder than the city names R5 already removes.
+
+**On R4 (amendment A5):** the test is whether the clause survives the rewrite. `Accelera`
+becomes `[name stripped]` and the sentence still says what the company builds; that is the
+shape to aim for. If removing the branded token would take the claim with it, you are
+looking at signal rather than a fingerprint — leave it and say so in the log.
 
 ---
 
@@ -75,6 +95,33 @@ a fidelity audit precisely because they were correct under the rules and invisib
 they mattered.
 
 Write the log as well. But the line declaration is the one that counts.
+
+---
+
+## RULE THREE — PUT A BLANK LINE BEFORE EVERY EXCERPT BULLET
+
+This is the one place you are *required* to change the file's whitespace, and it does not
+contradict Rule One, because it happens **outside** quote bodies. Not one character inside
+a quote changes. What changes is the blank line separating an excerpt from whatever sits
+above it.
+
+**Why it is mandatory.** The citation harness finds excerpts by splitting the packet into
+blank-line-delimited blocks and testing whether each block *starts* with a bullet. A bullet
+that shares a block with the line above it — a posting header, a note, another bullet — is
+not seen as an excerpt at all. It does not error. The excerpt silently ceases to exist for
+every downstream consumer, while reading perfectly to a human.
+
+**This is measured, not hypothetical.** P-07's section C declares ten job-posting excerpts.
+Its posting headers sit directly against their bullets with no blank line, and the harness
+parses **zero** of the ten. Meanwhile P-02 and P-05 parse to zero and P-06 to six *in raw
+form*, and their hand-scrubbed versions parse to 48, 23 and 46 — because the hand scrub
+retyped them and retyping happened to insert the blank lines. The retyping that caused the
+em-dash defect was, at the same time, accidentally repairing the packets. Rule One removes
+the accident in both directions, so this rule puts the repair back deliberately.
+
+So: **every excerpt bullet begins a block.** A blank line above it, always — after a
+section header, after a posting or group header, after a note, and between consecutive
+bullets. Change nothing else about the spacing.
 
 ---
 
@@ -191,10 +238,21 @@ run.
 9. Job titles and sector language are untouched.
 10. The diff file exists and contains every changed line.
 11. Both markers are present and literal, the header carries `build vX.Y`, and the scrub
-    log sits after `########## END OF PACKET ##########`. State the excerpt count you
-    produced, section by section — for reference, existing packets parse to 45 and 46
-    excerpts across A–F, so a count in the single digits means the bullets stopped
-    matching and the packet is effectively empty.
+    log sits after `########## END OF PACKET ##########`.
+12. **Every excerpt bullet has a blank line directly above it** (Rule Three). Check this
+    by looking at the line above each bullet, not by trusting that you did it — this is
+    the check that catches a whole section going invisible.
+13. **Report a per-section table: bullets counted, versus the count that section's header
+    declares.** For example `A: 8 bullets / header says 8 — match`.
+
+    Where they disagree, **do not fix either one.** A header that undercounts its own
+    section is a content defect: record it in `P-0X_content_defects.txt` and reproduce the
+    header verbatim. P-07's section E header declares two excerpts and the section holds
+    four; that is a build defect to report, not a number to correct.
+
+    A section showing **zero** bullets, or a whole-packet total in the single digits, is a
+    different thing entirely — that is Rule Three failing, and it means the packet is
+    effectively empty no matter how it reads. Fix it before you finish.
 
 If any check fails, fix it and re-run the check. If a check cannot pass because the
 ruleset conflicts with itself on this packet, stop and report — do not resolve a ruleset
