@@ -31,6 +31,53 @@ packet it has been run against so far.
 
 ---
 
+## 2026-09-08 operator note — not a harvest entry
+
+Written by hand between the 06:00 harvest and the rescheduled 21:00 one. Recorded here because the
+finding below is invisible to both scheduled tasks: the research session cannot see `HARVEST_BRIEF.md`
+and the harvest session would simply have executed it.
+
+**P-11 Regeneron finished building after the 06:00 harvest had already run.** Its `RUN_REPORT.md`
+reports 45 excerpts (A 7, B 15, C 11, D 4, E 2, F 6), all bullets blank-line delimited, no dangling
+Section 1 pointers, no percentages, and three defects the builder classified as STRUCTURAL — so the
+freeze did not trigger. The harvest was moved to 21:00 so it clears `_build_env/packets/` before the
+00:00 research run, which would otherwise have stopped on a non-empty output folder and lost the
+night.
+
+**PIPELINE DEFECT, found reading the packet against the brief (now D30).** `HARVEST_BRIEF.md` step 3
+required `########## END OF PACKET ##########`. **No collector prompt ever asked a builder to write
+it** — the string appears nowhere in v4.10 or `BUILD_BRIEF.md`. P-11 does not carry it; neither do 6
+of the 10 packets before it. Applied as written tonight, the harvest would have moved P-11 to
+`packets/P-11_regeneron_INCOMPLETE_2026-09-08/`, pushed Regeneron back to the top of
+`to_be_researched.txt`, struck its `to_be_scrubbed.txt` line, and sent a sound packet back for a full
+rebuild with P-12 stuck behind it. Two briefs shared a contract term neither one defined.
+
+Fixed on both sides. The harvest's marker check is now **check 4 and version-scoped** — it applies
+only to packets whose version line reads v4.11 or later — and the collector requires the marker from
+v4.11 on. P-11 re-checked against the revised brief: SECTION 1 present, version line present, A–F all
+six present, marker check not applicable. **It harvests normally at 21:00.**
+
+**Collector v4.10 → v4.11**, installed in `_build_env/` with v4.10 removed (one prompt present, as
+the README requires); archive copy at `rubric/`. Four amendments, from P-11's own defect list plus the
+above: renderer-confirmation required for every Section 1 excerpt (D26), the retrieval-method bullets
+restated as first-try priors rather than rules (D27), `accessed YYYY-MM-DD` for undated first-party
+pages (D29), and the terminal marker (D30). D28 recorded, no rule change. **P-12 Duke Energy builds
+under v4.11 tonight.**
+
+**D26 is the one to know about.** The plain-fetch layer returned a clause wrapped in quotation marks
+and attributed to Regeneron's named CEO; the rendered page carries it as reported speech with no quote
+marks — the reporter's sentence, not the executive's. Shipped, that is a fabricated verbatim quote on a
+named living person, and it passes a URL-level fact-check, because the URL is right and the clause is
+on the page. Only the quotation marks are false. The builder caught it and re-confirmed all 45 excerpts
+through the renderer.
+
+**Decision: P-01 through P-10 are NOT back-audited for it.** ~450 Section 1 excerpts, all already
+scrubbed and promoted to `anonymization/`, round-1 sources up to a month old and some already gone.
+The exposure is recorded rather than chased, per the shipping posture, and is bounded to quoted
+excerpts in P-01–P-10; everything from P-12 on is built under the renderer-confirmation rule. If a
+rater or fact-check surfaces a fabricated quote in an existing packet, that packet is repaired
+individually — the set is not re-audited pre-emptively. Full reasoning in v4.11's change history.
+
 ## 2026-09-08 harvest
 
 RESEARCH   none — `_build_env/packets/` was empty (no folder, no `RUN_REPORT.md`). No P-11

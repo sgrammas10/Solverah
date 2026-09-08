@@ -10,5 +10,4 @@
 # is empty the research task STOPS and says so -- it must never pick a company itself, and
 # must never read the roster looking for one.
 
-P-11    Regeneron
 P-12    Duke Energy

@@ -2,7 +2,7 @@ ISOLATED BUILD ENVIRONMENT — connect THIS folder, not the repo.
 
 Contents are deliberately minimal:
    BUILD_BRIEF.md                              what the builder reads
-   Company_Culture_Evidence_Collector_v*.md    the prompt it runs (exactly one version present; currently v4.8)
+   Company_Culture_Evidence_Collector_v*.md    the prompt it runs (exactly one version present -- whichever it is, is the current one)
    packets/                                    where the output lands
 
 HOW TO USE

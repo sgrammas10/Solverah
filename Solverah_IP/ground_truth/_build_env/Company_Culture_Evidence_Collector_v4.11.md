@@ -1,6 +1,6 @@
 # SOLVERAH — Company Culture Evidence Collector
 
-**Researcher prompt · v4.10 · supersedes v4.9, v4.8, v4.7, v4.6, v4.5, v4.4, v4.3, v4.2, v4.1, v4 and v3 · changes listed in the appendix**
+**Researcher prompt · v4.11 · supersedes v4.10, v4.9, v4.8, v4.7, v4.6, v4.5, v4.4, v4.3, v4.2, v4.1, v4 and v3 · changes listed in the appendix**
 
 > *v4.5 was superseded before any clean-room build ran against it. No packet was built under v4.5.*
 
@@ -44,12 +44,25 @@ REQUIRES A BROWSING TOOL. You must open (fetch) each source page and quote from 
 **YOU NEED TWO RETRIEVAL METHODS, AND YOU MUST CHOOSE BETWEEN THEM PER SOURCE. New in v4.4.**
 Plain HTTP fetch and a JavaScript-rendering browser reach *different* sets of pages, and neither is strictly better:
 
-* **First-party sites — careers, values, culture, handbooks, blogs — are frequently JavaScript single-page apps.** Plain fetch returns a bare `Loading...` shell. **Use the renderer.**
-* **Review and job aggregators are server-rendered and aggressively bot-defended.** The renderer gets redirected to a sign-in wall; plain fetch retrieves the same page cleanly. **Use plain fetch.**
+* **First-party sites — careers, values, culture, handbooks, blogs — are frequently JavaScript single-page apps.** Plain fetch returns a bare `Loading...` shell. **Start with the renderer.**
+* **Review and job aggregators are OFTEN server-rendered and bot-defended.** Where that holds, the renderer gets redirected to a sign-in wall and plain fetch retrieves the same page cleanly. **Start with plain fetch.**
+
+**These two bullets are PRIORS ABOUT WHICH METHOD TO TRY FIRST. They are not rules about which method is permitted, and you must not skip an attempt because of them. New in v4.11.** On P-11 the renderer was not walled on the review aggregator at all: it returned the full review page including the literal `...Show more` truncation markers, and that attempt is the only reason the truncation could be measured and a NOTE TO RATER written. A builder who read the aggregator bullet as a prohibition would have skipped it and shipped a packet asserting no truncation. **Try both methods on every source that matters, in the order the priors suggest, and record what each one actually did.**
 
 Both failures look like absence and neither is. A `Loading...` shell is not "no careers page," and a sign-in wall is not "this requires an account" — on P-02 the renderer was walled on a page plain fetch had returned in full minutes earlier, with `from=bot-detection-anonymous` in the redirect.
 
 **Before recording ANY source as absent or inaccessible, try the other method.** The proof-of-absence rule now has two methods to exhaust.
+
+**PLAIN FETCH IS A ROUTE TO A PAGE. IT IS NOT AN AUTHORITY ON THAT PAGE'S WORDING. New in v4.11 — read this twice.**
+The plain-fetch layer may return a *processed* rendition of a page rather than the page's bytes: it summarises, it compresses, and — measured on P-11 — **it invents quotation marks.** Asked for direct quotations from a trade-publication article, it returned a clause wrapped in quote marks and attributed to the company's named CEO. The rendered page carries that clause in reported speech, with no quotation marks anywhere. It was the reporter's sentence, not the executive's. Shipped, that is a fabricated verbatim quote attributed to a named living person, and **it passes a URL-level fact-check** — the URL is right, the clause is on the page, only the quotation marks are false. A milder form of the same failure hit the same build's job postings: bullet lists came back verbatim while overview paragraphs were silently rewritten and several bullets lost their closing clauses.
+
+Therefore:
+
+* **Every excerpt that enters Section 1 must have its exact wording confirmed on a RENDERED copy of the source page**, character for character, including the presence and position of the quotation marks. Plain fetch may find the page, establish that it exists, and satisfy the proof-of-absence ladder. It may not be the sole authority for a single character inside a Section 1 quote.
+* **Where a source cannot be rendered at all** — PDFs are the common case, and the renderer exposes no text for them — you have three options in this order: find an HTML rendition of the same document and render that; quote nothing from it and record the source as *found but not quotably retrievable*; or, only if the passage is load-bearing and neither of the first two works, include it marked `[PARAPHRASE]` per rule 2. **Never promote a plain-fetch-only passage into a quoted excerpt.** On P-11 the Code of Business Conduct met this test and was correctly withheld.
+* **Record the confirming method on every excerpt.** The `needed JS: Y/N` field already carries this; a `Y` now means *the renderer was the confirming route*, not merely *the renderer was used somewhere*.
+
+This is a property of the retrieval environment rather than of any one source, so assume it is present on every build until a build demonstrates otherwise.
 
 **NEVER sign in to resolve a wall, and never collect anything behind a login.** Ground truth must be reproducible by an anonymous production scraper. Content only reachable while authenticated makes the packet richer than production can ever be — the parity violation running backwards, and harder to catch because the packet simply looks better than it should.
 
@@ -78,8 +91,12 @@ A description of what a set of sources contains is NOT a quote. "Numerous Operat
 
 **Machine-written summaries on aggregator pages are NOT quotable.** Job aggregators print an AI-written précis of each posting — often labelled something like "Summary Generated by [site]" — directly above the real posting body. It reads like source text and is not. Scroll past it to the employer's own words. This is the easiest way to contaminate a packet from an otherwise excellent source.
 
+**YOUR OWN RETRIEVAL LAYER IS A SOURCE OF MACHINE-WRITTEN TEXT TOO. New in v4.11.** The paragraph above assumes the contamination arrives printed on the page. It also arrives from the tool that fetched it. See the retrieval-method section: plain fetch has been measured fabricating quotation marks around reported speech and silently rewriting paragraphs. **Quotation marks are part of the verbatim content this rule protects.** If the rendered page does not put quote marks around a clause, you may not either — the difference between a reporter's summary and an executive's words is the whole of rule 2, and it is invisible to every downstream check.
+
 **3. EVERY EXCERPT IS SOURCED AND ATTRIBUTED.**
 Each quote gets: the exact URL, the source type, a date, and WHO is speaking. Never blend an employee's words with a company's response to it. No URL + date → do not include it. Do not use training-data memory for any factual claim.
+
+**Which date, when the page publishes none. New in v4.11.** Many first-party pages — careers and values pages above all, and section A depends on them in essentially every build — carry no publication date by any retrieval method. Rule 3 requires a date and rule 7 forbids hiding age, and before v4.11 those two could not both be satisfied on such a page. **Use the access date, and label it as one: `accessed YYYY-MM-DD`, never a bare date.** A bare date is read downstream as a publication date and silently understates the evidence's age. State in 2f how many section A excerpts are access-dated; a packet whose entire section A is access-dated has told the rater nothing about that section's vintage, and that is itself the finding.
 
 **4. WORK THE CHECKLIST BEFORE YOU DECLARE ABSENCE.**
 Each section has a checklist you must fill in and return. Absence is only reportable once every rung is marked attempted with its URL and outcome. "NOT FOUND" is a finding about the company, not a shortcut when retrieval is hard. An unattempted rung is a failed packet.
@@ -332,6 +349,8 @@ Quote the posting's own sentences from the "what you'll do," "how you work," res
 
 Work down this ladder and stop when you have 3 passages. Return the checklist in 2c with every rung marked, including rungs you did not need.
 
+**The yield unit is the PASSAGE, not the source. New in v4.11.** Two passages drawn from one article are two passages. Report the audit line at 2a in both units — `D passages: 4 (from 3 sources)` — because the target of 3 is a target for substantive first-person material and the source count is what tells the rater whether that material is one voice or several.
+
 1. Public handbook, employee manual, or "how we work" documentation
 2. Engineering, product or design blog
 3. Values manifesto or culture microsite with narrative text (not a bullet list)
@@ -454,7 +473,7 @@ If the vintage block in 2f shows the newest review is older than 24 months, or t
        An exemption without proof of absence is a FAILED section, not an exempt one.
 
     REQUIRED TO ATTEMPT — record the yield, do not gate on it:
-       D passages: ___    ladder rungs logged: ___/7
+       D passages: ___ (from ___ sources)    ladder rungs logged: ___/7
        D voice composition: ___ executive / ___ non-executive   (if all-executive: extra rung
                             worked? ___ · stale non-executive material found and rejected? ___)
        E excerpts: ___    searches logged: ___
@@ -579,8 +598,21 @@ List every identifying token left in Section 1: company name occurrences, produc
 
 **On review locations:** do NOT delete them. The dispersion field depends on being able to see variation across sites. Replace specific locations with generic tokens (`[Site A]`, `[Site B]`) that preserve the distinction without naming the place.
 
+### CLOSE THE FILE WITH THE TERMINAL MARKER. New in v4.11.
+
+The last line of the packet file, after everything else, is exactly:
+
+```
+########## END OF PACKET ##########
+```
+
+**This is not decoration and it is not optional.** It is the only signal that the build reached the end rather than stopping partway. A packet truncated anywhere after Section 1 still carries its `prompt version` header and still shows sections A–F, so it passes every other structural check the pipeline runs and looks finished to a reader. The absence of this line is what distinguishes a build that finished from a build that died.
+
+The harvest step has gated on this marker since the pipeline was armed, but no version of this prompt before v4.11 asked for it — so P-11 was built without it, correctly, and 6 of the 10 packets before it lack it too. That mismatch is fixed on both sides in v4.11.
+
 ## FINAL CHECK BEFORE YOU RETURN
 
+- Did I confirm every Section 1 excerpt — its wording AND its quotation marks — on a rendered copy of the source page, rather than trusting plain fetch? (Rule 2, v4.11.)
 - Did I run the entity check BEFORE collecting reviews, and record every entity found?
 - Did I take review TEXT from Indeed, and keep Glassdoor's Pros/Cons fragments out of Section 1 entirely?
 - Did I run the achievability gate on every percentage anywhere in the packet, and strike the failures rather than reconcile them?
@@ -602,6 +634,9 @@ List every identifying token left in Section 1: company name occurrences, produc
 - Is every section E excerpt independent reporting? Company-authored ones are tagged and do not count toward the target.
 - Did I preserve review job titles and locations, and strip locations and pay bands from job posts?
 - Are confounders kept OUT of Section 1 and only in Section 3?
+- Is every undated first-party excerpt dated `accessed YYYY-MM-DD` rather than with a bare date?
+- Did I try BOTH retrieval methods on every source that mattered, including the aggregators, rather than skipping one because of the prior?
+- **Is the last line of the file `########## END OF PACKET ##########`?**
 
 ---
 
@@ -643,8 +678,62 @@ if the thing existed, and try the other retrieval method.
 | D23 | **A single review-site profile can POOL an unrelated same-named business** — the inverse of the split-profile case B0 was written for. A confirmed off-company review (a same-named local firm, verified via business-registry record) sat inside the required source's 12-review population, which was also the entire population. Externally confirm, then exclude; suspicion alone retains and flags. See B0. | P-08 |
 | D24 | **A decoy ATS board can manufacture a false proof of absence.** A real, indexed board for the company affirmatively rendered "no current openings" while 120 roles sat on a differently-slugged live board. The exemption's proof-of-absence test passed on its face and would have been wrong. Verify the board is the company's live one via a company-issued apply link. | P-08 |
 | D25 | **A dimension marked THIN records a symptom and no diagnosis.** Feedback returned THIN in 8 of the first 10 packets; 2b captured only the label, so the cause could not be narrowed from the packets themselves. The one hypothesis testable after the fact — exclusion of a fresher review source — was disconfirmed (THIN 4/4 where the recency check fired, 4/6 where it did not). Fixed by the 2b THIN/NONE reason line. | S-09 / S-58 analysis, 2026-09-01 |
+| D26 | **THE PLAIN-FETCH LAYER FABRICATES QUOTATION MARKS.** It returned a clause wrapped in quote marks and attributed to the company's named CEO; the rendered page carries the same clause in reported speech with no quote marks anywhere — it is the reporter's sentence. A fabricated verbatim quote on a named living executive that PASSES a URL-level fact-check, because only the quotation marks are false. Milder form on the same build: posting bullet lists came back verbatim while overview paragraphs were silently rewritten and bullets lost closing clauses. Environmental, not source-specific — assume it on every build. Fixed by the renderer-confirmation requirement in the retrieval section and rule 2. | P-11 |
+| D27 | **The aggregator/renderer guidance is a PRIOR and was being read as a rule.** v4.10 stated flatly that aggregators are bot-defended and the renderer gets walled. On P-11 the renderer returned the full review page including the literal `...Show more` markers — the only reason truncation could be measured at all. A builder obeying the text as written skips the attempt and ships a packet asserting no truncation. Fixed by restating both bullets as first-try priors. | P-11 |
+| D28 | **Two passes over the same review page disagreed about truncation** — pass one showed no markers, pass two showed 12 of 21. The renderer settled it at 7 of 15 used, crossing B7's one-third threshold and triggering a NOTE TO RATER the first pass would have omitted. A single pass over a review page is not a measurement. | P-11 |
+| D29 | **Hard rules 3 and 7 could not both be satisfied on an undated first-party page** — rule 3 demands a date, rule 7 forbids hiding age, and careers pages publish neither. Section A depends on such pages in nearly every build. Fixed by the `accessed YYYY-MM-DD` rule under rule 3. | P-11 |
+| D30 | **The harvest gated on a terminal marker no version of this prompt ever requested.** `########## END OF PACKET ##########` appears in HARVEST_BRIEF's step-3 checks and nowhere in the collector; 6 of the first 10 packets lack it, and P-11 would have been quarantined as INCOMPLETE and sent back for a full rebuild. Two briefs, one contract, no shared definition. Fixed on both sides in v4.11. | P-11, found 2026-09-08 |
 
 ## Appendix — change history
+
+### v4.11 — after the P-11 build, and after a pipeline defect found reading its packet against the harvest brief
+
+P-11 Regeneron surfaced three defects its builder classified as STRUCTURAL, so the freeze did not
+trigger. A fourth was found afterwards, on the operator side, and it is the one that would have cost
+a packet.
+
+1. **Plain fetch fabricates quotation marks (D26), and it is now assumed on every build.** This is
+   the most serious failure the set has produced. Rule 2 has always demanded verbatim text, and the
+   builder followed it — the defect is that a retrieval layer returned processed prose *presented as*
+   source text, so obeying rule 2 faithfully still produced a fabricated quote attributed to a named
+   living executive. The fix separates two things the prompt had conflated: **plain fetch is a route
+   to a page; the renderer is the authority on that page's wording.** Every Section 1 excerpt is now
+   confirmed on a rendered copy, quotation marks included. Sources that cannot be rendered at all
+   (PDFs) get an explicit three-option fallback ending in `[PARAPHRASE]`, never a promoted
+   plain-fetch quote.
+
+2. **The retrieval-method bullets are restated as priors, not rules (D27).** v4.10 asserted that
+   aggregators are bot-defended and the renderer gets walled. On P-11 the renderer returned the full
+   review page with its truncation markers intact, which is the only reason the truncation could be
+   measured and the NOTE TO RATER written. A confident sentence about which method works had become a
+   reason not to try the other one. Both bullets now say which method to try FIRST and require both
+   to be attempted.
+
+3. **`accessed YYYY-MM-DD` resolves the rule 3 / rule 7 conflict (D29)** on undated first-party pages,
+   which is nearly every section A. A bare date on an undated page reads downstream as a publication
+   date and understates the evidence's age.
+
+4. **The terminal marker (D30).** `########## END OF PACKET ##########` is required by the harvest's
+   structural checks and was requested by no version of this prompt. P-11 does not carry it; neither
+   do 6 of the 10 packets before it. Under the harvest brief as written, P-11 would have been moved
+   to `P-11_regeneron_INCOMPLETE_<date>/`, Regeneron would have gone back to the top of
+   `to_be_researched.txt`, its scrub line would have been struck, and a sound 45-excerpt packet would
+   have been rebuilt from scratch with P-12 stuck behind it. The marker is worth keeping — it is the
+   only signal separating a build that finished from one that died, since a truncated packet keeps
+   its version header and its A–F headings — so v4.11 requires it and the harvest check is now
+   version-scoped so it cannot fire on packets built before this version.
+
+Also: section D's yield unit is stated as the passage with the source count reported alongside (the
+2a audit line changed to match), and the FINAL CHECK gained four lines.
+
+**Recorded decision — P-01 through P-10 are NOT back-audited for D26.** Roughly 450 Section 1
+excerpts across ten packets, all already scrubbed and promoted to `anonymization/`, and the round-1
+sources are up to a month old with some already moved or gone. Re-retrieving them would cost more
+than the set is worth under the shipping posture, and a partial audit would leave the set in a state
+nobody could describe. The exposure is real, it is recorded here and in the register rather than
+chased, and it applies to quoted excerpts in P-01–P-10 only — every packet from P-12 onward is built
+under the renderer-confirmation rule. If a downstream rater or fact-check surfaces a fabricated quote
+in an existing packet, that packet is repaired individually; the set is not re-audited pre-emptively.
 
 ### v4.10 -- after P-09 was scrubbed and verified, not after a build
 

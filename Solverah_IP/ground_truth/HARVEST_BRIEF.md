@@ -109,9 +109,22 @@ The research task writes `_build_env/packets/P-0X_<company_slug>/P-0X_packet.txt
 Before moving it, check three things by reading the file. Cheap, and they catch a build that
 died halfway:
 
-1. It contains `########## SECTION 1` **and** `########## END OF PACKET ##########`.
+1. It contains `########## SECTION 1`.
 2. Its header carries a `prompt version : vX.Y` line.
 3. Sections A through F are present.
+4. **If — and only if — that version line reads v4.11 or later**, it also ends with
+   `########## END OF PACKET ##########`.
+
+**Check 4 is version-scoped, and that is deliberate.** No collector prompt before v4.11 asked the
+builder to write that marker, so a packet built under v4.10 or earlier does not carry it and is not
+defective for lacking it. This brief gated on it anyway from the day the pipeline was armed. On
+2026-09-08 that mismatch was caught with P-11 Regeneron sitting in `_build_env/packets/` — a sound
+45-excerpt packet, all other checks passing, one line short of a marker its prompt never mentioned.
+Applied as written, this brief would have quarantined it as INCOMPLETE, pushed Regeneron back to the
+top of `to_be_researched.txt`, struck its scrub line, and sent a finished packet back for a full
+rebuild with P-12 stuck behind it. Six of the ten packets before it would fail the same check.
+**Never fail a packet on a rule its own prompt version did not contain** — read the version line
+first and apply only the checks that version owed you.
 
 **If any check fails**, move the folder to `packets/P-0X_<slug>_INCOMPLETE_<date>/`, report
 it, and **put the company back on the top of `to_be_researched.txt`** while removing its line
