@@ -49,3 +49,50 @@ timeout = 30
 worker_class = "gthread"
 threads = 8
 workers = 3
+
+# Worker recycling. Added 2026-09-08 after production went down.
+#
+# THE INCIDENT. Booted 2026-09-03 19:19 UTC, SIGKILL 2026-09-08 14:13, total
+# failure 15:16 -- ~4.8 days of monotonic memory growth across three workers
+# that never restarted. `/healthz` returned 500, which looks like a dependency
+# failure and is not: `solverah/api/health.py` returns a static dict and touches
+# no DB, no Redis, no I/O. A 500 there can only mean the process itself is sick.
+#
+# WHY IT GREW. Two per-worker caches are unbounded plain dicts with no eviction
+# path at all -- `solverah/services/path_cache.py` (keyed by user_id, its own
+# docstring says "nothing evicts") and `solverah/services/agent_service.py`'s
+# `_resume_cache`, which is written and read but never deleted, so its 600s TTL
+# is only consulted on read and expired entries stay resident holding resume
+# text. Neither is fixed by this file; see the follow-up note below.
+#
+# WHY IT BECAME FATAL WHEN IT DID. `workers` went from an implicit 1 to 3 on
+# 2026-09-02 (9536f82) and reached production with the 09-03 boot, tripling the
+# per-instance baseline. Nothing else changed. Three copies of an unbounded
+# cache on an instance whose plan was never recorded in the 2026-09-02 intake.
+#
+# WHY THE DOCKERFILE DID NOT SAVE US. `infra/docker/Dockerfile.api`'s CMD has
+# carried `--max-requests 2000 --max-requests-jitter 200` all along, but prod
+# runs Render's *native Python runtime* with a bare `gunicorn app:app`, so that
+# CMD never executes and this file is the live geometry. That is the exact drift
+# class documented above for the 120s->30s timeout lag: a value that was correct
+# in the image and absent from the file production actually loads. Same trap,
+# second occurrence -- which is why the numbers below are pinned to match the
+# Dockerfile rather than chosen independently.
+#
+# WHAT THIS DOES AND DOES NOT FIX. Recycling does not stop the leak; it bounds
+# it. A worker retires after ~2000 requests and its heap goes with it, so an
+# unbounded cache becomes a sawtooth instead of a slow climb to OOM. The jitter
+# staggers the three workers so they never retire together and drop capacity in
+# lockstep. The real fix is bounding both caches, which is a separate change
+# with its own tests.
+#
+# NOT SET HERE: `preload_app`. It would genuinely cut memory -- pandas, numpy
+# and scikit-learn are currently loaded once per worker instead of shared
+# copy-on-write after fork -- but this file defines no `post_fork` hook, so
+# preloading would fork three workers off a parent that has already built the
+# SQLAlchemy engine and let them share pooled connections. That surfaces as
+# intermittent "server closed the connection unexpectedly" errors which are
+# far harder to diagnose than the problem being solved. It needs a `post_fork`
+# calling `db.engine.dispose()`, and it should land with tests of its own.
+max_requests = 2000
+max_requests_jitter = 200
