@@ -1,0 +1,811 @@
+BUILD RECORD
+  prompt version : v4.6
+  model          : claude-opus-5
+  built          : 2026-08-14
+  environment    : clean session, one company, no prior packet context
+  assisted       : NO
+
+  RETRIEVAL METHODS AVAILABLE THIS BUILD: ONE, not two. Plain HTTP fetch worked
+  throughout. The JavaScript renderer (browser extension) was NOT CONNECTED and
+  returned "Claude in Chrome is not connected" on every attempt. Per the build
+  brief's two-method requirement this is a material limitation and it is logged
+  as a STRUCTURAL defect below. Every "could not be reached" finding in this
+  packet should be read as "could not be reached by plain fetch alone."
+
+
+########## SECTION 1 - EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE DECLARATION
+   "The employee reviews in this packet come from NOWHERE - the required review
+    source holds zero reviews for this company, so section B contains no employee
+    voice at all. Other parts of this company - every function, including the
+    engineering, support, design and marketing organisations - are therefore not
+    represented in them. Company-authored sources describe the whole organisation.
+    The only non-company-authored, first-person material in this packet is
+    engineer-authored technical blog writing, which describes the client
+    engineering teams only."
+
+
+--- A. CAREERS / VALUES PAGE (5-8 excerpts) ---
+
+   - "Doisters can work from anywhere in the world. We never place restrictions on locations."  - [company careers page] - Doist (company-authored) - https://doist.com/careers - retrieved 2026-08-14, page undated  - needed JS: N
+
+   - "Work during the time of day that's best for you. Doisters are encouraged to work 8-hour days and no more than 40 hours/week."  - [company careers page] - Doist (company-authored) - https://doist.com/careers - retrieved 2026-08-14, page undated  - needed JS: N
+
+   - "You aspire to put a dent in the universe. You set high standards for yourself and those around you. You solve issues that have a high impact on our customers and our company."  - [company values page, core value "Ambition"] - Doist (company-authored) - https://doist.com/about-us - retrieved 2026-08-14, page undated  - needed JS: N
+
+   - "You care deeply about the quality of your work. You're continuously learning and pushing yourself to the limits of your ability. As a champion of your craft, you are also a champion of your well-being - you work intensely, then disconnect completely."  - [company values page, core value "Mastery"] - Doist (company-authored) - https://doist.com/about-us - retrieved 2026-08-14, page undated  - needed JS: N
+
+   - "Others can trust that you'll deliver on time. You keep your word and trust your teammates to do the same. You are proactive, take ownership, and remain accountable with little or no direction."  - [company values page, core value "Independence"] - Doist (company-authored) - https://doist.com/about-us - retrieved 2026-08-14, page undated  - needed JS: N
+
+   - "Your communication is clear, concise, and engaging. You keep others in the loop and never go radio silent. You speak respectfully and foster warm relationships through your interactions."  - [company values page, core value "Communication"] - Doist (company-authored) - https://doist.com/about-us - retrieved 2026-08-14, page undated  - needed JS: N
+
+   - "People have the space and trust to disconnect to focus on deep work. No one is expected to respond to messages immediately."  - [company values page, "We embrace asynchronous teamwork"] - Doist (company-authored) - https://doist.com/about-us - retrieved 2026-08-14, page undated  - needed JS: N
+
+   - "Autonomy and transparency are more effective motivators than time tracking and micromanagement."  - [company values page, "We trust our teammates by default"] - Doist (company-authored) - https://doist.com/about-us - retrieved 2026-08-14, page undated  - needed JS: N
+
+
+--- B. EMPLOYEE REVIEWS (12-15, one per line, most recent first) ---
+
+   NOTE TO RATER. This section contains NO employee reviews, and that is not a
+   research shortfall you can correct by reading more carefully - it is a property
+   of the sources. Indeed, the required review source for this instrument, holds
+   ZERO reviews for this company under either entity found ("Doist" and
+   "Todoist"), and states so affirmatively on the page rather than returning an
+   error. Glassdoor holds 29 reviews for this company, newest dated 2025-08-08
+   (roughly 12 months before this build), but this instrument bars Glassdoor
+   review bodies from the evidence packet in all cases. The consequence is that
+   this packet contains no non-company-authored experiential evidence about
+   working at this company from any employee, in any function, at any date.
+   Everything in sections A and F-equivalent is written by the company about
+   itself; everything in section D is written by employees for a technical
+   audience on a company-run publication. Weigh sections A and D accordingly.
+
+   Employee reviews collected: 0 / 12 minimum.
+
+   The following is COMPANY-AUTHORED and does not count toward the section
+   minimum. It is included because it is the only dimension-bearing text that
+   sits inside the review stream and is not a review body.
+
+   - "Our asyncronous [sic] environment has been created to allow for non-linear work days and we never require any type of instant responses, but appreciate all your feedback on how you experienced this."  - [employer response] - Doist (company-authored), posted beneath a review by a former Customer Experience Specialist - https://www.glassdoor.com/Reviews/Doist-Reviews-E1102553.htm - review date 2025-08-08; response date not stated absolutely, page displayed relative age "11mo" at retrieval on 2026-08-14, i.e. approximately 2025-09  - needed JS: N  - source typo "asyncronous" preserved
+
+   - "For freelancing roles, we usually do not supply equipment but supply a $3000 - $5000 perk to allow for equipment as well as welcome perk for equipment of an additional $600, for all fulltime opportunities."  - [employer response] - Doist (company-authored), same response as above - https://www.glassdoor.com/Reviews/Doist-Reviews-E1102553.htm - review date 2025-08-08; response approximately 2025-09  - needed JS: N  - source typo "fulltime" preserved
+
+
+--- C. JOB POSTINGS (6-10 excerpts from 3+ open postings, different functions) ---
+
+   EXEMPTION CLAIMED - the company has no open roles anywhere it posts.
+
+   - Checked 2026-08-14. The company's own careers page rendered its open-roles
+     list and that list was empty, printed as "No open roles"
+     (https://doist.com/careers). The company's Indeed jobs tab returned "There
+     are no open jobs at Doist currently."
+     (https://www.indeed.com/cmp/Doist/jobs). The company's Glassdoor jobs tab
+     returned "No open roles posted here"
+     (https://www.glassdoor.com/Jobs/Doist-Jobs-E1102553.htm). The company's We
+     Work Remotely profile rendered in full with company copy and a lifetime
+     counter reading "Jobs posted: 10" but listed zero live postings
+     (https://weworkremotely.com/company/doist). Four sources, three of them
+     independent of the company, each returned zero currently open roles.
+     - [absence recorded as dated evidence] - researcher observation of four
+     rendered pages - 2026-08-14 - needed JS: N on all four
+
+   Job-posting excerpts collected: 0. Postings open: 0.
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 3 passages / 11 excerpts - ladder fully attempted) ---
+
+   VOICE COMPOSITION: MIXED - 2 non-executive passages (two individual engineers),
+   1 executive passage (the founder and CEO). Not all-executive, so the D0 extra
+   rung was not triggered. All three passages come from the same publication, the
+   company's engineering blog, and therefore describe the client and platform
+   engineering organisations. Non-engineering functions are absent from this
+   section.
+
+   From "Orchestrating our UI test suite with Maestro", by Prateek Prasad
+   (engineer, Android team), 2025-11-20, https://www.doist.dev/orchestrating-ui-tests-with-maestro - needed JS: N
+
+   - "Since end-to-end tests are slow to run, we reserve them for our core workflows: critical user journeys in our client apps that must work reliably at all times for our customers. Our list of core workflows is continuously reviewed and updated by our Customer Experience team and squads working on new features."
+
+   - "The unreliability of our test suite and the growing flakiness were recurring topics of discussion in my 1:1s with my manager."
+
+   - "I decided to do a small spike with four core workflows authored as Maestro tests. This served as a baseline for the effort required to write the test and for demonstrating whether reliability improves."
+
+   - "Once the team agreed it felt like a promising option, we convened in Athens during our team retreat to discuss adopting Maestro and to participate in a small hackathon that got everyone up to speed on writing Maestro tests."
+
+   - "At Doist, we reserve one day per week for "housekeeping", where we pay off tech debt and claim back time for internal improvements."
+
+   - "Over the course of 4 Housekeeping days and leveraging the time of 9 team members, we chipped away at our test suite and, in the end, converted 63 tests from Espresso to Maestro."
+
+   - "Unlike most workplaces where teams use Slack for internal communication, we like to do things a little differently at Doist. We are async-first and use our own product, Twist, for our internal communication."
+
+   From "Optimizing GRDB in Todoist for iOS", by Andris Zalitis (engineer, iOS),
+   2026-01-27, https://www.doist.dev/optimizing-grdb-in-todoist-for-ios - needed JS: N
+
+   - "I was tasked with solving this issue and I was quite happy about it. I love performance tuning tasks."
+
+   - "As I started my attempt, I decided that to make my improvements (if I found them) easy to prove, I would create a performance test where I perform the slow operation many times. I'd add the test first and then the reviewer of my PR would be able to compare before/after results of my changes without the hassle of running the app in Instruments."
+
+   - "It wasn't quick, in total I went through over 40 sessions of System Trace."
+
+   From "Bitmapist", by Amir Salihefendic (founder and CEO), 2025-07-29,
+   https://www.doist.dev/bitmapist - needed JS: N  - EXECUTIVE VOICE
+
+   - "At Doist, we love making smart bets. Sometimes, the smartest decision isn't to pick the biggest or shiniest tool out there but to build a small tool that does exactly what's needed."
+
+   - "Our product, design, engineering, CX, and marketing teams regularly run cohort queries, empowering them with immediate insights without bottlenecks or dependencies on specialized data teams."
+
+
+--- E. RECENT NEWS (yield: 0 - 4 searches logged) ---
+
+   NOT FOUND. Four news searches with different phrasings returned no reporting
+   from the last 12 months about how this company operates - no reorg, layoffs,
+   leadership change, strategy shift, ownership change, return-to-office change or
+   funding event was reported anywhere reachable. The company's own press page
+   carries a "Recent news" list, but every item on it is a consumer product review
+   or a listicle about its apps rather than reporting about the company as an
+   employer; per this instrument those are not reporting and are not quoted.
+   Distinguish: this is an ABSENCE of qualifying reporting, not a retrieval
+   failure. The searches ran and returned results; none of the results qualified.
+   Queries logged in 2c.
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 0 - public/private: PRIVATE) ---
+
+   N/A - PRIVATE. The company is bootstrapped and independent, has taken no
+   outside funding, and files no 10-K. No EDGAR route was attempted because the
+   section does not apply.
+
+
+########## SECTION 2 - RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+2a. YIELD AUDIT
+
+    REQUIRED TO YIELD - a shortfall here means go back and collect more:
+       A excerpts: 8/5       B reviews: 0/12      C excerpts: 0/6
+       C postings: 0/3       C outside engineering: 0/1
+       B reviews within 24 months: 0/0
+
+       A: PASS (at the cap).
+       B: FAIL on count. The failure is not correctable by more collection - see
+          2e and the defect list. Zero reviews exist on the required source.
+       C: EXEMPT - see below.
+
+    C EXEMPTION CLAIMED (company not hiring)?  YES
+       URL and response proving zero open roles:
+          https://doist.com/careers - rendered open-roles list, empty, printed
+             "No open roles"
+          https://www.indeed.com/cmp/Doist/jobs - "There are no open jobs at
+             Doist currently."
+          https://www.glassdoor.com/Jobs/Doist-Jobs-E1102553.htm - "No open roles
+             posted here"
+          https://weworkremotely.com/company/doist - profile rendered in full,
+             zero live listings
+       Full fallback chain still worked and logged?  YES - see 2c.
+
+    REQUIRED TO ATTEMPT - record the yield, do not gate on it:
+       D passages: 3    ladder rungs logged: 7/7
+       D voice composition: 1 executive / 2 non-executive   (all-executive: NO, so
+                            extra rung not worked; stale non-executive material
+                            found and rejected: YES - see 2c, rungs D1/D3)
+       E excerpts: 0    searches logged: 4
+       F excerpts: 0    public? NO - PRIVATE     10-K filing date: N/A
+
+
+2b. EVIDENCE COVERAGE
+
+       autonomy: COVERED   pace: COVERED   collaboration: COVERED
+       feedback: THIN      innovation: THIN   decision: COVERED
+
+       All six are supported ONLY by company-authored text (A) and company-run
+       engineering-blog text (D). Nothing here is corroborated by an independent
+       experiential source.
+
+
+2c. LADDER CHECKLIST
+
+       D1 handbook          attempted Y  URL: https://doist.com/how-we-work and
+                            https://doist.com/how-we-work/how-doist-works-remote
+                            outcome: FOUND, REJECTED AS STALE. No public handbook
+                            in the GitLab sense exists. The closest artifact,
+                            "How Doist Makes Remote Work Happen", is a long
+                            first-person account of hiring, communication,
+                            meetings, retreats, OKR failure and the internal "DO
+                            system". The page carries NO published date. Internal
+                            evidence dates it to roughly 2018: it states the team
+                            is 68 people in 25 countries, and refers to a retreat
+                            in Iceland "last year" and one in Athens "just
+                            recently". Against a company that now states 93
+                            people in 39 countries, this is ~8 years old and fails
+                            the 18-month gate. This is the single richest
+                            working-practice document the company publishes and it
+                            is excluded on age. Recording it here rather than
+                            quoting it.
+
+       D2 eng/product blog  attempted Y  URL: https://www.doist.dev/
+                            newest post date: 2026-01-27
+                            outcome: HIT. Index opened first, not a topic search.
+                            33 posts listed, current, engineer-authored. Supplied
+                            all 3 D passages. Fetched plain, no renderer needed.
+
+       D3 culture microsite attempted Y  URL: https://async.twist.com/
+                            outcome: FOUND, REJECTED AS STALE. The company runs a
+                            narrative culture publication ("The Async Newsletter").
+                            Its index renders in full and its newest post is dated
+                            2023-02-15 - approximately 42 months old. Site footer
+                            reads "© 2026", so the property is maintained while the
+                            content is dormant. Publication found, live, entirely
+                            outside the gate.
+
+       D4 leader interview  attempted Y  URL: https://futurestartup.com/2023/02/14/amir-salihefendic-doist/
+                            and https://saastanak.com/from-0-to-10m-arr-amir-salihefendics-journey-with-doist/
+                            date: 2023-02-14 (Future Startup) / SaaStanak keynote
+                            listed for 2025, no transcript
+                            outcome: NOT USED. The substantial interview is 42
+                            months old and fails the gate. The 2025 keynote is
+                            referenced but no transcript or recording text was
+                            reachable. D target was already met at rung 2, so this
+                            rung was logged rather than pursued further.
+
+       D5 public repos      attempted Y  URL: https://github.com/Doist and
+                            https://github.com/Doist/reactist/blob/main/CONTRIBUTING.md
+                            outcome: FOUND, NOT COUNTED. Organisation verified as
+                            controlling doist.com, 171 repositories, most recent
+                            activity 2026-07-02, so it is current and it is
+                            unambiguously the right organisation (no name
+                            collision). CONTRIBUTING.md rendered in full and
+                            contains process language ("This repository is setup so
+                            that on git push it will run all validations (linting,
+                            tests and type checks) and will prevent you from
+                            pushing any changes if any of these checks fail...
+                            Please do not override this step."). NOT quoted into
+                            Section 1 for two reasons: the page's commit date did
+                            not render on plain fetch, so the staleness gate cannot
+                            be applied to it; and it governs outside contributors
+                            to an open-source component library rather than
+                            describing internal working practice.
+
+       D6 press profile     attempted Y  URL: https://doist.com/press
+                            date: newest listed item 2026-01-06
+                            outcome: NOT FOUND (of this class). The press page's
+                            "Recent news" block lists eight items, all consumer
+                            product reviews and app listicles. None carries a
+                            direct employee or executive quote about how the
+                            company works. Publication found, current, yields
+                            nothing on working practice.
+
+       D7 conference talk   attempted Y  URL: https://www.mwcbarcelona.com/agenda/speakers/17907-amir-salihefendic
+                            date: session dated 03/03/2026
+                            outcome: FOUND, NO QUOTABLE TEXT. A session titled
+                            "Founder Series: Bootstrapping, Distributed Teams, &
+                            Legacy" is listed for the founder/CEO on 2026-03-03.
+                            The page carries only a speaker bio written in company
+                            marketing register; no transcript, abstract body or
+                            recording text was published. A talk listing is not
+                            passage text.
+
+       Rungs rejected as stale (>18 months): 3 - D1 (~2018, undated on page), D3
+                            (2023-02-15), D4 (2023-02-14).
+
+       C fallbacks tried: reviews-site job view N/A (zero jobs on the profile, so
+                          no viewjob route exists)  ATS param found NO (careers
+                          page markup carries no gh_jid, lever, ashby or workday
+                          parameter; roles are served from the company's own
+                          domain)  greenhouse boards-api EMPTY DOCUMENT
+                          (https://boards-api.greenhouse.io/v1/boards/doist/jobs)
+                          greenhouse board page EMPTY DOCUMENT
+                          (https://job-boards.greenhouse.io/doist)  lever EMPTY
+                          DOCUMENT (https://jobs.lever.co/doist)  workday EMPTY
+                          DOCUMENT (https://doist.wd1.myworkdayjobs.com/doist)
+                          ashby JS SHELL - returned "You need to enable JavaScript
+                          to run this app." and the posting API
+                          (https://api.ashbyhq.com/posting-api/job-board/doist)
+                          returned an empty document; UNRESOLVED, no renderer
+                          available  aggregator YES - We Work Remotely, rendered,
+                          zero live listings
+
+       E news searches run: 4   queries used:
+                          1. "Doist company news 2026 layoffs restructuring leadership"
+                          2. ""Doist" Amir Salihefendic interview 2025 2026 remote work company"
+                          3. "Doist Todoist company announcement acquisition funding 2026 "Doist""
+                          4. "Doist remote company 2026 news reorganization return to office policy change"
+                          All four returned results; none returned reporting from
+                          the last 12 months bearing on how the company operates.
+
+
+2d. SOURCE ACCESS LOG
+
+    https://doist.com/careers - OK, full render, plain fetch, needed JS: N
+    https://doist.com/about - EMPTY DOCUMENT (wrong path; correct path is /about-us)
+    https://doist.com/about-us - OK, full render, plain fetch, needed JS: N
+    https://doist.com/how-we-work - OK, full render, needed JS: N
+    https://doist.com/how-we-work/how-doist-works-remote - OK, full render, needed JS: N, no date on page
+    https://doist.com/press - OK, full render, needed JS: N
+    https://www.indeed.com/cmp/Doist/reviews - OK, renders "We currently don't have any reviews for Doist.", needed JS: N
+    https://www.indeed.com/cmp/Doist/job-titles - OK, renders the page frame with an EMPTY title list, needed JS: N
+    https://www.indeed.com/cmp/Doist/faq - OK, "Browse questions (0)", needed JS: N
+    https://www.indeed.com/cmp/Doist/jobs - OK, "There are no open jobs at Doist currently.", needed JS: N
+    https://www.indeed.com/cmp/Todoist/reviews - OK, "We currently don't have any reviews for Todoist.", marked Unclaimed, needed JS: N
+    https://www.indeed.com/companies/search?q=doist - OK, one result only, needed JS: N
+    https://www.glassdoor.com/Reviews/Doist-Reviews-E1102553.htm - OK, page 1 of 10 rendered with 3 reviews and their employer responses, needed JS: N
+    https://www.glassdoor.com/Reviews/Doist-Reviews-E1102553_P2.htm - EMPTY DOCUMENT on two separate plain-fetch attempts; renderer unavailable; UNRESOLVED
+    https://www.glassdoor.com/Jobs/Doist-Jobs-E1102553.htm - OK, "No open roles posted here", needed JS: N
+    https://weworkremotely.com/company/doist - OK, full render, zero live listings, needed JS: N
+    https://boards-api.greenhouse.io/v1/boards/doist/jobs - EMPTY DOCUMENT
+    https://job-boards.greenhouse.io/doist - EMPTY DOCUMENT
+    https://jobs.lever.co/doist - EMPTY DOCUMENT
+    https://jobs.ashbyhq.com/doist - JS SHELL ("You need to enable JavaScript to run this app.")
+    https://api.ashbyhq.com/posting-api/job-board/doist - EMPTY DOCUMENT
+    https://doist.wd1.myworkdayjobs.com/doist - EMPTY DOCUMENT
+    https://doist.dev/ - OK, full index, needed JS: N (redirects to www.doist.dev)
+    https://www.doist.dev/optimizing-grdb-in-todoist-for-ios - OK, full article, needed JS: N
+    https://www.doist.dev/orchestrating-ui-tests-with-maestro - OK, full article, needed JS: N
+    https://www.doist.dev/bitmapist - OK, full article, needed JS: N
+    https://async.twist.com/ - OK, full index, needed JS: N
+    https://github.com/Doist - OK, full render, needed JS: N
+    https://github.com/Doist/reactist/blob/main/CONTRIBUTING.md - OK, file body rendered, commit date NOT rendered, needed JS: N
+    https://www.mwcbarcelona.com/agenda/speakers/17907-amir-salihefendic - OK, full render, needed JS: N
+    JS RENDERER (browser extension) - NOT CONNECTED on every attempt this session.
+
+    needed JS summary: 0 of 27 successfully retrieved pages required the renderer.
+    Every first-party page, including the careers page - which prior builds found
+    to be the archetypal JavaScript-gated route (defect D12) - returned in full to
+    plain fetch. The pages that plain fetch could NOT resolve were an ATS board
+    (Ashby) and a review-site pagination route (Glassdoor page 2), and both are
+    exactly the cases where a renderer would have been decisive.
+
+
+2e. FIDELITY NOTE
+
+    - No [PARAPHRASE] anywhere in Section 1. Every excerpt is verbatim from an
+      opened page.
+    - PRESERVED SOURCE TYPOS: "asyncronous" and "fulltime" in the employer
+      response quoted in section B. Both are the source's own; marked [sic] on the
+      first. Both are unique-string identifiers - flagged in Section 4.
+    - ENTITY CHECK RESULT: run BEFORE any collection. On Indeed, the company
+      directory search for "doist" returned exactly one entity, "Doist"
+      (claimed, logo present, 13 salary records, 0 reviews). A second entity
+      "Todoist" exists at /cmp/Todoist, marked Unclaimed, also 0 reviews. Variants
+      tried: Doist, Todoist. On Glassdoor, one entity, employer ID 1102553, marked
+      "Engaged Employer", 29 reviews. NO KO SEGMENT was present in any Glassdoor
+      URL used, so no keyword pseudo-bucket was mistaken for a job-title filter.
+    - IMPLAUSIBLE REVIEW COUNTS: YES, and this is the central finding of the
+      build. Zero Indeed reviews for a company that states 93 employees, has
+      operated since 2007, and carries 13 salary records on that same Indeed
+      profile is implausible on its face - salary records exist, so the profile is
+      not inert, yet no review has ever been left on it. The Indeed job-titles
+      index rendered its page chrome, its heading "Select a job title to read
+      reviews and discover what it's like to work in that position", and an EMPTY
+      list. That is an affirmative zero, not a retrieval failure. Cross-checked
+      against Glassdoor's 29, so employee reviews for this company do exist - they
+      exist entirely on the source this instrument reads only as a recency
+      cross-check.
+    - POSTING OPEN/CLOSED STATUS: no posting was quoted, so none required
+      confirmation. The C exemption rests on four rendered zero-role responses.
+    - No interview write-ups were encountered, because no review list was sampled.
+    - The Ashby JS shell is an UNRESOLVED state, not an absence. It is possible,
+      though not established, that an Ashby board exists for this company; the
+      generic Ashby shell renders for valid and invalid slugs alike and cannot be
+      distinguished without a renderer. Recorded as unresolved rather than as
+      proof of absence, and the C exemption does not rest on it.
+
+
+2f. VINTAGE BLOCK
+
+       Review entities found: 2
+          https://www.indeed.com/cmp/Doist - 0 reviews, no rating displayed,
+             claimed (employer logo present, no "Unclaimed" badge, 13 salary
+             records)
+          https://www.indeed.com/cmp/Todoist - 0 reviews, no rating displayed,
+             marked "Unclaimed"
+          (Glassdoor, cross-check source only)
+          https://www.glassdoor.com/Reviews/Doist-Reviews-E1102553.htm - 29
+             reviews, 4.5 overall, marked "Engaged Employer"
+
+       Review counts BY SITE, each with the ELEMENT it came from:
+          Indeed / Doist - zero, from the body text element "We currently don't
+             have any reviews for Doist."
+          Indeed / Doist - zero, from the nav tab "Reviews" carrying no count
+             (contrast: the adjacent tab reads "13 Salaries", so the template does
+             print counts when they exist)
+          Indeed / Todoist - zero, from the body text element "We currently don't
+             have any reviews for Todoist."
+          Glassdoor - 29, from the page <title> element "Doist Reviews (29)"
+          Glassdoor - 29, from the h1-adjacent snapshot element "(29 total reviews)"
+          Glassdoor - 29, from the meta-description element "29 Doist reviews"
+          Glassdoor - 29, from the footer text element "Glassdoor has 29 Doist
+             reviews submitted anonymously"
+          Glassdoor - 29, from the pagination element "Viewing 1 - 3 of 29 Reviews"
+
+       Conflicting counts observed on a single page: NONE. Every Glassdoor element
+          agreed at 29. This is a departure from defects D4 and D1-D4 as recorded
+          on P-02 and P-03, and is worth noting as a small-company property: the
+          count contradictions those builds hit appear to be a large-n phenomenon.
+
+       Headline ratings BY SITE:
+          Indeed - none displayed (no reviews)
+          Glassdoor - 4.5 overall; work/life balance 4.4; culture and values 4.5;
+             compensation and benefits 4.5; senior management 4.3; diversity and
+             inclusion 4.2; career opportunities 3.9
+          Divergence: not computable. One site holds no ratings at all.
+
+       Job titles sampled, each with review count and the element the count came
+          from: NONE SAMPLED. The Indeed job-titles index
+          (https://www.indeed.com/cmp/Doist/job-titles) rendered with an empty
+          title list, so there is no title population to sample or to describe.
+          For reference only, and NOT sampled from: Glassdoor's FAQ block lists
+          "top reviewed jobs" as Marketing (3), Software Engineer (3), Customer
+          Service Representative (2), Software Developer (2) - counts taken from
+          the FAQ accordion element.
+
+       Per-title subratings: NOT COLLECTED - removed in v4.5, see section B
+
+       Achievability gate run on every percentage recorded anywhere in the packet:
+          YES
+
+       Percentages struck for failing the gate, with title and figure:
+          - "89% would recommend to a friend" at n=29 (Glassdoor company-wide).
+            STRUCK. At n=29 the possible values step by 3.448 points; the nearest
+            achievable values are 25/29 = 86.21% (prints as 86%) and 26/29 =
+            89.66% (prints as 90%). 89% cannot occur.
+          - "80% positive business outlook" at n=29 (Glassdoor company-wide).
+            STRUCK. Nearest achievable values are 23/29 = 79.31% (prints as 79%)
+            and 24/29 = 82.76% (prints as 83%). 80% cannot occur.
+          - "93% approve of CEO" at n=29 (Glassdoor company-wide). PASSES the
+            gate - 27/29 = 93.10%, prints as 93%. Retained here as source metadata
+            only. It is an EVALUATIVE metric and is barred from Section 1 by hard
+            rule 8. The named chief executive was independently confirmed current:
+            he is listed as "Doist, Founder/CEO" on a conference speaker page for
+            a session dated 2026-03-03.
+          - Percentages appearing in section D source articles (99% reliability,
+            50% cost reduction, 4x speedup, 40% and 99% and 90% performance
+            improvements): the gate CANNOT FIRE on these because no sample size is
+            printed beside any of them. Recorded as gate-not-applicable rather
+            than gate-passed. None of them is used as dimension evidence.
+
+       Titles present but NOT sampled, with counts: N/A - the title index is empty.
+
+       Interview write-ups excluded from review lists: 0 (no review list sampled)
+
+       Newest review date BY SITE:
+          Indeed - NONE EXIST
+          Glassdoor - 2025-08-08
+          ** This is the maximal form of the P-03/P-04 divergence signature: the
+             required text source holds nothing at all while the cross-check
+             source holds a 12-month-old newest review. **
+
+       Oldest review used: N/A - none used
+       Median age of reviews used: N/A - none used
+       Reviews truncated at source: 0/0 = N/A. Glassdoor's three rendered reviews
+          each carried a "Show more" control, but none was quoted into Section 1
+          so no truncation entered the packet.
+       Source-site duplicates retained: 0
+       Newest careers-page modification date: NOT STATED. No dateline, no
+          last-modified text on https://doist.com/careers or
+          https://doist.com/about-us. Internal dating evidence on /about-us places
+          its narrative text at roughly 2023: it states "Today, Doist is a
+          remote-first team of 93 people" and "Over the past 13 years" against a
+          product that began in 2007. A third-party profile retrieved the same day
+          states "approximately 100 people spread across 35+ countries", so the
+          company-authored figure and the third-party figure disagree on both
+          headcount and country count.
+       Structural events found and their dates: NONE FOUND. No ownership change,
+          layoff, restructure or leadership turnover was reported within the search
+          window. The company remains bootstrapped with no outside funding and the
+          founder remains CEO. The only dated company-level event reachable is a
+          conference session listed for 2026-03-03, which is not a structural
+          event.
+       Does any structural event postdate the newest review?  NO - no structural
+          event was found at all.
+
+
+2g. SCOPE BLOCK
+
+       A careers / values     population: company-wide (company-authored)
+       B employee reviews     population: NONE - the section is empty of employee
+                              voice. No population is represented.
+       C job postings         population: NONE - no open roles anywhere. The
+                              absence is itself company-wide.
+       D first-person         population: engineering only - specifically the
+                              Android client team, the iOS client team, and the
+                              founder/CEO. All three passages come from one
+                              publication, the company's engineering blog.
+       E news                 population: NONE - no qualifying reporting.
+       F human capital        population: N/A - private company.
+
+       Working environments known to exist in this company but ABSENT from the
+       review population: ALL of them. There is no review population. Named
+       functions that appear in company-authored and blog sources but are
+       represented by no experiential evidence anywhere in this packet: customer
+       experience / support, design, marketing, product, people/HR, and the
+       backend and infrastructure engineering organisations. Glassdoor's title
+       block indicates reviews exist for Marketing, Software Engineer, Customer
+       Service Representative and Software Developer, but those bodies are barred
+       from this packet.
+
+       Does the company-authored evidence (A, F) describe a wider population than
+       the experiential evidence (B)?  YES - and in the strongest possible form.
+       The company-authored half describes everyone; the non-company-authored half
+       describes nobody. Any scoring rule requiring non-company-authored support
+       cannot be satisfied by this packet as constituted. The nearest thing to
+       independent support is section D, which is employee-written but published
+       on a company-run property and edited to a company audience, and which
+       covers two client engineering teams out of the whole organisation.
+
+
+########## SECTION 3 - ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+
+- Approx. headcount: two conflicting figures, both retrieved 2026-08-14.
+  Company-sourced: "Doist is a remote-first team of 93 people representing 41
+  nationalities in 39 countries and 75 cities" (https://doist.com/about-us,
+  undated page, internally datable to roughly 2023). Third-party, employer-supplied:
+  "approximately 100 people spread across 35+ countries"
+  (https://weworkremotely.com/company/doist, undated). CONFIDENCE: LOW on the
+  exact number, HIGH on the order of magnitude. Both are company-written copy on
+  undated pages; neither is a current company-sourced disclosure. Treat as
+  90-100, circa 2023-2026.
+
+- Stage/size cues: PRIVATE. Bootstrapped and independent, no outside funding, no
+  investors. Company states it directly: "The company - which is fully
+  bootstrapped and independent" (https://weworkremotely.com/company/doist), and
+  publishes a standing article titled "Why We Don't Have an Exit Strategy"
+  (https://doist.com/how-we-work/no-exit-strategy). Founded 2007 as a side
+  project; first employee hired 2010; company profile lists "Established 2007",
+  size band "51 - 250", "Years Remote 10+ years". Two products, both consumer/SMB
+  SaaS, plus a 2026 SOC2 Type II certification referenced on the press page.
+  Founder is still CEO. No revenue figure is company-disclosed on any page
+  opened; third-party claims of an ARR figure were not sourced to a company page
+  and are not recorded here.
+
+- Pay-posture EVIDENCE vs. talent-market peers: the company publishes a
+  formula-based, location-adjusted, non-negotiable salary model and says so on the
+  careers page - "Our formula-based salaries are calculated based on
+  industry-benchmarked skills and geographical location - no stressful negotiation
+  required", and the process page states the range is disclosed to the candidate
+  at first interview. Benefits stated: 8 weeks (40 days) PTO, 5 weeks paid
+  parental leave plus 13 weeks paid pregnancy-related medical leave, recurring
+  hardware, coworking, education and wellness budgets. Indeed holds 13 salary
+  records; none was opened or recorded. NO BAND ASSIGNED. Correct reference class:
+  globally-distributed, bootstrapped consumer-productivity SaaS at roughly 100
+  people - NOT VC-backed US-headquartered SaaS, against which a
+  location-adjusted global formula would read as low by construction rather than
+  by posture.
+
+- Industry: TECH. Consumer and small-team productivity software (task management
+  and team messaging), sold direct as SaaS subscriptions, engineering-led,
+  self-hosted product surface across web, iOS and Android.
+
+
+########## SECTION 4 - ANONYMIZATION PRE-FLAGS ##########
+
+Company name occurrences in Section 1: "Doist" appears in the A excerpts as the
+demonym "Doisters" (2 occurrences), in the D excerpts as "At Doist" (3
+occurrences), and throughout attributions and URLs.
+
+Product and brand names in Section 1: Twist (1 occurrence, in a D excerpt, where
+it is doubly identifying because the excerpt states the company uses its own
+product for internal communication). Todoist appears in source titles and URLs but
+not inside any excerpt body. Maestro, Espresso, Firebase Test Lab, GRDB and
+Instruments appear in D excerpt bodies - these are third-party tools and are only
+weakly identifying, but the combination is a fingerprint.
+
+Executive and author names: Amir Salihefendic (founder/CEO, attribution of the
+Bitmapist passage), Prateek Prasad (engineer, attribution), Andris Zalitis
+(engineer, attribution). All three are attribution fields rather than excerpt
+bodies, but all three are directly searchable to the company.
+
+Named clients: none.
+
+Office locations: Athens appears inside a D excerpt ("we convened in Athens during
+our team retreat"). Replace with a generic token; the fact of an in-person team
+retreat is the dimension signal and it survives the substitution.
+
+Named internal programs and tools: "housekeeping" / "Housekeeping days" - this is
+the highest-risk token in the packet. It is a named internal programme, it is the
+single most dimension-bearing phrase in section D (it evidences pace, autonomy and
+innovation simultaneously), and the phrase is searchable straight back to the
+company. Apply the section-F rule - rewrite the proper noun, keep the clause -
+rather than dropping the excerpt. "Core workflows", "squads", and "1:1s" are
+generic and need no treatment.
+
+Distinctive phrases that could re-identify: "put a dent in the universe" (core
+value text, searchable), "you work intensely, then disconnect completely" (core
+value text, searchable), "never go radio silent" (core value text, searchable).
+All three are VERBATIM SELF-DESCRIPTIONS and are flagged separately below.
+
+VERBATIM SELF-DESCRIPTIONS (searchable even after the name is removed):
+   - "You aspire to put a dent in the universe..."      [Ambition]
+   - "...you work intensely, then disconnect completely." [Mastery]
+   - "...remain accountable with little or no direction." [Independence]
+   - "You keep others in the loop and never go radio silent." [Communication]
+   - "We never place restrictions on locations."
+   - "Autonomy and transparency are more effective motivators than time tracking
+      and micromanagement."
+   These four core-value paragraphs are reproduced verbatim on at least one
+   third-party site as well as the company's own, which makes them findable by
+   exact-phrase search from two independent indexes.
+
+PRESERVED SOURCE TYPOS - unique-string identifiers, flagged per instruction:
+   - "asyncronous" (employer response, section B)
+   - "fulltime"    (employer response, section B)
+
+Review locations: none to tokenise - no reviews were used. For completeness, the
+Glassdoor entries that were read but not quoted carried locations "Cebuano" (which
+is a language, not a location, and is itself a source defect) and "Singapore".
+
+
+########## SECTION 5 - DEFECT REPORT ON PROMPT v4.6 (NEVER IN THE PACKET) ##########
+
+Ten defects. Six structural, four cosmetic. Structural first.
+
+
+--- STRUCTURAL ---
+
+S1. SECTION B HAS NO BEHAVIOUR FOR "THE ONLY REQUIRED REVIEW SOURCE IS EMPTY."
+    Prompt section: B1, and the FINAL CHECK line "Did I take review TEXT from
+    Indeed, and keep Glassdoor's Pros/Cons fragments out of Section 1 entirely?"
+    v4.5 made Indeed the only required review source and demoted Glassdoor to an
+    optional recency cross-check whose bodies "may never" be quoted into Section
+    1 "in any case". That pairing is safe only while Indeed is non-empty. Here
+    Indeed holds zero reviews under both entities while Glassdoor holds 29, so
+    the rule as written produces a packet with NO non-company-authored
+    experiential evidence about a company for which such evidence demonstrably
+    exists and is publicly readable. I followed the rule literally, because "in
+    any case" admits no reading that lets me override it, and recorded the
+    consequence in a NOTE TO RATER. This is the largest single effect on what
+    reached Section 1 in this build. The v4.5 reasoning for the bar - that
+    Glassdoor renders Pros/Cons fragments rather than prose - did not hold on the
+    page I actually opened: the newest review's Cons block rendered as eight full
+    sentences, and the two adjacent reviews rendered short prose. The evidence
+    for the bar is a large-company rendering property that does not reproduce at
+    n=29. A fallback clause is needed: something like "if the required source
+    returns zero reviews after a completed entity check, the cross-check source
+    becomes the text source, and every excerpt taken from it is tagged with the
+    source name so the rater can discount the format."
+
+S2. THE BUILD RAN WITH ONE RETRIEVAL METHOD, NOT TWO.
+    Prompt section: the "YOU NEED TWO RETRIEVAL METHODS" block, and defect D13.
+    The JavaScript renderer was not connected in this environment and returned a
+    not-connected error on every attempt. Plain fetch alone resolved 27 of 29
+    URLs, so most of the packet is unaffected - but two states are unresolved
+    that a renderer would very likely have settled: the Ashby board, which
+    returned a generic JS shell that renders identically for valid and invalid
+    slugs, and Glassdoor review page 2, which returned an empty document twice.
+    Neither is recorded as an absence. Structural because a renderer might have
+    changed section C's exemption basis and would have changed how much of the
+    Glassdoor review population I could characterise in 2f. The prompt tells the
+    researcher to use two methods but has no instruction for what to do when the
+    environment supplies only one - it should say explicitly that the packet
+    proceeds, that every unresolved state is recorded as unresolved rather than
+    absent, and that the missing method is stamped in the build record.
+
+S3. THE INVERSE OF DEFECT D13 OCCURRED AND THE PROMPT PREDICTS THE OPPOSITE.
+    Prompt section: the two-retrieval-methods block ("First-party sites - careers,
+    values, culture, handbooks, blogs - are frequently JavaScript single-page
+    apps... Use the renderer") and defect D12.
+    Every first-party page here - careers, about-us, how-we-work, press, the
+    engineering blog, the culture newsletter - returned in full to plain fetch.
+    Zero of 27 successful retrievals needed JS. The pages plain fetch could not
+    resolve were an ATS board and an aggregator pagination route, which is the
+    reverse of the routing rule. A researcher who followed the routing guidance
+    as written would have reached for the renderer first on section A and, in an
+    environment where it is unavailable, might have recorded a first-party
+    absence that does not exist. Structural because the routing rule determines
+    which sources get a second attempt before being written off. The rule should
+    be restated as a per-source empirical test rather than a per-class
+    prediction: try one, and if the response is empty or a shell, try the other,
+    regardless of which class the source belongs to.
+
+S4. SECTION A'S CAP OF 8 HAS NO SELECTION RULE, SO THE CAP IS EXERCISED BY
+    RESEARCHER TASTE.
+    Prompt section: A ("minimum 5, maximum 8 excerpts").
+    This company's own pages yielded at least eleven quotable, clearly
+    dimension-bearing sentences. Rule 6 forbids selecting on content for review
+    sources and says selecting on content "biases the packet in a way nobody
+    downstream can detect or correct" - but section A imposes a hard cap with no
+    ordering rule at all, which forces exactly that selection and gives it no
+    audit trail. I chose eight to spread across the six dimensions and dropped,
+    among others, "Thinking in decades, not in quarters. We opt for solutions
+    that will get us where we want to be in the long-term. We're running a
+    marathon, not a sprint" and the entire formula-based compensation and hiring
+    process text. A different researcher would have kept different ones and the
+    packet would read differently on pace and on decision basis. Structural by
+    definition - it changed what evidence reached Section 1. Needs a deterministic
+    rule (document order, or one per dimension then document order to the cap)
+    and a line in 2f recording what was dropped.
+
+S5. B2b SAYS TO COLLECT EMPLOYER RESPONSES; B1 SAYS NEVER TO QUOTE GLASSDOOR INTO
+    SECTION 1. THE TWO RULES COLLIDE AND THE PROMPT DOES NOT SAY WHICH WINS.
+    Prompt sections: B1 and B2b.
+    Employer responses live inside the review stream on Glassdoor. B2b (new in
+    v4.6) says they are dimension-bearing, worth collecting, and must be tagged
+    [employer response]. B1 says never quote Glassdoor review bodies into Section
+    1. An employer response is not a review body, so on the narrow reading B2b
+    permits it; on the broad reading of "keep Glassdoor out of Section 1
+    entirely" - which is how the FINAL CHECK line phrases it - it does not. I took
+    the narrow reading and included two employer-response excerpts, tagged, dated
+    separately, and explicitly excluded from the section count. Structural because
+    it is the only thing in section B other than the note to the rater, so the
+    reading determines whether section B is empty or not. B2b was written against
+    P-01, where the review site was Indeed; it appears not to have been checked
+    against the v4.5 Glassdoor bar.
+
+S6. THE STALENESS GATE HAS NO INSTRUCTION FOR UNDATED PAGES, AND THE RICHEST
+    SOURCE IN THIS BUILD IS UNDATED.
+    Prompt sections: D's STALENESS GATE, and rule 7 ("DATE EVERYTHING").
+    This company's fullest first-person account of its own working practice -
+    hiring, meetings, the move off Slack, a failed OKR rollout, an internally
+    designed goal system - carries no published date anywhere on the page. I dated
+    it by internal evidence (it states a headcount of 68 in 25 countries against a
+    current company-stated 93 in 39) to roughly 2018 and rejected it as stale. The
+    same problem affects the careers and values pages, which are undated and which
+    I quoted anyway because section A has no gate. That asymmetry is itself
+    notable: an undated company page is quotable in A and unquotable in D under
+    the same prompt. Structural because internal dating is an inference and a
+    different researcher could reasonably have kept the passage, which would have
+    roughly tripled section D and shifted its voice composition. The prompt needs
+    an explicit undated-source procedure: date by internal evidence, record the
+    evidence, and apply the gate to the inferred date - or, if no internal
+    evidence exists, treat as failing the gate.
+
+
+--- COSMETIC ---
+
+C1. THE ACHIEVABILITY GATE DOES NOT SAY WHAT TO DO WITH PERCENTAGES THAT HAVE NO
+    STATED n. Prompt section: B3 / hard rule 9. B3 is phrased as "reachable at the
+    sample size printed beside it". Section D's source articles are full of
+    percentages - 99% test reliability, 50% cost reduction, 90% and 99% speed
+    improvements - with no n printed beside any of them. The gate cannot fire and
+    the prompt does not say whether that counts as a pass, a fail, or a
+    non-event. I recorded them as gate-not-applicable. Changed nothing here
+    because none was used as dimension evidence, but the 2f line "Achievability
+    gate run on every percentage recorded anywhere in the packet: Y/N" cannot be
+    answered honestly with a bare Y or N.
+
+C2. 2f ASSUMES REVIEWS EXIST AND HAS NO N/A PATH. Prompt section: 2f. Eight of the
+    block's twenty lines - oldest review used, median age, truncation fraction,
+    duplicates, titles sampled, titles not sampled, newest review by site,
+    interview write-ups excluded - are undefined when the review count is zero. I
+    filled them N/A with a reason each. A zero-review company is not exotic and
+    the block should carry an explicit empty-section form.
+
+C3. THE JOB-TITLES INDEX ROUTE RENDERS A PAGE FRAME WITH NO CONTENT AND NO
+    STATEMENT OF ZERO. Prompt section: B2. On this company
+    indeed.com/cmp/<company>/job-titles returned its heading, "Select a job title
+    to read reviews and discover what it's like to work in that position", and
+    then nothing. Unlike the reviews tab, which prints "We currently don't have
+    any reviews for Doist", the title index does not affirmatively say zero. Under
+    the meta-pattern in the appendix that is exactly the shape of an empty
+    response that is not an absence, and I could only resolve it by
+    cross-reference to the reviews tab. Worth one line in B2 noting that the title
+    index is silent rather than affirmative when empty.
+
+C4. THE ENTITY CHECK AT B0 ASKS FOR "OVERALL RATING" AND "CLAIMED/UNCLAIMED" AS
+    THOUGH BOTH ALWAYS RENDER. Prompt section: B0. The claimed entity here
+    displayed no "Unclaimed" badge and no rating at all - claimed status had to be
+    inferred from the absence of a badge plus the presence of an employer logo and
+    a salary count. Inference, not observation. B0 should say what positive
+    evidence of "claimed" looks like.
+
+
+--- ANYTHING I HAD TO DECIDE FOR MYSELF ---
+
+  1. Read "never quote Glassdoor review bodies" literally, producing an empty
+     section B, rather than treating an empty Indeed as an implied override. (S1)
+  2. Read employer responses as not-review-bodies and therefore admissible. (S5)
+  3. Chose which 8 of 11+ section-A candidates to keep. (S4)
+  4. Dated an undated page by internal evidence and rejected it on that inferred
+     date. (S6)
+  5. Recorded the Ashby JS shell as unresolved rather than as proof of absence,
+     and did not rest the section C exemption on it. (S2)
+  6. Did not attempt to reach any blocked or renderer-only page by other means.
+  7. Treated the company's press-page "Recent news" list as non-qualifying for
+     section E on the grounds that consumer product reviews are not reporting
+     about the company as an employer.
+  8. Did not open the 13 Indeed salary records, on the reading that pay bands are
+     confounder material and are excluded from Section 1 by section C's rule.
+
+  NOTE: the prompt says a question I had to ask the operator is a prompt failure
+  worth recording. I asked none. Every ambiguity above was resolved by me and
+  recorded here instead.
+

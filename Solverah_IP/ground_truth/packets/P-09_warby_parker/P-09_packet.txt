@@ -1,0 +1,696 @@
+BUILD RECORD
+  prompt version : v4.7
+  model          : claude-opus-5  (session-configured identifier; the exact serving model
+                   string is not exposed to this session and may differ — operator to confirm)
+  built          : 2026-08-27 (America/New_York; retrieval ran 2026-08-27, crossing into
+                   2026-08-28 UTC near the end of the run)
+  environment    : clean session, one company, no prior packet context.
+                   Inputs in window: BUILD_BRIEF.md, Company_Culture_Evidence_Collector_v4.7.md,
+                   README.txt. No packets, handoffs, decisions files or defect logs were present
+                   or read. No folder was connected; output is delivered as a file plus chat text.
+  assisted       : NO
+
+RETRIEVAL METHODS USED
+  Plain HTTP fetch : WebFetch (fetch + markdown conversion). Used for aggregators and SEC.
+  JS renderer      : Claude-in-Chrome (real Chrome, rendered DOM, get_page_text / DOM read).
+                     Used for first-party warbyparker.com pages and the Oracle ATS.
+  Never signed in to anything. No authenticated content collected.
+
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE DECLARATION
+The employee reviews in this packet come from Warby Parker's retail store floor, store and
+optical leadership, opticianry, one optometrist, one customer-service representative and one
+optical-lab packer, plus three reviewers who posted no job title. Other parts of this company —
+its corporate headquarters organisation, software engineering, product, design, marketing,
+finance and data teams — are not represented in them. Company-authored sources describe the
+whole organisation.
+
+NOTE TO RATER (truncation): At least 6 of the 15 reviews in section B (40%) were cut off by the
+source site's "Show more" control, which does not expand on fetch. The cut is marked […] on each
+affected line. The reviews that survive intact are systematically the shorter ones, so the longer
+and more detailed accounts in this section are read only as opening paragraphs.
+
+NOTE TO RATER (section D voice): No non-executive first-person account of how this company works
+was found in public. Section D is one co-founder/co-CEO voice plus three passages in the
+company's own corporate voice. Do not read either as evidence about the store floor or the
+optical labs.
+
+--- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
+
+   • "Ask anyone what they love about working at Warby Parker, and odds are they'll start with the people or the culture—or both. We're a team of idea generators, thoughtful collaborators, inveterate innovators, and good desk (or lunch table or sales floor) neighbors."  — [company careers page] — Warby Parker, "Life at Warby" — https://www.warbyparker.com/careers/life-at-warby — retrieved 2026-08-27, page undated — needed JS: N
+
+   • "Pursue new and creative ideas / Embrace change and uncertainty / Continually challenge ourselves"  — [company careers page — core values block, three consecutive lines] — Warby Parker, "Life at Warby" — https://www.warbyparker.com/careers/life-at-warby — retrieved 2026-08-27, page undated — needed JS: N
+
+   • "Take action / Set ambitious goals and measure results / Take the first step"  — [company careers page — core values block, three consecutive lines] — Warby Parker, "Life at Warby" — https://www.warbyparker.com/careers/life-at-warby — retrieved 2026-08-27, page undated — needed JS: N
+
+   • "Presume positive intent / Trust but verify"  — [company careers page — core values block, two consecutive lines] — Warby Parker, "Life at Warby" — https://www.warbyparker.com/careers/life-at-warby — retrieved 2026-08-27, page undated — needed JS: N
+
+   • "Lead with integrity / Be honest / Give and take direct feedback / Learn. Grow. Repeat."  — [company careers page — core values block, four consecutive lines] — Warby Parker, "Life at Warby" — https://www.warbyparker.com/careers/life-at-warby — retrieved 2026-08-27, page undated — needed JS: N
+
+   • "We believe that continuous feedback creates continuous improvement, and that transparent communication is essential to helping our coworkers, leaders, and the entire company learn and grow (and repeat)."  — [company careers page] — Warby Parker, "Life at Warby", section headed "Feedback and transparency" — https://www.warbyparker.com/careers/life-at-warby — retrieved 2026-08-27, page undated — needed JS: N
+
+   • "Our work is highly collaborative, and we make a habit of showing thanks to our colleagues often."  — [company careers page] — Warby Parker, "Life at Warby", section headed "Real recognition" — https://www.warbyparker.com/careers/life-at-warby — retrieved 2026-08-27, page undated — needed JS: N
+
+   • "You'll also have a voice in shaping the future of the company through continuous feedback channels."  — [company careers page — retail-specific] — Warby Parker, "Retail and Opticianry Careers", section headed "One-of-a-kind culture" — https://www.warbyparker.com/careers/retail-and-opticianry — retrieved 2026-08-27, page undated — needed JS: Y (renderer; this page was reached only through the site's own navigation, see fidelity note)
+
+--- B. EMPLOYEE REVIEWS (12–15, one per line, most recent first) ---
+
+Source: Indeed, employer profile "Warby Parker", sorted newest-first company-wide. Job title is
+metadata recorded per review, not the sampling unit. All 15 fall inside the 24-month gate.
+
+   • "Decent. Low pay. Low hours. Weird management. Free glasses. Free snacks. Decent Health Plan. Holidays are to be worked. Corporate Optometry not much to add or change to the industry."  — [employee review] — reviewer title: not stated; location: not stated — https://www.indeed.com/cmp/Warby-Parker/reviews?sort=date — 2026-08-09 — needed JS: N
+
+   • "They do not care at all about you. High pressure and very political environment, if you're considering working here, don't walk away, Run!"  — [employee review] — Retail Store Manager; location: not stated — https://www.indeed.com/cmp/Warby-Parker/reviews?sort=date — 2026-08-08 — needed JS: N
+
+   • "Love the people I work with. Mgmt can micromanage too much. It's low stress but that also means low energy sometimes which is hard coming from traditional retail where you're used to always being on the go."  — [employee review] — Store Leader; location: not stated — https://www.indeed.com/cmp/Warby-Parker/reviews?sort=date — 2026-08-04 — needed JS: N
+
+   • "Great management. I've worked in the industry before and this time around I've learned a lot more. Great training and supportive management and colleagues. Free eye exam and glasses on day seven. Hardest part of job is lack of hours. Best part is a stocked kitchen. No need to bring snacks or water."  — [employee review] — Advisor; Novi, MI — https://www.indeed.com/cmp/Warby-Parker/reviews?sort=date — 2026-07-28 — needed JS: N
+
+   • "Company and Management are so disorganized it is laughable and no "real" chance for growth. Depending on the team you get it can be a solid first job or constant headache. Issues were never resolved within teams and all that mattered were numbers and metrics not the concerns of their employees. No real […]"  — [employee review] — reviewer title: not stated; New York, NY — https://www.indeed.com/cmp/Warby-Parker/reviews?sort=date — 2026-07-19 — needed JS: N — TRUNCATED AT SOURCE
+
+   • "Great people. Great energy. The company really cares about their employees. The pay wasn't the greatest but I was part time so that's to be expected."  — [employee review] — Advisor; location: not stated — https://www.indeed.com/cmp/Warby-Parker/reviews?sort=date — 2026-06-11 — needed JS: N
+
+   • "Although I had witnessed a decline in the core values, I maintain that it continues to carry out their corporate mission to provide quality eyewear at reasonable prices. I benefitted from Warby's support for obtaining my certfication [sic] and license as an optician. I enjoyed the interaction with the customers […]"  — [employee review] — Licensed Certified Optician/Optical Supervisor; Costa Mesa, CA — https://www.indeed.com/cmp/Warby-Parker/reviews?sort=date — 2026-04-21 — needed JS: N — TRUNCATED AT SOURCE. Review headline, verbatim: "Warby has changed over the years from a culture of strong core values to management that does not know the core values."
+
+   • "The interview process was professional, personal, and thoughtful. My team was great to work with, and my manager was excellent and provided regular feedback on my performance. While the pay wasn't amazing, the job was easy and allowed a lot of flexibility."  — [employee review] — OPA; Nashville, TN — https://www.indeed.com/cmp/Warby-Parker/reviews?sort=date — 2026-03-29 — needed JS: N
+
+   • "Overall, this was a great place to work in its earlier years, and it still offers some value depending on your role and goals. However, the company's direction has shifted in ways that raise concerns about its long-term outlook. There is a strong emphasis on metrics and performance tracking, which can […]"  — [employee review] — Optician; location: not stated — https://www.indeed.com/cmp/Warby-Parker/reviews?sort=date — 2026-03-27 — needed JS: N — TRUNCATED AT SOURCE
+
+   • "Cool Place to work but a lot of responsibilities for just over minumum [sic] wage Staff was really nice but upper management wants miracles when we arent [sic] paid for it"  — [employee review] — Sales Advisor; Short Hills, NJ — https://www.indeed.com/cmp/Warby-Parker/reviews?sort=date — 2026-03-26 — needed JS: N
+
+   • "Lab in las Vegas is toxic, management doesn't care about anything if it doesn't make there [sic] day better. People are fired or quit because of the toxic environment they."  — [employee review] — Packer; Las Vegas — https://www.indeed.com/cmp/Warby-Parker/reviews?sort=date — 2026-03-15 — needed JS: N
+
+   • "love working here. Only thing I would complain would be longer working hours. I enjoy working at different locations with different coworkers, they help optometrists a lot."  — [employee review] — Optometrist; location: not stated — https://www.indeed.com/cmp/Warby-Parker/reviews?sort=date — 2026-03-07 — needed JS: N
+
+   • "The current head of customer service will lay you off in a heartbeat. The company tries to act all progressive and inclusive but they are not. Profit for the CEOs and upper management comes first. The leads are hit or miss. Metrics are constantly changing. Not recommended if you're seeking fair pay […]"  — [employee review] — Customer Service Representative; Nashville, TN — https://www.indeed.com/cmp/Warby-Parker/reviews?sort=date — 2026-01-06 — needed JS: N — TRUNCATED AT SOURCE
+
+   • "What is the best part of working at the company? I got to trade stocks while I worked What is the most stressful part about working at the company? Working with non professional people and they were always late for work What is the work environment and culture like at the company? Too much micro […]"  — [employee review] — Licensed Optician; Greenwich, CT — https://www.indeed.com/cmp/Warby-Parker/reviews?sort=date — 2025-12-27 — needed JS: N — TRUNCATED AT SOURCE. This review is rendered in the source site's structured question-and-answer format, not free prose.
+
+   • "Associates are expected to learn and navigate multiple systems, many of which experience frequent outages. While workarounds are provided, relying on these temporary fixes across several systems significantly increases the risk of errors. Managing this complexity while actively engaging with customers […]"  — [employee review] — reviewer title: not stated; location: not stated — https://www.indeed.com/cmp/Warby-Parker/reviews?sort=date — 2025-12-19 — needed JS: N — TRUNCATED AT SOURCE
+
+--- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+
+Five currently-open postings, five different functions. Every posting was opened individually on
+2026-08-27 and each rendered an active APPLY NOW control with no removal notice. Locations, site
+names, job-title groupings and pay bands are deliberately not reported.
+
+   • "Execute and improve all operational activities to meet your store's financial targets and customer experience goals"  — [job posting — retail store leadership] — Warby Parker careers site (Oracle Recruiting Cloud), posting 3687, posted 2026-08-27 — https://fa-evdi-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/WarbyParkerCareers/job/3687 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Consistently follow company-wide processes to maintain brand consistency"  — [job posting — retail store leadership] — Warby Parker careers site, posting 3687, posted 2026-08-27 — https://fa-evdi-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/WarbyParkerCareers/job/3687 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Curious and willing to question how things are done and how they could be done better"  — [job posting — retail store leadership] — Warby Parker careers site, posting 3687, posted 2026-08-27 — https://fa-evdi-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/WarbyParkerCareers/job/3687 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Ready to bring fun into your workplace but willing to put in long hours when required"  — [job posting — retail store leadership] — Warby Parker careers site, posting 3687, posted 2026-08-27 — https://fa-evdi-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/WarbyParkerCareers/job/3687 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Demonstrated ability to deliver complex software projects with a high level of autonomy while mentoring others"  — [job posting — software engineering] — Warby Parker careers site, posting REQ212547, posted 2026-07-21 — https://fa-evdi-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/WarbyParkerCareers/job/REQ212547 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Promote the adoption of new technologies that advance and evolve our product"  — [job posting — software engineering] — Warby Parker careers site, posting REQ212547, posted 2026-07-21 — https://fa-evdi-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/WarbyParkerCareers/job/REQ212547 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Own key metrics for the facility, including production safety incidents, breakage/quality deviations, OEE, and labor efficiency to meet production and cost goals"  — [job posting — optical lab management] — Warby Parker careers site, posting 4708, posted 2026-08-27 — https://fa-evdi-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/WarbyParkerCareers/job/4708 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "A dexterous multitasker who's eager to work in a fast-paced environment—and able to prioritize several projects without losing focus"  — [job posting — corporate accounting] — Warby Parker careers site, posting 1803, posted 2026-07-16 — https://fa-evdi-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/WarbyParkerCareers/job/1803 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Lead regular performance review cadences with partner leadership by presenting data-backed insights and identifying areas for improvement"  — [job posting — customer experience operations] — Warby Parker careers site, posting 4574, posted 2026-07-21 — https://fa-evdi-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/WarbyParkerCareers/job/4574 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Design a regular cadence of routing rule testing to validate performance and drive improvements in first-contact resolution"  — [job posting — customer experience operations] — Warby Parker careers site, posting 4574, posted 2026-07-21 — https://fa-evdi-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/WarbyParkerCareers/job/4574 — confirmed open 2026-08-27 — needed JS: Y
+
+--- D. FIRST-PERSON ACCOUNT (yield: 4 · ladder fully attempted) ---
+
+VOICE COMPOSITION: 1 executive (co-founder and co-CEO) · 0 non-executive employee ·
+3 company/corporate authorial voice. See NOTE TO RATER at the head of the packet.
+
+   • "We use a structured interview framework, which means our interviewers ask a set of competency-based questions in a specific order and evaluate your responses against a pre-established rubric. It may sound different from job interviews you've done before, and that's exactly the point: This process helps create an equitable, consistent experience for all candidates."  — [company how-we-work documentation — corporate voice] — Warby Parker, "Applying to Warby Parker" — https://www.warbyparker.com/careers/applying-to-warby — retrieved 2026-08-27, page undated — needed JS: Y — ladder rung 1
+
+   • "We believe that a culture of continuous feedback creates a culture of continuous improvement. Feedback is essential to who we are and woven into our core values (Lead with integrity: give and take direct feedback)."  — [company impact report — corporate voice] — Warby Parker, 2025 Impact Report, People/Team section — https://img.warbyparker.com/PDF/impact-report/Impact-Report-2025-final.pdf — report covers calendar year 2025; published 2026 (see fidelity note) — needed JS: N — ladder rung 3
+
+   • "To enable this, we have multiple systems in place that allow our team members to give, receive, and ask for feedback about their performance and experience at Warby Parker. Our tools include frequent performance reviews, ongoing one-on-ones, and employee-driven manager evaluations, as well as company-wide feedback tools, like our annual Employee Engagement Survey."  — [company impact report — corporate voice] — Warby Parker, 2025 Impact Report, section headed "Continuous Feedback" (p. 32) — https://img.warbyparker.com/PDF/impact-report/Impact-Report-2025-final.pdf — report covers calendar year 2025; published 2026 — needed JS: N — ladder rung 3
+
+   • "It comes down to trust and respect. We implicitly trust each other to make any sort of decision, but also to seek each other's advice." and, on the same partnership, "We still sit next to each other ... in between meetings, we're constantly talking to each other."  — [leadership interview, reported] — Neil Blumenthal, co-founder and co-CEO, speaking on the "How I Built This with Guy Raz" podcast episode that aired 2026-01-15, as quoted by CNBC Make It — https://www.cnbc.com/2026/02/13/warby-parker-co-ceo-successful-partnerships-built-on-trust-and-respect.html — article dated 2026-02-13 — needed JS: Y (plain fetch returned HTTP 403; the renderer returned the article in full) — ladder rung 4/6
+
+--- E. RECENT NEWS (yield: 3 · searches logged: 5) ---
+
+   • "In a dynamic environment, we leveraged our unmatched value proposition to capture additional market share while giving customers more convenient options to shop with us than ever before."  — [trade press reporting] — Dave Gilboa, co-founder and co-CEO, quoted by Caroline Jansen, Retail Dive — https://www.retaildive.com/news/warby-parker-first-annual-net-income-fourth-quarter-2025-earnings/813223/ — 2026-02-26 — needed JS: N
+
+   • "These glasses give you powerful new tools, but they're designed to feel intuitive and unobtrusive so you can stay focused on the people and moments in front of you."  — [trade press reporting] — Neil Blumenthal, co-founder and co-CEO, quoted by PYMNTS — https://www.pymnts.com/news/wearables/2026/warby-parker-offers-glimpse-of-google-powered-smart-glasses/ — 2026-05-20 — needed JS: N
+
+   • "As we enter one of the most important periods in Warby Parker's history, we're making targeted investments across our business to ensure we're ready for the launch of Intelligent Eyewear and building the capabilities needed to scale this new category over the longer term."  — [company-authored earnings release filed with the SEC — NOT independent reporting] — Adrian Mitchell, Chief Financial Officer — https://www.sec.gov/Archives/edgar/data/1504776/000150477626000015/warbyparkerincearningsrele.htm — 2026-08-06 — needed JS: N
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 4 · public/private: PUBLIC) ---
+
+Source: Form 10-K for the fiscal year ended 2025-12-31, Item 1. Business, subsection headed
+"Employees and Human Capital Resources". Every headcount, dollar figure and percentage has been
+stripped as collected. This is company-authored evidence in a legal filing.
+
+   • "We have invested substantial time and resources in building our team."  — [10-K Item 1 Human Capital — company-authored] — Warby Parker Inc. — https://www.sec.gov/Archives/edgar/data/1504776/000150477626000006/wrby-20251231.htm — fiscal year ended 2025-12-31; share count stated as of 2026-02-24 — needed JS: N
+
+   • "We are highly dependent on our management, highly skilled software engineers, Customer Experience and Retail teams, laboratory personnel, optometrists, opticians, and other professionals, and it is crucial that we continue to attract, develop and retain valuable employees."  — [10-K Item 1 Human Capital — company-authored] — Warby Parker Inc. — https://www.sec.gov/Archives/edgar/data/1504776/000150477626000006/wrby-20251231.htm — fiscal year ended 2025-12-31 — needed JS: N
+
+   • "To facilitate talent attraction, development and retention, we strive to make Warby Parker an inclusive and safe workplace, with opportunities for our employees to grow and develop in their careers, supported by what we believe are strong compensation and benefits programs."  — [10-K Item 1 Human Capital — company-authored] — Warby Parker Inc. — https://www.sec.gov/Archives/edgar/data/1504776/000150477626000006/wrby-20251231.htm — fiscal year ended 2025-12-31 — needed JS: N
+
+   • "We believe that our employee relations are strong."  — [10-K Item 1 Human Capital — company-authored] — Warby Parker Inc. — https://www.sec.gov/Archives/edgar/data/1504776/000150477626000006/wrby-20251231.htm — fiscal year ended 2025-12-31 — needed JS: N
+
+
+########## SECTION 2 — RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+2a. YIELD AUDIT
+
+    REQUIRED TO YIELD — a shortfall here means go back and collect more:
+       A excerpts: 8/5       B reviews: 15/12      C excerpts: 10/6
+       C postings: 5/3       C outside engineering: 4/1
+       B reviews within 24 months: 15/15
+
+    C EXEMPTION CLAIMED (company not hiring)?  NO
+       (895 open roles rendered on the company's live board on 2026-08-27.)
+
+    REQUIRED TO ATTEMPT — record the yield, do not gate on it:
+       D passages: 4     ladder rungs logged: 7/7
+       D voice composition: 1 executive / 0 non-executive / 3 corporate voice
+                            (extra rung worked? YES — see 2c, rungs 6 and 7 plus a targeted
+                             non-executive search; stale non-executive material found and
+                             rejected? NO — none found at any vintage)
+       E excerpts: 3     searches logged: 5
+       F excerpts: 4     public? YES     10-K fiscal year end: 2025-12-31; cover-page share
+                         count as of 2026-02-24 (an explicit filing date is not printed in the
+                         document body)
+
+2b. EVIDENCE COVERAGE
+       autonomy: COVERED   pace: COVERED   collaboration: COVERED
+       feedback: COVERED   innovation: COVERED   decision: COVERED
+
+2c. LADDER CHECKLIST
+       D1 handbook          attempted Y   URL: https://app.airmason.com/books/warbyparker
+                            outcome: NOT ACCESSIBLE. Renderer returned a browser error page;
+                            plain fetch failed with ROBOTS_DISALLOWED / DNS failure on
+                            robots.txt. Existence of a Warby Parker handbook on this host is
+                            therefore neither confirmed nor refuted. Substituted rung-1-class
+                            material found on the company's own site: /careers/applying-to-warby
+                            (structured-interview documentation), USED.
+                            Also found: Code of Conduct PDF, most recent public version dated
+                            October 2024 (https://s28.q4cdn.com/987131352/files/doc_downloads/
+                            governance_docs/2024/11/WP-Code-of-Conduct-Updated-October-2024.pdf)
+                            — REJECTED ON AGE, ~22 months, fails the 18-month gate.
+       D2 eng/product blog  attempted Y   URL: none exists   newest post date: n/a
+                            outcome: NOT FOUND. Proof of absence: full footer and nav survey of
+                            warbyparker.com on 2026-08-27 returned Products / Shop Online / Get a
+                            prescription / Ways to save / Education / About us / Need a hand? and
+                            no blog, engineering or tech publication link. Two independent web
+                            searches for a Warby Parker engineering or tech blog returned nothing
+                            first-party. The company publishes an annual Impact Report, not a blog.
+       D3 culture microsite attempted Y   URL: https://www.warbyparker.com/careers/life-at-warby
+                            and https://img.warbyparker.com/PDF/impact-report/Impact-Report-2025-final.pdf
+                            outcome: FOUND. The careers microsite narrative is used in section A,
+                            so per the double-counting rule it does NOT count toward D. The 2025
+                            Impact Report is separate material and yielded two D passages, USED.
+       D4 leader interview  attempted Y   URL: https://www.cnbc.com/2026/02/13/warby-parker-co-ceo-successful-partnerships-built-on-trust-and-respect.html
+                            date: 2026-02-13 (reporting a podcast episode aired 2026-01-15)
+                            outcome: FOUND AND USED. Also attempted:
+                            https://www.modernretail.co/retailers/were-still-big-believers-in-physical-retail-warby-parkers-dave-gilboa-on-the-brands-updated-store-strategy/
+                            dated 2021-05-20 — REJECTED ON AGE.
+       D5 public repos      attempted Y   URL: https://github.com/orgs/WarbyParker/repositories
+                            outcome: FOUND BUT YIELDS NOTHING. Three repositories, newest activity
+                            2022-12-02; no RFC threads, no contribution guidelines, no discussions.
+                            Organisation identity checked for name collision — handle matches the
+                            company and no unrelated organisation was found on it.
+                            REJECTED ON AGE (>18 months) and on content.
+       D6 press profile     attempted Y   URL: as D4 (CNBC, 2026-02-13)   date: 2026-02-13
+                            outcome: FOUND AND USED. This is the extra rung worked under D0 for a
+                            non-executive voice; it yielded executive voice only. Additional
+                            targeted search for a non-executive first-person account
+                            ("Warby Parker store leader / optician / customer experience advisor
+                            quoted interview 2026") returned only review sites and
+                            interview-prep pages — none quotable.
+       D7 conference talk   attempted Y   URL: search of conference and talk listings; the only
+                            "conference" hits are investor conferences (Baird Global Consumer
+                            Technology Services Conference, Goldman Sachs Global Retailing
+                            Conference) announced via press release.
+                            date: n/a   outcome: NOT FOUND — no public technical or
+                            working-practice talk located.
+       Rungs rejected as stale (>18 months): D1 Code of Conduct (Oct 2024), D4 Modern Retail
+                            interview (2021-05-20), D5 GitHub org (2022-12-02).
+       C fallbacks tried: reviews-site job view — not needed (company board rendered)
+                          ATS param found — YES, the company's own careers page "See all open
+                            roles" link resolves to an Oracle Recruiting Cloud site
+                          greenhouse — TRIED AND DEAD (see fidelity note and defect S-2)
+                          lever — not tried (ATS positively identified as Oracle)
+                          workday — not tried (same reason)
+                          ashby — not tried (same reason)
+                          aggregator — builtin.com and General Catalyst job board observed in
+                            search results; NOT used for quotes, because the company's own live
+                            board rendered in full and aggregator copies pointed at the dead
+                            Greenhouse board.
+       E news searches run: 5
+         q1 "Warby Parker news 2026 layoffs OR restructuring OR 'return to office' OR leadership
+             change OR reorganization"
+         q2 "Warby Parker August 2026 second quarter results store openings expansion CEO comments"
+         q3 "Warby Parker Google smart glasses launch 2026 employees stores reporting"
+         q4 "Retail Dive OR 'Modern Retail' Warby Parker 2026 stores hiring optometrists expansion
+             reporting"
+         q5 "Warby Parker Blumenthal Gilboa 2026 profile interview culture retail expansion
+             Fortune OR Fast Company OR Modern Retail"
+
+2d. SOURCE ACCESS LOG  (method · outcome)
+    https://www.warbyparker.com/careers — plain fetch · OK, returned "Who we are / What we do /
+        Our impact" body copy · renderer · OK but returned LESS (those three blocks absent from
+        the rendered <main>). Neither method is a superset. needed JS: N
+    https://www.warbyparker.com/careers/life-at-warby-parker — plain fetch · 404. Wrong URL,
+        guessed. Correct path found only by surveying the page's own navigation.
+    https://www.warbyparker.com/careers/life-at-warby — renderer · OK, full text · plain fetch ·
+        OK. needed JS: N
+    https://www.warbyparker.com/careers/applying-to-warby — renderer · OK. needed JS: Y (not
+        separately tested with plain fetch)
+    https://www.warbyparker.com/careers/retail-and-opticianry — renderer · OK. needed JS: Y
+    https://www.warbyparker.com/ — renderer · OK (footer/nav survey). A DOM query returning
+        anchor hrefs was blocked by the browser tool's own "Cookie/query string data" guard;
+        reading footer innerText succeeded.
+    https://www.warbyparker.com/impact-report — renderer · OK
+    https://img.warbyparker.com/PDF/impact-report/Impact-Report-2025-final.pdf — plain fetch · OK
+    https://www.indeed.com/companies/search?q=Warby+Parker — plain fetch · OK (entity check)
+    https://www.indeed.com/cmp/Warby-Parker/reviews?sort=date — plain fetch · OK, 20 reviews
+        newest-first. Fetched twice for a fidelity cross-check; both passes agreed.
+    https://www.indeed.com/cmp/Warby-Parker/job-titles — plain fetch · OK, full title index
+    https://www.indeed.com/cmp/Warby-Parker-Optical-Lab/reviews?sort=date — plain fetch · OK,
+        3 reviews, newest 2024-07-07
+    https://www.glassdoor.com/Reviews/Warby-Parker-Reviews-E481818.htm?sort.sortType=RD&sort.ascending=false
+        — plain fetch · OK (recency cross-check only). No KO keyword segment in the URL.
+    https://boards-api.greenhouse.io/v1/boards/warbyparker/jobs — plain fetch · 404
+    https://job-boards.greenhouse.io/warbyparker/jobs/7402337 — plain fetch · 404 (indexed in
+        search results, dead on retrieval)
+    https://fa-evdi-saasfaprod1.fa.ocs.oraclecloud.com/.../WarbyParkerCareers — renderer · OK,
+        895 open jobs. needed JS: Y (list renders only after JS)
+    .../WarbyParkerCareers/jobs, .../jobs?keyword=Engineer, .../jobs?keyword=Customer%20Experience
+        — renderer · OK
+    .../job/REQ212547, /job/3687, /job/4708, /job/1803, /job/4574 — renderer · OK, each opened
+        individually, each showing APPLY NOW and no removal notice
+    https://app.airmason.com/books/warbyparker — renderer · browser error page · plain fetch ·
+        ROBOTS_DISALLOWED (robots.txt DNS failure). Both methods exhausted, neither reached it.
+    https://github.com/orgs/WarbyParker/repositories — plain fetch · OK
+    https://www.cnbc.com/2026/02/13/... — plain fetch · HTTP 403 · renderer · OK in full.
+        Second confirmed instance in this build of the two methods disagreeing.
+    https://medium.com/@info_37650/a-clear-view-on-culture-... — plain fetch · OK, dated
+        2019-03-22, no first-party quotes. Not used.
+    https://www.modernretail.co/retailers/were-still-big-believers-in-physical-retail-... —
+        plain fetch · OK, dated 2021-05-20. Rejected on age.
+    https://www.retailtouchpoints.com/.../warby-parker-plans-63-layoffs-... — plain fetch · OK,
+        dated 2022-08-10. Outside the 12-month E window; recorded as a structural event in 2f.
+    https://www.mytotalretail.com/article/warby-parker-cuts-15-of-corporate-workforce/ — plain
+        fetch · OK, dated 2022-08-10. Same.
+    https://fashionunited.com/news/business/warby-parker-q2-revenues-grow-9-8-percent/2026080773972
+        — plain fetch · partial; body beyond the lede did not render. Not used.
+    https://www.pymnts.com/news/wearables/2026/warby-parker-offers-glimpse-of-google-powered-smart-glasses/
+        — plain fetch · OK, dated 2026-05-20
+    https://www.retaildive.com/news/warby-parker-first-annual-net-income-fourth-quarter-2025-earnings/813223/
+        — plain fetch · OK, dated 2026-02-26
+    https://www.retaildive.com/news/warby-parker-store-expansion-2026/ — plain fetch · 404
+        (guessed URL, not an absence)
+    https://www.sec.gov/Archives/edgar/data/1504776/000150477626000015/warbyparkerincearningsrele.htm
+        — plain fetch · OK, 2026-08-06 earnings release
+    https://www.sec.gov/Archives/edgar/data/1504776/000150477626000006/wrby-20251231.htm — plain
+        fetch · OK, FY2025 10-K, retrieved in full. browse-edgar was NOT attempted (recorded dead
+        at D16); the accession number was inferred from the FY2024 filing's numbering pattern and
+        the 2026 earnings-release accession, and confirmed by opening the document.
+
+2e. FIDELITY NOTE
+    • PARAPHRASE flags: none in Section 1. Every Section 1 excerpt is verbatim.
+    • TOOL-INTERPOSITION RISK, and what was done about it. The plain-fetch tool available to this
+      session returns a page's content through a small summarising model rather than as raw text.
+      That is a fidelity hazard for a verbatim-only instrument. Mitigations actually applied:
+      (a) the Indeed review page was fetched twice with differently-worded verbatim-only
+      instructions and the two passes were compared line by line — they agreed, including on
+      preserved misspellings ("certfication", "minumum", "arent", "there day"), which is strong
+      evidence the text is being passed through rather than regenerated; (b) all first-party
+      warbyparker.com and Oracle ATS excerpts were taken from the JS renderer's raw DOM text,
+      which is not model-mediated; (c) the 10-K subsection was fetched twice with different
+      prompts and returned identically. The Impact Report and news-site excerpts rest on
+      single-pass plain fetch and carry the residual risk; they are the weakest excerpts in the
+      packet on fidelity grounds. Logged as defect S-1.
+    • VERIFICATION PASS RESULT. Every Section 1 excerpt was re-fetched and quoted back against
+      its source after drafting. Fourteen of fifteen re-checks returned identical text. ONE
+      FAILED and was corrected: the Impact Report line beginning "Our tools include frequent
+      performance reviews…" had been captured on the first pass as a complete sentence ending in
+      a full stop; the verification pass showed it ends in a COMMA and continues "…as well as
+      company-wide feedback tools, like our annual Employee Engagement Survey." The excerpt in
+      section D was replaced with the full two-sentence passage. This is the concrete instance
+      of the hazard described in defect S-1: the mediated fetch had silently closed a truncated
+      clause with a period. Every other model-mediated excerpt in this packet passed its
+      re-check, but one in fifteen did not, and that is the measured error rate for this method
+      on this build.
+    • Preserved source typos, all in section B and all flagged [sic] in place: "certfication",
+      "minumum", "arent", "there day" (for "their day"). The Costa Mesa review's final sentence
+      ends mid-clause at the truncation point. The Las Vegas packer review ends "...the toxic
+      environment they." — the sentence is incomplete in the source and is NOT a truncation
+      artifact; it is reproduced as written.
+    • ENTITY CHECK RESULT (B0). Two Indeed employer entities exist:
+        "Warby Parker" — https://www.indeed.com/cmp/Warby-Parker — 416 reviews (per the search
+          listing and the Detailed ratings heading), 3.3 rating, claimed/unclaimed not stated on
+          either the search listing or the profile.
+        "Warby Parker Optical Lab" — https://www.indeed.com/cmp/Warby-Parker-Optical-Lab —
+          3 reviews, 2.0 rating, UNCLAIMED, newest review 2024-07-07.
+      Both entities were sampled newest-first across the merged set. No Optical Lab review is
+      recent enough to enter the top 15 of the merged stream, so all 15 come from the main
+      profile. This is a real finding, not a single-entity assumption: the lab profile exists and
+      is stale.
+      IMPLAUSIBLE COUNTS: yes, and stated explicitly. 416 Indeed reviews and ~1,416 Glassdoor
+      reviews against 4,036 employees and 323 stores is low, and the split between the two sites
+      is 1:3.4. Section B rests on the smaller of the two populations by prompt design.
+    • POOLED-HOMONYM CHECK (B0, v4.7). Every review was read against the company's known
+      footprint. Two were checked further: the Las Vegas "Packer" review (Warby Parker operates
+      an optical lab in Las Vegas; consistent) and the Greenwich CT "Licensed Optician" review
+      whose first line is "I got to trade stocks while I worked" (odd, but it is the source
+      site's structured-question format and describes optical retail work; nothing places it at
+      another company). NO review was confirmed by external evidence to describe a different
+      business, so NOTHING was excluded on those grounds. No suspect review is being flagged
+      beyond this note.
+    • Interview write-ups found inside the review list: none.
+    • Employer responses found inside the review list: none observed on either fetch pass.
+    • Source-site duplicates: none observed.
+    • Postings whose open/closed status could not be confirmed: none. All five were opened
+      individually and all five rendered an active apply control.
+    • BOARD-LIVENESS CHECK (C exemption hardening, v4.7) — run even though no exemption was
+      claimed, because the failure mode nearly bit in reverse. A Greenhouse board slug
+      "warbyparker" is indexed in search engines and third-party aggregators (builtin.com,
+      General Catalyst) still link to it. Both the Greenhouse list API and an indexed Greenhouse
+      posting return 404. The company's own careers page issues its "See all open roles" link to
+      an Oracle Recruiting Cloud site, which renders 895 open roles with same-day posting dates.
+      The Oracle board is the live one. A researcher who had trusted the indexed Greenhouse
+      links would have quoted dead postings; a researcher who had found only the dead Greenhouse
+      routes could have concluded the company was not hiring. Logged as defect S-2.
+    • The Impact Report PDF carries no printed publication date that either retrieval surfaced.
+      It is titled the 2025 Impact Report, covers calendar year 2025, and the company's own
+      landing page describes those results as "this past year", which places publication in 2026.
+      Treated as current; the absence of a printed date is recorded rather than resolved.
+    • The 10-K document body does not print a filing date. The cover page states a share count as
+      of 2026-02-24. That is the tightest date the document itself supports.
+
+2f. VINTAGE BLOCK
+       Review entities found: 2
+          https://www.indeed.com/cmp/Warby-Parker — 416 reviews — 3.3 — claimed status not stated
+          https://www.indeed.com/cmp/Warby-Parker-Optical-Lab — 3 reviews — 2.0 — UNCLAIMED
+       Review counts BY SITE, each with the ELEMENT it came from:
+          Indeed, main profile: "407 reviews" in the page meta-description;
+                                "416 reviews" in the Detailed-ratings section heading;
+                                "416 reviews" in the company-search result row.
+          Indeed, Optical Lab profile: "3 reviews" in the profile header.
+          Glassdoor: "1,409" in the search-result page title as indexed;
+                     "1,416 reviews" in the reviews-page title and main heading on retrieval.
+       Conflicting counts observed on a single page: YES — Indeed main profile shows 407 in the
+          meta-description and 416 in the ratings heading of the same document.
+       Headline ratings BY SITE: Indeed main 3.3; Indeed Optical Lab 2.0. Glassdoor overall
+          rating NOT CAPTURED — the Glassdoor fetch was scoped to the recency cross-check only,
+          per v4.5's demotion of that site. Recorded as not collected, not as absent.
+          Work/life-balance subratings: NOT COLLECTED (removed in v4.5).
+       Job titles sampled: n/a — the frame is recency, not title (v4.6). Titles recorded per
+          review as metadata; see the scope block.
+       Title index counts, each with the element (indeed.com/cmp/Warby-Parker/job-titles,
+          each count printed beside its title in the index):
+          Sales Advisor 82 · Optician 64 · Sales Associate 31 · Licensed Optician 21 ·
+          Store Manager 16 · Customer Service Representative 14 · Optical 13 ·
+          Sales Supervisor 12 · Optical Manager 12 · Customer Experience Advisor 12 ·
+          Sales Manager 11 · Retail Sales Associate 7 · Manager 6 · Supervisor 4 ·
+          Optometrist 4 · Order Processor 4 · Retail Assistant Manager 3 ·
+          Customer Experience Associate 3 · Associate 3 · Production Associate 2 ·
+          Quality Control Inspector 2 · Senior Advisor 2 · Shift Leader 2 ·
+          and 26 further titles at 1 review each, including Product Manager 1,
+          Project Manager 1, Technical Analyst 1, Recruiter 1, Lead Recruiter 1,
+          Retail Store Manager 1, Branch Manager 1, Packer 1.
+          The page's only stated aggregate is "1K Salaries" in the nav; no review total is
+          printed on the title index itself.
+       Per-title subratings: NOT COLLECTED — removed in v4.5, see section B
+       Achievability gate run on every percentage recorded anywhere in the packet: YES
+          Percentages encountered: 86% and 89% (2025 Impact Report employee engagement survey,
+          n stated in the report's own footnote as 3,250 respondents, "90% of eligible team
+          members"). At n=3,250 the step is 0.031 points; both figures are achievable.
+          GATE RESULT: PASS.
+          They are nevertheless EXCLUDED from Section 1 under hard rule 8: an engagement-survey
+          agreement rate measures how a respondent feels, not what the environment is. They are
+          recorded here as source metadata only.
+          "over three-fourths" (same survey) — not a numeric percentage; same rule-8 exclusion.
+          15% of corporate workforce / 63 roles (2022 layoffs) — not in Section 1; see structural
+          events below. 9.8% Q2-2026 revenue growth — financial, not in the packet.
+       Percentages struck for failing the gate, with title and figure: NONE.
+       Titles present but NOT sampled, with counts: not applicable under the recency frame; the
+          full title index and its counts are recorded above so the population is visible.
+       Interview write-ups excluded from review lists: 0
+       Newest review date BY SITE: Indeed 2026-08-09 · Glassdoor 2026-08-24.
+          Divergence: 15 days. The B1 recency cross-check FIRES ONLY TRIVIALLY and does NOT fire
+          materially: condition (a) requires the optional site's newest review to be more than
+          12 months newer than the required source's, and it is 15 days newer. Condition (b) also
+          fails — 15 of 12 required reviews sit inside the 24-month gate, not fewer than half.
+          B1a-REMEDY therefore does NOT apply and no Glassdoor fragments were quoted.
+       Oldest review used: 2025-12-19
+       Median age of reviews used: 5.0 months
+       Reviews truncated at source: 6/15 = 40%  ** >33%, NOTE TO RATER added at head of packet **
+          Counting note: a further 3 reviews (2026-08-08, 2026-08-04, 2026-07-28) carried a
+          "Show more" control on the first fetch pass but ended on a complete sentence and
+          returned identical complete text on the second pass. They are counted as NOT truncated.
+          If the control is treated as evidence of truncation, the figure is 9/15 = 60%. The
+          conservative figure is reported. Logged as defect C-3.
+       Source-site duplicates retained: 0
+       Newest careers-page modification date: NOT AVAILABLE — no page on warbyparker.com/careers
+          carries a printed or exposed modification date.
+       Structural events found and their dates:
+          2022-08-10 — 63 corporate roles cut, reported as ~15% of the corporate workforce
+             (Retail TouchPoints; MyTotalRetail). PREDATES every review used.
+          2025 (full year) — 47 net new stores opened, ending 2025 with 323 (Retail Dive,
+             2026-02-26). Ongoing through the review window.
+          2026-Q2 — 15 net new stores opened, 352 total; company states increased retail
+             compensation and headcount; 50 store openings planned for 2026 (SEC earnings
+             release, 2026-08-06). Ongoing through the review window.
+          2025-05 / 2026 — Google partnership announced, Intelligent Eyewear launch stated for
+             fall 2026 (PYMNTS 2026-05-20; SEC release 2026-08-06). Launch POSTDATES the newest
+             review.
+       Does any structural event postdate the newest review?  YES — the Intelligent Eyewear
+          launch is stated as still forthcoming as of 2026-08-06, three days before the newest
+          review used. No employee review in this packet describes working through that launch.
+          The CFO's stated "targeted investments across our business" also postdate most of the
+          review window. The 2022 layoffs, by contrast, predate every review here.
+
+2g. SCOPE BLOCK
+       A careers / values     population: company-wide, company-authored; one excerpt is
+                              retail-specific by the page's own scoping
+       B employee reviews     population: retail sales floor (Advisor ×2, Sales Advisor, OPA — 4);
+                              retail/store leadership (Retail Store Manager, Store Leader — 2);
+                              opticianry (Licensed Certified Optician/Optical Supervisor,
+                              Optician, Licensed Optician — 3); optometry (1); customer service
+                              (1); optical lab production (Packer — 1); title not stated (3).
+       C job postings         population: retail store leadership, software engineering, optical
+                              lab management, corporate accounting, customer experience operations
+       D first-person         population: the co-founder/co-CEO office, and the company speaking
+                              in its own corporate voice about its whole workforce
+       E news                 population: company-wide
+       F human capital        population: company-wide
+
+       Working environments known to exist in this company but ABSENT from the review population:
+          the corporate headquarters organisation — software engineering, product, design,
+          marketing, data and finance. The company's live board carries 895 open roles and it
+          employed 4,036 people at 2025-12-31, including "highly skilled software engineers" by
+          its own 10-K wording; the review title index holds Product Manager 1, Project Manager 1,
+          Technical Analyst 1, Recruiter 1 and Lead Recruiter 1, and no software-engineering title
+          at all. No sampling rule can reach that population because the reviews do not exist.
+          Three of the 15 reviews carry no title and cannot be assigned to any function.
+       Does the company-authored evidence (A, F) describe a wider population than the
+       experiential evidence (B)?  YES.
+
+       One-line scope declaration for the head of the packet: see SCOPE DECLARATION above.
+
+
+########## SECTION 3 — ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+
+- Headcount: 4,036 total (2,275 full-time, 1,761 part-time) as of 2025-12-31, across 323 retail
+  stores, two in-house optical laboratories and two US offices. Source: Form 10-K FY2025, Item 1,
+  "Employees and Human Capital Resources" — company-sourced and legally accountable; high
+  confidence. Store count had reached 352 by the end of Q2 2026 (company earnings release,
+  2026-08-06), so headcount at build date is likely higher than the 10-K figure.
+- Stage/size cues: public company, NYSE: WRBY, IPO'd 2021 via direct listing. Dual-class
+  structure (Class A and Class B common stock outstanding per the FY2025 10-K cover). Delaware
+  public benefit corporation and a certified B Corp. Reported its first full year of net income
+  for 2025 (Retail Dive, 2026-02-26); Q2 2026 net revenue $235.5m, +9.8% YoY (FashionUnited,
+  2026-08-07). Founder-led: both co-founders remain co-CEOs 15 years in.
+- Pay-posture EVIDENCE vs. talent-market peers — no band assigned. Evidence, not judgment:
+  the company publishes salary ranges on its own postings (a corporate accounting role and a
+  staff software engineering role both carried printed ranges; the ranges themselves are omitted
+  from Section 1 per the prompt). Multiple retail-population reviews describe pay as at or near
+  minimum wage and hours as short; multiple reviews name pay as the main negative while naming
+  training, benefits and free eyewear as positives. The correct reference class is split and must
+  not be collapsed: specialty retail and optical retail for the store and lab population, and
+  New-York-metro consumer-tech for the corporate and engineering population. These are different
+  labour markets inside one employer.
+- Industry: retail — with a genuine healthcare component (employed optometrists, eye exams,
+  in-house optical laboratories, OIG exclusion-list screening on every posting) and a consumer-
+  technology component (in-house software engineering, a Google smart-glasses partnership). If
+  the schema forces one label, "retail" fits the headcount distribution; "healthcare" fits the
+  regulatory posture. Recorded as a genuine ambiguity, not resolved.
+
+
+########## SECTION 4 — ANONYMIZATION PRE-FLAGS ##########
+
+Identifying tokens left in Section 1:
+
+COMPANY NAME — "Warby Parker" appears throughout sections A, B, C, D, E and F, including inside
+quoted text where it cannot be removed without breaking verbatim fidelity. Also "Warby" alone
+("Team Warby", "#teamwarby", "life on Team Warby", "Warby's support for obtaining my
+certfication").
+
+VERBATIM SELF-DESCRIPTIONS (searchable even after the name is removed — flagged separately):
+  • "We're a team of idea generators, thoughtful collaborators, inveterate innovators, and good
+    desk (or lunch table or sales floor) neighbors."
+  • "Presume positive intent / Trust but verify" and the whole core-values ladder — this exact
+    value set is a fingerprint.
+  • "Ready to bring fun into your workplace but willing to put in long hours when required"
+  • "A dexterous multitasker who's eager to work in a fast-paced environment"
+  • "Intelligent Eyewear" (the company's own product-line name)
+
+NAMED INDIVIDUALS: Neil Blumenthal (co-founder, co-CEO), Dave Gilboa (co-founder, co-CEO),
+Adrian Mitchell (CFO), Caroline Jansen (Retail Dive journalist), Guy Raz (podcast host).
+
+NAMED PRODUCTS / PROGRAMMES / PARTNERS: Intelligent Eyewear, Google Gemini, Google, "How I Built
+This with Guy Raz". Section 2 additionally names Buy a Pair Give a Pair, Pupils Project,
+Blue-Footed Booby Awards, Optician Apprentice Program, Store Leader Summit and Advisor — none of
+these reached Section 1, and the Section 1 Impact Report excerpts were chosen partly to avoid
+them. If any are reinstated, apply the rewrite-the-proper-noun rule.
+
+REVIEW LOCATIONS — replace with generic site tokens, do not delete (dispersion depends on the
+distinction being visible):
+  Novi, MI → [Site A] · New York, NY → [Site B] · Costa Mesa, CA → [Site C] ·
+  Nashville, TN → [Site D] (two reviews, same token) · Short Hills, NJ → [Site E] ·
+  Las Vegas → [Site F] · Greenwich, CT → [Site G]
+
+REVIEW JOB TITLES that are close to unique in the index and could re-identify a reviewer:
+  "Licensed Certified Optician/Optical Supervisor", "OPA", "Retail Store Manager" (1 review in
+  the whole index), "Packer" (1 review in the whole index).
+
+JOB-POSTING FINGERPRINTS: the posting identifiers in the URLs (REQ212547, 3687, 4708, 1803,
+4574) and the ATS hostname (fa-evdi-saasfaprod1.fa.ocs.oraclecloud.com) both re-identify the
+company directly. The URLs are required by hard rule 3 and cannot be removed at collection; flag
+them for the anonymization step.
+
+PRESERVED SOURCE TYPOS — unique-string identifiers, all in section B:
+  "certfication" · "minumum" · "arent" · "there day" · the incomplete final clause
+  "...the toxic environment they."
+
+OTHER: the SEC accession path (edgar/data/1504776/000150477626000006/wrby-20251231.htm) and the
+ticker-derived filename "wrby-20251231" name the company outright.
+
+
+########## SECTION 5 — SELF-REPORTED DEFECTS (BUILD_BRIEF step 5) ##########
+
+STRUCTURAL
+
+S-1. The prompt mandates verbatim-only quoting and mandates two retrieval methods, but says
+     nothing about a retrieval tool that MEDIATES the page through a language model.
+     (Relates to: "REQUIRES A BROWSING TOOL"; hard rule 2 VERBATIM ONLY; the v4.4 two-methods
+     rule.) In this environment the plain-fetch method does not return raw page text — it returns
+     a small model's answer over the fetched markdown. That is precisely the "search engine's
+     result summary is a PARAPHRASE" failure the prompt bars, arriving through the door the
+     prompt opened. Structural because it determines whether an excerpt reaching Section 1 is
+     verbatim at all, and because roughly a third of this packet's Section 1 lines (B, E, the
+     Impact Report passages in D, and F) came through it. I mitigated with double-fetch
+     cross-checks and by preferring the renderer's raw DOM wherever the source allowed, and I
+     recorded which excerpts carry the residual risk — but the prompt gave me no rule and I
+     invented the mitigation. The prompt should either require a raw-text retrieval method or
+     require the double-pass cross-check explicitly. THIS IS NOT HYPOTHETICAL ON THIS BUILD: the
+     verification pass caught one excerpt in fifteen where the mediated fetch had closed a
+     mid-sentence clause with a period that is a comma in the source (see 2e). Without a
+     re-check that line would have shipped as a fabricated sentence boundary.
+
+S-2. The v4.7 board-liveness hardening is written only as a condition of claiming the section C
+     exemption, so it does not fire for a company that IS hiring — and this build shows the same
+     defect biting from the other side. (Relates to: section C, "verify the board you found is
+     the company's LIVE one", D24.) Here an indexed Greenhouse board slug for the company is
+     dead (404 on both the list API and an indexed posting) while third-party aggregators still
+     link to it and the company's real board is on a different ATS entirely. No exemption was
+     claimed, so by the letter of v4.7 no liveness check was required — yet a researcher who
+     took the fallback chain in its printed order (reviews-site job view, then ATS param, then
+     the Greenhouse list API, then board pages, then an aggregator) and reached the aggregator
+     rung would have quoted dead postings from a dead board and marked them current. Structural
+     because it changes which postings reach Section 1. The check should be unconditional:
+     confirm the board via a company-issued apply link BEFORE quoting anything from it, not only
+     before accepting a zero.
+
+S-3. D0's trigger is "if section D comes back 100% EXECUTIVE", which does not fire on the case
+     this company actually presents. (Relates to: D0 VOICE COMPOSITION.) Section D here is
+     1 executive passage and 3 in the company's own corporate voice — 0% non-executive employee,
+     but not 100% executive, so the mandatory extra rung is not triggered by the rule as written.
+     The harm D0 exists to prevent — a rater reading executive or company description of how the
+     work happens as evidence about the shop floor — is fully present, and arguably worse, since
+     corporate-voice material has no named speaker at all. Structural because it decides whether
+     the extra rung gets worked and whether the rater gets the flag. I worked the extra rung and
+     flagged it anyway. The trigger should be "0% non-executive", not "100% executive". Related:
+     the prompt's voice taxonomy has only two values (executive / non-executive) and no slot for
+     company-authored corporate voice, which is what most of section D turned out to be.
+
+S-4. Rule 9 (the achievability gate) has no defined behaviour when a percentage is printed with
+     NO stated n. (Relates to: hard rule 9; B3.) The gate is specified as "achievable at its
+     stated n, or it is struck" — but the common real case is a figure with no n at all, and the
+     prompt does not say whether that is struck, retained, or retained-and-flagged. It nearly
+     mattered here: the Impact Report's engagement percentages appeared without an n on first
+     retrieval and only a second, differently-worded fetch surfaced the footnote carrying n=3,250.
+     Structural because "strike" and "retain" produce different packets. I chose to keep looking
+     for the n rather than strike on sight, and would have struck had none been printed — but
+     that was my decision, not the prompt's.
+
+S-5. The two-methods rule assumes the renderer is a superset of plain fetch for first-party
+     sites, and this build produced the opposite. (Relates to: the v4.4 retrieval rule; D13.)
+     On the company's main careers page, plain fetch returned three body sections ("Who we are",
+     "What we do", "Our impact") that the renderer's extraction did not return at all, while the
+     renderer returned the exact verbatim text plain fetch could only summarise. D13 records that
+     the two methods reach different SOURCES; this is a finer failure — the two methods return
+     different CONTENT from the SAME successfully-retrieved page. Structural because a researcher
+     who used one method and got a page would reasonably stop, and would silently lose material.
+     I ran both on every first-party page as a result; the prompt does not require that.
+
+COSMETIC
+
+C-1. The section D ladder has no rung for a company's annual impact / ESG / CSR report, and it
+     is the single richest first-person "how we work" document this company publishes.
+     (Relates to: the D ladder, rungs 1–7.) I filed it under rung 3 (culture microsite with
+     narrative text) because it is the nearest fit, but it is not a microsite and it is not
+     marketing copy in the careers-page sense — it is an annually-published, GRI-benchmarked
+     document that describes internal practice. Cosmetic because the material reached Section 1
+     either way; it only made the rung log imprecise. A public-company packet will hit this every
+     time.
+
+C-2. Section E bars "recruiting-SEO pages, interview-prep sites, job aggregators, content farms
+     and encyclopedia entries" but is silent on a company's OWN press release or SEC-filed
+     earnings release. (Relates to: section E.) Section F separately bars earnings calls, but
+     only within section F. I used one CFO quote from an SEC-filed earnings release and tagged it
+     explicitly as company-authored rather than reporting. Cosmetic because the tagging preserves
+     the distinction for the rater; but the rule should say so.
+
+C-3. B7's truncation count has no stated rule for the case where the "Show more" control is
+     present but the visible text ends on a complete sentence. (Relates to: B7.) Three reviews
+     here showed the control on one fetch pass and returned complete, identical text on another.
+     Counting them changes the reported truncation fraction from 40% to 60% — both above the 33%
+     note-to-rater threshold, so nothing downstream changed, which is why this is cosmetic rather
+     than structural. B7 should say that truncation is counted from text ending mid-sentence, not
+     from the presence of the control.
+
+C-4. The build brief and the collector prompt disagree about where the packet goes when there is
+     no filesystem. (Relates to: BUILD_BRIEF step 4 vs. the prompt's OUTPUT FORMAT section.) The
+     brief says output the complete packet as plain text in chat "in one block"; the prompt says
+     "plain text only (no markdown tables, no code blocks, no artifacts)". A single chat block is
+     a code block in most renderers. I wrote the packet to a file and delivered it, and gave the
+     summary in chat. Cosmetic; it changed presentation, not evidence.
+
+C-5. The vintage block asks for "Headline ratings BY SITE" including work/life balance, but
+     v4.5 demoted the optional review site to a recency cross-check only, so a builder who
+     follows v4.5 never retrieves those ratings. (Relates to: 2f vs. B1.) The field is a v4.3
+     survival. I recorded it as NOT CAPTURED with the reason rather than making an extra
+     retrieval for a field the current instrument does not use.
+
+C-6. The C section's ban on quoting "office locations, site names" collides with the requirement
+     to give an exact URL, because this company's ATS puts the store name in the posting title
+     and the posting title in the page. (Relates to: section C, "Report each posting only by its
+     function label", vs. hard rule 3.) I reported functions only and used ID-bearing URLs that
+     do not contain location strings, and flagged the ATS hostname in section 4. Cosmetic;
+     resolvable at the anonymization step.
+
+C-7. The build brief's roster table lists this company as "not started" and lists another company
+     as built but not yet copied into the repo. (Relates to: BUILD_BRIEF step 1.) Reading that
+     table tells the builder that a prior build exists and roughly how the set is progressing —
+     a small amount of exactly the cross-build context Rule Zero exists to exclude. Cosmetic: it
+     carries no evidence and no findings. Noted because Rule Zero is written absolutely.
+
+
+########## END OF PACKET ##########

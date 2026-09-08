@@ -1,0 +1,187 @@
+PACKET P-05   ·   ANONYMIZED   ·   RATER-FACING
+  scrubbed from : P-05_packet.txt (build v4.6, model claude-opus-5, built 2026-08-14)
+  ruleset       : ANONYMIZATION_RULES_DRAFT.md
+  scrubbed      : 2026-08-14
+  status        : DRAFT. Source packet is a one-method build, scheduled for rebuild under v4.7.
+
+  DO NOT SEARCH FOR ANY PHRASE IN THIS PACKET. If you recognise the company, that is
+  expected and is not a failure — record it on the recognition flag and keep scoring
+  from the evidence in front of you, not from what you know.
+
+
+########## SECTION 1 — EVIDENCE PACKET ##########
+
+SCOPE DECLARATION
+   "The employee reviews in this packet come from NOWHERE — the required review
+    source holds zero reviews for this company, so section B contains no employee
+    voice at all. Other parts of this company — every function, including the
+    engineering, support, design and marketing organisations — are therefore not
+    represented in them. Company-authored sources describe the whole organisation.
+    The only non-company-authored, first-person material in this packet is
+    engineer-authored technical blog writing, which describes the client
+    engineering teams only."
+
+
+--- A. CAREERS / VALUES PAGE (5-8 excerpts) ---
+
+   • "[Company team members] can work from anywhere in the world. We never place restrictions on locations."  — [company careers page] — company-authored — retrieved 2026-08-14, page undated — needed JS: N
+
+   • "Work during the time of day that's best for you. [Company team members] are encouraged to work 8-hour days and no more than 40 hours/week."  — [company careers page] — company-authored — retrieved 2026-08-14, page undated — needed JS: N
+
+   • "You aspire to put a dent in the universe. You set high standards for yourself and those around you. You solve issues that have a high impact on our customers and our company."  — [company values page, core value "Ambition"] — company-authored — retrieved 2026-08-14, page undated — needed JS: N
+
+   • "You care deeply about the quality of your work. You're continuously learning and pushing yourself to the limits of your ability. As a champion of your craft, you are also a champion of your well-being — you work intensely, then disconnect completely."  — [company values page, core value "Mastery"] — company-authored — retrieved 2026-08-14, page undated — needed JS: N
+
+   • "Others can trust that you'll deliver on time. You keep your word and trust your teammates to do the same. You are proactive, take ownership, and remain accountable with little or no direction."  — [company values page, core value "Independence"] — company-authored — retrieved 2026-08-14, page undated — needed JS: N
+
+   • "Your communication is clear, concise, and engaging. You keep others in the loop and never go radio silent. You speak respectfully and foster warm relationships through your interactions."  — [company values page, core value "Communication"] — company-authored — retrieved 2026-08-14, page undated — needed JS: N
+
+   • "People have the space and trust to disconnect to focus on deep work. No one is expected to respond to messages immediately."  — [company values page, "We embrace asynchronous teamwork"] — company-authored — retrieved 2026-08-14, page undated — needed JS: N
+
+   • "Autonomy and transparency are more effective motivators than time tracking and micromanagement."  — [company values page, "We trust our teammates by default"] — company-authored — retrieved 2026-08-14, page undated — needed JS: N
+
+
+--- B. EMPLOYEE REVIEWS (12-15, one per line, most recent first) ---
+
+   NOTE TO RATER. This section contains NO employee reviews, and that is not a
+   research shortfall you can correct by reading more carefully — it is a property
+   of the sources. The required review source for this instrument holds
+   ZERO reviews for this company under either entity name found, and states so
+   affirmatively on the page rather than returning an error. A second review site
+   holds 29 reviews for this company, newest dated 2025-08-08 (roughly 12 months
+   before this build), but this instrument bars that site's review bodies from the
+   evidence packet in all cases. The consequence is that this packet contains no
+   non-company-authored experiential evidence about working at this company from
+   any employee, in any function, at any date. Everything in section A is written
+   by the company about itself; everything in section D is written by employees for
+   a technical audience on a company-run publication. Weigh sections A and D
+   accordingly.
+
+   Employee reviews collected: 0 / 12 minimum.
+
+   The following is COMPANY-AUTHORED and does not count toward the section
+   minimum. It is included because it is the only dimension-bearing text that
+   sits inside the review stream and is not a review body.
+
+   • "Our asyncronous [sic] environment has been created to allow for non-linear work days and we never require any type of instant responses, but appreciate all your feedback on how you experienced this."  — [employer response] — company-authored, posted beneath a review by a former Customer Experience Specialist — review date 2025-08-08; response date not stated absolutely, page displayed relative age "11mo" at retrieval on 2026-08-14, i.e. approximately 2025-09 — needed JS: N — source typo "asyncronous" preserved
+
+   • "For freelancing roles, we usually do not supply equipment but supply a $3000 - $5000 perk to allow for equipment as well as welcome perk for equipment of an additional $600, for all fulltime opportunities."  — [employer response] — company-authored, same response as above — review date 2025-08-08; response approximately 2025-09 — needed JS: N — source typo "fulltime" preserved
+
+
+--- C. JOB POSTINGS (6-10 excerpts from 3+ open postings, different functions) ---
+
+   EXEMPTION CLAIMED — the company has no open roles anywhere it posts.
+
+   • Checked 2026-08-14. The company's own careers page rendered its open-roles
+     list and that list was empty, printed as "No open roles". The company's
+     profile on the primary job aggregator returned "There are no open jobs at
+     [the company] currently." Its profile on the second review site's jobs tab
+     returned "No open roles posted here". Its profile on a remote-work job board
+     rendered in full with company copy and a lifetime counter reading
+     "Jobs posted: 10" but listed zero live postings. Four sources, three of them
+     independent of the company, each returned zero currently open roles.
+     — [absence recorded as dated evidence] — researcher observation of four
+     rendered pages — 2026-08-14 — needed JS: N on all four
+
+   Job-posting excerpts collected: 0. Postings open: 0.
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 3 passages / 11 excerpts — ladder fully attempted) ---
+
+   VOICE COMPOSITION: MIXED — 2 non-executive passages (two individual engineers),
+   1 executive passage (the founder and CEO). Not all-executive, so the D0 extra
+   rung was not triggered. All three passages come from the same publication, the
+   company's engineering blog, and therefore describe the client and platform
+   engineering organisations. Non-engineering functions are absent from this
+   section.
+
+   From a post on orchestrating the UI test suite, by an engineer on the Android
+   team, 2025-11-20 — needed JS: N
+
+   • "Since end-to-end tests are slow to run, we reserve them for our core workflows: critical user journeys in our client apps that must work reliably at all times for our customers. Our list of core workflows is continuously reviewed and updated by our Customer Experience team and squads working on new features."
+
+   • "The unreliability of our test suite and the growing flakiness were recurring topics of discussion in my 1:1s with my manager."
+
+   • "I decided to do a small spike with four core workflows authored as [the new framework] tests. This served as a baseline for the effort required to write the test and for demonstrating whether reliability improves."
+
+   • "Once the team agreed it felt like a promising option, we convened in [a retreat location] during our team retreat to discuss adopting [it] and to participate in a small hackathon that got everyone up to speed on writing [the new] tests."
+
+   • "At [the company], we reserve one day per week for "housekeeping", where we pay off tech debt and claim back time for internal improvements."
+
+   • "Over the course of 4 Housekeeping days and leveraging the time of 9 team members, we chipped away at our test suite and, in the end, converted 63 tests from [the old framework] to [the new one]."
+
+   • "Unlike most workplaces where teams use [a common chat tool] for internal communication, we like to do things a little differently at [the company]. We are async-first and use our own product for our internal communication."
+
+   From a post on database performance optimisation, by an engineer on the iOS
+   team, 2026-01-27 — needed JS: N
+
+   • "I was tasked with solving this issue and I was quite happy about it. I love performance tuning tasks."
+
+   • "As I started my attempt, I decided that to make my improvements (if I found them) easy to prove, I would create a performance test where I perform the slow operation many times. I'd add the test first and then the reviewer of my PR would be able to compare before/after results of my changes without the hassle of running the app in [the profiler]."
+
+   • "It wasn't quick, in total I went through over 40 sessions of [system tracing]."
+
+   From a post on an internal analytics tool, by the founder and chief executive,
+   2025-07-29 — needed JS: N — EXECUTIVE VOICE
+
+   • "At [the company], we love making smart bets. Sometimes, the smartest decision isn't to pick the biggest or shiniest tool out there but to build a small tool that does exactly what's needed."
+
+   • "Our product, design, engineering, CX, and marketing teams regularly run cohort queries, empowering them with immediate insights without bottlenecks or dependencies on specialized data teams."
+
+
+--- E. RECENT NEWS (yield: 0 — 4 searches logged) ---
+
+   NOT FOUND. Four news searches with different phrasings returned no reporting
+   from the last 12 months about how this company operates — no reorg, layoffs,
+   leadership change, strategy shift, ownership change, return-to-office change or
+   funding event was reported anywhere reachable. The company's own press page
+   carries a "Recent news" list, but every item on it is a consumer product review
+   or a listicle about its apps rather than reporting about the company as an
+   employer; per this instrument those are not reporting and are not quoted.
+   Distinguish: this is an ABSENCE of qualifying reporting, not a retrieval
+   failure. The searches ran and returned results; none of the results qualified.
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 0 — public/private: PRIVATE) ---
+
+   N/A — PRIVATE. The company is bootstrapped and independent, has taken no
+   outside funding, and files no annual report. No regulatory-filing route was
+   attempted because the section does not apply.
+
+
+########## END OF PACKET ##########
+
+
+SCRUB LOG — for the run record, not for the rater
+  R1 attribution stripped : 21 excerpt lines. All company-domain and review-site URLs removed,
+                            including the review-site employer ID, which is a direct lookup key.
+  R2 in-quote name subs   : 7  (A×2 — the internal demonym for employees, D×5)
+  R3 names stripped       : 3  (two named engineer authors and the founder/CEO → role tokens.
+                            Roles retained: they are load-bearing for the voice-composition flag.)
+  R4 programmes rewritten : 1  (the internal demonym for employees — a distinctive coinage and an
+                            instant fingerprint). "Housekeeping" retained: it is a generic word
+                            used descriptively and is heavily dimension-bearing on autonomy and pace.
+  R5 locations tokenised  : 1  (the team-retreat city). No review locations exist — section B is empty.
+  R6 figures stripped     : 0. The two equipment-allowance figures in the employer response were
+                            RETAINED — they are not identifying on their own and they are the only
+                            pay-posture signal anywhere in the packet. FLAGGED as a deviation.
+  R7 typos retained       : 2  (asyncronous / fulltime)
+  Product and tool subs   : the company's own two product names → "our own product" and generic
+                            descriptors. Third-party developer tooling generalised here, which is a
+                            DEVIATION from the P-03 precedent where such tools were retained as
+                            non-identifying — in this packet the specific combination of framework
+                            names plus platform plus blog voice narrows it much further. FLAGGED.
+
+  KNOWN RESIDUAL EXPOSURE, ACCEPTED UNDER THE RULESET
+   · The whole shape of this company is distinctive: fully remote with no location restrictions,
+     bootstrapped, async-first, uses its own product internally, publishes an engineering blog,
+     has zero open roles and zero reviews on the main aggregator. Anyone familiar with remote-work
+     companies will identify it. This is the packet where anonymization is weakest, and no amount
+     of scrubbing fixes it — the operating model IS the fingerprint. It is also exactly the case
+     the roster protocol warned about: a company whose distinctive way of working cannot be
+     scrubbed without deleting the signal. FLAGGED FOR YOUR CALL — this may belong out of the
+     ground-truth set rather than in it.
+   · The five named core values are retained under JC-1 and are the bulk of Section A.
+   · the two preserved typos — exact-match searchable, retained per R7.
+   · Sections B, C and E are all empty or near-empty. Real findings, not scrub artifacts. This
+     packet supports far less scoring than the others and confidence should reflect that.

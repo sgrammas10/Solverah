@@ -1,0 +1,13 @@
+P-08 DigitalOcean, scrubbed 2026-09-07 by prompt, run manually before the schedule went live.
+
+Verified by Scripts/verify_scrub.py: 52 excerpts parsed (A8 B11 C14 D11 E4 F4) against 6 in
+the raw packet -- Rule Three fired on every section, not just one. 43 quote bodies
+byte-identical, 9 changed and every one carrying a declaration, zero punctuation drift, no
+surviving "DigitalOcean" or "Digital Ocean", no URLs.
+
+Two header discrepancies are BUILD defects, reproduced verbatim and not corrected: section B
+declares 15 reviews and the packet holds 11; section C declares 10 and holds 14.
+
+No P-08_run_report.md: this run predates the brief requiring one. Under HARVEST_BRIEF.md a
+three-file set now counts as a partial scrub, so this would be quarantined rather than
+promoted if it went through the automated harvest. It was promoted by hand instead.

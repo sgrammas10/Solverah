@@ -1,0 +1,15 @@
+{
+  "probed": 16,
+  "fires": [
+    {
+      "packet": "P-06",
+      "dimension": "autonomy",
+      "score": 0.3,
+      "quotes": [
+        "Typically works under close supervision.",
+        "Follow a range of mandatory procedures",
+        "they believe in top down micromanagement."
+      ]
+    }
+  ]
+}

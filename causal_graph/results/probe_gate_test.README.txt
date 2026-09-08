@@ -1,0 +1,3 @@
+probe_gate_test.json was produced by an unintended live call to run_probe_gate_test.py, made accidentally by `pytest causal_graph` collecting it as a test module on 2026-09-06 (~14:38).
+It is real API output, not a synthetic fixture, but it is not a new measurement: it reruns the same 5-case gate check whose 5/5 PASS result is already recorded in Solverah_IP/FLOOR_BIAS_WORKAROUND_2026-09-01.md.
+Kept for provenance rather than deleted (see project convention: files move to _to_delete/, they are not removed outright).

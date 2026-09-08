@@ -1,0 +1,288 @@
+PACKET P-09   ·   DE-IDENTIFIED   ·   RATER-FACING
+  scrubbed from : P-09_packet.txt (build v4.7, model claude-opus-5, built 2026-08-27)
+  ruleset       : ANONYMIZATION_RULES_DRAFT.md
+  scrubbed      : 2026-09-07
+  status        : DRAFT. The source packet carries no status line; the caveats below are carried
+                  forward from its build record. The model string above is the build session's
+                  configured identifier — the exact serving model was not exposed to that session
+                  and may differ (operator to confirm). The build reports assisted: NO. It also
+                  self-reports defect S-1: roughly a third of the section 1 lines (B, E, the
+                  impact-report passages in D, and F) were retrieved through a model-mediated
+                  fetch, and its own verification pass found one excerpt in fifteen carrying a
+                  fabricated sentence boundary, which it corrected before delivery. Those lines
+                  are the weakest in this packet on fidelity grounds.
+
+  DO NOT SEARCH FOR ANY PHRASE IN THIS PACKET. If you recognise the company, that is
+  expected and is not a failure — record it on the recognition flag and keep scoring
+  from the evidence in front of you, not from what you know.
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE DECLARATION
+The employee reviews in this packet come from [the company]'s retail store floor, store and
+optical leadership, opticianry, one optometrist, one customer-service representative and one
+optical-lab packer, plus three reviewers who posted no job title. Other parts of this company —
+its corporate headquarters organisation, software engineering, product, design, marketing,
+finance and data teams — are not represented in them. Company-authored sources describe the
+whole organisation.
+
+NOTE TO RATER (truncation): At least 6 of the 15 reviews in section B (40%) were cut off by the
+source site's "Show more" control, which does not expand on fetch. The cut is marked […] on each
+affected line. The reviews that survive intact are systematically the shorter ones, so the longer
+and more detailed accounts in this section are read only as opening paragraphs.
+
+NOTE TO RATER (section D voice): No non-executive first-person account of how this company works
+was found in public. Section D is one co-founder/co-CEO voice plus three passages in the
+company's own corporate voice. Do not read either as evidence about the store floor or the
+optical labs.
+
+--- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
+
+   • "Ask anyone what they love about working at [the company], and odds are they'll start with the people or the culture—or both. We're a team of idea generators, thoughtful collaborators, inveterate innovators, and good desk (or lunch table or sales floor) neighbors."  — [company careers page] — company-authored — retrieved 2026-08-27, page undated — needed JS: N  — [R2: company name replaced with a bracketed token inside the quote body; clause otherwise verbatim]
+
+   • "Pursue new and creative ideas / Embrace change and uncertainty / Continually challenge ourselves"  — [company careers page — core values block, three consecutive lines] — company-authored — retrieved 2026-08-27, page undated — needed JS: N
+
+   • "Take action / Set ambitious goals and measure results / Take the first step"  — [company careers page — core values block, three consecutive lines] — company-authored — retrieved 2026-08-27, page undated — needed JS: N
+
+   • "Presume positive intent / Trust but verify"  — [company careers page — core values block, two consecutive lines] — company-authored — retrieved 2026-08-27, page undated — needed JS: N
+
+   • "Lead with integrity / Be honest / Give and take direct feedback / Learn. Grow. Repeat."  — [company careers page — core values block, four consecutive lines] — company-authored — retrieved 2026-08-27, page undated — needed JS: N
+
+   • "We believe that continuous feedback creates continuous improvement, and that transparent communication is essential to helping our coworkers, leaders, and the entire company learn and grow (and repeat)."  — [company careers page] — company-authored, section headed "Feedback and transparency" — retrieved 2026-08-27, page undated — needed JS: N
+
+   • "Our work is highly collaborative, and we make a habit of showing thanks to our colleagues often."  — [company careers page] — company-authored, section headed "Real recognition" — retrieved 2026-08-27, page undated — needed JS: N
+
+   • "You'll also have a voice in shaping the future of the company through continuous feedback channels."  — [company careers page — retail-specific] — company-authored, section headed "One-of-a-kind culture" — retrieved 2026-08-27, page undated — needed JS: Y (renderer; this page was reached only through the site's own navigation, see fidelity note)
+
+--- B. EMPLOYEE REVIEWS (12–15, one per line, most recent first) ---
+
+Source: Indeed, employer profile [the company], sorted newest-first company-wide. Job title is
+metadata recorded per review, not the sampling unit. All 15 fall inside the 24-month gate.
+
+   • "Decent. Low pay. Low hours. Weird management. Free glasses. Free snacks. Decent Health Plan. Holidays are to be worked. Corporate Optometry not much to add or change to the industry."  — [employee review] — reviewer title: not stated; location: not stated — rev-01 — 2026-08-09 — needed JS: N
+
+   • "They do not care at all about you. High pressure and very political environment, if you're considering working here, don't walk away, Run!"  — [employee review] — Retail Store Manager; location: not stated — rev-02 — 2026-08-08 — needed JS: N
+
+   • "Love the people I work with. Mgmt can micromanage too much. It's low stress but that also means low energy sometimes which is hard coming from traditional retail where you're used to always being on the go."  — [employee review] — Store Leader; location: not stated — rev-03 — 2026-08-04 — needed JS: N
+
+   • "Great management. I've worked in the industry before and this time around I've learned a lot more. Great training and supportive management and colleagues. Free eye exam and glasses on day seven. Hardest part of job is lack of hours. Best part is a stocked kitchen. No need to bring snacks or water."  — [employee review] — Advisor; [Site A] — rev-04 — 2026-07-28 — needed JS: N
+
+   • "Company and Management are so disorganized it is laughable and no "real" chance for growth. Depending on the team you get it can be a solid first job or constant headache. Issues were never resolved within teams and all that mattered were numbers and metrics not the concerns of their employees. No real […]"  — [employee review] — reviewer title: not stated; [Site B] — rev-05 — 2026-07-19 — needed JS: N — TRUNCATED AT SOURCE
+
+   • "Great people. Great energy. The company really cares about their employees. The pay wasn't the greatest but I was part time so that's to be expected."  — [employee review] — Advisor; location: not stated — rev-06 — 2026-06-11 — needed JS: N
+
+   • "Although I had witnessed a decline in the core values, I maintain that it continues to carry out their corporate mission to provide quality eyewear at reasonable prices. I benefitted from [the company]'s support for obtaining my certfication [sic] and license as an optician. I enjoyed the interaction with the customers […]"  — [employee review] — Licensed Certified Optician/Optical Supervisor; [Site C] — rev-07 — 2026-04-21 — needed JS: N — TRUNCATED AT SOURCE. Review headline, verbatim: "[The company] has changed over the years from a culture of strong core values to management that does not know the core values."  — [R2: company name replaced with a bracketed token in the quote body and once in the review headline; both clauses otherwise verbatim]
+
+   • "The interview process was professional, personal, and thoughtful. My team was great to work with, and my manager was excellent and provided regular feedback on my performance. While the pay wasn't amazing, the job was easy and allowed a lot of flexibility."  — [employee review] — OPA; [Site D] — rev-08 — 2026-03-29 — needed JS: N
+
+   • "Overall, this was a great place to work in its earlier years, and it still offers some value depending on your role and goals. However, the company's direction has shifted in ways that raise concerns about its long-term outlook. There is a strong emphasis on metrics and performance tracking, which can […]"  — [employee review] — Optician; location: not stated — rev-09 — 2026-03-27 — needed JS: N — TRUNCATED AT SOURCE
+
+   • "Cool Place to work but a lot of responsibilities for just over minumum [sic] wage Staff was really nice but upper management wants miracles when we arent [sic] paid for it"  — [employee review] — Sales Advisor; [Site E] — rev-10 — 2026-03-26 — needed JS: N
+
+   • "Lab in [Site F] is toxic, management doesn't care about anything if it doesn't make there [sic] day better. People are fired or quit because of the toxic environment they."  — [employee review] — Packer; [Site F] — rev-11 — 2026-03-15 — needed JS: N  — [R5/A6: city name in the quote body replaced with the same site token the attribution uses; clause otherwise verbatim, preserved source typo included]
+
+   • "love working here. Only thing I would complain would be longer working hours. I enjoy working at different locations with different coworkers, they help optometrists a lot."  — [employee review] — Optometrist; location: not stated — rev-12 — 2026-03-07 — needed JS: N
+
+   • "The current head of customer service will lay you off in a heartbeat. The company tries to act all progressive and inclusive but they are not. Profit for the CEOs and upper management comes first. The leads are hit or miss. Metrics are constantly changing. Not recommended if you're seeking fair pay […]"  — [employee review] — Customer Service Representative; [Site D] — rev-13 — 2026-01-06 — needed JS: N — TRUNCATED AT SOURCE
+
+   • "What is the best part of working at the company? I got to trade stocks while I worked What is the most stressful part about working at the company? Working with non professional people and they were always late for work What is the work environment and culture like at the company? Too much micro […]"  — [employee review] — Licensed Optician; [Site G] — rev-14 — 2025-12-27 — needed JS: N — TRUNCATED AT SOURCE. This review is rendered in the source site's structured question-and-answer format, not free prose.
+
+   • "Associates are expected to learn and navigate multiple systems, many of which experience frequent outages. While workarounds are provided, relying on these temporary fixes across several systems significantly increases the risk of errors. Managing this complexity while actively engaging with customers […]"  — [employee review] — reviewer title: not stated; location: not stated — rev-15 — 2025-12-19 — needed JS: N — TRUNCATED AT SOURCE
+
+--- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+
+Five currently-open postings, five different functions. Every posting was opened individually on
+2026-08-27 and each rendered an active APPLY NOW control with no removal notice. Locations, site
+names, job-title groupings and pay bands are deliberately not reported.
+
+   • "Execute and improve all operational activities to meet your store's financial targets and customer experience goals"  — [job posting — retail store leadership] — [the company]'s careers site (Oracle Recruiting Cloud), posting [posting 1], posted 2026-08-27 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Consistently follow company-wide processes to maintain brand consistency"  — [job posting — retail store leadership] — [the company]'s careers site, posting [posting 1], posted 2026-08-27 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Curious and willing to question how things are done and how they could be done better"  — [job posting — retail store leadership] — [the company]'s careers site, posting [posting 1], posted 2026-08-27 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Ready to bring fun into your workplace but willing to put in long hours when required"  — [job posting — retail store leadership] — [the company]'s careers site, posting [posting 1], posted 2026-08-27 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Demonstrated ability to deliver complex software projects with a high level of autonomy while mentoring others"  — [job posting — software engineering] — [the company]'s careers site, posting [posting 2], posted 2026-07-21 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Promote the adoption of new technologies that advance and evolve our product"  — [job posting — software engineering] — [the company]'s careers site, posting [posting 2], posted 2026-07-21 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Own key metrics for the facility, including production safety incidents, breakage/quality deviations, OEE, and labor efficiency to meet production and cost goals"  — [job posting — optical lab management] — [the company]'s careers site, posting [posting 3], posted 2026-08-27 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "A dexterous multitasker who's eager to work in a fast-paced environment—and able to prioritize several projects without losing focus"  — [job posting — corporate accounting] — [the company]'s careers site, posting [posting 4], posted 2026-07-16 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Lead regular performance review cadences with partner leadership by presenting data-backed insights and identifying areas for improvement"  — [job posting — customer experience operations] — [the company]'s careers site, posting [posting 5], posted 2026-07-21 — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Design a regular cadence of routing rule testing to validate performance and drive improvements in first-contact resolution"  — [job posting — customer experience operations] — [the company]'s careers site, posting [posting 5], posted 2026-07-21 — confirmed open 2026-08-27 — needed JS: Y
+
+--- D. FIRST-PERSON ACCOUNT (yield: 4 · ladder fully attempted) ---
+
+VOICE COMPOSITION: 1 executive (co-founder and co-CEO) · 0 non-executive employee ·
+3 company/corporate authorial voice. See NOTE TO RATER at the head of the packet.
+
+   • "We use a structured interview framework, which means our interviewers ask a set of competency-based questions in a specific order and evaluate your responses against a pre-established rubric. It may sound different from job interviews you've done before, and that's exactly the point: This process helps create an equitable, consistent experience for all candidates."  — [company how-we-work documentation — corporate voice] — company-authored — retrieved 2026-08-27, page undated — needed JS: Y — ladder rung 1
+
+   • "We believe that a culture of continuous feedback creates a culture of continuous improvement. Feedback is essential to who we are and woven into our core values (Lead with integrity: give and take direct feedback)."  — [company impact report — corporate voice] — company-authored, 2025 Impact Report, People/Team section — report covers calendar year 2025; published 2026 (see fidelity note) — needed JS: N — ladder rung 3  — [A3 recurrence: this claim, and the core value it quotes, also appear in section A as careers-page excerpts. One company-authored claim appearing twice, not two sources agreeing]
+
+   • "To enable this, we have multiple systems in place that allow our team members to give, receive, and ask for feedback about their performance and experience at [the company]. Our tools include frequent performance reviews, ongoing one-on-ones, and employee-driven manager evaluations, as well as company-wide feedback tools, like our annual Employee Engagement Survey."  — [company impact report — corporate voice] — company-authored, 2025 Impact Report, section headed "Continuous Feedback" (p. 32) — report covers calendar year 2025; published 2026 — needed JS: N — ladder rung 3  — [R2: company name replaced with a bracketed token inside the quote body; clause otherwise verbatim]
+
+   • "It comes down to trust and respect. We implicitly trust each other to make any sort of decision, but also to seek each other's advice." and, on the same partnership, "We still sit next to each other ... in between meetings, we're constantly talking to each other."  — [leadership interview, reported] — a co-founder and co-CEO, speaking on a business-interview podcast episode that aired 2026-01-15, as quoted by business press — article dated 2026-02-13 — needed JS: Y (plain fetch returned a 403 error; the renderer returned the article in full) — ladder rung 4/6  — [R3/A5: speaker name replaced with role, podcast title generalised, publication replaced with class — all in the attribution; both quote bodies verbatim]
+
+--- E. RECENT NEWS (yield: 3 · searches logged: 5) ---
+
+   • "In a dynamic environment, we leveraged our unmatched value proposition to capture additional market share while giving customers more convenient options to shop with us than ever before."  — [trade press reporting] — a co-founder and co-CEO, quoted by trade press — 2026-02-26 — needed JS: N  — [R3: speaker name replaced with role and journalist byline replaced with publication class, in the attribution; quote body verbatim]
+
+   • "These glasses give you powerful new tools, but they're designed to feel intuitive and unobtrusive so you can stay focused on the people and moments in front of you."  — [trade press reporting] — a co-founder and co-CEO, quoted by trade press — 2026-05-20 — needed JS: N  — [R3: speaker name replaced with role and publication replaced with class, in the attribution; quote body verbatim]
+
+   • "As we enter one of the most important periods in [the company]'s history, we're making targeted investments across our business to ensure we're ready for the launch of [a new product line] and building the capabilities needed to scale this new category over the longer term."  — [company-authored earnings release filed with the SEC — NOT independent reporting] — the Chief Financial Officer — 2026-08-06 — needed JS: N  — [R2 and R4/A5: company name and product-line name replaced with bracketed tokens inside the quote body; R3 speaker name replaced with role in the attribution; clause otherwise verbatim]
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 4 · public/private: PUBLIC) ---
+
+Source: Form 10-K for the fiscal year ended 2025-12-31, Item 1. Business, subsection headed
+"Employees and Human Capital Resources". Every headcount, dollar figure and percentage has been
+stripped as collected. This is company-authored evidence in a legal filing.
+
+   • "We have invested substantial time and resources in building our team."  — [10-K Item 1 Human Capital — company-authored] — fiscal year ended 2025-12-31; share count stated as of 2026-02-24 — needed JS: N
+
+   • "We are highly dependent on our management, highly skilled software engineers, Customer Experience and Retail teams, laboratory personnel, optometrists, opticians, and other professionals, and it is crucial that we continue to attract, develop and retain valuable employees."  — [10-K Item 1 Human Capital — company-authored] — fiscal year ended 2025-12-31 — needed JS: N
+
+   • "To facilitate talent attraction, development and retention, we strive to make [the company] an inclusive and safe workplace, with opportunities for our employees to grow and develop in their careers, supported by what we believe are strong compensation and benefits programs."  — [10-K Item 1 Human Capital — company-authored] — fiscal year ended 2025-12-31 — needed JS: N  — [R2: company name replaced with a bracketed token inside the quote body; clause otherwise verbatim]
+
+   • "We believe that our employee relations are strong."  — [10-K Item 1 Human Capital — company-authored] — fiscal year ended 2025-12-31 — needed JS: N
+
+
+########## END OF PACKET ##########
+
+SCRUB LOG — P-09
+================
+Not read by raters. Scrubbed 2026-09-07 against ANONYMIZATION_RULES_DRAFT.md (R1–R8,
+A1–A7, JC-1–JC-4). Executed as a patch over the raw file: no quote body was retyped at
+any point, and every substitution below was applied as an exact string replacement with
+an asserted occurrence count.
+
+WHAT WAS CARRIED OVER
+  Only SECTION 1 of the raw build reaches this packet. Sections 2 (RESEARCHER QA —
+  "REMOVE BEFORE PACKET"), 3 (ROSTER / CONFOUNDER — "NEVER IN THE PACKET"), 4
+  (ANONYMIZATION PRE-FLAGS) and 5 (SELF-REPORTED DEFECTS) were dropped. Section 1's own
+  marker names it "the only part the raters see", and the citation harness scores
+  everything between the SECTION 1 and END OF PACKET markers, so anything left inside
+  becomes scored text. Sections 3 and 4 additionally name the company outright.
+
+COUNTS PER RULE
+  R1  attributions   44 excerpt attributions stripped of the company name and the URL.
+                     44 URLs removed: 15 review URLs replaced by stable local ids
+                     rev-01…rev-15 (newest-first, one id per review), 29 deleted outright.
+                     25 company-name segments removed from attributions: 21 replaced
+                     with the source class (A 8, C 10, D 3) and 4 deleted outright in F,
+                     where the bracketed descriptor already carries the class and replacing
+                     it would print "company-authored" twice on the same line. Source class
+                     and date kept everywhere.
+  R2  company name    8 substitutions to [the company] / [The company]: the scope
+                     declaration, the section B source note, and 6 inside quote bodies or
+                     a quoted headline (A excerpt 1, B rev-07 body, B rev-07 headline,
+                     D excerpt 3, E excerpt 3, F excerpt 3).
+  R3  named humans    4 named speakers replaced with their role (2 co-founder/co-CEO
+                     attributions in D and E, 1 further co-founder/co-CEO in E, the CFO
+                     in E). 3 press names replaced with publication class (1 named
+                     journalist plus her outlet, 1 outlet, 1 outlet). 1 podcast host name
+                     removed with the show title. All roles preserved.
+  R4 / A5  branded    2 rewrites, both leaving the clause intact: the company's own
+                     product-line name in E excerpt 3 -> [a new product line]; the named
+                     external podcast in D excerpt 4 -> "a business-interview podcast".
+  R5 / A6  places     8 attribution locations tokenised using the Section 4 pre-flag map
+                     ([Site A]…[Site G]; [Site D] twice, same token both times), plus 1
+                     place name inside a quote body (B rev-11) reusing that review's own
+                     attribution token [Site F]. NO TOKEN WAS MINTED — the pre-flag block
+                     covered every place in this packet, including the one in-body case.
+                     "Remote" does not appear anywhere in this packet's section 1, so R5's
+                     work-mode carve-out had nothing to preserve.
+  R6 / A1  figures    0 strips. No headcount, dollar figure or percentage appears in any
+                     section 1 excerpt — the build stripped them at collection and section
+                     E carries none. The two figures that do appear ("day seven" for a
+                     benefit, "40%" in the truncation note) are a benefit detail inside a
+                     quote and a packet-construction statistic, neither an identifying
+                     company figure. Both kept.
+  R7  source typos    5 preserved artefacts, untouched and still misspelled:
+                     "certfication [sic]", "minumum [sic]", "arent [sic]", "there [sic]",
+                     and the incomplete final clause "...the toxic environment they."
+  R8 / A3  recurrence 1 recurrence note attached, to D excerpt 2. Nothing deleted; the
+                     excerpt count is unchanged at 44.
+  A4  declarations   10 bracketed declarations written onto excerpt lines — every line
+                     whose quote body was edited (6) and every line whose attribution edit
+                     is not self-evident as a bracketed token (4).
+  A7  headlines      1 review headline present (B rev-07). Kept verbatim apart from the R2
+                     name substitution, and the exposure is recorded below.
+
+JUDGMENT CALLS
+  JC-a  Posting identifiers. Section 4 flags the five ATS posting ids (one alphanumeric
+        requisition string, four short numerics) and the ATS hostname as direct re-
+        identifiers and says to handle them at this step. R1 removes them from the URLs, but
+        the ids are also printed in plain text in the attribution, and the requisition
+        string is an exact-match token. No rule names this case, so this is an extension,
+        declared here: the ids were replaced with stable local tokens [posting 1]…[posting
+        5], the same trade R1 makes for review URLs — the fact that these are five distinct
+        postings across five functions stays visible and traceable, the searchable string
+        does not. The ATS vendor name ("Oracle Recruiting Cloud") was kept: it is a vendor
+        used by thousands of employers and it is retrieval-method signal, not a company
+        fingerprint. The identifying hostname went with the URL.
+  JC-b  R8/A3 extended from A<->F to A<->D. D excerpt 2 restates A excerpt 6's claim in
+        different words ("a culture of continuous feedback creates a culture of continuous
+        improvement" against "continuous feedback creates continuous improvement") and
+        quotes A excerpt 5's core value inside its own parenthesis. R8 is written against
+        the A<->F boundary, but its purpose — a rater reading one company voice twice as
+        two agreeing sources — is fully present here, and all three sections are
+        company-authored. A3's execution was used: a recurrence note on the second
+        occurrence, nothing deleted, count unchanged. Recorded as an extension so the next
+        scrubber looks it up rather than deciding it again.
+  JC-c  The review headline (B rev-07) names the company. A7 says keep headlines and do
+        not strip them; R2 says the company name inside a quote is substituted, never
+        deleted. Both were applied: the headline is kept in full with the name replaced by
+        a bracketed token, declared on the line. A7's own T2 exposure — an exact-match
+        searchable string surviving into the rater packet — stands as A7 accepts it, and
+        is recorded here as R7 requires for typos. This packet carries 6 such strings: the
+        headline and the 5 preserved typos.
+  JC-d  Publication names treated as bylines. R3 sends journalist bylines to publication
+        class. Two attributions named the outlet without a byline and one named both. All
+        three were reduced to class ("trade press", "business press"), matching the
+        source-class descriptor the excerpt lines already carry. Slight extension of R3's
+        wording; the source class the 0.7 rule turns on is untouched.
+  JC-e  "plain fetch returned HTTP 403" -> "plain fetch returned a 403 error", in a
+        retrieval note, outside every quote body. Self-check 1 requires zero occurrences
+        of "http" in the output and this is the only one that is not a URL; the rewrite
+        makes the check pass under a case-insensitive reading at no cost to meaning. Not a
+        de-identification edit — declared here because it is an edit.
+
+DELIBERATELY LEFT ALONE
+  · Job titles and sector language, in full and unsoftened, per the ruleset's finding that
+    industry is not scrubbable and should not be attempted. This includes the four titles
+    Section 4 flags as close to unique in the review index — see FLAGGED below.
+  · Every distinctive verbatim self-description Section 4 pre-flags, under JC-1: the core
+    values ladder including "Presume positive intent / Trust but verify", "a team of idea
+    generators, thoughtful collaborators, inveterate innovators", "Ready to bring fun into
+    your workplace but willing to put in long hours when required", and "A dexterous
+    multitasker who's eager to work in a fast-paced environment". These are the most
+    identifying strings in the packet and also its highest-information lines on pace,
+    innovation and autonomy; the governing principle settles the trade against removing
+    them.
+  · "our annual Employee Engagement Survey" (D excerpt 3). Tested under A5 and left: it is
+    a generic instrument name, not a branded internal programme, and no company is
+    identified by having one.
+  · Source and document class throughout — the review site name, "2025 Impact Report",
+    "Form 10-K", "10-K Item 1 Human Capital", "Oracle Recruiting Cloud" — and the careers
+    page section headings ("Feedback and transparency", "Real recognition",
+    "One-of-a-kind culture"). Class and structure are load-bearing; none names the company.
+  · All six section markers, the section order, the excerpt order, and every count and note
+    the build wrote, including the two NOTE TO RATER blocks and the scope declaration.
+
+FLAGGED, NOT DECIDED
+  · Reviewer-level re-identification. Section 4 flags four review job titles as close to
+    unique in the source site's own title index — two of them appear there exactly once —
+    and pairs them with a site token and a date. That identifies a reviewer, not the
+    company, and no rule in the ruleset covers it, while the industry finding positively
+    forbids softening job titles. Left exactly as built and raised here for a ruleset
+    decision rather than resolved during a scrub.
+  · Two attributions and two section headers point at supporting material that lives in
+    the build record and does not reach the rater. Recorded in P-09_content_defects.txt
+    and left uncorrected.
+
+SELF-CHECK — 13/13 PASS. Full results in P-09_run_report.md.

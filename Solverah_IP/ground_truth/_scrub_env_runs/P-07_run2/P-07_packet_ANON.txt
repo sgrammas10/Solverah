@@ -1,0 +1,366 @@
+PACKET P-07   ·   DE-IDENTIFIED   ·   RATER-FACING
+  scrubbed from : P-07_packet.txt (build v4.6, model claude-opus-5, built 2026-08-27)
+  ruleset       : ANONYMIZATION_RULES_DRAFT.md
+  scrubbed      : 2026-09-06
+  status        : DRAFT — two caveats carried from the source packet: (1) the packet ID was
+                  assigned by the builder and this company is not on the BUILD_BRIEF roster
+                  P-01..P-06 (source defect S1); (2) the build record's model string is the
+                  configured session identifier, not a verified serving model. See also
+                  P-07_content_defects.txt.
+
+  DO NOT SEARCH FOR ANY PHRASE IN THIS PACKET. If you recognise the company, that is
+  expected and is not a failure — record it on the recognition flag and keep scoring
+  from the evidence in front of you, not from what you know.
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE DECLARATION
+The employee reviews in this packet come from US plant, distribution and field-service roles —
+production associates, material handlers, forklift operators, line technicians, service writers
+and site team leads — plus a small number of coordinator, analyst and specialist roles. Other
+parts of this company — corporate engineering, software, data, finance and marketing — are
+barely represented in them. Company-authored sources describe the whole organisation.
+
+
+--- A. CAREERS / VALUES PAGE (8 excerpts) ---
+
+   • "At [the company], we believe your passion is your power. Supercharge your career with the support of a global team that empowers you to do your best work."  — [company careers page] — company-authored, unattributed site copy — retrieved 2026-08-27 (no publication or modification date exposed on page) — needed JS: Y — [company name substituted in the quote body; quote otherwise verbatim]
+
+   • "No matter where you're headed in your career, [the company] offers a unique path for you. Here, you'll take on rewarding challenges with teammates who value your contributions and energy."  — [company careers page] — company-authored, unattributed site copy — retrieved 2026-08-27 — needed JS: Y — [company name substituted in the quote body; quote otherwise verbatim]
+
+   • "In our internship and co-op programs, college students take on real projects that help them apply their knowledge and gain real-world experience."  — [company careers page] — company-authored, unattributed site copy — retrieved 2026-08-27 — needed JS: Y
+
+   • "As a global leader in innovation, we offer opportunities for growth and development around the world in a diverse, inclusive, empowering environment."  — [company careers page] — company-authored, unattributed site copy — retrieved 2026-08-27 — needed JS: Y
+
+   • "Join us in fueling the future of innovation and our energy technology brand [name stripped] as we continue developing clean diesel, zero-emissions natural gas engines and electric, hybrid, and alternative fuel powertrain technologies."  — [company careers page] — company-authored, unattributed site copy — retrieved 2026-08-27 — needed JS: Y — [R4: branded business-unit name stripped from the quote body; quote otherwise verbatim]
+
+   • "We value your commitments outside of work, and we offer paid vacation and holidays, parental leave, adoption assistance, flexible work environments, and more to help you do your best work possible."  — [company careers page] — company-authored, unattributed site copy — retrieved 2026-08-27 — needed JS: Y
+
+   • "We believe in recognizing hard work and offer annual merit and profit sharing to celebrate both your individual achievements and the company's performance."  — [company careers page] — company-authored, unattributed site copy — retrieved 2026-08-27 — needed JS: Y
+
+   • "Every day, our [company] employees bring our DE&l commitment to life in how we courageously live out our values. By investing in DE&l, we harness the diverse perspectives of our global employees, provide our customers with superior solutions and win with the power of difference."  — [company careers page, employee testimonial block] — attributed on page to a Data Engineering Technical Specialist; published by the company — retrieved 2026-08-27 — needed JS: Y — [company name substituted in the quote body; named employee in the attribution replaced by role (R3); quote otherwise verbatim]
+     [sic] "DE&l" appears twice with a lower-case letter l in place of a capital I. Reproduced as printed.
+
+
+--- B. EMPLOYEE REVIEWS (15, one per line, most recent first) ---
+
+NOTE TO RATER (truncation): 7 of the 15 reviews below were cut off at source by a "Show more"
+control that does not expand on retrieval; the cut is marked […]. That is 47% of this sample.
+The reviews that survive in full are systematically the SHORT ones, so the longest and most
+detailed accounts in this section are being read as opening paragraphs only.
+
+NOTE TO RATER (duplicates): the review dated July 22, 2026 was rendered three times by the
+source site under separate entries with identical text, date, job title and location. All three
+entries are shown; the second and third are labelled as source-site duplicates. They are ONE
+voice, not three.
+
+   • "I was an intern, flexible hours, support, guidance. The job for an intern is well payed. Limite possibilities to grow as my FEA team was small. I would recommend it to a friend."  — [employee review] — reviewer job title: not stated ("Anonymous"); location: not stated; review headline "Supportive manager, insightful" — rev-01 — 2026-08-11 — needed JS: N
+     [sic] "payed", "Limite" reproduced as printed.
+
+   • "I worked at [the company] for just shy of 3 years, and while the overtime can provide decent paychecks, I wouldn't recommend it if you value work-life balance. Working 12-hour shifts, sometimes six days a week often felt like the expectation rather than the exception. The extra money came at the expense of […]"  — [employee review] — Material Handler, [Site A]; review headline "Good Pay, Poor Management" — rev-02 — 2026-07-25 — needed JS: N — TRUNCATED AT SOURCE — [company name substituted in the quote body; quote otherwise verbatim]
+
+   • "If you want a job that underpays and will work 7 days a week then go for it. The mental strain from not having days off makes working conditions terrible add in the lack luster management that are only there 5 days a week and will do nothing but nitpick and blame. Honestly just dont do it. If 0 stars […]"  — [employee review] — Team Lead, [Site B]; review headline "Terrible, don't do it" — rev-03 — 2026-07-23 — needed JS: N — TRUNCATED AT SOURCE
+     [sic] "lack luster", "dont" reproduced as printed.
+
+   • "First manager was great, but he left after my first few months. Second manager was terrible, no prior management experience and it did not come naturally. Coworkers were all around pretty alright. [The internal works unit] was useless when it actually came to needing their help, shop stewards were a joke. President wasn't […]"  — [employee review] — Support Specialist, [Site C]; review headline "Overall good company to work for" — rev-04 — 2026-07-22 — needed JS: N — TRUNCATED AT SOURCE — [R4: internal unit abbreviation generalised in the quote body; quote otherwise verbatim]
+
+   • "First manager was great, but he left after my first few months. Second manager was terrible, no prior management experience and it did not come naturally. Coworkers were all around pretty alright. [The internal works unit] was useless when it actually came to needing their help, shop stewards were a joke. President wasn't […]"  — [employee review — SOURCE-SITE DUPLICATE of the entry above; not an independent voice; not counted toward the section minimum] — Support Specialist, [Site C] — rev-04 — 2026-07-22 — needed JS: N — TRUNCATED AT SOURCE — [R4: internal unit abbreviation generalised in the quote body; quote otherwise verbatim]
+
+   • "First manager was great, but he left after my first few months. Second manager was terrible, no prior management experience and it did not come naturally. Coworkers were all around pretty alright. [The internal works unit] was useless when it actually came to needing their help, shop stewards were a joke. President wasn't […]"  — [employee review — SOURCE-SITE DUPLICATE (second) of the entry two lines above; not an independent voice; not counted toward the section minimum] — Support Specialist, [Site C] — rev-04 — 2026-07-22 — needed JS: N — TRUNCATED AT SOURCE — [R4: internal unit abbreviation generalised in the quote body; quote otherwise verbatim]
+
+   • "I have been with the company for over 8 years. No matter what roll, I always appreciated the flexibility it allows with being a working parent. Something they have mastered at [the company] is work-life balance."  — [employee review] — Credit Assistant, [Remote]; review headline "Flexibility and Consistency" — rev-05 — 2026-07-11 — needed JS: N — [company name substituted in the quote body; quote otherwise verbatim]
+     [sic] "roll" reproduced as printed.
+
+   • "A wonderful place to work at. I was there 5years before they closed but I would love to come back, the people r great the jobs ther not hard ther isn't nothing hard ther to do […]"  — [employee review] — Forklift Operator/Material Handler, [Site D]; review headline "A wonderful place to work at" — rev-06 — 2026-07-08 — needed JS: N — TRUNCATED AT SOURCE
+     [sic] "5years", "r", "ther" (x3) reproduced as printed.
+
+   • "I was a temp for two days and got let go. Didn't tell me the reason why. I was shadowing someone and was on my way to learning the job. Only had 1 day on the floor. I understand that safety is paramount and they take it seriously,but so do I. I would like to understand what went wrong. They also claim […]"  — [employee review] — Temporary Employee, [Site E]; review headline "Horrible communication" — rev-07 — 2026-06-30 — needed JS: N — TRUNCATED AT SOURCE
+     [sic] "seriously,but" reproduced as printed.
+
+   • "If you have been working there for an extended time the workplace is great. However; they only hire temps starting out, as a temp you are paid less, if someone decides they want your current position and have been there longer you are kicked out of it, if the company is working on the weekend and you […]"  — [employee review] — Production Associate, [Site F]; review headline "Terrible place to start working" — rev-08 — 2026-06-29 — needed JS: N — TRUNCATED AT SOURCE
+
+   • "[The company] is a large and great company to work for with many benefits and growth. The [Site G] location has issues with the management, in which do not want to follow the [company] systems and procedures and still act like a small dealer when they are not."  — [employee review] — Service Writer, [Site G]; review headline "Great company, poor management" — rev-09 — 2026-06-22 — needed JS: N — [company name substituted twice and the site name replaced with its pre-flag token (R5) in the quote body; quote otherwise verbatim]
+
+   • "Great place to work Great benefits Management could always be better Would go back in a heartbeat but things happen. Took great care of employees. Pay was competitive"  — [employee review] — Production Associate, [Site H]; review headline "Great place to work" — rev-10 — 2026-06-11 — needed JS: N
+     Note: rendered on the source page as six separate lines; reproduced here on one line per the one-excerpt-per-line rule. No words added, removed or reordered.
+
+   • "Training was terrible job was terrible. They expect you to work none stop with little knowledge. Room for growth is nonexistent. Wouldn't recommend this"  — [employee review] — Line Technician, [Site I]; review headline "Terrible" — rev-11 — 2026-06-10 — needed JS: N
+     [sic] "none stop" reproduced as printed.
+
+   • "I would come in to work and start my day then redirected to start fighting production issues. while having to checking inventory to make sure we had everything to run...."  — [employee review] — Manufacturing Project Lead, [Site J]; review headline "Overall I made good money while the company was managed promoting overtime and change negatively." — rev-12 — 2026-06-09 — needed JS: N — TRUNCATED AT SOURCE
+     [sic] "while having to checking", lower-case sentence start and the four-dot ellipsis reproduced as printed.
+
+   • "Never felt over worked or underpayed. Plenty of opportunities to move . Good benefits. Somewhat hard to advance your career but not impossible. Would return."  — [employee review] — Cross Functional Engineering Associate, [Site C]; review headline "Great pay and benefits" — rev-13 — 2026-06-04 — needed JS: N
+     [sic] "underpayed", "move ." reproduced as printed.
+
+   • "But a great place needed to pay way more and very bad upper management. The sales and service is just bad anymore and not great so it's just not great place"  — [employee review] — Technical Support, [Site K]; review headline "Not great" — rev-14 — 2026-05-31 — needed JS: N
+
+   • "Good pay and benefits. Management is a joke. Management holds no one accountable for anything and people can get away with anything. There is also a good ol boys club."  — [employee review] — reviewer job title: not stated ("Anonymous"); location: not stated; review headline "Good Pay" — rev-15 — 2026-05-26 — needed JS: N
+
+
+--- C. JOB POSTINGS (10 excerpts from 4 open postings, different functions) ---
+
+All four postings were opened individually on 2026-08-27 and each rendered a live posting body
+with an APPLY control and no removal or "no longer accepting applications" notice. Postings are
+identified by their own on-page "Career Path" label only. Locations and salary bands are not
+quoted; note that the source URLs, which Rule 3 requires, themselves contain city names — see
+Section 4 and defect S3.
+
+  Posting 1 — Career Path: Human Resources
+
+   • "Drive data-informed recruiting decisions through analysis of key performance metrics and market insights."  — [job posting] — company-authored, posting body — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Effective at leading with urgency, adapting to changing priorities, and managing multiple recruitment initiatives simultaneously."  — [job posting] — company-authored, posting body — confirmed open 2026-08-27 — needed JS: Y
+
+  Posting 2 — Career Path: Marketing
+
+   • "Manage the development of market intelligence through the design, development, and delivery of information, reports, and projects that improve internal knowledge and accurately inform decision making."  — [job posting] — company-authored, posting body — posting states "START DATE OF POSTING : 8/27/26" and "END DATE OF POSTING: 9/11/26"; confirmed open 2026-08-27 — needed JS: Y
+
+   • "Identify department issues, problems and opportunities to support continuous improvement initiatives utilizing Six Sigma tools and techniques."  — [job posting] — company-authored, posting body — confirmed open 2026-08-27 — needed JS: Y
+
+  Posting 3 — Career Path: Sales
+
+   • "Build High-Performing Teams: Foster collaboration across diverse teams, leveraging different perspectives, experiences, and capabilities to achieve common business objectives and deliver exceptional customer outcomes."  — [job posting] — company-authored, posting body — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Enhance Sales Performance Through Data-Driven Insights: Leverage forecasting, pipeline analysis, and market intelligence to identify trends, prioritize opportunities, and support the successful execution of sales strategies."  — [job posting] — company-authored, posting body — confirmed open 2026-08-27 — needed JS: Y
+
+  Posting 4 — Career Path: Manufacturing
+
+   • "Follows standardized work and processes documentation."  — [job posting] — company-authored, posting body — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Operates within team-based work system and rotates job routine as needed."  — [job posting] — company-authored, posting body — confirmed open 2026-08-27 — needed JS: Y
+
+   • "DEMONSTRATE COURAGE by addressing challenges, speaking up about safety, quality, or process concerns, and saying what needs to be said when issues arise."  — [job posting] — company-authored, posting body — confirmed open 2026-08-27 — needed JS: Y
+
+   • "Completes work with minimal supervision."  — [job posting] — company-authored, posting body — confirmed open 2026-08-27 — needed JS: Y
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 6 passages across 3 sources · ladder fully attempted) ---
+
+VOICE COMPOSITION FLAG FOR THE RATER: all three D sources are COMPANY-PUBLISHED employee
+profiles on the company's newsroom, carrying direct first-person quotes from NON-EXECUTIVE
+employees (a program manager, an innovation program leader, a project coordinator). No
+executive voice appears in section D. Because these pieces are written and published by
+the company, section D here does NOT satisfy any requirement for non-company-authored support,
+even though the quoted words are employees' own.
+
+   • "I manage [product-introduction] programs, and often these products are new technologies that are not yet in the market. It is my responsibility to work with a cross-functional [product-introduction] team to capture the voice of the customer and deliver a product that meets quality, customer and cost requirements."  — [company-published employee profile, direct quote] — a Program Manager in the company's energy technology business, quoted by the company — 2026-08-18 — needed JS: Y — [R4: internal process name generalised in the quote body; attribution name replaced by role (R3) and branded business unit generalised (R4); quote otherwise verbatim]
+     Note: rendered on the page as two quoted sentences separated by the attribution "[the program manager] said"; joined here without alteration to the quoted words.
+
+   • "Launching new products requires discipline to follow the [product-introduction] process. I am proud to be part of a team that strives to deliver superior results. Despite challenges, I experience integrity by doing what is right to meet customer requirements."  — [company-published employee profile, direct quote] — a Program Manager in the company's energy technology business, quoted by the company — 2026-08-18 — needed JS: Y — [R4: internal process name generalised in the quote body; attribution name replaced by role (R3) and branded business unit generalised (R4); quote otherwise verbatim]
+
+   • "My day-to-day work includes supporting strategic initiatives, managing stakeholders across functions and being a good steward of resources to ensure we make meaningful progress. It's about ensuring continued relevance in the market while thinking ahead to what's next."  — [company-published employee profile, direct quote] — an Innovation Program Leader, Power Systems Business, quoted by the company — 2026-07-22 — needed JS: Y — [attribution: named employee replaced by role (R3); quote body verbatim]
+
+   • "Dealing with ambiguity and different perspectives often leads to multiple ways to solve a problem. When people come together valuing those differences and staying committed to accountability, a powerful synergy happens. That's when you get the best outcomes."  — [company-published employee profile, direct quote] — an Innovation Program Leader, Power Systems Business, quoted by the company — 2026-07-22 — needed JS: Y — [attribution: named employee replaced by role (R3); quote body verbatim]
+     Note: rendered as two quoted segments split by "he explained"; joined without alteration to the quoted words.
+
+   • "The work environment is challenging in a good way and encourages me to be better every day. There are so many resources available to learn and improve along with a wide range of career paths depending on what you want to pursue."  — [company-published employee profile, direct quote] — an Innovation Program Leader, Power Systems Business, quoted by the company — 2026-07-22 — needed JS: Y — [attribution: named employee replaced by role (R3); quote body verbatim]
+
+   • "We may be a small team but we accomplish a tremendous amount together. We're constantly finding creative ways to support a global workforce."  — [company-published employee profile, direct quote] — a Senior Project Coordinator on an internal translation services team, quoted by the company — 2026-07-07 — needed JS: Y — [attribution: named employee replaced by role (R3), internal team name generalised (R4); quote body verbatim]
+
+
+--- E. RECENT NEWS (yield: 2 excerpts · 4 searches logged) ---
+
+   • "But the parties have recently paused the project, called [a named battery joint venture], because of market shifts since the joint venture was first announced."  — [news reporting] — business press — 2026-06-26 — needed JS: Y — [R4: branded joint-venture name generalised in the quote body; byline reduced to publication class (R3); quote otherwise verbatim]
+
+   • "According to a layoff notice filed with the Mississippi Department of Employment Security on March 31, [the joint venture] expected to lay off [dozens of] employees at its Marshall County facility by May 30. [The joint venture] cited "changing environments" as the reason for the layoffs."  — [news reporting] — business press — 2026-06-26 — needed JS: Y — [R4: branded joint-venture name generalised twice and headcount replaced with magnitude language (A1/R6) in the quote body; byline reduced to publication class (R3); quote otherwise verbatim]
+     Note: the phrase "changing environments" inside this sentence is the reporter quoting the joint venture's filing, not the company.
+
+   • "[The company] has announced the promotion of four leaders to the role of vice president, effective Aug. 1, 2026."  — [news reporting] — local broadcast newsroom, credited to a company press release — 2026-07-24 — needed JS: Y — [company name substituted in the quote body; outlet reduced to publication class (R3); quote otherwise verbatim]
+
+   • "As we continue building on our momentum and investing in future growth, their experience and expertise will help us deliver on our commitments, strengthen the company, and create value for our stakeholders around the world."  — [company statement quoted inside news reporting] — the company's chair and chief executive, quoted by a local broadcast newsroom — 2026-07-24 — needed JS: Y — [attribution: named executive replaced by role (R3), outlet reduced to publication class; quote body verbatim]
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 6 excerpts · public/private: PUBLIC) ---
+
+Source: the company's Form 10-K for the fiscal year ended December 31, 2025, filed 2026-02-10,
+Item 1 (Business), "Human Capital Resources". Company-authored legal filing; subject to the
+same marketing-inflation caution as the careers page and does NOT satisfy any requirement for
+non-company-authored support. Headcount, dollar and percentage figures have been stripped as
+collected and the strips are marked.
+
+   • "Throughout our more than 100-year history, we always have recognized that people drive the strength of our business and our ability to effectively serve our customers and sustain our competitive position."  — [10-K Item 1 Human Capital, company-authored] — filed 2026-02-10 (FY2025) — needed JS: N
+
+   • "Our workforce strategy aims to cultivate an environment where all employees, regardless of employee type and location, know what is expected of them, are rewarded for their performance based on fair and equitable reviews and have access to differentiated experiences, tools and leadership coaching to help them develop."  — [10-K Item 1 Human Capital, company-authored] — filed 2026-02-10 (FY2025) — needed JS: N
+
+   • "We encourage leaders to connect our people and their work to our mission, vision, values, brand promise and growth strategy, thus, motivating employees and hopefully helping them feel a higher sense of purpose in their contributions."  — [10-K Item 1 Human Capital, company-authored] — filed 2026-02-10 (FY2025) — needed JS: N
+
+   • "We are promoting a learning culture by providing employees and their managers with tools and resources to have meaningful development conversations, envision and plan their careers, thrive in their work and navigate in a large global organization."  — [10-K Item 1 Human Capital, company-authored] — filed 2026-02-10 (FY2025) — needed JS: N
+
+   • "We have established a flexible approach to in-person collaboration that reinforces our culture and strengthens employees' social well-being through engaging and meaningful interactions with their teams. We ask that most employees spend at least [FIGURE STRIPPED] of their time in our facilities, with customers or with other key stakeholders to support our strategy and the communities we serve."  — [10-K Item 1 Human Capital, company-authored] — filed 2026-02-10 (FY2025) — needed JS: N
+
+   • "Implemented employee role classifications and an in-person time policy. The on-site with flexibility and off-site roles provide employees the ability to leverage on-site work for collaboration, problem solving and relationship building while also providing work flexibility."  — [10-K Item 1 Human Capital, company-authored] — filed 2026-02-10 (FY2025) — needed JS: N
+
+
+########## END OF PACKET ##########
+
+SCRUB LOG — P-07
+  scrubbed 2026-09-06 against ANONYMIZATION_RULES_DRAFT.md (signed off 2026-08-15)
+  method: the raw file was COPIED and patched by literal string substitution. The packet was
+  never retyped. Every substitution was asserted to match an exact expected occurrence count,
+  and all 51 quote bodies were then reverse-substituted and compared byte-for-byte against the
+  raw file: 51/51 identical. Dash/quote-mark census inside quote bodies: 0 en dashes, 0 em
+  dashes, 0 curly quotes, 8 ellipses, in both raw and scrubbed. The P-02/P-05 em-dash class of
+  defect cannot have occurred here.
+
+COUNTS PER RULE
+  R1  attribution name + URL stripped ............ 51 excerpt lines + 1 section F source line
+        distinct URLs removed: 1 careers, 1 reviews list, 4 job postings, 3 newsroom profiles,
+        2 news articles, 1 SEC accession path (the accession path was pre-flagged as an
+        identifying token; it is gone with the URL).
+  R1  review URLs replaced by stable local ids ... 17 references -> rev-01 .. rev-15
+        The three entries of the 2026-07-22 triplicate all carry rev-04, so the source-site
+        duplication stays mechanically visible rather than becoming three ids.
+  R2  company name substituted in a quote body ... 8   (A1, A2, A8, B rev-02, B rev-05,
+        B rev-09 x2, E3)
+  R2  company name removed outside quote bodies .. 4   (section D voice-composition flag x2,
+        the E2 reporter note, the section F source line)
+  R3  named human -> role ........................ 8   (A8 testimonial attribution; D x6
+        attributions; E4 chief executive) + 1 inside a build note ("Ana said")
+  R3  journalist byline / outlet -> publication class  4  (E1, E2, E3, E4)
+  R4  branded / internal proper noun rewritten ... 12  (A5 x1; B DWU x3; D process name x3;
+        D attributions: branded business unit x2, internal team name x1; E joint venture x3)
+  R5  location tokenised, attribution ............ 15  (14 site tokens + 1 [Remote])
+  R5  location tokenised, inside a quote body .... 1   (the only pre-flagged case, below)
+  R6 / A1  identifying figure -> magnitude language  1 (E2 headcount)
+  R7  source typos preserved ..................... 14 strings, 0 changes
+  A3 / R8  recurrence notes ...................... 0 (see judgment calls)
+  A4  bracketed declarations on excerpt lines .... 17
+  Rule Three  blank lines inserted ............... 10, all in section C, none elsewhere
+  Excerpt count: 51 raw / 51 scrubbed. Nothing deleted, nothing merged, order unchanged.
+
+JUDGMENT CALLS AND RULE EXTENSIONS — declared because the brief requires it
+
+  1. R4 EXTENDED beyond "named internal programmes" to branded external names.
+     R4 as written covers internal programmes. Section 4 pre-flags three branded proper nouns
+     that are not internal programmes: an energy technology business unit (A5, and twice in D
+     attributions) and a named battery joint venture (E1, E2 x2). Each is a one-query
+     identification, at least as strong as the company name itself. Rewritten under R4;
+     the clause survives in every case, and the innovation and stability signal with it.
+     Reversible from the diff if the operator judges the extension wrong.
+
+  2. R4 EXTENDED to an internal unit abbreviation (three-letter, section B, rev-04 x3).
+     Pre-flagged in Section 4 as an internal union / works-unit abbreviation. Generalised to
+     "[The internal works unit]", capitalised because it starts a sentence, per R2's
+     grammar-preserving precedent. The generic wording deliberately does not resolve the
+     union / works-unit ambiguity that the pre-flag block itself leaves open — the scrub does
+     not add information. The clause's claim (the representation body was no help; shop
+     stewards were a joke) is untouched, and "shop stewards" is retained.
+
+  3. The internal process name in section D was generalised to "[product-introduction]",
+     using Section 4's own gloss of the abbreviation. Applied identically in all three places.
+
+  4. R5's in-body restriction was applied exactly as Rule Two of the brief requires. One place
+     name appears inside a quote body WITH a pre-flag token — the site named in rev-09, whose
+     attribution reads [Site G] — and it was tokenised to the same [Site G]. This is the case
+     the brief cites from P-07; the attribution no longer tokenises a site that the quote then
+     names one clause later.
+
+  5. R5 GAP, LEFT ALONE AND REPORTED. Section E's second excerpt names a US state employment
+     agency and a US county inside the quote body. Neither carries a pre-flag token, so under
+     Rule Two they were left verbatim. That is a build-side gap in the Section 4 pre-flag
+     block, not a scrub decision — the pre-flag block tokenises section B locations only and
+     does not reach section E. Recorded for the build.
+
+  6. "Home" as a review location was rendered "[Remote]" because the Section 4 pre-flag block
+     maps it that way. This is distinct from R5's instruction that "Remote" stays literal,
+     which governs source text that already reads "Remote"; no source text in this packet does.
+
+  7. R6 / A1 NOT applied to "four leaders" (E3). A1 covers identifying figures — headcounts,
+     dollar amounts, percentages. The number of executives promoted is the claim itself, not an
+     identifying magnitude, and stripping it would leave a sentence saying nothing. The one
+     figure that does identify — a JV layoff headcount, a state agency and a filing date away
+     from a single search result — was replaced with magnitude language.
+
+  8. "Power Systems Business" retained verbatim in three D attributions. It is a descriptive
+     segment name, not a coined brand, and industry is not scrubbable per the ruleset's own
+     finding. Job titles and sector language across all six sections are untouched.
+
+  9. Review headlines retained verbatim. They are exact-match searchable, and R1 removes review
+     URLs partly because the URL slug is derived from the headline — so the headline printed in
+     the attribution is the same exposure by another route. No rule covers it, and the headline
+     carries rater-facing signal (it is the reviewer's own summary, and in one case it is the
+     evidence for a content defect below). Kept, with the residual T2 exposure recorded here —
+     the same treatment R7 gives preserved typos, which are individually searchable and kept for
+     the same reason. If the operator wants headlines tokenised, that is a ruleset amendment,
+     not a scrub decision.
+
+ 10. Preserved typos are unchanged, including the lower-case "l" in the section A testimonial's
+     "DE&l" (twice) — which is doubly exposed because the named employee it was attributed to
+     has been removed under R3 but the misspelling that locates the page has not. Flagged, not
+     acted on: R7 is explicit.
+
+ 11. A3 / R8 recurrence: checked every A excerpt against every F excerpt for one claim in two
+     costumes. None found. The nearest pair is A's "flexible work environments" against F's
+     in-person time policy, which is a tension for the rater to weigh rather than a restatement,
+     so no recurrence note was attached and no excerpt was touched.
+
+ 12. Section C's preamble still contains a sentence noting that the source URLs contain city
+     names and referring the reader to Section 4 and defect S3. The URLs are now gone and
+     neither Section 4 nor the defect register is rater-facing, so the sentence points at
+     nothing. Left verbatim — editing it is not an edit any rule authorises. Reported.
+     Defect S3 itself is closed by R1: no section C URL survives.
+
+ 13. Sections 2, 3 and 4 of the raw file are not in the scrubbed packet. Sections 2 and 3 are
+     marked REMOVE BEFORE PACKET and NEVER IN THE PACKET at source; Section 4 was consumed as
+     the input to this scrub. The scrub log sits after the END OF PACKET marker so the scorer
+     does not read it as evidence.
+
+RECOGNITION FLAG
+  Yes — the scrubber knows which company this is, because the raw build record names it in a
+  field this pass must read to carry "build v4.6" into the header. Expected and harmless per
+  Rule Zero. Nothing was searched for, at any point. No other packet, roster or company list
+  was opened; the connected folder held only the brief, the ruleset and this one raw packet.
+
+SELF-CHECK RESULTS — all 13 run, all reported
+   1. URL scheme prefix anywhere in the output ............. 0 occurrences. PASS
+        (this line is worded to avoid containing the very string it tests for)
+   2. Company name or short form outside a substitution .... 0 occurrences. PASS
+   3. Reviews referenced as rev-NN, stable per review ...... 17 references, 15 distinct ids;
+        the three duplicate entries share rev-04 by design. PASS
+   4. Quote bodies character-identical except where declared  verified by reverse-substitution
+        diff, not by reading: 51/51 byte-identical after reversing the declared substitutions.
+        15 quote bodies carry a declared edit; 36 are untouched. PASS
+   5. Every substitution declared on its own excerpt line ... 17 excerpt lines carry a bracketed
+        declaration; every changed quote body is one of them. The universal R1 strip (name and
+        URL out of every attribution) is the packet-wide format and is recorded here, not on
+        51 lines. PASS
+   6. Excerpt count matches raw, section by section ........ A 8/8, B 17/17, C 10/10, D 6/6,
+        E 4/4, F 6/6. Total 51/51. PASS
+   7. Source typos still present and still misspelled ...... all 14 verified present. PASS
+   8. "Remote" still literal where the raw packet had it ... raw has no literal "Remote"; the
+        one [Remote] token is the pre-flag mapping for "Home". PASS
+   9. Job titles and sector language untouched ............. no title or sector string changed
+        in any section. PASS
+  10. Diff file exists and contains every changed line ..... P-07_scrub_diff.txt, 66 changed-line
+        pairs plus the structural and blank-line changes. PASS
+  11. Markers literal, header carries build vX.Y, log after END OF PACKET
+        SECTION 1 marker carried verbatim from the raw packet; END OF PACKET literal; header
+        carries "build v4.6"; this log sits after the END OF PACKET marker. PASS
+  12. Blank line directly above every excerpt bullet ....... checked by inspecting the line above
+        each of the 51 bullets: 0 violations. 10 blank lines were inserted, all in section C.
+        Harness simulation (split on blank lines, keep blocks starting with a bullet): the RAW
+        packet parses 41 of 51 excerpts and section C parses ZERO; the scrubbed packet parses
+        51 of 51, section C 10 of 10. PASS — this is the measured repair, not an assumption.
+  13. Per-section bullets versus the count the header declares
+        A:  8 bullets / header says 8 excerpts .......... match
+        B: 17 bullets / header says 15 ................. reconciled, not a defect. The section's
+             own NOTE TO RATER and the build's yield audit both state that two of the 17 entries
+             are source-site duplicates of a third and are excluded from the 15 count. Header
+             and note agree with each other; neither was changed.
+        C: 10 bullets / header says 10 excerpts ......... match
+        D:  6 bullets / header says 6 passages .......... match
+        E:  4 bullets / header says 2 excerpts .......... MISMATCH. Not corrected. Header
+             reproduced verbatim; recorded in P-07_content_defects.txt.
+        F:  6 bullets / header says 6 excerpts .......... match
+      No section parses to zero and the whole-packet total is 51, so Rule Three is not failing.
+
+DELIBERATELY LEFT ALONE
+  Job titles, sector language and the scope declaration; all 14 source typos; the build's own
+  [FIGURE STRIPPED] marker in section F; review headlines; the two NOTE TO RATER blocks in
+  section B and the voice-composition flag in section D (the latter edited only to remove the
+  company name); the section C preamble sentence described in judgment call 12; every section
+  header count, including the one that disagrees with its own section; section and excerpt
+  order throughout; all whitespace other than the 10 inserted blank lines.
+
+########## END OF SCRUB LOG ##########

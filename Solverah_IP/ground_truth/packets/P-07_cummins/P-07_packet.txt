@@ -1,0 +1,651 @@
+BUILD RECORD
+  prompt version : v4.6
+  model          : claude-opus-5  (configured session identifier; the serving model can differ
+                   from the configured one and is not verifiable from inside the session —
+                   operator to confirm against the runtime log if an exact string is required)
+  built          : 2026-08-27
+  environment    : clean session, one company, no prior packet context
+  assisted       : NO
+  company        : Cummins Inc.
+  packet ID      : P-07 (ASSIGNED BY BUILDER — Cummins is not on the BUILD_BRIEF roster
+                   P-01..P-06. See defect S1.)
+
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE DECLARATION
+The employee reviews in this packet come from US plant, distribution and field-service roles —
+production associates, material handlers, forklift operators, line technicians, service writers
+and site team leads — plus a small number of coordinator, analyst and specialist roles. Other
+parts of this company — corporate engineering, software, data, finance and marketing — are
+barely represented in them. Company-authored sources describe the whole organisation.
+
+
+--- A. CAREERS / VALUES PAGE (8 excerpts) ---
+
+   • "At Cummins, we believe your passion is your power. Supercharge your career with the support of a global team that empowers you to do your best work."  — [company careers page] — Cummins Inc., unattributed site copy — https://www.cummins.com/en-na/careers — retrieved 2026-08-27 (no publication or modification date exposed on page) — needed JS: Y
+
+   • "No matter where you're headed in your career, Cummins offers a unique path for you. Here, you'll take on rewarding challenges with teammates who value your contributions and energy."  — [company careers page] — Cummins Inc., unattributed site copy — https://www.cummins.com/en-na/careers — retrieved 2026-08-27 — needed JS: Y
+
+   • "In our internship and co-op programs, college students take on real projects that help them apply their knowledge and gain real-world experience."  — [company careers page] — Cummins Inc., unattributed site copy — https://www.cummins.com/en-na/careers — retrieved 2026-08-27 — needed JS: Y
+
+   • "As a global leader in innovation, we offer opportunities for growth and development around the world in a diverse, inclusive, empowering environment."  — [company careers page] — Cummins Inc., unattributed site copy — https://www.cummins.com/en-na/careers — retrieved 2026-08-27 — needed JS: Y
+
+   • "Join us in fueling the future of innovation and our energy technology brand Accelera as we continue developing clean diesel, zero-emissions natural gas engines and electric, hybrid, and alternative fuel powertrain technologies."  — [company careers page] — Cummins Inc., unattributed site copy — https://www.cummins.com/en-na/careers — retrieved 2026-08-27 — needed JS: Y
+
+   • "We value your commitments outside of work, and we offer paid vacation and holidays, parental leave, adoption assistance, flexible work environments, and more to help you do your best work possible."  — [company careers page] — Cummins Inc., unattributed site copy — https://www.cummins.com/en-na/careers — retrieved 2026-08-27 — needed JS: Y
+
+   • "We believe in recognizing hard work and offer annual merit and profit sharing to celebrate both your individual achievements and the company's performance."  — [company careers page] — Cummins Inc., unattributed site copy — https://www.cummins.com/en-na/careers — retrieved 2026-08-27 — needed JS: Y
+
+   • "Every day, our Cummins employees bring our DE&l commitment to life in how we courageously live out our values. By investing in DE&l, we harness the diverse perspectives of our global employees, provide our customers with superior solutions and win with the power of difference."  — [company careers page, employee testimonial block] — attributed on page to "SHIVANI K, DATA ENGINEERING TECHNICAL SPECIALIST"; published by Cummins Inc. — https://www.cummins.com/en-na/careers — retrieved 2026-08-27 — needed JS: Y
+     [sic] "DE&l" appears twice with a lower-case letter l in place of a capital I. Reproduced as printed.
+
+
+--- B. EMPLOYEE REVIEWS (15, one per line, most recent first) ---
+
+NOTE TO RATER (truncation): 7 of the 15 reviews below were cut off at source by a "Show more"
+control that does not expand on retrieval; the cut is marked […]. That is 47% of this sample.
+The reviews that survive in full are systematically the SHORT ones, so the longest and most
+detailed accounts in this section are being read as opening paragraphs only.
+
+NOTE TO RATER (duplicates): the review dated July 22, 2026 was rendered three times by the
+source site under separate entries with identical text, date, job title and location. All three
+entries are shown; the second and third are labelled as source-site duplicates. They are ONE
+voice, not three.
+
+   • "I was an intern, flexible hours, support, guidance. The job for an intern is well payed. Limite possibilities to grow as my FEA team was small. I would recommend it to a friend."  — [employee review] — reviewer job title: not stated ("Anonymous"); location: not stated; review headline "Supportive manager, insightful" — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-08-11 — needed JS: N
+     [sic] "payed", "Limite" reproduced as printed.
+
+   • "I worked at Cummins for just shy of 3 years, and while the overtime can provide decent paychecks, I wouldn't recommend it if you value work-life balance. Working 12-hour shifts, sometimes six days a week often felt like the expectation rather than the exception. The extra money came at the expense of […]"  — [employee review] — Material Handler, Jamestown, NY; review headline "Good Pay, Poor Management" — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-07-25 — needed JS: N — TRUNCATED AT SOURCE
+
+   • "If you want a job that underpays and will work 7 days a week then go for it. The mental strain from not having days off makes working conditions terrible add in the lack luster management that are only there 5 days a week and will do nothing but nitpick and blame. Honestly just dont do it. If 0 stars […]"  — [employee review] — Team Lead, Charleston, SC; review headline "Terrible, don't do it" — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-07-23 — needed JS: N — TRUNCATED AT SOURCE
+     [sic] "lack luster", "dont" reproduced as printed.
+
+   • "First manager was great, but he left after my first few months. Second manager was terrible, no prior management experience and it did not come naturally. Coworkers were all around pretty alright. DWU was useless when it actually came to needing their help, shop stewards were a joke. President wasn't […]"  — [employee review] — Support Specialist, Columbus, IN; review headline "Overall good company to work for" — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-07-22 — needed JS: N — TRUNCATED AT SOURCE
+
+   • "First manager was great, but he left after my first few months. Second manager was terrible, no prior management experience and it did not come naturally. Coworkers were all around pretty alright. DWU was useless when it actually came to needing their help, shop stewards were a joke. President wasn't […]"  — [employee review — SOURCE-SITE DUPLICATE of the entry above; not an independent voice; not counted toward the section minimum] — Support Specialist, Columbus, IN — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-07-22 — needed JS: N — TRUNCATED AT SOURCE
+
+   • "First manager was great, but he left after my first few months. Second manager was terrible, no prior management experience and it did not come naturally. Coworkers were all around pretty alright. DWU was useless when it actually came to needing their help, shop stewards were a joke. President wasn't […]"  — [employee review — SOURCE-SITE DUPLICATE (second) of the entry two lines above; not an independent voice; not counted toward the section minimum] — Support Specialist, Columbus, IN — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-07-22 — needed JS: N — TRUNCATED AT SOURCE
+
+   • "I have been with the company for over 8 years. No matter what roll, I always appreciated the flexibility it allows with being a working parent. Something they have mastered at Cummins is work-life balance."  — [employee review] — Credit Assistant, Home; review headline "Flexibility and Consistency" — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-07-11 — needed JS: N
+     [sic] "roll" reproduced as printed.
+
+   • "A wonderful place to work at. I was there 5years before they closed but I would love to come back, the people r great the jobs ther not hard ther isn't nothing hard ther to do […]"  — [employee review] — Forklift Operator/Material Handler, Memphis, TN; review headline "A wonderful place to work at" — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-07-08 — needed JS: N — TRUNCATED AT SOURCE
+     [sic] "5years", "r", "ther" (x3) reproduced as printed.
+
+   • "I was a temp for two days and got let go. Didn't tell me the reason why. I was shadowing someone and was on my way to learning the job. Only had 1 day on the floor. I understand that safety is paramount and they take it seriously,but so do I. I would like to understand what went wrong. They also claim […]"  — [employee review] — Temporary Employee, Forest City, NC; review headline "Horrible communication" — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-06-30 — needed JS: N — TRUNCATED AT SOURCE
+     [sic] "seriously,but" reproduced as printed.
+
+   • "If you have been working there for an extended time the workplace is great. However; they only hire temps starting out, as a temp you are paid less, if someone decides they want your current position and have been there longer you are kicked out of it, if the company is working on the weekend and you […]"  — [employee review] — Production Associate, Cookeville, TN; review headline "Terrible place to start working" — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-06-29 — needed JS: N — TRUNCATED AT SOURCE
+
+   • "Cummins is a large and great company to work for with many benefits and growth. The Downey location has issues with the management, in which do not want to follow the Cummins systems and procedures and still act like a small dealer when they are not."  — [employee review] — Service Writer, Downey, CA; review headline "Great company, poor management" — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-06-22 — needed JS: N
+
+   • "Great place to work Great benefits Management could always be better Would go back in a heartbeat but things happen. Took great care of employees. Pay was competitive"  — [employee review] — Production Associate, Dallas, TX; review headline "Great place to work" — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-06-11 — needed JS: N
+     Note: rendered on the source page as six separate lines; reproduced here on one line per the one-excerpt-per-line rule. No words added, removed or reordered.
+
+   • "Training was terrible job was terrible. They expect you to work none stop with little knowledge. Room for growth is nonexistent. Wouldn't recommend this"  — [employee review] — Line Technician, Charlotte, NC; review headline "Terrible" — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-06-10 — needed JS: N
+     [sic] "none stop" reproduced as printed.
+
+   • "I would come in to work and start my day then redirected to start fighting production issues. while having to checking inventory to make sure we had everything to run...."  — [employee review] — Manufacturing Project Lead, Mineral Point, WI; review headline "Overall I made good money while the company was managed promoting overtime and change negatively." — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-06-09 — needed JS: N — TRUNCATED AT SOURCE
+     [sic] "while having to checking", lower-case sentence start and the four-dot ellipsis reproduced as printed.
+
+   • "Never felt over worked or underpayed. Plenty of opportunities to move . Good benefits. Somewhat hard to advance your career but not impossible. Would return."  — [employee review] — Cross Functional Engineering Associate, Columbus, IN; review headline "Great pay and benefits" — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-06-04 — needed JS: N
+     [sic] "underpayed", "move ." reproduced as printed.
+
+   • "But a great place needed to pay way more and very bad upper management. The sales and service is just bad anymore and not great so it's just not great place"  — [employee review] — Technical Support, Tulsa, OK; review headline "Not great" — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-05-31 — needed JS: N
+
+   • "Good pay and benefits. Management is a joke. Management holds no one accountable for anything and people can get away with anything. There is also a good ol boys club."  — [employee review] — reviewer job title: not stated ("Anonymous"); location: not stated; review headline "Good Pay" — https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 2026-05-26 — needed JS: N
+
+
+--- C. JOB POSTINGS (10 excerpts from 4 open postings, different functions) ---
+
+All four postings were opened individually on 2026-08-27 and each rendered a live posting body
+with an APPLY control and no removal or "no longer accepting applications" notice. Postings are
+identified by their own on-page "Career Path" label only. Locations and salary bands are not
+quoted; note that the source URLs, which Rule 3 requires, themselves contain city names — see
+Section 4 and defect S3.
+
+  Posting 1 — Career Path: Human Resources
+   • "Drive data-informed recruiting decisions through analysis of key performance metrics and market insights."  — [job posting] — Cummins Inc., posting body — https://cummins.jobs/columbus-in/senior-recruiter-southern-indiana/444B329FF2384B7A838396970DA79826/job/ — confirmed open 2026-08-27 — needed JS: Y
+   • "Effective at leading with urgency, adapting to changing priorities, and managing multiple recruitment initiatives simultaneously."  — [job posting] — Cummins Inc., posting body — https://cummins.jobs/columbus-in/senior-recruiter-southern-indiana/444B329FF2384B7A838396970DA79826/job/ — confirmed open 2026-08-27 — needed JS: Y
+
+  Posting 2 — Career Path: Marketing
+   • "Manage the development of market intelligence through the design, development, and delivery of information, reports, and projects that improve internal knowledge and accurately inform decision making."  — [job posting] — Cummins Inc., posting body — https://cummins.jobs/columbus-in/market-intelligence-leaders-in1244/A77B23BFF7D44DC6BE8B17FBF1675339/job/ — posting states "START DATE OF POSTING : 8/27/26" and "END DATE OF POSTING: 9/11/26"; confirmed open 2026-08-27 — needed JS: Y
+   • "Identify department issues, problems and opportunities to support continuous improvement initiatives utilizing Six Sigma tools and techniques."  — [job posting] — Cummins Inc., posting body — https://cummins.jobs/columbus-in/market-intelligence-leaders-in1244/A77B23BFF7D44DC6BE8B17FBF1675339/job/ — confirmed open 2026-08-27 — needed JS: Y
+
+  Posting 3 — Career Path: Sales
+   • "Build High-Performing Teams: Foster collaboration across diverse teams, leveraging different perspectives, experiences, and capabilities to achieve common business objectives and deliver exceptional customer outcomes."  — [job posting] — Cummins Inc., posting body — https://cummins.jobs/galesburg-mi/territory-sales-field-sales-manager/E004C16CD5B44E44B6FDD80D2AD46BC3/job/ — confirmed open 2026-08-27 — needed JS: Y
+   • "Enhance Sales Performance Through Data-Driven Insights: Leverage forecasting, pipeline analysis, and market intelligence to identify trends, prioritize opportunities, and support the successful execution of sales strategies."  — [job posting] — Cummins Inc., posting body — https://cummins.jobs/galesburg-mi/territory-sales-field-sales-manager/E004C16CD5B44E44B6FDD80D2AD46BC3/job/ — confirmed open 2026-08-27 — needed JS: Y
+
+  Posting 4 — Career Path: Manufacturing
+   • "Follows standardized work and processes documentation."  — [job posting] — Cummins Inc., posting body — https://cummins.jobs/seymour-in/dwu-sep-assembly-team-associate-2nd-shift/19B1A00C4BC04D73823AB9FD55DE7995/job/ — confirmed open 2026-08-27 — needed JS: Y
+   • "Operates within team-based work system and rotates job routine as needed."  — [job posting] — Cummins Inc., posting body — https://cummins.jobs/seymour-in/dwu-sep-assembly-team-associate-2nd-shift/19B1A00C4BC04D73823AB9FD55DE7995/job/ — confirmed open 2026-08-27 — needed JS: Y
+   • "DEMONSTRATE COURAGE by addressing challenges, speaking up about safety, quality, or process concerns, and saying what needs to be said when issues arise."  — [job posting] — Cummins Inc., posting body — https://cummins.jobs/seymour-in/dwu-sep-assembly-team-associate-2nd-shift/19B1A00C4BC04D73823AB9FD55DE7995/job/ — confirmed open 2026-08-27 — needed JS: Y
+   • "Completes work with minimal supervision."  — [job posting] — Cummins Inc., posting body — https://cummins.jobs/seymour-in/dwu-sep-assembly-team-associate-2nd-shift/19B1A00C4BC04D73823AB9FD55DE7995/job/ — confirmed open 2026-08-27 — needed JS: Y
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 6 passages across 3 sources · ladder fully attempted) ---
+
+VOICE COMPOSITION FLAG FOR THE RATER: all three D sources are COMPANY-PUBLISHED employee
+profiles on the Cummins newsroom, carrying direct first-person quotes from NON-EXECUTIVE
+employees (a program manager, an innovation program leader, a project coordinator). No
+executive voice appears in section D. Because these pieces are written and published by
+Cummins, section D here does NOT satisfy any requirement for non-company-authored support,
+even though the quoted words are employees' own.
+
+   • "I manage VPI programs, and often these products are new technologies that are not yet in the market. It is my responsibility to work with a cross-functional VPI team to capture the voice of the customer and deliver a product that meets quality, customer and cost requirements."  — [company-published employee profile, direct quote] — Ana W., VPI Program Manager, Accelera by Cummins, quoted by Cummins Inc. — https://www.cummins.com/en-na/news/2026/08/18/engineering-career-continuous-growth-ana-ws-journey-cummins-inc — 2026-08-18 — needed JS: Y
+     Note: rendered on the page as two quoted sentences separated by the attribution "Ana said"; joined here without alteration to the quoted words.
+
+   • "Launching new products requires discipline to follow the VPI process. I am proud to be part of a team that strives to deliver superior results. Despite challenges, I experience integrity by doing what is right to meet customer requirements."  — [company-published employee profile, direct quote] — Ana W., VPI Program Manager, Accelera by Cummins, quoted by Cummins Inc. — https://www.cummins.com/en-na/news/2026/08/18/engineering-career-continuous-growth-ana-ws-journey-cummins-inc — 2026-08-18 — needed JS: Y
+
+   • "My day-to-day work includes supporting strategic initiatives, managing stakeholders across functions and being a good steward of resources to ensure we make meaningful progress. It's about ensuring continued relevance in the market while thinking ahead to what's next."  — [company-published employee profile, direct quote] — Kaushik A., Innovation Program Leader, Power Systems Business, quoted by Cummins Inc. — https://www.cummins.com/en-na/news/2026/07/22/driving-innovation-purpose-kaushik-career-cummins-inc — 2026-07-22 — needed JS: Y
+
+   • "Dealing with ambiguity and different perspectives often leads to multiple ways to solve a problem. When people come together valuing those differences and staying committed to accountability, a powerful synergy happens. That's when you get the best outcomes."  — [company-published employee profile, direct quote] — Kaushik A., Innovation Program Leader, Power Systems Business, quoted by Cummins Inc. — https://www.cummins.com/en-na/news/2026/07/22/driving-innovation-purpose-kaushik-career-cummins-inc — 2026-07-22 — needed JS: Y
+     Note: rendered as two quoted segments split by "he explained"; joined without alteration to the quoted words.
+
+   • "The work environment is challenging in a good way and encourages me to be better every day. There are so many resources available to learn and improve along with a wide range of career paths depending on what you want to pursue."  — [company-published employee profile, direct quote] — Kaushik A., Innovation Program Leader, Power Systems Business, quoted by Cummins Inc. — https://www.cummins.com/en-na/news/2026/07/22/driving-innovation-purpose-kaushik-career-cummins-inc — 2026-07-22 — needed JS: Y
+
+   • "We may be a small team but we accomplish a tremendous amount together. We're constantly finding creative ways to support a global workforce."  — [company-published employee profile, direct quote] — Jose U., Senior Project Coordinator, Translation Services, quoted by Cummins Inc. — https://www.cummins.com/en-na/news/2026/07/07/connecting-global-workforce-jose-us-career-cummins-inc — 2026-07-07 — needed JS: Y
+
+
+--- E. RECENT NEWS (yield: 2 excerpts · 4 searches logged) ---
+
+   • "But the parties have recently paused the project, called Amplify Cell Technologies, because of market shifts since the joint venture was first announced."  — [news reporting] — Susan Orr, Indianapolis Business Journal, republished by Inside INdiana Business — https://www.insideindianabusiness.com/articles/1-9b-cummins-joint-venture-facing-indefinite-pause — 2026-06-26 — needed JS: Y
+
+   • "According to a layoff notice filed with the Mississippi Department of Employment Security on March 31, Amplify expected to lay off 73 employees at its Marshall County facility by May 30. Amplify cited "changing environments" as the reason for the layoffs."  — [news reporting] — Susan Orr, Indianapolis Business Journal, republished by Inside INdiana Business — https://www.insideindianabusiness.com/articles/1-9b-cummins-joint-venture-facing-indefinite-pause — 2026-06-26 — needed JS: Y
+     Note: the phrase "changing environments" inside this sentence is the reporter quoting the joint venture's filing, not Cummins.
+
+   • "Cummins Inc. has announced the promotion of four leaders to the role of vice president, effective Aug. 1, 2026."  — [news reporting] — Korn Country 100.3 newsroom, credited "Courtesy-Cummins Inc" — https://www.korncountry.com/news/latest-news-test/cummins-appoints-four-new-vice-presidents/ — 2026-07-24 — needed JS: Y
+
+   • "As we continue building on our momentum and investing in future growth, their experience and expertise will help us deliver on our commitments, strengthen the company, and create value for our stakeholders around the world."  — [company statement quoted inside news reporting] — Jennifer Rumsey, Chair and CEO, Cummins Inc., quoted by Korn Country 100.3 — https://www.korncountry.com/news/latest-news-test/cummins-appoints-four-new-vice-presidents/ — 2026-07-24 — needed JS: Y
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 6 excerpts · public/private: PUBLIC) ---
+
+Source: Cummins Inc. Form 10-K for the fiscal year ended December 31, 2025, filed 2026-02-10,
+Item 1 (Business), "Human Capital Resources". Company-authored legal filing; subject to the
+same marketing-inflation caution as the careers page and does NOT satisfy any requirement for
+non-company-authored support. Headcount, dollar and percentage figures have been stripped as
+collected and the strips are marked.
+
+   • "Throughout our more than 100-year history, we always have recognized that people drive the strength of our business and our ability to effectively serve our customers and sustain our competitive position."  — [10-K Item 1 Human Capital, company-authored] — Cummins Inc. — https://www.sec.gov/Archives/edgar/data/26172/000002617226000009/cmi-20251231.htm — filed 2026-02-10 (FY2025) — needed JS: N
+
+   • "Our workforce strategy aims to cultivate an environment where all employees, regardless of employee type and location, know what is expected of them, are rewarded for their performance based on fair and equitable reviews and have access to differentiated experiences, tools and leadership coaching to help them develop."  — [10-K Item 1 Human Capital, company-authored] — Cummins Inc. — https://www.sec.gov/Archives/edgar/data/26172/000002617226000009/cmi-20251231.htm — filed 2026-02-10 (FY2025) — needed JS: N
+
+   • "We encourage leaders to connect our people and their work to our mission, vision, values, brand promise and growth strategy, thus, motivating employees and hopefully helping them feel a higher sense of purpose in their contributions."  — [10-K Item 1 Human Capital, company-authored] — Cummins Inc. — https://www.sec.gov/Archives/edgar/data/26172/000002617226000009/cmi-20251231.htm — filed 2026-02-10 (FY2025) — needed JS: N
+
+   • "We are promoting a learning culture by providing employees and their managers with tools and resources to have meaningful development conversations, envision and plan their careers, thrive in their work and navigate in a large global organization."  — [10-K Item 1 Human Capital, company-authored] — Cummins Inc. — https://www.sec.gov/Archives/edgar/data/26172/000002617226000009/cmi-20251231.htm — filed 2026-02-10 (FY2025) — needed JS: N
+
+   • "We have established a flexible approach to in-person collaboration that reinforces our culture and strengthens employees' social well-being through engaging and meaningful interactions with their teams. We ask that most employees spend at least [FIGURE STRIPPED] of their time in our facilities, with customers or with other key stakeholders to support our strategy and the communities we serve."  — [10-K Item 1 Human Capital, company-authored] — Cummins Inc. — https://www.sec.gov/Archives/edgar/data/26172/000002617226000009/cmi-20251231.htm — filed 2026-02-10 (FY2025) — needed JS: N
+
+   • "Implemented employee role classifications and an in-person time policy. The on-site with flexibility and off-site roles provide employees the ability to leverage on-site work for collaboration, problem solving and relationship building while also providing work flexibility."  — [10-K Item 1 Human Capital, company-authored] — Cummins Inc. — https://www.sec.gov/Archives/edgar/data/26172/000002617226000009/cmi-20251231.htm — filed 2026-02-10 (FY2025) — needed JS: N
+
+
+########## SECTION 2 — RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+2a. YIELD AUDIT
+
+    REQUIRED TO YIELD:
+       A excerpts: 8/5       B reviews: 15/12      C excerpts: 10/6
+       C postings: 4/3       C outside engineering: 4/1
+       B reviews within 24 months: 15/15
+
+       (Two additional source-site duplicate entries are carried in section B and are
+        excluded from the 15 count. Section C excerpts are distributed 2 Human Resources /
+        2 Marketing / 2 Sales / 4 Manufacturing; three further quotable excerpts were
+        collected and dropped to stay inside the stated 10-excerpt ceiling.)
+
+    C EXEMPTION CLAIMED (company not hiring)?  NO
+       Company's own ATS reported "1258 Jobs" on its jobs index; 4 US postings opened
+       individually and confirmed live.
+
+    REQUIRED TO ATTEMPT:
+       D passages: 6 (across 3 sources)    ladder rungs logged: 7/7
+       D voice composition: 0 executive / 3 non-executive sources
+                            (all-executive: NO — extra rung not required and not worked;
+                             stale material found and rejected: YES, rungs 1 and 4, see 2c)
+       E excerpts: 4 (2 events)    searches logged: 4
+       F excerpts: 6    public? YES     10-K filing date: 2026-02-10 (FY ended 2025-12-31)
+
+
+2b. EVIDENCE COVERAGE
+
+       autonomy: COVERED   pace: COVERED   collaboration: COVERED
+       feedback: THIN      innovation: COVERED   decision: COVERED
+
+       (feedback: no review-cycle cadence, no candour/debate norm and no critique-delivery
+        language was found in any section; the closest material is the 10-K's "fair and
+        equitable reviews" clause and the manufacturing posting's "DEMONSTRATE COURAGE"
+        competency, both company-authored.)
+
+
+2c. LADDER CHECKLIST
+
+       D1 handbook          attempted Y  URL: https://www.cummins.com/sites/default/files/files/ethics_code-of-conduct/Code-of-Business-Conduct-2018-English.pdf
+                            outcome: FOUND BUT STALE. Document is headed "Cummins Code of
+                            Business Conduct January 2018" — 103 months old, fails the
+                            18-month gate. Its own FAQ directs employees to "the Ethics and
+                            Compliance page on Cummins Connect" for the current version;
+                            Cummins Connect is an internal portal, so the current handbook
+                            exists but is not publicly reachable. NOT an absence.
+       D2 eng/product blog  attempted Y  URL: https://www.cummins.com/en-na/news
+                            newest post date: 2026-08-27  outcome: PUBLICATION FOUND, CURRENT,
+                            AND IT YIELDS. The newsroom index is in-date and carries two
+                            distinct streams: product/technical articles (coolant management,
+                            aftertreatment, brake repair) which are customer-facing and yield
+                            nothing on working practice; and a "Life at the Company" stream of
+                            employee profiles which is where all six D passages came from.
+       D3 culture microsite attempted Y  URL: https://www.cummins.com/en-na/careers
+                            outcome: NARRATIVE TEXT FOUND BUT DOUBLE-COUNTED. The only
+                            narrative culture text is the careers page already quoted in
+                            section A; per the prompt's double-counting rule it does not count
+                            toward D. Continued down the ladder.
+                            Also attempted https://www.cummins.com/company/values — returns the
+                            site's own rendered 404 page ("404 Error - Page Not Found"). Guessed
+                            URL, not an absence.
+       D4 leader interview  attempted Y  URL: https://stories.purdue.edu/podcast/jennifer-rumsey/
+                            date: 2024-03-26  outcome: FOUND BUT STALE. Long-form CEO interview
+                            covering how careers develop at Cummins; 29 months old, fails the
+                            18-month gate. Recorded and NOT quoted into Section 1.
+       D5 public repos      attempted Y  URL: https://github.com/cummins
+                            outcome: GENUINE ABSENCE, ORGANISATION CONFIRMED. The handle is the
+                            company's (links to cummins.com, US-based, member @timviola-cmi —
+                            not a name collision). "This organization has no public
+                            repositories." Zero RFC threads, zero contribution guidelines.
+       D6 press profile     attempted Y  URL: https://www.insideindianabusiness.com/articles/1-9b-cummins-joint-venture-facing-indefinite-pause
+                            date: 2026-06-26  outcome: CURRENT REPORTING FOUND, but it is
+                            business/financial reporting on a joint venture with quotes from a
+                            spokesperson and no employee or executive account of how the
+                            company works. Used in section E, not D.
+       D7 conference talk   attempted Y  URL: https://dieselnet.com/news/2026/04sae_wcx.php
+                            date: 2026-04-24 (conference 2026-04-14/16)  outcome: PRESENCE
+                            CONFIRMED, NO WORKING-PRACTICE CONTENT. A third-party conference
+                            report records at least four Cummins technical papers at WCX 2026
+                            ("Cummins characterized the performance of a state-of-the-art
+                            Fe/zeolite SCR catalyst", "Two talks by Cummins discussed the
+                            application of urea-SCR aftertreatment in heavy-duty, lean-burn
+                            hydrogen fueled engines"). This evidences an active R&D publishing
+                            posture but contains no first-person account of how the company
+                            works, so it yields nothing for D. Primary talk slides/abstracts
+                            sit behind SAE's paywall and were not pursued (no sign-in rule).
+
+       Rungs rejected as stale (>18 months): 2 — D1 (2018-01) and D4 (2024-03).
+
+       C fallbacks tried: reviews-site job view — not needed (company ATS rendered)
+                          ATS param found — YES, company runs its own careers domain
+                          cummins.jobs (Radancy-style path pattern /<city>/<slug>/<GUID>/job/),
+                          confirmed by extracting hrefs from the rendered index
+                          greenhouse — N/A (not the ATS)   lever — N/A   workday — N/A
+                          ashby — N/A   aggregator — not needed
+                          Note: plain HTTP fetch of https://cummins.jobs/jobs/ returned only
+                          <head> metadata with no listings; the JS renderer returned "1258 Jobs"
+                          and the full list. Classic D13/D12 shape — the empty fetch is not an
+                          absence.
+
+       E news searches run: 4
+         q1 "Cummins 2026 layoffs restructuring leadership change return to office announcement"
+         q2 "Cummins Inc layoffs 2026 news report workers jobs cut"
+         q3 "Cummins second quarter 2026 results raises outlook Reuters coverage August 2026"
+         q4 "Cummins Columbus Indiana 2026 plant investment hiring news coverage The Republic /
+             IndyStar / Inside INdiana Business"
+         Excluded from quotation as non-reporting per the prompt: thelayoff.com, warntracker.com,
+         layoffstoday.io, workcules.com, gettransport.com blog, stocktitan, gurufocus,
+         investingnews (all aggregators, trackers or content farms).
+
+
+2d. SOURCE ACCESS LOG
+
+  RETRIEVED — plain HTTP fetch (needed JS: N)
+   1. https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — 200, full review list
+   2. https://www.indeed.com/cmp/Cummins/job-titles — 200, complete title index with counts
+   3. https://www.indeed.com/cmp/Cummins — 200, profile metrics
+   4. https://www.indeed.com/cmp/Cummins-Emission-Solutions,-Cummins-Inc/reviews — 200
+   5. https://www.indeed.com/cmp/Cummins-Filtration-1/reviews — 200
+   6. https://www.glassdoor.com/Reviews/Cummins-Reviews-E187.htm?sort.sortType=RD&sort.ascending=false — 200, NOT bot-walled on plain fetch
+   7. https://www.sec.gov/Archives/edgar/data/26172/000002617226000009/cmi-20251231.htm — 200, Item 1 Human Capital retrieved in full
+   8. https://www.sec.gov/Archives/edgar/data/26172/000002617226000009/ — 200, filing index
+   9. https://www.cummins.com/sites/default/files/files/ethics_code-of-conduct/Code-of-Business-Conduct-2018-English.pdf — 200
+  10. https://github.com/cummins — 200, "no public repositories"
+  11. https://dieselnet.com/news/2026/04sae_wcx.php — 200
+  12. https://www.cummins.com/careers — 200 but the answering layer returned a SUMMARY rather
+      than page text; re-retrieved with the renderer for verbatim. See defect S2.
+  13. https://cummins.jobs/jobs/ — 200 but body empty (JS shell). Not an absence.
+
+  RETRIEVED — JavaScript renderer (needed JS: Y)
+  14. https://www.cummins.com/en-na/careers — full text
+  15. https://www.cummins.com/en-na/news — full newsroom index
+  16. https://www.cummins.com/en-na/news/2026/08/18/engineering-career-continuous-growth-ana-ws-journey-cummins-inc
+  17. https://www.cummins.com/en-na/news/2026/07/22/driving-innovation-purpose-kaushik-career-cummins-inc
+  18. https://www.cummins.com/en-na/news/2026/07/07/connecting-global-workforce-jose-us-career-cummins-inc
+  19. https://cummins.jobs/jobs/ — 1258 Jobs, list rendered
+  20. https://cummins.jobs/usa/jobs/ — US list rendered, hrefs extracted
+  21. https://cummins.jobs/columbus-in/senior-recruiter-southern-indiana/444B329FF2384B7A838396970DA79826/job/
+  22. https://cummins.jobs/columbus-in/market-intelligence-leaders-in1244/A77B23BFF7D44DC6BE8B17FBF1675339/job/
+  23. https://cummins.jobs/galesburg-mi/territory-sales-field-sales-manager/E004C16CD5B44E44B6FDD80D2AD46BC3/job/
+  24. https://cummins.jobs/seymour-in/dwu-sep-assembly-team-associate-2nd-shift/19B1A00C4BC04D73823AB9FD55DE7995/job/
+  25. https://www.indeed.com/cmp/Cummins/reviews?sort=date&fcountry=US — renderer NOT bot-walled
+      here; used to verify the plain-fetch review text word for word
+  26. https://www.korncountry.com/news/latest-news-test/cummins-appoints-four-new-vice-presidents/
+  27. https://www.insideindianabusiness.com/articles/1-9b-cummins-joint-venture-facing-indefinite-pause
+  28. https://social.cummins.com/careers/working-at-cummins — 301 to https://www.cummins.com/en-na/news
+
+  ATTEMPTED AND FAILED
+  29. https://www.cummins.com/company/values — site's own 404 page. Guessed URL; not an absence.
+  30. https://www.therepublic.com/2026/05/06/cummins-to-close-warehouse-lay-off-59-workers/ —
+      plain fetch 403; renderer refused the domain outright. EXISTED BUT COULD NOT BE REACHED,
+      by either method. Not an absence.
+  31. https://www.therepublic.com/2026/06/26/1-9b-cummins-joint-battery-plant-facing-indefinite-pause/ —
+      same domain, not attempted after 30 failed; the same IBJ story was reached at #27.
+  32. https://fox59.com/indiana-news/cummins-closes-whitestown-warehouse-59-workers-laid-off/ —
+      plain fetch 403. Renderer not attempted (see defect C3).
+
+  NOT ATTEMPTED — BY RULE
+  33. Any Glassdoor or Indeed content behind a sign-in; any SAE paywalled paper; Cummins Connect
+      (internal employee portal). Never signed in to anything.
+
+
+2e. FIDELITY NOTE
+
+  • No [PARAPHRASE] markers were required. Every excerpt in Section 1 is verbatim from an opened
+    page.
+  • THE ANSWERING LAYER ON PLAIN FETCH PARAPHRASES. On https://www.cummins.com/careers the plain
+    fetch returned a tidy prose summary with no quotable sentences; the renderer returned the page
+    text. Worse, on the Indeed review list the plain fetch reported the 2026-08-11 reviewer's job
+    title as "Intern" — the page prints "Anonymous", and "intern" appears only inside the review
+    body ("I was an intern"). That is an inferred field presented as a source field. Every section
+    B attribution in this packet is taken from the RENDERER's raw page text, and the two methods
+    were cross-checked line by line; they agree on all other fields and on every word of body text.
+    See defect S2.
+  • Preserved source typos, all in section B unless noted: "payed", "Limite", "lack luster",
+    "dont", "roll", "5years", "r", "ther" (x3), "seriously,but", "none stop", "while having to
+    checking", "underpayed", "move ." — plus section A's "DE&l" (lower-case l for capital I,
+    twice, in a named employee's testimonial). These are unique-string identifiers; flagged in
+    Section 4.
+  • Posting open/closed status: all four confirmed on their own pages; none carried a removal
+    notice. Posting 2 prints its own posting window (8/27/26 to 9/11/26). No posting is in doubt.
+  • ENTITY CHECK RESULT — run before any review was collected. Three Indeed employer entities
+    exist for this company plus one Glassdoor entity:
+       (i)   indeed.com/cmp/Cummins — the main profile, all 15 reviews taken from here. Overall
+             3.8. No claimed/unclaimed badge rendered on the profile page in either retrieval
+             method, so claim status is UNDETERMINED rather than claimed.
+       (ii)  indeed.com/cmp/Cummins-Emission-Solutions,-Cummins-Inc — 7 reviews, 2.7 overall,
+             explicitly UNCLAIMED. Newest review 2025-05-10, so every review on it falls outside
+             the recency frame; none reached the sample.
+       (iii) indeed.com/cmp/Cummins-Filtration-1 — 2 or 3 reviews (the heading says "2 Reviews",
+             the nav tab says "3"), 3.3 overall. Newest review 2022-04-16. Note this entity
+             corresponds to a filtration business that has since been separated from Cummins,
+             so it is arguably a different employer; either way its reviews are four years old
+             and none reached the sample.
+       (iv)  glassdoor.com/Reviews/Cummins-Reviews-E187.htm — employer ID confirmed by search as
+             E187, not guessed. No KO keyword segment in the URL used.
+    Review counts are NOT implausibly low for the headcount: roughly 5.2K on Indeed and 7.1K on
+    Glassdoor against a workforce of tens of thousands is a normal ratio. No single-entity
+    assumption was made.
+  • Section B was collected COMPANY-WIDE newest-first per v4.6. The title index was retrieved but
+    used only to characterise the population (2f/2g), never as the sampling frame.
+  • No interview write-ups appeared in the sampled range; none excluded.
+  • No employer responses appeared beneath any sampled review; the [employer response] tag is
+    therefore unused in this packet.
+
+
+2f. VINTAGE BLOCK
+
+       Review entities found: 4
+          indeed.com/cmp/Cummins — 5,177 / 3,370 / 5.2K depending on element (see below),
+             3.8 overall, claim status undetermined (no badge rendered)
+          indeed.com/cmp/Cummins-Emission-Solutions,-Cummins-Inc — 7 reviews, 2.7, UNCLAIMED
+          indeed.com/cmp/Cummins-Filtration-1 — "2 Reviews" heading / "3" nav tab, 3.3,
+             claim status not rendered
+          glassdoor.com/Reviews/Cummins-Reviews-E187.htm — 7,088, 4.0, employer page
+
+       Review counts BY SITE, each with the ELEMENT it came from:
+          Indeed — "3,370 Reviews" in the HTML <title>
+          Indeed — "3,370 reviews" as the results-list heading above the sort control
+          Indeed — "Based on 5,177 reviews" in the Overall rating block on the SAME page
+          Indeed — "5.2K Reviews" in the navigation tab on /cmp/Cummins and /job-titles
+          Indeed — "5,048 Reviews" and "5,062 Reviews" in two search-engine-indexed <title>
+             values for filtered variants of the same reviews page
+          Glassdoor — "7,088 total reviews" in the ratings section
+          Glassdoor — "Glassdoor has 7,088 Cummins reviews" in the page's own FAQ block
+          Glassdoor — "Cummins Reviews (7,060)" in the search-engine-indexed <title>
+
+       Conflicting counts observed on a single page: YES — the Indeed reviews page shows
+          3,370 (title), 3,370 (list heading) and 5,177 (rating block) simultaneously; the
+          Indeed profile page shows 5.2K in the nav against those. Textbook D4. The 3,370 /
+          5,177 split is almost certainly a US-filter versus all-countries denominator, but
+          the page never says so — which is exactly why a bare number is not usable.
+
+       Job counts also contradict: "534" jobs on the Indeed profile nav, "587 Jobs" on the
+          Indeed job-titles page nav, "1258 Jobs" on the company's own ATS index. Recorded
+          because it is the same defect shape in a different field.
+
+       Headline ratings BY SITE: Indeed 3.8 overall, work-life balance 3.7, pay and benefits
+          3.8, job security and advancement 3.3, management 3.3, culture 3.7.
+          Glassdoor 4.0 overall, work-life balance 4.0.
+          DIVERGENCE RECORDED, NOT RECONCILED: 3.8 vs 4.0 overall and 3.7 vs 4.0 on work-life
+          balance. Not averaged, not used as evidence anywhere in Section 1.
+
+       Job titles sampled: NONE — v4.6 recency frame. Title is per-review metadata only.
+          Titles that appeared in the 15-review recency sample, with the element being the
+          per-review byline on the reviews list: Material Handler; Team Lead; Support Specialist
+          (x3 entries, one voice); Credit Assistant; Forklift Operator/Material Handler;
+          Temporary Employee; Production Associate (x2); Service Writer; Line Technician;
+          Manufacturing Project Lead; Cross Functional Engineering Associate; Technical Support;
+          and 2 entries with no title stated.
+
+       Per-title subratings: NOT COLLECTED — removed in v4.5.
+
+       Title index (indeed.com/cmp/Cummins/job-titles), retrieved for population characterisation
+          only, counts as printed beside each title on that index:
+          Largest buckets — Assembler 189, Technician 97, Machine Operator 96, Diesel Technician
+          73, Forklift Operator 67, Engineer 45, Service Manager 42, Field Service Technician 41,
+          Manager 41, Material Handler 40, Production Worker 40, Customer Service Representative 36.
+          Corporate/technology buckets — Product Engineer 12, Application Developer 11, Software
+          Engineer 7, Performance Engineer 6, Product Development Engineer 6, Product Manager 5,
+          Data Scientist 5, Data Analyst 7, Business Analyst 9, Financial Analyst 11, Marketing
+          Manager 2, Marketing Specialist 2, Director of Marketing 2.
+          The whole software and marketing organisation of a company employing tens of thousands
+          is in single digits to low teens. This is the P-02 shape and it is not fixable by
+          sampling.
+
+       Achievability gate run on every percentage recorded anywhere in the packet: YES.
+       Percentages struck for failing the gate: NONE — because no percentage survived into
+          Section 1 in the first place. The gate found nothing to strike:
+            · Indeed "CEO approval 55%" — EVALUATIVE (hard rule 8) and printed with NO n
+              anywhere on the page, so the gate is untestable on it. Barred from Section 1 on
+              rule 8 grounds regardless. Also note it names Jennifer Rumsey, who IS the current
+              chief executive (confirmed as Chair and CEO in 2026-07-24 reporting), so the P-04
+              stale-CEO failure does not apply here.
+            · Indeed "Work wellbeing score 70" — an index, not a percentage, and evaluative.
+              Not used.
+            · 10-K "at least 60 percent of their time in our facilities" — a policy threshold,
+              not a proportion of a sample; the gate does not apply. Stripped anyway under the
+              section F figure-stripping rule.
+          No other percentage appears in any source quoted in this packet.
+
+       Titles present but NOT sampled, with counts: not applicable under the v4.6 recency frame.
+          Every title in the index other than those listed above is unsampled by construction.
+
+       Interview write-ups excluded from review lists: 0
+
+       Newest review date BY SITE: Indeed 2026-08-11; Glassdoor 2026-08-25.
+          Divergence: 14 days. NOT material. Indeed's coverage of this company is current and
+          the P-03/P-04 staleness signature is absent.
+
+       Oldest review used: 2026-05-26
+       Median age of reviews used: 1.9 months (computed against build date 2026-08-27)
+       Reviews truncated at source: 7/15 = 47%  ** exceeds 33% — NOTE TO RATER placed at the
+          head of section B **
+       Source-site duplicates retained: 2 (both of the 2026-07-22 Support Specialist entry;
+          three identical entries total)
+
+       Newest careers-page modification date: NOT EXPOSED. Neither the rendered page nor its
+          markup carries a publication or last-modified date. Undatable, not stale-by-default.
+          Internal dating cue only: the awards block lists "Military Friendly Employer Bronze
+          Award 2026" alongside several 2024 awards, so the page has been edited at some point
+          in 2026.
+
+       Structural events found and their dates:
+          2026-06-26 (reported) — Amplify Cell Technologies battery joint venture paused
+             indefinitely; 73 JV-employee layoffs notified 2026-03-31, effective by 2026-05-30.
+             Cummins is a 30% partner; the layoffs are at the JV, not at Cummins itself.
+          2026-05-06 (reported, source unreachable — see 2d #30) — a warehouse closure with 59
+             layoffs. Recorded as a dated event on the strength of two independent headline
+             listings; NOT quoted anywhere, because neither outlet could be opened.
+          2026-07-23/24 — four leaders promoted to vice president, effective 2026-08-01.
+          2026-08-24 — a newly created Vice President role for Financial Planning, Capital
+             Management and Investor Relations, effective September.
+          2026-08-04 — Q2 2026 results reported with full-year outlook raised.
+
+       Does any structural event postdate the newest review?  YES — the 2026-08-24 leadership
+          appointment postdates the newest review (2026-08-11) by 13 days. The gap is small and
+          the event is a single executive appointment, not a reorganisation, so section B and
+          section E describe the same organisation. The materially larger events (the JV pause,
+          the warehouse closure) all PREDATE the newest review.
+
+
+2g. SCOPE BLOCK
+
+       A careers / values     population: company-wide, global, all functions
+       B employee reviews     population: overwhelmingly US site-level and field roles —
+                              production associate, material handler, forklift operator, line
+                              technician, service writer, plant team lead, plus one credit
+                              assistant, one order-management specialist, one disability
+                              specialist, one manufacturing project lead, one cross-functional
+                              engineering associate, one former intern, and 2 entries with no
+                              title stated
+       C job postings         population: the four functions posted for — Human Resources,
+                              Marketing, Sales, Manufacturing. Note the company's ATS shows
+                              1258 open roles across many more functions; these four were the
+                              ones opened and confirmed live.
+       D first-person         population: salaried programme and coordination roles in product
+                              introduction, innovation and internal translation services —
+                              i.e. corporate, not the shop floor. Published by the company.
+       E news                 population: company-wide / corporate and a joint venture
+       F human capital        population: company-wide, global, all employee types
+
+       Working environments known to exist in this company but ABSENT from the review
+       population: software engineering, data science, marketing, product management and
+       corporate finance are present in the title index only in single digits to low teens
+       (Software Engineer 7, Data Scientist 5, Product Manager 5, Marketing Manager 2) against
+       Assembler 189 and Technician 97. None of them appears in the 15-review recency sample.
+       Executive and senior leadership are absent entirely. Non-US operations are absent from
+       section B by the US country filter applied at collection.
+
+       Does the company-authored evidence (A, F) describe a wider population than the
+       experiential evidence (B)?  YES. Sections A and F speak for the whole global workforce
+       of a company employing tens of thousands across five business segments. Section B is
+       almost entirely US plants, distribution sites and service branches. Section D, although
+       experiential in voice, is ALSO company-authored and describes corporate programme roles
+       — so it widens the population without adding a non-company-authored source. In this
+       packet, every word describing corporate or salaried working life is company-authored,
+       and every non-company-authored word describes the shop floor. Any scoring rule requiring
+       non-company-authored support will find that support only for the site-level population.
+
+       One-line scope declaration (reproduced at the head of the packet):
+       "The employee reviews in this packet come from US plant, distribution and field-service
+        roles. Other parts of this company — corporate engineering, software, data, finance and
+        marketing — are barely represented in them. Company-authored sources describe the whole
+        organisation."
+
+
+########## SECTION 3 — ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+
+- Approx. headcount: approximately 67,400 worldwide at 2025-12-31. Company-sourced and legally
+  accountable (Form 10-K Item 1, filed 2026-02-10). HIGH confidence. Same figure repeated in the
+  company's own boilerplate on newsroom articles dated 2026-08. Approximately 20,000 of those
+  employees are covered by collective bargaining agreements expiring between 2026 and 2030 —
+  same source. Note Indeed's profile states only "more than 10,000", a banded third-party
+  figure; the 10-K figure is the one to use.
+
+- Stage/size cues: PUBLIC, NYSE: CMI. Founded 1919. Five reported business segments (Engine,
+  Components, Distribution, Power Systems, Accelera). FY2025 sales $33.7 billion, net earnings
+  $2.8 billion — company boilerplate, cummins.com newsroom, 2026-08. Headquartered in Columbus,
+  Indiana. Q2 2026 reported 2026-08-04 with full-year outlook raised. Mature, widely-held large
+  cap; no funding stage applies. A $1.9bn battery joint venture in which it holds 30% is paused
+  indefinitely (reported 2026-06-26).
+
+- Pay-posture EVIDENCE (band NOT assigned): the correct reference class is US diversified
+  industrial / heavy-duty powertrain manufacturers, NOT technology employers — the modal job in
+  this company is a plant or field-service role, and the review population reflects that.
+  Evidence pointing both ways: the company's own 10-K states it conducts "market analyses to
+  ensure our ranges are competitive" and performs "annual compensation studies to assess market
+  movement, pay equity and living wages", and offers "annual merit and profit sharing".
+  Reviewers repeatedly volunteer pay as a positive ("Good pay and benefits", "Pay was
+  competitive", "Never felt over worked or underpayed", "the overtime can provide decent
+  paychecks") while others describe it as low ("a job that underpays", "needed to pay way
+  more") and several describe a temp-to-hire tier paid less than direct staff. One posted
+  salary band was visible on the marketing posting and is deliberately not reproduced here or
+  in Section 1.
+
+- Industry: OTHER — diversified industrial manufacturing (heavy-duty engines, powertrain
+  components, power generation), with a distribution and field-service arm. Not tech, not
+  finance, not healthcare, not retail. Justification: the company designs and manufactures
+  physical powertrain and power-generation hardware and services it through its own branch
+  network; its review population is dominated by assembly, machining and technician roles.
+
+
+########## SECTION 4 — ANONYMIZATION PRE-FLAGS ##########
+
+COMPANY NAME occurrences in Section 1: "Cummins" appears in section A excerpts 1 and 8; in
+section B reviews dated 2026-07-11 and 2026-06-22; in section D attributions and in the Ana W.
+excerpt indirectly; in section E excerpts and attributions; and in section F attributions.
+"Cummins Inc." appears throughout attributions.
+
+BRAND AND PRODUCT NAMES: "Accelera" (section A excerpt 5, section D attribution and body),
+"Amplify Cell Technologies" (section E), "VPI" and "Value Package Introduction" (section D —
+this is an internal process name and is highly searchable), "DWU" (section B, 2026-07-22 review
+— an internal union/works-unit abbreviation), "SEP" (section C posting 4 URL).
+
+PERSON NAMES: "SHIVANI K, DATA ENGINEERING TECHNICAL SPECIALIST" (section A excerpt 8);
+"Ana W." (section D); "Kaushik A." (section D); "Jose U." (section D); "Jennifer Rumsey, Chair
+and CEO" (section E); "Susan Orr, Indianapolis Business Journal" (section E byline).
+
+NAMED INTERNAL PROGRAMMES: "VPI" / "Value Package Introduction" (D), "Translation Services"
+team (D), "RePower" returnship (A context), "CARE" racial-equity programme (A context, not
+quoted), "Cummins Connect" internal portal (2c). Section F's programme references were already
+rewritten as generic clauses at collection per the rewrite-the-proper-noun rule; no named
+internal programme survives into the F excerpts.
+
+OFFICE AND SITE LOCATIONS in section B, to be REPLACED with generic tokens, not deleted — the
+dispersion signal depends on the distinctions surviving:
+   Jamestown, NY → [Site A];  Charleston, SC → [Site B];  Columbus, IN → [Site C] (appears
+   twice, on the 2026-07-22 triplicate and the 2026-06-04 review — note Columbus, IN is
+   headquarters and is the single most re-identifying location token in the packet);
+   Home → [Remote];  Memphis, TN → [Site D];  Forest City, NC → [Site E];
+   Cookeville, TN → [Site F];  Downey, CA → [Site G];  Dallas, TX → [Site H];
+   Charlotte, NC → [Site I];  Mineral Point, WI → [Site J];  Tulsa, OK → [Site K];
+   Roseville, MN and Nashville, TN appear only in retained-but-unsampled entries.
+   Two reviews have no location stated.
+
+JOB-POSTING URLS RE-IDENTIFY: every section C URL contains the city, the state and the full job
+title in its path (e.g. /columbus-in/senior-recruiter-southern-indiana/). Rule 3 requires the
+exact URL; the section C capture rule forbids reporting titles, locations and site names. These
+two rules collide and the URL wins by hard-rule precedence. The anonymization step must either
+tokenise the URL paths or accept that section C is re-identifying. Flagged as defect S3.
+
+DISTINCTIVE SELF-DESCRIPTIONS, searchable verbatim even after the name is removed:
+   "we believe your passion is your power" (A1)
+   "Supercharge your career" (A1)
+   "win with the power of difference" (A8)
+   "Power to build the future together" (page H1, not quoted but adjacent)
+   "Powering a more prosperous future" (D, Kaushik context)
+   "We Are Cummins" (D, Jose context, not quoted into Section 1)
+   "Destination Zero" (company boilerplate, Section 3 only)
+   "our mission, vision, values, brand promise and growth strategy" (F excerpt 3)
+
+PRESERVED SOURCE TYPOS ARE UNIQUE-STRING IDENTIFIERS — each is individually searchable and will
+locate the exact source page:
+   Section A: "DE&l" (twice, lower-case l for capital I) — this one is especially identifying
+   because it sits inside a named employee's testimonial.
+   Section B: "payed", "Limite", "lack luster", "dont", "roll", "5years", "r", "ther",
+   "seriously,but", "none stop", "while having to checking", "underpayed", "move .".
+
+OTHER IDENTIFYING TOKENS: the SEC accession path in every section F URL; the Indeed and
+Glassdoor employer slugs and the Glassdoor employer ID E187; the ATS GUIDs in section C URLs;
+"Manaus, Brazil", "Wayne State University", "University of South Alabama", "Honduras",
+"Nashville-based band Pretty Ravens" and "GOAL Nashville" in section D source pages (none quoted
+into Section 1, but they are one click from every D URL).
+
+
+########## END OF PACKET ##########

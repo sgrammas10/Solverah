@@ -1,0 +1,674 @@
+BUILD RECORD
+  prompt version : v4.6
+  model          : claude-opus-5
+  built          : 2026-08-13
+  environment    : clean session, one company, no prior packet context
+  assisted       : NO
+
+  RETRIEVAL METHODS AVAILABLE THIS RUN: ONE, not two. Plain HTTP fetch worked. The
+  JavaScript renderer (browser tool) was unreachable for the entire build — three
+  attempts, all returned "Claude in Chrome is not connected". Every "could not be
+  reached" finding below is therefore a one-method finding, not the two-method
+  exhaustion the prompt requires. Logged as a STRUCTURAL defect (DEF-1).
+
+  NEVER SIGNED IN TO ANY SOURCE. No authenticated content collected.
+
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE DECLARATION
+   "The employee reviews in this packet come from front-line and mid-level operations
+    staff at a health insurer — member and provider services, claims processing,
+    utilization-review nursing, pharmacy, case management, and their immediate
+    supervisors and managers. Other parts of this company — engineering, product,
+    design, data, actuarial, finance, marketing and legal — are almost entirely absent
+    from them. Company-authored sources describe the whole organisation."
+
+
+--- A. CAREERS / VALUES PAGE (8 excerpts) ---
+
+   • "Oscar is the first health insurance company built around a full stack technology platform and a relentless focus on serving its members. Oscar is powered by people from all kinds of backgrounds. They all have one thing in common: they care deeply and have a strong desire to make a frustrating healthcare system easier, more human and better for absolutely everyone."  — [company careers page] — Oscar Health (company-authored) — https://www.hioscar.com/careers — page retrieved 2026-08-13, no modification date published (needed JS: N)
+
+   • "No genius without grit. Be relentless. Be scrappy. Trying and failing beats not trying and changing nothing."  — [company values page] — Oscar Health (company-authored, value 03) — https://www.hioscar.com/careers — retrieved 2026-08-13 (needed JS: N)
+
+   • "Seek the truth. … but never assume you've found it. Be scientific."  — [company values page] — Oscar Health (company-authored, value 04) — https://www.hioscar.com/careers — retrieved 2026-08-13 (needed JS: N)
+
+   • "Inspire & provoke. Develop and display leadership at all levels. Fight to be the best."  — [company values page] — Oscar Health (company-authored, value 05) — https://www.hioscar.com/careers — retrieved 2026-08-13 (needed JS: N)
+
+   • "Be transparent. Give and ask for direct feedback. Be grateful for and excited by the help of others."  — [company values page] — Oscar Health (company-authored, value 06) — https://www.hioscar.com/careers — retrieved 2026-08-13 (needed JS: N)
+
+   • "Make it right. Admit your mistakes. Then learn from them. Never build alone."  — [company values page] — Oscar Health (company-authored, value 07) — https://www.hioscar.com/careers — retrieved 2026-08-13 (needed JS: N)
+
+   • "Healthcare is hard. Our technology team makes it better by building scalable and sustainable applications, infrastructure, and interfaces."  — [company careers page, tech section] — Oscar Health (company-authored) — https://www.hioscar.com/careers/tech — retrieved 2026-08-13 (needed JS: N)
+
+   • "Your development as a professional matters. That's why we offer structured performance reviews, employee-led workshops, and an Executive Speaker series to help you grow your career."  — [company careers page, early-career section] — Oscar Health (company-authored) — https://www.hioscar.com/careers/early-career — retrieved 2026-08-13 (needed JS: N)
+
+
+--- B. EMPLOYEE REVIEWS (15 reviews, one per line, most recent first) ---
+
+NOTE TO RATER — TWO THINGS YOU CANNOT SEE FROM THE EXCERPTS THEMSELVES:
+
+   (1) TRUNCATION. 12 of the 15 reviews below were cut off at the source by a
+   "Show more" control that does not expand on fetch. That is 80% of this sample —
+   far above the level at which truncation stops being incidental. The cut is
+   length-based: the three reviews that survive in full are the three shortest ones.
+   You are reading the opening paragraph of every detailed account and the whole of
+   every brief one. Cuts are marked […].
+
+   (2) A CROSS-SITE RECENCY GAP. The site supplying this text holds 237 reviews and
+   its newest is dated 2026-04-13. A second review site holds 924 reviews for the same
+   employer and its newest is dated 2026-08-06 — roughly four months more current, on
+   roughly four times the volume. The prose below is therefore drawn from the thinner
+   and slightly staler of the two review populations. The four months of evidence
+   visible only on the other site are not in this packet, because that site renders
+   review bodies as bullet fragments rather than prose and is barred from Section 1.
+
+   • "Despite frequent messaging around internal mobility, promotions are not granted even when employees are already performing the responsibilities of the role to which they're applying and beyond. Despite going above and beyond, they'll subjectively evaluate you and rate your performance as meeting expectations." […]  — [employee review] — title: not stated · location: not stated — https://www.indeed.com/cmp/Oscar-Health-1/reviews/run-don-t-walk?id=add2f0dbc6fe0b0c — 2026-04-13 (needed JS: N)
+
+   • "As a Utilization Management RN, I was concerned that supervision structures, where vocational nurses/LVN managed Registered Nurses, didn't align with state Nurse Practice Act regulations regarding scope of practice. / I felt this structure created potential risk to member safety and licensing integrity," […]  — [employee review] — title: Utilization Review Nurse · location: Anaheim, CA — https://www.indeed.com/cmp/Oscar-Health-1/reviews/lvn-managed-registered-nurses-didn-t-align-with-state-nurse-practice-act-regulations-regarding-scope-of-practice?id=83317fd0045b9760 — 2026-03-13 (needed JS: N)
+
+   • "You have significant autonomy to do your job with appropriate support when needed. There is not much room for growth. My position is fully remote which was excellent for work/life balance."  — [employee review] — title: not stated · location: not stated — https://www.indeed.com/cmp/Oscar-Health-1/reviews/good-support?id=93d901028c8f0b6c — 2026-01-12 (needed JS: N) [rendered in full, not truncated]
+
+   • "Heartless company, constant uncertainty. After years working there and through staff shortage, they finally repaid me by laying me off with no severance and no care. Used to be great company to work for but now it's run by people who care for their own power in each team. Highly do not recommend working" […]  — [employee review] — title: Engineer · location: New York, NY — https://www.indeed.com/cmp/Oscar-Health-1/reviews/no-longer-a-good-company-to-work-for?id=30bbb6775eb2e132 — 2025-12-13 (needed JS: N)
+
+   • "What is the best part of working at the company? / The benefits! Nothing more than that. Sad to say. / What is the most stressful part about working at the company? / The constant changes & yearly layoffs! / What is the work environment and culture like at the company? / Frequent management changes, chaotic." […]  — [employee review] — title: Clinical Coordinator · location: Florida — https://www.indeed.com/cmp/Oscar-Health-1/reviews/chaotic-and-feelings-of-uncertainty-will-have-you-mentally-exhausted?id=e5844301c7902f7a — 2025-09-11 (needed JS: N)
+
+   • "Oscar is a great company to work for, but sometimes unorganized! They offer remote work answering there [sic] members benefit questions, prior authorization questions. They often change work processes, KPI and you are expected to keep up with any and all changes at the last minute. Not much room for growth" […]  — [employee review] — title: Care Guide · location: Remote — https://www.indeed.com/cmp/Oscar-Health-1/reviews/great-company-to-work-for?id=0cac56b927a58306 — 2025-09-06 (needed JS: N)
+
+   • "Oscar Health is full of people who will stab you in the back at a moment's notice. This may include your direct manager, peers on the same team, stakeholders, or really just anyone who wants to. / Enormous mistakes are made at the Director+ level with no accountability. Instead, it gets pinned on others" […]  — [employee review] — title: not stated · location: Tempe, AZ — https://www.indeed.com/cmp/Oscar-Health-1/reviews/don-t-trust-anyone?id=981fbf03cb59cbcb — 2025-08-27 (needed JS: N)
+
+   • "It was a wonderful first corporate job. Moving around in the company just depends on what is available at the time. As my time there continued, they started to get more strict and micro-managey. Towards the end, the company only started to care about their profit and making money. The flexibility of" […]  — [employee review] — title: Insurance Operations Claims Processor · location: not stated — https://www.indeed.com/cmp/Oscar-Health-1/reviews/claims-processor?id=7903fe88f8ec1266 — 2025-08-23 (needed JS: N)
+
+   • "Not a good job for parents that want to work from home with kids. Very micromanage. They want you to learn how to do every roll [sic] with no extra pay or change in salary." […]  — [employee review] — title: Claims Specialist · location: Phoenix, AZ — https://www.indeed.com/cmp/Oscar-Health-1/reviews/micromanage?id=ad34c0be372b9554 — 2025-06-27 (needed JS: N)
+
+   • "Great place to work I only left because I went back to school to finish my degree. But I would have stayed and possibly retired there. Hopefully I can go back once I obtain my degree"  — [employee review] — title: UM · location: Remote — https://www.indeed.com/cmp/Oscar-Health-1/reviews/great-place-to-work?id=d6fc44758a891946 — 2025-06-25 (needed JS: N) [rendered in full, not truncated]
+
+   • "Friendly vibe, good team and good supervisor. Not a lot of growth opportunities as they are getting saturated with pharmacist. May be good if you want a small or not looking for growing right away"  — [employee review] — title: Pharmacist · location: not stated — https://www.indeed.com/cmp/Oscar-Health-1/reviews/friendly?id=8db43718a1cac1bf — 2025-06-24 (needed JS: N) [rendered in full, not truncated]
+
+   • "Very stressful and not positive work place. They don't set you up for success at your job. They will hire from outside the company before promoting from within." […]  — [employee review] — title: Insurance Operations Supervisor · location: Tampa, FL — https://www.indeed.com/cmp/Oscar-Health-1/reviews/don-t-work-here-not-a-healthy-work-environment?id=aa6288aaf8896760 — 2025-06-07 (needed JS: N)
+
+   • "Heavy micromanagement. Good culture. Not so great work life balance. Management could be better. Frequently changing processes and quality. Management does not seem supportive of staff." […]  — [employee review] — title: Complex Case Manager · location: Texas — https://www.indeed.com/cmp/Oscar-Health-1/reviews/it-s-ok?id=68a1260aae694ae9 — 2025-04-19 (needed JS: N)
+
+   • "Training was too bad and unorganized for me to stay. Training manuals was outdated and trainers was confused at times themselves but expected the employees to know the answers. Wouldn't take responsibility for the training being updated before start date. Felt like a robot because every training module" […]  — [employee review] — title: Care guide · location: Remote — https://www.indeed.com/cmp/Oscar-Health-1/reviews/very-organized?id=c6b55a3b2e3c3ecb — 2025-04-14 (needed JS: N)
+
+   • "The training class was horrible.The trainers themselves were confused about a lot of the outdated training material and yet they would stress the expectations of the employee. The trainers accelerated the training bexause [sic] they were behind and expected one to keep up.Gave employees a labtop [sic] and a monitor" […]  — [employee review] — title: Customer Service · location: Remote — https://www.indeed.com/cmp/Oscar-Health-1/reviews/very-unorganized?id=242f22dfe427785b — 2025-04-14 (needed JS: N)
+
+
+--- C. JOB POSTINGS (10 excerpts from 3 open postings, different functions) ---
+
+All three postings were opened individually on 2026-08-13. None carried a removal
+notice; all three rendered a live "Apply now" control and full posting body.
+
+POSTING 1 — function label: Risk Adjustment / healthcare operations
+
+   • "Develop an in-depth understanding of day-to-day workflows at Oscar"  — [job posting] — Oscar Health (company-authored, Responsibilities block) — https://www.indeed.com/viewjob?jk=91b750d487ab3a16 — confirmed open 2026-08-13 (needed JS: N)
+
+   • "Become acquainted with internal tools and technical processes, and highlight areas of opportunity for improvement"  — [job posting] — Oscar Health (Responsibilities block) — https://www.indeed.com/viewjob?jk=91b750d487ab3a16 — confirmed open 2026-08-13 (needed JS: N)
+
+   • "Support your manager by guiding decisions on an ongoing basis"  — [job posting] — Oscar Health (Responsibilities block) — https://www.indeed.com/viewjob?jk=91b750d487ab3a16 — confirmed open 2026-08-13 (needed JS: N)
+
+   • "Support team with monitoring, tracking, and statusing our inventory"  — [job posting] — Oscar Health (Responsibilities block) — https://www.indeed.com/viewjob?jk=91b750d487ab3a16 — confirmed open 2026-08-13 (needed JS: N)
+
+POSTING 2 — function label: Regulatory Operations / compliance
+
+   • "Be the advisor to your teammates and teams to lead the accurate completion of filing deliverables as a subject matter expert"  — [job posting] — Oscar Health (Responsibilities block) — https://www.indeed.com/viewjob?jk=883eb1c96d26458a — confirmed open 2026-08-13 (needed JS: N)
+
+   • "Develop sustainable processes which simplify outputs while ensuring high quality deliverables, including maintenance of a repository of guidance and resources"  — [job posting] — Oscar Health (Responsibilities block) — https://www.indeed.com/viewjob?jk=883eb1c96d26458a — confirmed open 2026-08-13 (needed JS: N)
+
+   • "Manage other projects in support of filings while achieving deadlines and managing competing priorities"  — [job posting] — Oscar Health (Responsibilities block) — https://www.indeed.com/viewjob?jk=883eb1c96d26458a — confirmed open 2026-08-13 (needed JS: N)
+
+   • "Thursdays are a required in-office day for team meetings and events, while your other two office days are flexible to suit your schedule."  — [job posting] — Oscar Health (Work Location block) — https://www.indeed.com/viewjob?jk=883eb1c96d26458a — confirmed open 2026-08-13 (needed JS: N)
+
+POSTING 3 — function label: Member & Provider Escalations / member services
+
+   • "Identify, investigate, and resolve issues within determined SLAs"  — [job posting] — Oscar Health (Responsibilities block) — https://www.indeed.com/viewjob?jk=de9b02d05e946b3e — confirmed open 2026-08-13 (needed JS: N)
+
+   • "Collaborate with colleagues, Experts, and Leads to identify trends and roadblocks"  — [job posting] — Oscar Health (Responsibilities block) — https://www.indeed.com/viewjob?jk=de9b02d05e946b3e — confirmed open 2026-08-13 (needed JS: N)
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 3 · ladder fully attempted) ---
+
+VOICE COMPOSITION: 0 executive / 3 non-executive. All three passages are by a named
+Senior Product Designer writing in first person about her own team's practice. Not an
+all-executive section; the D0 extra-rung requirement did not fire.
+
+   • "Late in 2025, my product and engineering team integrated vibe coding into the early stage of a brand-new medical coding platform. By leveraging Figma Make as our primary tool for rapid concept validation, we were able to align with stakeholders faster and gather more grounded user feedback, ultimately compressing our discovery timeline from months of traditional scoping into just a few weeks."  — [company engineering/design blog] — Yvonne Wang, Senior Product Designer at Oscar — https://medium.com/oscar-tech/getting-the-most-value-of-vibe-coding-without-losing-the-craft-7ad3b54ef394 — 2026-05-15 (needed JS: N)
+
+   • "We had to move fast without skipping the de-risking process. By making the system tangible early, we could answer critical questions before we would typically surface in a traditional build."  — [company engineering/design blog] — Yvonne Wang, Senior Product Designer at Oscar — https://medium.com/oscar-tech/getting-the-most-value-of-vibe-coding-without-losing-the-craft-7ad3b54ef394 — 2026-05-15 (needed JS: N)
+
+   • "Traditionally, the design process relies on a rigorous cycle of divergence and convergence, exploring a wide range of possibilities before narrowing down. But the sheer velocity of vibe coding can trick us into skipping those steps. When a prototype looks and feels functional, there's a natural temptation to trust it immediately."  — [company engineering/design blog] — Yvonne Wang, Senior Product Designer at Oscar — https://medium.com/oscar-tech/getting-the-most-value-of-vibe-coding-without-losing-the-craft-7ad3b54ef394 — 2026-05-15 (needed JS: N)
+
+
+--- E. RECENT NEWS (yield: 3 · searches logged) ---
+
+   • "The insurer expects $60 million in administrative cost savings next year, half driven by a reduction in workforce and half from "AI-driven efficiencies" and "medical cost affordability initiatives." Oscar did not immediately respond to a request for comment about upcoming layoffs."  — [trade press reporting] — Noah Tong, Fierce Healthcare — https://www.fiercehealthcare.com/payers/oscar-health-misses-estimates-q2-plans-rif-and-announces-hyvee-ichra-partnership — 2025-08-06 (needed JS: N)
+
+   • ""We are focused on what we can control," Bertolini said simply. He added he expects the market to turn around favorably in 2026."  — [trade press reporting, quoting the chief executive] — Noah Tong, Fierce Healthcare — https://www.fiercehealthcare.com/payers/oscar-health-misses-estimates-q2-plans-rif-and-announces-hyvee-ichra-partnership — 2025-08-06 (needed JS: N)
+
+   • "Oscar Health Thursday reported a $137 million third quarter loss but predicts "a return to profitability" as the health insurance industry works its way through a period of rising costs and Washington gridlock."  — [business press reporting] — Bruce Japsen, Forbes — https://www.forbes.com/sites/brucejapsen/2025/11/06/obamacare-insurer-oscar-health-sees-2026-return-to-profitability/ — 2025-11-06 (needed JS: N)
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 6 · public/private: PUBLIC) ---
+
+Source: Item 1 Business, "HUMAN CAPITAL RESOURCES", Form 10-K for fiscal year ended
+2025-12-31, filed 2026-02-13. Company-authored legal filing; subject to the same
+marketing-inflation caution as the careers page. All headcounts, dollar figures and
+percentages stripped at collection.
+
+   • "At Oscar, we are powered by people from varied and broad backgrounds, experiences, and industries. We foster a culture in which our employees share a common connection to our mission: they are passionate about making a frustrating healthcare system easier, more human, and better for everyone."  — [10-K Item 1 Human Capital] — Oscar Health, Inc. (company-authored) — https://www.sec.gov/Archives/edgar/data/1568651/000156865126000011/oscr-20251231.htm — filed 2026-02-13 (needed JS: N)
+
+   • "This centers around what we believe to be a compelling employee value proposition, that includes competitive pay, and benefits, flexible work styles, opportunity to make a real impact towards the Oscar mission, and ongoing performance development."  — [10-K Item 1 Human Capital, Talent Recruitment and Retention] — Oscar Health, Inc. — https://www.sec.gov/Archives/edgar/data/1568651/000156865126000011/oscr-20251231.htm — filed 2026-02-13 (needed JS: N)
+
+   • "We believe our compensation philosophy and practice, which is rooted in data and benchmarked to a cohort of peer and broader industry companies, is transparent, systematic, and equitable."  — [10-K Item 1 Human Capital, Talent Recruitment and Retention] — Oscar Health, Inc. — https://www.sec.gov/Archives/edgar/data/1568651/000156865126000011/oscr-20251231.htm — filed 2026-02-13 (needed JS: N)
+
+   • "We also believe in the importance of investing in developmental opportunities for our employees, and all employees have access to internally created and third party skills and training programs."  — [10-K Item 1 Human Capital, Health and Wellbeing] — Oscar Health, Inc. — https://www.sec.gov/Archives/edgar/data/1568651/000156865126000011/oscr-20251231.htm — filed 2026-02-13 (needed JS: N)
+
+   • "Internally, we aim to promote a transparent, systematic approach to our human capital frameworks and operations."  — [10-K Item 1 Human Capital, Building Community] — Oscar Health, Inc. — https://www.sec.gov/Archives/edgar/data/1568651/000156865126000011/oscr-20251231.htm — filed 2026-02-13 (needed JS: N)
+
+   • "Our employees are able to view their total compensation package, including their salary band and leveling, which helps employees understand their pay and encourages proactive conversation between managers and employees."  — [10-K Item 1 Human Capital, Building Community] — Oscar Health, Inc. — https://www.sec.gov/Archives/edgar/data/1568651/000156865126000011/oscr-20251231.htm — filed 2026-02-13 (needed JS: N)
+
+
+########## SECTION 2 — RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+2a. YIELD AUDIT
+
+    REQUIRED TO YIELD:
+       A excerpts: 8/5  (cap 8 reached)   B reviews: 15/12    C excerpts: 10/6
+       C postings: 3/3     C outside engineering: 3/1
+       B reviews within 24 months: 15/15
+
+    C EXEMPTION CLAIMED (company not hiring)?  NO
+       Company is actively hiring; the review site's jobs tab reported 247 open roles
+       in one element and 249 in another on the same day (see 2f).
+
+    REQUIRED TO ATTEMPT:
+       D passages: 3    ladder rungs logged: 7/7
+       D voice composition: 0 executive / 3 non-executive
+                            (all-executive? NO · extra rung not required · stale
+                             non-executive material found and rejected? YES — see 2c D2)
+       E excerpts: 3    searches logged: 4
+       F excerpts: 6    public? YES     10-K filing date: 2026-02-13
+
+2b. EVIDENCE COVERAGE
+       autonomy: COVERED   pace: COVERED   collaboration: THIN
+       feedback: COVERED   innovation: COVERED   decision: COVERED
+
+       Collaboration is THIN deliberately: the only direct evidence is one job-posting
+       line about a required weekly in-office day, one about collaborating with
+       colleagues and leads, and one blog passage about a cross-functional product and
+       engineering team. No review in the sample describes team structure or meeting
+       norms.
+
+2c. LADDER CHECKLIST
+
+       D1 handbook          attempted Y   URL: https://www.hioscar.com/careers/early-career ; https://www.hioscar.com/careers/life ; site nav + footer surveyed on https://www.hioscar.com/careers   outcome: NOT FOUND — no public handbook or "how we work" documentation exists in the site navigation or footer. Site nav surveyed rather than URL-guessed, per the P-04 rule.
+       D2 eng/product blog  attempted Y   URL: https://medium.com/oscar-tech   newest post date: 2026-05-15   outcome: YIELD (3 passages). NOTE: the publication INDEX and archive (/oscar-tech, /oscar-tech/archive → /all) both returned a JavaScript shell to plain fetch and could not be rendered. The newest post was reached instead via the "Last published May 15, 2026" link embedded in an individual article page. Individual article pages render fully to plain fetch. Also note the company's own first-party blog at https://www.hioscar.com/blog returned a hard JavaScript wall ("Site Not Loading? It looks like JavaScript is disabled in your browser.") and was NOT reachable — that is a "could not be reached", not an absence.
+                            STALE MATERIAL FOUND AND REJECTED: "Lessons Learned: Launching Continuous User Research at Oscar" by a Senior User Experience Researcher — a non-executive first-person account with substantive dimension content. Rejected because its date fails the gate on the visible element: the article byline reads "Oct 30, 2024" (~21.5 months, stale) while the page's own article:published_time meta element reads 2025-04-02 (~16.4 months, in-gate). The two elements on one page disagree. Not quoted into Section 1. URL: https://medium.com/oscar-tech/lessons-learned-launching-continuous-user-research-at-oscar-4d32f28928de
+       D3 culture microsite attempted Y   URL: https://www.hioscar.com/careers/life   outcome: FOUND but does not count toward D — narrative text is the same careers/values material already quoted in section A. No double-counting, per the prompt.
+       D4 leader interview  attempted Y   URL: https://www.secondopinion.media/podcast/mark-bertolini-oscar-health-on-dismantling-the-80-year-old-mistake-at-the-heart-of-us-healthcare-episode/   date: 2026-07-30   outcome: EXISTS and is current. NOT OPENED and NOT QUOTED — the D target of 3 was already met at rung 2 with non-executive voice, and the ladder says stop at 3. Recorded so the rater knows current executive first-person material exists and was deliberately not used, rather than being absent. Other current executive interviews also exist (Analyzing Healthcare, Dec 2025; Health Podcast Network, May 2025).
+       D5 public repos      attempted Y   URL: https://github.com/oscarhealth   outcome: ORGANISATION CONFIRMED (not a name collision — profile lists the company's own domain and New York, NY). 50 repositories. Yields nothing for D: no RFC threads, no contribution guidelines, no public discussions; the org has no public members. Most repositories are forks. The one process-bearing repo, "style-guides", was last updated 2023-06-16 — stale. Newest own-code activity: 2026-02-24 (an internal tooling integration, no prose).
+       D6 press profile     attempted Y   URL: https://www.forbes.com/sites/brucejapsen/2025/11/06/obamacare-insurer-oscar-health-sees-2026-return-to-profitability/   date: 2025-11-06   outcome: FOUND, CURRENT, YIELDS NOTHING ON WORKING PRACTICE. The only direct quote is the chief executive on market strategy, not on how the company works internally. Used in section E instead.
+       D7 conference talk   attempted Y   URL: search of conference/talk listings via two queries (see below)   date: n/a   outcome: NOT FOUND. Every "conference" hit for this company is an investor conference (Goldman Sachs healthcare conference 2026-06-08; Raymond James institutional investors conference 2026-03-02) or an earnings call, not a technical presentation. This rung exists for private technical firms that publish nothing else; it returns nothing here because the company publishes a blog instead.
+       Rungs rejected as stale (>18 months): 1 (rung 2, the 2024/2025 user-research article — see D2 above). Rung 5's process-bearing repo also stale (2023) but rung 5 failed on content as well as age.
+
+       C fallbacks tried: reviews-site job view YES (route 1, worked — full posting bodies, all three postings)
+                          ATS param found NO — the company's own careers search page is JavaScript-gated and returned no ATS parameter to plain fetch; department IDs in careers URLs (1833, 1841, 2109, 43777, 57345, 68385) are consistent with an ATS but do not name one
+                          greenhouse ATTEMPTED — https://boards-api.greenhouse.io/v1/boards/oscarhealth/jobs TIMED OUT at 180s on the first attempt and could not be retried within the tool's 30s ceiling. Slug unverified. NOT an absence.
+                          lever NOT TRIED (route 1 already yielded 3 open postings with full bodies)
+                          workday NOT TRIED (same reason)   ashby NOT TRIED (same reason)
+                          aggregator NOT NEEDED
+
+       E news searches run: 4
+       queries used:
+         1. "Oscar Health layoffs restructuring 2026"
+         2. ""Oscar Health" leadership change reorganization news 2026"
+         3. "Oscar Health 2026 return to office OR reorganization OR workforce healthcaredive modernhealthcare"
+         4. "Oscar Health Inc 10-K 2025 annual report sec.gov Archives edgar" (Section F, logged here for completeness)
+
+2d. SOURCE ACCESS LOG  (every URL opened or attempted; all plain HTTP fetch unless noted)
+
+    OPENED SUCCESSFULLY
+      https://www.hioscar.com/careers — 200, full render, needed JS: N
+      https://www.hioscar.com/careers/life — 200, full render, needed JS: N
+      https://www.hioscar.com/careers/tech — 200, full render, needed JS: N
+      https://www.hioscar.com/careers/early-career — 200, full render, needed JS: N
+      https://www.indeed.com/cmp/Oscar-Health/reviews?sort=date — 301 → /cmp/Oscar-Health-1/reviews?sort=date, 20 reviews rendered newest-first
+      https://www.indeed.com/cmp/Oscar-Health-1/job-titles — 200, full title index
+      https://www.indeed.com/cmp/Oscar-Health-1/jobs — 200, job list rendered but individual jk links stripped
+      https://www.indeed.com/cmp/Oscar-Health-1/reviews/run-don-t-walk?id=add2f0dbc6fe0b0c — 200, review still truncated on its own permalink
+      https://www.indeed.com/companies/search?q=Oscar+Health — 200, entity check
+      https://www.indeed.com/viewjob?jk=91b750d487ab3a16 — 200, full posting body
+      https://www.indeed.com/viewjob?jk=883eb1c96d26458a — 200, full posting body
+      https://www.indeed.com/viewjob?jk=de9b02d05e946b3e — 200, full posting body
+      https://www.glassdoor.com/Reviews/Oscar-Health-Reviews-E812257.htm?sort.sortType=RD&sort.ascending=false — 200, NOT bot-walled to plain fetch, 3 reviews + full ratings block + FAQ block rendered
+      https://medium.com/oscar-tech/getting-the-most-value-of-vibe-coding-without-losing-the-craft-7ad3b54ef394 — 200, full article
+      https://medium.com/oscar-tech/lessons-learned-launching-continuous-user-research-at-oscar-4d32f28928de — 200, full article
+      https://github.com/oscarhealth — 200, full org page
+      https://www.fiercehealthcare.com/payers/oscar-health-misses-estimates-q2-plans-rif-and-announces-hyvee-ichra-partnership — 200, full article
+      https://www.forbes.com/sites/brucejapsen/2025/11/06/obamacare-insurer-oscar-health-sees-2026-return-to-profitability/ — 200, full article
+      https://www.sec.gov/Archives/edgar/data/1568651/000156865126000011/oscr-20251231.htm — 200, full 10-K (120,281 chars; the direct-archive route confirmed working, per D16)
+
+    ATTEMPTED AND FAILED
+      https://www.hioscar.com/blog — 200 but hard JavaScript wall: "It looks like JavaScript is disabled in your browser." NOT reachable without a renderer. NOT an absence.
+      https://www.hioscar.com/careers/search — same JavaScript wall. NOT reachable.
+      https://medium.com/oscar-tech — JavaScript shell, no article list
+      https://medium.com/oscar-tech/archive → redirects to /oscar-tech/all — JavaScript shell, no article list
+      https://boards-api.greenhouse.io/v1/boards/oscarhealth/jobs — timed out at 180s; slug unverified
+      https://www.indeed.com/jobs?q=Oscar+Health+Utilization+Review+Nurse — 200 page shell, listing block did not render to plain fetch (meta-description claims 5 jobs). NOT an absence.
+      Chrome / JavaScript renderer — 3 attempts, all returned "Claude in Chrome is not connected". Unavailable for the whole build.
+
+2e. FIDELITY NOTE
+
+    • No [PARAPHRASE] anywhere in the packet. Every Section 1 line is verbatim.
+    • Preserved source typos, flagged as unique-string identifiers: "there members"
+      (review 2025-09-06), "every roll" (2025-06-27), "bexause" and "labtop"
+      (2025-04-14, Customer Service). Marked [sic] in place; NOT silently corrected.
+      Note that the 2025-04-14 Customer Service review also runs sentences together
+      without spaces ("horrible.The", "keep up.Gave") — reproduced exactly.
+    • Posting open/closed status: all three CONFIRMED open, each opened individually
+      and each showing a live apply control and no removal notice. No unconfirmed
+      postings were quoted.
+    • ENTITY CHECK RESULT: run BEFORE collecting. Searched the review site for the
+      company name; two entities returned. "Oscar Health" (/cmp/Oscar-Health-1),
+      237 reviews, 3.1 rating, claimed (carries an employer-written "Why Join Us" tab
+      and a branded header image, both of which require a claimed profile). A second
+      entity, "Oscar Health Specialist" (/cmp/Oscar-Health-Specialist), returned no
+      review count, no rating and no logo — an empty stub, not a second population.
+      A bare "Oscar-Health" slug 301-redirects into "Oscar-Health-1", so there is no
+      third profile hiding behind the obvious URL. On the second review site the
+      employer is a single entity, E812257, 924 reviews, marked "Engaged Employer".
+      Two adjacent entities on that site — "OSCAR" (E396166, 97 reviews) and "Oscar
+      Recruit" (E756637, 216 reviews) — are DIFFERENT COMPANIES, surfaced only in a
+      "compare similar companies" block, and were not merged in.
+    • IMPLAUSIBLE COUNTS: 237 reviews for an employer of roughly 2,300 people is low
+      but not implausible for a company that has existed at that scale for only a few
+      years. The 4:1 gap between the two sites (237 vs 924) is the more notable
+      figure and is the reason the recency cross-check fired. Stated explicitly
+      rather than proceeded past.
+    • The Glassdoor overview page's own FAQ block lists "Care Guide (38)" as the
+      single most-reviewed job title at this employer. The Indeed job-titles INDEX
+      does not contain "Care Guide" at all, while the Indeed reviews page lists
+      "Care Guide" FIRST under "popular job titles" and two Care Guide reviews appear
+      in the recency sample. The title index is not authoritative. (Same shape as D21.)
+
+2f. VINTAGE BLOCK
+
+       Review entities found: 3 examined, 1 used.
+          https://www.indeed.com/cmp/Oscar-Health-1/reviews — 237 reviews — 3.1 — claimed — USED for text
+          https://www.indeed.com/cmp/Oscar-Health-Specialist — no count, no rating — empty stub — not used
+          https://www.glassdoor.com/Reviews/Oscar-Health-Reviews-E812257.htm — 924 reviews — 3.1 — "Engaged Employer" — used for recency cross-check ONLY; no body text taken
+
+       Review counts BY SITE, each with the ELEMENT it came from:
+          Indeed: "237 Reviews" (nav tab) · "237 reviews" (page <title> and meta-description) · "Based on 237 reviews" (rating block) · "237 reviews" (H2 above the list) — ALL FOUR AGREE. No within-page contradiction on review counts this build.
+          Glassdoor: "924 total reviews" (header) · "(924 total reviews)" (subhead) · "Viewing 1 - 3 of 924 Reviews" (pagination footer) · "924" (meta-description) · 308 pages × 3 per page = 924 (pagination arithmetic) — ALL AGREE.
+
+       Conflicting counts observed on a single page: NOT on reviews. YES on jobs, ACROSS pages within one site and one day — the Indeed reviews page nav read "247 Jobs" and the Indeed job-titles page nav read "249 Jobs", with the jobs tab itself reading "247 jobs at Oscar Health" in both its heading and its meta-description. Recorded with elements; not reconciled.
+
+       Headline ratings BY SITE:
+          Indeed: overall 3.1 · work-life balance 3.2 · pay and benefits 3.3 · job security and advancement 2.6 · management 2.7 · culture 3.1 · "Work wellbeing score is 66"
+          Glassdoor: overall 3.1 · work/life balance 3.4 · compensation and benefits 3.4 · culture & values 3.0 · career opportunities 2.7 · senior management 2.5 · diversity & inclusion 3.4
+          DIVERGENCE: overall agrees exactly (3.1/3.1). Work-life balance diverges by 0.2 (3.2 vs 3.4). Recorded, not averaged, not reconciled.
+          NONE of these figures appear in Section 1. They are source metadata.
+
+       Job titles sampled: NOT APPLICABLE — the frame is recency, company-wide, per v4.6 B2. Titles recorded per review as metadata.
+          Function mix actually obtained across the 15 reviews (reported, not imposed):
+            not stated / Anonymous ....... 3
+            nursing & clinical ........... 3  (Utilization Review Nurse ×1, Clinical Coordinator ×1, Complex Case Manager ×1)
+            member/customer service ...... 3  (Care Guide ×1, Care guide ×1, Customer Service ×1)
+            claims & insurance ops ....... 3  (Insurance Operations Claims Processor, Claims Specialist, Insurance Operations Supervisor)
+            pharmacy ..................... 1
+            utilization management ....... 1  ("UM")
+            engineering .................. 1
+          Note the frame delivered exactly one engineering voice and one supervisor
+          voice that a title-stratified frame would probably have missed: neither
+          "Engineer" nor "Insurance Operations Supervisor" is a title with meaningful
+          volume in the index, and three of the fifteen carry no title at all.
+
+       Title index counts, with the element (from https://www.indeed.com/cmp/Oscar-Health-1/job-titles, each count rendered beside its own star rating):
+          Member Services Representative 15 · Customer Service Representative 13 · Processor 9 · Concierge 8 · Sales Consultant 7 · Claims Processor 7 · Team Leader 6 · Operations Associate 5 · Case Manager 5 · Utilization Review Nurse 5 · Broker 4 · Manager 3 · Nurse 3 · Registered Nurse 3 · Registered Nurse Case Manager 3 · Pharmacy Technician 3 · Inside Sales 3 · Specialist 3
+          Against, in the whole index: Software Engineer 1 · Senior Developer 1 · Programmer Analyst 1 · Project Manager 1 · Marketing Manager 1 · Analyst 1 · Compliance Officer 1 · Billing Analyst 1 · Actuary 1 · Operations Analyst 2.
+          The entire technology, product, data, finance, marketing and legal organisation of a ~2,300-person company is single digits in this index. That is not a sampling problem and no sampling rule can fix it — the reviews do not exist.
+          "Care Guide" is ABSENT FROM THE INDEX ENTIRELY despite being listed first under "popular job titles" on the reviews page and being the largest bucket (38) on the other review site.
+
+       Per-title subratings: NOT COLLECTED — removed in v4.5.
+
+       Achievability gate run on every percentage recorded anywhere in the packet: Y
+       Percentages struck for failing the gate: NONE. Three percentages were tested,
+       all from the Glassdoor overview, all at n=924 where values step by 0.108 points:
+          44% would recommend — achievable (406/924 = 43.9%, rounds to 44)
+          56% approve of CEO — achievable
+          40% positive business outlook — achievable
+       All three PASS the arithmetic gate and all three are nonetheless BARRED from
+       Section 1 by hard rule 8 as evaluative metrics. They appear here only.
+       CEO-approval caveat cleared: the named chief executive (Mark Bertolini) is
+       confirmed current by the 10-K filed 2026-02-13 and by trade press dated
+       2025-08-06 and 2025-11-06. The figure is still not usable as evidence.
+
+       Newest review date BY SITE: Indeed 2026-04-13 · Glassdoor 2026-08-06.
+          DIVERGENCE: ~3.8 months. This is the P-03/P-04 failure signature, firing
+          in a mild form. Indeed's coverage of this company is thinner (237 vs 924)
+          and slightly staler. Said so in the NOTE TO RATER at the head of section B.
+          It is not severe enough to invalidate the section — all 15 reviews are
+          inside the 24-month gate and the newest is 4 months old — but the rater
+          must know that four months of the most recent experiential evidence exists
+          and is not in this packet.
+       Oldest review used: 2025-04-14
+       Median age of reviews used: 11.7 months
+       Reviews truncated at source: 12/15 = 80%   ** exceeds 33% — NOTE TO RATER written, see section B **
+       Source-site duplicates retained: 0 (none observed)
+       Interview write-ups excluded from review lists: 0 (none observed in the 20 rendered)
+       Employer responses observed in the review stream: 0 in the 20 rendered. None
+          collected, so no [employer response] tags appear in Section 1.
+       Newest careers-page modification date: NOT PUBLISHED. The careers pages carry
+          no dateline and no last-modified element. Footer copyright reads "© 2026
+          Oscar Insurance". Recorded as unknown, not as current.
+
+       Structural events found and their dates:
+          2025-08-06 — reduction in force announced as part of a $60M administrative cost-savings plan for 2026 (trade press, opened and quoted)
+          2025 — acquisitions of Lucie, Inc., IHC Specialty Benefits, Inc., INSXCloud and healthinsurance.org (10-K Item 1 and trade press)
+          2026-01-01 — network administration and all existing provider contracts transferred between two internal corporate entities (found by search; NOT opened, NOT quoted)
+          2026-04-21 — board chair replaced, effective 2026-06-04 (found by search; NOT opened, NOT quoted)
+          2026-06-01 — co-founder moved out of the President of Technology / CTO role to an advisory role (found by search; NOT opened, NOT quoted)
+       Does any structural event postdate the newest review?  YES — the newest review
+       in this packet is 2026-04-13; the board-chair change (announced 2026-04-21) and
+       the co-founder's departure from the technology leadership role (2026-06-01)
+       both postdate it. The Indeed review population therefore describes the company
+       as it was before its technology organisation changed hands at the top. The
+       other review site does hold reviews from 2026-08-06 that postdate both events,
+       and those are not in this packet.
+
+2g. SCOPE BLOCK
+
+       A careers / values     population: company-wide, with a visible tilt toward technology and early-career recruiting (three of five careers sub-pages are tech, early-career and member care)
+       B employee reviews     population: front-line and mid-level operations — member and provider services, claims processing, utilization-review and case-management nursing, pharmacy technology, plus three untitled reviewers and one engineer and one operations supervisor. Specifically NOT: the technology, product, design, data, actuarial, finance, marketing or legal organisations.
+       C job postings         population: healthcare operations (risk adjustment), compliance/regulatory operations, member and provider escalations. All three are non-engineering.
+       D first-person         population: product design, inside the technology organisation — precisely the population section B does not reach
+       E news                 population: company-wide (corporate and financial)
+       F human capital        population: company-wide
+
+       Working environments known to exist in this company but ABSENT from the review
+       population: software engineering (1 review in the index), product management
+       (0 as a named title), design (0), data and analytics (2 as "Operations
+       Analyst", 1 as "Analyst"), actuarial (1), security (0), IT (1 as "Network
+       Analyst"), finance (1 as "Billing Analyst"), marketing (1), legal and
+       compliance (1). The company describes five named technology sub-organisations
+       on its own careers site — engineering, product & design, data & analytics,
+       information technology, security. Their combined presence in the review index
+       is under ten reviews.
+
+       Does the company-authored evidence (A, F) describe a wider population than the
+       experiential evidence (B)?  YES — and unusually starkly here. Sections A and F
+       describe an entire ~2,300-person technology-led insurer. Section B is almost
+       entirely the operations floor. Section D, the one source that reaches inside
+       the technology organisation, is also company-authored. So every non-
+       company-authored line in this packet comes from operations, and every line
+       about how the technology organisation works comes from the company itself.
+       Any scoring rule that requires non-company-authored support will find that
+       support only for the operations population.
+
+       One-line scope declaration for the head of the packet: see top of Section 1.
+
+
+########## SECTION 3 — ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+
+- Approx. headcount: approximately 2,305 employees as of 2025-12-31. Source: the
+  company's own Form 10-K, Item 1, Human Capital Resources, filed 2026-02-13
+  (https://www.sec.gov/Archives/edgar/data/1568651/000156865126000011/oscr-20251231.htm).
+  CONFIDENCE: HIGH — company-sourced, in a legal filing, dated, and eight months old
+  at build time. Not a third-party estimate.
+
+- Stage/size cues: PUBLIC. NYSE-listed (ticker OSCR), CIK 1568651. Files a 10-K;
+  fiscal year ends 31 December. Founded 2012 ("We started Oscar in 2012", 10-K Item 1
+  and every job posting). Approximately 2.0 million effectuated members as of
+  2025-12-31 (10-K Item 1). Quarterly revenue near $2.9bn and a $137.5m net loss in
+  Q3 2025 (Forbes, 2025-11-06); a $228m net loss in Q2 2025 one quarter after a $275m
+  net profit (Fierce Healthcare, 2025-08-06). Acquisitive through 2025 (four named
+  acquisitions). Not venture-stage; a scaled public company in a loss-making year
+  with a stated return-to-profitability plan for 2026.
+
+- Pay-posture EVIDENCE vs. talent-market peers — band NOT assigned:
+    Posted ranges, from the three opened postings: an hourly individual-contributor
+    operations role at $29.86–$39.19/hr in the highest-cost states and $26.87–$35.27
+    elsewhere; a salaried associate compliance role at $101,844–$133,670 in the
+    highest-cost states and $91,659–$120,303 elsewhere; a front-line member-services
+    role at a flat $22.00/hr.
+    Structural facts: geographic differentials are explicit and published; the salary
+    band and level are visible to each employee internally (10-K); compensation is
+    stated to be "benchmarked to a cohort of peer and broader industry companies"
+    (10-K); the hourly role accrues vacation at a fixed rate while the salaried role
+    sits in an unlimited-vacation programme, so time-off posture differs by level
+    within the same company.
+    CORRECT REFERENCE CLASS: US health insurers and health-tech payers, NOT general
+    software companies — the roles that dominate this company's posted and reviewed
+    population are healthcare operations, not engineering, and benchmarking them
+    against a software-industry pay curve would misplace the company by a band or
+    more. Pay-and-benefits scored 3.3 (Indeed) and 3.4 (Glassdoor), both at or above
+    the same companies' overall marks — an evaluative signal, offered here only as a
+    confounder note.
+
+- Industry: HEALTHCARE (specifically health insurance / insurtech). Justification:
+  the company is a licensed health insurer deriving, in its own words, "substantially
+  all of our revenue from direct policy premiums", regulated by state insurance
+  departments and CMS. It self-describes as technology-first, and its review
+  population is overwhelmingly clinical and insurance-operations — the healthcare
+  classification is the right one and the technology framing is marketing.
+
+
+########## SECTION 4 — ANONYMIZATION PRE-FLAGS ##########
+
+COMPANY NAME OCCURRENCES IN SECTION 1
+  "Oscar" appears in section A ×3, section B ×2 (reviews dated 2025-09-06 and
+  2025-08-27), section C ×3 (all three postings open "Hi, we're Oscar" / "at Oscar"),
+  section D ×2, section E ×1, section F ×2. "Oscar Health" in full appears in the
+  2025-08-27 review and in every source attribution line.
+
+PRODUCT AND BRAND NAMES
+  None in Section 1. (INSXCloud, Lucie, IHC Specialty Benefits, healthinsurance.org
+  and Hy-Vee Health appear in Section 2/3 only and must not migrate into Section 1.)
+
+EXECUTIVE AND AUTHOR NAMES IN SECTION 1
+  "Bertolini" — quoted by name in section E. Highly identifying; this executive's
+    name is closely associated with one prior employer and one current one.
+  "Yvonne Wang, Senior Product Designer at Oscar" — section D attribution, all three
+    passages. Named non-executive employee.
+  Section 2 additionally names Noah Tong and Bruce Japsen (journalists), Mark
+    Bertolini, Mario Schlosser, Sara Wajnberg, Madi Shultz, Siddhartha Sankaran and
+    Jeffery Boyd. None of these are in Section 1 and none should be moved there.
+
+NAMED CLIENTS
+  None in Section 1.
+
+OFFICE LOCATIONS IN SECTION 1
+  Review locations, to be replaced with generic site tokens rather than deleted —
+  the dispersion field depends on being able to see variation:
+     Anaheim, CA → [Site A]      New York, NY → [Site B]
+     Tempe, AZ → [Site C]        Phoenix, AZ → [Site D]
+     Tampa, FL → [Site E]        Florida → [Region F]
+     Texas → [Region G]          Remote → keep as "Remote" (a work-mode, not a place)
+     "not stated" → keep as "not stated"
+  Job postings: locations and pay bands were stripped at collection and none appear
+  in Section 1. One posting line refers to "in-office day" without naming an office —
+  retained deliberately; it carries collaboration signal and no place name.
+
+NAMED INTERNAL PROGRAMS AND TOOLS IN SECTION 1
+  "Figma Make" (section D) — a third-party vendor tool, not an internal programme;
+    low re-identification value but it does date and place the passage.
+  "Executive Speaker series" (section A) — a named internal programme. Rewrite the
+    proper noun, keep the clause.
+  "SLAs" (section C) — generic.
+  Section 2/3 only, must not migrate: "Tuesday Testers", "Friday Five", "Well @
+    Oscar", "Belong at Oscar", "Employee Resource Groups"/"ERGs", "+Oscar",
+    "Oswell", "ICHRA" (industry-standard, but the company's heavy use of it is
+    itself a fingerprint).
+
+DISTINCTIVE PHRASES THAT COULD RE-IDENTIFY — FLAGGED SEPARATELY AS VERBATIM
+SELF-DESCRIPTIONS, WHICH REMAIN SEARCHABLE AFTER THE NAME IS REMOVED
+  "the first health insurance company built around a full stack technology platform"
+    — near-unique string, appears in section A AND in all three section C postings.
+  "one that behaves like a doctor in the family" — in the postings' shared preamble;
+    not currently quoted into Section 1, and should not be.
+  "No genius without grit" / "Seek the truth" / "Inspire & provoke" / "Make it right"
+    / "Powered by people" / "What we do is a big deal" — the seven value names are
+    together a fingerprint, and they appear TWICE in this packet, in section A and
+    again verbatim inside the 10-K human-capital disclosure. That duplication is
+    itself a tell.
+  "making a frustrating healthcare system easier, more human, and better for
+    everyone" — appears in section A and section F in near-identical form.
+  "Hi, we're Oscar" — posting opener.
+
+PRESERVED SOURCE TYPOS — UNIQUE-STRING IDENTIFIERS, FLAG AND HANDLE DELIBERATELY
+  "there members" (review, 2025-09-06)
+  "every roll" (review, 2025-06-27)
+  "bexause" (review, 2025-04-14, Customer Service)
+  "labtop" (review, 2025-04-14, Customer Service)
+  "horrible.The" and "keep up.Gave" — missing spaces after full stops, same review
+  Each of these is an exact-match search string that will locate the original review
+  in one query. They are also verbatim-required. Flagged, not resolved.
+
+
+########## SECTION 5 — SELF-REPORTED DEFECTS (BUILD BRIEF STEP 5) ##########
+
+STRUCTURAL — changed what evidence reached Section 1, or how a section was scoped.
+
+DEF-1 · STRUCTURAL · relates to: prompt header, "YOU NEED TWO RETRIEVAL METHODS,
+AND YOU MUST CHOOSE BETWEEN THEM PER SOURCE" (v4.4), and defect D13.
+  The prompt makes two retrieval methods a hard precondition and builds the entire
+  proof-of-absence rule on having two methods to exhaust. This build had ONE. The
+  JavaScript renderer was unreachable for the whole session (three attempts). The
+  prompt does not say what to do in that case. It says "If you cannot open pages,
+  stop and say so" — but I could open pages, just not JavaScript-rendered ones; and
+  the v4.5 shipping posture says to record the limitation and move on. Those two
+  instructions point in opposite directions and I chose the shipping posture.
+  WHY STRUCTURAL, not cosmetic: it directly changed Section 1's contents. The
+  company's own first-party blog and its careers search page both returned hard
+  JavaScript walls and are recorded as "could not be reached". Under the prompt's
+  own logic those are not absences — but I cannot prove they are not, because the
+  method that would prove it did not exist. Section D's three passages came from a
+  third-party publication reached by a side door (an inbound link inside another
+  article), not from the blog index the prompt tells you to open. A different run of
+  the same prompt with a working renderer would produce a different section D and
+  possibly a different section A.
+  The prompt needs an explicit single-method degradation rule: what is collectable,
+  what must be marked unverifiable, and whether the packet still ships. Right now
+  the answer depends on which sentence the researcher weights.
+
+DEF-2 · STRUCTURAL · relates to: B7 (truncation) and the section B minimum.
+  80% of the reviews in this packet are truncated at source. The prompt anticipates
+  this and requires a note to the rater above 33%, which I wrote. What it does not
+  do is tell you whether a truncated review counts toward the minimum of 12. I
+  counted them, because the alternative — needing 12 untruncated reviews — would have
+  forced me three pages deeper into the review stream and thereby traded the recency
+  the whole v4.6 frame change exists to protect for a length property of the source.
+  That is a defensible choice and it is mine, not the prompt's.
+  WHY STRUCTURAL: at 80% truncation the rule decides whether section B is 15 reviews
+  ending 2026-04-13 or 12 reviews ending somewhere in 2024. Those are different
+  packets. This is not a v4.6-only issue: the prompt says P-02 ran at "roughly half",
+  so an 80% company was always going to arrive eventually.
+
+DEF-3 · STRUCTURAL · relates to: D0 / rung 2 and the 18-month staleness gate.
+  I found a non-executive first-person account whose own page reports two different
+  publication dates: a visible byline of "Oct 30, 2024" (stale, 21.5 months) and an
+  article:published_time metadata element of 2025-04-02 (in-gate, 16.4 months). The
+  prompt tells me to record the ELEMENT a count came from (B3a) but says nothing
+  about elements disagreeing on DATES, and the staleness gate is written as though
+  every source has one date. I applied the gate to the visible byline, rejected the
+  article, and logged it in 2c as found-and-rejected — the conservative reading.
+  WHY STRUCTURAL: it is a straight in-or-out decision on a Section 1 passage. Had I
+  taken the metadata date, section D would have carried a fourth passage from a
+  second author in a different function (UX research rather than product design), and
+  its voice composition line would read differently. B3a's "record the element"
+  discipline should be extended from counts to dates.
+
+DEF-4 · STRUCTURAL · relates to: section C, the ATS fallback chain, step 3.
+  The Greenhouse list API — the route v4.2 promoted specifically because it "settles
+  the 'is this open' question directly rather than by inference" — timed out at 180
+  seconds and could not be retried, because the fetch tool available to me caps
+  timeouts at 30 seconds. I could not verify the board slug and so cannot say whether
+  the route was wrong or merely slow. Route 1 (the reviews-site job view) had already
+  yielded three open postings with full bodies, so section C passed anyway.
+  WHY STRUCTURAL: not because it changed this section — it did not — but because the
+  prompt treats step 3 as the authoritative open/closed check and I could not run it.
+  Every "confirmed open" claim in section C rests on a single aggregator's rendering
+  plus the absence of a removal notice. That is exactly the evidence the P-04 build
+  showed to be untrustworthy, and here it is doing load-bearing work with no
+  independent confirmation.
+
+DEF-5 · STRUCTURAL · relates to: D3 ("On double-counting") and section A's cap.
+  The seven company values appear verbatim in TWO sections of this packet: section A,
+  from the careers page, and section F, from the 10-K human-capital disclosure. They
+  are the same sentences. The prompt's no-double-counting rule is written only for
+  the A↔D boundary and says nothing about A↔F, which did not exist when that rule was
+  written. I quoted the values once, in A, and took different sentences for F.
+  WHY STRUCTURAL: without a rule, a researcher who quoted them in both places would
+  ship a packet in which the single most distinctive company-authored artifact is
+  double-weighted, and the rater would have no way to see that A and F are not two
+  independent company voices but one document quoted twice.
+
+DEF-6 · STRUCTURAL · relates to: B1, "Glassdoor is OPTIONAL as of v4.5, and supplies
+only a recency cross-check."
+  The cross-check fired, and the prompt does not say what to do when it does. Its
+  exact words: "If Indeed's newest review for a company is materially older than
+  Glassdoor's, Indeed's coverage of that company is thin and you must say so." I said
+  so. But "materially older" is undefined, and the gap here is 3.8 months on a 4:1
+  volume difference — plainly a real signal, plainly not the multi-year staleness the
+  rule was written for. The prompt gives no threshold and no consequence. Does a
+  fired cross-check change the sample, add a note, or only populate 2f? I wrote a
+  rater-facing note, which is more than the prompt requires and less than the
+  situation might warrant.
+  WHY STRUCTURAL: the whole point of this check is that it catches the P-03/P-04
+  failure. A check that fires but carries no defined consequence has been recorded,
+  not acted on, and the packet's headline recency claim rests on the thinner source.
+
+COSMETIC — confusing, but changed nothing.
+
+DEF-7 · COSMETIC · relates to: 2f, "Job titles sampled, each with review count and
+the element the count came from".
+  This 2f line was written for the v4.3–v4.5 title-stratified frame and survived the
+  v4.6 rewrite unchanged. Under a recency frame no titles are "sampled" — the block
+  is asking for a field the current sampling procedure does not produce. I recorded
+  the title index counts there instead, because B2 explicitly says the index "belongs
+  in 2f", and marked the sampled-titles line not-applicable. Changed nothing; the
+  same numbers reach the same place under a different label.
+
+DEF-8 · COSMETIC · relates to: 2a, the yield audit's B-recency line.
+  "B reviews within 24 months: ___/___" is a two-slot field whose second slot is
+  undefined. It could be the count collected (15) or the section minimum (12). I read
+  it as 15/15. Trivially ambiguous, no effect.
+
+DEF-9 · COSMETIC · relates to: B2c, retained "only for the case in B2 above".
+  B2c is nine lines of superseded procedure retained for a conditional case, and its
+  steps 5 and 6 tell you to collect per-title Glassdoor subratings — which v4.5
+  removed outright and which the v4.6 appendix confirms are gone. A researcher who
+  triggers the B2 exception and follows B2c to the letter will collect an instrument
+  the prompt elsewhere forbids. It did not fire here because no title bucket in this
+  company is both large and current. Cosmetic only because the contradiction is
+  resolvable by reading the rest of the prompt.
+
+DEF-10 · COSMETIC · relates to: section C, "OPEN EVERY POSTING INDIVIDUALLY AND CHECK
+IT FOR A REMOVAL NOTICE."
+  The postings I could open at all were the ones the aggregator surfaced in a
+  carousel on the reviews page. The aggregator's own jobs tab rendered 21 job titles
+  to plain fetch but stripped every underlying identifier, so those 21 could not be
+  opened. The prompt's instruction assumes you can reach each posting from its
+  listing; here the listing and the openable set were different sets. I worked from
+  the openable set, which is a form of selection I did not choose and cannot correct.
+  Cosmetic because section C's binding requirement — three postings across different
+  functions — was met, and because all three postings came from the same employer
+  ATS feed and share an identical boilerplate structure, so a different three would
+  likely read the same.
+
+CHOICES I MADE THAT THE PROMPT DID NOT COVER, recorded per the brief's instruction to
+decide rather than ask:
+  1. Wrote the packet to a file AND reproduced it in chat. The brief's Step 4 offers
+     two modes and I am in an ambiguous third: a scratch filesystem the operator can
+     download from, which is not the same as the `packets/P-0X_<slug>/` tree it
+     describes. Filename follows the brief's convention.
+  2. Counted section A at its cap of 8 rather than the floor of 5. The source was
+     abundant, as the prompt predicts, and I stopped at the cap rather than curating.
+  3. Took three passages from ONE blog post for section D rather than one passage
+     from each of three sources. The prompt sets a passage target, not a source
+     count, and the ladder says stop at 3 — but D reads as though it expects breadth.
+     Flagging the reading rather than the choice.
+  4. Did not open the executive podcast at rung 4 despite it being current and
+     substantive, because the target was already met with non-executive voice. Logged
+     in 2c so the rater can see it exists.

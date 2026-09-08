@@ -131,101 +131,106 @@ CATEGORY_MEANING = {
     "D": "OPPOSITE (expect NO match)-- failures => probe is not reading the description at all",
 }
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--dimensions", nargs="*", default=list(CASES.keys()))
-parser.add_argument("--probe", choices=["binary", "forced", "forced_escape"], default="binary",
-                    help="binary = LLMBandProbe (yes/no vs the 0.1 description); "
-                         "forced = ForcedChoiceBandProbe (pick best of all 5 bands); "
-                         "forced_escape = forced choice PLUS an explicit off-axis opt-out")
-parser.add_argument("--seed", type=int, default=17, help="shuffle seed; quotes are shuffled so the probe cannot infer category from ordering")
-args = parser.parse_args()
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dimensions", nargs="*", default=list(CASES.keys()))
+    parser.add_argument("--probe", choices=["binary", "forced", "forced_escape"], default="binary",
+                        help="binary = LLMBandProbe (yes/no vs the 0.1 description); "
+                             "forced = ForcedChoiceBandProbe (pick best of all 5 bands); "
+                             "forced_escape = forced choice PLUS an explicit off-axis opt-out")
+    parser.add_argument("--seed", type=int, default=17, help="shuffle seed; quotes are shuffled so the probe cannot infer category from ordering")
+    args = parser.parse_args()
 
-api_key = os.environ.get("OPENAI_API_KEY")
-if not api_key:
-    raise SystemExit("OPENAI_API_KEY not set")
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise SystemExit("OPENAI_API_KEY not set")
 
-client = OpenAI(api_key=api_key)
-anchors = sp.load_anchors()
-if args.probe == "binary":
-    probe = LLMBandProbe(client, anchors, model=sp.MODEL, reasoning_effort=sp.REASONING_EFFORT)
-else:
-    probe = ForcedChoiceBandProbe(client, anchors, model=sp.MODEL,
-                                  reasoning_effort=sp.REASONING_EFFORT,
-                                  allow_off_axis=(args.probe == "forced_escape"))
-print(f"Probe: {args.probe} ({type(probe).__name__})")
+    client = OpenAI(api_key=api_key)
+    anchors = sp.load_anchors()
+    if args.probe == "binary":
+        probe = LLMBandProbe(client, anchors, model=sp.MODEL, reasoning_effort=sp.REASONING_EFFORT)
+    else:
+        probe = ForcedChoiceBandProbe(client, anchors, model=sp.MODEL,
+                                      reasoning_effort=sp.REASONING_EFFORT,
+                                      allow_off_axis=(args.probe == "forced_escape"))
+    print(f"Probe: {args.probe} ({type(probe).__name__})")
 
-print(f"Anchors: {anchors.get('rubric_version')}")
-print(f"Testing {len(args.dimensions)} dimensions -> {len(args.dimensions)} API calls\n")
+    print(f"Anchors: {anchors.get('rubric_version')}")
+    print(f"Testing {len(args.dimensions)} dimensions -> {len(args.dimensions)} API calls\n")
 
-by_cat = defaultdict(lambda: {"correct": 0, "total": 0, "failures": []})
-all_rows = []
+    by_cat = defaultdict(lambda: {"correct": 0, "total": 0, "failures": []})
+    all_rows = []
 
-for dim in args.dimensions:
-    cases = list(CASES[dim])
-    random.Random(args.seed).shuffle(cases)
-    quotes = [c[0] for c in cases]
-    got = probe.probe(quotes, dim)
+    for dim in args.dimensions:
+        cases = list(CASES[dim])
+        random.Random(args.seed).shuffle(cases)
+        quotes = [c[0] for c in cases]
+        got = probe.probe(quotes, dim)
+
+        print("=" * 78)
+        print(f"{dim}")
+        for (quote, cat, expected, note), actual in zip(cases, got):
+            ok = (actual is expected)
+            by_cat[cat]["total"] += 1
+            by_cat[cat]["correct"] += ok
+            if not ok:
+                by_cat[cat]["failures"].append((dim, quote, expected, actual, note))
+            mark = "ok  " if ok else "FAIL"
+            print(f"  [{mark}] {cat}  expected={str(expected):<5} got={str(actual):<5}  \"{quote[:64]}\"")
+            if not ok:
+                print(f"         why this label: {note}")
+            all_rows.append({"dimension": dim, "quote": quote, "category": cat,
+                             "expected": expected, "actual": actual, "note": note, "correct": ok})
+        print()
 
     print("=" * 78)
-    print(f"{dim}")
-    for (quote, cat, expected, note), actual in zip(cases, got):
-        ok = (actual is expected)
-        by_cat[cat]["total"] += 1
-        by_cat[cat]["correct"] += ok
-        if not ok:
-            by_cat[cat]["failures"].append((dim, quote, expected, actual, note))
-        mark = "ok  " if ok else "FAIL"
-        print(f"  [{mark}] {cat}  expected={str(expected):<5} got={str(actual):<5}  \"{quote[:64]}\"")
-        if not ok:
-            print(f"         why this label: {note}")
-        all_rows.append({"dimension": dim, "quote": quote, "category": cat,
-                         "expected": expected, "actual": actual, "note": note, "correct": ok})
+    print("PER-CATEGORY RESULTS")
+    print("=" * 78)
+    for cat in ["A", "B", "C", "D"]:
+        d = by_cat[cat]
+        if not d["total"]:
+            continue
+        pct = d["correct"] / d["total"] * 100
+        print(f"  {cat}  {d['correct']}/{d['total']} ({pct:3.0f}%)   {CATEGORY_MEANING[cat]}")
+
     print()
+    b = by_cat["B"]
+    c = by_cat["C"]
+    crit_ok = (b["total"] and b["correct"] == b["total"])
+    offaxis_ok = (c["total"] and c["correct"] == c["total"])
 
-print("=" * 78)
-print("PER-CATEGORY RESULTS")
-print("=" * 78)
-for cat in ["A", "B", "C", "D"]:
-    d = by_cat[cat]
-    if not d["total"]:
-        continue
-    pct = d["correct"] / d["total"] * 100
-    print(f"  {cat}  {d['correct']}/{d['total']} ({pct:3.0f}%)   {CATEGORY_MEANING[cat]}")
+    print("=" * 78)
+    if crit_ok and offaxis_ok:
+        print("VERDICT: probe holds the boundary. It rejected every leaning-low quote and every")
+        print("off-axis quote, including the lexical traps. False-positive risk from probe")
+        print("labelling is low on this set; the flag's remaining weakness is sample size, not")
+        print("probe precision.")
+    elif not crit_ok:
+        print("VERDICT: *** THE PRODUCTION-CRITICAL CATEGORY FAILED. *** The probe called")
+        print("leaning-low evidence an extreme-band match. The flag will over-fire on ordinary")
+        print("companies. Do NOT wire it into any review queue until the failures below are")
+        print("understood -- and do not fix this by editing the labels.")
+    else:
+        print("VERDICT: off-axis rejection failed while the boundary held. The probe is matching")
+        print("general sentiment rather than the specific band description it was handed. The")
+        print("flag would fire on the wrong dimension.")
+    print("=" * 78)
 
-print()
-b = by_cat["B"]
-c = by_cat["C"]
-crit_ok = (b["total"] and b["correct"] == b["total"])
-offaxis_ok = (c["total"] and c["correct"] == c["total"])
+    for cat in ["B", "C", "D", "A"]:
+        for dim, quote, expected, actual, note in by_cat[cat]["failures"]:
+            print(f"\n  [{cat} FAIL] {dim}: expected {expected}, got {actual}")
+            print(f"    \"{quote}\"")
+            print(f"    label rationale: {note}")
 
-print("=" * 78)
-if crit_ok and offaxis_ok:
-    print("VERDICT: probe holds the boundary. It rejected every leaning-low quote and every")
-    print("off-axis quote, including the lexical traps. False-positive risk from probe")
-    print("labelling is low on this set; the flag's remaining weakness is sample size, not")
-    print("probe precision.")
-elif not crit_ok:
-    print("VERDICT: *** THE PRODUCTION-CRITICAL CATEGORY FAILED. *** The probe called")
-    print("leaning-low evidence an extreme-band match. The flag will over-fire on ordinary")
-    print("companies. Do NOT wire it into any review queue until the failures below are")
-    print("understood -- and do not fix this by editing the labels.")
-else:
-    print("VERDICT: off-axis rejection failed while the boundary held. The probe is matching")
-    print("general sentiment rather than the specific band description it was handed. The")
-    print("flag would fire on the wrong dimension.")
-print("=" * 78)
+    out = Path(__file__).resolve().parent / "results" / f"probe_boundary_test_{args.probe}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({
+        "summary": {cat: {"correct": by_cat[cat]["correct"], "total": by_cat[cat]["total"]}
+                    for cat in ["A", "B", "C", "D"] if by_cat[cat]["total"]},
+        "rows": all_rows,
+    }, indent=2), encoding="utf-8")
+    print(f"\nWrote {out}")
 
-for cat in ["B", "C", "D", "A"]:
-    for dim, quote, expected, actual, note in by_cat[cat]["failures"]:
-        print(f"\n  [{cat} FAIL] {dim}: expected {expected}, got {actual}")
-        print(f"    \"{quote}\"")
-        print(f"    label rationale: {note}")
 
-out = Path(__file__).resolve().parent / "results" / f"probe_boundary_test_{args.probe}.json"
-out.parent.mkdir(parents=True, exist_ok=True)
-out.write_text(json.dumps({
-    "summary": {cat: {"correct": by_cat[cat]["correct"], "total": by_cat[cat]["total"]}
-                for cat in ["A", "B", "C", "D"] if by_cat[cat]["total"]},
-    "rows": all_rows,
-}, indent=2), encoding="utf-8")
-print(f"\nWrote {out}")
+if __name__ == "__main__":
+    main()

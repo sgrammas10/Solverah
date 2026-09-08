@@ -51,9 +51,26 @@ from openai import (
 
 # ---------------------------------------------------------------------------
 # PATHS -- same resolution as scorer_variance_test_v2.py / reidentification_attack.py.
+# Solverah_IP has moved before (sibling of the Solverah repo under Desktop/, then
+# in-repo at Solverah/Solverah_IP) and may move again, so instead of hard-coding a
+# depth, search upward from this file for the first ancestor holding a Solverah_IP/
+# whose anchors.json is real. SOLVERAH_IP_DIR always wins outright when set, honored
+# verbatim with no existence check.
 # ---------------------------------------------------------------------------
-_DEFAULT_IP_DIR = Path(__file__).resolve().parent.parent.parent / "Solverah_IP"
-REPO_IP = Path(os.environ.get("SOLVERAH_IP_DIR", str(_DEFAULT_IP_DIR)))
+def _find_ip_dir(start: Path) -> Path | None:
+    for ancestor in start.parents:
+        candidate = ancestor / "Solverah_IP"
+        if (candidate / "ground_truth" / "rater_app" / "anchors.json").exists():
+            return candidate
+    return None
+
+
+_HERE = Path(__file__).resolve()
+_FALLBACK_IP_DIR = _HERE.parent.parent / "Solverah_IP"
+if "SOLVERAH_IP_DIR" in os.environ:
+    REPO_IP = Path(os.environ["SOLVERAH_IP_DIR"])
+else:
+    REPO_IP = _find_ip_dir(_HERE) or _FALLBACK_IP_DIR
 ANCHORS_PATH = REPO_IP / "ground_truth" / "rater_app" / "anchors.json"
 
 VALID_PACKETS = ["P-01", "P-02", "P-03", "P-04", "P-05", "P-06"]

@@ -1,0 +1,43 @@
+Paste this into the email body. Everything below the line.
+
+Deliberately plain: no markdown, no em dashes, no special characters, so nothing can be
+mangled by a mail client or a copy-paste. Attach priors_elicitation.html (zipped, or as a
+Drive link, since some mail filters strip .html attachments).
+
+If you send a link instead of an attachment, change "Attached is" to "Here's a link to"
+and change "Save the attachment and double-click it" to "Open the link".
+
+------------------------------------------------------------------------------
+
+Julie,
+
+Attached is a short form, about fifteen minutes, that you can do whenever you have a gap.
+It saves as you go, so you can close it halfway through and come back. If you only get
+through part of it, send it anyway and tell me where you stopped. Half is genuinely
+useful.
+
+What it's for. The matching model needs a starting hypothesis: how much does a mismatch
+on each of the six dimensions actually hurt someone's chances in a role. Right now the
+code assumes all six matter exactly equally, and that wanting more autonomy than a job
+offers is precisely as bad as wanting less. Nobody thinks that's true. It's a placeholder
+sitting there until you weigh in, and it's currently the single biggest piece of guesswork
+in the whole thing.
+
+What it asks. Twelve judgement calls, all the same shape. I describe a person and a role
+that don't line up on one dimension, and you say how many out of ten people like that are
+still doing well a year later. Nothing technical. I do the conversion.
+
+Two things worth saying up front. Neither end of any dimension is the good end, so you're
+only judging the mismatch, not whether a company is nice. And there's an explicit "I'd
+rather not put a number on this one" for every dimension. Use it where you mean it. The
+model treats that as "lean on the data instead of on Julie here", which is a real answer
+and more useful than a tidy-looking number you don't believe.
+
+This is separate from the anchors rewrite. That one still needs your read when you have a
+longer stretch. This one you can do in a waiting room.
+
+How to open it: save the attachment and double-click it. It opens in any browser and works
+offline. When you're done, hit "Download my answers" and email the file back. If the
+download doesn't work, hit "Copy as text instead" and paste it into your reply.
+
+Thank you.

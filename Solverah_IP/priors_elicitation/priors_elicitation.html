@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solverah — Fit Model, Expert Estimates</title>
+<style>
+  :root{
+    --ink:#1a1d21; --ink-soft:#5b6470; --line:#dde2e8; --line-soft:#eef1f5;
+    --bg:#fbfcfd; --card:#fff; --accent:#2f5d8a; --accent-soft:#eaf1f8;
+    --warn:#8a5a2f; --ok:#2f7a52;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:40px 24px 120px}
+  h1{font-size:28px; line-height:1.25; margin:0 0 4px; letter-spacing:-.01em}
+  .sub{color:var(--ink-soft); font-size:15px; margin:0 0 28px}
+  h2{font-size:19px; margin:0 0 6px; letter-spacing:-.005em}
+  .intro{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:24px 26px; margin-bottom:28px}
+  .intro p{margin:0 0 12px}
+  .intro p:last-child{margin-bottom:0}
+  .intro strong{font-weight:600}
+  .muted{color:var(--ink-soft)}
+  .small{font-size:14px}
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:22px 26px; margin-bottom:18px}
+  .card.q0{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}
+  .eyebrow{font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); font-weight:600; margin-bottom:8px}
+  .poles{font-size:14px; color:var(--ink-soft); margin:2px 0 18px}
+  .poles b{color:var(--ink); font-weight:600}
+
+  .scenario{border-top:1px solid var(--line-soft); padding-top:18px; margin-top:18px}
+  .scenario:first-of-type{border-top:0; padding-top:0; margin-top:0}
+  .vignette{margin:0 0 4px}
+  .vignette .who{display:block}
+  .vignette .role{display:block; margin-top:6px}
+  .vignette .lbl{color:var(--ink-soft); font-size:13px; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-right:6px}
+  .ask{margin:14px 0 8px; font-weight:500}
+
+  .scale{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 6px}
+  .scale label{
+    flex:1 1 auto; min-width:44px; text-align:center; padding:9px 0; cursor:pointer;
+    border:1px solid var(--line); border-radius:7px; background:#fff; font-variant-numeric:tabular-nums;
+    font-size:15px; user-select:none;
+  }
+  .scale input{position:absolute; opacity:0; width:0; height:0}
+  .scale label:hover{border-color:var(--accent); background:var(--accent-soft)}
+  .scale label.on{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+  .scale label:focus-within{outline:2px solid var(--accent); outline-offset:2px}
+  .scale-ends{display:flex; justify-content:space-between; font-size:13px; color:var(--ink-soft); margin-bottom:2px}
+
+  .rangewrap{margin-top:10px; font-size:14px}
+  .rangewrap summary{cursor:pointer; color:var(--accent); list-style:none}
+  .rangewrap summary::-webkit-details-marker{display:none}
+  .rangewrap summary::before{content:"+ "; font-weight:600}
+  .rangewrap[open] summary::before{content:"– "}
+  .rangewrap .inner{padding:10px 0 2px; color:var(--ink-soft)}
+  .rangewrap select{font:inherit; padding:5px 8px; border:1px solid var(--line); border-radius:6px; margin:0 4px}
+
+  .conf{margin-top:20px; padding-top:16px; border-top:1px solid var(--line-soft)}
+  .conf .ask{margin-top:0}
+  .confrow{display:flex; flex-wrap:wrap; gap:8px}
+  .confrow label{
+    padding:8px 14px; border:1px solid var(--line); border-radius:7px; cursor:pointer; font-size:15px; background:#fff;
+  }
+  .confrow label:hover{border-color:var(--accent); background:var(--accent-soft)}
+  .confrow label.on{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+  .confrow input{position:absolute; opacity:0; width:0; height:0}
+
+  textarea{
+    width:100%; font:inherit; padding:10px 12px; border:1px solid var(--line); border-radius:7px;
+    resize:vertical; min-height:70px; background:#fff; color:inherit;
+  }
+  .notewrap{margin-top:14px; font-size:14px}
+  .notewrap label{display:block; color:var(--ink-soft); margin-bottom:6px}
+
+  .status{
+    position:fixed; left:0; right:0; bottom:0; background:rgba(255,255,255,.97);
+    border-top:1px solid var(--line); padding:12px 24px; backdrop-filter:blur(6px);
+  }
+  .status .inner{max-width:760px; margin:0 auto; display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+  .bar{flex:1 1 180px; height:7px; background:var(--line-soft); border-radius:4px; overflow:hidden; min-width:120px}
+  .bar i{display:block; height:100%; width:0; background:var(--accent); transition:width .25s ease}
+  .saved{font-size:13px; color:var(--ok)}
+  button{
+    font:inherit; font-weight:600; padding:10px 18px; border-radius:8px; border:1px solid var(--accent);
+    background:var(--accent); color:#fff; cursor:pointer;
+  }
+  button.ghost{background:#fff; color:var(--accent)}
+  button:disabled{opacity:.45; cursor:not-allowed}
+
+  #out{margin-top:16px}
+  #outbox{width:100%; min-height:150px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px}
+  .done{background:#f2f8f4; border-color:#bfe0cd}
+  @media print{.status{display:none} body{background:#fff}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Solverah fit model — your estimates</h1>
+  <p class="sub">About 15 minutes. Your answers save as you go, so you can close this and come back.</p>
+
+  <div class="intro">
+    <p><strong>What this is.</strong> The matching model needs a starting hypothesis: how much does a
+    mismatch on each of the six dimensions actually damage someone's chances of doing well in a role?
+    Right now the model assumes all six matter <em>exactly equally</em> and that being over the role's
+    level is no different from being under it. Nobody believes that — it's a placeholder standing in
+    until you weigh in.</p>
+
+    <p><strong>What I need from you.</strong> Twelve judgement calls, each in the same form: I describe
+    a person and a role that don't line up on one dimension, and you tell me how many out of ten people
+    like that are still doing well a year in. That's it. I do the maths.</p>
+
+    <p><strong>Neither end of any dimension is better than the other.</strong> A steady company isn't
+    worse than a fast one; blunt feedback isn't better than measured feedback. You're only judging the
+    <em>mismatch</em> — the person wanting one thing and the role being the other.</p>
+
+    <p class="muted small"><strong>If you're unsure, say so rather than guessing tidily.</strong> Each
+    dimension has a confidence question, and "genuinely unsure" is a real answer that tells the model to
+    lean on data instead of on you. It is more useful than a confident-looking number you don't believe.</p>
+  </div>
+
+  <!-- BASELINE -->
+  <div class="card q0" id="card-baseline">
+    <div class="eyebrow">First — the baseline everything else is measured against</div>
+    <h2>Someone who fits</h2>
+    <p class="vignette">
+      <span class="who"><span class="lbl">Person</span>Someone whose working style genuinely suits the
+      role — nothing about how they like to work raises a flag against how the team actually works.</span>
+    </p>
+    <p class="ask">Out of 10 people like that who take the job, how many are still doing well a year later?</p>
+    <div id="scale-baseline"></div>
+    <div class="notewrap">
+      <label for="note-baseline">Anything worth saying about that number (optional)</label>
+      <textarea id="note-baseline" data-note="baseline"></textarea>
+    </div>
+  </div>
+
+  <div id="dims"></div>
+
+  <!-- CONFOUNDERS -->
+  <div class="card">
+    <div class="eyebrow">Three questions that aren't about culture fit</div>
+    <h2>Does the company itself move the odds?</h2>
+    <p class="muted small" style="margin-top:0">For all three: assume the person is a <em>good</em> culture
+    fit — the baseline case above. You're telling me whether these things matter on top of fit.</p>
+    <div id="confounders"></div>
+  </div>
+
+  <!-- OPEN -->
+  <div class="card">
+    <div class="eyebrow">Last thing</div>
+    <h2>Where would you push back?</h2>
+    <p class="muted" style="margin-top:0">Is there a case where your answers above would change a lot
+    because of something I didn't ask about — a kind of role, a level, a stage of someone's career?
+    Anything you'd want the model to know that these twelve questions couldn't capture.</p>
+    <textarea id="free_note" data-note="free" style="min-height:110px"></textarea>
+  </div>
+
+  <!-- RETURN -->
+  <div class="card done" id="returncard">
+    <div class="eyebrow">Sending it back</div>
+    <h2>When you're finished</h2>
+    <p style="margin-top:0">Click below and send Sebastian the file (or paste the text). Partial is fine —
+    if you only got through half, send it anyway and say where you stopped.</p>
+    <p>
+      <button id="dl">Download my answers</button>
+      <button id="cp" class="ghost">Copy as text instead</button>
+    </p>
+    <div id="out" hidden>
+      <p class="small muted" id="outmsg"></p>
+      <textarea id="outbox" readonly></textarea>
+    </div>
+  </div>
+
+</div>
+
+<div class="status">
+  <div class="inner">
+    <div class="bar"><i id="bar"></i></div>
+    <span class="small muted" id="count">Not started</span>
+    <span class="saved" id="saved"></span>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------------------------------------------------------------------------
+   Dimension order is deliberately NOT the canonical model order.
+
+   Round 1 produced one packet where a single overall impression was pasted into
+   all six dimension notes, and the six scores stopped being six independent
+   reads. Different vignettes per dimension, in a shuffled order, is the cheap
+   structural defence against the same thing happening here.
+
+   Order runs easiest-agreed first (pace) so the format is learned on a simple
+   case, with the two historically hardest (decision, feedback) placed early
+   rather than last, when attention is worst.
+
+   Pole labels are taken verbatim from solverah_model_config.yaml. The "above"
+   scenario is always person-high / role-low (gap = +0.8); "below" is always
+   person-low / role-high (gap = -0.8). The converter depends on that.
+--------------------------------------------------------------------------- */
+var DIMS = [
+  {
+    key:"pace", label:"Pace", low:"Steady", high:"Fast",
+    above:{
+      who:"Someone at their best when priorities move quickly — short cycles, frequent shipping, the plan changing as things are learned.",
+      role:"A role where work is planned well ahead, deadlines are set months out, and changing direction mid-quarter is unusual."
+    },
+    below:{
+      who:"Someone at their best with a predictable workload and enough runway to go deep on one thing at a time.",
+      role:"A role where priorities are re-cut most weeks, work ships constantly, and what mattered on Monday often isn't what matters on Friday."
+    }
+  },
+  {
+    key:"feedback", label:"Feedback", low:"Sparse / gentle", high:"Frequent / blunt",
+    above:{
+      who:"Someone who wants to hear it straight and often — unfiltered critique as the work happens, not saved up.",
+      role:"A role where feedback comes rarely, is delivered carefully when it comes, and mostly arrives at formal review time."
+    },
+    below:{
+      who:"Someone who does their best work when critique is occasional and delivered with some care.",
+      role:"A role where work is argued over bluntly and continuously, in the open, in front of the team."
+    }
+  },
+  {
+    key:"decision", label:"Decision basis", low:"Intuition / judgement", high:"Data / analysis",
+    above:{
+      who:"Someone who wants a call backed by evidence, and is uncomfortable committing before the analysis is in.",
+      role:"A role where decisions get made on experienced judgement and the team moves before the numbers are settled."
+    },
+    below:{
+      who:"Someone who trusts their read of a situation and wants to act on it.",
+      role:"A role where every decision has to be justified with data and analysis before it can be made."
+    }
+  },
+  {
+    key:"innovation", label:"Innovation stance", low:"Execute / optimize", high:"Invent / explore",
+    above:{
+      who:"Someone at their best opening up new problems and trying approaches nobody has tried here yet.",
+      role:"A role that is about running a known playbook well and improving it at the edges."
+    },
+    below:{
+      who:"Someone at their best taking something that already works and making it run better.",
+      role:"A role where people are expected to invent the approach with no precedent to follow, and a lot of it doesn't work out."
+    }
+  },
+  {
+    key:"autonomy", label:"Autonomy", low:"Directed", high:"Self-directed",
+    above:{
+      who:"Someone who does their best work handed a goal and left to find the route themselves.",
+      role:"A role where the manager sets the approach, checks in often, and expects the agreed method to be followed."
+    },
+    below:{
+      who:"Someone who does their best work from a clear brief, with an agreed method and a manager available to sanity-check a call before it's made.",
+      role:"A role where people are handed a goal, expected to work out the route alone, and rarely checked in on."
+    }
+  },
+  {
+    key:"collaboration", label:"Collaboration", low:"Solo", high:"Collective",
+    above:{
+      who:"Someone who thinks best out loud, with other people in it alongside them for most of the day.",
+      role:"A role that is independent ownership — heads-down, your own piece, updates written up rather than talked through."
+    },
+    below:{
+      who:"Someone who needs long uninterrupted stretches on their own to do their best work.",
+      role:"A role built on constant pairing and group decisions, where most of the day is spent working with others."
+    }
+  }
+];
+
+/* The consistency re-ask: one scenario repeated in different words, late on.
+   Its delta against the original is the only read available on how much noise
+   sits under a single expert's answers. Not flagged to the respondent. */
+var RECHECK = {
+  key:"pace", scenario:"above",
+  who:"Someone who is energised by fast turnarounds and doesn't mind the target moving as they go.",
+  role:"A role with long planning horizons, where the quarter's commitments are set early and held to."
+};
+
+var CONFOUNDERS = [
+  {
+    key:"stage_size",
+    title:"Company size and stage",
+    a:{ id:"large", text:"A large, established company — thousands of people, long track record." },
+    b:{ id:"small", text:"A small early-stage company — a few dozen people, still finding its footing." }
+  },
+  {
+    key:"comp",
+    title:"Pay, relative to the market",
+    a:{ id:"above_market", text:"The role pays well above the market rate for that work." },
+    b:{ id:"below_market", text:"The role pays below the market rate for that work." }
+  }
+];
+
+var CONF_LEVELS = [
+  {id:"confident",  label:"Confident — I'd stand behind this"},
+  {id:"fairly",     label:"Fairly sure"},
+  {id:"unsure",     label:"Genuinely unsure"},
+  {id:"abstain",    label:"I'd rather not put a number on this one"}
+];
+
+var STORE_KEY = "solverah_priors_elicitation_v1";
+var state = load();
+
+function load(){
+  try{
+    var raw = window.localStorage.getItem(STORE_KEY);
+    if(raw){ return JSON.parse(raw); }
+  }catch(e){}
+  return {answers:{}, notes:{}, ranges:{}, confidence:{}};
+}
+function save(){
+  try{
+    window.localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    flash("Saved");
+  }catch(e){
+    flash("Couldn't auto-save — use the download button before closing", true);
+  }
+  refresh();
+}
+var flashTimer=null;
+function flash(msg, bad){
+  var el=document.getElementById("saved");
+  el.textContent=msg; el.style.color = bad ? "#a33" : "";
+  if(flashTimer) clearTimeout(flashTimer);
+  if(!bad) flashTimer=setTimeout(function(){ el.textContent=""; }, 1600);
+}
+
+/* ---- widgets ---------------------------------------------------------- */
+
+function scale(name, mountId){
+  var host = typeof mountId === "string" ? document.getElementById(mountId) : mountId;
+  var ends = document.createElement("div");
+  ends.className = "scale-ends";
+  ends.innerHTML = "<span>0 &mdash; none of them</span><span>all 10 &mdash; every one</span>";
+  host.appendChild(ends);
+
+  var row = document.createElement("div");
+  row.className = "scale";
+  for(var i=0;i<=10;i++){
+    (function(v){
+      var lab = document.createElement("label");
+      lab.setAttribute("for", name+"-"+v);
+      var inp = document.createElement("input");
+      inp.type="radio"; inp.name=name; inp.id=name+"-"+v; inp.value=String(v);
+      if(state.answers[name] === v){ inp.checked = true; lab.className="on"; }
+      inp.addEventListener("change", function(){
+        state.answers[name] = v;
+        Array.prototype.forEach.call(row.children, function(c){ c.className=""; });
+        lab.className="on";
+        save();
+      });
+      lab.appendChild(inp);
+      lab.appendChild(document.createTextNode(String(v)));
+      row.appendChild(lab);
+    })(i);
+  }
+  host.appendChild(row);
+}
+
+function rangeBlock(name, host){
+  var d = document.createElement("details");
+  d.className = "rangewrap";
+  var s = document.createElement("summary");
+  s.textContent = "Give a range instead of one number (optional)";
+  d.appendChild(s);
+  var inner = document.createElement("div");
+  inner.className = "inner";
+  inner.appendChild(document.createTextNode("Plausible somewhere between "));
+  var lo = sel(name, "lo"), hi = sel(name, "hi");
+  inner.appendChild(lo);
+  inner.appendChild(document.createTextNode(" and "));
+  inner.appendChild(hi);
+  inner.appendChild(document.createTextNode(" out of 10."));
+  d.appendChild(inner);
+  host.appendChild(d);
+
+  var cur = state.ranges[name];
+  if(cur && (cur[0]!=null || cur[1]!=null)){ d.open = true; }
+
+  function sel(n, which){
+    var el = document.createElement("select");
+    var blank = document.createElement("option");
+    blank.value=""; blank.textContent="—";
+    el.appendChild(blank);
+    for(var i=0;i<=10;i++){
+      var o=document.createElement("option"); o.value=String(i); o.textContent=String(i); el.appendChild(o);
+    }
+    var existing = state.ranges[n];
+    if(existing){
+      var v = which==="lo" ? existing[0] : existing[1];
+      if(v!=null) el.value = String(v);
+    }
+    el.addEventListener("change", function(){
+      var r = state.ranges[n] || [null,null];
+      var val = el.value === "" ? null : Number(el.value);
+      if(which==="lo") r[0]=val; else r[1]=val;
+      state.ranges[n]=r;
+      save();
+    });
+    return el;
+  }
+}
+
+function confidenceBlock(dimKey, host){
+  var wrap = document.createElement("div");
+  wrap.className = "conf";
+  var q = document.createElement("p");
+  q.className="ask";
+  q.textContent = "How sure are you about those two answers?";
+  wrap.appendChild(q);
+  var row = document.createElement("div");
+  row.className="confrow";
+  CONF_LEVELS.forEach(function(lv){
+    var lab=document.createElement("label");
+    lab.setAttribute("for","conf-"+dimKey+"-"+lv.id);
+    var inp=document.createElement("input");
+    inp.type="radio"; inp.name="conf-"+dimKey; inp.id="conf-"+dimKey+"-"+lv.id; inp.value=lv.id;
+    if(state.confidence[dimKey]===lv.id){ inp.checked=true; lab.className="on"; }
+    inp.addEventListener("change", function(){
+      state.confidence[dimKey]=lv.id;
+      Array.prototype.forEach.call(row.children,function(c){c.className="";});
+      lab.className="on";
+      save();
+    });
+    lab.appendChild(inp);
+    lab.appendChild(document.createTextNode(lv.label));
+    row.appendChild(lab);
+  });
+  wrap.appendChild(row);
+  host.appendChild(wrap);
+}
+
+function noteBlock(key, host, prompt){
+  var w=document.createElement("div");
+  w.className="notewrap";
+  var l=document.createElement("label");
+  l.setAttribute("for","note-"+key);
+  l.textContent = prompt || "Anything you'd add (optional)";
+  var t=document.createElement("textarea");
+  t.id="note-"+key;
+  t.value = state.notes[key] || "";
+  t.addEventListener("input", function(){ state.notes[key]=t.value; save(); });
+  w.appendChild(l); w.appendChild(t);
+  host.appendChild(w);
+}
+
+function scenarioBlock(dim, which, host){
+  var s = dim[which];
+  var name = dim.key + "_" + which;
+  var box = document.createElement("div");
+  box.className = "scenario";
+
+  var v = document.createElement("p");
+  v.className="vignette";
+  v.innerHTML =
+    '<span class="who"><span class="lbl">Person</span>' + esc(s.who) + '</span>' +
+    '<span class="role"><span class="lbl">Role</span>' + esc(s.role) + '</span>';
+  box.appendChild(v);
+
+  var ask=document.createElement("p");
+  ask.className="ask";
+  ask.textContent="Out of 10 people like that who take the job, how many are still doing well a year later?";
+  box.appendChild(ask);
+
+  scale(name, box);
+  rangeBlock(name, box);
+  host.appendChild(box);
+}
+
+function esc(s){
+  return String(s).replace(/[&<>"]/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];
+  });
+}
+
+/* ---- build the page --------------------------------------------------- */
+
+scale("baseline", "scale-baseline");
+(function(){
+  var t=document.getElementById("note-baseline");
+  t.value = state.notes.baseline || "";
+  t.addEventListener("input", function(){ state.notes.baseline=t.value; save(); });
+})();
+
+var dimHost = document.getElementById("dims");
+DIMS.forEach(function(dim, idx){
+  var card=document.createElement("div");
+  card.className="card";
+
+  var eyebrow=document.createElement("div");
+  eyebrow.className="eyebrow";
+  eyebrow.textContent = "Dimension " + (idx+1) + " of 6";
+  card.appendChild(eyebrow);
+
+  var h=document.createElement("h2");
+  h.textContent=dim.label;
+  card.appendChild(h);
+
+  var p=document.createElement("p");
+  p.className="poles";
+  p.innerHTML = "This dimension runs from <b>"+esc(dim.low)+"</b> to <b>"+esc(dim.high)+
+                "</b>. Both ends are legitimate ways to work.";
+  card.appendChild(p);
+
+  scenarioBlock(dim, "above", card);
+  scenarioBlock(dim, "below", card);
+  confidenceBlock(dim.key, card);
+  noteBlock(dim.key, card, "Anything about this dimension worth knowing (optional)");
+
+  dimHost.appendChild(card);
+
+  /* the re-ask goes in after the fourth dimension — late enough to be a real
+     second look, early enough that fatigue isn't doing the work */
+  if(idx === 3){
+    var rc=document.createElement("div");
+    rc.className="card";
+    var re=document.createElement("div");
+    re.className="eyebrow"; re.textContent="One more";
+    rc.appendChild(re);
+    var rh=document.createElement("h2"); rh.textContent="Another pairing"; rc.appendChild(rh);
+    var rv=document.createElement("p");
+    rv.className="vignette";
+    rv.innerHTML='<span class="who"><span class="lbl">Person</span>'+esc(RECHECK.who)+'</span>'+
+                 '<span class="role"><span class="lbl">Role</span>'+esc(RECHECK.role)+'</span>';
+    rc.appendChild(rv);
+    var ra=document.createElement("p");
+    ra.className="ask";
+    ra.textContent="Out of 10 people like that who take the job, how many are still doing well a year later?";
+    rc.appendChild(ra);
+    scale("recheck", rc);
+    dimHost.appendChild(rc);
+  }
+});
+
+var confHost = document.getElementById("confounders");
+CONFOUNDERS.forEach(function(c){
+  var block=document.createElement("div");
+  block.className="scenario";
+  var h=document.createElement("h2");
+  h.style.fontSize="17px";
+  h.textContent=c.title;
+  block.appendChild(h);
+
+  [c.a, c.b].forEach(function(side){
+    var name = c.key + "_" + side.id;
+    var p=document.createElement("p");
+    p.className="ask";
+    p.style.fontWeight="400";
+    p.innerHTML = esc(side.text) + "<br><strong>Out of 10 well-matched people, how many are still doing well a year later?</strong>";
+    block.appendChild(p);
+    scale(name, block);
+  });
+  confHost.appendChild(block);
+});
+
+(function(){
+  var block=document.createElement("div");
+  block.className="scenario";
+  var h=document.createElement("h2");
+  h.style.fontSize="17px";
+  h.textContent="Industry";
+  block.appendChild(h);
+  var p=document.createElement("p");
+  p.className="ask"; p.style.fontWeight="400";
+  p.textContent="Setting culture fit aside — does the industry itself change someone's chances enough that the model should account for it?";
+  block.appendChild(p);
+  var row=document.createElement("div");
+  row.className="confrow";
+  [{id:"yes",label:"Yes, meaningfully"},{id:"a_little",label:"A little"},
+   {id:"no",label:"No"},{id:"unsure",label:"Not sure"}].forEach(function(o){
+    var lab=document.createElement("label");
+    lab.setAttribute("for","ind-"+o.id);
+    var inp=document.createElement("input");
+    inp.type="radio"; inp.name="industry_matters"; inp.id="ind-"+o.id; inp.value=o.id;
+    if(state.answers.industry_matters===o.id){ inp.checked=true; lab.className="on"; }
+    inp.addEventListener("change", function(){
+      state.answers.industry_matters=o.id;
+      Array.prototype.forEach.call(row.children,function(c){c.className="";});
+      lab.className="on"; save();
+    });
+    lab.appendChild(inp); lab.appendChild(document.createTextNode(o.label));
+    row.appendChild(lab);
+  });
+  block.appendChild(row);
+  noteBlock("industry", block, "Which industries, if it matters (optional)");
+  confHost.appendChild(block);
+})();
+
+(function(){
+  var t=document.getElementById("free_note");
+  t.value = state.notes.free || "";
+  t.addEventListener("input", function(){ state.notes.free=t.value; save(); });
+})();
+
+/* ---- progress + output ------------------------------------------------ */
+
+function expectedKeys(){
+  var keys=["baseline"];
+  DIMS.forEach(function(d){ keys.push(d.key+"_above", d.key+"_below"); });
+  keys.push("recheck");
+  CONFOUNDERS.forEach(function(c){ keys.push(c.key+"_"+c.a.id, c.key+"_"+c.b.id); });
+  return keys;
+}
+/* A dimension she has declined counts as SETTLED, not outstanding. Abstention is a real
+   answer — the converter deliberately keeps a wide neutral prior for it — and a progress
+   bar stuck at 16 of 18 forever would quietly train her out of using the option, which is
+   the opposite of what it exists for. */
+function refresh(){
+  var keys = expectedKeys();
+  var settled = {};
+  DIMS.forEach(function(d){
+    if(state.confidence[d.key] === "abstain"){
+      settled[d.key + "_above"] = true;
+      settled[d.key + "_below"] = true;
+    }
+  });
+  var done = keys.filter(function(k){
+    return state.answers[k] !== undefined || settled[k];
+  }).length;
+  var total = keys.length;
+  document.getElementById("count").textContent = done + " of " + total + " answered";
+  document.getElementById("bar").style.width = Math.round(100*done/total) + "%";
+}
+
+function payload(){
+  var out = {
+    instrument: "priors_elicitation_v1",
+    model_config: "solverah_model_config.yaml (6 active dimensions)",
+    saved_at: new Date().toISOString(),
+    scale: "count out of 10 still doing well after one year",
+    baseline: pick("baseline"),
+    dimensions: {},
+    recheck: {dimension: RECHECK.key, scenario: RECHECK.scenario, answer: pick("recheck")},
+    confounders: {},
+    notes: {}
+  };
+  DIMS.forEach(function(d){
+    out.dimensions[d.key] = {
+      above: pick(d.key+"_above"),
+      below: pick(d.key+"_below"),
+      confidence: state.confidence[d.key] || null,
+      note: state.notes[d.key] || ""
+    };
+  });
+  CONFOUNDERS.forEach(function(c){
+    var o = {};
+    o[c.a.id] = pick(c.key+"_"+c.a.id);
+    o[c.b.id] = pick(c.key+"_"+c.b.id);
+    out.confounders[c.key] = o;
+  });
+  out.confounders.industry_matters = state.answers.industry_matters || null;
+  out.notes.baseline = state.notes.baseline || "";
+  out.notes.industry = state.notes.industry || "";
+  out.notes.free = state.notes.free || "";
+  return out;
+
+  function pick(name){
+    var v = state.answers[name];
+    var r = state.ranges[name];
+    var o = {out_of_10: (v === undefined ? null : v)};
+    if(r && (r[0]!=null || r[1]!=null)) o.range = r;
+    return o;
+  }
+}
+
+document.getElementById("dl").addEventListener("click", function(){
+  var text = JSON.stringify(payload(), null, 2);
+  try{
+    var blob = new Blob([text], {type:"application/json"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "solverah_priors_julie.json";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+    show(text, "Downloaded as solverah_priors_julie.json. If you can't find it, the same text is below — paste it into an email.");
+  }catch(e){
+    show(text, "The download didn't work in this browser. Select everything below, copy it, and paste it into an email.");
+  }
+});
+
+document.getElementById("cp").addEventListener("click", function(){
+  var text = JSON.stringify(payload(), null, 2);
+  show(text, "Select everything below, copy it, and paste it into an email.");
+  var box=document.getElementById("outbox");
+  box.focus(); box.select();
+  try{ document.execCommand("copy"); document.getElementById("outmsg").textContent="Copied to your clipboard — paste it into an email."; }catch(e){}
+});
+
+function show(text, msg){
+  document.getElementById("out").hidden = false;
+  document.getElementById("outbox").value = text;
+  document.getElementById("outmsg").textContent = msg;
+}
+
+refresh();
+})();
+</script>
+</body>
+</html>

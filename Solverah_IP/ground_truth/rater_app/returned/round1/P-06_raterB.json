@@ -1,0 +1,187 @@
+{
+  "packet_id": "P-06",
+  "rater": "B",
+  "rubric_version": "v1-frozen-2026-08-15",
+  "anchors_hash": "55c4501b25c5",
+  "session_start": "2026-08-16T21:12:02.845Z",
+  "submitted_at": "2026-08-16T22:02:52.672Z",
+  "duration_seconds": 3050,
+  "commit_order": [
+    "autonomy",
+    "pace",
+    "collaboration",
+    "innovation",
+    "feedback",
+    "decision"
+  ],
+  "recognition": "no",
+  "recognition_detail": "",
+  "searched": "no",
+  "search_detail": "",
+  "free_note": "",
+  "scores": [
+    {
+      "dimension": "autonomy",
+      "score": 0.5,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "\"We value independence. We respect autonomy, celebrate individuality and welcome diverse perspectives, while encouraging collaboration and innovation.\"",
+          "eid": "A6",
+          "sec": "A",
+          "src": "company"
+        }
+      ],
+      "note": "Under job postings it talks about direct supervision...procedure  etc.",
+      "committed_at": "2026-08-16T21:30:12.703Z",
+      "commit_position": 1,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A6"
+      ]
+    },
+    {
+      "dimension": "pace",
+      "score": 0.5,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "\"This job can be very busy one day and slow the next. Everyday is different which can be enjoyable",
+          "eid": "B9",
+          "sec": "B",
+          "src": "noncompany"
+        }
+      ],
+      "note": "when you are on vacation there are no calls etc.",
+      "committed_at": "2026-08-16T21:33:37.189Z",
+      "commit_position": 2,
+      "source_mix": {
+        "company": 0,
+        "noncompany": 1,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "B9"
+      ]
+    },
+    {
+      "dimension": "collaboration",
+      "score": 0.7,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "Through our annual performance review process, associates and managers collaborate to define performance goals which are reviewed during mid-year touch points and formal end-of-year discussions.",
+          "eid": "F5",
+          "sec": "F",
+          "src": "company"
+        }
+      ],
+      "note": "good management and leadership...supported when they raise issues",
+      "committed_at": "2026-08-16T21:45:07.220Z",
+      "commit_position": 3,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "F5"
+      ]
+    },
+    {
+      "dimension": "feedback",
+      "score": 0.5,
+      "confidence": 0.9,
+      "quotes": [
+        {
+          "text": "the training fully prepared me for the role, and the team provided constant support.",
+          "eid": "B10",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "\"As an established but ever-evolving company, you can start – or continue – growing your career here. We invest in you with wide-ranging benefits and the support of leaders and colleagues who care",
+          "eid": "A3",
+          "sec": "A",
+          "src": "company"
+        }
+      ],
+      "note": "annual performance review process provides feedback - management on top of things",
+      "committed_at": "2026-08-16T21:59:50.138Z",
+      "commit_position": 5,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 1,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "B10",
+        "A3"
+      ]
+    },
+    {
+      "dimension": "innovation",
+      "score": 0.3,
+      "confidence": 0.9,
+      "quotes": [
+        {
+          "text": "\"As an established but ever-evolving company, you can start – or continue – growing your career here. We invest in you with wide-ranging benefits and the support of leaders and colleagues who care",
+          "eid": "A3",
+          "sec": "A",
+          "src": "company"
+        }
+      ],
+      "note": "company code - conservative - treated as a machine unit with their high micro managing kpi standards",
+      "committed_at": "2026-08-16T21:59:44.790Z",
+      "commit_position": 4,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A3"
+      ]
+    },
+    {
+      "dimension": "decision",
+      "score": 0.9,
+      "confidence": 0.9,
+      "quotes": [
+        {
+          "text": "firm's core values of client-first, integrity, independence and a conservative, long-term view.",
+          "eid": "C2",
+          "sec": "C",
+          "src": "company"
+        }
+      ],
+      "note": "many instances of following procedures and processes",
+      "committed_at": "2026-08-16T22:02:30.336Z",
+      "commit_position": 6,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "C2"
+      ]
+    }
+  ]
+}

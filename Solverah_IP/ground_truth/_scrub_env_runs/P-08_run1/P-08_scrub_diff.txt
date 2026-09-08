@@ -1,0 +1,226 @@
+P-08 SCRUB DIFF
+raw   : packets_raw/P-08_packet.txt, Section 1 only (build v4.6, built 2026-08-27)
+scrub : packets_out/P-08_packet_ANON.txt, 2026-09-07
+
+Every changed line, raw above scrubbed, in packet order. Line numbers are relative
+to the '########## SECTION 1' marker, which is line 0.
+
+Not listed here, because it changes no line's content: 52 blank lines were inserted,
+one directly above each excerpt bullet, per Rule Three of the scrub brief. Every other
+line of Section 1 not listed below is byte-identical to the raw packet.
+
+----------------------------------------------------------------------------------------------------
+LINE 27
+  RAW   : holds roughly 453–456 and carries reviews from within the last month. Section B therefore rests on
+  SCRUB : holds several hundred [R6/A1: figure replaced with magnitude language] and carries reviews from within the last month. Section B therefore rests on
+----------------------------------------------------------------------------------------------------
+LINE 35
+  RAW   : • "We think big, bold, and scrappy. We are not afraid to disrupt the status quo, challenge conventional thinking, and push the boundaries to think 10x."  — [company careers page, core value "Bold"] — DigitalOcean (company-authored) — https://www.digitalocean.com/careers — accessed 2026-08-27 — needed JS: N
+  SCRUB : • "We think big, bold, and scrappy. We are not afraid to disrupt the status quo, challenge conventional thinking, and push the boundaries to think 10x."  — [company careers page, core value "Bold"] — company-authored — accessed 2026-08-27 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 36
+  RAW   : • "We operate with a bias to action. We move quickly, adapt to change, and seize opportunities with urgency. Speed and progress are more important than perfection."  — [company careers page, core value "Fast"] — DigitalOcean (company-authored) — https://www.digitalocean.com/careers — accessed 2026-08-27 — needed JS: N
+  SCRUB : • "We operate with a bias to action. We move quickly, adapt to change, and seize opportunities with urgency. Speed and progress are more important than perfection."  — [company careers page, core value "Fast"] — company-authored — accessed 2026-08-27 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 37
+  RAW   : • "We embrace a growth mindset, empowering Sharks to learn, evolve, and excel. As leaders, we create a safe environment for Sharks to be curious, think big, move fast, and learn quickly."  — [company careers page, core value "Learning"] — DigitalOcean (company-authored) — https://www.digitalocean.com/careers — accessed 2026-08-27 — needed JS: N
+  SCRUB : • "We embrace a growth mindset, empowering [employees] to learn, evolve, and excel. As leaders, we create a safe environment for [employees] to be curious, think big, move fast, and learn quickly."  — [company careers page, core value "Learning"] — company-authored — accessed 2026-08-27 — needed JS: N  — [R4/A5: the company's branded internal term for its employees replaced in brackets, twice; clause otherwise verbatim]
+----------------------------------------------------------------------------------------------------
+LINE 38
+  RAW   : • "We act like OWNERS by demonstrating a bias for action and a powerful sense of responsibility for customers, products, employees, and decisions."  — [company careers page, core value "Proud"] — DigitalOcean (company-authored) — https://www.digitalocean.com/careers — accessed 2026-08-27 — needed JS: N
+  SCRUB : • "We act like OWNERS by demonstrating a bias for action and a powerful sense of responsibility for customers, products, employees, and decisions."  — [company careers page, core value "Proud"] — company-authored — accessed 2026-08-27 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 39
+  RAW   : • "Journey alongside a strong community of top talent who are relentless in their drive to build the agentic inference cloud. If you have a growth mindset, like to think big and bold, and are energized by the fast-paced environment of a true industry disruptor, you'll find your place here. We value winning together—while learning, having fun, and making a profound difference for the dreamers and builders in the world."  — [company careers page, "Why Join"] — DigitalOcean (company-authored) — https://www.digitalocean.com/careers — accessed 2026-08-27 — needed JS: N
+  SCRUB : • "Journey alongside a strong community of top talent who are relentless in their drive to build the agentic inference cloud. If you have a growth mindset, like to think big and bold, and are energized by the fast-paced environment of a true industry disruptor, you'll find your place here. We value winning together—while learning, having fun, and making a profound difference for the dreamers and builders in the world."  — [company careers page, "Why Join"] — company-authored — accessed 2026-08-27 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 40
+  RAW   : • "DigitalOcean provides a foundation for employees to do the best work of their careers with a commitment to both remote work and in-person collaboration."  — [company careers page, work arrangements] — DigitalOcean (company-authored) — https://www.digitalocean.com/careers — accessed 2026-08-27 — needed JS: N
+  SCRUB : • "[The company] provides a foundation for employees to do the best work of their careers with a commitment to both remote work and in-person collaboration."  — [company careers page, work arrangements] — company-authored — accessed 2026-08-27 — needed JS: N  — [R2: company name replaced in brackets; quote otherwise verbatim]
+----------------------------------------------------------------------------------------------------
+LINE 41
+  RAW   : • "We hire for potential: It is our belief that general talent and learning agility is a huge asset, and enables high performing individuals to reach their full potential."  — [company careers resources page, hiring philosophy] — DigitalOcean (company-authored) — https://www.digitalocean.com/careers/resources — accessed 2026-08-27 — needed JS: N
+  SCRUB : • "We hire for potential: It is our belief that general talent and learning agility is a huge asset, and enables high performing individuals to reach their full potential."  — [company careers resources page, hiring philosophy] — company-authored — accessed 2026-08-27 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 42
+  RAW   : • "Dive into the Future. If you like to move fast, deliver excellence, and be part of a bold growth story, we invite you to apply to join DigitalOcean."  — [company careers page, open-roles header] — DigitalOcean (company-authored) — https://www.digitalocean.com/careers/open-roles — accessed 2026-08-27 — needed JS: Y
+  SCRUB : • "Dive into the Future. If you like to move fast, deliver excellence, and be part of a bold growth story, we invite you to apply to join [the company]."  — [company careers page, open-roles header] — company-authored — accessed 2026-08-27 — needed JS: Y  — [R2: company name replaced in brackets; quote otherwise verbatim]
+----------------------------------------------------------------------------------------------------
+LINE 46
+  RAW   : • "From their structure to their culture, they are amazing. Everyone from the top down is supportive. I had to leave for health reasons or would stayed forever. […]"  — [employee review] — Sales Manager, Remote — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2025-01-29 — needed JS: N
+  SCRUB : • "From their structure to their culture, they are amazing. Everyone from the top down is supportive. I had to leave for health reasons or would stayed forever. […]"  — [employee review] — Sales Manager, Remote — rev-01 — 2025-01-29 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 47
+  RAW   : • "Good for an entry-level job and enjoyed making connections with other individuals in the same scene. Had an overall pleasant time with the people I worked with."  — [employee review] — Software Developer, Los Angeles CA — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2024-08-12 — needed JS: N
+  SCRUB : • "Good for an entry-level job and enjoyed making connections with other individuals in the same scene. Had an overall pleasant time with the people I worked with."  — [employee review] — Software Developer, [Site A] — rev-02 — 2024-08-12 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 48
+  RAW   : • "Great work life balance! Hate that we lost Sammy recharge days. They were random days off, and they were huge benefit. The benefits are great with an internet and wellness credit."  — [employee review] — Executive Assistant, Remote — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2023-06-06 — needed JS: N
+  SCRUB : • "Great work life balance! Hate that we lost [name stripped] recharge days. They were random days off, and they were huge benefit. The benefits are great with an internet and wellness credit."  — [employee review] — Executive Assistant, Remote — rev-03 — 2023-06-06 — needed JS: N  — [R4: branded name of an internal programme replaced in brackets; the practice and the clause otherwise verbatim]
+----------------------------------------------------------------------------------------------------
+LINE 49
+  RAW   : • "Great colleagues, everyone is extremely supportive and there to help. We get competitive salaries and the stock options are a really good benefit! Growth is also pretty straightforward"  — [employee review] — Marketing Manager, United States — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2023-04-12 — needed JS: N
+  SCRUB : • "Great colleagues, everyone is extremely supportive and there to help. We get competitive salaries and the stock options are a really good benefit! Growth is also pretty straightforward"  — [employee review] — Marketing Manager, [Country-level] — rev-04 — 2023-04-12 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 50
+  RAW   : • "The people are generally pretty great. All very friendly and eager to help. Remote work is the norm, and teams seem to do a good job of fostering camaraderie in spite of it. Pay is ok. You don't need to work over 40 hours unless you want to. […]"  — [employee review] — Software Engineer, Remote — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2022-04-26 — needed JS: N
+  SCRUB : • "The people are generally pretty great. All very friendly and eager to help. Remote work is the norm, and teams seem to do a good job of fostering camaraderie in spite of it. Pay is ok. You don't need to work over 40 hours unless you want to. […]"  — [employee review] — Software Engineer, Remote — rev-05 — 2022-04-26 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 51
+  RAW   : • "I just love the place but as me, pay was too little and I needed to be busier. It's little bit boring in the office. But I love the work culture a lot. […]"  — [employee review] — "Administrate office coordinator" [sic — reviewer's own spelling], Cambridge MA — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2021-04-02 — needed JS: N
+  SCRUB : • "I just love the place but as me, pay was too little and I needed to be busier. It's little bit boring in the office. But I love the work culture a lot. […]"  — [employee review] — "Administrate office coordinator" [sic — reviewer's own spelling], [Site B] — rev-06 — 2021-04-02 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 52
+  RAW   : • "A lot of thrash and mis-direction. Too much daily back and forth on what the overall direction and focus was. This caused a lot of false starts among the CS team. […]"  — [employee review] — Director of Customer Success, Raleigh NC — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2020-03-02 — needed JS: N
+  SCRUB : • "A lot of thrash and mis-direction. Too much daily back and forth on what the overall direction and focus was. This caused a lot of false starts among the CS team. […]"  — [employee review] — Director of Customer Success, [Site C] — rev-07 — 2020-03-02 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 53
+  RAW   : • "Should provide more benefits and work life balance with trust worthy leadership and open minded HR. Should listen to employees there is no job security. […]"  — [employee review] — Trust And Safety Specialist, Bangalore City Karnataka — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2019-08-25 — needed JS: N
+  SCRUB : • "Should provide more benefits and work life balance with trust worthy leadership and open minded HR. Should listen to employees there is no job security. […]"  — [employee review] — Trust And Safety Specialist, [Site D] — rev-08 — 2019-08-25 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 54
+  RAW   : • "Good company. Good place and people. The free lectures and seminar are so great. Meeting new people who also a IT related individual. It gives us so much knowledge that will help us to learn new things. […]"  — [employee review] — Volunteer Staff, Ortigas — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2019-07-12 — needed JS: N
+  SCRUB : • "Good company. Good place and people. The free lectures and seminar are so great. Meeting new people who also a IT related individual. It gives us so much knowledge that will help us to learn new things. […]"  — [employee review] — Volunteer Staff, [Site E] — rev-09 — 2019-07-12 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 55
+  RAW   : • "really fun place to work at and you learn alot , hands on experience, pushed to your limits . relaxes place to work at as well people are very helpful […]"  — [employee review] — Cloud Computing Team Intern, New York NY — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2018-03-08 — needed JS: N
+  SCRUB : • "really fun place to work at and you learn alot , hands on experience, pushed to your limits . relaxes place to work at as well people are very helpful […]"  — [employee review] — Cloud Computing Team Intern, [Site F] — rev-10 — 2018-03-08 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 56
+  RAW   : • "Company I helped develop many years ago. Great clients and projects. Small business that is growing. […]"  — [employee review] — COO, Kansas City MO — https://www.indeed.com/cmp/Digitalocean/reviews?sort=date — 2012-07-25 — needed JS: N
+  SCRUB : • "Company I helped develop many years ago. Great clients and projects. Small business that is growing. […]"  — [employee review] — COO, [Site H] — rev-11 — 2012-07-25 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 64
+  RAW   : • "Lead the technical strategy for benchmarking and performance optimizations at the inference engine and GPU kernel layers"  — [job posting — Engineering] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7722835 — published 2026-07-23, updated 2026-08-18 — needed JS: N
+  SCRUB : • "Lead the technical strategy for benchmarking and performance optimizations at the inference engine and GPU kernel layers"  — [job posting — Engineering] — company-authored — published 2026-07-23, updated 2026-08-18 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 65
+  RAW   : • "Develop and deploy state-of-the-art quantization techniques (FP8, INT8, and experimental FP4)"  — [job posting — Engineering] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7722835 — published 2026-07-23, updated 2026-08-18 — needed JS: N
+  SCRUB : • "Develop and deploy state-of-the-art quantization techniques (FP8, INT8, and experimental FP4)"  — [job posting — Engineering] — company-authored — published 2026-07-23, updated 2026-08-18 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 66
+  RAW   : • "Maintain a strong presence in the GPU infrastructure and model performance optimization communities"  — [job posting — Engineering] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7722835 — published 2026-07-23, updated 2026-08-18 — needed JS: N
+  SCRUB : • "Maintain a strong presence in the GPU infrastructure and model performance optimization communities"  — [job posting — Engineering] — company-authored — published 2026-07-23, updated 2026-08-18 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 67
+  RAW   : • "Define and author the overarching global communication strategy in order to align long-term enterprise goals with a compelling public voice that elevates our corporate authority."  — [job posting — Marketing Communications] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/8027190 — published 2026-07-29, updated 2026-08-04 — needed JS: N
+  SCRUB : • "Define and author the overarching global communication strategy in order to align long-term enterprise goals with a compelling public voice that elevates our corporate authority."  — [job posting — Marketing Communications] — company-authored — published 2026-07-29, updated 2026-08-04 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 68
+  RAW   : • "Establish advanced operational KPIs and attribution metrics across all communication vectors in order to measure and prove business impact, brand sentiment, and pipeline influence."  — [job posting — Marketing Communications] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/8027190 — published 2026-07-29, updated 2026-08-04 — needed JS: N
+  SCRUB : • "Establish advanced operational KPIs and attribution metrics across all communication vectors in order to measure and prove business impact, brand sentiment, and pipeline influence."  — [job posting — Marketing Communications] — company-authored — published 2026-07-29, updated 2026-08-04 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 69
+  RAW   : • "Lead, mentor, and scale a high-performing team of communication specialists and content creators in order to cultivate internal talent, maximize operational velocity, and foster a world-class culture of accountability."  — [job posting — Marketing Communications] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/8027190 — published 2026-07-29, updated 2026-08-04 — needed JS: N
+  SCRUB : • "Lead, mentor, and scale a high-performing team of communication specialists and content creators in order to cultivate internal talent, maximize operational velocity, and foster a world-class culture of accountability."  — [job posting — Marketing Communications] — company-authored — published 2026-07-29, updated 2026-08-04 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 70
+  RAW   : • "A growth-mindset approach: A natural appetite for constructive feedback, a relentless drive to challenge stale brand paradigms, and a 'leave it better than you found it' attitude."  — [job posting — Marketing Communications] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/8027190 — published 2026-07-29, updated 2026-08-04 — needed JS: N
+  SCRUB : • "A growth-mindset approach: A natural appetite for constructive feedback, a relentless drive to challenge stale brand paradigms, and a 'leave it better than you found it' attitude."  — [job posting — Marketing Communications] — company-authored — published 2026-07-29, updated 2026-08-04 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 71
+  RAW   : • "Fearlessness: Marketing has to create compelling stories from highly technical products and concepts, with new ones emerging almost every day. We must learn all the time, ask the basic questions, and be willing to fail in order to learn more."  — [job posting — Marketing Communications] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/8027190 — published 2026-07-29, updated 2026-08-04 — needed JS: N
+  SCRUB : • "Fearlessness: Marketing has to create compelling stories from highly technical products and concepts, with new ones emerging almost every day. We must learn all the time, ask the basic questions, and be willing to fail in order to learn more."  — [job posting — Marketing Communications] — company-authored — published 2026-07-29, updated 2026-08-04 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 72
+  RAW   : • "Establish performance metrics (KPIs/SLAs) and conduct regular 1:1s, performance reviews, and career development planning."  — [job posting — Customer Success] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7807707 — first published 2026-04-13, updated 2026-08-18 — needed JS: N
+  SCRUB : • "Establish performance metrics (KPIs/SLAs) and conduct regular 1:1s, performance reviews, and career development planning."  — [job posting — Customer Success] — company-authored — first published 2026-04-13, updated 2026-08-18 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 73
+  RAW   : • "Own the development and maintenance of SOPs, escalation runbooks, HVC support playbooks, and knowledge base content"  — [job posting — Customer Success] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7807707 — first published 2026-04-13, updated 2026-08-18 — needed JS: N
+  SCRUB : • "Own the development and maintenance of SOPs, escalation runbooks, HVC support playbooks, and knowledge base content"  — [job posting — Customer Success] — company-authored — first published 2026-04-13, updated 2026-08-18 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 74
+  RAW   : • "Serve as the Voice of the Customer (VoC) to Product and Engineering teams, synthesizing support data to advocate for bug fixes, feature requests, and UX improvements."  — [job posting — Customer Success] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7807707 — first published 2026-04-13, updated 2026-08-18 — needed JS: N
+  SCRUB : • "Serve as the Voice of the Customer (VoC) to Product and Engineering teams, synthesizing support data to advocate for bug fixes, feature requests, and UX improvements."  — [job posting — Customer Success] — company-authored — first published 2026-04-13, updated 2026-08-18 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 75
+  RAW   : • "Contribute to the vision for AI and automation within support—building intelligent tooling and driving the team toward an automation-first model"  — [job posting — Customer Success] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7807707 — first published 2026-04-13, updated 2026-08-18 — needed JS: N
+  SCRUB : • "Contribute to the vision for AI and automation within support—building intelligent tooling and driving the team toward an automation-first model"  — [job posting — Customer Success] — company-authored — first published 2026-04-13, updated 2026-08-18 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 76
+  RAW   : • "2+ years of people management experience leading technical, customer-facing teams, preferably in a high-growth, post-acquisition, or rapidly scaling environment."  — [job posting — Customer Success] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/7807707 — first published 2026-04-13, updated 2026-08-18 — needed JS: N
+  SCRUB : • "2+ years of people management experience leading technical, customer-facing teams, preferably in a high-growth, post-acquisition, or rapidly scaling environment."  — [job posting — Customer Success] — company-authored — first published 2026-04-13, updated 2026-08-18 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 77
+  RAW   : • "Co-develop scalable self-service legal playbooks, templates, and automated workflows"  — [job posting — Legal] — DigitalOcean (company-authored) — https://boards-api.greenhouse.io/v1/boards/digitalocean98/jobs/8099103 — published 2026-07-31, updated 2026-08-06 — needed JS: N
+  SCRUB : • "Co-develop scalable self-service legal playbooks, templates, and automated workflows"  — [job posting — Legal] — company-authored — published 2026-07-31, updated 2026-08-06 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 86
+  RAW   : • "Faced with a working-but-unproven patch on one side and a slower-but-durable path on the other, our team made the call to evacuate and upgrade the affected hosts entirely."  — [company engineering blog, rung 2] — Tim Lisko, Deputy CISO, DigitalOcean — https://www.digitalocean.com/blog/patching-januscape-amd-safe-ret — 2026-08-24 — needed JS: N
+  SCRUB : • "Faced with a working-but-unproven patch on one side and a slower-but-durable path on the other, our team made the call to evacuate and upgrade the affected hosts entirely."  — [company engineering blog, rung 2] — a Deputy CISO — 2026-08-24 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 87
+  RAW   : • "The Security, Capacity, Product, and Fleet Management teams got creative."  — [company engineering blog, rung 2] — Tim Lisko, Deputy CISO, DigitalOcean — https://www.digitalocean.com/blog/patching-januscape-amd-safe-ret — 2026-08-24 — needed JS: N
+  SCRUB : • "The Security, Capacity, Product, and Fleet Management teams got creative."  — [company engineering blog, rung 2] — a Deputy CISO — 2026-08-24 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 88
+  RAW   : • "Patches were built, validated in our staging environment, and promoted through a gradual production ramp."  — [company engineering blog, rung 2] — Tim Lisko, Deputy CISO, DigitalOcean — https://www.digitalocean.com/blog/patching-januscape-amd-safe-ret — 2026-08-24 — needed JS: N
+  SCRUB : • "Patches were built, validated in our staging environment, and promoted through a gradual production ramp."  — [company engineering blog, rung 2] — a Deputy CISO — 2026-08-24 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 89
+  RAW   : • "In order to keep the accelerated remediation running smoothly, an incident was formally declared."  — [company engineering blog, rung 2] — Tim Lisko, Deputy CISO, DigitalOcean — https://www.digitalocean.com/blog/patching-januscape-amd-safe-ret — 2026-08-24 — needed JS: N
+  SCRUB : • "In order to keep the accelerated remediation running smoothly, an incident was formally declared."  — [company engineering blog, rung 2] — a Deputy CISO — 2026-08-24 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 90
+  RAW   : • "Purpose-built models beat general-purpose models for routing—if you have the training data."  — [company engineering blog, rung 2, individual-contributor voice] — Adil Hafeez, Principal Engineer, DigitalOcean — https://www.digitalocean.com/blog/inference-router-architecture — 2026-06-15 — needed JS: N
+  SCRUB : • "Purpose-built models beat general-purpose models for routing—if you have the training data."  — [company engineering blog, rung 2, individual-contributor voice] — a Principal Engineer — 2026-06-15 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 91
+  RAW   : • "Arch-Router outperforms every frontier model we tested on routing accuracy, at a fraction of the latency"  — [company engineering blog, rung 2, individual-contributor voice] — Adil Hafeez, Principal Engineer, DigitalOcean — https://www.digitalocean.com/blog/inference-router-architecture — 2026-06-15 — needed JS: N
+  SCRUB : • "[name stripped] outperforms every frontier model we tested on routing accuracy, at a fraction of the latency"  — [company engineering blog, rung 2, individual-contributor voice] — a Principal Engineer — 2026-06-15 — needed JS: N  — [R4/A5: branded product name replaced in brackets; clause otherwise verbatim]
+----------------------------------------------------------------------------------------------------
+LINE 92
+  RAW   : • "the quality of your routing depends heavily on how you write those descriptions"  — [company engineering blog, rung 2, individual-contributor voice] — Adil Hafeez, Principal Engineer, DigitalOcean — https://www.digitalocean.com/blog/inference-router-architecture — 2026-06-15 — needed JS: N
+  SCRUB : • "the quality of your routing depends heavily on how you write those descriptions"  — [company engineering blog, rung 2, individual-contributor voice] — a Principal Engineer — 2026-06-15 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 93
+  RAW   : • "First: if you're unsure or afraid of _anything_, just ask or submit the issue or pull request anyways. You won't be yelled at for giving your best effort."  — [public repository contribution guidelines, rung 5] — DigitalOcean doctl maintainers (company-authored) — https://raw.githubusercontent.com/digitalocean/doctl/main/CONTRIBUTING.md — undated file; repository last updated 2026-07-24 — needed JS: N
+  SCRUB : • "First: if you're unsure or afraid of _anything_, just ask or submit the issue or pull request anyways. You won't be yelled at for giving your best effort."  — [public repository contribution guidelines, rung 5] — project maintainers (company-authored) — undated file; repository last updated 2026-07-24 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 94
+  RAW   : • "Pull requests must always be opened from a fork of `doctl`, even if you have commit rights to the repository so that all contributors follow the same process."  — [public repository contribution guidelines, rung 5] — DigitalOcean doctl maintainers (company-authored) — https://raw.githubusercontent.com/digitalocean/doctl/main/CONTRIBUTING.md — undated file; repository last updated 2026-07-24 — needed JS: N
+  SCRUB : • "Pull requests must always be opened from a fork of `[name stripped]`, even if you have commit rights to the repository so that all contributors follow the same process."  — [public repository contribution guidelines, rung 5] — project maintainers (company-authored) — undated file; repository last updated 2026-07-24 — needed JS: N  — [R4/A5: branded repository name replaced in brackets, backticks preserved; clause otherwise verbatim]
+----------------------------------------------------------------------------------------------------
+LINE 95
+  RAW   : • "Respond as promptly as possible to any questions made by the _doctl_ team to your issue. Stale issues will be closed."  — [public repository contribution guidelines, rung 5] — DigitalOcean doctl maintainers (company-authored) — https://raw.githubusercontent.com/digitalocean/doctl/main/CONTRIBUTING.md — undated file; repository last updated 2026-07-24 — needed JS: N
+  SCRUB : • "Respond as promptly as possible to any questions made by the _[name stripped]_ team to your issue. Stale issues will be closed."  — [public repository contribution guidelines, rung 5] — project maintainers (company-authored) — undated file; repository last updated 2026-07-24 — needed JS: N  — [R4/A5: branded repository name replaced in brackets, underscores preserved; clause otherwise verbatim]
+----------------------------------------------------------------------------------------------------
+LINE 96
+  RAW   : • "They're scaling faster and they're scaling leaner in as an AI native company."  — [press interview, rung 6] — Paddy Srinivasan, Chief Executive Officer, DigitalOcean, quoted by Larry Dignan — https://www.constellationr.com/insights/news/digitalocean-ceo-paddy-srinivasan-ai-natives-inferencing-agentic-ai-adoption — 2025-07-28 — needed JS: N
+  SCRUB : • "They're scaling faster and they're scaling leaner in as an AI native company."  — [press interview, rung 6] — the Chief Executive Officer, quoted by trade press — 2025-07-28 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 100
+  RAW   : • "Just as important is how we are growing: attractive margins, positive free cash flow, capacity delivered on or ahead of schedule, and a stronger balance sheet."  — [company press release, quarterly results] — Paddy Srinivasan, Chief Executive Officer, DigitalOcean — https://www.businesswire.com/news/home/20260803098656/en/DigitalOcean-Announces-Second-Quarter-2026-Financial-Results — 2026-08-04 — needed JS: N
+  SCRUB : • "Just as important is how we are growing: attractive margins, positive free cash flow, capacity delivered on or ahead of schedule, and a stronger balance sheet."  — [company press release, quarterly results] — the Chief Executive Officer — 2026-08-04 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 101
+  RAW   : • "Kevin, Leo and Brady have scaled category-defining companies, and they bring exactly what this chapter demands: commercial firepower, a sharp market understanding, and operational rigor."  — [company press release, three C-suite appointments: Chief Revenue Officer, Chief Marketing Officer, Chief Legal & Administrative Officer] — Paddy Srinivasan, Chief Executive Officer, DigitalOcean — https://investors.digitalocean.com/news/news-details/2026/DigitalOcean-Adds-Three-Executives-to-Power-the-Next-Chapter-of-Growth-as-AI-Native-Demand-Accelerates/default.aspx — 2026-06-10 — needed JS: N
+  SCRUB : • "[The three incoming executives] have scaled category-defining companies, and they bring exactly what this chapter demands: commercial firepower, a sharp market understanding, and operational rigor."  — [company press release, three C-suite appointments: Chief Revenue Officer, Chief Marketing Officer, Chief Legal & Administrative Officer] — the Chief Executive Officer — 2026-06-10 — needed JS: N  — [R3: three named individuals replaced in brackets, roles retained in the source descriptor; clause otherwise verbatim]
+----------------------------------------------------------------------------------------------------
+LINE 102
+  RAW   : • "I'm excited to work with the team to advance the platform, solidify our infrastructure and security posture, and accelerate the execution that will drive real-world AI applications at scale."  — [company press release, appointment of Chief Product and Technology Officer] — Vinay Kumar, incoming Chief Product and Technology Officer, DigitalOcean — https://www.businesswire.com/news/home/20260120383451/en/DigitalOcean-Appoints-Vinay-Kumar-as-Chief-Product-and-Technology-Officer — 2026-01-20 — needed JS: N
+  SCRUB : • "I'm excited to work with the team to advance the platform, solidify our infrastructure and security posture, and accelerate the execution that will drive real-world AI applications at scale."  — [company press release, appointment of Chief Product and Technology Officer] — the incoming Chief Product and Technology Officer — 2026-01-20 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 103
+  RAW   : • "Vinay has built cloud and AI platforms at scale, has tremendous product strategy acumen, understands the operational rigor required for mission-critical workloads, brings a strong track record of disciplined product execution, and will elevate our product and technology leadership."  — [company press release, appointment of Chief Product and Technology Officer] — Paddy Srinivasan, Chief Executive Officer, DigitalOcean — https://www.businesswire.com/news/home/20260120383451/en/DigitalOcean-Appoints-Vinay-Kumar-as-Chief-Product-and-Technology-Officer — 2026-01-20 — needed JS: N
+  SCRUB : • "[The incoming Chief Product and Technology Officer] has built cloud and AI platforms at scale, has tremendous product strategy acumen, understands the operational rigor required for mission-critical workloads, brings a strong track record of disciplined product execution, and will elevate our product and technology leadership."  — [company press release, appointment of Chief Product and Technology Officer] — the Chief Executive Officer — 2026-01-20 — needed JS: N  — [R3: named individual replaced in brackets with the role the descriptor already states; clause otherwise verbatim]
+----------------------------------------------------------------------------------------------------
+LINE 110
+  RAW   : • "None of our employees are represented by a labor union or covered by a collective bargaining agreement. We have not experienced any work stoppages, and we consider our relations with our employees to be good."  — [10-K Item 1 Human Capital Management] — DigitalOcean Holdings, Inc. (company-authored) — https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm — FY ended 2025-12-31 — needed JS: N
+  SCRUB : • "None of our employees are represented by a labor union or covered by a collective bargaining agreement. We have not experienced any work stoppages, and we consider our relations with our employees to be good."  — [10-K Item 1 Human Capital Management] — company-authored — FY ended 2025-12-31 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 111
+  RAW   : • "Talent development and employee engagement are key to attracting and retaining talented employees."  — [10-K Item 1 Human Capital Management] — DigitalOcean Holdings, Inc. (company-authored) — https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm — FY ended 2025-12-31 — needed JS: N
+  SCRUB : • "Talent development and employee engagement are key to attracting and retaining talented employees."  — [10-K Item 1 Human Capital Management] — company-authored — FY ended 2025-12-31 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 112
+  RAW   : • "We facilitate employee review cycles where employees have development conversations with their managers multiple times throughout the year. We also offer thousands of training courses and videos on a wide range of topics to further support employee development."  — [10-K Item 1 Human Capital Management] — DigitalOcean Holdings, Inc. (company-authored) — https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm — FY ended 2025-12-31 — needed JS: N
+  SCRUB : • "We facilitate employee review cycles where employees have development conversations with their managers multiple times throughout the year. We also offer thousands of training courses and videos on a wide range of topics to further support employee development."  — [10-K Item 1 Human Capital Management] — company-authored — FY ended 2025-12-31 — needed JS: N
+----------------------------------------------------------------------------------------------------
+LINE 113
+  RAW   : • "Finally, we conduct anonymous global engagement surveys regularly to measure the effectiveness of our business and people initiatives and identify areas of strength and development opportunities among teams."  — [10-K Item 1 Human Capital Management] — DigitalOcean Holdings, Inc. (company-authored) — https://www.sec.gov/Archives/edgar/data/1582961/000158296126000019/docn-20251231.htm — FY ended 2025-12-31 — needed JS: N
+  SCRUB : • "Finally, we conduct anonymous global engagement surveys regularly to measure the effectiveness of our business and people initiatives and identify areas of strength and development opportunities among teams."  — [10-K Item 1 Human Capital Management] — company-authored — FY ended 2025-12-31 — needed JS: N
+----------------------------------------------------------------------------------------------------
+
+53 changed lines. 52 excerpt bullets in raw, 52 in scrubbed.

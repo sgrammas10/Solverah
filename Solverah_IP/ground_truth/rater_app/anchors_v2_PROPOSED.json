@@ -1,0 +1,264 @@
+{
+  "_note": "PROPOSED, NOT ADOPTED. Generated from anchors.json v1-frozen-2026-08-15 by make_anchors_v2.py. anchors.json itself is UNTOUCHED and remains frozen while raters are mid-round on P-01..P-06 — adopting this file mid-round would invalidate the ground-truth round in progress. This exists to be (a) A/B-tested against the frozen anchors on identical vignettes via run_vignette_probe.py --anchors, and (b) handed to Julie as input to the post-round-1 anchor rewrite the frozen file's own _note already anticipates. Every change targets a measured cross-dimension bleed, not a style preference; see ANCHOR_BLEED_FIX.md for the evidence behind each one.",
+  "rubric_version": "v2-PROPOSED-2026-08-17",
+  "band_values": [
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9
+  ],
+  "agreement_rule": {
+    "same_band": "agreement",
+    "one_band_apart": "expected instrument resolution, not ambiguity",
+    "two_or_more_bands_apart": "anchor ambiguity - reword, do not average"
+  },
+  "gates": [
+    "Neither pole is better. Every dimension runs between two legitimate cultures. “Directed” is not worse than “self-directed.” If you catch yourself scoring toward the pole you personally prefer, stop — that is bias, not signal.",
+    "Score the company as it is, not as you would like it. You are describing a culture, not grading it. Aspirational careers-page copy is weak evidence; how people describe daily reality is strong evidence.",
+    "Kill the halo. A well-liked brand tends to drag every score toward “good.” Score each dimension only from evidence about that dimension.",
+    "Evidence over gut. If you cannot point to a line in the packet that supports the number, lower your confidence. A guess dressed as a 0.9 poisons the ground truth more than an honest 0.5 at low confidence.",
+    "Stale culture is wrong culture. Prefer recent evidence. Where the packet flags an evidence-age problem, let it lower your confidence.",
+    "Do not search for anything in this packet. If you recognise the company, that is expected and is not a failure — tick the recognition box and keep scoring from the evidence in front of you."
+  ],
+  "confidence_bands": [
+    {
+      "value": 0.9,
+      "label": "High",
+      "text": "Multiple corroborating sources of different types all point the same way."
+    },
+    {
+      "value": 0.6,
+      "label": "Medium",
+      "text": "Some real evidence but from one source type, or sources partly conflict. A defensible read, not a certain one."
+    },
+    {
+      "value": 0.3,
+      "label": "Low",
+      "text": "Thin or indirect evidence — a single ambiguous signal. You can defend a direction, but only weakly."
+    },
+    {
+      "value": 0.1,
+      "label": "Very low",
+      "text": "Almost nothing in the packet bears on this dimension. You are close to guessing."
+    }
+  ],
+  "dimensions": [
+    {
+      "key": "autonomy",
+      "name": "Autonomy",
+      "low_pole": "Directed",
+      "high_pole": "Self-directed",
+      "measures": "How much latitude individuals have to set their own approach, priorities and decisions, vs. following assigned direction, defined process and approval chains.",
+      "where_to_look": "Job-post verbs (“execute against the roadmap” vs. “own your domain end-to-end”), number of approval layers, presence of detailed SOP/process docs, review mentions of micromanagement vs. freedom, IC decision rights, remote-trust language.",
+      "keep_distinct": "Not the same as Collaboration. A person can be highly self-directed AND work collectively. Autonomy is about who decides the how; Collaboration is about alone vs. together — score meeting and pairing density there, never here. Not the same as Innovation either: a prescribed method can produce novel work and a self-directed team can spend all its time optimizing.",
+      "bands": [
+        {
+          "value": 0.1,
+          "reads_as": "Directed",
+          "text": "Work is assigned and specified top-down. Most decisions need sign-off. Postings stress “follow established processes,” reviews cite micromanagement or rigid procedure."
+        },
+        {
+          "value": 0.3,
+          "reads_as": "Leaning directed",
+          "text": "Manager sets direction and priorities; individual chooses tactics inside clear guardrails. Some latitude, but the frame is given."
+        },
+        {
+          "value": 0.5,
+          "reads_as": "Mixed",
+          "text": "Direction set at team level, individuals pick the how within it. No strong signal either way, or genuinely balanced."
+        },
+        {
+          "value": 0.7,
+          "reads_as": "Leaning self-directed",
+          "text": "ICs own outcomes and choose their approach with light approval. “Ownership,” results-over-process language present."
+        },
+        {
+          "value": 0.9,
+          "reads_as": "Self-directed",
+          "text": "Individuals set their own priorities and methods with minimal approval. High-trust, flat decision rights pervade the evidence."
+        }
+      ]
+    },
+    {
+      "key": "pace",
+      "name": "Pace",
+      "low_pole": "Steady",
+      "high_pole": "Fast",
+      "measures": "The tempo and intensity of work — deliberate, sustainable cadence vs. rapid, high-urgency, quick-turnaround.",
+      "where_to_look": "“Fast-paced” in postings, release/ship frequency, deadline and crunch culture, review mentions of hours/intensity/burnout vs. calm, on-call expectations.",
+      "keep_distinct": "Not the same as Innovation. A company can move fast while only optimizing, or invent slowly. Pace is tempo; Innovation is novelty.",
+      "bands": [
+        {
+          "value": 0.1,
+          "reads_as": "Steady",
+          "text": "Deliberate cadence, long planning horizons, stability and quality emphasis. Reviews describe a calm, sustainable pace."
+        },
+        {
+          "value": 0.3,
+          "reads_as": "Leaning steady",
+          "text": "Generally measured tempo with occasional pushes. Deadlines exist but rarely dominate."
+        },
+        {
+          "value": 0.5,
+          "reads_as": "Mixed",
+          "text": "Ordinary business tempo — some crunch, some calm. No dominant signal."
+        },
+        {
+          "value": 0.7,
+          "reads_as": "Leaning fast",
+          "text": "Regular urgency, frequent releases, tight-ish timelines. Energy is up but not relentless."
+        },
+        {
+          "value": 0.9,
+          "reads_as": "Fast",
+          "text": "“Move fast,” rapid iteration, aggressive deadlines. Reviews cite long hours, intensity or hypergrowth."
+        }
+      ]
+    },
+    {
+      "key": "collaboration",
+      "name": "Collaboration",
+      "low_pole": "Solo",
+      "high_pole": "Collective",
+      "measures": "How work actually gets produced — individual, heads-down ownership vs. group, cross-functional, in-the-room problem-solving.",
+      "where_to_look": "Team structure (pods/squads vs. single-threaded owners), meeting and pairing culture, open-plan vs. deep-work norms, “we win together” vs. “heads-down, protect your focus time” language, async-written vs. sync-group.",
+      "keep_distinct": "Not the same as Autonomy. Collective teams can still hand individuals full ownership of the how. Score meeting and team density here, decision rights under Autonomy.",
+      "bands": [
+        {
+          "value": 0.1,
+          "reads_as": "Solo",
+          "text": "Heads-down solo production is the norm. Very low meeting load, little or no pairing, written async updates in place of live working sessions."
+        },
+        {
+          "value": 0.3,
+          "reads_as": "Leaning solo",
+          "text": "Work is produced alone and brought together at periodic syncs. Meetings are status and handoff, not joint problem-solving."
+        },
+        {
+          "value": 0.5,
+          "reads_as": "Mixed",
+          "text": "Balanced individual and group work; no dominant mode."
+        },
+        {
+          "value": 0.7,
+          "reads_as": "Leaning collective",
+          "text": "Cross-functional teamwork common, meetings frequent, decisions shared."
+        },
+        {
+          "value": 0.9,
+          "reads_as": "Collective",
+          "text": "Heavy pairing, meeting and consensus culture, cross-functional pods, “we win together” throughout."
+        }
+      ]
+    },
+    {
+      "key": "feedback",
+      "name": "Feedback Culture",
+      "low_pole": "Sparse / gentle",
+      "high_pole": "Frequent / blunt",
+      "measures": "How performance feedback flows — occasional and softened vs. frequent, direct and unfiltered.",
+      "where_to_look": "“Radical candor” or “direct communication” in values, review-cycle frequency, mentions of blunt vs. supportive delivery, debate and critique norms, conflict-avoidant vs. conflict-embracing signals.",
+      "keep_distinct": "Score the delivery style and frequency of critique, not whether feedback is “nice.” Both poles are legitimate cultures, not good and bad.",
+      "bands": [
+        {
+          "value": 0.1,
+          "reads_as": "Sparse / gentle",
+          "text": "Feedback is occasional and softened. Harmony valued, conflict avoided, supportive or nurturing framing."
+        },
+        {
+          "value": 0.3,
+          "reads_as": "Leaning gentle",
+          "text": "Feedback mostly on cycles, delivered with care. Directness is the exception."
+        },
+        {
+          "value": 0.5,
+          "reads_as": "Mixed",
+          "text": "Normal mix of scheduled and ad-hoc feedback, moderate directness."
+        },
+        {
+          "value": 0.7,
+          "reads_as": "Leaning blunt",
+          "text": "Frequent, fairly direct feedback; debate is normal; thicker skin helps."
+        },
+        {
+          "value": 0.9,
+          "reads_as": "Frequent / blunt",
+          "text": "Radical candor, constant unfiltered input, “we tell it straight,” critique and debate are the default."
+        }
+      ]
+    },
+    {
+      "key": "innovation",
+      "name": "Innovation Stance",
+      "low_pole": "Refine / optimize",
+      "high_pole": "Invent / explore",
+      "measures": "Where the work sits on the create-vs-refine axis — improving and scaling what exists vs. inventing what does not exist yet.",
+      "where_to_look": "R&D emphasis, “0-to-1” vs. “operational excellence” language, product maturity, tolerance for failed bets, “experiment” vs. “scale what works.”",
+      "keep_distinct": "Not the same as Pace. Optimizing can be frantic; inventing can be slow. Score novelty of the work, not its speed. Also not the same as Autonomy. How prescribed the method is says nothing about how novel the output is — a rigid playbook can govern genuinely new work, and a fully self-directed team can spend all of it refining what exists. Do not read “follows a detailed brief” as low Innovation or “builds their own approach” as high Innovation; those are decision-rights facts and belong under Autonomy.",
+      "bands": [
+        {
+          "value": 0.1,
+          "reads_as": "Refine / optimize",
+          "text": "Operational excellence, refine and scale existing product, efficiency focus, mature offering."
+        },
+        {
+          "value": 0.3,
+          "reads_as": "Leaning optimize",
+          "text": "Mostly improving known things; occasional new bets at the edges."
+        },
+        {
+          "value": 0.5,
+          "reads_as": "Mixed",
+          "text": "Real split between maintaining and creating; no dominant stance."
+        },
+        {
+          "value": 0.7,
+          "reads_as": "Leaning invent",
+          "text": "New-product or new-capability work is common; experimentation encouraged."
+        },
+        {
+          "value": 0.9,
+          "reads_as": "Invent / explore",
+          "text": "R&D-forward, novel products, “0-to-1,” research culture, explicit tolerance for failed experiments."
+        }
+      ]
+    },
+    {
+      "key": "decision",
+      "name": "Decision Basis",
+      "low_pole": "Intuition / judgement",
+      "high_pole": "Data / analysis",
+      "measures": "What decisions actually rest on — experience, taste and judgement vs. metrics, experiments and analysis.",
+      "where_to_look": "“Data-driven” language, A/B testing and analytics infrastructure, metrics-gated launches, dashboards, vs. founder-gut, design-led or “trust your judgement” signals.",
+      "keep_distinct": "Score the basis of decisions, not their quality. A taste-led company is not worse than a data-led one; they select for different people.",
+      "bands": [
+        {
+          "value": 0.1,
+          "reads_as": "Intuition / judgement",
+          "text": "Taste, vision and experience lead. Founder gut or design-led; “trust your judgement.”"
+        },
+        {
+          "value": 0.3,
+          "reads_as": "Leaning intuition",
+          "text": "Judgement-first, data used to confirm rather than decide."
+        },
+        {
+          "value": 0.5,
+          "reads_as": "Mixed",
+          "text": "Both judgement and data carry weight depending on the call."
+        },
+        {
+          "value": 0.7,
+          "reads_as": "Leaning data",
+          "text": "Metrics and experiments usually drive decisions; judgement fills gaps."
+        },
+        {
+          "value": 0.9,
+          "reads_as": "Data / analysis",
+          "text": "“Data-driven,” experiment-gated, metrics-first, A/B-everything, analytics-heavy."
+        }
+      ]
+    }
+  ]
+}

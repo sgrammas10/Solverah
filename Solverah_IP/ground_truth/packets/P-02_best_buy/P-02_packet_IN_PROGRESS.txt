@@ -1,0 +1,638 @@
+SOLVERAH — EVIDENCE PACKET (IN PROGRESS)
+P-02 = Best Buy · started 2026-08-13 · evidence prompt v4.4
+Company name retained; anonymization is a separate later step.
+
+STATUS: A, C, D, E, F complete. B complete on the Indeed (verbatim text) layer — 4 of 4 planned
+titles sampled. B INCOMPLETE on the Glassdoor (per-title subratings) layer: see 2d and 2e. The
+Glassdoor recency cross-check is also still OUTSTANDING. The packet is NOT ready for a rater until
+both are resolved or the failure is confirmed and recorded as final.
+
+FIRST PUBLIC COMPANY THROUGH THE PROMPT. P-03, P-04 and P-05 are all private. This packet is the
+first test of section F (10-K Item 1 Human Capital), of the scope block, and of the v4.4 Indeed/
+Glassdoor split.
+
+BUILT WITH A JAVASCRIPT RENDERER. Decision of 2026-08-13: production will render, so ground truth
+is built with rendering. Sources marked "needed JS: Y" below are unreachable by plain HTTP fetch —
+they return a bare "Loading..." shell. Anonymous-equivalent content only; nothing behind a login.
+
+
+########## SECTION 1 — EVIDENCE PACKET ##########
+
+SCOPE DECLARATION FOR THE RATER
+   The employee reviews in this packet come from store-level roles — sales, customer service,
+   in-store technical support, warehouse and asset protection. Other parts of this company —
+   corporate, engineering, product, finance, marketing and supply-chain planning — are not
+   represented in them, because almost no one in those roles has posted a review. Company-authored
+   sources (careers pages, the annual-report human capital section) describe the whole organisation.
+   Job postings cover both. The counts are in the researcher QA block; the imbalance is a property
+   of the evidence, not a choice made during collection.
+
+
+--- A. CAREERS / VALUES PAGE (8 excerpts) ---
+
+• "We're focused on providing an amazing employee experience. This starts and ends with a culture that creates a sense of belonging, support as you need it and continuous opportunities to learn and grow." — [careers] — company careers site, "Our Culture" — https://jobs.bestbuy.com/bby?id=item_detail&content=culture — accessed 2026-08-13 — needed JS: Y
+
+• "From our stores and warehouses to our corporate offices, you'll find fun, fast-paced and inclusive work environments. We build strong team relationships and truly care about each other's well-being." — [careers] — company careers site, "Our Culture" — https://jobs.bestbuy.com/bby?id=item_detail&content=culture — accessed 2026-08-13 — needed JS: Y
+
+• "Best Buy's culture is anchored in our company values. They guide the way we work together, serve our customers and make business decisions." — [careers] — company careers site, "Our Culture" — https://jobs.bestbuy.com/bby?id=item_detail&content=culture — accessed 2026-08-13 — needed JS: Y
+
+• "You won't just find these values posted on the wall. They're woven into our company's DNA and reflect who we are on our best day." — [careers] — company careers site, "Our Culture" — https://jobs.bestbuy.com/bby?id=item_detail&content=culture — accessed 2026-08-13 — needed JS: Y
+
+• "Have fun while being the best. / Learn from challenge and change. / Show respect, humility and integrity. / Unleash the power of our people." — [careers] — company careers site, "Our Culture", the four stated company values, reproduced in full and in the order given — https://jobs.bestbuy.com/bby?id=item_detail&content=culture — accessed 2026-08-13 — needed JS: Y
+
+• "A core part of our culture is that you can bring your true self to work every day. We want all employees to feel a sense of belonging—to be welcomed, included and valued." — [careers] — company careers site, "Our Culture", Inclusion & Belonging block — https://jobs.bestbuy.com/bby?id=item_detail&content=culture — accessed 2026-08-13 — needed JS: Y
+
+• "We help employees live happy, healthy and productive lives that balance work and home. We offer a range of benefits to support your overall well-being." — [careers] — company careers site, "Our Culture", benefits block — https://jobs.bestbuy.com/bby?id=item_detail&content=culture — accessed 2026-08-13 — needed JS: Y
+
+• "We foster an inclusive culture that embraces our differences and empowers employees to bring their whole selves to work." — [corporate site] — corporate/newsroom domain, People section — https://corporate.bestbuy.com/ — accessed 2026-08-13 — needed JS: N
+
+
+--- B. EMPLOYEE REVIEWS (32 collected across 4 of 4 planned titles) ---
+
+NOTE TO RATER — read before scoring this section.
+   1. These reviews are grouped by job title. They are four different jobs at the same employer.
+      Where they disagree, consider that they may be describing different work rather than
+      contradicting each other.
+   2. Just under half of the reviews below were cut off by the source site at a "show more" control
+      that does not open. Those are marked […]. The reviews that survive in full are systematically
+      the SHORT ones — so the longer, more detailed accounts are the ones you are reading only the
+      opening of. Weigh that when a short review reads as thin.
+   3. Nothing was selected on content. Within each title these are the most recent, in date order.
+   4. THERE ARE NO PER-TITLE RATING NUMBERS IN THIS PACKET. The source that carries verbatim review
+      text publishes only company-wide subratings, and it renders those identical figures on every
+      title-filtered page — see 2f. The site that does publish per-title numbers could not be
+      retrieved anonymously — see 2d. Do not infer per-title numbers from anything below.
+
+TITLE 1 — SALES ADVISOR (store sales floor). Newest first.
+
+• "I had a lot of great experiences getting to learn new things, help people find actual solutions for their needs, and collaborate with great team members throughout my time in a sales position at Best Buy. Unfortunately, getting to help others always felt hampered by the sales goals that were set for […]" — [employee review] — Sales Advisor, Houston, TX — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Advisor&fcountry=US&sort=date — 2026-08-01 — truncated at source — needed JS: N
+
+• "Did not want to include location but I work at a particularly strong Best Buy. Constantly busy and the goals are not too hard to hit. Plenty of accommodations for employees and the hours were very easy to work with, and management at my particular location has been more than just that but they've treated […]" — [employee review] — Sales Advisor, location withheld by reviewer — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Advisor&fcountry=US&sort=date — 2026-07-30 — truncated at source — needed JS: N
+
+• "Working at Best Buy is a classic retail experience that comes with predictable ups and downs. On the positive side, the employee discount is legitimately excellent, especially if you are looking to buy home theater gear, cables, or major appliances. The store culture is heavily dependent on your specific […]" — [employee review] — Sales Advisor, Wichita Falls, TX — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Advisor&fcountry=US&sort=date — 2026-07-14 — truncated at source — needed JS: N
+
+• "Amazing retail location to work at with great hours and benefits!" — [employee review] — Sales Advisor, location not given — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Advisor&fcountry=US&sort=date — 2026-06-11 — needed JS: N
+
+• "Overall, the work environment was nice, discounts were a hit or miss (depends on what you get). The main thing management cares about is selling memberships and credit cards. As long as you hit your goals you should be fine, but they might start expecting more of you. It got stressful when not every […]" — [employee review] — Sales Advisor, location not given — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Advisor&fcountry=US&sort=date — 2026-05-31 — truncated at source — needed JS: N
+
+• "Very laid back job in my store as long as you did what management asked. Do need to have some basic sales skills to succeed, as hitting credit card/revenue/membership budgets is a big metric that is tracked." — [employee review] — Sales Advisor, location not given — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Advisor&fcountry=US&sort=date — 2026-05-31 — needed JS: N
+
+• "You are standing most of the day walking around and talking to customers. You are expected to get paid memberships and CC applications but there is no incentive in doing so." — [employee review] — Sales Advisor, Richmond, TX — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Advisor&fcountry=US&sort=date — 2026-05-28 — needed JS: N
+
+• "Experiences at Best Buy can vary branch by branch, but for the Gainesville Florida region specifically, it has not been the best work experience that I have endured so far. If you do end up working at this location, your coworkers will be amazing to talk to and collaborate on specific tasks, […]" — [employee review] — Sales Advisor, Gainesville, FL — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Advisor&fcountry=US&sort=date — 2026-05-25 — truncated at source — needed JS: N
+
+TITLE 2 — WAREHOUSE WORKER (distribution and product flow). Newest first.
+
+• "I was in an area where we package and ship out online orders. I was a general warehouse worker, so I also operated mobile equipment, moving pallets of boxed products or larger items such as TVs and I also hand loaded trucks from conveyors. […]" — [employee review] — General Warehouse Worker, Ardmore, OK — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Warehouse+Worker&fcountry=US&sort=date — 2026-07-21 — truncated at source — needed JS: N
+
+• "No sales quotas or credit card goals. / You stay active throughout the shift. / Many employees say the job becomes easy once you learn the routine. / Coworkers in Product Flow departments often have a close-knit team environment. / Good option if you don't enjoy constant customer interaction." — [employee review] — Warehouse Worker, Wilmington, DE — reviewer wrote this entry as a bulleted list under a "Pros" heading; reproduced in full and in order — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Warehouse+Worker&fcountry=US&sort=date — 2026-07-15 — needed JS: N
+
+• "They leave you to figure out a lot but once you get the hang of things it becomes a pretty decent job. Hours can be kinda rough if you are not a night owl." — [employee review] — Warehouse Worker, Mishawaka, IN — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Warehouse+Worker&fcountry=US&sort=date — 2026-06-23 — needed JS: N
+
+• "They have you doing a lot more work than it's honestly worth for the pay. that job was genuinely draining and trash. i wouldn't suggest working here. it's definitely not meant to be a job that you keep for long, just something to hold you over until you find something better." — [employee review] — Warehouse Worker, Dartmouth, MA — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Warehouse+Worker&fcountry=US&sort=date — 2026-06-16 — needed JS: N
+
+• "People are great managers are good people just the favoritism and laziness is through the roof get ready to outwork the "vets" and management being clueless" — [employee review] — General Warehouse Worker, Polk City, FL — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Warehouse+Worker&fcountry=US&sort=date — 2026-05-08 — needed JS: N
+
+• "I always felt the team and leadership was great here, and always felt supported with learning new tasks and increasing efficiency. The lunchroom is nice and I liked clocking in." — [employee review] — Warehouse Worker, location not given — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Warehouse+Worker&fcountry=US&sort=date — 2026-03-28 — needed JS: N
+
+• "had a solid 20-40hrs a week then dropped to 4-10hrs a week after the busy season. job overall is pretty easy other then the heavy lifting, would recommend 6.5/10" — [employee review] — Warehouse Worker, location not given — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Warehouse+Worker&fcountry=US&sort=date — 2026-03-04 — needed JS: N
+
+• "Overworked and will be asked to do a million things even though there are other workers doing nothing. Managers are childish and show favoritism on the daily" — [employee review] — Warehouse Worker, Merrillville, IN — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Warehouse+Worker&fcountry=US&sort=date — 2026-02-20 — needed JS: N
+
+TITLE 3 — SALES ASSOCIATE (store sales floor; the largest title in the review population). Newest first.
+
+• "Worked here for 2 years. Management was great, but got very annoying during the holidays and promotions. Besides that, it's a standard easy retail job, and my coworkers were awesome and made the job fun. Holidays are stressful but not awful. Training is easy, pay is really good for what it is, and scheduling […]" — [employee review] — Sales Associate, Peachtree City, GA — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Associate&fcountry=US&sort=date — 2026-07-29 — truncated at source — needed JS: N
+
+• "Working at Best Buy was a valuable experience that helped me develop both customer service and technical skills. One of the things I enjoyed most was helping customers find products that fit their needs, whether they were shopping for a new laptop, television, or phone. The work environment was fast-paced, […]" — [employee review] — Sales Associate, location not given — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Associate&fcountry=US&sort=date — 2026-07-24 — truncated at source — needed JS: N
+
+• "team was alright but they will push you to offer credit cards and their membership every transaction which can feel pretty repetitive. overall isn't too bad for a first job" — [employee review] — sales associate, location not given; reviewer's own lower-case title preserved — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Associate&fcountry=US&sort=date — 2026-07-21 — needed JS: N
+
+• "Worked here for many years in multiple departments your team is a big aspect of having a good store and ibwas greatful to have an amazing team. […]" — [employee review] — Mobile Sales Associate, Lancaster, PA — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Associate&fcountry=US&sort=date — 2026-07-21 — truncated at source — VERBATIM: "ibwas greatful" reproduced exactly, not repaired — needed JS: N
+
+• "The work environment here in Muncie is fantastic. The coworkers are great, and the customers aren't too bad either. There are definitely stressful days, but most days are pretty stable. The most enjoyable part is working with the people. Selling isn't too difficult once you learn the ropes. The training […]" — [employee review] — Sales Associate, Muncie, IN — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Associate&fcountry=US&sort=date — 2026-07-16 — truncated at source — needed JS: N
+
+• "Didn't mind it really, worth the money but they definitely keep the AC cranked in there, it was very chilly, Managers were very sweet and the team was always inviting, would work there again" — [employee review] — Sales Associate, Lees Summit, MO — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Associate&fcountry=US&sort=date — 2026-07-13 — needed JS: N
+
+• "I worked at Best Buy for 5 years and actually grew a ton. But management was a joke. Crazy expectations and even if you met them you weren't good enough." — [employee review] — Sales Associate, location not given — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Associate&fcountry=US&sort=date — 2026-07-10 — needed JS: N
+
+• "It was alr. They scold you if you do nothing and you have to hit your numbers or they will be on you super hard. If they ever catch you not pitching credit card or membership you are getting scolded" — [employee review] — Sales Associate, Cincinnati, OH — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Associate&fcountry=US&sort=date — 2026-07-09 — needed JS: N
+
+TITLE 4 — CUSTOMER SERVICE REPRESENTATIVE (front-of-store service and returns). Newest first.
+
+• "Good culture overall. Pay could've been better with better benefits. […]" — [employee review] — CSS (Customer Service Specialist), Everett, WA; reviewer's own title variant preserved — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Customer+Service+Representative&fcountry=US&sort=date — 2026-08-07 — truncated at source — needed JS: N
+
+• "Can be a good place to work depending on which location you work at - if there is stable and understanding management at your location. Worked there for a couple years with a great management team. Returned a few year later and the whole management team had changed, there was less support for employees. […]" — [employee review] — Customer Service Representative, location not given — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Customer+Service+Representative&fcountry=US&sort=date — 2026-07-11 — truncated at source — needed JS: N
+
+• "Great place to work, got to meet a lot of great people. Black Friday will be crazy no matter how organized it will seem, it's extremely busy but the day will go by quickly." — [employee review] — Customer Service Representative, location not given — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Customer+Service+Representative&fcountry=US&sort=date — 2026-06-25 — needed JS: N
+
+• "Management bullies you and plays favorites. Applied for a job I was qualified for and management told me I was not qualified because I didn't upload a resume however I 100% did then when I called them out on it they just said "you'll never move up as long as I'm manager" told HR and they did nothing. […]" — [employee review] — Customer Service, location not given — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Customer+Service+Representative&fcountry=US&sort=date — 2026-06-11 — truncated at source — needed JS: N
+
+• "Enjoyed my time there staff was like family and management was always willing to help out. Shout-out to [named store manager] he kept it running like a well oiled machine. […]" — [employee review] — Customer Service Associate, Bethlehem, PA — reviewer named an individual store manager; the name has been tokenised here per the anonymization rule, the sentiment preserved — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Customer+Service+Representative&fcountry=US&sort=date — 2026-06-07 — truncated at source — needed JS: N
+
+• "mean leadership but stable job if you keep showing up and doing the work. not particularly safe for women, as management doesnt really care if you get harassed. job is pretty easy though. coworkers are really friendly and nice." — [employee review] — Customer Service Representative, Norman, OK — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Customer+Service+Representative&fcountry=US&sort=date — 2026-04-23 — needed JS: N
+
+• "Learned high quality selling tactics and how to engage and direct customers through compliments, implied discounts, and use of marketing tools. Useful to careers" — [employee review] — Customer Service Representative, location not given — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Customer+Service+Representative&fcountry=US&sort=date — 2026-04-20 — needed JS: N
+
+• "It was fun working here because at the time I had great coworkers that helped each other, we all joked around... even management. We had a good group, only thing I didn't like when not cashiering is that you have to kinda push sales depending on what department you are helping. Pay is not the best either" — [employee review] — Customer Service Representative, location not given — https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Customer+Service+Representative&fcountry=US&sort=date — 2026-04-12 — needed JS: N
+
+
+--- C. JOB POSTINGS (3 postings · 22 excerpts · 3 distinct functions) ---
+
+POSTING 1 — function: corporate business development / e-commerce marketplace.
+Confirmed live at collection; carries a stated application deadline of minimum 5 days from posting.
+
+• "Success in this role requires an ownership mindset, intellectual curiosity, and the ability to work across teams in a fast-paced, evolving marketplace environment." — [job posting] — corporate business development function — https://www.indeed.com/viewjob?jk=69f893586548c8ba — accessed 2026-08-13 — needed JS: N
+
+• "Own the seller journey from initial outreach through launch, including pipeline management, relationship building, and cross-functional coordination." — [job posting] — corporate business development function — https://www.indeed.com/viewjob?jk=69f893586548c8ba — accessed 2026-08-13 — needed JS: N
+
+• "This requires a consultative approach to understand seller goals, challenges, and growth opportunities. As a trusted advisor, you will build strong relationships and guide sellers through the full recruitment process." — [job posting] — corporate business development function — https://www.indeed.com/viewjob?jk=69f893586548c8ba — accessed 2026-08-13 — needed JS: N
+
+• "Experience building relationships and influencing stakeholders without direct authority" — [job posting] — corporate business development function, stated basic qualification — https://www.indeed.com/viewjob?jk=69f893586548c8ba — accessed 2026-08-13 — needed JS: N
+
+• "Ability to analyze business performance metrics, develop forecasts, and use data to inform decisions" — [job posting] — corporate business development function, stated basic qualification — https://www.indeed.com/viewjob?jk=69f893586548c8ba — accessed 2026-08-13 — needed JS: N
+
+• "Curiosity, adaptability, and a desire to help shape and improve a growing business within an ambiguous environment" — [job posting] — corporate business development function, stated preferred qualification — https://www.indeed.com/viewjob?jk=69f893586548c8ba — accessed 2026-08-13 — needed JS: N
+
+• "Demonstrated ownership mindset with a track record of driving initiatives from concept through execution" — [job posting] — corporate business development function, stated preferred qualification — https://www.indeed.com/viewjob?jk=69f893586548c8ba — accessed 2026-08-13 — needed JS: N
+
+• "This role is hybrid, which means you will be required to work on site Monday through Thursday at the [corporate office]. You can work virtually from home or another non-Best Buy location on Friday." — [job posting] — corporate business development function; office location replaced per the job-post location rule, working pattern preserved because it is the dimension-bearing content — https://www.indeed.com/viewjob?jk=69f893586548c8ba — accessed 2026-08-13 — needed JS: N
+
+POSTING 2 — function: distribution centre / warehouse operations.
+Confirmed live at collection; stated application deadline of minimum 5 days from posting.
+
+• "You'll work as part of a team to move products to their designated locations within the distribution center and safely use forklifts and other powered equipment." — [job posting] — warehouse operations function — https://www.indeed.com/viewjob?jk=842ae850cff1e6af — accessed 2026-08-13 — needed JS: N
+
+• "Load, unload and process merchandise for inbound and outbound trucks" — [job posting] — warehouse operations function, stated responsibility — https://www.indeed.com/viewjob?jk=842ae850cff1e6af — accessed 2026-08-13 — needed JS: N
+
+• "Move merchandise to designated warehouse locations" — [job posting] — warehouse operations function, stated responsibility — https://www.indeed.com/viewjob?jk=842ae850cff1e6af — accessed 2026-08-13 — needed JS: N
+
+• "Accurately process required paperwork" — [job posting] — warehouse operations function, stated responsibility — https://www.indeed.com/viewjob?jk=842ae850cff1e6af — accessed 2026-08-13 — needed JS: N
+
+• "By working together to receive and ship products, you'll help ensure everything arrives to our customers when, where and how they want it." — [job posting] — warehouse operations function — https://www.indeed.com/viewjob?jk=842ae850cff1e6af — accessed 2026-08-13 — needed JS: N
+
+POSTING 3 — function: retail store sales / vendor specialist.
+Confirmed live at collection; stated application deadline of minimum 5 days from posting.
+
+• "Every team member should feel empowered to deliver a world-class and unique experience based on what each customer needs." — [job posting] — retail store sales function — https://www.indeed.com/viewjob?jk=83efb338ac657fb4 — accessed 2026-08-13 — needed JS: N
+
+• "Our Certified Advisors are responsible for delivering profitability by achieving revenue, margin, solution and operational targets." — [job posting] — retail store sales function — https://www.indeed.com/viewjob?jk=83efb338ac657fb4 — accessed 2026-08-13 — needed JS: N
+
+• "Achieves team and individual goals while enabling an excellent customer shopping experience." — [job posting] — retail store sales function, stated responsibility — https://www.indeed.com/viewjob?jk=83efb338ac657fb4 — accessed 2026-08-13 — needed JS: N
+
+• "Uses available tools to stay current on promotional initiatives and helps execute profitable growth through critical business drive times." — [job posting] — retail store sales function, stated responsibility — https://www.indeed.com/viewjob?jk=83efb338ac657fb4 — accessed 2026-08-13 — needed JS: N
+
+• "Embraces our learning culture to continuously improve existing skills while acquiring new ones in support of our customer obsession and advancing their contribution." — [job posting] — retail store sales function, stated responsibility — https://www.indeed.com/viewjob?jk=83efb338ac657fb4 — accessed 2026-08-13 — needed JS: N
+
+• "Applies a high level of product knowledge and expertise through ongoing learning and certifications to enable an excellent customer shopping experience." — [job posting] — retail store sales function, stated responsibility — https://www.indeed.com/viewjob?jk=83efb338ac657fb4 — accessed 2026-08-13 — needed JS: N
+
+• "Coaches and trains coworkers on new vendor technology and services." — [job posting] — retail store sales function, stated responsibility — https://www.indeed.com/viewjob?jk=83efb338ac657fb4 — accessed 2026-08-13 — needed JS: N
+
+• "Provides feedback on products and customer engagement with vendor partners, representatives, and market teams." — [job posting] — retail store sales function, stated responsibility — https://www.indeed.com/viewjob?jk=83efb338ac657fb4 — accessed 2026-08-13 — needed JS: N
+
+• "Ability to work successfully as part of a team" — [job posting] — retail store sales function, the ONLY stated basic qualification for this role — https://www.indeed.com/viewjob?jk=83efb338ac657fb4 — accessed 2026-08-13 — needed JS: N
+
+NOTE ON SECTION C, FOR THE RATER: the three postings above are the same employer describing three
+different jobs. Read them against each other rather than as one voice. Nothing has been selected to
+produce or suppress the contrast between them — these were the first three currently-live postings
+retrieved from three different functions.
+
+
+--- D. FIRST-PERSON ACCOUNT (7 passages · target 3 · ladder attempted to rung 4, target met there) ---
+
+NOTE TO RATER — READ THIS BEFORE SCORING SECTION D. Every passage below is an EXECUTIVE voice —
+the outgoing CEO and the incoming CEO. The ladder found no in-date first-person account from a
+non-executive employee. The company's own newsroom does carry employee career stories, but the
+ones located are from 2018–2020 and fail the staleness gate; they were found and rejected, not
+absent (see 2c). So section D tells you how this company's leadership describes the way it works.
+The only non-executive voices in this packet are the reviews in section B. Read D and B against
+each other; do not read D as a description of the store floor.
+
+D-i. VALUES / CULTURE MICROSITE (ladder rung 3)
+
+• "At my core, I believe our people are the secret to our success. It is my responsibility as CEO to unleash their power by nurturing a culture of belonging and engagement, one in which employees can bring their whole selves – their best selves – to work each day." — [first-person, executive] — CEO, quoted on the company's own Inclusion & Belonging page — https://corporate.bestbuy.com/inclusion-and-belonging/ — page last modified 2025-07-23 — needed JS: N — NOTE: the phrase "unleash their power" restates a company value already quoted verbatim in section A. The surrounding claim is new, so the passage counts, but do not treat the echo as independent corroboration.
+
+D-ii. LEADERSHIP INTERVIEW (ladder rung 4) — joint interview with the outgoing and incoming CEO,
+published 2026-04-22, syndicated by wire. Retrieved from the syndicated copy; the originating
+paper's own page is not anonymously accessible.
+
+• "Philosophically, I think any CEO transition begins with two things. Hopefully, it's the right time for the person. More importantly, it needs to be the right time for the company." — [first-person, executive] — outgoing CEO, on how the succession decision was made — https://www.hastingstribune.com/ap/business/best-buy-s-outgoing-ceo-and-her-replacement-see-ai-as-pivot-point-for-tech/article_c72c4030-9351-5931-868c-f65212869718.html — 2026-04-22 — needed JS: N
+
+• "All those things are invigorating. It grows you as an individual employee. It grows you as a leader. It also brings a little bit of calmness — the strength we've built, the culture we have, the way that our people know how to ... pivot as quickly as possible, those are things that are just deeply ingrained in us" — [first-person, executive] — incoming CEO, on operating through repeated change; ellipsis is in the published text — same URL — 2026-04-22 — needed JS: N
+
+• "(Change) is very authentic to what motivates me. For me, this is an industry that embraces change. We don't sell VCRs anymore. One of our values is learning from challenge and change, and (founder) Dick (Schulze) was present enough to know almost 60 years ago that this is not just an industry, but a company that will be defined by this." — [first-person, executive] — outgoing CEO; parentheses are the publication's own insertions — same URL — 2026-04-22 — needed JS: N
+
+• "I really take a tremendous amount of pride in the team that I've developed. Any accomplishment that I've had has really been a result of people that I've either partnered with or people that have worked for me." — [first-person, executive] — incoming CEO, asked directly about his leadership style — same URL — 2026-04-22 — needed JS: N
+
+• "So much of this job is about resiliency, and sometimes people ask the question, 'What do you want your legacy to be?' I don't think it's the right question. I think the question really is, 'How is this place, this company, this community better because you were a part of it?' My personal purpose is all about stewardship." — [first-person, executive] — outgoing CEO — same URL — 2026-04-22 — needed JS: N
+
+• "Then, how is it going to help us? How's it going to help every single one of our employees to work in different ways, work even more efficiently?" — [first-person, executive] — incoming CEO, on what AI changes internally; the only passage in section D that speaks to how non-executive employees' daily work is expected to change — same URL — 2026-04-22 — needed JS: N
+
+
+--- E. RECENT NEWS (4 excerpts · 2 searches logged · max 4 per rule) ---
+
+NOTE TO RATER: this company is mid-leadership-transition at the time of collection. Both the CEO
+and the CFO change within months of this packet being built. The review set in section B spans
+2026-02-20 to 2026-08-07, so it STRADDLES the CEO announcement of 2026-04-22 rather than predating
+it — the staleness artifact that affected two earlier packets does not apply here. See 2f.
+
+• "Best Buy Co., Inc. (NYSE: BBY) today announced that its Board of Directors has selected Jason Bonfig, the company's Chief Customer, Product and Fulfillment Officer, to succeed Corie Barry as the next Chief Executive Officer at Best Buy. Barry will step down from her roles as CEO and member of the Board at the end of Q3 on Oct. 31 of this year." — [news, company-authored newsroom] — https://corporate.bestbuy.com/2026/ceo-succession-plans/ — 2026-04-22 — needed JS: N
+
+• "Bonfig's appointment as the sixth CEO in the company's 60-year history is the result of an extensive process conducted by the Board that considered internal and external candidates." — [news, company-authored newsroom] — same URL — 2026-04-22 — needed JS: N
+
+• "Best Buy Co., Inc. (the "Company" or "registrant") announced today that Anne Bramman, age 58, has been appointed to serve as the Company's Executive Vice President, Chief Financial Officer ("CFO"), effective August 19, 2026. Ms. Bramman will report to incoming Chief Executive Officer ("CEO"), Jason Bonfig, as the Company continues its CEO transition." — [news, regulatory filing 8-K] — https://www.sec.gov/Archives/edgar/data/764478/000076447826000034/bby-20260801.htm — filed 2026-08-03 — needed JS: N — the compensation paragraph in the same item was NOT quoted: dollar figures and percentages, excluded by rule.
+
+• "Effective August 1, 2026, the Company named Corie S. Barry to serve as Interim CFO until Ms. Bramman assumes the role of CFO on August 19, 2026. Ms. Barry, age 51, is currently CEO and will continue to serve as CEO while taking over the Company's principal financial officer responsibilities." — [news, regulatory filing 8-K] — same URL — filed 2026-08-03 — needed JS: N
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (12 excerpts · 10-K Item 1, Human Capital Management) ---
+
+Source: Annual Report on Form 10-K for the fiscal year ended 2026-01-31, Item 1, "Human Capital
+Management" subsection. FIRST USE OF SECTION F IN ANY PACKET. Every headcount, dollar figure and
+percentage has been removed; where removal would have gutted a sentence, the sentence was dropped
+rather than paraphrased. Omissions are itemised in 2e. Nothing from the financial statements,
+earnings materials, proxy tables or patent filings is included.
+
+• "We believe in the power of our people. Our culture is built on the belief that engaged and committed employees – supported by opportunities to learn, grow, innovate and explore – can lead to extraordinary outcomes." — [10-K human capital] — https://www.sec.gov/Archives/edgar/data/764478/000076447826000009/bby-20260131.htm — FY ended 2026-01-31 — needed JS: N
+
+• "We believe in a culture of belonging where everyone feels valued, can thrive and has equal opportunities at all levels in the organization." — [10-K human capital] — same URL — needed JS: N
+
+• "One of our values – unleash the power of our people – emphasizes that everyone can learn, grow and be the best version of themselves." — [10-K human capital] — same URL — needed JS: N — NOTE: third appearance of this value in the packet (sections A, D, F). One value, three company-authored surfaces; not three independent sources.
+
+• "We continue to invest in our employees and build a culture focused on developing our talent. Prioritizing foundational and leadership skill development helps to meet employees where they are at, which creates a more adaptable and resilient workforce and enhances our competitive advantage." — [10-K human capital] — same URL — needed JS: N
+
+• "We believe that by investing in employee training and development, we can create a better employee environment and increase productivity, retention and innovation that ultimately improves our overall company performance and brings value to stakeholders." — [10-K human capital] — same URL — needed JS: N
+
+• "With the continued goal of creating learning opportunities that are tailored to the unique work of each role and a focus on solving the most important problems in our business, we expanded our variety of training experiences in fiscal 2026." — [10-K human capital] — same URL — needed JS: N
+
+• "We evolved our leadership development offerings to grow and transform Best Buy for its future. This included the LEAD Leadership Development program designed for corporate, supply chain and retail leaders, and expanding the Leadership Essentials program to build core leadership capabilities that help employees grow and succeed in leadership roles." — [10-K human capital] — same URL — needed JS: N
+
+• "We continued to invest in career growth and development for our employees through the Best Buy Altitude program, allowing leaders to develop their leadership skills and prepare for their next role, creating a talent bench behind high impact roles." — [10-K human capital] — same URL — needed JS: N
+
+• "We supported strategic business teams through focused functional learning by delivering structured onboarding, building training for new processes and systems, and providing targeted leadership development to enable growth and cultural transformation." — [10-K human capital] — same URL — needed JS: N
+
+• "We hosted a "Culture Weekend" with trained onboarding captains to train and prepare our seasonal workforce, while simultaneously helping foster a sense of belonging, connect staff and celebrate our company culture and values." — [10-K human capital] — same URL — needed JS: N
+
+• "A Recognition Program providing peer-to-peer and leader recognition called Applause, allowing employees to be recognized for behaviors based on our company values." — [10-K human capital] — same URL — needed JS: N
+
+• "The Compensation and Human Resources Committee of our Board oversees risks related to our human capital management through its regular review of our practices, policies and programs, which includes overall employee wellness and engagement in these areas, employee benefit plan compliance, leadership succession planning and wage, retention and hiring programs." — [10-K human capital] — same URL — needed JS: N
+
+
+########## SECTION 2 — RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+2a. YIELD AUDIT
+
+    REQUIRED TO YIELD:
+       A excerpts:   8/5    PASS
+       B reviews:   32/12   PASS. Titles sampled 4/4 — PASS on the text layer.
+                            ** Per-title NUMERIC layer NOT obtained — see 2d/2e. **
+       B within 24 months: 32/32  PASS — newest 2026-08-07, oldest 2026-02-20
+       B truncated at source: 14/32 = 43.8%  ** exceeds the 33% threshold, and is WORSE than the
+                            37.5% seen at the halfway point — NOTE TO RATER strengthened **
+       C excerpts:  22/6    PASS
+       C postings:   3/3    PASS — corporate business development · warehouse operations ·
+                            retail store sales. Three distinct functions.
+       C outside engineering: 3/1  PASS (no engineering posting was among those retrieved)
+
+    REQUIRED TO ATTEMPT:
+       D passages: 7/3   PASS   ladder rungs logged: 7/7 (worked 1–4; target met at rung 4)
+       E excerpts: 4/2   PASS   searches logged: 2
+       F excerpts: 12/—  PASS   public? YES   10-K period end 2026-01-31, Item 1 Human Capital
+
+    OVERALL: every required-to-yield and required-to-attempt gate passes. The packet is still
+    withheld from raters on one ground only: the Glassdoor numeric layer and the Glassdoor recency
+    cross-check are unretrieved, not confirmed absent.
+
+2b. EVIDENCE COVERAGE — which sections bear on which dimension
+
+       autonomy       B (all four titles, heavily — "leave you to figure out a lot", "left alone",
+                      scripted credit-card pitching), C (posting 1 "ownership mindset"), D-ii
+       pace           B (all four titles), C (postings 2 and 3), E (holiday/seasonal references)
+       collaboration  B (strong and consistent across all four titles — coworkers are the most
+                      frequent positive in the entire review set), C posting 3, D-ii, F
+       feedback       B (management is the most frequent negative — "scold", "favoritism",
+                      "bullies"), F (the recognition programme excerpt), D-ii
+       innovation     C posting 1 only, D-ii (AI passages), F (training/leadership programmes).
+                      ** THINNEST DIMENSION. No store-level review in section B speaks to it. **
+       decision basis C posting 1 ("use data to inform decisions"), B ("hit your numbers",
+                      "goals are set"), D-ii (succession decision), E
+
+       WARNING TO RATER: innovation is supported almost entirely by company-authored sources
+       (A, C, F) plus executive voice (D). Under the non-company-authored support rule, it is the
+       dimension in this packet least entitled to a high score.
+
+2c. LADDER CHECKLIST — SECTION D. Every rung marked, including rungs not needed.
+
+    Rung 1 · Public handbook / employee manual / "how we work" docs
+       NOT FOUND. Navigation surveyed, not guessed: the corporate domain's full primary menu is
+       About Us (Corporate Responsibility → Environmental Sustainability, Social Impact, Human
+       Rights, CR&S Report, Reports and Resources; People → Inclusion & Belonging, Careers;
+       Company → About, Our Leadership, Ethics, Political Engagement, Awards & Recognition),
+       Our Goals, News & Stories, Press Center, Investors, Foundation. No handbook anywhere in it.
+       The careers domain's culture page was retrieved in full for section A and links to none.
+
+    Rung 2 · Engineering / product / design blog
+       NOT FOUND. Absent from the corporate navigation above; targeted search returned no
+       company-operated engineering or product blog. This is a large retailer with a corporate
+       technology organisation of single-digit review count (see 2f) — the absence is consistent
+       with the rest of the evidence, not anomalous.
+
+    Rung 3 · Values manifesto / culture microsite with narrative text
+       FOUND — YIELDED 1 passage. https://corporate.bestbuy.com/inclusion-and-belonging/
+       Page last modified 2025-07-23: inside the ~18-month staleness gate at collection, but the
+       oldest source in this packet by some margin. Most of the page is community philanthropy
+       (teen tech centres, scholarships), not working practice. Double-counting checked: the CEO
+       quote is not in section A and therefore counts; the "unleash the power" echo is flagged.
+
+    Rung 4 · Leadership interview / podcast transcript on how decisions get made
+       FOUND — YIELDED 6 passages. Joint outgoing/incoming CEO interview, 2026-04-22, retrieved
+       from a wire-syndicated copy after the originating paper's own page proved inaccessible
+       anonymously. TARGET MET HERE (7 passages against a target of 3).
+
+    Rung 5 · Public repository discussions / RFCs / contribution guidelines
+       NOT NEEDED — target met at rung 4. Not worked. Recorded as not-worked, NOT as absent.
+
+    Rung 6 · Long-form press profile with direct employee or executive quotes
+       NOT NEEDED — target met at rung 4. Candidates were surfaced incidentally while working
+       rung 4 (an April 2026 business-magazine profile of the outgoing CEO) but were not retrieved.
+
+    Rung 7 · Conference talks and public technical presentations
+       NOT NEEDED — target met at rung 4. Not worked.
+
+    SEPARATE FINDING, STALENESS GATE, worth recording because it is the P-04 lesson recurring in a
+    new form: the company's own newsroom DOES publish first-person employee career stories — the
+    exact D-class material this ladder is looking for, in non-executive voices. Every one located
+    is dated 2018–2020. They were found and rejected on age, which is a different and more
+    informative outcome than "no employee stories exist". If a future version of the prompt wants
+    non-executive first-person voice, this company has it and it is stale.
+
+2d. SOURCE ACCESS LOG
+
+    https://jobs.bestbuy.com/bby                                   — Loading... shell — needed JS: Y
+    https://jobs.bestbuy.com/bby?id=item_detail&content=culture     — RETRIEVED (rendered) — needed JS: Y
+    https://jobs.bestbuy.com/bby?id=search_jobs&spa=1               — 404 (rendered) — bad route
+    https://www.bestbuy.com/corporate/careers/culture               — empty document — bad route
+    https://corporate.bestbuy.com/                                  — RETRIEVED — needed JS: N
+    https://corporate.bestbuy.com/working-at-best-buy/              — empty document — bad route
+    https://www.indeed.com/cmp/Best-Buy/reviews?sort=date           — RETRIEVED — needed JS: N
+    https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Advisor&fcountry=US&sort=date
+                                                                    — RETRIEVED, 20 reviews — needed JS: N
+    https://www.indeed.com/cmp/Best-Buy/job-titles                  — RETRIEVED, full title index — needed JS: N
+    https://www.indeed.com/cmp/Best-Buy/browse-reviews              — RETRIEVED but returns LOCATIONS, not titles
+    https://www.glassdoor.com/Overview/Working-at-Best-Buy-EI_IE97.11,19.htm  — RETRIEVED — needed JS: N
+    https://www.glassdoor.com/Reviews/Best-Buy-Sales-United-States-Reviews-EI_IE97.0,8_KO9,14_IL.15,28_IN1.htm
+                                                — RETRIEVED but this is a KEYWORD filter, not a job-title filter
+    https://www.indeed.com/viewjob?jk=69f893586548c8ba              — RETRIEVED, full body, live — needed JS: N
+
+    ADDED THIS SESSION:
+    https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Sales+Associate&fcountry=US&sort=date
+                                                — RETRIEVED, 20 reviews, 241 pages — needed JS: N
+    https://www.indeed.com/cmp/Best-Buy/reviews?fjobtitle=Customer+Service+Representative&fcountry=US&sort=date
+                                                — RETRIEVED, 20 reviews, 173 pages — needed JS: N
+    https://corporate.bestbuy.com/inclusion-and-belonging/          — RETRIEVED — needed JS: N
+    https://corporate.bestbuy.com/2026/ceo-succession-plans/        — RETRIEVED — needed JS: N
+    https://www.sec.gov/Archives/edgar/data/764478/000076447826000009/bby-20260131.htm
+                                                — RETRIEVED, full 10-K — needed JS: N  ** SECTION F **
+    https://www.sec.gov/Archives/edgar/data/764478/000076447826000034/bby-20260801.htm
+                                                — RETRIEVED, 8-K, CFO appointment — needed JS: N
+    hastingstribune.com  …see-ai-as-pivot-point-for-tech…           — RETRIEVED, wire copy — needed JS: N
+
+    EDGAR ROUTES — the D5 blocker, now solved. Record the working route, it will be needed on P-06:
+    https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=BBY&type=10-K        — empty
+    https://www.sec.gov/cgi-bin/browse-edgar?...&CIK=0000764478&type=10-K&output=atom   — empty
+    https://data.sec.gov/submissions/CIK0000764478.json    — returns, but the response is too large
+                                          to consume whole and truncates mid-array. Not usable as-is.
+    ** WORKING ROUTE: resolve the 10-K document URL by search, then fetch the document directly at
+       https://www.sec.gov/Archives/edgar/data/<CIK>/<accession-no-dashes>/<primary-doc>.htm
+       This retrieved cleanly and in full. browse-edgar should be treated as a dead route. **
+
+    GLASSDOOR — UNRESOLVED, AND THE ONLY THING BLOCKING THIS PACKET:
+    https://www.glassdoor.com/Reviews/Best-Buy-Reviews-EI_IE97.0,8.htm?filter.jobTitleFTS=Sales+Associate
+                                                — EMPTY DOCUMENT
+    https://www.glassdoor.com/Reviews/Best-Buy-Sales-Associate-Reviews-EI_IE97.0,8_KO9,23.htm
+                                                — EMPTY DOCUMENT (and note the KO segment: this is
+                                                  the keyword filter, D2, not the job-title filter)
+    The overview page retrieved on 2026-08-13 and the same two route shapes now return nothing.
+    ** DO NOT RECORD THIS AS AN ABSENCE. ** It is an unretrieved source, and the whole D13 lesson is
+    that an empty body from an aggregator means the request was refused, not that the data is gone.
+    Two routes tried, both plain fetch. The renderer was NOT tried and per D13 should not be — a
+    renderer gets bot-walled on aggregators. This needs a different approach, not a retry.
+
+2e. FIDELITY NOTES
+
+    * The careers domain is a JavaScript single-page application. Every URL on it returns an
+      identical "Loading..." shell to a plain HTTP fetch. Section A was retrievable ONLY with a
+      renderer. Recorded as defect D12; it is the reason section A now needs a fallback chain.
+    * The four company values are short fragments. They are recorded as a single excerpt, in full
+      and in source order, rather than split into four — splitting would inflate the A count with
+      four-word lines and give marketing copy disproportionate weight in the packet.
+    * One job-post location was replaced with a generic token. The hybrid working pattern
+      (on site Monday–Thursday, remote Friday) was PRESERVED: it is a working-arrangement fact
+      bearing on autonomy, not an identifying location, and the location rule exists to strip the
+      latter.
+    * SECTION F FIGURE-STRIPPING — itemised, because this is the section's first use anywhere.
+      Dropped whole rather than paraphrased, because removing the figure left no sentence:
+         - the total employee headcount sentence closing the opening paragraph;
+         - the parental-leave bullet (percentage of pay and number of weeks);
+         - the hardship-fund bullet (dollar cap);
+         - the years-of-service bullet (award thresholds are year counts, not headcounts or money,
+           but the whole bullet is a list of thresholds and reads as a figure table; dropped for
+           consistency and logged here rather than quietly kept).
+      PREDICTION FROM THE 2026-08-13 HANDOFF, CONFIRMED: "expect the figure-stripping rule to be
+      the awkward part — much Human Capital prose is built around metrics." It was awkward in
+      exactly one place, the benefits block, which is almost entirely numeric. The training,
+      development and culture prose survived stripping untouched. Practical rule for P-06 and
+      P-01: expect to lose most of the benefits paragraph and keep nearly all of the rest.
+    * ONE REVIEW NAMED AN INDIVIDUAL MANAGER by first name. Tokenised in section B, sentiment kept.
+    * TWO REVIEWS CARRY PRESERVED TYPOS ("ibwas greatful"; lower-case job title). Not repaired.
+    * SECTION D IS 100% EXECUTIVE VOICE. Flagged to the rater in the section header. This is a
+      genuine property of what is publicly available for this company, not a collection choice —
+      the non-executive first-person material exists and is 6–8 years old (see 2c).
+
+2f. VINTAGE BLOCK — complete except the two Glassdoor items in NEXT STEPS
+
+    Review counts BY SITE, with the element each came from:
+       Indeed  — 35,162  (page title and "## 35,162 reviews" heading)
+       Indeed  — 39,859  (overall rating block, "Based on 39,859 reviews")
+       Indeed  — 39.9K   (navigation tab label)
+       Glassdoor — 41,921 (overview snapshot, "based on 41,921 ratings")
+       Glassdoor — 42,168 (FAQ block on the SAME page)
+       Glassdoor — 41,887 / 42,121 (search-surfaced figures, not used)
+    Conflicting counts observed on a single page: YES, on BOTH sites. See defect D4.
+       No site-reported total appears anywhere in Section 1.
+
+    Headline ratings BY SITE: Indeed 3.8 · Glassdoor 3.5. Divergence recorded, not reconciled.
+    Glassdoor CEO approval: 35% company-wide vs 83% on a title page. Ignored per B3.
+
+    ** INDEED SUPPLIES NO PER-TITLE SUBRATINGS — NOW CONFIRMED ON ALL FOUR TITLE PAGES. **
+    Sales Advisor (538), Warehouse Worker (426), Sales Associate (4,801) and Customer Service
+    Representative (3,454) all display the SAME detailed-ratings block: work-life balance 3.6, pay
+    and benefits 3.5, job security 3.3, management 3.4, culture 3.7, "Based on 39,859 reviews".
+    Four filters spanning a 9x range in review count return byte-identical numbers. Those are the
+    COMPANY-WIDE figures rendered on a filtered page. They are not title-scoped and must never be
+    recorded as though they were. This is now the strongest single piece of evidence for the v4.4
+    split: the per-title numbers exist only on Glassdoor, the per-review prose only on Indeed.
+
+    Glassdoor per-title subrating blocks: NOT COLLECTED — retrieval failed, see 2d. NOT ABSENT.
+
+    COUNT AGREEMENT, all four sampled titles (index figure vs. title-page heading):
+       Sales Advisor                 — 538 / 538      agree
+       Warehouse Worker              — 425 / 426      DISAGREE by one
+       Sales Associate               — 4,801 / 4,801  agree
+       Customer Service Rep          — 3,454 / 3,454  agree
+    So the D4 count-contradiction is real but INTERMITTENT — 1 of 4 titles, off by one, on the
+    smallest of the four. Useful calibration: the defect is a nuisance at this scale, not a
+    systematic corruption. Still never quote a site-reported count as a population size.
+
+    Per-title "Updated" dates, which are themselves inconsistent with the review dates rendered:
+       Sales Associate page          — "Updated July 29, 2026"; newest rendered review 2026-07-29
+       Customer Service Rep page     — "Updated August 8, 2026";  newest rendered review 2026-08-07
+    One-day offsets in both directions. Recorded, not reconciled.
+
+    Interview write-ups excluded: 0 encountered across all four titles.
+    Source-site duplicates retained: 0 encountered.
+    Newest review date BY SITE: Indeed 2026-08-12 company-wide, 2026-08-07 within the sampled
+       titles. Glassdoor newest NOT established — the recency cross-check is OUTSTANDING, and it
+       is the check that caught the P-03/P-04 failure. It is the second of the two blockers.
+
+    STRUCTURAL EVENTS AND REVIEW VINTAGE — the check that P-04 failed:
+       CEO succession announced 2026-04-22, effective 2026-10-31.
+       CFO appointed, announced 2026-08-03, effective 2026-08-19; interim CFO from 2026-08-01.
+       Review set spans 2026-02-20 → 2026-08-07.
+       Reviews therefore exist on BOTH sides of the CEO announcement: 5 of 32 predate it
+       (2026-02-20, 03-04, 03-28 under Warehouse Worker; 04-12, 04-20 under Customer Service),
+       27 postdate it. The packet does NOT have the P-04 problem of structural events postdating
+       the entire review set. State this to the rater positively rather than leaving it inferred.
+       CAVEAT: the announcement is April; the CEO does not actually change until 2026-10-31, so
+       every review in this packet describes the company under the OUTGOING CEO. A rater should
+       not read the 27 post-announcement reviews as evidence about the incoming leadership.
+
+    Job titles available, with counts (from the Indeed title index):
+       Sales Associate 4,801 · Customer Service Representative 3,454 ·
+       Sales Consultant 2,497 · Technical Support Specialist 1,042 (and 711 under a second
+       category — see D10) · Inventory Specialist 974 · Repair Technician 663 · Agent 659 ·
+       Sales Representative 578 · Sales 565 · Sales Advisor 538 · Asset Protection Specialist 499 ·
+       Cashier 462 · Retail Sales Associate 438 · Warehouse Worker 425 · Product Specialist 423
+    Corporate and technology titles, with counts:
+       Software Engineer 5 · Product Manager 4 · Front End Developer 4 · Java Developer 4 ·
+       Data Analyst 3 · Financial Analyst 3 · Marketing Manager 3 · Supply Chain Analyst 3 ·
+       Human Resources Generalist 3 · Business Analyst 7 · Senior Financial Analyst 8
+
+2g. SCOPE BLOCK
+
+       A careers / values     population: company-wide (explicitly names stores, warehouses and
+                                          corporate offices together)
+       B employee reviews     population: store-level roles only — see counts above
+       C job postings         population: mixed; posting 1 is corporate
+       D first-person         population: EXECUTIVE ONLY — outgoing and incoming CEO. Narrower
+                                          than any other section in the packet, and narrow in the
+                                          opposite direction from B.
+       E news                 population: executive / board level (leadership transition)
+       F human capital        population: company-wide (regulatory disclosure covers the registrant)
+
+       THE PACKET'S POPULATION SPLIT, STATED PLAINLY: sections A, C, E and F describe the whole
+       company or its leadership. Section B is store-level only. Section D is executives only.
+       There is NO section in this packet in which a corporate, engineering, product, finance or
+       supply-chain employee speaks about their own work. That population is absent from the
+       experiential evidence entirely, and the counts below are why.
+
+       Working environments known to exist but ABSENT from the review population:
+          corporate merchandising, engineering, product management, finance, marketing,
+          supply-chain planning. Every one of these is in single digits against 4,801 for the
+          largest store title.
+
+       Does the company-authored evidence (A, F) describe a wider population than the
+       experiential evidence (B)?  YES — decisively, and this is the packet's central caveat.
+
+       NOTE: the counts above are the empirical answer to the scope question. Sub-unit scoping was
+       never available for this company: a corporate packet cannot be built because the corporate
+       evidence does not exist. Recording the scope is the only honest option, not merely the
+       cheapest one.
+
+
+########## SECTION 3 — ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+
+  Public company, NYSE-listed, US incorporated, headquartered in the upper Midwest.
+  Stage 5 by any measure — 60-year-old company, sixth CEO, >1,000 retail stores in North America,
+  >80,000 employees, ~$41.7bn revenue in the fiscal year ended 2026-01-31.
+  Industry: specialty consumer-electronics retail. Retail/consumer level on the industry variable.
+  Ownership: widely held public equity. No founder control; founder named historically only.
+  Pay posture: hourly ranges are published on the job postings (roughly $15.00–$20.57/hour on the
+    retail sales postings surfaced alongside the review pages). Reviews describe base pay without
+    commission on the sales floor and repeatedly describe hours, not wage rate, as the lever
+    management uses. Record this as a pay-STRUCTURE observation; do NOT let it reach a dimension
+    score as dollars — that is the comp-confounder failure already ruled out.
+  Confounder note for the model: this company is simultaneously stage-5 large AND its evidence
+    population is almost entirely entry-level hourly retail. Those two facts pull in opposite
+    directions on any prior that ties stage_size to autonomy or decision basis. Flag it; the
+    adjustment cannot see it from the stage variable alone.
+
+
+########## SECTION 4 — ANONYMIZATION PRE-FLAGS ##########
+
+  Already handled: the corporate-office location is tokenised in section C; the trademarked closing
+  line in the posting's "About us" block was NOT quoted and must stay out; one store manager's
+  first name is tokenised in section B.
+
+  RE-IDENTIFICATION RISKS, ranked. This company is far more identifiable than P-03, P-04 or P-05,
+  and the risk is concentrated in the two sections that are new to this packet.
+
+  TIER 1 — instant identification, must be removed or rewritten before any rater sees this:
+     * The four company values quoted verbatim and in order in section A. Searchable as a string.
+     * "Unleash the power of our people" — recurs in A, D and F. Removing it from one is useless.
+     * Named internal programmes in section F: LEAD Leadership Development, Leadership Essentials,
+       Altitude, Applause, Culture Weekend. Every one is a proper noun tied to this employer.
+       These are also the most dimension-bearing sentences in section F. Rewriting them as
+       "a named leadership development programme" preserves the signal and kills the fingerprint —
+       do that rather than dropping the excerpts.
+     * "the sixth CEO in the company's 60-year history" (section E).
+     * "We don't sell VCRs anymore" (section D) — consumer-electronics retail, unmistakable.
+     * The founder's name, appearing in a section D passage.
+     * "enrich lives through technology" — the stated purpose, quoted in E.
+  TIER 2 — identifying in combination:
+     * Revenue, store count and headcount figures in section 3 (never in section 1, but check).
+     * Named executives in D and E. Both CEOs and the incoming CFO are named.
+     * Store cities and state abbreviations attached to reviews in section B.
+     * "Black Friday", "credit card and membership", "Teen Tech Center".
+  TIER 3 — low risk, keep:
+     * Generic retail vocabulary, hourly-schedule language, warehouse task descriptions.
+
+  A HARDER PROBLEM THAN THE EARLIER PACKETS, RECORDED FOR THE RUBRIC: section F is a REGULATORY
+  disclosure. Its whole register is company-specific proper nouns and figures, and it is the only
+  section where the identifying content and the dimension-bearing content are the same sentences.
+  On the three private companies this tension never arose because there was no section F. Expect
+  it again on P-06 and P-01. The rule that works is REWRITE THE PROPER NOUN, KEEP THE CLAUSE —
+  not the drop-the-excerpt rule used elsewhere.
+
+
+## NEXT STEPS — TWO ITEMS LEFT, BOTH ON THE SAME SOURCE
+
+    1. GLASSDOOR PER-TITLE SUBRATINGS for the four sampled titles (employer ID 97). Numbers only,
+       never quoted into section 1. Two plain-fetch route shapes returned empty documents this
+       session; both are logged in 2d. Per D13 do NOT reach for the renderer — it gets bot-walled
+       on aggregators. This needs a different route, not a retry of the same one.
+    2. GLASSDOOR RECENCY CROSS-CHECK. Still outstanding, still the check that caught the
+       P-03/P-04 staleness artifact. Indeed's newest company-wide review is 2026-08-12, so this
+       company is unlikely to reproduce that failure — but "unlikely" is not the check.
+
+    WHEN BOTH LAND: apply the achievability gate to every Glassdoor percentage before recording it
+    — the figure must be reachable at the stated n. Three of four such percentages in the P-03
+    packet are arithmetically impossible at their stated n and were recorded anyway. Do not repeat
+    that here. If a figure fails, strike it; do not reconcile it.
+
+    IF BOTH REMAIN UNREACHABLE: that is a legitimate final state and the packet ships without a
+    numeric per-title layer, with 2d as written. It is NOT a reason to substitute the company-wide
+    block, which is the exact error the four-title confirmation in 2f exists to prevent.
+
+## WHAT THIS PACKET ESTABLISHED FOR THE PROMPT
+
+    * Section F works, on its first use. The figure-stripping rule cost one paragraph (benefits)
+      and left the training/development/culture prose intact.
+    * browse-edgar is a dead route at every variant tried. The working route is: resolve the
+      document URL, then fetch /Archives/edgar/data/<CIK>/<accession>/<doc>.htm directly.
+    * The Indeed per-title subrating trap is now confirmed on four titles spanning a 9x range in
+      review count, returning byte-identical company-wide numbers. This is settled.
+    * The D4 count contradiction is intermittent, not systematic — 1 of 4 titles, off by one.
+    * A new staleness pattern: this company publishes exactly the non-executive first-person
+      material section D wants, and all of it is 2018–2020. Found and rejected, not absent.
+    * Section D can come back 100% executive voice on a large public company. The prompt has no
+      rule about voice composition in D. It should — this is a real bias in what D contributes.

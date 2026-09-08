@@ -1,0 +1,82 @@
+P-07 — CONTENT DEFECTS FOUND DURING THE SCRUB PASS
+  raw source : packets_raw/P-07_packet.txt (build v4.6, built 2026-08-27)
+  found by   : scrub pass, 2026-09-06
+  NONE OF THESE WERE FIXED. The scrub worked around them and reproduced the packet's own
+  wording verbatim. These are for the build to correct, not the scrub.
+
+--------------------------------------------------------------------------------------
+DEFECT 1 — CONFIRMED. Section E header undercounts its own section.
+--------------------------------------------------------------------------------------
+  Header, verbatim:  --- E. RECENT NEWS (yield: 2 excerpts · 4 searches logged) ---
+  Actual contents:   4 excerpt bullets.
+
+  The build's own yield audit (Section 2a) records "E excerpts: 4 (2 events)", which is
+  correct and is consistent with the section: two events (a joint venture pause, a set of
+  executive promotions), two excerpts each. The header appears to have taken the event count
+  and labelled it as an excerpt count.
+
+  Why it matters beyond tidiness: the "4 searches logged" half of the same header IS correct,
+  so a reader has no cue that the other half is not. A rater who trusts the header reads
+  section E as thinner evidence than it is, and any downstream count that reads section
+  headers rather than counting bullets disagrees with the citation harness by two excerpts.
+
+  Header reproduced verbatim in the scrubbed packet. Not corrected.
+
+--------------------------------------------------------------------------------------
+DEFECT 2 — FLAG ONLY, LOW CONFIDENCE. Review headline may contradict its own body text.
+--------------------------------------------------------------------------------------
+  Entry: section B, rev-04, dated 2026-07-22 (the entry rendered three times by the source
+  site; all three carry the same body).
+  Headline as printed in the attribution: "Overall good company to work for"
+  Body: a first manager who was good and then left, a second described as terrible with no
+  prior management experience, the internal representation body described as useless, shop
+  stewards described as a joke, and a fourth complaint cut off by the source truncation.
+  The only positive in the surviving text is that coworkers were "all around pretty alright".
+
+  This is the shape the brief names — an attribution title contradicting the reviewer's own
+  body text — and it is worth a second look, but it is NOT confirmed and should not be
+  treated as one. Two reasons for doubt: the body is truncated at source, so the positive
+  material that would justify the headline may sit in the unretrieved remainder; and
+  reviewers routinely write a favourable headline over a mixed body. Recorded so the build
+  can check it against the full source page rather than left to be rediscovered.
+
+  Not corrected. Headline reproduced verbatim.
+
+--------------------------------------------------------------------------------------
+CHECKED AND FOUND NOT TO BE DEFECTS — recorded so they are not re-opened later
+--------------------------------------------------------------------------------------
+  a) Section B header says 15; the section holds 17 bullets. NOT a defect. The section's own
+     NOTE TO RATER and the build's yield audit both state that two entries are source-site
+     duplicates of a third, are not independent voices, and are excluded from the 15 count.
+     Header, note and audit agree with one another. In the scrubbed packet the duplication is
+     additionally visible in the ids: all three entries carry rev-04.
+
+  b) Every other section header count matches its section exactly: A 8/8, C 10/10, D 6/6,
+     F 6/6.
+
+  c) The truncation note at the head of section B states 7 of 15 reviews were cut off, i.e.
+     47%. Verified: 9 entries carry TRUNCATED AT SOURCE, of which three are the one triplicate
+     voice, giving 7 distinct truncated reviews out of 15. 7/15 = 46.7%. The note is correct.
+
+  d) Every excerpt was checked against the section it is attributed to. No quote appears in a
+     section it does not belong to, and no attribution contradicts its excerpt other than the
+     flag at defect 2.
+
+  e) Dates were checked for internal consistency: the 10-K fiscal year end, its filing date,
+     the layoff notice and effective dates against the article that reports them, and the
+     promotion announcement against its stated effective date. All consistent. Nothing dated
+     after the build date of 2026-08-27.
+
+  f) Sections A and F were compared claim by claim for a single claim appearing in both in
+     reworded form (the A3 / R8 case). None found, so no recurrence note was attached.
+
+--------------------------------------------------------------------------------------
+BUILD-SIDE GAP, NOT A CONTENT DEFECT — but the build needs it
+--------------------------------------------------------------------------------------
+  The Section 4 pre-flag block tokenises locations in section B only. Section E's second
+  excerpt names a US state employment agency and a US county inside the quote body, with no
+  pre-flag token for either. Under the brief's Rule Two those were left verbatim, which is the
+  correct scrub behaviour and leaves two identifying place names in the rater-facing packet.
+  Closing this is a build-side change: either the pre-flag block extends to sections D, E and
+  F, or the ruleset states that untokenised places outside section B are accepted. It should
+  not be closed by a scrubber deciding case by case what counts as identifying.

@@ -1,0 +1,299 @@
+{
+  "packet_id": "P-04",
+  "rater": "C",
+  "rubric_version": "v1-frozen-2026-08-15",
+  "anchors_hash": "55c4501b25c5",
+  "session_start": "2026-08-16T21:11:38.907Z",
+  "submitted_at": "2026-08-16T22:49:33.143Z",
+  "duration_seconds": 5874,
+  "commit_order": [
+    "autonomy",
+    "pace",
+    "collaboration",
+    "feedback",
+    "innovation",
+    "decision"
+  ],
+  "recognition": "no",
+  "recognition_detail": "",
+  "searched": "no",
+  "search_detail": "",
+  "free_note": "",
+  "scores": [
+    {
+      "dimension": "autonomy",
+      "score": 0.7,
+      "confidence": 0.9,
+      "quotes": [
+        {
+          "text": "a substantial share of our code is agent-generated, and every team member is an expert at directing agents to produce production-quality work. We are engineering-led, small by design, and just getting started.\"",
+          "eid": "C1",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "You will write production code daily across the stack, directing agents fluently and writing by hand where it matters most.\"",
+          "eid": "C2",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "No politics, no process tax, no committees.\"",
+          "eid": "C5",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "\"own the rhythm by which bets move from concept to shippable product, defining the demo, the deck, and the codebase scope for each.\"",
+          "eid": "C6",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "\"define and report on success metrics, building the dashboard that the team and the Global Leadership Team live by to track pitch-to-win lift, margin uplift, engagement extension, software revenue, and industry signal.\"",
+          "eid": "C9",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "\"Nobody's handing you a brief and walking away. We want someone who spots what's next before we ask for it, who's energised by change rather than waiting for permission to make it.\"",
+          "eid": "C11",
+          "sec": "C",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-16T21:37:12.221Z",
+      "commit_position": 1,
+      "source_mix": {
+        "company": 6,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "C1",
+        "C2",
+        "C5",
+        "C6",
+        "C9",
+        "C11"
+      ]
+    },
+    {
+      "dimension": "pace",
+      "score": 0.7,
+      "confidence": 0.9,
+      "quotes": [
+        {
+          "text": "\"Deliver polished work on deadline without compromising craft\"",
+          "eid": "C15",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "\"Editors who care equally about the quality of the frame and the speed of delivery\"",
+          "eid": "C16",
+          "sec": "C",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-16T22:18:45.511Z",
+      "commit_position": 2,
+      "source_mix": {
+        "company": 2,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "C15",
+        "C16"
+      ]
+    },
+    {
+      "dimension": "collaboration",
+      "score": 0.9,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "collaborate across varied personal experiences and perspectives to arrive at impactful ideas.\"",
+          "eid": "A1",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "\"More than an a collection of offices, [the company] is a network of people who can make your work better and help you grow professionally. Go ahead, reach outside your department, your city, even your country, to find help and share ideas.\"",
+          "eid": "A5",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "but also on how they fit within the bigger picture. And look for ways to push the work forward even when your part is \"done\".\"",
+          "eid": "A6",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "\"We're at our best when diverse voices and disciplines intersect. Innovation often happens when people with disparate perspectives come together as a team. Look for these intersections, and cultivate relationships that make them possible.\"",
+          "eid": "A7",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "There were to many cooks in the kitchen",
+          "eid": "B3",
+          "sec": "B",
+          "src": "noncompany"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-16T22:23:48.391Z",
+      "commit_position": 3,
+      "source_mix": {
+        "company": 4,
+        "noncompany": 1,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "A1",
+        "A5",
+        "A6",
+        "A7",
+        "B3"
+      ]
+    },
+    {
+      "dimension": "feedback",
+      "score": 0.5,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "new manager who made it seem like I was messing up at work",
+          "eid": "B9",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "without feeling recognized or appreciated.",
+          "eid": "B11",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "You act on instinct and initiative, not instruction.\"",
+          "eid": "C12",
+          "sec": "C",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-16T22:28:20.015Z",
+      "commit_position": 4,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 2,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "B9",
+        "B11",
+        "C12"
+      ]
+    },
+    {
+      "dimension": "innovation",
+      "score": 0.3,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "\"You will write production code daily across the stack, directing agents fluently and writing by hand where it matters most.",
+          "eid": "C2",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "Hold the line against one-off custom work.\"",
+          "eid": "C3",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "\"prototype, validate, and iterate using AI agents to build working artifacts",
+          "eid": "C8",
+          "sec": "C",
+          "src": "company"
+        },
+        {
+          "text": "turn big ideas into crafted, moving solutions.",
+          "eid": "C13",
+          "sec": "C",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-16T22:35:46.852Z",
+      "commit_position": 5,
+      "source_mix": {
+        "company": 4,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "C2",
+        "C3",
+        "C8",
+        "C13"
+      ]
+    },
+    {
+      "dimension": "decision",
+      "score": 0.1,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "varied personal experiences and perspectives to arrive at impactful ideas.\"",
+          "eid": "A1",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "breakthrough creative work.",
+          "eid": "A6",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "execution alone is a commodity. Our value has shifted. We are getting back to what has always been our most valuable asset: our taste and curation. At [the company]",
+          "eid": "D3",
+          "sec": "D",
+          "src": "noncompany"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-16T22:49:03.358Z",
+      "commit_position": 6,
+      "source_mix": {
+        "company": 2,
+        "noncompany": 1,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "A1",
+        "A6",
+        "D3"
+      ]
+    }
+  ]
+}

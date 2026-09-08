@@ -1,0 +1,53 @@
+P-09 Warby Parker, scrubbed 2026-09-07 by prompt (Opus 5), run manually before the schedule
+went live. Complete four-file set, so this one would have passed the automated harvest.
+
+Verified by Scripts/verify_scrub.py: PASSED. 44 excerpts parsed (A8 B15 C10 D4 E3 F4), and
+every section's parse matches the header's own declared count. 38 quote bodies byte-identical,
+6 changed and every one carrying a declaration on its line, zero undeclared edits, no surviving
+"Warby Parker" or "Warby", no URLs.
+
+The cleanest packet in the set so far, and the first where raw == scrubbed == declared on
+every section. Rule Three did not fire: the v4.7 build already put a blank line above all 44
+bullets, so the raw packet parses 44/44 too. P-02, P-05, P-06, P-07 and P-08 do not -- the
+blank-line defect is build-session-dependent, not universal. Collector v4.9 (2026-09-07) makes
+the rule explicit so it stops being luck.
+
+Three ruleset gaps the scrubber declared rather than decided, all recorded for a ruleset
+amendment and none of them handled per-packet again:
+  - ATS posting ids printed outside a URL (tokenised [posting 1]..[posting 5] under R1's
+    rev-NN logic). Every ATS-sourced packet hits this.
+  - R8/A3 false-triangulation applied across A<->D, where R8 is written only for A<->F.
+    Section D here is three-quarters corporate voice and one passage restates a section A
+    claim while quoting an A core value inside it. Recurrence note attached, nothing deleted.
+  - Reviewer-level re-identification is unowned: four review titles are near-unique in the
+    source's own index, two appear exactly once, each beside a site token and a date. That
+    identifies a REVIEWER, not the company. Left untouched and flagged.
+
+Two content defects recorded and deliberately not fixed: Section 1 is not self-contained once
+the QA sections are removed (two attributions say "see fidelity note"; two headers assert
+coverage whose evidence was removed), and section E counts a company-authored SEC earnings
+release in its yield alongside two press excerpts. Both are BUILD defects. The first is the
+same dangling-pointer failure P-08 showed with "see POST-BUILD CORRECTION" -- two consecutive
+packets, so it is a pattern in the collector, not a one-off.
+
+POST-PROMOTION CORRECTION, 2026-09-07 -- A6(a) violation, found and fixed by hand
+---------------------------------------------------------------------------------
+The scrub log's JC-a block explained the ATS-id removal by printing the five removed ids
+verbatim, one of which ("REQ2...", an alphanumeric requisition string) is an exact-match
+token that resolves straight to the company's job board. The scrub log sits AFTER the
+END OF PACKET marker, so the citation harness never reads it -- and a rater always does.
+That is exactly the failure amendment A6(a) was written for after P-08: the mapping of
+removed identifiers belongs in the diff and the run record, never in the packet's own log.
+
+Fixed in both copies of P-09_packet_ANON.txt by asserted substring substitution: the id
+list became "(one alphanumeric requisition string, four short numerics)" and the
+exact-match sentence lost its quoted example. No quote body was touched; the reasoning is
+intact. The full mapping survives in P-09_scrub_diff.txt, which never leaves this folder.
+
+verify_scrub.py PASSED it before the fix, because its identifier check only looked for
+URLs and the --company strings. It now carries a lookup-key check -- requisition-style
+tokens, 6+ digit runs, UUIDs -- run over the WHOLE file including the scrub log, with
+fiscal-period tokens (FY2025 and friends) excluded as the one legitimate lookalike. Both
+identifier leaks in this project have come out of the scrub log rather than the packet
+body; that is now the part the verifier reads most carefully. Re-checked across P-01..P-09:
+zero hits anywhere.

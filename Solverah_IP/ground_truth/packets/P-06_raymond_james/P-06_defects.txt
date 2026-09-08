@@ -1,0 +1,173 @@
+P-06 RAYMOND JAMES — SELF-REPORTED DEFECTS AGAINST COLLECTOR PROMPT v4.6
+Build date 2026-08-14 · clean session · one company · assisted: NO
+
+Not fixed, not softened. Classified by the builder. Where genuinely torn, called structural.
+
+
+================================ STRUCTURAL ================================
+
+S1. ONLY ONE RETRIEVAL METHOD EXISTED IN THIS ENVIRONMENT.
+    Prompt section: "YOU NEED TWO RETRIEVAL METHODS, AND YOU MUST CHOOSE BETWEEN THEM PER
+    SOURCE" (new in v4.4); defect register D13.
+    The JavaScript renderer was not connected. Two attempts returned "Claude in Chrome is not
+    connected". Plain HTTP fetch was the only method available for the entire build.
+    Why structural: the prompt makes "try the other method" a precondition for recording ANY
+    absence, and the whole proof-of-absence apparatus rests on having two. Every not-reached
+    finding in this packet is therefore weaker than v4.6 requires, and section A's evidence is
+    different evidence from what a two-method build would have produced.
+    What the prompt lacks: no instruction for what to do when one method is unavailable. The
+    shipping posture says "record the limitation precisely and move on", which is what I did,
+    but the prompt does not say whether a single-method build is a valid ground-truth packet
+    or a void one. That decision was left to me and it should not have been.
+
+S2. SECTION A'S PRIMARY ROUTE FAILED AND v4.6 STILL SUPPLIES NO FALLBACK CHAIN FOR IT.
+    Prompt section: "A. CAREERS / VALUES PAGE"; defect register D12 ("Section A's primary
+    route is JavaScript-gated and it had no fallback chain" — logged against P-02, still not
+    remedied in v4.6).
+    www.raymondjames.com renders its page bodies through JavaScript. Worse, plain fetch of
+    those URLs is CUT OFF at roughly 104,700 characters — the site's navigation alone exceeds
+    the retrievable length, so the fetch terminates inside the nav before reaching any body.
+    Two different careers URLs both terminated at 1,532 and 1,535 lines respectively. This is
+    a second, independent failure mode the prompt does not describe anywhere: not a
+    "Loading..." shell, not a bot wall, but a length cut-off in the retrieval layer.
+    I substituted two other first-party sources — the applicant-tracking careers landing page
+    and the board-approved Code of Business Conduct and Ethics PDF. Section C already gives
+    section C a five-step fallback ladder; section A gets nothing. I invented one.
+    Why structural: it directly changed which evidence reached Section 1's A block.
+
+S3. THE `needed JS: Y/N` FIELD IS UNANSWERABLE WITH ONE METHOD, AND THE PROMPT TREATS IT AS
+    UNCONDITIONALLY REQUIRED.
+    Prompt section: "Record `needed JS: Y/N` on every excerpt and every entry in the access
+    log. This measures what rendering actually buys, per source and per company."
+    I recorded "not determinable" on all 47 lines that carry the field. The measurement v4.4
+    introduced silently produces a column of nulls rather than an error, so a downstream
+    consumer reading the field across packets will see this company as an outlier for a
+    reason that has nothing to do with the company.
+    Why structural: the field is a per-company measurement the instrument is supposed to
+    produce, and this build produces none of it.
+
+S4. RULE 2 DOES NOT SAY WHETHER PAGE METADATA IS "THE OPENED PAGE".
+    Prompt section: hard rule 2, "VERBATIM ONLY, FROM THE OPENED PAGE."
+    Four of the eight Section A excerpts come from the meta-description element of the careers
+    landing page, because the body is JavaScript-generated and did not render. The text is
+    verbatim, it is served in that page's HTML, and it is the same marketing copy the page
+    body displays. But it is metadata, not rendered body text, and rule 2 was written to bar
+    search-engine summaries — which are also, formally, descriptions of a page.
+    I decided metadata counts and flagged it. A different builder would defensibly decide it
+    does not, and would return a Section A of four excerpts, below the minimum of five.
+    Why structural: the decision determines whether section A passes its yield gate.
+
+S5. NO DOUBLE-COUNTING RULE BETWEEN SECTIONS A AND C.
+    Prompt sections: "C. JOB POSTINGS"; and the D-section rule "On double-counting. If the
+    only narrative text you find at rung 3 is the same careers/values material already quoted
+    in section A, it does not count toward D."
+    All five postings I opened carry roughly 250 words of IDENTICAL company-wide values
+    boilerplate — the five guiding behaviors, the core values list, and a five-bullet "we
+    expect our associates at all levels to" block. This is careers-page copy pasted into a job
+    posting. The prompt bars A material from counting toward D but says nothing about A
+    material counting toward C, and section C's minimum is a count of excerpts.
+    I quoted one instance and labelled it as a standing block. Quoting more of it would have
+    let me reach C's minimum of six from boilerplate alone, without a single role-specific
+    sentence, and nothing in the prompt forbids that.
+    Why structural: it is a hole in a required-to-yield gate.
+
+S6. D0's VOICE TAXONOMY HAS NO CATEGORY FOR FIELD MANAGEMENT.
+    Prompt section: "D0. VOICE COMPOSITION"; 2a's "___ executive / ___ non-executive".
+    My non-executive passages come from a branch and complex manager — a person who manages
+    advisors in a field office. He is not on the executive leadership team and not an
+    individual contributor. D0 offers a binary.
+    I classified him non-executive. That classification is load-bearing: had I called him
+    executive, section D would have come back 100% executive and D0 would have obliged me to
+    work an additional ladder rung, which would have changed section D's contents.
+    Why structural: a coin-flip taxonomy decision gates a mandatory extra search.
+
+S7. B7 ASSUMES TRUNCATED REVIEWS CANNOT BE EXPANDED, AND DOES NOT REQUIRE TESTING THE
+    PERMALINK.
+    Prompt section: "B7. Truncation is systematic on large companies"; defect register D7.
+    40% of my sample is truncated, which triggered the mandatory NOTE TO RATER. But every
+    truncated review on this site has an individual permalink, and B7 never says to try it —
+    it only says to mark the cut and count it. Earlier prompt versions established that
+    individual review permalinks render (v4.3's correction), so the tooling to test this
+    already exists in the instrument's own history.
+    I did not test the permalinks, to keep the build bounded under the shipping posture. That
+    was my decision and I am recording it as one.
+    Why structural: if permalinks expand, the length-based selection effect that D7 calls a
+    bias running through the whole packet is avoidable, and three packets have now shipped
+    with it unnecessarily. If they do not expand, B7 should say so and close the question.
+
+S8. THE PROMPT NEVER SAYS WHETHER TO TAKE MORE THAN 15 REVIEWS WHEN MORE ARE RENDERED.
+    Prompt sections: "B. EMPLOYEE REVIEWS — minimum 12 reviews, target 15" versus the OUTPUT
+    FORMAT line "B. EMPLOYEE REVIEWS (12–15, one per line, most recent first)".
+    One fetch returned 20 reviews, all within the 24-month gate. The section heading states a
+    minimum and a target with no maximum; the format block implies a maximum of 15. I took 15
+    and discarded 5 that were newer than nothing I kept — i.e. the discard was purely
+    positional and cost the packet five in-gate reviews for no stated reason.
+    Why structural: it changed the size of the only required-to-yield experiential section,
+    and I resolved it by guessing which of two prompt statements governs.
+
+
+================================ COSMETIC ==================================
+
+C1. SECTION B CONTRADICTS ITSELF ABOUT GLASSDOOR SUBRATINGS.
+    v4.5 removed per-title subratings entirely and 2f now prints "NOT COLLECTED". But B2c
+    steps 5 and 6 still instruct "open the matching Glassdoor title page for its subrating
+    block only" and "Record per title: ... the six subratings", and B3b retains three
+    validation checks for rating blocks. B2c is labelled "retained only for the case in B2
+    above", which does not obviously cover the subrating steps. Confusing; changed nothing,
+    because 2f is unambiguous.
+
+C2. THE OUTPUT FORMAT TEMPLATE HAS NO SLOT FOR `needed JS`.
+    The prompt requires the field on every excerpt, but the template line is
+    `• "<verbatim quote>" — [source type] — <attribution> — <URL> — <date>`. I appended it as
+    a sixth field. Every builder will invent a different position for it.
+
+C3. 2a's YIELD AUDIT RECORDS ONLY MINIMA, NEVER MAXIMA.
+    Section A is capped at 8 and section E at 4, both for stated reasons, but the audit block
+    has no line for either cap. A packet that over-collects A — the exact failure the cap
+    exists to prevent — passes the audit silently.
+
+C4. 2c HAS NO FIELD FOR D0 VOICE COMPOSITION, THOUGH 2a DOES.
+    Voice is a per-rung property discovered while working the ladder, and 2c is the per-rung
+    block. Recording it only in the summary at 2a means the builder has to hold it in memory
+    across seven rungs.
+
+C5. THE REVIEW SITES' COUNT CONTRADICTIONS RECURRED, EXACTLY AS D4 PREDICTS.
+    One Indeed page showed 865 / 865 / 933 / 933 simultaneously; one Glassdoor page showed
+    2,495 / 2K / 2,971. The prompt already handles this correctly and I followed it. Logged
+    as confirmation, not as a prompt fault.
+
+C6. THE STALE-CEO DEFECT RECURRED, EXACTLY AS B3b PREDICTS.
+    Glassdoor still names an executive who ceased to be chief executive in February 2025, and
+    attaches a CEO-approval percentage to him. The prompt's warning worked — I checked, found
+    the current chief executive named in the company's own 2026 code of conduct, and used no
+    approval figure. Logged as confirmation.
+
+C7. SECTION F's FIGURE-STRIPPING RULE AND D15's REWRITE RULE PULL AGAINST EACH OTHER ON THE
+    SAME PARAGRAPH.
+    F says "If a sentence cannot survive removing its figures, leave it out." D15 says
+    "REWRITE THE PROPER NOUN, KEEP THE CLAUSE" and explicitly warns against the drop-the-
+    excerpt rule in section F. The workforce-composition sentence in this filing is a sentence
+    that cannot survive removing its figures AND contains no proper noun. I dropped it, which
+    F sanctions. But the two rules sit two paragraphs apart and read as if they govern the
+    same decision. Resolvable on a careful read; confusing on a fast one.
+
+C8. RUNG 1 HAS NO GUIDANCE FOR A HANDBOOK THAT IS FOUND BUT UNREADABLE.
+    The company's culture "blueprint" — named in both its 10-K and its careers site — exists
+    at a first-party URL, fetched successfully, and yielded only marginal call-out
+    annotations because the PDF's main text did not extract. That is a fourth distinct state
+    alongside the prompt's "does not exist", "stale", and "could not be reached": retrieved,
+    confirmed to exist, partially legible. I logged it under its own heading in 2c. The
+    prompt's vocabulary does not have a word for it.
+
+
+================================ NOT DEFECTS, RECORDED ANYWAY ==============
+
+N1. The v4.6 recency frame worked well here and its stated failure mode did not appear.
+    Newest review on the two sites differed by two days (2026-07-16 versus 2026-07-14), so
+    the P-03/P-04 staleness signature is absent. Four of fifteen reviews carry no job title
+    and would have been invisible under the v4.5 title frame — B2a earned its place on this
+    company.
+
+N2. No employer responses appeared anywhere in the twenty reviews rendered, so B2b was
+    worked and yielded nothing. Recording it because "the rule fired and found nothing" is
+    different from "the rule was not worked".

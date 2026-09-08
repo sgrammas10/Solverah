@@ -1,0 +1,193 @@
+################################################################################
+##  QUARANTINED — NOT GROUND TRUTH. DO NOT FEED TO A BUILDER.
+##
+##  Built 2026-08-13 inside a long working session that already knew every
+##  defect from P-02, P-03, P-04 and P-05 before it started. Under decision 7
+##  that makes it a CONTAMINATED build: production runs one prompt against one
+##  company with no memory of the last one, and this did not.
+##
+##  It is NOT evidence about the prompt. The builder knew what to look for.
+##  It IS a usable answer key — read it AFTER a clean-room run of P-01 to tell
+##  a genuine finding from a rediscovery. See RUN_CARD.md.
+##
+##  The real P-01 packet does not exist yet.
+################################################################################
+
+SOLVERAH — EVIDENCE PACKET (PARTIAL)
+P-01 = Oscar Health · started 2026-08-13 · evidence prompt v4.5
+Company name retained; anonymization is a separate later step.
+
+STATUS: F complete. B BLOCKED ON A DESIGN DECISION — see the structural defect below. A, C, D, E
+not begun. This packet was started as the FREEZE CANDIDATE for v4.5 and it did not freeze it.
+
+ENTITY CHECK: indeed.com/cmp/Oscar-Health redirects to /cmp/Oscar-Health-1. The `-1` slug suffix
+indicates a duplicate-name entity on the site. Confirmed correct: 237 reviews, Insurance Carriers
+category, Tempe AZ / New York NY locations, member-services and claims titles. This is the health
+insurer, not a same-named entity.
+
+
+########## STRUCTURAL DEFECT SD-1 — SECTION B'S FRAME SELECTS STALE EVIDENCE ##########
+
+This is the finding of the session and it stops the freeze.
+
+**Stratifying by job title systematically selects OLD reviews at this company.**
+
+Evidence, two views of the same review population:
+
+  VIEW 1 — largest title bucket, Member Services Representative (15 reviews), newest first:
+     2024-01-24, 2021-02-09, 2020-04-28, 2018-12-05, 2018-09-19, 2018-06-18, 2018-01-18,
+     2018-01-06, 2017-12-02, 2017-11-10, 2017-06-22, 2016-12-09, 2016-08-21, 2016-06-27, 2016-06-21
+     ** ZERO of 15 fall inside the 24-month gate. ** Newest is 31 months old.
+
+  VIEW 2 — company-wide, newest first, page 1:
+     2026-04-13, 2026-03-13, 2026-01-12, 2025-12-13, 2025-09-11, 2025-09-06, 2025-08-27,
+     2025-08-23, 2025-06-27, 2025-06-25, 2025-06-24, 2025-06-07, 2025-04-19, 2025-04-14,
+     2025-04-14, 2025-02-26, 2025-01-28, 2025-01-23, 2025-01-12, 2024-12-30
+     ** ALL 20 fall inside the 24-month gate. **
+
+The company is NOT stale. The TITLE FILTER is stale. Three mechanisms, all visible in the data:
+
+  1. **Recent reviews are frequently posted with NO job title at all.** Three of the twenty most
+     recent render as "Anonymous". A review with no title belongs to no bucket, is invisible to
+     any title-stratified sample, and cannot be scoped in 2g either.
+
+  2. **Recent reviews use long-tail title strings that do not map to the index's buckets** —
+     "Insurance Operations Claims Processor", "Complex Case Manager", "Clinical Coordinator",
+     "UM", "Care guide" (lower case), "Customer Service", "Insurance Operations Supervisor".
+     The index normalises to "Claims Processor", "Case Manager", "Customer Service
+     Representative". The normalisation is what strands them.
+
+  3. **The large normalised buckets are historical.** Member Services Representative was a mass
+     hiring role in this company's 2016–2021 era. The bucket is large *because* it is old.
+
+**Consequence: a v4.5-conformant Section B would describe Oscar Health circa 2016–2018.** The
+company-wide stream describes 2025–2026 — layoffs, remote work, micromanagement, a nurse-scope
+regulatory concern, "no longer any transparency", "the tech org". Two different companies.
+
+This is a STRUCTURAL defect by the freeze rule's own definition: it changes what evidence reaches
+Section 1. **v4.5 does not freeze.**
+
+### Why this did not appear on P-02, P-03, P-04 or P-05
+
+P-02 had 39,859 reviews against 85,000 employees — every bucket was continuously replenished, so
+newest-within-title and newest-company-wide agreed. P-03 and P-04 are mid-size with concentrated
+functions. Oscar is ~2,305 employees with 237 reviews, a shrinking headcount, and a role mix that
+has turned over since the reviews were written. **The title frame works when review volume is high
+and the role mix is stable. It fails when either is false, and it fails silently — the buckets look
+fine, the counts agree, and the dates are the only tell.**
+
+### THE DECISION REQUIRED BEFORE SECTION B CAN BE BUILT
+
+Not a workaround — a rule. Options as I see them:
+
+  (a) **Recency-first frame with title recorded per review.** Sample company-wide newest-first,
+      record each review's title as metadata, and report the resulting function mix in 2g rather
+      than imposing one. Keeps dispersion visible, keeps the sample current, loses the guarantee
+      of function coverage. **My recommendation.**
+  (b) **Keep the title frame and mark P-01 Section B as FAIL on recency.** Honest, and produces a
+      packet a rater cannot score on experiential evidence.
+  (c) **Hybrid:** title-stratified where a bucket has ≥N reviews inside the gate, company-wide
+      newest-first for the remainder. More faithful, and a second frame to specify and maintain.
+
+Whichever is chosen, two sub-rules are needed regardless:
+  * **Untitled ("Anonymous") reviews need a rule.** They are currently uncollectable and unscopeable.
+  * **Employer RESPONSES embedded in the review stream need a tag.** One is present here, dated
+    2021-02-22, and it is company-authored content sitting inside an experiential source. It is
+    dimension-bearing and must never be tagged `[employee review]`.
+
+
+--- A. CAREERS / VALUES PAGE — NOT BEGUN ---
+
+--- B. EMPLOYEE REVIEWS — BLOCKED, see SD-1 ---
+
+--- C. JOB POSTINGS — NOT BEGUN ---
+    Live postings observed incidentally while working B, with IDs captured for later:
+    Specialist Risk Adjustment (remote) · Member & Provider Care Specialist (Tempe AZ, Atlanta GA,
+    Dallas TX) · Associate Regulatory Operations (remote) · Bilingual Customer Service
+    Representative (remote FL / AZ / TX). At least three distinct functions are available.
+
+--- D. FIRST-PERSON ACCOUNT — NOT BEGUN ---
+
+--- E. RECENT NEWS — NOT BEGUN ---
+
+--- F. HUMAN CAPITAL DISCLOSURE (6 excerpts · 10-K Item 1, Human Capital Resources) — COMPLETE ---
+
+Source: Annual Report on Form 10-K for the fiscal year ended 2025-12-31, Item 1, "Human Capital
+Resources". Headcounts and figures removed. Nothing from financial statements, MD&A, risk factors,
+proxy tables or earnings materials.
+
+• "At Oscar, we are powered by people from varied and broad backgrounds, experiences, and industries. We foster a culture in which our employees share a common connection to our mission: they are passionate about making a frustrating healthcare system easier, more human, and better for everyone." — [10-K human capital] — https://www.sec.gov/Archives/edgar/data/1568651/000156865126000011/oscr-20251231.htm — FY ended 2025-12-31 — needed JS: N — the sentence stating total employee count was dropped per the figure rule.
+
+• "1. What we do is a big deal. We're solving problems that change and save lives. / 2. Powered by people. Members above all. Developing and growing others is what raises the bar. / 3. No genius without grit. Be relentless. Be scrappy. Trying and failing beats not trying and changing nothing. / 4. Seek the truth. But never assume you've found it. Be scientific. / 5. Inspire and provoke. Develop and display leadership at all levels. Fight to be the best. / 6. Be transparent. Give and ask for direct feedback. Be grateful for and excited by the help of others. / 7. Make it right. Admit your mistakes. Then learn from them. Never build alone." — [10-K human capital] — the seven stated core values, reproduced in full and in the order given, recorded as a single excerpt per the P-02 precedent — same URL — needed JS: N
+
+• "This centers around what we believe to be a compelling employee value proposition, that includes competitive pay, and benefits, flexible work styles, opportunity to make a real impact towards the Oscar mission, and ongoing performance development." — [10-K human capital] — same URL — needed JS: N
+
+• "We believe our compensation philosophy and practice, which is rooted in data and benchmarked to a cohort of peer and broader industry companies, is transparent, systematic, and equitable." — [10-K human capital] — same URL — needed JS: N
+
+• "Our employees are able to view their total compensation package, including their salary band and leveling, which helps employees understand their pay and encourages proactive conversation between managers and employees." — [10-K human capital] — same URL — needed JS: N
+
+• "Internally, we aim to promote a transparent, systematic approach to our human capital frameworks and operations." — [10-K human capital] — same URL — needed JS: N
+
+
+########## SECTION 2 — RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+2a. YIELD AUDIT — INCOMPLETE
+    A excerpts: 0    B reviews: 0 (BLOCKED, SD-1)    C excerpts: 0
+    D passages: 0    E excerpts: 0    F excerpts: 6/3 PASS (at the maximum, correctly)
+
+2d. SOURCE ACCESS LOG
+    https://www.indeed.com/cmp/Oscar-Health/job-titles      — REDIRECTS to /Oscar-Health-1/ — needed JS: N
+    https://www.indeed.com/cmp/Oscar-Health-1/job-titles     — RETRIEVED, full index — needed JS: N
+    https://www.indeed.com/cmp/Oscar-Health-1/reviews?fjobtitle=Member+Services+Representative&fcountry=US&sort=date
+                                                             — RETRIEVED, 15 reviews — needed JS: N
+    https://www.indeed.com/cmp/Oscar-Health-1/reviews?fcountry=US&sort=date
+                                                             — RETRIEVED, 20 reviews, 12 pages — needed JS: N
+    https://www.sec.gov/Archives/edgar/data/1568651/000156865126000011/oscr-20251231.htm
+                                                             — RETRIEVED, full 10-K — needed JS: N
+    ** The direct-Archives EDGAR route from P-02 worked first time on a second company. Confirmed. **
+
+2e. FIDELITY NOTES
+    * SD-1 above is the dominant note. Do not build B until it is resolved.
+    * Employer response present in the review stream (2021-02-22). Company-authored, needs a tag.
+    * Untitled ("Anonymous") reviews present in the recent stream. No rule covers them.
+    * Section F figure-stripping cost one sentence (the headcount). Same shape as P-02: the
+      culture, values and compensation-transparency prose survived intact.
+    * INDEED PER-TITLE SUBRATING TRAP CONFIRMED ON A THIRD COMPANY. The Member Services
+      Representative page displays work-life 3.2 / pay 3.3 / job security 2.6 / management 2.7 /
+      culture 3.1, "Based on 237 reviews" — the company-wide figures, on a 15-review filter.
+    * The job-titles INDEX omits "Care Guide" entirely, while the reviews page lists Care Guide
+      FIRST under "Popular job titles". A recent review is filed under it. Same defect class as
+      D3/D10 — the index is not authoritative.
+    * Count divergence: "all reviews in United States (230)" vs "worldwide (237)" vs header "237".
+
+2f. VINTAGE BLOCK — partial
+    Company-wide newest review: 2026-04-13. Page "Updated April 13, 2026".
+    Largest-title newest review: 2024-01-24. THE GAP BETWEEN THESE TWO IS SD-1.
+    Per-title subratings: NOT COLLECTED — removed in v4.5.
+    Achievability gate: no percentages encountered yet in any source.
+
+2g. SCOPE BLOCK — partial
+    F human capital: company-wide (regulatory disclosure covers the registrant).
+    B: undetermined and undeterminable until SD-1 is resolved. Note that the recent review stream
+    reaches functions the title index buries — utilization review nursing, pharmacy, engineering,
+    SIU investigation, regulatory compliance, management. That is BROADER function coverage than
+    the title frame would have produced, which is an argument for option (a).
+
+
+########## SECTION 3 — ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+    Public, NYSE-listed, US. Health insurance / insurtech. New York headquartered.
+    Headcount is SHRINKING across the disclosure years — a materially different trajectory from
+    every other company on the roster, and directly relevant to the review stream's content
+    (layoffs appear repeatedly in 2025–2026 reviews). Flag for the confounder adjustment: this is
+    a stage-5-by-listing company with startup-era review history and a contracting workforce.
+
+########## SECTION 4 — ANONYMIZATION PRE-FLAGS ##########
+    TIER 1: the seven core values verbatim (highly distinctive, searchable); the company name
+    embedded inside value text and the employee-value-proposition sentence; "insurtech".
+    TIER 2: Tempe AZ / New York NY location pairing; "member services" + "care guide" role
+    vocabulary; the named CEO referenced in one older review.
+
+## NEXT STEPS
+    1. RESOLVE SD-1. Nothing else in Section B can proceed. Recommendation: option (a).
+    2. Then B, then A, C, D, E in the normal order.
+    3. Section F is done and needs no rework.

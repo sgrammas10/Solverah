@@ -1,0 +1,286 @@
+PACKET P-10   ·   DE-IDENTIFIED   ·   RATER-FACING
+  scrubbed from : P-10_packet.txt (build v4.7, model claude-opus-5, built 2026-08-28)
+  ruleset       : ANONYMIZATION_RULES_DRAFT.md
+  scrubbed      : 2026-09-07
+  status        : DRAFT. Caveats carried from the source packet: (1) the build record's model
+                  string is that build session's configured identifier — the exact serving model
+                  string was not exposed and may differ; (2) the build environment's README named
+                  collector v4.6 while the prompt actually attached and used was v4.7.
+
+  DO NOT SEARCH FOR ANY PHRASE IN THIS PACKET. If you recognise the company, that is
+  expected and is not a failure — record it on the recognition flag and keep scoring
+  from the evidence in front of you, not from what you know.
+
+  How to read the attributions. Under R1 every attribution line has had the company name and
+  the URL removed and keeps its source class and its date; that treatment is uniform across all
+  45 excerpt lines and is not re-declared line by line. Review sources appear as stable local
+  ids rev-01 … rev-15 (the same review always carries the same id) and job postings as
+  [posting 1] … [posting 4]. Every OTHER edit — anything touching a quote body, a named human,
+  a place, or a figure — is declared in brackets on the excerpt line where it occurs.
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE DECLARATION
+   "The employee reviews in this packet come from a very small review population (62 reviews
+    total for a company of several thousand people), drawn mostly from technical support,
+    sales, product, finance and compliance roles, with several reviewers writing anonymously
+    and most describing remote work. Other parts of this company — core software engineering,
+    marketing, legal, data, and its non-US operations — are barely represented in them, and
+    nine of the fifteen reviews describe the company as it was more than two years ago.
+    Company-authored sources describe the whole organisation."
+
+   [Rater-visible edit declaration: the company headcount band in the scope declaration was
+    replaced with magnitude language per R6/A1. The scope declaration is otherwise verbatim.]
+
+
+--- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
+
+   • "Our approach to [a named remote-work policy] means every [employee] can thrive remotely, make an impact, connect intentionally, and work with flexibility, no matter where they are."  — [company careers/culture page] — company-authored — retrieved 2026-08-27  — [the company's coined term for its employees replaced per R2, and a branded remote-work-policy name rewritten in brackets per R4/A5; clause otherwise verbatim]
+
+   • "We build best when we are clear on our mission, empowered to make decisions, and can move fast. Organize into small teams so you can stay focused."  — [company values page, principle under "We are builders"] — company-authored — retrieved 2026-08-27
+
+   • "Builders love hard problems. Hard problems are the gold of business, and solving them is why we get paid. Seek out and work on the hard problems, even when it gets difficult."  — [company values page, principle "Live the spirit of challenge"] — company-authored — retrieved 2026-08-27
+
+   • "When you're building something that doesn't exist, there's rarely an instruction book. We [named value A] by embracing uncertainty when there aren't step-by-step instructions to follow."  — [company values page, principle name stripped per R4/A5] — company-authored — retrieved 2026-08-27  — [branded value name rewritten in brackets in the quote body and in the attribution per R4/A5; clause otherwise verbatim]
+
+   • "When you approach a problem, write down your goals, your decision criteria, and your plan of action, as well as lessons learned along the way. This will help you think clearly and communicate effectively."  — [company values page, principle "Write it down"] — company-authored — retrieved 2026-08-27
+
+   • "Disagree and commit when making decisions as a team. Have honest, open, and respectful debate to get to the best decision then be a committed supporter."  — [company values page, principle under "We are owners"] — company-authored — retrieved 2026-08-27
+
+   • "Invite others into the problem rather than prescribing your version of the solution. By sharing our problems, we get the best thinking and energy from others."  — [company values page, principle "Share problems, not solutions", under "We are curious"] — company-authored — retrieved 2026-08-27
+
+   • "Seek progress over perfection when you feel stuck in a complex problem. Experiment through testing, user feedback, and iteration."  — [company values page, principle under "We are curious"] — company-authored — retrieved 2026-08-27
+
+
+--- B. EMPLOYEE REVIEWS (12–15, one per line, most recent first) ---
+
+NOTE TO RATER (truncation): 6 of the 15 reviews below (40%) are cut off at the source by a
+"Show more" control that does not expand on fetch, marked […] at the cut. The reviews that
+survive intact are systematically the shorter ones, so the longer and more detailed accounts
+are represented here only by their opening sentences.
+
+NOTE TO RATER (population size): the required review source holds 62 reviews in total for an
+employer that the same site lists in a several-thousand-employee size band. Nine of the fifteen reviews below
+are more than 24 months old. The optional cross-check source holds roughly 2,095 reviews for
+the same employer and its newest review is 2026-08-24, sixteen days newer than the newest
+review below — so this packet's review section is current at the top but rests on a population
+roughly one thirty-fourth the size of the one available elsewhere.
+[Rater-visible edit declaration: the employer size band in this note was
+replaced with magnitude language per R6/A1. The note is otherwise verbatim.]
+
+   • "I worked for [the company] for 4 years in both the marketing and sales side of the business. The management, particularly on the Global Events Team, is incredibly poor."  […]  — [employee review; headline: "The people are incredible. Management? Not so much."] — job title: not stated (Anonymous), location: Remote — rev-01 — 2026-08-08  — [company name replaced per R2; clause otherwise verbatim]
+
+   • "Management is now driven by vanity metrics that aren't even accurately collected, while actual customer feedback has become extremely negative and internal morale has collapsed."  […]  — [employee review; headline: "Collapsing"] — job title: Technical Support Engineer, location: Remote — rev-02 — 2025-08-31
+
+   • "Overall it's a good place to work with good benefits & opportunities and I've met some great people, but advancing your career is very difficult & not prioritized"  — [employee review; headline: "Good people & benefits, bad career progression"] — job title: Sales Development Representative, location: [Site A] — rev-03 — 2025-04-02  — [review location replaced with a site token per R5]
+
+   • "Stressful job with no chance in achievint [sic] higher ranks or pay. There is a lot of work volume and the colleagues sometimes tend to force he [sic] work load on you"  — [employee review; headline: "Stressful"] — job title: Customer Service Representative, location: Remote — rev-04 — 2025-01-30
+
+   • "Leadership at [the company] consistently fails to execute or craft a coherent strategy. Instead, they rely heavily on consultants who repeatedly recommend cutting jobs and rehiring offshore"  […]  — [employee review; headline: "Toxic, fake, downward spiral"] — job title: Product Management, location: [Site B] — rev-05 — 2025-01-01  — [company name replaced per R2; review location replaced with a site token per R5; clause otherwise verbatim]
+
+   • "I definitely recommend to everyone to work at [the company]. Productive and fun place to work with great benefits with awesome team."  — [employee review; headline: "Productive and fun place to work"] — job title: Technical Support Engineer, location: Remote — rev-06 — 2024-10-03  — [company name replaced per R2; clause otherwise verbatim]
+
+   • "They used to be great company to work for. However after massive layoffs it is hard to trust that you'll have a job."  — [employee review; headline: "Used to be a good place"] — job title: Engineer, location: Remote — rev-07 — 2024-06-14
+
+   • "The team was great! Learned a lot, a bit slow at times but expected, overall great experience!"  — [employee review; headline: "Learned a lot"] — job title: SWE Intern, location: Remote — rev-08 — 2024-04-25
+
+   • "I was impacted due to over hiring during pandemic but a great job. Ultimately, I was able to land another role quickly due to [the company]'s brand."  — [employee review; headline: "Great culture"] — job title: Sales, location: [Site C] — rev-09 — 2024-04-02  — [company name replaced per R2, with the preceding article adjusted for grammar; review location replaced with a site token per R5; clause otherwise verbatim]
+
+   • "Life as an [employee] is not bad. It was easy to navigate and the option to earn your [branded internal recognition item] was a great cultural norm that I gladly partake in."  […]  — [employee review; headline: "[The company] Life"] — job title: Associate Director - Strategic Programs & Communications, location: Remote — rev-10 — 2024-02-16  — [the company's coined term for its employees replaced per R2 with the indefinite article adjusted; a branded internal recognition item rewritten in brackets per R4/A5; company name in the review headline replaced per R2; clause otherwise verbatim]
+
+   • "nice and good and flexible. good management diverse cultture [sic] able to work remotely inclusive work environment"  — [employee review; headline: "good"] — job title: Auditor, location as displayed: [Site D] (location string flagged at build as probably mis-geocoded; retained) — rev-11 — 2024-01-22  — [review location replaced with a site token per R5; the source's location string was flagged at build as probably mis-geocoded and this token is deliberately not resolved to a country]
+
+   • "The executive team is in flux. The CEO has just been replaced, but it may be a little too late for [the company]."  […]  — [employee review; headline: "Executive leadership is lacking"] — job title: Global Leader of Healthcare and Life Sciences, location: Remote — rev-12 — 2024-01-19  — [company name replaced per R2; clause otherwise verbatim]
+
+   • "[The company] do well by their employees and take good care of them, offering flexibility and many benefits. The people are great and it's a good work environment."  — [employee review; headline: "Felt looked after but direction wasn't clear"] — job title: Product Manager, location: [Site A] — rev-13 — 2024-01-05  — [company name replaced per R2; review location replaced with a site token per R5; clause otherwise verbatim]
+
+   • "Generally people are talented and great to work with. [The company] was a great company to work for 2 years ago. Management execution and macro head winds have taken a toll on the company and its culture."  — [employee review; headline: "Great people, challenging time for the company"] — job title: Senior Financial Analyst, location: [Site A] — rev-14 — 2023-12-10  — [company name replaced per R2; review location replaced with a site token per R5; clause otherwise verbatim]
+
+   • "Its a good Company that is still growing and trying to find its footing in the bigger picture and niche."  […]  — [employee review; headline: "Great Place"] — job title: Compliance Specialist, location as displayed: "remote" — rev-15 — 2023-11-17
+
+
+--- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+
+Four postings opened individually and confirmed live on the company's own board on 2026-08-27
+(each rendered an active "Apply Now" control and a "Date posted" field; none carried a removal
+notice). Reported by function label only.
+
+Posting 1 — security engineering function (date posted 2026-08-26):
+
+   • "You will serve as an SME on the technical strategy and engineering execution for securing the AI ecosystem in our Enterprise, moving beyond policy into building the foundational "decision infrastructure" and technical guardrails that allow the enterprise to innovate with AI at scale."  — [job posting, company careers site] — company careers board — [posting 1] — posted 2026-08-26
+
+   • "You will need a background in security engineering and the cross-functional influence necessary to solve ambiguous, large-scale problems."  — [job posting, company careers site] — company careers board — [posting 1] — posted 2026-08-26
+
+Posting 2 — sales support / sales operations function (date posted 2026-08-26):
+
+   • "This individual is ‘the glue’ between many different functions within the organization, assisting Account Executives with numerous activities and processes along the entire sales cycle."  — [job posting, company careers site] — company careers board — [posting 2] — posted 2026-08-26
+
+   • "Be an Internal Liaison: Create and submit requests and follow up through resolution on them, including but not limited to: Billing, Deal Strategy, Legal, and Security."  — [job posting, company careers site] — company careers board — [posting 2] — posted 2026-08-26
+
+   • "Collaborative approach, a “can do” attitude, and relentless in pursuing goals and solving problems"  — [job posting, company careers site] — company careers board — [posting 2] — posted 2026-08-26
+
+Posting 3 — technical program management function (date posted 2026-08-27):
+
+   • "Influence entire compliance programs and [the company]’s strategic direction by translating strategic priorities into a clear vision and executable programs with measurable outcomes"  — [job posting, company careers site] — company careers board — [posting 3] — posted 2026-08-27  — [company name replaced per R2; clause otherwise verbatim]
+
+   • "Anticipate upcoming priorities, risks, and decision points, proactively driving alignment and action across the company to maintain certifications and improve compliance"  — [job posting, company careers site] — company careers board — [posting 3] — posted 2026-08-27
+
+Posting 4 — customer onboarding / compliance operations function (date posted 2026-08-24):
+
+   • "[Named value A] – Identify inefficiencies, propose solutions, and enhance workflows and compliance processes."  — [job posting, company careers site] — company careers board — [posting 4] — posted 2026-08-24  — [branded value name rewritten in brackets per R4/A5 — the same named value that appears in section A excerpt 4; clause otherwise verbatim]
+
+   • "[Named value B] – Manage high-volume inquiries, balance multiple priorities, and ensure SLAs are consistently met."  — [job posting, company careers site] — company careers board — [posting 4] — posted 2026-08-24  — [branded value name rewritten in brackets per R4/A5; clause otherwise verbatim]
+
+   • "Perform quality assurance (QA) checks on AI-generated and agent-reviewed decisions to ensure accuracy and compliance."  — [job posting, company careers site] — company careers board — [posting 4] — posted 2026-08-24
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 3 passages / 5 excerpt lines · ladder fully attempted) ---
+
+VOICE COMPOSITION: 2 non-executive passages, 1 executive passage. Not all-executive; the
+bounded extra rung required by D0 was therefore not triggered.
+
+Passage 1 — non-executive employee (senior manager, documentation platform), company blog
+employee-spotlight series, 2026-02-08:
+
+   • "As a team, remote work has always been our norm. We stay connected through daily async stand-ups, open communication, and a strong culture of flexibility across time zones."  — [company blog, employee first-person spotlight] — a Sr. Manager, Documentation Platform, interviewed by the company's employer brand team — company-authored — 2026-02-08  — [named employee replaced with role per R3; a branded internal team name replaced with a generic descriptor per R4/A5; quote body verbatim]
+
+   • "We also keep things human — like closing weekly Zoom meetings with icebreaker questions to learn more about each other beyond the work."  — [company blog, employee first-person spotlight] — a Sr. Manager, Documentation Platform — company-authored — 2026-02-08  — [named employee replaced with role per R3; quote body verbatim]
+
+Passage 2 — non-executive employee (staff product data analyst), company blog
+employee-spotlight series, 2026-01-07:
+
+   • "I don't just create dashboards; I design an analytics platform where teams can dive into the data, uncover patterns, and act - all without waiting on a report."  — [company blog, employee first-person spotlight] — a Staff Product Data Analyst — company-authored — 2026-01-07  — [named employee replaced with role per R3; quote body verbatim]
+
+   • "One time, I (based in [Site E]) was working on an urgent deliverable with a teammate in the U.S. We treated it like a relay race: I'd work on it during my day, hand it over before bed, and by the time I woke up, more progress had been made."  — [company blog, employee first-person spotlight] — a Staff Product Data Analyst — company-authored — 2026-01-07  — [named employee replaced with role per R3; a place name in the quote body replaced with a minted site token per R5/A6; "the U.S." deliberately left literal — see scrub log; clause otherwise verbatim]
+
+Passage 3 — executive (chief executive), trade-press interview, 2025-06-18:
+
+   • "You don't know everything. You're constantly collecting signals from other companies, including your competitors. But the most important signals come from your customers and employees."  — [leadership interview, trade press] — the chief executive, interviewed by a trade-press publication — 2025-06-18  — [named executive replaced with role per R3; named publication replaced with its class per R3; quote body verbatim]
+
+
+--- E. RECENT NEWS (yield: 3 excerpts · searches logged) ---
+
+   • "In a major move, cloud communications firm [the company] has announced its acquisition of identity management provider [name stripped], aiming to build an intelligent identity layer to verify trust between humans and AI agents in real-time."  — [trade press reporting] — trade press — 2025-11-10  — [company name replaced per R2; an acquired company's brand name rewritten in brackets per R4/A5; named publication replaced with its class per R3; clause otherwise verbatim]
+
+   • "We would throw effort and resources and money at 100 projects, all at the same time, with equal intensity, and then we'd sort of look at what stuck to the wall"  — [business press profile, CEO quoted directly on the company's former operating model] — the chief executive, quoted in business press — 2026-05-04  — [named executive replaced with role per R3; named publication replaced with its class per R3; quote body verbatim]
+
+   • "Companies just outgrow their prior teams. We're a [multi-billion-dollar] company trying to become a [roughly twice that scale] company"  — [business press profile, CEO quoted directly on leadership turnover] — the chief executive, quoted in business press — 2026-05-04  — [named executive replaced with role per R3; named publication replaced with its class per R3; two revenue-scale figures replaced with magnitude language per R6/A1; clause otherwise verbatim]
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 4 excerpts · public/private: PUBLIC) ---
+
+Source: Form 10-K for fiscal year ended 2025-12-31, filed 2026-02-24. Item 1 (Business). The
+disclosure is headed "Our Employees and Human Capital Resources"; the values paragraph sits
+slightly earlier in Item 1 under its own heading. Company-authored evidence — same
+marketing-inflation caution as the careers page, and it satisfies no requirement for
+non-company-authored support. All headcount, dollar and percentage figures stripped at
+collection.
+
+   • "We believe there is a unique spirit to [the company], manifested in who we are and how we work together. We value and invest in a positive culture of optimism, innovation, and accountability. Our values, which we call [a named values framework], remind us every day who we are at our core and guide how we act and how we make decisions."  — [10-K Item 1, company-authored] — Form 10-K FY2025 — filed 2026-02-24  — [company name replaced per R2; a branded values-framework name rewritten in brackets per R4/A5; clause otherwise verbatim]  — RECURRENCE NOTE (R8 as executed by A3, keyed per A9): the named values framework cited here is the same company-authored values set already quoted in section A. This is one company voice appearing twice, not two independent sources agreeing.
+
+   • "We believe that our employees are critical to our success, and in the importance of making sure they are equipped, enabled and empowered to have an impact."  — [10-K Item 1, "Our Employees and Human Capital Resources", company-authored] — Form 10-K FY2025 — filed 2026-02-24
+
+   • "We routinely run a rigorous statistical analysis to ensure compensation is fair, taking into account factors that should impact pay, like role, level, location, and performance."  — [10-K Item 1, "Our Employees and Human Capital Resources", company-authored] — Form 10-K FY2025 — filed 2026-02-24
+
+   • "We consider our relations with our employees to be good and have not experienced interruptions of operations or work stoppages due to labor disagreements."  — [10-K Item 1, "Our Employees and Human Capital Resources", company-authored] — Form 10-K FY2025 — filed 2026-02-24
+
+########## END OF PACKET ##########
+
+SCRUB LOG — P-10
+
+METHOD
+  The raw packet's Section 1 was copied and edited by literal substitution. No quote body was
+  retyped at any point, so no dash, quote mark, ellipsis, spacing or spelling inside a quote
+  can have drifted. Sections 2–5 of the raw packet (researcher QA, roster/confounder block,
+  anonymization pre-flags, builder's defect report) are build record and are not carried into
+  this file. Per A6(a) this log records only that a substitution was made and how many; the
+  strings that were removed live in P-10_scrub_diff.txt, which a rater never sees.
+
+COUNTS PER RULE
+  R1   attribution name + URL stripped ......................... 45 of 45 excerpt lines
+       review URLs -> stable local ids rev-01 … rev-15 ......... 15 lines / 15 distinct reviews
+  A8   posting URLs and ids -> [posting 1] … [posting 4] ....... 10 lines / 4 distinct postings
+  R2   company name substituted in a quote body or headline .... 11 occurrences on 11 lines
+       company-coined employee term substituted ............... 2 occurrences on 2 lines
+  R3   named humans -> role only ............................... 7 lines / 3 people
+       named publications -> publication class ................. 4 lines / 3 publications
+  R4/A5 branded proper nouns rewritten, clause kept ............ 9 occurrences on 8 lines /
+       7 distinct branded names (a named remote-work policy, two named internal values, a
+       branded internal recognition item, a branded internal team name, a branded values
+       framework, and an acquired company's brand name)
+  R5   review locations -> site tokens ......................... 6 lines / 4 distinct sites
+       (tokens pre-assigned in the source packet's own pre-flag block)
+  R5/A6 place inside a quote body -> minted site token ......... 1 occurrence, 1 token minted
+  R5   "Remote" / "remote" left literal ........................ 9 lines, untouched
+  R6/A1 identifying figures -> magnitude language .............. 4 figures in 3 places
+  R7   preserved source typos, left verbatim and still marked .. 3 [sic] markers across 2 reviews
+  R8/A3/A9 recurrence note attached, nothing deleted ........... 1 (section F excerpt 1)
+
+  Excerpt count in: 45. Excerpt count out: 45.
+
+JUDGMENT CALLS MADE
+  JCa. Rule Two applied to every edit a rater could not otherwise see, rather than to all 45
+       lines. R1's own output is self-declaring — "company-authored", "rev-07", "[posting 3]"
+       are visibly substitutions — and the uniform R1 treatment is stated in the header block
+       instead. Every quote-body edit, every R3 role substitution, every site token, every
+       magnitude replacement and the recurrence note carries its own bracketed declaration on
+       its line. Declaring the uniform R1 strip 45 times would have buried the 24 declarations
+       that matter, which is the failure A4 exists to prevent.
+  JCb. Two named internal values were given DISTINCT tokens ([named value A], [named value B])
+       rather than one shared token, because they are two different values and one appears in
+       two sections. Per A6, the section A occurrence and the section C occurrence of the same
+       value reuse the same token.
+  JCc. Figures. Figures describing the COMPANY were replaced with magnitude language per R6/A1:
+       two revenue-scale figures in a section E quote body (pre-flagged by the source packet as
+       "flagging for the anonymization step to decide") and an employer headcount band in two
+       places. Figures describing the EVIDENCE BASE — review counts, review ages, the share of
+       reviews truncated, the ratio between the two review populations — were kept. They are
+       the packet's own apparatus and are the rater's only calibration for how thin section B
+       is; they are not company figures, and R6/A1 names headcount, dollar and percentage
+       figures about the company.
+  JCd. A tenure figure ("4 years"), a recency figure ("2 years ago") and a rhetorical figure
+       ("100 projects") inside quote bodies were left alone. None is a company metric and none
+       is a one-query identification; each is dimension evidence in its own sentence.
+
+DELIBERATELY LEFT ALONE, AND WHY
+  · Industry and sector language. Not scrubbed, per the ruleset's explicit finding. The source
+    class descriptors, job titles, function labels and the sector phrase in a section E excerpt
+    are untouched.
+  · A named internal team inside a section B review. It is a descriptive function label rather
+    than a coined brand, it carries the function signal the reviewer's complaint is about, and
+    A5's test — does the branded token survive removal as a fingerprint rather than as signal —
+    points the other way here. Flagged rather than decided.
+  · Review headlines, kept verbatim per A7, except the one that contained the company name,
+    which was substituted per R2. The exposure A7 records applies to this packet as it does to
+    every other.
+  · Preserved source typos, per R7. They are exact-match search strings and therefore T2
+    exposure, which the ruleset settles is handled by the no-search protocol, not by editing.
+  · A widely used third-party meeting tool named in a section D quote body. It is used by a
+    large share of all employers and is not a company fingerprint.
+  · "the U.S." inside a section D quote body — see FLAGGED, NOT DECIDED below.
+
+FLAGGED, NOT DECIDED — for the ruleset owner, not for this pass
+  F1. R5/A6 and country-scale places. A city-scale place in a section D quote body was
+      tokenised and a token minted for it. The country named in the same sentence was left
+      literal, because the packet's own scope declaration states the same country as a coverage
+      boundary and cannot be tokenised without destroying the scope note. Tokenising one and not
+      the other is exactly the split A6 warns against, so it is recorded here rather than
+      resolved: the ruleset does not say whether R5 reaches country scale, and this pass
+      declined to extend it on its own initiative.
+  F2. R8/A9 borderline. One section F excerpt and one section A excerpt both assert employee
+      empowerment, in different words and at different levels of generality. It is not clearly
+      one claim in two costumes, so no recurrence note was attached. Recorded so that whoever
+      tightens A9 can decide whether the test is claim identity or thematic overlap.
+  F3. Reviewer-level re-identification. The ruleset's OPEN section applies to this packet:
+      several review headlines are distinctive and sit beside a site token and a date. Per that
+      section this pass left them alone and recorded the exposure. Note that the ruleset says
+      any forward-only rule here applies "from P-10" — this is that packet, and the rule does
+      not yet exist, so this packet is scrubbed without it.
+
+RECOGNITION
+  This pass did place the company from the evidence, which the brief says is expected and
+  harmless. Nothing was searched for, and no source outside the three files in the scrub folder
+  was read. The identification is not recorded here.
+
+CONTENT DEFECTS
+  Recorded separately in P-10_content_defects.txt. Nothing was corrected during the scrub.
