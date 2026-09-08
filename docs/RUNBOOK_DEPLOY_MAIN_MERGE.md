@@ -305,11 +305,21 @@ git push origin causal_bayesian_model
 Push `main` only when CI is green on the identical tree. The merge to `main` is
 the deploy — there is no further confirmation step after it.
 
-**Watch, in this order:** the Render pre-deploy log for `flask db upgrade`
-applying the two migrations; the boot log for a clean start with no `ConfigError`;
-then a real login through the browser, because the refresh-token work
-(`20260903_user_sessions`) changes the auth path and cookie behaviour is the one
-thing no test on either side proves.
+**Watch, in this order:**
+
+1. **Pre-deploy log** — `flask db upgrade` applying exactly **one** migration,
+   `20260903_user_sessions -> 20260906_scorer_run`. If it applies more than one,
+   production was not where we measured it and the deploy deserves a second look.
+2. **Boot log** — a clean start with no `ConfigError`. `Settings.from_env()`
+   reports every problem at once, so if it starts, the configuration is right.
+3. **A normal page load** — enough to confirm the service is serving.
+
+**This deploy does not touch auth.** The refresh-token work
+(`20260903_user_sessions`) and the rest of S1–S3 shipped on 2026-09-03 and have
+been running for five days; nothing in this merge changes the login path, cookie
+behaviour, or the request path at all. The only code the serving application
+newly loads is two ORM classes in `model.py`. That makes this a much lighter
+post-deploy check than the original draft of this runbook assumed.
 
 ---
 
