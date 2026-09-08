@@ -71,9 +71,33 @@ and nothing downstream will ever notice it is missing.
 **Do neither of these until the packet file actually exists on disk.** A list that says a
 packet was built is worth nothing if the packet is not there.
 
-### Last step — write a run report beside the packet
+### Open the run report NOW, before you collect anything
 
-Write `packets/RUN_REPORT.md` (next to the packet folder, not inside it) covering:
+**The moment you know which company you took, create `packets/RUN_REPORT.md`** (next to the
+packet folder, not inside it). Its first two lines are exactly this, and you keep them current
+for the whole run:
+
+```
+status  : IN PROGRESS
+company : P-##  <Company Name>   (started <date> <time>)
+```
+
+Set `status` to `COMPLETE` only once the packet is on disk and both lists are updated. If you
+stop for any reason — a source you cannot reach, an approval you cannot obtain, a tool that
+will not run — set it to `ABORTED — <what stopped you>`, name the last thing you finished and
+the first thing you could not, and stop there.
+
+**Why this comes first rather than last.** An empty `packets/` folder is the same on disk
+whether this task never started, died halfway, or is still working. Those need three different
+responses from the harvest, and it cannot tell them apart. On 2026-09-08 the research session
+was still browsing at 06:00, held up by site-access approvals, when the harvest fired; the
+harvest found an empty folder and recorded that the night had produced nothing, which was the
+only honest thing it could say. The status line is what makes that distinguishable.
+
+**A diagnosed failure is worth far more than a silent one.** Never delete a partial report to
+tidy up, and never leave the folder clean so it looks clean.
+
+By the end of a successful run the report also covers:
 
 - which company you took, and what remained on `to_be_researched.txt` after you
 - the packet path, its section-by-section excerpt counts, and the collector version

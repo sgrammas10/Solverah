@@ -123,6 +123,32 @@ With the checks passing, **move** the folder to `packets/P-0X_<company_slug>/`.
 
 Leave both lists alone — research has already updated them correctly.
 
+### Read `RUN_REPORT.md`'s status line before you touch anything in `_build_env/`
+
+It says `IN PROGRESS`, `COMPLETE`, or `ABORTED — <reason>`.
+
+**`IN PROGRESS` means the research session is still working right now. Touch nothing in
+`_build_env/`.** Do not move a packet, do not delete the report, do not change either list.
+Move and stage the scrub side as normal, then say in the log that research was still running
+and its harvest is deferred to tomorrow. A research run can take all night when site approvals
+are slow — that happened on 2026-09-08 — and harvesting a packet out from under a session that
+is still writing it is how a half-built packet reaches `packets/` looking finished.
+
+**`ABORTED` means the run failed, and the report is that night's only deliverable.** Fold it
+into the log in full — which company, how far it got, what stopped it — then delete it. Change
+neither list: research updates them only after a packet exists on disk, so the company is still
+correctly queued and will simply be retried. Say plainly that the research failed and quote the
+reason it gave. Never soften that into "nothing to do", which is the wording for an empty queue;
+the two must not read alike.
+
+**A report with no status line at all** was written by a session predating this rule — the
+2026-09-08 run is one, since the rule was added while it was still working. Judge that one by
+the packet: if a packet folder is there and passed its checks, treat the run as `COMPLETE` and
+harvest it normally; if there is no packet, treat it as `ABORTED` and say so.
+
+**No report and no packet** means research never started. Say that, and say it as a distinct
+outcome from the three above.
+
 ---
 
 ## Step 4 — Stage tomorrow's scrub

@@ -31,6 +31,26 @@ packet it has been run against so far.
 
 ---
 
+## 2026-09-08 harvest
+
+RESEARCH   none — `_build_env/packets/` was empty (no folder, no `RUN_REPORT.md`). No P-11
+           packet was found to move. `to_be_researched.txt` is unchanged from the day before
+           the pipeline was armed: P-11 Regeneron and P-12 Duke Energy still both queued,
+           P-11 on top. This is not what the 2026-09-07 entry expected for tonight.
+SCRUB      none — `_scrub_env/packets_raw/` was already empty (only `.gitkeep`), and
+           `to_be_scrubbed.txt` has no entries, so there was nothing to promote. A correct
+           outcome given the inputs, not a failure.
+LISTS      to_be_researched: 2 remaining (P-11, P-12) · to_be_scrubbed: 0 waiting
+STAGED     nothing — `to_be_scrubbed.txt` has no entries, so `packets_raw/` was left empty.
+           Tomorrow's scrub will correctly find nothing to do.
+REFUSED    nothing — no destination collisions, no partial scrub set, no packet that failed
+           its structural checks
+RULESET    `_scrub_env/ANONYMIZATION_RULES_DRAFT.md` checked byte-for-byte against
+           `anonymization/ANONYMIZATION_RULES_DRAFT.md` (already identical) and refreshed
+           anyway, per standing instruction
+NOT YET VERIFIED — nothing promoted to anonymization/ this run, so there is nothing new to
+           verify. P-07 through P-10 remain verified from 2026-09-07.
+
 ## 2026-09-07 — pipeline armed, no run yet
 
 Three scheduled Claude Desktop tasks created: **Company Research** and **Company Scrub** at
