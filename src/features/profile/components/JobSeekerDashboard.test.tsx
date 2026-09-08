@@ -167,10 +167,70 @@ describe("JobSeekerDashboard - jobs popup modal", () => {
 // ─── quick actions ─────────────────────────────────────────────────────────────
 
 describe("JobSeekerDashboard - quick actions", () => {
-  it("Take Assessment button navigates to /intelligence", async () => {
+  // Renamed 2026-09-08 from "Take Assessment / Complete psychometric test".
+  // That label sat directly under a banner calling the same 24 questions "Work
+  // Pulse", so one screen appeared to offer two different things. The
+  // destination is unchanged and is still what this test protects.
+  it("the profile quick action navigates to /intelligence", async () => {
     renderJobSeekerDashboard();
-    fireEvent.click(screen.getByText("Take Assessment"));
+    fireEvent.click(screen.getByText("Your Solverah profile"));
     expect(mocks.navigate).toHaveBeenCalledWith("/intelligence");
+  });
+
+  it("does not offer two differently-named routes to the same assessment", async () => {
+    renderJobSeekerDashboard();
+    // The old copy. Its return would mean the naming collision is back.
+    expect(screen.queryByText("Take Assessment")).toBeNull();
+    expect(screen.queryByText("Complete psychometric test")).toBeNull();
+  });
+});
+
+// ─── empty states ─────────────────────────────────────────────────────────────
+
+/**
+ * Regression tests for the blank cards found by the real-stack E2E walkthrough
+ * on 2026-09-08.
+ *
+ * Both cards mapped over an array with no empty branch, so a new account -- for
+ * whom both arrays are always empty -- got a heading over nothing on the first
+ * screen after sign-up. It read as broken rather than new. Note the default mock
+ * in `beforeEach` already returns empty arrays, which is why this went unnoticed:
+ * every existing test in this file rendered the broken state and asserted
+ * nothing about it.
+ */
+describe("JobSeekerDashboard - empty states", () => {
+  it("tells a new user why Recent Activity is empty", async () => {
+    renderJobSeekerDashboard();
+    expect(await screen.findByText("Nothing here yet.")).toBeInTheDocument();
+    expect(
+      screen.getByText(/activity shows up here as you complete Work Pulse/i),
+    ).toBeInTheDocument();
+  });
+
+  it("tells a new user why Recommendations is empty", async () => {
+    renderJobSeekerDashboard();
+    expect(await screen.findByText("No recommendations yet.")).toBeInTheDocument();
+    expect(screen.getByText(/finish Work Pulse/i)).toBeInTheDocument();
+  });
+
+  it("shows the real content instead once there is any", async () => {
+    // The other half of the branch: a conditional that renders the empty state
+    // unconditionally would pass both tests above and break the product.
+    mocks.fetchWithAuth.mockResolvedValue({
+      profileCompletion: "60%",
+      jobMatches: "12",
+      applications: "3",
+      hasIntakeSubmission: false,
+      recentActivity: [{ icon: "User", text: "You updated your profile", time: "2h ago" }],
+      recommendations: [{ title: "Add your resume", href: "#resume", priority: "urgent" }],
+    });
+
+    renderJobSeekerDashboard();
+
+    expect(await screen.findByText("You updated your profile")).toBeInTheDocument();
+    expect(screen.getByText("Add your resume")).toBeInTheDocument();
+    expect(screen.queryByText("Nothing here yet.")).toBeNull();
+    expect(screen.queryByText("No recommendations yet.")).toBeNull();
   });
 });
 

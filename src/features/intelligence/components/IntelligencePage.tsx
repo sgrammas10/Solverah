@@ -106,7 +106,11 @@ export default function IntelligencePage() {
             Complete Work Pulse to unlock your profile.
           </h1>
           <p className="text-sm text-ink-secondary leading-relaxed">
-            Work Pulse takes about 4 minutes and gives you a personalized
+            {/* "about 8 minutes" matches WorkPulseBanner, which is where most
+                users meet this instrument first. It previously said 4 here and 8
+                there, for the same 24 questions. Overstating is the safer of the
+                two errors: someone who finishes early is pleased. */}
+            Work Pulse takes about 8 minutes and gives you a personalized
             narrative, your work archetype, and the foundation of your Solverah
             profile.
           </p>

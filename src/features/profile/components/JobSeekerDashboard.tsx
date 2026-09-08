@@ -138,28 +138,51 @@ function JobSeekerDashboard() {
           <div className="lg:col-span-2">
             <div className={cardCls}>
               <h2 className="font-display text-lg font-semibold text-ink-primary mb-5">Recent Activity</h2>
-              <div className="space-y-4">
-                {dashboardData?.recentActivity?.map((activity: any, index: number) => {
-                  const Icon = iconMap[activity.icon] || User;
-                  return (
-                    <div key={index} className="flex items-start gap-3">
-                      <div className="p-2 bg-cream-subtle rounded-lg shrink-0">
-                        <Icon className="h-4 w-4 text-ink-secondary" />
+              {/* The empty branch is not decoration. This is the first screen after
+                  sign-up and both arrays are empty for every new account, so without
+                  it the card renders as a heading over nothing and reads as broken
+                  rather than new. Found by the real-stack E2E walkthrough. */}
+              {dashboardData?.recentActivity?.length ? (
+                <div className="space-y-4">
+                  {dashboardData.recentActivity.map((activity: any, index: number) => {
+                    const Icon = iconMap[activity.icon] || User;
+                    return (
+                      <div key={index} className="flex items-start gap-3">
+                        <div className="p-2 bg-cream-subtle rounded-lg shrink-0">
+                          <Icon className="h-4 w-4 text-ink-secondary" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-ink-primary">{activity.text}</p>
+                          <p className="text-xs text-ink-tertiary mt-0.5">{activity.time}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-ink-primary">{activity.text}</p>
-                        <p className="text-xs text-ink-tertiary mt-0.5">{activity.time}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-10">
+                  <TrendingUp className="h-8 w-8 text-ink-tertiary mx-auto mb-3" />
+                  <p className="text-sm text-ink-secondary">Nothing here yet.</p>
+                  <p className="text-xs text-ink-tertiary mt-1">
+                    Your activity shows up here as you complete Work Pulse and fill in your profile.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Recommendations */}
           <div className={cardCls}>
             <h2 className="font-display text-lg font-semibold text-ink-primary mb-5">Recommendations</h2>
+            {!dashboardData?.recommendations?.length && (
+              <div className="text-center py-10">
+                <Brain className="h-8 w-8 text-ink-tertiary mx-auto mb-3" />
+                <p className="text-sm text-ink-secondary">No recommendations yet.</p>
+                <p className="text-xs text-ink-tertiary mt-1">
+                  Once you finish Work Pulse we&rsquo;ll suggest what to do next.
+                </p>
+              </div>
+            )}
             <div className="space-y-3">
               {dashboardData?.recommendations?.map((rec: any, index: number) => (
                 <button
@@ -214,8 +237,15 @@ function JobSeekerDashboard() {
                 <Brain className="h-4 w-4 text-forest-mid" />
               </div>
               <div>
-                <h3 className="font-semibold text-ink-primary">Take Assessment</h3>
-                <p className="text-sm text-ink-secondary">Complete psychometric test</p>
+                {/* One name for one instrument. This card used to read "Take
+                    Assessment / Complete psychometric test" while the banner
+                    directly above it called the same 24 questions "Work Pulse",
+                    so the screen appeared to offer two separate things. It
+                    navigates to /intelligence, which is the hub Work Pulse is
+                    started from, hence "Your Solverah profile" rather than a
+                    second "Start Work Pulse" button. */}
+                <h3 className="font-semibold text-ink-primary">Your Solverah profile</h3>
+                <p className="text-sm text-ink-secondary">Work Pulse, FocusType and ManagerMatch</p>
               </div>
             </button>
 
