@@ -11,10 +11,30 @@ in the prompt to treat the contents as data.  That is mitigation, not a fix --
 prompt injection has no fix at the prompt layer -- so the agent must never be
 given a tool that does anything irreversible on the user's behalf.
 
-**The resume cache is per worker and unbounded**, like the path-suggestion cache
-next to it. Ten-minute TTL, no eviction, lost on deploy, and with N gunicorn
-workers a user gets a hit roughly 1/N of the time. It exists because extracting
-text from a PDF on every chat turn is worse. Phase 3 moves it to Redis.
+**The resume cache is per worker**, like the path-suggestion cache next to it:
+lost on deploy, and with N gunicorn workers a user gets a hit roughly 1/N of the
+time. It exists because extracting text from a PDF on every chat turn is worse.
+Phase 3 moves it to Redis, and that is now unblocked -- production gained Redis
+on 2026-09-08.
+
+**It was also unbounded, and that is what killed production on 2026-09-08.**
+The ten-minute TTL was only ever consulted on *read*, so an entry whose user
+never came back was never looked at again and therefore never expired -- it just
+sat there holding up to 6 KB of resume text until the worker died. Nothing
+deleted from this dict anywhere. Across three gunicorn workers that never
+recycled, that ran for 4.8 days and ended in a SIGKILL.
+
+The fix is in two halves, and the *first* is the one that matters:
+
+  * expiry is now enforced on write as well as read, so a stale entry is
+    dropped by the next caller rather than waiting for a reader who never
+    arrives; and
+  * a hard cap on entry count bounds the worst case regardless -- if every
+    entry is somehow live, the least recently used is still evicted.
+
+``gunicorn.conf.py`` separately recycles workers now, which bounds any
+per-worker leak. These are belt and braces: recycling bounds the symptom, this
+removes the cause.
 """
 
 from __future__ import annotations
@@ -22,6 +42,7 @@ from __future__ import annotations
 import os
 import tempfile
 import time
+from collections import OrderedDict
 from pathlib import Path
 from threading import Lock
 from typing import Optional
@@ -33,9 +54,29 @@ from solverah.services import resume_service
 
 __all__ = ["build_agent_context", "fetch_resume_text", "resume_text_for"]
 
-_resume_cache: dict = {}          # resumeKey -> (text, expires_at)
+_resume_cache: "OrderedDict[str, tuple]" = OrderedDict()  # resumeKey -> (text, expires_at)
 _resume_cache_lock = Lock()
 _RESUME_CACHE_TTL = 600           # 10 minutes -- covers a full chat session
+
+#: Hard ceiling on retained resumes per worker.
+#:
+#: Each entry holds at most 6000 characters (the slice in
+#: :func:`fetch_resume_text`), so 128 of them is roughly 1 MB per worker even
+#: before the TTL sweep gets to them. The TTL is the mechanism; this is the
+#: backstop for the case where every entry is genuinely live at once.
+_RESUME_CACHE_MAX = 128
+
+
+def _evict_expired_locked(now: float) -> None:
+    """Drop every entry whose TTL has passed. Caller must hold the lock.
+
+    Sweeping on write is what makes the TTL real. Checking it only on read --
+    the behaviour before 2026-09-08 -- means an entry nobody reads again is
+    never evaluated and so never removed, which is a leak wearing a TTL's
+    clothing.
+    """
+    for key in [k for k, (_, expires_at) in _resume_cache.items() if now >= expires_at]:
+        del _resume_cache[key]
 
 
 def build_agent_context(user: User, resume_text: str = "") -> str:
@@ -140,8 +181,14 @@ def fetch_resume_text(profile_data: dict) -> str:
 
     with _resume_cache_lock:
         cached = _resume_cache.get(resume_key)
-        if cached and time.monotonic() < cached[1]:
-            return cached[0]
+        if cached is not None:
+            if time.monotonic() < cached[1]:
+                _resume_cache.move_to_end(resume_key)
+                return cached[0]
+            # Expired. Drop it here rather than leaving it for a writer that
+            # may never come -- this key is only rewritten if the same resume
+            # is fetched again.
+            del _resume_cache[resume_key]
 
     temp_path = None
     try:
@@ -157,7 +204,12 @@ def fetch_resume_text(profile_data: dict) -> str:
 
         text = resume_service.extract_resume_text(temp_path, mime)[:6000]
         with _resume_cache_lock:
-            _resume_cache[resume_key] = (text, time.monotonic() + _RESUME_CACHE_TTL)
+            now = time.monotonic()
+            _evict_expired_locked(now)
+            _resume_cache[resume_key] = (text, now + _RESUME_CACHE_TTL)
+            _resume_cache.move_to_end(resume_key)
+            while len(_resume_cache) > _RESUME_CACHE_MAX:
+                _resume_cache.popitem(last=False)
         return text
     except Exception:
         return ""

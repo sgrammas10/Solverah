@@ -98,7 +98,14 @@ export default function IntelligencePage() {
     );
   }
 
-  if (!user?.wpl_completed) {
+  // Gates on the CURRENT instrument, not the legacy one. Until 2026-09-08 this
+  // read `wpl_completed`, which is set only by the retired 12-item Work Pulse.
+  // The button below starts `/work-pulse`, which serves the 24-item `core` and
+  // sets `wp_v2_completed` -- so finishing it could never satisfy this gate and
+  // the hub stayed locked forever, with its own CTA as the only way out. Found
+  // by the real-stack E2E walkthrough; the legacy stepper is not mounted on any
+  // route, so no user could reach the instrument this used to require.
+  if (!user?.wp_v2_completed) {
     return (
       <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center px-6 text-center">
         <div className="max-w-sm space-y-4">
@@ -106,9 +113,18 @@ export default function IntelligencePage() {
             Complete Work Pulse to unlock your profile.
           </h1>
           <p className="text-sm text-ink-secondary leading-relaxed">
-            Work Pulse takes about 4 minutes and gives you a personalized
-            narrative, your work archetype, and the foundation of your Solverah
-            profile.
+            {/* "about 8 minutes" matches WorkPulseBanner, which is where most
+                users meet this instrument first. It previously said 4 here and 8
+                there, for the same 24 questions. Overstating is the safer of the
+                two errors: someone who finishes early is pleased.
+
+                The promise of "a personalized narrative and your work archetype"
+                was also removed: that is what the retired 12-item instrument
+                produced. `core` is rules-scored and deliberately returns no
+                narrative -- see WorkPulsePage's own "nothing to optimize" copy --
+                so the sentence described a payoff the flow cannot deliver. */}
+            Work Pulse takes about 8 minutes and unlocks your Solverah profile —
+            the foundation everything else in the ecosystem builds on.
           </p>
           <button
             type="button"
@@ -122,7 +138,12 @@ export default function IntelligencePage() {
     );
   }
 
-  if (!result) return null;
+  // NOT `if (!result) return null` any more. `result` is the narrative, which
+  // only the retired 12-item instrument produced -- so once the gate above moved
+  // to the current instrument, that early return rendered a blank page for every
+  // new user: past the lock, but with nothing drawn. The narrative card below is
+  // conditional instead, and the rest of the hub (progress, FocusType,
+  // ManagerMatch) never depended on `result` at all.
 
   return (
     <div className="min-h-screen bg-cream-base">
@@ -144,8 +165,13 @@ export default function IntelligencePage() {
         {/* Progress indicator */}
         <div className="flex items-start gap-2 sm:gap-4 overflow-x-auto pb-1">
           {ECOSYSTEM_STEPS.map((step, i) => {
+            // `i < 2` used to hard-code the first two steps as done, which put a
+            // tick next to "Work Pulse Lite" for users who have never taken it --
+            // the retired instrument nothing mounts any more. Step 1 now reflects
+            // the flag it names.
             const complete =
-              i < 2 ||
+              (i === 0 && !!user?.wpl_completed) ||
+              (i === 1 && !!user?.wp_v2_completed) ||
               (i === 2 && !!focusTypeResult) ||
               (i === 3 && !!managerMatchResult);
             return (
@@ -167,7 +193,28 @@ export default function IntelligencePage() {
           })}
         </div>
 
-        {/* WorkPulse card — unlocked */}
+        {/* WorkPulse card — unlocked.
+
+            Two shapes. A legacy user carries a stored narrative and gets the
+            archetype and signals below. A user of the current instrument has no
+            narrative by design, so they get the completion statement instead of
+            an empty card -- the same thing WorkPulsePage tells them on finishing,
+            rather than a second place implying something is missing. */}
+        {!result ? (
+          <div className="rounded-xl border border-forest-light bg-forest-pale px-6 py-6 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
+              ✦ Unlocked · Work Pulse™
+            </p>
+            <p className="font-display text-2xl font-semibold text-forest-dark">
+              Work Pulse complete
+            </p>
+            <p className="text-sm text-ink-primary leading-relaxed">
+              It’s powering your matching in the background. There’s no score to
+              check and nothing to optimise — what it learned about how you work
+              is already shaping which environments we put in front of you.
+            </p>
+          </div>
+        ) : (
         <div className="rounded-xl border border-forest-light bg-forest-pale px-6 py-6 space-y-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
             ✦ Unlocked · Work Pulse™
@@ -203,6 +250,7 @@ export default function IntelligencePage() {
             View full Work Pulse analysis →
           </button>
         </div>
+        )}
 
         {/* Ecosystem cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -303,8 +351,14 @@ export default function IntelligencePage() {
             </div>
           )}
 
-          {/* CompanyLens card — unlocks after Work Pulse */}
-          {user?.wpl_completed ? (
+          {/* CompanyLens card — unlocks after Work Pulse.
+
+              Same legacy-flag bug as the page gate above, and worse in effect:
+              this one told a user who had just finished Work Pulse to "complete
+              Work Pulse to unlock company matching", two cards below one saying
+              Work Pulse was complete. Company matching is the product's payoff,
+              so this locked the thing the assessment exists to feed. */}
+          {user?.wp_v2_completed ? (
             <div className="rounded-xl border border-forest-light bg-forest-pale px-5 py-5">
               <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-1">
                 ✦ Ready · CompanyLens™

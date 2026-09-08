@@ -1,5 +1,6 @@
 import json
 import pytest
+from collections import OrderedDict
 from unittest.mock import MagicMock
 
 
@@ -170,8 +171,10 @@ def test_agent_chat_groq_unavailable(client, monkeypatch):
 def test_fetch_resume_text_caches_s3_result(monkeypatch):
     from solverah.services import agent_service
 
-    # Isolate cache state for this test
-    monkeypatch.setattr("solverah.services.agent_service._resume_cache", {})
+    # Isolate cache state for this test. Must be an OrderedDict, not {}: the
+    # cache is LRU since 2026-09-08 and the code calls move_to_end/popitem on
+    # it, which a plain dict does not have. See tests/test_cache_bounds.py.
+    monkeypatch.setattr("solverah.services.agent_service._resume_cache", OrderedDict())
     monkeypatch.setenv("S3_BUCKET_NAME", "test-bucket")
 
     mock_s3 = MagicMock()
