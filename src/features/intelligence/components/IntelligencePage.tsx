@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Lock } from "lucide-react";
 import { useWP, useWorkPulseResult } from "../../assessments";
 import { useAuth } from "../../auth";
 import { useProfileForm } from "../../profile";
@@ -17,15 +16,6 @@ const ECOSYSTEM_STEPS = [
   { label: "ManagerMatch" },
   { label: "CompanyLens" },
   { label: "Future Path" },
-];
-
-const LOCKED_CARDS = [
-  {
-    title: "CompanyLens™",
-    subtitle: "Company environment and cultural alignment",
-    description:
-      "See which real companies match your work patterns and sustainability signals.",
-  },
 ];
 
 export default function IntelligencePage() {
@@ -351,71 +341,28 @@ export default function IntelligencePage() {
             </div>
           )}
 
-          {/* CompanyLens card — unlocks after Work Pulse.
-
-              Same legacy-flag bug as the page gate above, and worse in effect:
-              this one told a user who had just finished Work Pulse to "complete
-              Work Pulse to unlock company matching", two cards below one saying
-              Work Pulse was complete. Company matching is the product's payoff,
-              so this locked the thing the assessment exists to feed. */}
-          {user?.wp_v2_completed ? (
-            <div className="rounded-xl border border-forest-light bg-forest-pale px-5 py-5">
-              <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-1">
-                ✦ Ready · CompanyLens™
-              </p>
-              <p className="font-display text-lg font-semibold text-forest-dark mb-1">
-                Your company matches are ready.
-              </p>
-              <p className="text-xs text-forest-dark leading-relaxed mb-4">
-                See which companies match how you work — and which ones to approach carefully.
-              </p>
-              <button
-                type="button"
-                onClick={() => navigate("/company-lens")}
-                className="bg-forest-dark text-white font-semibold px-3 py-1.5 rounded text-xs hover:bg-forest-mid transition-colors"
-              >
-                Open CompanyLens™ →
-              </button>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-cream-muted bg-white px-5 py-5 opacity-60 relative">
-              <Lock className="absolute top-4 right-4 w-4 h-4 text-ink-tertiary" />
-              <p className="text-sm font-semibold text-ink-primary pr-6">CompanyLens™</p>
-              <p className="text-xs text-ink-secondary mt-0.5 mb-2">Company environment and cultural alignment</p>
-              <p className="text-xs text-ink-secondary leading-relaxed mb-4">
-                Complete Work Pulse to unlock company matching.
-              </p>
-              <button
-                type="button"
-                disabled
-                className="border border-cream-muted text-ink-tertiary text-xs font-semibold px-3 py-1.5 rounded cursor-not-allowed"
-              >
-                Unlocks after Work Pulse
-              </button>
-            </div>
-          )}
-
-          {/* Other locked cards */}
-          {LOCKED_CARDS.filter((c) => c.title !== "CompanyLens™").map((card) => (
-            <div
-              key={card.title}
-              className="rounded-xl border border-cream-muted bg-white px-5 py-5 relative opacity-60"
+          {/* CompanyLens card — coming soon for everyone.
+              Not a gate: ⚑3 (BUILD_PLAN.md §0.2) shelved the core→8-dim
+              culture-preferences mapping this depends on, so GET /me/matches
+              400s for every current-instrument user regardless of
+              wp_v2_completed. There is nothing left for a user to unlock. */}
+          <div className="rounded-xl border border-cream-muted bg-white px-5 py-5 opacity-60">
+            <p className="text-sm font-semibold text-ink-primary">CompanyLens™</p>
+            <p className="text-xs text-ink-secondary mt-0.5 mb-2">
+              Company environment and cultural alignment
+            </p>
+            <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+              Our matching model is still being built. Your Work Pulse results
+              are already saved and will feed it the moment it's ready.
+            </p>
+            <button
+              type="button"
+              disabled
+              className="border border-cream-muted text-ink-tertiary text-xs font-semibold px-3 py-1.5 rounded cursor-not-allowed"
             >
-              <Lock className="absolute top-4 right-4 w-4 h-4 text-ink-tertiary" />
-              <p className="text-sm font-semibold text-ink-primary pr-6">{card.title}</p>
-              <p className="text-xs text-ink-secondary mt-0.5 mb-2">{card.subtitle}</p>
-              <p className="text-xs text-ink-secondary leading-relaxed mb-4">
-                {card.description}
-              </p>
-              <button
-                type="button"
-                disabled
-                className="border border-cream-muted text-ink-tertiary text-xs font-semibold px-3 py-1.5 rounded cursor-not-allowed"
-              >
-                Unlocks with Work Pulse Pro
-              </button>
-            </div>
-          ))}
+              Coming soon
+            </button>
+          </div>
 
           {/* Path Intelligence */}
           <div className="rounded-xl border border-cream-muted bg-white px-5 py-5">

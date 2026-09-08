@@ -191,3 +191,173 @@ themselves while disagreeing with the server. `tests/e2e/real_stack.spec.ts` (re
 Flask, real Postgres, real browser) is what found them, and
 `tests/e2e/feature_tour.spec.ts` surveys every authenticated route the same way.
 Run those before trusting a green suite about user-facing behaviour.
+
+---
+
+## 6. DRAFT — awaiting Sebastian's sign-off
+
+**Drafted 2026-09-08. Nothing in this section is decided yet.** The entries are
+written the way they would read once approved — same register, carrying the
+name and date they would carry — so that signing one off is an edit rather than
+a rewrite. On approval each entry moves up into §1 or §2 and this section
+shrinks; anything rejected gets a line here saying so and why. Until then these
+are not decisions and nothing should be built against them, per this file's own
+rule about open questions.
+
+`docs/BUILD_PLAN.md` §0.1 is the chunk that closes this section. The Situation
+Report payload entry below is the one with a build waiting on it: A-4 and A-5
+do not start until it is signed.
+
+---
+
+### DRAFT — The spine is conditions: diagnose them, improve them, and match as one output
+Sebastian, 2026-09-08. *Awaiting sign-off.* **Closes the open question in §1.**
+
+The instruments measure working conditions, so that is what the product is:
+**what conditions make you effective, how far your situation is from them, and
+what you change.** That is the spine. Company matching is one output of the
+same engine — worth building, but not the frame around the product and not a
+payoff the rest of it is allowed to defer to.
+
+What this settles in practice:
+
+- An instrument whose result is narrated as a future company match is now
+  wrong copy, not merely early copy.
+- The dashboard is the largest remaining contradiction — "Here's your job
+  search overview", Job Matches / Applications stats, a Browse Jobs modal: a
+  job board's information architecture, without jobs. The reframe is
+  `BUILD_PLAN` D-6 and is deliberately sequenced last, because it embodies this
+  decision and needs the Situation Report and the Pulse to have something to
+  show first.
+- Matching is not demoted to someday. CompanyLens still waits on the causal
+  model (§2), unchanged. What changes is that the rest of the product stops
+  holding its breath for it.
+
+The counter-consideration recorded in §1 — that the conditions framing was
+proposed by an agent reading the code, not by the market — stands, and stays
+worth testing. The cheapest test is the Situation Report itself in front of
+real users. If the diagnosis is not what they care about, this is the entry to
+reopen.
+
+### DRAFT — Launch scope is the top three ideas plus the small sharp moves
+Sebastian, 2026-09-08. *Awaiting sign-off.* **Also closes "what the
+assessment's payoff is at launch" in §3.**
+
+Approved for launch, from `docs/PRODUCT_IDEAS.md`: the **Situation Report**
+(§3.1), the **Pulse** (§3.2), the **Manager Decoder** (§3.3), and the small
+sharp moves (§3.7). They are chunked in `docs/BUILD_PLAN.md` as workstreams A,
+B, C and D. Everything else sits in that file's §8 in priority order, and
+parked there means not started — not rejected.
+
+The assessment's payoff at launch is the **Situation Report**. §3 asked for
+that to be chosen rather than discovered; this is the choice. Twenty-four
+questions about you, about ten about your job, and the report is what comes
+back. Interim rules scoring ships it before the model is ready, and the model
+later replaces the weights underneath without changing the surface — the same
+interim-to-destination pattern already accepted for `culture_fit_score`.
+
+Not resolved by this entry, and still open: Path Intelligence / O*NET (§3 —
+which still wants the walkthrough of the real output before keep-or-cut), the
+Feed's content, and the portable Work Profile. None of the three are in launch
+scope, and none of them are being decided by being left out of it.
+
+### DRAFT — What a D-15-conforming Situation Report returns
+Sebastian, 2026-09-08. *Awaiting sign-off.* **This entry gates `BUILD_PLAN`
+A-4 and A-5 — the payload and the API wait on it.**
+
+D-15 is unchanged and is not being carved out. The Situation Report conforms by
+construction, in two parts.
+
+**The payload.** Per dimension the response carries: the environment score (an
+echo of the user's own answer about their own job), a **gap bucket** — one of
+*feeding*, *aligned*, *straining* — and references to guidance content. The
+thresholds between the three buckets are server-side and unpublished. The
+response carries **no** person-side score, **no** numeric gap, and **no**
+per-dimension magnitude of any kind. Three coarse buckets are deliberately too
+coarse to hill-climb.
+
+**The pinning.** Each report pins to a **named person-side snapshot** — the
+first completed `core` sitting. A later core retake does not silently move the
+report. Re-pinning happens only through an explicit "recalibrate" action the
+user takes on purpose, and it is logged. A retaker therefore has nothing to
+watch move: not a number, and not a report drifting behind one.
+
+Why this is conformance and not an exception. What D-15 protects against is
+optimization against ground truth, and optimizing requires a visible, repeatable
+signal out of the person-side score. Buckets remove the resolution; pinning
+removes the repeatability. What does vary freely is the environment side — the
+user's description of their own job, which they can edit as honestly or as
+carelessly as they like, and which nobody has a reason to game, because the gap
+is the thing they came for.
+
+Binding on every consumer, not only the report page. The agent (`BUILD_PLAN`
+D-1) gets the same buckets and the same prohibition: instrument results inform
+advice and are never recited as numbers. An agent that can be interrogated for
+a person-side score is the same violation with a chat window in front of it.
+
+### DRAFT — Manager Decoder is green-lit, and its playbook is template-first
+Sebastian, 2026-09-08. *Awaiting sign-off.*
+
+Build it. ManagerMatch measures which management styles bring out a user's best
+and then stops; the Decoder adds the missing half — a short observational
+instrument about the manager the user actually has — diffs the two profiles,
+and returns a private managing-up playbook. Nothing it needs is blocked: no
+causal model, no priors, no company data. It is the first of the three big
+items to build, for that reason.
+
+**The playbook is template-first.** The roughly sixteen protocol cells (four
+dimensions × grind directions) are LLM-drafted once, human-reviewed, and stored
+as content; assembly at request time is a deterministic lookup. No per-user
+generation at launch — which means no provider dependency in the request path,
+no per-sitting variance, and no sentence reaching a user that nobody has read.
+A per-user LLM polish pass over the assembled playbook is a fast-follow, not a
+launch dependency.
+
+Two guardrails are part of this decision rather than implementation detail. The
+tone is fit, not fault — both poles of every dimension legitimate, exactly as
+every other instrument is written; there is no "is your manager good" item
+anywhere in it. And the manager profile is the user's private working note: it
+surfaces nowhere else, and the page says so.
+
+### DRAFT — The Pulse ships thin; condition experiments are the designated cut line
+Sebastian, 2026-09-08. *Awaiting sign-off.*
+
+Launch ships the check-in, the trend view and event annotations (`BUILD_PLAN`
+B-1 through B-4). **Condition experiments (B-5) are the designated cut line** —
+the first thing to slip if the schedule needs something to give, and nothing
+else in the plan depends on them.
+
+Named now so that it does not get decided by exhaustion in the last week. The
+retention loop and the model's data flywheel both start turning on check-ins
+alone; experiments make the loop sharper, not functional.
+
+The anti-nag rule is part of this scope and is not what gets trimmed: three
+consecutive unanswered check-ins drop the cadence to monthly on their own, off
+is always one click, and silence is treated as data rather than as something to
+chase the user about.
+
+### DRAFT — The core-to-8-dimension culture-preferences mapping will not be built
+Sebastian, 2026-09-08. *Awaiting sign-off.* **Amends §5.**
+
+Do not build a mapping from `core` (24 items, 6 dimension scores) to the 8
+culture-preference dimensions. The interim 8-dimension scorer,
+`matching_service._derive_culture_preferences`, and its dependency on a
+`work_pulse` submission all retire together when the causal model serves
+CompanyLens. Until then CompanyLens stays coming-soon behind honest copy about
+the real reason.
+
+This amends the fourth call site in §5's "one unfinished migration, four
+places". Its status there is **outstanding by design**; it is now **won't fix,
+superseded**. Building the mapping is modelling work whose only product is a
+scorer already scheduled for deletion — the same reasoning that says not to
+seed companies to test matching (§2).
+
+### DRAFT — Engineering calls recorded here because they touch product surfaces
+Recorded 2026-09-08. Not product decisions, and they do not need sign-off; they
+belong to the engineering docs and are noted here only because a reader of the
+entries above will otherwise ask. They proceed as stated unless overruled.
+
+| # | Call | Where |
+|---|---|---|
+| ⚑4 | One **shared manager-profile store** serves both the Decoder's playbook and the Situation Report's manager section. Built once, in workstream C; consumed by A. A grows no second instrument and no second table. | `BUILD_PLAN` §2.1, §3.1 |
+| ⚑6 | The environment report stores an **optional normalized employer name** and **displays it nowhere at launch**. It is kept for the future aggregation lane (company profiles from declared reports), which is not in launch scope and does not ship at all before the N-threshold, anonymization and legal review named in `PRODUCT_IDEAS` §3.1. | `BUILD_PLAN` §3.2 |

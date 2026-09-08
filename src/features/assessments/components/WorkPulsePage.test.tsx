@@ -174,4 +174,14 @@ describe("WorkPulsePage — completion", () => {
     fireEvent.click(screen.getByRole("button", { name: /back to dashboard/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/job-seeker/dashboard", { replace: true });
   });
+
+  it("offers next-instrument CTAs and navigates to FocusType and ManagerMatch", () => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /start focustype/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/focus-type");
+
+    fireEvent.click(screen.getByRole("button", { name: /start managermatch/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/manager-match");
+  });
 });

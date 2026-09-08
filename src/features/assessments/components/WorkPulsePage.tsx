@@ -155,13 +155,29 @@ export default function WorkPulsePage() {
               to optimize — it works quietly in the background as we line up the environments
               where you'd do your best work.
             </p>
-            <button
-              type="button"
-              onClick={() => navigate("/job-seeker/dashboard", { replace: true })}
-              className="mt-2 inline-flex items-center bg-forest-dark text-white text-sm font-semibold px-6 py-3 rounded hover:bg-forest-mid transition-colors"
-            >
-              Back to dashboard
-            </button>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate("/focus-type")}
+                className="inline-flex items-center bg-forest-dark text-white text-sm font-semibold px-6 py-3 rounded hover:bg-forest-mid transition-colors"
+              >
+                Start FocusType →
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/manager-match")}
+                className="inline-flex items-center bg-forest-dark text-white text-sm font-semibold px-6 py-3 rounded hover:bg-forest-mid transition-colors"
+              >
+                Start ManagerMatch →
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/job-seeker/dashboard", { replace: true })}
+                className="inline-flex items-center bg-forest-dark text-white text-sm font-semibold px-6 py-3 rounded hover:bg-forest-mid transition-colors"
+              >
+                Back to dashboard
+              </button>
+            </div>
           </div>
         ) : (
           <WorkPulseForm showLegacyLink={hasLegacyResults} onCompleted={handleCompleted} />

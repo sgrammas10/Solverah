@@ -166,7 +166,19 @@ describe("IntelligencePage - completed without a narrative", () => {
     // assessment exists to feed.
     renderIntelligencePage();
     expect(screen.queryByText(/Complete Work Pulse to unlock company matching/i)).toBeNull();
-    expect(screen.getByRole("button", { name: /open companylens/i })).toBeInTheDocument();
+  });
+
+  it("shows the coming-soon CompanyLens card instead of implying matches are ready", () => {
+    // Until 2026-09-08 this card read "Your company matches are ready." with a
+    // button to /company-lens, which 400s for every current-instrument user:
+    // ⚑3 (BUILD_PLAN.md §0.2) shelved the culture-preferences mapping the
+    // matches endpoint needs. The gate never meant anything -- CompanyLens is
+    // coming-soon regardless of wp_v2_completed.
+    renderIntelligencePage();
+    expect(screen.getByText(/CompanyLens™/)).toBeInTheDocument();
+    expect(screen.getByText(/Coming soon/i)).toBeInTheDocument();
+    expect(screen.queryByText(/matches are ready/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /open companylens/i })).toBeNull();
   });
 
   it("does not tick Work Pulse Lite for someone who never took it", () => {
@@ -285,13 +297,6 @@ describe("IntelligencePage - FocusType card", () => {
     expect(mocks.navigate).toHaveBeenCalledWith("/focus-type");
   });
 
-  it("CompanyLens button navigates to /company-lens", () => {
-    mocks.user = { wpl_completed: true, wp_v2_completed: true };
-    mocks.wpState = { answers: [], cachedResult: MOCK_WP_RESULT };
-    renderIntelligencePage();
-    fireEvent.click(screen.getByRole("button", { name: /open companylens/i }));
-    expect(mocks.navigate).toHaveBeenCalledWith("/company-lens");
-  });
 });
 
 // ─── ManagerMatch card ─────────────────────────────────────────────────────────
