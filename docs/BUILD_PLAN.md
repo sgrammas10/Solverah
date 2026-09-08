@@ -52,10 +52,14 @@ these into `PRODUCT_DECISIONS.md` with proper entries.
 
 Done-but-uncommitted lanes accumulate risk with every new workstream:
 
-- [ ] Land the ultrareview PR #145 fixes (3, suite at 1559 passed when built)
-- [ ] Land scorer-run storage (S1-6, built 2026-09-06)
-- [ ] Land Scenario A cron CLI (batch 3) and `flask backups run`
-- [ ] Confirm nothing else is stranded: `git status` + memory notes
+- [x] Land the ultrareview PR #145 fixes (3, suite at 1559 passed when built)
+- [x] Land scorer-run storage (S1-6, built 2026-09-06)
+- [x] Land Scenario A cron CLI (batch 3) and `flask backups run`
+- [x] Confirm nothing else is stranded: `git status` + memory notes
+
+_2026-09-08: verified in HEAD. All four lanes were found already committed
+and pushed to `causal_bayesian_model` (`91b153d`) by the time this check
+ran — no separate landing commits were needed for this section._
 
 ### 0.4 · External gates (not engineering, tracked so nothing pretends otherwise)
 
@@ -73,28 +77,28 @@ Done-but-uncommitted lanes accumulate risk with every new workstream:
 
 ### D-0 · The §5 regression (S) — first chunk of the whole plan
 
-- [ ] Intelligence hub CompanyLens card: "Your company matches are ready" →
+- [x] Intelligence hub CompanyLens card: "Your company matches are ready" →
   coming-soon copy (it leads to a 400 today)
-- [ ] CompanyLens page locked state: name the real reason (model in
+- [x] CompanyLens page locked state: name the real reason (model in
   progress) instead of blaming the user for not completing Work Pulse
-- [ ] E2E: feature_tour note reclassified (GATED → COMING-SOON, no ERROR-COPY)
+- [x] E2E: feature_tour note reclassified (GATED → COMING-SOON, no ERROR-COPY)
 
 ### D-1 · Teach the agent its own product (S–M)
 
-- [ ] Replace the `agent_service.py` TODO ("Quiz Results — Not yet
+- [x] Replace the `agent_service.py` TODO ("Quiz Results — Not yet
   available") with real context: FocusType archetype + recommendations,
   ManagerMatch archetype + dimension summary, quiz insights, and — once A
   ships — the Situation Report's gap buckets. **Never core's person-side
   scores** (D-15 applies to the agent too: it must not be an oracle a
   retaker can interrogate).
-- [ ] Guardrail line in the system prompt: instrument results inform advice,
+- [x] Guardrail line in the system prompt: instrument results inform advice,
   are not to be recited as numbers.
-- [ ] Tests: `test_agent_api.py` — context assembly with/without each
+- [x] Tests: `test_agent_api.py` — context assembly with/without each
   instrument; absence degrades gracefully.
 
 ### D-2 · Assessment completion bridge (S)
 
-- [ ] "That's everything we need" screen gains a next verb *now* (Start
+- [x] "That's everything we need" screen gains a next verb *now* (Start
   FocusType → / ManagerMatch →), replaced by the environment-report bridge
   when A-5 ships ("24 questions about you. Now ~10 about your job.").
 
@@ -110,7 +114,7 @@ Done-but-uncommitted lanes accumulate risk with every new workstream:
 
 ### D-4 · Search empty state + styling debt (S, then S–M)
 
-- [ ] Empty query renders an invitation, not `No results found for ""`
+- [x] Empty query renders an invitation, not `No results found for ""`
 - [ ] (Low priority) `/search` + Feed slate-dark styling → cream design
   system, or park behind the Feed content decision
 
@@ -137,14 +141,14 @@ Done-but-uncommitted lanes accumulate risk with every new workstream:
 
 ### C-1 · Manager-profile instrument (M)
 
-- [ ] ~12–15 observational forced-choice items about the user's actual
+- [x] ~12–15 observational forced-choice items about the user's actual
   manager, same house style as `manager_match/questions.py`, same 4
   dimensions (autonomy given, feedback style, relationship, growth
   investment). Behavioral, both-poles-legitimate, no "is your manager
   good" item anywhere.
-- [ ] Bias-review pass in the `ASSESSMENT_ITEMS_BIAS_REVIEW.md` tradition
+- [x] Bias-review pass in the `ASSESSMENT_ITEMS_BIAS_REVIEW.md` tradition
   (positional key balance! — the v1 core items failed exactly this)
-- [ ] `manager_match/manager_profile.py`: questions + pure scoring
+- [x] `manager_match/manager_profile.py`: questions + pure scoring
   (mirrors `score.py`), pytest alongside
 - [ ] ⚑4: this instrument IS the manager section of the Situation Report —
   one table (§2.3), two consumers. Do not let A grow a second one.
