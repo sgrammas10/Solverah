@@ -194,6 +194,29 @@ test("REAL STACK: register -> verify -> sign in -> assessment -> results", async
     expect(body.length, "the results page rendered nothing at all").toBeGreaterThan(200);
   });
 
+  await test.step("the Solverah profile actually unlocks", async () => {
+    // The regression this journey was written to catch. IntelligencePage gated on
+    // `wpl_completed`, set only by the retired 12-item instrument, while its own
+    // "Start Work Pulse" CTA opened /work-pulse -- the 24-item `core`, which sets
+    // `wp_v2_completed`. Finishing onboarding therefore left the hub locked with
+    // no route out. Unit tests could not see it: their fixtures set the legacy
+    // flag by hand, so the mock disagreed with the server.
+    await page.goto("/intelligence");
+    await page.waitForLoadState("networkidle");
+    await page.screenshot({ path: "test-results/real-06-intelligence.png", fullPage: true });
+
+    await expect(
+      page.getByText(/Complete Work Pulse to unlock your profile/i),
+      "the hub is still locked after completing the instrument its own CTA starts",
+    ).toHaveCount(0);
+
+    // And unlocked to something, not to a blank page: the old code returned null
+    // when there was no narrative, which `core` never produces.
+    await expect(
+      page.getByRole("heading", { name: /Everything we know about how you work/i }),
+    ).toBeVisible();
+  });
+
   // Reported at the end so the journey completes first and the screenshots exist.
   // These are findings, not necessarily failures -- see the run report.
   if (consoleErrors.length || failedRequests.length) {
