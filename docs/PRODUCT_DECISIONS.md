@@ -151,6 +151,14 @@ response carries **no** person-side score, **no** numeric gap, and **no**
 per-dimension magnitude of any kind. Three coarse buckets are deliberately too
 coarse to hill-climb.
 
+*Amended — Sebastian, 2026-09-10.* The bucket names change before any API
+ships them: **{aligned, notable, straining}** — magnitude only — plus a
+separate **direction** field (*under* / *over*) used purely to select guidance
+content. "Feeding" implied that over-supply is good, and it often is not (a
+pace above the one you can hold, more autonomy than you want). The D-15
+mechanism is unchanged: the buckets stay deliberately too coarse to
+hill-climb, and the pinning rule stands as written.
+
 **The pinning.** Each report pins to a **named person-side snapshot** — the
 first completed `core` sitting. A later core retake does not silently move the
 report. Re-pinning happens only through an explicit "recalibrate" action the
@@ -226,6 +234,21 @@ places". Its status there is **outstanding by design**; it is now **won't fix,
 superseded**. Building the mapping is modelling work whose only product is a
 scorer already scheduled for deletion — the same reasoning that says not to
 seed companies to test matching (§2).
+
+### Environment-instrument rulings: comp is skippable, first_job skips the form
+Sebastian, 2026-09-10. Two rulings from the A-1 bias review.
+
+**comp gains an explicit "not sure" option, stored as NULL.** The item's error
+is non-random: isolated underpaid people do not know their market rate and
+answer "about the same", so a forced answer under-reports underpayment exactly
+where it is worst. The model treats a missing comp as missingness, which is
+honest; a forced guess is not.
+
+**first_job users skip the environment form entirely.** A never-employed user
+has no role to describe, and forcing the form records a decline as a real
+answer (the same failure shape as core-items ratification D1). They get the
+needs-forward-only report built from their person-side scores — the same
+rendering the plan already gives any user without an environment report.
 
 ### Path Intelligence / O*NET stays — backbone, not product
 Sebastian, 2026-09-10. **Closes the keep-reduce-cut question formerly in §3.**
