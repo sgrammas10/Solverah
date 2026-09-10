@@ -109,12 +109,12 @@ ran — no separate landing commits were needed for this section._
 
 ### D-3 · Trust page (M — content-heavy, code-trivial)
 
-- [ ] Static authed page: how the instruments work, what the matching will
+- [x] Static authed page: how the instruments work, what the matching will
   and won't mean, why there are no scores to see (D-15 explained in user
   language), the calibration discipline (two blind raters, bias review,
   re-identification testing) in plain words. Compliance mirror already
   blesses static transparency text as D-15-compatible.
-- [ ] Linked from assessment intro + Intelligence hub footer. Public/landing
+- [x] Linked from assessment intro + Intelligence hub footer. Public/landing
   version waits for the publicity gate.
 
 ### D-4 · Search empty state + styling debt (S, then S–M)
@@ -125,11 +125,11 @@ ran — no separate landing commits were needed for this section._
 
 ### D-5 · Quiz results persist into the profile document (M)
 
-- [ ] Audit where each of the six quizzes + insight currently lands
+- [x] Audit where each of the six quizzes + insight currently lands
   (profile document? evaporates?); wire all six + GuestQuiz import into
   the profile document with stable keys
-- [ ] Consumed by D-1's agent context; available to future briefs
-- [ ] Tests per endpoint touched
+- [x] Consumed by D-1's agent context; available to future briefs
+- [x] Tests per endpoint touched
 
 ### D-6 · Dashboard reframe (M) — LAST, after A + B exist
 
@@ -160,15 +160,15 @@ ran — no separate landing commits were needed for this section._
 
 ### C-2 · Diff + playbook engine (M)
 
-- [ ] Diff rule: per dimension, user need (ManagerMatch) × manager style
+- [x] Diff rule: per dimension, user need (ManagerMatch) × manager style
   (C-1) → mesh / grind classification with server-side thresholds
-- [ ] ⚑1 template-first: ~16 protocol cells (4 dims × grind directions),
+- [x] ⚑1 template-first: ~16 protocol cells (4 dims × grind directions),
   LLM-drafted once, human-reviewed, stored as content. Each cell: why this
   grinds, the ask, the 1:1 agenda items, 2–3 literal sentences.
-- [ ] Assembly is deterministic and instant (no scoring job, no provider
+- [x] Assembly is deterministic and instant (no scoring job, no provider
   dependency, no per-sitting variance). Fast-follow chunk (parked §8):
   LLM personalization pass over the assembled playbook.
-- [ ] Tone + privacy guardrails in the content review: fit not fault;
+- [x] Tone + privacy guardrails in the content review: fit not fault;
   playbook is private to the user and says so on the page.
 
 ### C-3 · Storage + API (S–M)
