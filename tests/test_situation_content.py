@@ -9,13 +9,19 @@ supposed to hand over to the Manager Decoder actually do.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
 
 from manager_match import decoder as manager_decoder
 from work_pulse import situation as gap_engine
+from work_pulse import situation_items
 from work_pulse.situation_content import (
+    ALIGNED_BAND_HIGH_MIN,
+    ALIGNED_BAND_LOW_MAX,
+    ALIGNED_NOTES,
+    BANDS,
     BUCKET_TO_DIRECTION,
     CHANGE_IN_PLACE,
     DECODER_CROSSREFS,
@@ -31,6 +37,8 @@ from work_pulse.situation_content import (
     RARELY_MOVES,
     REGISTERS,
     UNDER_SUPPLIED,
+    aligned_note_for,
+    band_for_env_score,
     diagnosis_for,
     direction_for_bucket,
     guidance_for,
@@ -642,3 +650,304 @@ def test_unknown_direction_raises(direction: str) -> None:
         guidance_for("autonomy", direction)
     with pytest.raises(ValueError, match="Unknown gap direction"):
         diagnosis_for("autonomy", direction)
+
+
+# ---------------------------------------------------------------------------
+# Aligned notes — the third table. Guards mirror C-2's on MESH_NOTES, plus the
+# ones that only bite here: the band is content (low and high must not be one
+# sentence with a word swapped), and there is no needs-forward rendering.
+# ---------------------------------------------------------------------------
+
+ALIGNED_KEYS = sorted(ALIGNED_NOTES)
+
+# A dimension score is the mean of A-1's two items, each anchored on the five
+# band values 0.1/0.3/0.5/0.7/0.9 — so every score a real answer sheet can
+# produce, in 0.1 steps across the closed anchor range.
+ATTAINABLE_SCORES = tuple(round(0.1 * n, 1) for n in range(1, 10))
+
+# Diminishing the low pole is how a "both poles are legitimate" file fails on
+# the aligned half specifically: nothing here characterizes an employer, but
+# "a match, at least" quietly says the low end is the consolation one. The
+# FAULT_WORDS list cannot see that, so this is its aligned-side companion.
+DIMINISHING_PHRASES = (
+    "settling", "settle for", "nothing wrong with", "at least you",
+    "at least it", "makes up for", "could be worse", "on the bright side",
+    "only so much", "lack of", "not much of a", "make do", "better than nothing",
+)
+
+# Every note has to end somewhere actionable — the thing to protect, or the
+# thing to watch. A note that only says "you match here" is the blank row with
+# a sentence in it.
+PROTECT_OR_WATCH_MARKERS = (
+    "worth", "watch", "keep an eye", "protect", "the thing to", "keeping an eye",
+)
+
+
+def _content_words(text: str) -> set[str]:
+    stop = {
+        "you", "your", "the", "and", "that", "a", "is", "it", "of", "to", "in",
+        "be", "are", "what", "this", "here", "on", "for", "with", "as", "not",
+        "or", "an", "at", "by",
+    }
+    return {
+        word
+        for word in re.findall(r"[a-z']+", text.lower())
+        if word not in stop and len(word) > 2
+    }
+
+
+def test_there_are_eighteen_notes_covering_every_dimension_and_band() -> None:
+    assert set(ALIGNED_NOTES) == {(dim, band) for dim in DIMENSIONS for band in BANDS}
+    assert len(ALIGNED_NOTES) == 18
+
+
+def test_bands_are_the_three_the_decoder_named() -> None:
+    """Same three-band vocabulary as C-2's mesh half, so the two report pages
+    do not describe the same idea with different words."""
+    assert BANDS == ("low", "mid", "high")
+    assert set(BANDS) == {band for _, band in manager_decoder.MESH_NOTES}
+
+
+def test_band_edges_are_thirds_of_the_instruments_own_anchors() -> None:
+    """The method C-2 uses, on A-1's anchors rather than the decoder's.
+
+    A-1 anchors at 0.1/0.9, not 0.25/0.80, so the numbers must differ — what
+    must not differ is the arithmetic, which is why this asserts the formula
+    and not two literals.
+
+    Worth knowing that this is the *only* test that separates anchor-thirds
+    from thirds of a notional [0, 1]: at A-1's current two-items-of-five-bands
+    the edges land at 0.3667/0.6333 against 0.3333/0.6667, and those band all
+    nine attainable scores identically
+    (`test_every_score_a_real_answer_sheet_can_produce_bands_evenly` passes
+    either way). They diverge the moment A-1 re-anchors or changes its item
+    count, which is exactly when nobody will be re-deriving this by hand.
+    """
+    width = (0.9 - 0.1) / 3
+    assert ALIGNED_BAND_LOW_MAX == pytest.approx(0.1 + width)
+    assert ALIGNED_BAND_HIGH_MIN == pytest.approx(0.9 - width)
+
+    decoder_width = (manager_decoder.ANCHOR_HIGH - manager_decoder.ANCHOR_LOW) / 3
+    assert manager_decoder.MESH_BAND_LOW_MAX == pytest.approx(
+        manager_decoder.ANCHOR_LOW + decoder_width
+    )
+
+
+def test_the_anchors_are_the_instruments_anchors() -> None:
+    """If A-1 ever re-anchors, these edges are wrong and this fails first."""
+    poles = situation_items.POLE_VALUES.values()
+
+    assert min(poles) == 0.1
+    assert max(poles) == 0.9
+
+
+def test_every_score_a_real_answer_sheet_can_produce_bands_evenly() -> None:
+    """Three of the nine attainable dimension scores per band — the check that
+    the edges sit *between* A-1's steps rather than on one. An edge on a step
+    is the failure this catches: it makes one band four scores wide and its
+    neighbour two, so a whole band's worth of users read the wrong note."""
+    banded: dict[str, list[float]] = {band: [] for band in BANDS}
+    for score in ATTAINABLE_SCORES:
+        banded[band_for_env_score(score)].append(score)
+
+    assert banded == {
+        "low": [0.1, 0.2, 0.3],
+        "mid": [0.4, 0.5, 0.6],
+        "high": [0.7, 0.8, 0.9],
+    }
+
+
+@pytest.mark.parametrize("key", ALIGNED_KEYS)
+def test_no_aligned_note_is_empty(key: tuple[str, str]) -> None:
+    note = ALIGNED_NOTES[key]
+
+    assert isinstance(note, str)
+    assert note.strip()
+
+
+@pytest.mark.parametrize("key", ALIGNED_KEYS)
+def test_an_aligned_note_is_a_note_and_not_a_register_cell(
+    key: tuple[str, str]
+) -> None:
+    """C-2's rule, ported: "not protocol cells". An aligned dimension has no
+    problem to run a two-week experiment against, so a note that grew to the
+    size of one has started solving something that is not wrong."""
+    note = ALIGNED_NOTES[key]
+    shortest_cell = min(len(_cell_text(cell)) for cell in GUIDANCE_CELLS.values())
+
+    assert 240 <= len(note) <= 450, f"{key} is {len(note)} chars"
+    assert len(note) < shortest_cell
+
+
+@pytest.mark.parametrize("key", ALIGNED_KEYS)
+def test_every_aligned_note_names_something_to_protect_or_watch(
+    key: tuple[str, str]
+) -> None:
+    note = ALIGNED_NOTES[key].lower()
+
+    assert any(marker in note for marker in PROTECT_OR_WATCH_MARKERS), (
+        f"{key} names the match without naming what to do about it"
+    )
+
+
+@pytest.mark.parametrize("key", ALIGNED_KEYS)
+def test_no_aligned_note_reads_as_your_employer_is_bad(key: tuple[str, str]) -> None:
+    note = ALIGNED_NOTES[key].lower()
+
+    found = [word for word in FAULT_WORDS if word in note]
+    assert not found, f"{key} characterizes the employer: {found}"
+
+
+@pytest.mark.parametrize("key", ALIGNED_KEYS)
+def test_no_aligned_note_treats_one_pole_as_the_consolation_prize(
+    key: tuple[str, str]
+) -> None:
+    note = ALIGNED_NOTES[key].lower()
+
+    found = [phrase for phrase in DIMINISHING_PHRASES if phrase in note]
+    assert not found, f"{key} makes a match sound like a compromise: {found}"
+
+
+def test_no_aligned_note_duplicates_another_piece_of_content() -> None:
+    """One note written per dimension and pasted across its three bands would
+    pass every other guard in this section."""
+    assert len(set(ALIGNED_NOTES.values())) == len(ALIGNED_NOTES)
+
+    others = {d.strip().lower() for diag in DIAGNOSES.values() for d in diag.values()}
+    others |= {note.strip().lower() for note in DECODER_CROSSREFS.values()}
+    for cell in GUIDANCE_CELLS.values():
+        for value in cell.values():
+            others |= {text.strip().lower() for text in _strings(value)}
+
+    clashes = [k for k, v in ALIGNED_NOTES.items() if v.strip().lower() in others]
+    assert not clashes, f"aligned notes reused from elsewhere: {clashes}"
+
+
+@pytest.mark.parametrize("dimension", DIMENSIONS)
+def test_a_dimensions_three_bands_are_not_one_sentence_with_a_word_swapped(
+    dimension: str
+) -> None:
+    """The band is the content. Aligned-low on pace is a match on calm and
+    aligned-high is a match on intensity — if the two share most of their
+    words, the table has six notes in it and not eighteen.
+    """
+    for first, second in (("low", "mid"), ("mid", "high"), ("low", "high")):
+        left = _content_words(ALIGNED_NOTES[(dimension, first)])
+        right = _content_words(ALIGNED_NOTES[(dimension, second)])
+        overlap = len(left & right) / len(left | right)
+
+        assert overlap < 0.35, (
+            f"{dimension} {first}/{second} share {overlap:.0%} of their words — "
+            f"one note templated across bands, not two"
+        )
+
+
+def test_an_aligned_note_never_hands_over_to_the_decoder() -> None:
+    """`feedback` defers its *protocol* to C-2 (DEFERRED_DIMENSIONS), but an
+    aligned dimension has no protocol to hand over — routing a user to a
+    second report to be told again that nothing is wrong is the blank row
+    with an extra click on it."""
+    for key, note in ALIGNED_NOTES.items():
+        assert DECODER_REFERENCE.lower() not in note.lower(), f"{key} routes away"
+        assert "decoder" not in note.lower(), f"{key} routes away"
+
+
+def test_aligned_notes_are_plain_strings_with_no_needs_forward_twin() -> None:
+    """The ruling, pinned. `DIAGNOSES` carries two renderings because a gap
+    survives the trip to a new job as a thing to seek; an aligned dimension
+    does not. Every note's second half instructs a reader who currently holds
+    the job, and a between-jobs user answered A-1 in the past tense about a
+    role they have left — so A-5/A-7 drop aligned dimensions from the
+    needs-forward rendering rather than rewording them. Anyone adding a
+    `needs_forward` key here has to change this test on the way, which is the
+    point of it.
+    """
+    for key, note in ALIGNED_NOTES.items():
+        assert isinstance(note, str), f"{key} grew a second rendering: {type(note)}"
+        assert "what to seek" not in note.lower(), f"{key} reads as needs-forward"
+
+
+# ---------------------------------------------------------------------------
+# Aligned lookup — A-7 must not be able to ask for a note that is not there
+# ---------------------------------------------------------------------------
+
+def test_aligned_note_for_is_total_over_every_dimension_and_score() -> None:
+    """The lookup-key guard: any (dimension, env_score) A-3 can hand over
+    resolves, including the scores between A-1's steps and the closed ends."""
+    for dimension in DIMENSIONS:
+        for score in ATTAINABLE_SCORES + (0.0, 0.15, 0.3667, 0.6333, 1.0):
+            note = aligned_note_for(dimension, score)
+
+            assert note in set(ALIGNED_NOTES.values())
+
+
+def test_every_aligned_note_is_reachable_through_the_lookup() -> None:
+    reached = {
+        (dim, band_for_env_score(score))
+        for dim in DIMENSIONS
+        for score in ATTAINABLE_SCORES
+    }
+
+    assert reached == set(ALIGNED_NOTES)
+
+
+def test_the_band_edges_belong_to_the_outer_bands() -> None:
+    """Stated so a later refactor cannot flip them silently: C-2's
+    `_mesh_band` puts its own edges in `low`/`high` the same way."""
+    assert band_for_env_score(ALIGNED_BAND_LOW_MAX) == "low"
+    assert band_for_env_score(ALIGNED_BAND_HIGH_MIN) == "high"
+    assert band_for_env_score(ALIGNED_BAND_LOW_MAX + 0.001) == "mid"
+    assert band_for_env_score(ALIGNED_BAND_HIGH_MIN - 0.001) == "mid"
+
+
+def test_aligned_lookup_is_deterministic() -> None:
+    assert aligned_note_for("decision", 0.5) == aligned_note_for("decision", 0.5)
+
+
+@pytest.mark.parametrize("dimension", ["growth_focus", "Autonomy", "relationship", ""])
+def test_aligned_note_for_rejects_an_unknown_dimension(dimension: str) -> None:
+    with pytest.raises(ValueError, match="Unknown dimension"):
+        aligned_note_for(dimension, 0.5)
+
+
+@pytest.mark.parametrize("score", [-0.01, 1.01, 2.0, -1.0])
+def test_a_score_off_the_scale_raises_rather_than_banding(score: float) -> None:
+    with pytest.raises(ValueError, match=r"out of \[0, 1\]"):
+        band_for_env_score(score)
+    with pytest.raises(ValueError, match=r"out of \[0, 1\]"):
+        aligned_note_for("pace", score)
+
+
+@pytest.mark.parametrize("score", ["0.5", None, True, [0.5]])
+def test_a_non_numeric_score_raises_rather_than_banding(score: object) -> None:
+    with pytest.raises(ValueError, match="not a number"):
+        band_for_env_score(score)  # type: ignore[arg-type]
+
+
+def test_the_aligned_bucket_is_the_one_that_reaches_this_table() -> None:
+    """The seam with A-3, asserted rather than commented: the bucket that
+    `direction_for_bucket` returns `None` for is exactly the bucket
+    `aligned_note_for` serves, so between them every A-3 report entry
+    resolves to content and none resolves to both kinds.
+    """
+    directionless = [b for b, carries in BUCKET_TO_DIRECTION.items() if not carries]
+
+    assert directionless == [gap_engine.ALIGNED]
+    assert direction_for_bucket(gap_engine.ALIGNED) is None
+    assert aligned_note_for("autonomy", 0.5)
+
+
+def test_an_aligned_dimension_from_the_gap_engine_resolves_to_a_note() -> None:
+    """End to end over A-3's real classifier, no hand-built buckets: a pair
+    inside the aligned threshold produces a note and no directional guidance.
+    """
+    env = {dim: 0.7 for dim in gap_engine.DIMENSIONS}
+    person = {dim: 0.7 for dim in gap_engine.DIMENSIONS}
+    report = gap_engine.build_situation_report(env, person)
+
+    for entry in report:
+        assert entry["bucket"] == gap_engine.ALIGNED
+        assert direction_for_bucket(entry["bucket"], entry["direction"]) is None
+        assert aligned_note_for(entry["dimension"], entry["env_score"]) == (
+            ALIGNED_NOTES[(entry["dimension"], "high")]
+        )

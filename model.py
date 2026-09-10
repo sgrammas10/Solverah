@@ -1336,6 +1336,75 @@ class EnvironmentDimensionScore(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Manager Decoder: the observed-manager instrument's storage (BUILD_PLAN C-3)
+# ---------------------------------------------------------------------------
+# ⚑4 (PRODUCT_DECISIONS.md §2): one shared manager-profile store, built once here,
+# consumed by two features -- the Decoder's playbook (`manager_match/decoder.py`) today,
+# the Situation Report's manager section (workstream A) once it lands. Neither consumer
+# gets its own copy; a table named for the Decoder specifically would have made the
+# second consumer's landing look like a migration instead of a query.
+#
+# APPEND-ONLY, D-16 tradition, same shape as `EnvironmentReport`: `id` is not a person's
+# "current" sitting, it is one dated observation, and a retake is always a new row.
+# `manager_profile_store.latest_manager_profile` is what "current" means to every reader.
+
+
+class ManagerProfile(db.Model):
+    """One sitting of the manager-profile instrument (`manager_match/manager_profile.py`),
+    for one user, about their actual manager.
+
+    `answers` STORES AUTHORED OPTION IDENTITY, NOT SCREEN POSITION
+    -----------------------------------------------------------------
+    Sebastian's 2026-09-10 storage ruling: `answers[i]["choice"]` is `"a"` or `"b"` exactly
+    as `manager_match/manager_profile.py`'s `MANAGER_PROFILE_QUESTIONS` keys the option,
+    never which side of the screen it rendered on. Presentation order is a free frontend
+    choice forever precisely because storage never depends on it --
+    `score_manager_profile`'s own validation already enforces this shape (`choice` must be
+    `"a"` or `"b"`, looked up against the question's own `score_a`/`score_b`), so this
+    column is a direct persistence of what the scorer already required, not a second
+    encoding of it.
+
+    `scoring_key` IS A COLUMN, NOT A JSONB FIELD, AND THAT IS THE POINT
+    ---------------------------------------------------------------------
+    `manager_match/score.py`'s `SCORING_KEY` -- and the mm-q11 episode it documents -- is
+    why: a marker living inside an optional JSON blob can be silently absent from an old
+    row, and absence becomes indistinguishable from "scored under some earlier, unmarked
+    key". A NOT NULL column with no server default forces every write path to state it, so
+    a caller that forgets fails loudly at insert instead of leaving a row ambiguous.
+    """
+
+    __tablename__ = "manager_profiles"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True: ix_manager_profiles_user_created below already leads with user_id,
+    # the same reasoning EnvironmentReport's user_id column gives for skipping one.
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    #: The respondent's raw sitting -- see the class docstring's authored-identity rule.
+    answers = db.Column(JSONB, nullable=False)
+    #: {"autonomy": .., "feedback_style": .., "relationship": .., "growth_focus": ..} --
+    #: `score_manager_profile`'s own output, persisted unmodified.
+    dimension_scores = db.Column(JSONB, nullable=False)
+    #: Which scoring key produced `dimension_scores`. See the class docstring.
+    scoring_key = db.Column(db.Text, nullable=False)
+    #: Which item set produced `answers` -- `EnvironmentReport.version`'s role, under the
+    #: same name.
+    version = db.Column(db.Text, nullable=False)
+
+    __table_args__ = (
+        db.Index(
+            "ix_manager_profiles_user_created",
+            "user_id",
+            db.text("created_at DESC"),
+        ),
+    )
+
+    user = db.relationship("User", backref="manager_profiles")
+
+
+# ---------------------------------------------------------------------------
 # Phase 2a -- profile_data, decomposed (docs/ARCHITECTURE.md Part 4.3)
 # ---------------------------------------------------------------------------
 #

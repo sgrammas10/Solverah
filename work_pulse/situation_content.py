@@ -7,8 +7,8 @@ path that calls a provider. `work_pulse/situation.py` (A-3) will hold the gap
 engine; this file holds only the words, so the content review has a single
 surface — the `insight_engine.py` pattern at full scale.
 
-Two tables, deliberately separate
----------------------------------
+Three tables, deliberately separate
+-----------------------------------
 `DIAGNOSES` is keyed by ``(dimension, direction)`` — twelve entries, one per
 gap cell. It carries the *situation* sentence in two renderings: `current_role`
 for an employed user, `needs_forward` for a between-jobs or first-job user
@@ -18,7 +18,15 @@ for an employed user, `needs_forward` for a between-jobs or first-job user
 entries — and carries *only* the actions. Nothing in a guidance cell restates
 the diagnosis, so the needs-forward rendering can drop or keep each register
 independently without leaving a dangling half-sentence. That separation is the
-whole reason there are two tables rather than one.
+whole reason those are two tables rather than one.
+
+`ALIGNED_NOTES` is keyed by ``(dimension, band)`` — eighteen entries — and is
+the only table an `aligned` dimension reaches. It exists because the other
+two are keyed on a direction and an aligned dimension has none, which left
+A-7 with a blank row for every dimension that is *fine*; C-2 answered the
+identical blank half of its own map with `MESH_NOTES`, and this is that,
+ported. One short note apiece — never a register cell, because there is no
+problem here to run an experiment against.
 
 Keys
 ----
@@ -31,8 +39,13 @@ Keys
     and same sense as `manager_match.decoder`; a tripwire test asserts they
     have not drifted apart.
   * register — `change_in_place`, `negotiate`, `rarely_moves`.
+  * band — `low` / `mid` / `high`, where the person and the environment
+    jointly sit on the scale. Aligned dimensions only; the same three-word
+    vocabulary `manager_match.decoder` bands a mesh with, on A-1's anchors
+    rather than the decoder's.
 
-Six dimensions × two directions × three registers = the thirty-six cells.
+Six dimensions × two directions × three registers = the thirty-six cells; six
+dimensions × three bands = the eighteen aligned notes.
 
 How A-3/A-5 look this up
 ------------------------
@@ -47,7 +60,9 @@ and `straining` are magnitude-only and each pairs with *either* direction
 already have, independent of ITS `direction` field), so a bucket alone no
 longer determines one. `direction_for_bucket` is the join: an A-3 report
 entry's own `(bucket, direction)` in, this file's `under_supplied` /
-`over_supplied` vocabulary out, or `None` where `aligned` shows no guidance.
+`over_supplied` vocabulary out, or `None` where `aligned` shows no
+*directional* guidance — an aligned dimension resolves to `ALIGNED_NOTES`
+through `aligned_note_for` instead, which needs no direction at all.
 `BUCKET_TO_DIRECTION` carries the one fact a bucket alone still decides:
 whether a direction is expected at all.
 
@@ -1445,6 +1460,195 @@ DECODER_CROSSREFS: dict[tuple[str, str], str] = {
 
 
 # ---------------------------------------------------------------------------
+# Aligned notes (the C-2 MESH_NOTES analogue)
+# ---------------------------------------------------------------------------
+# The third table, and the smallest. `DIAGNOSES` and `GUIDANCE_CELLS` between
+# them cover the two non-aligned buckets; a dimension A-3 calls `aligned` has
+# no direction, so it reaches neither, and without this table A-7 renders an
+# empty row for every dimension that is fine. C-2 hit the same blank half of
+# its own map and answered it with MESH_NOTES: one short note per dimension
+# per band, "not protocol cells". Same answer here, same shape, same voice.
+#
+# Keyed by ``(dimension, band)`` -- eighteen entries -- where band is where the
+# person and the environment jointly sit on the 0-1 scale: `low`, `mid` or
+# `high`. The band is load-bearing content, not decoration: aligned-low on
+# pace is a match on calm and aligned-high is a match on intensity, and those
+# are different sentences with different things to watch. A single "you match
+# here" note per dimension would be wrong in one of the two registers every
+# time.
+#
+# **No `needs_forward` rendering, deliberately.** These are `str`, not the
+# two-rendering `Diagnosis` shape, because there is no needs-forward reading
+# of an aligned dimension: every note's second half is an instruction about a
+# job the reader currently holds ("worth protecting", "keep an eye on it"),
+# and a user reading the needs-forward report answered A-1 in the past tense
+# about a role that is over. A-5/A-7 drop aligned dimensions from that
+# rendering rather than translating them -- `aligned_note_for`'s docstring
+# carries the full reasoning. A test asserts the values stay plain strings, so
+# the ruling has to be confronted rather than drifted past.
+
+BAND_LOW = "low"
+BAND_MID = "mid"
+BAND_HIGH = "high"
+BANDS: tuple[str, ...] = (BAND_LOW, BAND_MID, BAND_HIGH)
+
+# Band edges, thirds of A-1's instrument scale. `work_pulse.situation_items`
+# anchors every item at 0.1 (low pole) and 0.9 (high pole), so the attainable
+# range of a dimension score is [0.1, 0.9] and the thirds of *that* -- not of
+# a notional [0, 1] -- are what put a real answer sheet in the middle band.
+# `manager_match.decoder.MESH_BAND_LOW_MAX` does the identical arithmetic on
+# its own instrument's anchors (0.25 / 0.80); a test asserts the two files
+# still agree on the method even though the anchors differ.
+_ENV_ANCHOR_LOW = 0.1
+_ENV_ANCHOR_HIGH = 0.9
+_BAND_WIDTH = (_ENV_ANCHOR_HIGH - _ENV_ANCHOR_LOW) / 3
+ALIGNED_BAND_LOW_MAX = _ENV_ANCHOR_LOW + _BAND_WIDTH    # ≈ 0.3667
+ALIGNED_BAND_HIGH_MIN = _ENV_ANCHOR_HIGH - _BAND_WIDTH  # ≈ 0.6333
+
+ALIGNED_NOTES: dict[tuple[str, str], str] = {
+
+    ("autonomy", BAND_LOW): (
+        "You like knowing the shape of the work before you start, and this role "
+        "specifies it. That is a match, and an underrated one — almost none of "
+        "your effort goes into working out what you are supposed to be doing. "
+        "The thing to watch is drift: the specification usually thins out as "
+        "people get more senior, and a role can stop being this one without "
+        "anyone announcing that it has."
+    ),
+    ("autonomy", BAND_MID): (
+        "You want the call made for you on some things and left to you on "
+        "others, and that is roughly how this role splits it. What is worth "
+        "doing here is naming which decisions sit on which side while it is "
+        "still going well — that boundary is unwritten in most jobs, and the "
+        "moment it gets discovered is usually the moment somebody crosses it."
+    ),
+    ("autonomy", BAND_HIGH): (
+        "You want the route left to you, and this role leaves it. Worth "
+        "protecting on purpose: latitude is usually the first of these matches "
+        "to go when a team gets busy or something goes wrong, and it goes a "
+        "step at a time rather than all at once, which is what makes it easy "
+        "to miss until it is gone."
+    ),
+
+    ("pace", BAND_LOW): (
+        "This is a match on calm. You do your best work at a tempo you can "
+        "sustain, and that is the tempo the work arrives at — a finish before "
+        "the next start, thinking time that is genuinely there. What is worth "
+        "keeping an eye on is that a steady tempo reads from outside as spare "
+        "capacity, so the case for working this way is one worth being able to "
+        "make out loud."
+    ),
+    ("pace", BAND_MID): (
+        "Neither you nor the work wants a permanent sprint or a flat week, and "
+        "the two of you are landing in much the same place. Worth watching what "
+        "the busy stretches do to it: a tempo that suits you in an ordinary "
+        "month is not the one you are agreeing to in a bad quarter, and it is "
+        "the bad quarter that tells you whether this match holds."
+    ),
+    ("pace", BAND_HIGH): (
+        "This is a match on intensity. You want things moving and this work "
+        "moves — short turnarounds, a queue that refills, the next thing "
+        "already coming. It is a real match and the one with the shortest shelf "
+        "life: what you can hold at this tempo moves with everything else going "
+        "on in your life, so it is worth revisiting rather than assuming."
+    ),
+
+    ("collaboration", BAND_LOW): (
+        "You want a piece of work that is yours end to end and a stretch of the "
+        "day to do it in, and that is how the work is divided here. A clean "
+        "match, and a cheap one — very little of the week goes on coordinating. "
+        "What is worth watching is the other side of that: nothing joins your "
+        "work up to anyone else's by default, so what you know about the wider "
+        "picture is whatever you go and get."
+    ),
+    ("collaboration", BAND_MID): (
+        "You want company for the thinking and quiet for the making, and the "
+        "day here divides about that way. The part worth watching is the ratio "
+        "rather than the total: it moves with the project and with who else is "
+        "on it, and it has usually moved some way before anyone notices it has "
+        "moved at all."
+    ),
+    ("collaboration", BAND_HIGH): (
+        "This is a match on working in the room. You think best out loud and "
+        "this work is made out loud — standing sessions, decisions taken "
+        "together. Worth saying plainly that it suits you, because the people "
+        "around you are far more often told the opposite. The one thing to "
+        "keep an eye on is that the shared hours still leave the unbroken block "
+        "the work itself needs."
+    ),
+
+    ("feedback", BAND_LOW): (
+        "You would rather have a read on your work when it is considered and "
+        "well timed than have a running commentary, and that is how it reaches "
+        "you here. The match is real. What it costs is that quiet is "
+        "ambiguous — no news does mean no news in a place that runs this way, "
+        "but you cannot tell that from inside it, so the habit worth building "
+        "is asking at the specific points where you do want a read."
+    ),
+    ("feedback", BAND_MID): (
+        "You want to know where you stand without it being a running "
+        "conversation, and that is about the rhythm this place keeps. Worth "
+        "holding on to through the busy stretches: feedback is one of the first "
+        "things a stretched team stops making time for, and its absence tends "
+        "to register only in hindsight."
+    ),
+    ("feedback", BAND_HIGH): (
+        "This is a match on directness. You want to know where you stand, often "
+        "and straight, and that is how it circulates here. Worth naming as a "
+        "preference rather than assuming it reads as one — a place that runs "
+        "blunt usually has people in it working hard to soften, and being told "
+        "you do not need that softening is useful information for them."
+    ),
+
+    ("innovation", BAND_LOW): (
+        "You would rather make a known thing work properly than start a new "
+        "one, and that is what the work here is. An underrated match: depth "
+        "compounds, and the people who are good at this are generally the ones "
+        "holding the thing up. The watch item is your own record — refinement "
+        "leaves a fainter trail than invention does, so what you have improved "
+        "is worth writing down as you go."
+    ),
+    ("innovation", BAND_MID): (
+        "You want some new ground without the whole job being new ground, and "
+        "that is roughly the mix here. The mix is the thing to watch rather "
+        "than either half of it: it swings with what is on and what has just "
+        "broken, and it can sit at one end for a couple of quarters before "
+        "anyone calls that a change."
+    ),
+    ("innovation", BAND_HIGH): (
+        "This is a match on new ground. You want to be making things that did "
+        "not exist before and that is what this work is. Worth protecting "
+        "deliberately: exploratory work is the easiest thing to reallocate when "
+        "something urgent lands, and once the time has gone elsewhere it rarely "
+        "comes back on its own."
+    ),
+
+    ("decision", BAND_LOW): (
+        "You back experience and judgement to make the call, and calls get made "
+        "that way here. A real match, and a quick one — a decision does not sit "
+        "waiting on a number that was never going to change it. What is worth "
+        "doing anyway is leaving a short trace of the reasoning: judgement "
+        "travels badly to people who were not in the room, and that is where it "
+        "gets questioned."
+    ),
+    ("decision", BAND_MID): (
+        "You want evidence where evidence exists and a judgement call where it "
+        "does not, and that is about where decisions land here. The line "
+        "between the two is what is worth watching: it is almost never written "
+        "down anywhere, and it moves depending on who is in the room and how "
+        "the last call of its kind turned out."
+    ),
+    ("decision", BAND_HIGH): (
+        "This is a match on evidence. You want the numbers in front of you "
+        "before the call, and that is how a call gets made here. Worth "
+        "protecting when the pressure is on: analysis is the first step skipped "
+        "once a decision goes urgent, and a place that measures well in an "
+        "ordinary week can still end up deciding on instinct in a bad one."
+    ),
+}
+
+
+# ---------------------------------------------------------------------------
 # Lookup
 # ---------------------------------------------------------------------------
 
@@ -1497,6 +1701,83 @@ def diagnosis_for(dimension: str, direction: str) -> Diagnosis:
     """The situation in both renderings. A-5 picks one by `career_status`."""
     _validate(dimension, direction)
     return dict(DIAGNOSES[(dimension, direction)])  # type: ignore[return-value]
+
+
+def band_for_env_score(env_score: float) -> str:
+    """Which third of A-1's scale a dimension sits in: `low`, `mid` or `high`.
+
+    Takes the environment score alone, and deliberately not the midpoint of
+    the pair the way `manager_match.decoder._mesh_band` does. Two reasons, and
+    the second is the binding one:
+
+      * It is only ever called on an `aligned` dimension, where
+        ``|env - person| < 0.15`` by construction
+        (`work_pulse.situation.ALIGNED_THRESHOLDS`), so the environment score
+        already locates the pair to inside a fifth of a band. The pair really
+        does sit here.
+      * `env_score` is the *only* one of the two numbers D-15 lets out of A-3
+        (`SituationDimensionReport` carries `env_score` and no
+        `person_score`, on purpose). Selecting content off the person-side
+        number would put a person-side quantity back into the render path
+        through the side door, for a three-valued gain. C-2 has no such rule
+        to keep, which is why its own band function may take both.
+
+    The trade is a near-boundary disagreement with the midpoint method — an
+    aligned pair straddling 0.3667 or 0.6333 can band one step differently
+    from the way C-2 would band it. Both notes are true of that pair; neither
+    is worth a D-15 exception.
+    """
+    if isinstance(env_score, bool) or not isinstance(env_score, (int, float)):
+        raise ValueError(f"env_score is not a number: {env_score!r}")
+    if not 0.0 <= env_score <= 1.0:
+        raise ValueError(f"env_score out of [0, 1]: {env_score}")
+    if env_score <= ALIGNED_BAND_LOW_MAX:
+        return BAND_LOW
+    if env_score >= ALIGNED_BAND_HIGH_MIN:
+        return BAND_HIGH
+    return BAND_MID
+
+
+def aligned_note_for(dimension: str, env_score: float) -> str:
+    """The note for a dimension A-3 bucketed `aligned`, banded by `env_score`.
+
+    Total over `DIMENSIONS` × every score in [0, 1], so A-7 cannot ask for a
+    note that does not exist: pass the report entry's own `dimension` and
+    `env_score` and a string always comes back. The caller checks the bucket —
+    this file has no thresholds and does not learn any (see the module
+    docstring's last line) — exactly as C-2's `_entry` checks `MESH` before
+    reaching `MESH_NOTES`.
+
+    **Not called in the needs-forward rendering.** Who reaches that rendering
+    with environment scores at all is `between_jobs`, plus a `first_job` user
+    who does have a most-recent role to describe — a `first_job` user with no
+    employment history skips the environment form entirely
+    (SITUATION_ITEMS_BIAS_REVIEW.md Finding 7, ratified 2026-09-10), so no
+    scores and no aligned dimensions exist for them and the question does not
+    arise. For the ones who do reach it, A-1 was answered in the past tense
+    about a role that is over, and three things follow:
+
+      * Every note's second half instructs someone who still holds the job.
+        "Worth protecting on purpose" has no referent once the job is gone.
+      * The match it names is in the past tense too. Calling it a match, in a
+        report the reader is using to choose what comes next, reads as a
+        present-tense fact about their situation, and it is not one.
+      * Turned forward it becomes "seek this again", which is an inference the
+        report cannot support. An aligned dimension says the *fit* on that
+        axis was fine; it says nothing about why the reader left, and the
+        report cannot see that reason. A `needs_forward` diagnosis is safe
+        because a gap survives the move — it is a thing to look for in the
+        next place. An alignment does not survive it.
+
+    So A-5/A-7 drop aligned dimensions from that rendering rather than
+    rewording them, which is why `ALIGNED_NOTES` has no `needs_forward` twin
+    the way `DIAGNOSES` does. If the section needs something in place of the
+    dropped rows, it is one line about the set of them, written once at A-7 —
+    not six notes, and not a per-dimension row with nothing in it.
+    """
+    if dimension not in DIMENSIONS:
+        raise ValueError(f"Unknown dimension '{dimension}'")
+    return ALIGNED_NOTES[(dimension, band_for_env_score(env_score))]
 
 
 def guidance_for(dimension: str, direction: str) -> AssembledGuidance:

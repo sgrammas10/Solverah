@@ -2076,6 +2076,181 @@
         "title": "ManagerMatchSubmitRequest",
         "type": "object"
       },
+      "ManagerPlaybook": {
+        "additionalProperties": true,
+        "description": "`manager_match.decoder.build_playbook`'s output, verbatim.",
+        "properties": {
+          "dimensions": {
+            "description": "All four dimensions, mesh and grind alike.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Dimensions",
+            "type": "array"
+          },
+          "grind_count": {
+            "title": "Grind Count",
+            "type": "integer"
+          },
+          "mesh_count": {
+            "title": "Mesh Count",
+            "type": "integer"
+          },
+          "priority": {
+            "description": "Grind dimensions, widest gap first.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Priority",
+            "type": "array"
+          },
+          "privacy_notice": {
+            "title": "Privacy Notice",
+            "type": "string"
+          }
+        },
+        "required": [
+          "privacy_notice",
+          "grind_count",
+          "mesh_count"
+        ],
+        "title": "ManagerPlaybook",
+        "type": "object"
+      },
+      "ManagerPlaybookResponse": {
+        "additionalProperties": true,
+        "description": "``GET /me/manager-playbook`` -- the latest manager profile and its playbook.\n\nAlways carries a `playbook`: the route answers `409` rather than `200` with a null\none when either side of the diff is missing (`ManagerProfileSubmitResponse` is where\na null playbook is a real, reachable state).",
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Created At"
+          },
+          "dimension_scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Dimension Scores",
+            "type": "object"
+          },
+          "playbook": {
+            "$ref": "#/components/schemas/ManagerPlaybook"
+          },
+          "scoring_key": {
+            "title": "Scoring Key",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dimension_scores",
+          "scoring_key",
+          "version",
+          "playbook"
+        ],
+        "title": "ManagerPlaybookResponse",
+        "type": "object"
+      },
+      "ManagerProfileAnswer": {
+        "additionalProperties": true,
+        "properties": {
+          "choice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "\"a\" or \"b\", as authored.",
+            "title": "Choice"
+          },
+          "question_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Question Id"
+          }
+        },
+        "title": "ManagerProfileAnswer",
+        "type": "object"
+      },
+      "ManagerProfileSubmitRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "answers": {
+            "description": "Exactly 16 forced-choice answers, authored option identity.",
+            "items": {
+              "$ref": "#/components/schemas/ManagerProfileAnswer"
+            },
+            "title": "Answers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "title": "ManagerProfileSubmitRequest",
+        "type": "object"
+      },
+      "ManagerProfileSubmitResponse": {
+        "additionalProperties": true,
+        "description": "``POST /assessments/manager-profile``.\n\n`playbook` is `None` when this user has no ManagerMatch sitting yet -- there is\nnothing to diff the freshly-stored profile against. `GET /me/manager-playbook` picks\nit up once one exists.",
+        "properties": {
+          "dimension_scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Dimension Scores",
+            "type": "object"
+          },
+          "playbook": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ManagerPlaybook"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "scoring_key": {
+            "title": "Scoring Key",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dimension_scores",
+          "scoring_key",
+          "version"
+        ],
+        "title": "ManagerProfileSubmitResponse",
+        "type": "object"
+      },
       "MatchesQuery": {
         "description": "Query parameters for ``GET /me/matches``.",
         "properties": {
@@ -3805,6 +3980,76 @@
         ]
       }
     },
+    "/api/v1/assessments/manager-profile": {
+      "post": {
+        "description": "Scores deterministically and instantly, like `focus_type` -- no provider call, no job, no polling. Stores an append-only `manager_profiles` row (D-16 tradition: a retake is a new row, never an update) and, when this user already has a completed ManagerMatch sitting, assembles the diff playbook in the same response. `playbook` is `null` when there is no ManagerMatch yet -- that is not an error here; `GET /me/manager-playbook` is where a missing ManagerMatch answers `409`.",
+        "operationId": "post_assessments_submit_manager_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManagerProfileSubmitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerProfileSubmitResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Submit a manager-profile sitting; score, store, and assemble the playbook",
+        "tags": [
+          "assessments"
+        ]
+      }
+    },
     "/api/v1/assessments/{kind}/form": {
       "get": {
         "description": "GET /assessments/{kind}/form - the items, ordered for this respondent.\n\nOnly `core` serves a form; the other four are rendered from definitions the\nclient ships with, and asking for theirs is a 404 rather than an empty\npayload that implies one might arrive.\n\nThe payload carries `blocks`, not `dimensions`. The client renders it\nverbatim: it must not sort, group, re-shuffle, or reorder options. Ordering\nis server-authoritative because two independent PRNGs in two languages\ndiverging is silent, and a divergence corrupts a resumed session's ordering\nrather than raising (D-04).",
@@ -5510,6 +5755,63 @@
           }
         ],
         "summary": "Export every identified data class held for the authenticated user",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/manager-playbook": {
+      "get": {
+        "description": "Diffs this user's ManagerMatch needs against their latest manager-profile sitting (`POST /assessments/manager-profile`) and returns the assembled playbook. Two states answer `409`, distinguishably: no ManagerMatch sitting yet (`errors[0].code == \"no_manager_match\"`), and a ManagerMatch sitting but no manager profile yet (`\"no_manager_profile\"`) -- a client routes the user at whichever instrument is missing rather than showing a generic error.",
+        "operationId": "get_me_get_my_manager_playbook",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerPlaybookResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Read the Manager Decoder playbook for this user's latest manager profile",
         "tags": [
           "me"
         ]

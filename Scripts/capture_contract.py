@@ -163,6 +163,7 @@ WP_ANSWERS = [
     {"question_id": "wp-q%d" % i, "option_id": "wp-q%d-b" % i} for i in range(1, 13)
 ]
 MM_ANSWERS = [{"question_id": "mm-q%d" % i, "choice": "a"} for i in range(1, 16)]
+MP_ANSWERS = [{"question_id": "mp-q%d" % i, "choice": "a"} for i in range(1, 17)]
 
 FOCUS_TYPE_PAYLOAD = {
     "scene_1": ["big_project", "planning_doc", "urgent_client", "teammate_feedback",
@@ -921,6 +922,62 @@ def run_scenario() -> List[Dict[str, Any]]:
     )
     _put_refresh_cookie(client, login_token)
     call("refresh-after-logout", "POST", REFRESH_PATH, json={})
+
+    # -- Manager Decoder storage (C-3) -------------------------------------
+    #
+    # Appended after the refresh-token block so every record above keeps its
+    # position, exactly as S3 appended after the anti-enumeration block. `logout`
+    # ended the session the refresh block was using, so this needs a login of its
+    # own too.
+    #
+    # EMAIL already completed a ManagerMatch sitting earlier in this scenario
+    # (`queue_and_poll("manager_match", ...)`), so the account reaching this block
+    # already has one -- which is what lets `submit-manager-profile` capture a
+    # non-null `playbook` on its first call. The two 409 branches
+    # (`GET /me/manager-playbook` with no ManagerMatch, and with a ManagerMatch but
+    # no manager profile) are exhaustively covered by
+    # tests/test_manager_playbook_api.py instead of here: this script's job is to
+    # pin the wire shape of a response, not to enumerate every branch a route can
+    # take, and reaching the no-ManagerMatch state honestly would cost a whole
+    # second account (register, confirm, login) for one more captured 409 the
+    # pytest suite already proves byte-for-byte in its own assertions.
+    mp_login = call(
+        "login-for-manager-profile",
+        "POST",
+        "/api/v1/auth/login",
+        json={"email": EMAIL, "password": PASSWORD},
+    )
+    mp_csrf = {"X-CSRF-TOKEN": mp_login.get_json()["csrfToken"]}
+
+    call(
+        "submit-manager-profile-malformed",
+        "POST",
+        "/api/v1/assessments/manager-profile",
+        json={"answers": MP_ANSWERS[:10]},
+        headers=mp_csrf,
+    )
+    call(
+        "submit-manager-profile",
+        "POST",
+        "/api/v1/assessments/manager-profile",
+        json={"answers": MP_ANSWERS},
+        headers=mp_csrf,
+    )
+    call("manager-playbook", "GET", "/api/v1/me/manager-playbook")
+
+    # A retake: same shape, a fresh row underneath. `manager-playbook-after-retake`
+    # is compared against `manager-playbook` above precisely because both should be
+    # structurally identical -- what changes is which values are inside, not the
+    # envelope, and a diff here would mean a retake had somehow changed the shape.
+    mp_retake = [dict(a, choice="b") for a in MP_ANSWERS]
+    call(
+        "submit-manager-profile-retake",
+        "POST",
+        "/api/v1/assessments/manager-profile",
+        json={"answers": mp_retake},
+        headers=mp_csrf,
+    )
+    call("manager-playbook-after-retake", "GET", "/api/v1/me/manager-playbook")
 
     return records
 

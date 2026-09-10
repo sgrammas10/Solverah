@@ -171,6 +171,24 @@ MANAGER_PROFILE_QUESTIONS: list[ManagerProfileQuestion] = [
 
 EXPECTED_ANSWER_COUNT = len(MANAGER_PROFILE_QUESTIONS)
 
+#: Which item set produced a stored sitting's `answers` (BUILD_PLAN C-3's
+#: `manager_profiles.version`). Bump whenever an item is added, removed, or
+#: reworded -- the same discipline `assessment_service.CLIENT_FORM_VERSION`
+#: applies to the other client-rendered instruments.
+INSTRUMENT_VERSION = "v1"
+
+#: Which scoring key produced a stored sitting's `dimension_scores`
+#: (BUILD_PLAN C-3's `manager_profiles.scoring_key`). Mirrors
+#: `manager_match.score.SCORING_KEY` -- see that module for why the mm-q11
+#: episode makes this a required, explicitly-stamped marker rather than an
+#: implicit one. Not folded into `score_manager_profile`'s own return value:
+#: that shape is pinned by `test_returns_one_score_per_dimension`, so the
+#: storage layer stamps this alongside the scores instead of the scorer
+#: mutating what it hands back.
+#:
+#: Bump whenever an item's anchors or dimension change.
+SCORING_KEY = "mp-v1"
+
 _SCORE_LOOKUP: dict[str, dict[str, float]] = {
     q["question_id"]: {"a": q["score_a"], "b": q["score_b"]}
     for q in MANAGER_PROFILE_QUESTIONS

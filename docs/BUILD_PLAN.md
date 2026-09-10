@@ -140,6 +140,14 @@ ran — no separate landing commits were needed for this section._
 - [ ] This chunk *embodies* the §1 decision — sequence strictly after chunk 0
   records it and A/B give it content to show
 
+### D-7 · Export/delete catch-up for the new user-data tables (S–M) — before launch
+
+- [ ] `environment_reports` and `manager_profiles` join `/me/export` and the
+  account-deletion tombstone flow (S2's scrub discipline is the pattern).
+  Both tables carry user answers; flagged by C-3 2026-09-10 — the gap is
+  shared, so close it in one chunk. Any table added later joins the same
+  flows the day it is created (cross-cutting rule, §6).
+
 ---
 
 ## 2. Workstream C — Manager Decoder  *(build first among the big three: fully unblocked)*

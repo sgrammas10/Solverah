@@ -46,8 +46,9 @@ from solverah.extensions import limiter
 from solverah.infra.storage import ALLOWED_MIME, MAX_BYTES
 from solverah.openapi import document
 from solverah.repositories import user_repository
-from solverah.schemas import LegacyError
+from solverah.schemas import PROBLEM_RESPONSE_MODEL, LegacyError
 from solverah.schemas.account import AccountDeleteRequest, AccountDeleteResponse, AccountExportResponse
+from solverah.schemas.manager_playbook import ManagerPlaybookResponse
 from solverah.schemas.profile import (
     CareerStatusRequest,
     CareerStatusResponse,
@@ -65,7 +66,7 @@ from solverah.schemas.profile import (
     SkillsPutRequest,
     SkillsResponse,
 )
-from solverah.services import account_service, profile_service, resume_jobs
+from solverah.services import account_service, manager_playbook_service, profile_service, resume_jobs
 from validators import clean_profile_data
 
 __all__ = ["me_bp"]
@@ -378,6 +379,36 @@ def get_my_dashboard():
     if user is None:
         return jsonify({"error": "User not found"}), 404
     return _respond(profile_service.dashboard_data(user, email))
+
+
+# ---------------------------------------------------------------------------
+# Manager Decoder (BUILD_PLAN C-3)
+# ---------------------------------------------------------------------------
+
+@document(
+    "Read the Manager Decoder playbook for this user's latest manager profile",
+    tags=["me"],
+    responses={200: ManagerPlaybookResponse, 404: LegacyError, 409: PROBLEM_RESPONSE_MODEL},
+    security=_AUTHENTICATED,
+    enforce=True,
+    description=(
+        "Diffs this user's ManagerMatch needs against their latest manager-profile "
+        "sitting (`POST /assessments/manager-profile`) and returns the assembled "
+        "playbook. Two states answer `409`, distinguishably: no ManagerMatch sitting "
+        "yet (`errors[0].code == \"no_manager_match\"`), and a ManagerMatch sitting but "
+        "no manager profile yet (`\"no_manager_profile\"`) -- a client routes the user "
+        "at whichever instrument is missing rather than showing a generic error."
+    ),
+)
+@me_bp.route("/me/manager-playbook", methods=["GET"])
+@jwt_required()
+def get_my_manager_playbook():
+    """GET /me/manager-playbook - the Decoder's playbook for this user's latest sitting."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    result = manager_playbook_service.get_manager_playbook(user)
+    return jsonify(result.body), result.status
 
 
 # ---------------------------------------------------------------------------

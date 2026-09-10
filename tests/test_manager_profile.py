@@ -7,7 +7,9 @@ import pytest
 
 from manager_match.manager_profile import (
     EXPECTED_ANSWER_COUNT,
+    INSTRUMENT_VERSION,
     MANAGER_PROFILE_QUESTIONS,
+    SCORING_KEY,
     score_manager_profile,
 )
 from manager_match.questions import QUESTIONS
@@ -263,6 +265,22 @@ def test_manager_match_relationship_keying_is_consistent() -> None:
     assert "advocates strongly" in high_pole_text("mm-q10")
     # Was "hard to reach", and was the whole reason this test existed.
     assert "available and accessible" in high_pole_text("mm-q11")
+
+
+# ---------------------------------------------------------------------------
+# Storage constants (BUILD_PLAN C-3) -- not folded into score_manager_profile's
+# own return value; see manager_match/manager_profile.py's docstring on SCORING_KEY.
+# ---------------------------------------------------------------------------
+
+def test_storage_constants_are_stable_strings() -> None:
+    assert INSTRUMENT_VERSION == "v1"
+    assert SCORING_KEY == "mp-v1"
+
+
+def test_scoring_key_is_not_present_in_the_scorers_own_return_value() -> None:
+    """C-3 stamps SCORING_KEY at the storage layer, not inside the scorer -- this
+    pins the boundary so a future edit cannot quietly merge the two."""
+    assert "scoring_key" not in score_manager_profile(_ALL_HIGH)
 
 
 def test_every_item_has_two_distinct_non_empty_options() -> None:
