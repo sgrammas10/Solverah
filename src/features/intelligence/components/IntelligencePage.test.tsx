@@ -181,6 +181,16 @@ describe("IntelligencePage - completed without a narrative", () => {
     expect(screen.queryByRole("button", { name: /open companylens/i })).toBeNull();
   });
 
+  it("links to the trust page from the hub footer", () => {
+    // BUILD_PLAN D-3. The Work Pulse card above says there is no score to
+    // check; this is the only place on the hub that explains why, so a footer
+    // link going missing turns that card back into an unexplained absence.
+    renderIntelligencePage();
+    expect(
+      screen.getByRole("link", { name: /how this works, and what we hold back/i }),
+    ).toHaveAttribute("href", "/trust");
+  });
+
   it("does not tick Work Pulse Lite for someone who never took it", () => {
     // The progress row hard-coded its first two steps as complete.
     renderIntelligencePage();

@@ -28,6 +28,10 @@
  * Neither line is a substitute for the server-side shuffle -- that remains the primary defense.
  * Do not let the copy grow into a promise the data layer does not keep.
  *
+ * Both lines now carry a link to /trust (BUILD_PLAN D-3), which is where the reasoning behind
+ * them lives at length. The link sits on the employer line rather than replacing either claim:
+ * a reader who wants the short version should not have to leave this page to get it.
+ *
  * THE RESULTS SCREEN DELIBERATELY DOES NOT EXIST for this instrument (decided 2026-08-19:
  * completion state only). Returning a respondent's six dimension scores hands a retaker a
  * gradient to optimise against and teaches the item-to-dimension mapping the shuffle and
@@ -84,7 +88,10 @@ function WorkPulseForm({
           sounds most employable.
         </p>
         <p className="text-xs text-ink-secondary">
-          Employers never see your answers or your dimension scores.
+          Employers never see your answers or your dimension scores.{" "}
+          <Link to="/trust" className="font-semibold text-forest-dark hover:underline">
+            How this works, and what we hold back →
+          </Link>
         </p>
         {showLegacyLink && (
           <p className="text-xs text-ink-secondary">

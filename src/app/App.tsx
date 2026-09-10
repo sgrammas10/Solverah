@@ -12,6 +12,7 @@
  *   /job-seeker/*             Job-seeker-only routes
  *   /career-quizzes/*         Authenticated quiz routes
  *   /quiz-insights            Authenticated quiz insights
+ *   /trust                    Transparency page (job-seeker)
  *   *                         Catch-all → redirect to /
  *
  * Access control:
@@ -101,6 +102,7 @@ const CompanyLensPage = lazy(() => import("../features/matching/components/Compa
 const ManagerMatchPage = lazy(() => import("../features/assessments/components/ManagerMatchPage"));
 const ManagerMatchResultsPage = lazy(() => import("../features/assessments/components/ManagerMatchResultsPage"));
 const PathIntelligencePage = lazy(() => import("../features/intelligence/components/PathIntelligencePage"));
+const TrustPage = lazy(() => import("../features/intelligence/components/TrustPage"));
 
 // Routes that render their own full navigation bar (hide the global Header).
 const ROUTES_WITHOUT_HEADER = new Set(["/", "/start"]);
@@ -271,6 +273,10 @@ function App() {
 
                 {/* Path Intelligence */}
                 <Route path="/intelligence/paths" element={<PathIntelligencePage />} />
+
+                {/* Transparency (authenticated). The public twin waits on the
+                    publicity gate — /how-matching-works is the public page. */}
+                <Route path="/trust" element={<TrustPage />} />
 
                 {/* Company detail */}
                 <Route path="/companies/:id" element={<CompanyDetailPage />} />

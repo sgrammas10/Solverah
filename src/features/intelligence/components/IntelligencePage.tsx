@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useWP, useWorkPulseResult } from "../../assessments";
 import { useAuth } from "../../auth";
 import { useProfileForm } from "../../profile";
@@ -391,6 +391,19 @@ export default function IntelligencePage() {
 
         {/* Assessments section */}
         <AssessmentsTab formData={formData} />
+
+        {/* Hub footer. The one place on this page that explains why the Work
+            Pulse card above has no numbers on it — BUILD_PLAN D-3. Kept as a
+            quiet footer link rather than a card: it is an answer for the user
+            who went looking, not a claim to make on the way past. */}
+        <div className="border-t border-cream-muted pt-6">
+          <p className="text-xs text-ink-tertiary leading-relaxed">
+            No scores here, and that is deliberate.{" "}
+            <Link to="/trust" className="font-semibold text-forest-dark hover:underline">
+              How this works, and what we hold back →
+            </Link>
+          </p>
+        </div>
 
       </div>
     </div>

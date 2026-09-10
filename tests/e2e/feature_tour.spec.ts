@@ -57,6 +57,7 @@ const ROUTES: Array<{ path: string; label: string }> = [
   { path: "/career-job-search", label: "Quiz: next chapter" },
   { path: "/future-your-way", label: "Quiz: future your way" },
   { path: "/quiz-insights", label: "Quiz insights" },
+  { path: "/trust", label: "Trust / transparency" },
   { path: "/agent", label: "Agent chat" },
   { path: "/feed", label: "Feed" },
   { path: "/search", label: "Search" },

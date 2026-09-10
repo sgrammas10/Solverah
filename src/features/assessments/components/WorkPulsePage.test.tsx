@@ -91,6 +91,16 @@ describe("WorkPulsePage — form state", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers the trust page from the intro", () => {
+    // BUILD_PLAN D-3. The two lines above make claims; this is the link to the
+    // page that backs them. A reader who doubts the employer line should not
+    // have to go hunting through the hub for the explanation.
+    renderPage();
+    expect(
+      screen.getByRole("link", { name: /how this works, and what we hold back/i })
+    ).toHaveAttribute("href", "/trust");
+  });
+
   it("shows a loading state before the form arrives", () => {
     mocks.assessment.items = null;
     renderPage();
