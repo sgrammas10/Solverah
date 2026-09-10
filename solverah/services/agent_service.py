@@ -132,6 +132,14 @@ def _quiz_insights_section(quiz_insights: dict) -> Optional[str]:
     prefixed group metadata); every other group is a single flat document. Both
     are handled generically here rather than by hard-coding group names, since
     ``quizGroup`` is caller-supplied and not a closed set on the backend.
+
+    The flat shape is checked *first*, by looking for the group's own
+    ``summary`` key, rather than by checking for the absence of dict-valued
+    sub-entries. ``insight_service._single_group_store`` puts the model's
+    cross-quiz ``overallInsight`` on a flat group too, and that value is
+    itself a dict with no leading underscore -- checking sub-entries first
+    would misread it as one, and report the cross-quiz synthesis where the
+    quiz's own summary belongs (D-5, docs/BUILD_PLAN.md).
     """
     if not isinstance(quiz_insights, dict):
         return None
@@ -141,21 +149,21 @@ def _quiz_insights_section(quiz_insights: dict) -> Optional[str]:
         if not isinstance(group_data, dict):
             continue
 
+        flat_summary = group_data.get("summary")
+        if isinstance(flat_summary, str) and flat_summary:
+            lines.append(f"- {group_data.get('title') or group_key}: {flat_summary}")
+            continue
+
         sub_entries = {
             key: value
             for key, value in group_data.items()
             if not key.startswith("_") and isinstance(value, dict)
         }
-        if sub_entries:
-            for entry in sub_entries.values():
-                summary = entry.get("summary")
-                if summary:
-                    title = entry.get("title") or group_key
-                    lines.append(f"- {title}: {summary}")
-        else:
-            summary = group_data.get("summary")
+        for entry in sub_entries.values():
+            summary = entry.get("summary")
             if summary:
-                lines.append(f"- {group_key}: {summary}")
+                title = entry.get("title") or group_key
+                lines.append(f"- {title}: {summary}")
 
     return "## Quiz Insights\n" + "\n".join(lines) if lines else None
 

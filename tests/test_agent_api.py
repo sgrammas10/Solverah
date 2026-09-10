@@ -393,6 +393,96 @@ def test_agent_context_absent_when_no_quiz_insights_generated(client, monkeypatc
     assert "## Quiz Insights" not in context
 
 
+def test_agent_context_flat_quiz_summary_survives_a_dict_shaped_overall_insight(client, monkeypatch):
+    """D-5 (docs/BUILD_PLAN.md): a flat single-group quiz's own ``summary`` must
+    win over its ``overallInsight``, even though the latter is also a dict.
+
+    ``insight_service._single_group_store`` stores the model's cross-quiz
+    synthesis as ``overallInsight`` -- a dict with no leading underscore, on
+    the same group document as the quiz's own flat ``summary``. The prior
+    version of ``_quiz_insights_section`` treated "any dict-valued, non-
+    underscore key" as a sub-entry list, so it read ``overallInsight`` as one
+    and reported its synthesis text in place of the quiz's own summary.
+    """
+    email = "agent_qi_flat_overall@example.com"
+    _register_and_login(client, monkeypatch, email=email)
+
+    from app import app
+    from model import User, db
+    from solverah.repositories import profile_repository
+
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        profile_repository.update_document(
+            user.id,
+            lambda existing: {
+                **existing,
+                "quizInsights": {
+                    "yourFutureYourWay": {
+                        "title": "Your Future, Your Way",
+                        "summary": "You are drawn to creative, people-facing work.",
+                        "overallInsight": {
+                            "summary": "Cross-quiz synthesis text that must not leak here.",
+                            "keyTakeaways": ["Growth-oriented"],
+                        },
+                        "generatedAt": "2026-09-10T00:00:00Z",
+                        "model": "gpt-4o-mini",
+                    },
+                },
+            },
+        )
+        db.session.commit()
+
+    context = _build_context(email)
+
+    assert "## Quiz Insights" in context
+    assert "You are drawn to creative, people-facing work." in context
+    assert "Cross-quiz synthesis text that must not leak here." not in context
+
+
+def test_agent_context_includes_quiz_insights_nested_under_career_quizzes(client, monkeypatch):
+    """The in-app authenticated submit flow for `yourFutureYourWay` and
+    `careerJobSearch` posts `quizGroup: "careerQuizzes"`, which nests their
+    insight as a sub-entry of the `careerQuizzes` group rather than under
+    their own flat key -- deliberate, so `QuizInsights.tsx`'s combined
+    `?group=careerQuizzes` view shows all six quizzes together. The generic
+    sub-entry handling in `_quiz_insights_section` must still surface it.
+    """
+    email = "agent_qi_nested@example.com"
+    _register_and_login(client, monkeypatch, email=email)
+
+    from app import app
+    from model import User, db
+    from solverah.repositories import profile_repository
+
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        profile_repository.update_document(
+            user.id,
+            lambda existing: {
+                **existing,
+                "quizInsights": {
+                    "careerQuizzes": {
+                        "_overallInsight": {"summary": "Career-wide synthesis."},
+                        "_generatedAt": "2026-09-10T00:00:00Z",
+                        "_model": "gpt-4o-mini",
+                        "careerJobSearch": {
+                            "title": "Career & Job Search",
+                            "summary": "Actively exploring a lateral move.",
+                        },
+                    },
+                },
+            },
+        )
+        db.session.commit()
+
+    context = _build_context(email)
+
+    assert "## Quiz Insights" in context
+    assert "Actively exploring a lateral move." in context
+    assert "Career-wide synthesis." not in context
+
+
 def test_agent_context_degrades_gracefully_with_no_instruments(client, monkeypatch):
     """No FocusType, no ManagerMatch, no quiz insights: absence, not a stub.
 
