@@ -2,6 +2,22 @@ from __future__ import annotations
 
 from .questions import QUESTIONS
 
+#: Which scoring key produced a result. Returned with every score and stored on
+#: the submission as ``result["scoring_key"]``, so a `relationship` number on a
+#: row says which era it belongs to instead of being read under whatever key
+#: happens to be current.
+#:
+#: **"mm-v1" is never written anywhere.** It is the *absence* of this field, on
+#: every row scored before `mm-q11` was corrected on 2026-09-10 (bias review,
+#: Finding 7). ``Scripts/backfill_manager_match_scoring_key.py`` re-derives those
+#: rows from their stored answers and stamps them.
+#:
+#: Bump this whenever an item's anchors or dimension change.
+#: ``assessment_submissions.form_version`` cannot serve: it is one shared
+#: placeholder constant across all four client-rendered instruments and answers
+#: "which form shape did the client render", not "which key scored this".
+SCORING_KEY = "mm-v2"
+
 _SCORE_LOOKUP: dict[str, dict[str, float]] = {
     q["question_id"]: {"a": q["score_a"], "b": q["score_b"]}
     for q in QUESTIONS
@@ -54,4 +70,5 @@ def score_manager_match(answers: list[dict]) -> dict:
     return {
         "archetype": archetype,
         "dimension_scores": dimension_scores,
+        "scoring_key": SCORING_KEY,
     }

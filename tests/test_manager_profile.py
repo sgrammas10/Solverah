@@ -237,21 +237,21 @@ def test_dimensions_match_manager_match_exactly() -> None:
     )
 
 
-def test_manager_match_relationship_keying_is_known_contaminated() -> None:
-    """Tripwire for Finding 7: mm-q11 keys `relationship` against mm-q9/mm-q10.
+def test_manager_match_relationship_keying_is_consistent() -> None:
+    """Finding 7, resolved 2026-09-10: all three counterpart items key closeness high.
 
-    mm-q9 keys personal closeness high and mm-q10 keys advocacy high, but mm-q11
-    keys *distance* high, so C-2's relationship diff subtracts a contaminated
-    user-side scale from the clean manager-side one this file tests.
+    This test was `test_manager_match_relationship_keying_is_known_contaminated`
+    and asserted the defect — mm-q9 keying personal closeness high, mm-q10 keying
+    advocacy high, and mm-q11 keying *distance* high — so that the odd one out
+    could not be corrected silently. It has been corrected: mm-q11's high pole is
+    now availability, stored sittings were re-derived from their answers by
+    `Scripts/backfill_manager_match_scoring_key.py`, and
+    `manager_match.score.SCORING_KEY` marks which key produced a row.
 
-    Correcting it changes committed ManagerMatch scoring and was attempted and
-    stopped on 2026-09-10: `manager_match` submissions carry no scoring-key
-    version that could separate old sittings from new, and non-`core` retakes
-    overwrite their one row in place (MANAGER_PROFILE_ITEMS_BIAS_REVIEW.md,
-    Finding 7). The defect is pinned here deliberately so it cannot be corrected
-    silently — when the era-tracking prerequisite lands and mm-q11 is re-keyed,
-    this test must be inverted and C-2's `relationship` thresholds re-derived
-    against the corrected scale.
+    Inverted rather than deleted. The counterpart scale is what C-2's
+    `relationship` diff subtracts from the clean manager-side one this file
+    tests, and the property it needs is worth asserting in its own right rather
+    than only having been asserted while it was false.
     """
     by_id = {q["question_id"]: q for q in QUESTIONS}
 
@@ -261,8 +261,8 @@ def test_manager_match_relationship_keying_is_known_contaminated() -> None:
 
     assert "knows you as a person" in high_pole_text("mm-q9")
     assert "advocates strongly" in high_pole_text("mm-q10")
-    # The odd one out, and the whole reason this tripwire exists.
-    assert "hard to reach" in high_pole_text("mm-q11")
+    # Was "hard to reach", and was the whole reason this test existed.
+    assert "available and accessible" in high_pole_text("mm-q11")
 
 
 def test_every_item_has_two_distinct_non_empty_options() -> None:
