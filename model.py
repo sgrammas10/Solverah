@@ -1186,6 +1186,156 @@ class OutcomeExperienced(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Environment side -- the Situation Report instrument (BUILD_PLAN A-2)
+# ---------------------------------------------------------------------------
+# A self-report about the user's OWN job, not a company profile: there is no `company`
+# row behind it and no scraped/researched/declared source axis. That is the "inversion"
+# BUILD_PLAN's E-4 names -- training pairs for the causal model come from what the user
+# says about their own environment, keyed to their own user_id, the same key their
+# `person_dimension_score` rows already carry. So `environment_dimension_score` is
+# deliberately shaped like `person_dimension_score` (long-format rows, dimension_key a
+# plain validated-in-code string, no registry table -- schema.sql principle 1 and the
+# person-side precedent above) rather than like `company_dimension_score`: the join
+# E-4's assemble_training_data needs is (user_id, dimension_key, score) on both sides,
+# not a (company_id, source, as_of) resolution.
+#
+# APPEND-ONLY, D-16 tradition, and unlike `person_dimension_score`: every submission
+# writes a brand-new `environment_reports` row and a brand-new set of
+# `environment_dimension_score` rows. There is no "current" row per user to upsert --
+# person-side scoring upserts per (user, dimension, scoring_key_version) because there
+# is exactly one live score per key version, but here the history itself is the point:
+# Pulse trends and future training rows both read the full sequence of a user's reports,
+# not just the latest. Nothing in this module updates an existing row.
+#
+# D-15 pinning (⚑5 / PRODUCT_DECISIONS §2) is deliberately NOT implemented here. The
+# Situation Report pins to a named person-side snapshot, not to an environment report --
+# environment data is the side that is allowed to vary freely (PRODUCT_DECISIONS: "what
+# does vary freely is the environment side ... nobody has a reason to game"). Storage
+# that let one of these rows reference a person-side submission would put a pin where
+# the product decision says there must not be one; A-5 does the pinning, elsewhere, over
+# `person_dimension_score.submission_id`, which this table does not touch.
+ENV_DIMENSIONS = ("autonomy", "pace", "collaboration", "feedback", "innovation", "decision")
+
+#: `Profile.career_status`'s vocabulary (`backend/services/path_scoring.py`,
+#: `path_narrative.py`), snapshotted at submission time because A-1's needs-forward
+#: framing (BUILD_PLAN A-1) depends on which one was true the day the user described
+#: their job, not on whatever the profile says later.
+CAREER_STATUSES = ("employed", "between_jobs", "first_job")
+
+
+class EnvironmentReport(db.Model):
+    """One submission of the environment-side instrument. Append-only: id is not a person's
+    "current" report, it is one dated observation, and a resubmission (Pulse event-triggered
+    or otherwise) is always a new row, never an update to this one.
+
+    `raw_answers` holds the payload as sent (item key -> choice), the same shape
+    `assessment_submissions.answers` already uses for the app's other non-`core`
+    instruments. A JSONB blob rather than a normalized per-item table on purpose: these
+    items are not D-01-sensitive (A-1: "user describes a job, not themselves"), so none of
+    the token-map/re-derivation machinery `assessment_response` exists for applies, and
+    keeping the raw shape generic means A-1's item bank can land, and change, without a
+    migration here -- this table was built before A-1's item keys existed.
+    """
+
+    __tablename__ = "environment_reports"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True here: ix_environment_reports_user_submitted below already leads with
+    # user_id, so a separate single-column index would be redundant (assessment_submissions
+    # follows the same rule for the same reason).
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False)
+    submitted_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    raw_answers = db.Column(JSONB, nullable=False)
+    # 1 (seed) .. 5 (enterprise) -- schema.sql's `stage_size` confounder, unscaled.
+    stage_size = db.Column(db.SmallInteger, nullable=False)
+    # 1..5 MARKET-RELATIVE pay posture, NOT dollars -- schema.sql's `comp` confounder,
+    # redefined the same way on this side as on the company side. NULLable: the
+    # environment instrument's "not sure" option (PRODUCT_DECISIONS.md §2,
+    # "Environment-instrument rulings", 2026-09-10) stores a real "I don't know"
+    # rather than forcing a guess -- Finding 6's measurement error is non-random,
+    # so a forced 1..5 answer would under-report underpayment exactly where it
+    # is worst.
+    comp = db.Column(db.SmallInteger, nullable=True)
+    # "Overall, how well is this role working for you?" 1..5 -- the model's outcome node,
+    # same ordinal shape as `outcome_experienced.working_scale`.
+    experienced_outcome = db.Column(db.SmallInteger, nullable=False)
+    career_status = db.Column(db.Text, nullable=False)
+    #: ⚑6: optional, stored, displayed nowhere at launch -- the future company-aggregation
+    #: lane's join key, not a launch feature. Pre-normalized (lowercased/trimmed) by the
+    #: caller so a later aggregation query is a GROUP BY, not a fuzzy match.
+    employer_name_normalized = db.Column(db.Text, nullable=True)
+    #: Which item set produced `raw_answers` -- `assessment_response.form_version`'s role,
+    #: under the name BUILD_PLAN §3.2 gives this column.
+    version = db.Column(db.Text, nullable=False)
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "stage_size >= 1 AND stage_size <= 5", name="ck_envreport_stage_size_range"
+        ),
+        db.CheckConstraint(
+            "comp IS NULL OR (comp >= 1 AND comp <= 5)", name="ck_envreport_comp_range"
+        ),
+        db.CheckConstraint(
+            "experienced_outcome >= 1 AND experienced_outcome <= 5",
+            name="ck_envreport_experienced_outcome_range",
+        ),
+        db.CheckConstraint(
+            "career_status IN %s" % (CAREER_STATUSES,),
+            name="ck_envreport_career_status_vocab",
+        ),
+        db.Index(
+            "ix_environment_reports_user_submitted",
+            "user_id",
+            db.text("submitted_at DESC"),
+        ),
+    )
+
+    user = db.relationship("User", backref="environment_reports")
+
+
+class EnvironmentDimensionScore(db.Model):
+    """Derived 0..1 score for one environment report on one dimension. Long-format, mirroring
+    `person_dimension_score` so E-4's `assemble_training_data` reads both sides through the
+    same shape -- a JOIN on `user_id`/`dimension_key`, not a translation layer.
+
+    `user_id` is denormalized here rather than reached through `environment_report_id`
+    alone: `person_dimension_score` is queried by `user_id` directly, and giving this table
+    the same column lets a consumer write the identical query against either one.
+
+    No uniqueness on `(user_id, dimension_key)` -- deliberately unlike
+    `person_dimension_score`. Many historical reports per user must coexist, each
+    contributing its own six rows; only `(environment_report_id, dimension_key)` needs to
+    be unique, to stop one submission writing the same dimension twice.
+    """
+
+    __tablename__ = "environment_dimension_score"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    environment_report_id = db.Column(
+        db.BigInteger,
+        db.ForeignKey("environment_reports.id"),
+        nullable=False,
+        index=True,
+    )
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False, index=True)
+    dimension_key = db.Column(db.String(32), nullable=False)
+    score = db.Column(db.Float, nullable=False)
+    scored_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "environment_report_id", "dimension_key", name="uq_edscore_report_dim"
+        ),
+        db.CheckConstraint("score >= 0 AND score <= 1", name="ck_edscore_score_range"),
+    )
+
+    environment_report = db.relationship("EnvironmentReport", backref="dimension_scores")
+    user = db.relationship("User", backref="environment_dimension_scores")
+
+
+# ---------------------------------------------------------------------------
 # Phase 2a -- profile_data, decomposed (docs/ARCHITECTURE.md Part 4.3)
 # ---------------------------------------------------------------------------
 #
