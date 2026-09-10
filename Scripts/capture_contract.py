@@ -979,6 +979,65 @@ def run_scenario() -> List[Dict[str, Any]]:
     )
     call("manager-playbook-after-retake", "GET", "/api/v1/me/manager-playbook")
 
+    # -- Situation Report (A-5) --------------------------------------------
+    #
+    # Appended after the Manager Decoder block, exactly as that block appended after
+    # the refresh-token block: every record above keeps its position. Reuses
+    # `mp_login`'s still-open session rather than a fresh one -- EMAIL already carries
+    # everything this block needs by this point in the scenario: `career_status:
+    # "employed"` (the `patch-me-profile` step), a completed `core` sitting
+    # (`submit-core`), and now a `manager_profiles` row (the block just above), so
+    # `manager.has_profile` is captured `true` without a second account.
+    #
+    # `submit-environment-report-malformed` pins the business-rule 400 shape (a
+    # missing item id), the same class of capture `submit-manager-profile-malformed`
+    # is above -- schema-level 422s are already covered by the routes that carry an
+    # `enforce=True` body validator, so this is deliberately the OTHER failure mode.
+    # `situation-report-recalibrate` is captured `recalibrated: false`: EMAIL has sat
+    # `core` exactly once in this scenario, so the pin is already at the only sitting
+    # there is -- the ⚑5 idempotence branch, not the move. The move itself, and the
+    # `AuditLog` row it writes, are proven byte-for-byte in
+    # tests/test_situation_report_api.py instead: capturing it here would need a
+    # second `core` sitting for an account already carrying five other instruments'
+    # worth of state, for a shape this script already pins the other half of.
+    call("situation-report-needs-environment-report", "GET", "/api/v1/me/situation-report")
+
+    # Every environment item answered on its "mixed" pole -- picked for the same
+    # reason MM_ANSWERS/MP_ANSWERS pick one fixed choice: a stable, uninteresting
+    # middle answer whose only job is to exercise the wire shape.
+    from work_pulse import situation_items
+
+    env_answers = {
+        item["item_id"]: next(o for o in item["options"] if o["pole"] == "mixed")["key"]
+        for item in situation_items.ENVIRONMENT_ITEMS
+    }
+
+    incomplete_env_answers = dict(env_answers)
+    del incomplete_env_answers["env-autonomy-1"]
+    call(
+        "submit-environment-report-malformed",
+        "POST",
+        "/api/v1/me/environment-report",
+        json={
+            "answers": incomplete_env_answers, "stage_size": 3, "comp": 3, "experienced": 3,
+        },
+        headers=mp_csrf,
+    )
+    call(
+        "submit-environment-report",
+        "POST",
+        "/api/v1/me/environment-report",
+        json={"answers": env_answers, "stage_size": 3, "comp": 3, "experienced": 3},
+        headers=mp_csrf,
+    )
+    call("situation-report-complete", "GET", "/api/v1/me/situation-report")
+    call(
+        "situation-report-recalibrate",
+        "POST",
+        "/api/v1/me/situation-report/recalibrate",
+        headers=mp_csrf,
+    )
+
     return records
 
 

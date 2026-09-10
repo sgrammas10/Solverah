@@ -101,6 +101,8 @@ const CompanyDetailPage = lazy(() => import("../features/companies/components/Co
 const CompanyLensPage = lazy(() => import("../features/matching/components/CompanyLensPage"));
 const ManagerMatchPage = lazy(() => import("../features/assessments/components/ManagerMatchPage"));
 const ManagerMatchResultsPage = lazy(() => import("../features/assessments/components/ManagerMatchResultsPage"));
+const ManagerProfilePage = lazy(() => import("../features/assessments/components/ManagerProfilePage"));
+const ManagerPlaybookPage = lazy(() => import("../features/assessments/components/ManagerPlaybookPage"));
 const PathIntelligencePage = lazy(() => import("../features/intelligence/components/PathIntelligencePage"));
 const TrustPage = lazy(() => import("../features/intelligence/components/TrustPage"));
 
@@ -267,6 +269,10 @@ function App() {
                 {/* ManagerMatch routes */}
                 <Route path="/manager-match" element={<ManagerMatchPage />} />
                 <Route path="/manager-match/results" element={<ManagerMatchResultsPage />} />
+
+                {/* Manager Decoder routes (BUILD_PLAN C-4) */}
+                <Route path="/manager-profile" element={<ManagerProfilePage />} />
+                <Route path="/manager-profile/playbook" element={<ManagerPlaybookPage />} />
 
                 {/* CompanyLens */}
                 <Route path="/company-lens" element={<CompanyLensPage />} />

@@ -8,6 +8,8 @@ import AssessmentsTab from "./AssessmentsTab";
 import type { FocusTypeResult } from "../../assessments";
 import { useMM } from "../../assessments";
 import type { MMResult } from "../../assessments";
+import { useManagerPlaybook } from "../../assessments";
+import { ApiError } from "../../../shared/api/apiError";
 
 const ECOSYSTEM_STEPS = [
   { label: "Work Pulse Lite" },
@@ -27,11 +29,20 @@ export default function IntelligencePage() {
   const hasCached = state.cachedResult !== null;
 
   const { state: mmState } = useMM();
+  const playbookQuery = useManagerPlaybook();
 
   const { data: profile, isLoading: profileLoading } = useProfile();
   const focusTypeResult = profile?.focus_type_result as FocusTypeResult | undefined;
   const managerMatchResult =
     mmState.cachedResult ?? (profile?.manager_match_result as MMResult | undefined);
+
+  // Manager Decoder card state, driven by the two distinguishable 409 codes
+  // GET /me/manager-playbook answers -- see useManagerPlaybook's header.
+  const playbookErr = playbookQuery.error;
+  const playbookNeedsManagerMatch =
+    playbookErr instanceof ApiError && playbookErr.errorFor("manager_match")?.code === "no_manager_match";
+  const playbookNeedsProfile =
+    playbookErr instanceof ApiError && playbookErr.errorFor("manager_profile")?.code === "no_manager_profile";
 
   // The stored result, shared with WorkPulseResultsPage through one query.
   // Disabled while the sessionStorage cache already has the narrative, and
@@ -337,6 +348,99 @@ export default function IntelligencePage() {
                 className="bg-forest-dark text-white font-semibold px-3 py-1.5 rounded text-xs hover:bg-forest-mid"
               >
                 Start ManagerMatch™ →
+              </button>
+            </div>
+          )}
+
+          {/* Manager Decoder — states: view playbook / start / take ManagerMatch
+              first, driven by GET /me/manager-playbook's two distinguishable
+              409 codes (useManagerPlaybook's header). */}
+          {playbookQuery.isLoading ? (
+            <div className="rounded-xl border border-cream-muted bg-white px-5 py-5 animate-pulse">
+              <div className="h-4 w-32 bg-cream-muted rounded mb-3" />
+              <div className="h-3 w-full bg-cream-muted rounded mb-2" />
+              <div className="h-3 w-2/3 bg-cream-muted rounded" />
+            </div>
+          ) : playbookQuery.data ? (
+            /* Manager Decoder — playbook ready */
+            <div className="rounded-xl border border-forest-light bg-forest-pale px-5 py-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-1">
+                ✦ Unlocked · Manager Decoder
+              </p>
+              <p className="font-display text-lg font-semibold text-forest-dark mb-3">
+                {playbookQuery.data.playbook.grind_count === 0
+                  ? "All four dimensions mesh"
+                  : `${playbookQuery.data.playbook.grind_count} dimension${playbookQuery.data.playbook.grind_count === 1 ? "" : "s"} to work on`}
+              </p>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => navigate("/manager-profile/playbook")}
+                  className="text-sm font-semibold text-forest-dark hover:underline"
+                >
+                  View your playbook →
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/manager-profile", { state: { retake: true } })}
+                  className="text-xs text-ink-tertiary hover:underline"
+                >
+                  Retake
+                </button>
+              </div>
+            </div>
+          ) : playbookNeedsProfile ? (
+            /* Manager Decoder — ManagerMatch done, profile not started */
+            <div className="rounded-xl border border-cream-muted bg-white px-5 py-5">
+              <p className="text-sm font-semibold text-ink-primary">Manager Decoder</p>
+              <p className="text-xs text-ink-secondary mt-0.5 mb-2">
+                A private playbook for working with your actual manager
+              </p>
+              <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+                Profile how your manager actually works, and we'll diff it against
+                your ManagerMatch needs.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/manager-profile")}
+                className="bg-forest-dark text-white font-semibold px-3 py-1.5 rounded text-xs hover:bg-forest-mid"
+              >
+                Profile your manager →
+              </button>
+            </div>
+          ) : playbookNeedsManagerMatch ? (
+            /* Manager Decoder — ManagerMatch not taken yet */
+            <div className="rounded-xl border border-cream-muted bg-white px-5 py-5">
+              <p className="text-sm font-semibold text-ink-primary">Manager Decoder</p>
+              <p className="text-xs text-ink-secondary mt-0.5 mb-2">
+                A private playbook for working with your actual manager
+              </p>
+              <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+                Take ManagerMatch first — the Decoder diffs your manager profile
+                against it.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/manager-match")}
+                className="bg-forest-dark text-white font-semibold px-3 py-1.5 rounded text-xs hover:bg-forest-mid"
+              >
+                Take ManagerMatch™ →
+              </button>
+            </div>
+          ) : (
+            /* Manager Decoder — an unexpected failure, not one of the two
+               documented 409s. A real error, not a routing prompt. */
+            <div className="rounded-xl border border-cream-muted bg-white px-5 py-5">
+              <p className="text-sm font-semibold text-ink-primary">Manager Decoder</p>
+              <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+                We couldn't check your Manager Decoder status just now.
+              </p>
+              <button
+                type="button"
+                onClick={() => playbookQuery.refetch()}
+                className="text-xs font-semibold text-forest-dark hover:underline"
+              >
+                Try again
               </button>
             </div>
           )}

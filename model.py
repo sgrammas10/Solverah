@@ -1405,6 +1405,56 @@ class ManagerProfile(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Situation Report: the D-15 pin (BUILD_PLAN A-4/A-5, ⚑5)
+# ---------------------------------------------------------------------------
+# PRODUCT_DECISIONS.md §2, "What a D-15-conforming Situation Report returns": each
+# report reads through a NAMED person-side snapshot -- the first completed `core`
+# sitting -- so a retake is not a watchable gradient. `PersonDimensionScore` upserts
+# in place per (user, dimension, scoring_key_version) (see its own docstring), so it
+# cannot hold that history itself; a retake would silently move every report that
+# read through it.
+#
+# The default pin needs no row here at all: "the first completed core sitting" is
+# `assessment_store.first_completed_core_submission_id`, a stable fact computed live
+# from the append-only `assessment_submissions`/`assessment_response` rows (adding a
+# LATER sitting never changes which one was first). This table exists only to hold
+# the EXPLICIT override an Enterprise "recalibrate" action writes -- absence means
+# "still pinned to the first sitting", not "unset".
+
+
+class SituationReportPin(db.Model):
+    """One user's explicit re-pin target, written only by
+    `POST /me/situation-report/recalibrate`.
+
+    Mutable, unlike `EnvironmentReport`/`ManagerProfile`'s append-only rows -- there is
+    exactly one active override per user, and moving it is a deliberate, explicit
+    action rather than a routine submission. The history of WHEN it moved lives in
+    `AuditLog` (`solverah.services.audit.log_audit_event`, action
+    `"situation_report_recalibrate"`), not in a second row here.
+
+    `submission_id` names an `assessment_submissions.public_id.hex` for a
+    `kind="core"` sitting. No foreign key: `PersonDimensionScore`/`AssessmentResponse`'s
+    own `submission_id` columns are plain strings for the same reason -- `public_id`
+    carries no unique index to reference, and reading through it stays behind
+    `assessment_store` (D-01) rather than behind a joinable key another table could
+    reach through.
+    """
+
+    __tablename__ = "situation_report_pins"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    user_id = db.Column(
+        db.BigInteger, db.ForeignKey("users.id"), nullable=False, unique=True
+    )
+    submission_id = db.Column(db.String(36), nullable=False)
+    pinned_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    user = db.relationship("User", backref=db.backref("situation_report_pin", uselist=False))
+
+
+# ---------------------------------------------------------------------------
 # Phase 2a -- profile_data, decomposed (docs/ARCHITECTURE.md Part 4.3)
 # ---------------------------------------------------------------------------
 #

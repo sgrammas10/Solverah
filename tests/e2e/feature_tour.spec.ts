@@ -48,6 +48,8 @@ const ROUTES: Array<{ path: string; label: string }> = [
   { path: "/focus-type/results", label: "FocusType results" },
   { path: "/manager-match", label: "ManagerMatch" },
   { path: "/manager-match/results", label: "ManagerMatch results" },
+  { path: "/manager-profile", label: "Manager Decoder" },
+  { path: "/manager-profile/playbook", label: "Manager Decoder playbook" },
   { path: "/work-pulse/results", label: "Work Pulse results" },
   { path: "/career-quizzes", label: "Career quizzes hub" },
   { path: "/career-quizzes/early-career", label: "Quiz: early career" },

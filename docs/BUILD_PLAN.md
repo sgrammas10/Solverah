@@ -142,7 +142,8 @@ ran — no separate landing commits were needed for this section._
 
 ### D-7 · Export/delete catch-up for the new user-data tables (S–M) — before launch
 
-- [ ] `environment_reports` and `manager_profiles` join `/me/export` and the
+- [ ] `environment_reports`, `manager_profiles`, and `situation_report_pins`
+  (added 2026-09-10 by A-5) join `/me/export` and the
   account-deletion tombstone flow (S2's scrub discipline is the pattern).
   Both tables carry user answers; flagged by C-3 2026-09-10 — the gap is
   shared, so close it in one chunk. Any table added later joins the same

@@ -13,6 +13,8 @@ export { useWorkPulseResult, workPulseResultKeys } from "./useWorkPulseResult";
 export { useMM } from "./useMM";
 export type { MMResult } from "./useMM";
 export { useManagerMatchResult, managerMatchResultKeys } from "./useManagerMatchResult";
+export { useManagerPlaybook, managerPlaybookKeys } from "./useManagerPlaybook";
+export type { ManagerPlaybook, ManagerPlaybookData, ManagerPlaybookDimensionEntry } from "./useManagerPlaybook";
 export {
   isKnownScoringPhase,
   useScoringJobStatus,

@@ -18,6 +18,17 @@ const mocks = vi.hoisted(() => ({
   setCachedResult: vi.fn(),
   mmCachedResult: null as any,
   formData: {} as any,
+  /** What `useManagerPlaybook` reports on the next render. Mocked directly
+   *  (rather than left real, as `useWorkPulseResult` is) so this page's own
+   *  `fetchWithAuth` fixtures for the Work Pulse query are not consumed by a
+   *  second, unrelated query firing on the same mock. */
+  playbookQuery: {
+    data: undefined as any,
+    isLoading: false,
+    isError: false,
+    error: null as unknown,
+    refetch: vi.fn(),
+  },
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -55,6 +66,10 @@ vi.mock("../../assessments/useMM", () => ({
   useMM: () => ({ state: { cachedResult: mocks.mmCachedResult } }),
 }));
 
+vi.mock("../../assessments/useManagerPlaybook", () => ({
+  useManagerPlaybook: () => mocks.playbookQuery,
+}));
+
 vi.mock("./AssessmentsTab", () => ({
   default: () => <div data-testid="assessments-tab">Assessments</div>,
 }));
@@ -66,6 +81,20 @@ beforeEach(() => {
   mocks.wpState = { answers: [], cachedResult: null };
   mocks.mmCachedResult = null;
   mocks.formData = {};
+  // Default: a fresh user who has taken neither instrument yet -- the
+  // realistic starting state, so tests unrelated to the Manager Decoder card
+  // see its "take ManagerMatch first" variant rather than the generic
+  // unexpected-failure one.
+  mocks.playbookQuery = {
+    data: undefined,
+    isLoading: false,
+    isError: true,
+    error: new ApiError("Take ManagerMatch first", {
+      status: 409,
+      fieldErrors: [{ field: "manager_match", code: "no_manager_match" }],
+    }),
+    refetch: vi.fn(),
+  };
 });
 
 const MOCK_WP_RESULT: WpApiResponse = {
@@ -378,5 +407,108 @@ describe("IntelligencePage - ManagerMatch card", () => {
     renderIntelligencePage();
     expect(screen.getByText("The Collaborator")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /view results/i })).toBeInTheDocument();
+  });
+});
+
+// ─── Manager Decoder card ──────────────────────────────────────────────────────
+
+describe("IntelligencePage - Manager Decoder card", () => {
+  beforeEach(() => {
+    mocks.user = { wpl_completed: true, wp_v2_completed: true };
+    mocks.wpState = { answers: [], cachedResult: MOCK_WP_RESULT };
+  });
+
+  it("shows a loading placeholder while the playbook query is in flight", () => {
+    mocks.playbookQuery = { ...mocks.playbookQuery, isLoading: true, isError: false, error: null };
+    renderIntelligencePage();
+    expect(screen.queryByText(/Manager Decoder/i)).toBeNull();
+  });
+
+  it("'take ManagerMatch first' state on the no_manager_match 409", () => {
+    // beforeEach's default already fixtures this; asserted explicitly here.
+    renderIntelligencePage();
+    expect(
+      screen.getByText(/Take ManagerMatch first — the Decoder diffs your manager profile/i)
+    ).toBeInTheDocument();
+  });
+
+  it("'take ManagerMatch first' CTA navigates to /manager-match", () => {
+    renderIntelligencePage();
+    fireEvent.click(screen.getByRole("button", { name: /Take ManagerMatch™/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/manager-match");
+  });
+
+  it("'start' state on the no_manager_profile 409", () => {
+    mocks.playbookQuery = {
+      ...mocks.playbookQuery,
+      isError: true,
+      error: new ApiError("Profile your manager first", {
+        status: 409,
+        fieldErrors: [{ field: "manager_profile", code: "no_manager_profile" }],
+      }),
+    };
+    renderIntelligencePage();
+    expect(
+      screen.getByText(/Profile how your manager actually works/i)
+    ).toBeInTheDocument();
+  });
+
+  it("'start' CTA navigates to /manager-profile", () => {
+    mocks.playbookQuery = {
+      ...mocks.playbookQuery,
+      isError: true,
+      error: new ApiError("Profile your manager first", {
+        status: 409,
+        fieldErrors: [{ field: "manager_profile", code: "no_manager_profile" }],
+      }),
+    };
+    renderIntelligencePage();
+    fireEvent.click(screen.getByRole("button", { name: /Profile your manager/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/manager-profile");
+  });
+
+  it("'view playbook' state when the playbook is ready", () => {
+    mocks.playbookQuery = {
+      ...mocks.playbookQuery,
+      isError: false,
+      error: null,
+      data: {
+        dimension_scores: {},
+        scoring_key: "mp-v1",
+        version: "v1",
+        playbook: { privacy_notice: "...", dimensions: [], priority: ["autonomy"], grind_count: 1, mesh_count: 3 },
+      },
+    };
+    renderIntelligencePage();
+    expect(screen.getByText(/1 dimension to work on/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /view your playbook/i })).toBeInTheDocument();
+  });
+
+  it("'view playbook' CTA navigates to /manager-profile/playbook", () => {
+    mocks.playbookQuery = {
+      ...mocks.playbookQuery,
+      isError: false,
+      error: null,
+      data: {
+        dimension_scores: {},
+        scoring_key: "mp-v1",
+        version: "v1",
+        playbook: { privacy_notice: "...", dimensions: [], priority: [], grind_count: 0, mesh_count: 4 },
+      },
+    };
+    renderIntelligencePage();
+    fireEvent.click(screen.getByRole("button", { name: /view your playbook/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/manager-profile/playbook");
+  });
+
+  it("shows a distinct card for an unexpected (non-409) failure", () => {
+    mocks.playbookQuery = {
+      ...mocks.playbookQuery,
+      isError: true,
+      error: new ApiError("Server error", { status: 500 }),
+    };
+    renderIntelligencePage();
+    expect(screen.getByText(/couldn't check your Manager Decoder status/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Take ManagerMatch first/i)).toBeNull();
   });
 });

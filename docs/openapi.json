@@ -911,6 +911,118 @@
         "title": "EarlyAccessRequest",
         "type": "object"
       },
+      "EnvironmentReportSubmitRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "answers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The twelve environment-dimension item ids -> chosen option key ('a'..'e'), exactly (work_pulse.situation_items.ENVIRONMENT_ITEMS).",
+            "title": "Answers",
+            "type": "object"
+          },
+          "comp": {
+            "anyOf": [
+              {
+                "maximum": 5,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "1..5 market-relative pay posture, or null for 'not sure'.",
+            "title": "Comp"
+          },
+          "employer_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional, displayed nowhere at launch (\u26916) -- stored for a future aggregation lane.",
+            "title": "Employer Name"
+          },
+          "experienced": {
+            "description": "Overall, how well is this role working for you?",
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Experienced",
+            "type": "integer"
+          },
+          "stage_size": {
+            "description": "1 (seed) .. 5 (enterprise).",
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Stage Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "answers",
+          "stage_size",
+          "experienced"
+        ],
+        "title": "EnvironmentReportSubmitRequest",
+        "type": "object"
+      },
+      "EnvironmentReportSubmitResponse": {
+        "additionalProperties": false,
+        "description": "``POST /me/environment-report`` -- an echo of the user's own description of\ntheir job. Never a person-side score, per D-15: this is the environment side\nalone, with nothing yet to diff it against.",
+        "properties": {
+          "career_status": {
+            "title": "Career Status",
+            "type": "string"
+          },
+          "comp": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Comp"
+          },
+          "dimension_scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Dimension Scores",
+            "type": "object"
+          },
+          "experienced": {
+            "title": "Experienced",
+            "type": "integer"
+          },
+          "stage_size": {
+            "title": "Stage Size",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dimension_scores",
+          "stage_size",
+          "experienced",
+          "career_status",
+          "version"
+        ],
+        "title": "EnvironmentReportSubmitResponse",
+        "type": "object"
+      },
       "ExportedAccount": {
         "additionalProperties": false,
         "description": "Identity fields of the exporting user.",
@@ -3467,6 +3579,45 @@
         "title": "SessionUser",
         "type": "object"
       },
+      "SituationReportRecalibrateResponse": {
+        "additionalProperties": false,
+        "description": "``POST /me/situation-report/recalibrate``.",
+        "properties": {
+          "recalibrated": {
+            "description": "Whether the pin actually moved. False when already pinned to the latest completed core sitting -- the \u26915 idempotence rule -- and nothing was written.",
+            "title": "Recalibrated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "recalibrated"
+        ],
+        "title": "SituationReportRecalibrateResponse",
+        "type": "object"
+      },
+      "SituationReportResponse": {
+        "additionalProperties": true,
+        "description": "``GET /me/situation-report``. See the module docstring for why this is open.",
+        "properties": {
+          "manager": {
+            "additionalProperties": true,
+            "description": "{'has_profile': bool} -- link-or-prompt to the Manager Decoder.",
+            "title": "Manager",
+            "type": "object"
+          },
+          "state": {
+            "description": "One of 'needs_core', 'needs_environment_report', 'complete'.",
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "manager"
+        ],
+        "title": "SituationReportResponse",
+        "type": "object"
+      },
       "SkillRating": {
         "additionalProperties": false,
         "properties": {
@@ -5713,6 +5864,86 @@
         ]
       }
     },
+    "/api/v1/me/environment-report": {
+      "post": {
+        "description": "Scores the twelve environment items instantly (rules-scored, no Celery) and stores an append-only `environment_reports` row (D-16 tradition: a resubmission is a new row, never an update). `career_status` is snapshotted from the caller's profile at submit time, not taken from the request body. `first_job` has no role to describe and is refused with a distinguishable `409` (`errors[0].code == \"first_job_no_role\"`) the UI turns into the skip path (PRODUCT_DECISIONS.md \u00a72, 2026-09-10).",
+        "operationId": "post_me_post_my_environment_report",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnvironmentReportSubmitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvironmentReportSubmitResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Submit the environment-side instrument for the Situation Report",
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/api/v1/me/export": {
       "get": {
         "description": "GET /me/export - one JSON document of everything we hold.",
@@ -6768,6 +6999,113 @@
           }
         ],
         "summary": "Queue a resume parse and return a job handle",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/situation-report": {
+      "get": {
+        "description": "Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (\u26915) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder.",
+        "operationId": "get_me_get_my_situation_report",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SituationReportResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Read the Situation Report",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/situation-report/recalibrate": {
+      "post": {
+        "description": "\u26915: the explicit, logged re-pin action. Idempotent when already pinned to the latest completed core sitting -- `recalibrated` is `false` and nothing is written or logged. Refuses `409` (`errors[0].code == \"no_core_sitting\"`) before any core sitting exists.",
+        "operationId": "post_me_post_my_situation_report_recalibrate",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SituationReportRecalibrateResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Re-pin the Situation Report to the latest completed core sitting",
         "tags": [
           "me"
         ]

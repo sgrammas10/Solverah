@@ -132,6 +132,12 @@ describe("ManagerMatchResultsPage - fresh result (tier 1)", () => {
     expect(mocks.navigate).toHaveBeenCalledWith("/intelligence");
   });
 
+  it("Manager Decoder bridge navigates to /manager-profile", () => {
+    renderPage({ freshResult: MOCK_RESULT });
+    fireEvent.click(screen.getByRole("button", { name: /Now profile your actual manager/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/manager-profile");
+  });
+
   it("issues no request when the fresh result is in cache", () => {
     renderPage({ freshResult: MOCK_RESULT });
     expect(mocks.fetchWithAuth).not.toHaveBeenCalled();

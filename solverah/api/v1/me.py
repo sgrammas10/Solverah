@@ -66,7 +66,19 @@ from solverah.schemas.profile import (
     SkillsPutRequest,
     SkillsResponse,
 )
-from solverah.services import account_service, manager_playbook_service, profile_service, resume_jobs
+from solverah.schemas.situation_report import (
+    EnvironmentReportSubmitRequest,
+    EnvironmentReportSubmitResponse,
+    SituationReportRecalibrateResponse,
+    SituationReportResponse,
+)
+from solverah.services import (
+    account_service,
+    manager_playbook_service,
+    profile_service,
+    resume_jobs,
+    situation_report_service,
+)
 from validators import clean_profile_data
 
 __all__ = ["me_bp"]
@@ -408,6 +420,111 @@ def get_my_manager_playbook():
     if not user:
         return jsonify({"error": "User not found"}), 404
     result = manager_playbook_service.get_manager_playbook(user)
+    return jsonify(result.body), result.status
+
+
+# ---------------------------------------------------------------------------
+# Situation Report (BUILD_PLAN A-5)
+# ---------------------------------------------------------------------------
+#
+# Matches the sibling assessment routes' submission budget
+# (`solverah/api/v1/assessments.py`'s `DEFAULT_SUBMISSION_LIMIT`) -- both writes here
+# score deterministically and instantly, like `focus_type` and the Manager Decoder's
+# storage, so there is no provider-spend reason for a different number.
+SITUATION_REPORT_SUBMIT_LIMIT = "5 per minute"
+
+
+@document(
+    "Submit the environment-side instrument for the Situation Report",
+    tags=["me"],
+    request=EnvironmentReportSubmitRequest,
+    responses={
+        200: EnvironmentReportSubmitResponse,
+        400: LegacyError,
+        404: LegacyError,
+        409: PROBLEM_RESPONSE_MODEL,
+    },
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "Scores the twelve environment items instantly (rules-scored, no Celery) and "
+        "stores an append-only `environment_reports` row (D-16 tradition: a "
+        "resubmission is a new row, never an update). `career_status` is snapshotted "
+        "from the caller's profile at submit time, not taken from the request body. "
+        "`first_job` has no role to describe and is refused with a distinguishable "
+        "`409` (`errors[0].code == \"first_job_no_role\"`) the UI turns into the skip "
+        "path (PRODUCT_DECISIONS.md §2, 2026-09-10)."
+    ),
+)
+@me_bp.route("/me/environment-report", methods=["POST"])
+@limiter.limit(SITUATION_REPORT_SUBMIT_LIMIT)
+@jwt_required()
+def post_my_environment_report():
+    """POST /me/environment-report - score and store one environment-report sitting."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    result = situation_report_service.submit_environment_report(user, _body())
+    return jsonify(result.body), result.status
+
+
+@document(
+    "Read the Situation Report",
+    tags=["me"],
+    responses={200: SituationReportResponse, 404: LegacyError},
+    security=_AUTHENTICATED,
+    enforce=True,
+    description=(
+        "Three states, distinguished by `state`: `needs_core` (no completed `core` "
+        "sitting yet -- an already-submitted environment report is echoed as bare "
+        "dimension scores, with no gap to compute), `needs_environment_report` (core "
+        "done, no environment report yet), and `complete` (the full gap report, "
+        "needs-forward sliced when the pinned career_status is past-tense). D-15 "
+        "(structural, every state): no person-side score, no numeric gap, no "
+        "per-dimension magnitude, ever. Person-side reads go through the pinned "
+        "snapshot (⚑5) -- a core retake with no explicit "
+        "`POST /me/situation-report/recalibrate` leaves this response byte-identical. "
+        "`manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the "
+        "Manager Decoder."
+    ),
+)
+@me_bp.route("/me/situation-report", methods=["GET"])
+@jwt_required()
+def get_my_situation_report():
+    """GET /me/situation-report - the Situation Report, in whichever state applies."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    result = situation_report_service.get_situation_report(user)
+    return jsonify(result.body), result.status
+
+
+@document(
+    "Re-pin the Situation Report to the latest completed core sitting",
+    tags=["me"],
+    responses={
+        200: SituationReportRecalibrateResponse,
+        404: LegacyError,
+        409: PROBLEM_RESPONSE_MODEL,
+    },
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "⚑5: the explicit, logged re-pin action. Idempotent when already pinned to "
+        "the latest completed core sitting -- `recalibrated` is `false` and nothing "
+        "is written or logged. Refuses `409` "
+        "(`errors[0].code == \"no_core_sitting\"`) before any core sitting exists."
+    ),
+)
+@me_bp.route("/me/situation-report/recalibrate", methods=["POST"])
+@limiter.limit(SITUATION_REPORT_SUBMIT_LIMIT)
+@jwt_required()
+def post_my_situation_report_recalibrate():
+    """POST /me/situation-report/recalibrate - re-pin to the latest core sitting."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    result = situation_report_service.recalibrate(user)
     return jsonify(result.body), result.status
 
 
