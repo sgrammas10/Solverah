@@ -24,7 +24,7 @@ with rationale, not settled facts.
 
 ### 0.1 · Chunk 0 — record the decisions (S)
 
-- [ ] Draft `PRODUCT_DECISIONS.md` entries for Sebastian's sign-off:
+- [x] Draft `PRODUCT_DECISIONS.md` entries for Sebastian's sign-off:
   the §1 spine question closes (career development = conditions
   diagnosis + improvement, with matching as one output); top-3 + small
   moves approved for launch scope (2026-09-08); the D-15 conformance
@@ -32,12 +32,17 @@ with rationale, not settled facts.
   spec); Manager Decoder green-lit. Sebastian edits/approves wording —
   the entries carry his name, not an agent's.
 
+_2026-09-10: drafted 2026-09-08, **signed by Sebastian 2026-09-10 as drafted,
+no edits** — all six entries promoted into PRODUCT_DECISIONS §1/§2. The same
+day Sebastian also decided Path Intelligence / O*NET: **keep as backbone**
+(recorded there too). **A-4 and A-5 are now unblocked.**_
+
 ### 0.2 · ⚑ Embedded design rulings
 
 ⚑1, ⚑2, ⚑3 and ⚑5 were put to Sebastian as explicit options and **decided
 2026-09-08** (recommended option accepted in each case). ⚑4 and ⚑6 are
-routine engineering calls, proceeding as stated. Chunk 0 still graduates
-these into `PRODUCT_DECISIONS.md` with proper entries.
+routine engineering calls, proceeding as stated. _2026-09-10: all graduated
+into `PRODUCT_DECISIONS.md` with proper signed entries (chunk 0 complete)._
 
 | # | Ruling | Status | Where |
 |---|---|---|---|
@@ -239,7 +244,8 @@ ran — no separate landing commits were needed for this section._
   "recalibrate" action re-pins and is logged. A retaker therefore has no
   gradient to watch — the D-15 mechanism, preserved.
 - [ ] This spec + the pinning rule is the text Sebastian rules on in
-  chunk 0; build A-5 only after that ruling.
+  chunk 0; build A-5 only after that ruling. _(Signed 2026-09-10 —
+  A-4/A-5 are unblocked.)_
 
 ### A-5 · API (M)
 
@@ -336,8 +342,8 @@ ran — no separate landing commits were needed for this section._
 - [ ] ⚑ Append to her queue — same async, resumable, valid-half-finished
   format, ONE form not a second sitting: (a) the environment-side
   self-report anchors sanity check (A-1 items vs her rubric reading),
-  (b) the 6-dim → O*NET Work Context crosswalk question (only if §8's
-  O*NET decision goes to "backbone")
+  (b) the 6-dim → O*NET Work Context crosswalk question (IN — the O*NET
+  decision went to "backbone", Sebastian 2026-09-10)
 - [ ] On return: internal appendix maps answers → real `priors.yaml`
   values ({mean, sd} per weight); commit the swap — structure code
   unchanged by design
@@ -473,11 +479,12 @@ they all start now.
    post-interview capture, offer-vs-current comparison. Natural Pro
    surface; reuses A's instrument + E-5's scorer; each evaluation feeds
    the company store. Build after Target tier.
-2. **O*NET as conditions backbone, or cut** (§3.5) — gated on the
-   PRODUCT_DECISIONS walkthrough of the real output. If backbone: Work
-   Context/Values endpoints in `onet_client.py`, crosswalk via E-1's
-   appended Julie question, rewritten narrative. If cut: delete route +
-   Pro badge + footer attribution, one decisions entry.
+2. **O*NET as conditions backbone** (§3.5) — DECIDED "backbone, not
+   product" (Sebastian, 2026-09-10; entry in PRODUCT_DECISIONS §2). The
+   build stays parked here behind Target tier: Work Context/Values
+   endpoints in `onet_client.py`, crosswalk via E-1's appended Julie
+   question (now confirmed IN), rewritten narrative. The real-output
+   walkthrough is still the right first step when picked up.
 3. **Portable Work Profile / user manual** (§3.6) — decision-required
    (D-15 adjacency); one-shot generation from non-core instruments;
    distribution loop.

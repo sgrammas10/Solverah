@@ -14,7 +14,7 @@ do not edit it here).
 An open question recorded here is not a soft decision; it is a question. Do not
 build against one without asking.
 
-Last updated 2026-09-08.
+Last updated 2026-09-10.
 
 ---
 
@@ -31,20 +31,35 @@ matching opportunities", and the Intelligence hub's headline card is CompanyLens
 Company pairing is intended to be **one output of** the platform, not the point
 of it.
 
-### OPEN — what the career-development spine actually is
+### The spine is conditions: diagnose them, improve them, and match as one output
+Sebastian, 2026-09-08; signed 2026-09-10, as drafted. Closes the open question
+this section carried.
 
-Raised 2026-09-08, unanswered. Do not build against either reading yet.
+The instruments measure working conditions, so that is what the product is:
+**what conditions make you effective, how far your situation is from them, and
+what you change.** That is the spine. Company matching is one output of the
+same engine — worth building, but not the frame around the product and not a
+payoff the rest of it is allowed to defer to.
 
-The instruments Solverah owns — Work Pulse (how you work, 6 dimensions),
-FocusType (attention, focus, energy), ManagerMatch (which management styles bring
-out your best), and the causal model (environment fit) — all measure **working
-conditions**, not occupations. That suggests the differentiated question is
-"*what conditions make you effective, how far is your situation from them, and
-what do you change*" rather than "*what job title next*".
+What this settles in practice:
 
-The counter-consideration is that this is a framing proposed by an agent reading
-the code, not a market judgement. It is recorded so it can be argued with, and it
-should be settled by Sebastian rather than inherited.
+- An instrument whose result is narrated as a future company match is now
+  wrong copy, not merely early copy.
+- The dashboard is the largest remaining contradiction — "Here's your job
+  search overview", Job Matches / Applications stats, a Browse Jobs modal: a
+  job board's information architecture, without jobs. The reframe is
+  `BUILD_PLAN` D-6 and is deliberately sequenced last, because it embodies this
+  decision and needs the Situation Report and the Pulse to have something to
+  show first.
+- Matching is not demoted to someday. CompanyLens still waits on the causal
+  model (§2), unchanged. What changes is that the rest of the product stops
+  holding its breath for it.
+
+The counter-consideration this entry replaced — that the conditions framing was
+proposed by an agent reading the code, not by the market — stands, and stays
+worth testing. The cheapest test is the Situation Report itself in front of
+real users. If the diagnosis is not what they care about, this is the entry to
+reopen.
 
 ---
 
@@ -82,6 +97,9 @@ matching work therefore needs a defined mapping from `core` (24 items / 6
 dimension scores) to the 8 culture-preference dimensions — modelling work, not
 plumbing, and plausibly the same work Julie's elicitation feeds.
 
+*2026-09-10: that mapping will **not** be built — see "The core-to-8-dimension
+culture-preferences mapping will not be built" below.*
+
 ### Do not seed companies to test matching
 Sebastian, 2026-09-08. The interim `culture_fit_score` scorer is being replaced,
 so measuring its output measures something about to be deleted. Revisit when the
@@ -96,152 +114,9 @@ commit into that tree. If revisited, the answer is a separate repository with
 history preserved, after pausing the pipeline — never a `.gitignore` entry, which
 would be a no-op on already-tracked files.
 
----
-
-## 3. Open
-
-### Path Intelligence / O*NET — keep, reduce, or cut
-Sebastian is **sceptical**, 2026-09-08: *"idk if I am going to keep or use it —
-the information is hard to interact with and did not seem to give promising
-insights because it is so vague."*
-
-The feature works technically: a three-question flow ("What kind of move are you
-looking for?" — stay in field / adjacent / fresh direction) producing "career
-paths scored against your skills and work profile, with plain-language guidance".
-It is badged **Pro**, and it needs nothing from the blocked model.
-
-The structural argument for the scepticism: O*NET is an *occupational taxonomy* —
-~1,000 job titles with generic descriptions. It describes occupations in general,
-never a person in particular, so scoring against it yields ranked dictionary
-entries. It is also a commodity: every career site has the same data.
-
-Three options, none chosen:
-1. **Backbone, not product** — keep O*NET as scaffolding for "roles where these
-   conditions tend to exist", with a synthesis layer of Solverah's own on top.
-   An LLM is already funded (§2).
-2. **Cut it** — if nothing else depends on it, it is maintenance plus a footer
-   attribution for a feature nobody believes in.
-3. **Keep as-is** — only if the output is better than remembered.
-
-**Next step if this is picked up:** complete the flow end to end in the real
-browser and look at the actual output before deciding. Neither Sebastian nor any
-agent has judged it against the real thing recently.
-
-### What the assessment's payoff is at launch
-Open, and consequential. Today a user answers 24 questions, is told there is "no
-score to check and nothing to optimise", and lands on a dashboard whose one
-matching feature is gated. Work Pulse's payoff was assigned to CompanyLens (§2,
-blocked) and the alternative destination (Path Intelligence) is in doubt (above).
-
-The features that *do* deliver something today are FocusType, ManagerMatch and
-the six career quizzes. Launch v1 may honestly be those — but that should be
-chosen, not discovered.
-
-### Feed — content undecided
-Sebastian, 2026-09-08: leaning toward "information on all the products and
-companies, kind of like LinkedIn but not necessarily interacting with other
-users." Currently ships a "coming soon" state.
-
-Note for whoever builds it: with 0 companies seeded and the seeder bit-rotted, a
-company-centric feed launches empty. This is a day-one-content question before it
-is a build question.
-
-### Search empty state
-Minor, unowned. `/search` with no query renders *"No results found for """* —
-reporting failure where it should invite a query. Cosmetic, cheap, first thing a
-user sees on that route.
-
----
-
-## 4. Blocked on someone
-
-| Blocked | On | Notes |
-|---|---|---|
-| CompanyLens / all matching | The causal model ← Julie's priors + anchors | Julie has the hypothesis form; asked 2026-09-06, chased 2026-09-08 |
-| Launch / publicity gate | Sebastian + an attorney | `[ENTITY NAME]` ×8, `[ENTITY STATE]` ×6, `[EFFECTIVE DATE]` ×4, plus dispute resolution. Requires an incorporated entity — real calendar lead time, and nothing downstream moves without it. See `Solverah_IP/AGENT_DECISION_QUEUE.md`. |
-
----
-
-## 5. Findings that inform the decisions above
-
-Recorded because they were expensive to discover and are not obvious from the
-code.
-
-**One unfinished migration, four places.** `core` replaced the legacy `work_pulse`
-instrument, but four call sites stayed keyed to the old one. Three were UI and
-were fixed 2026-09-08 — the Intelligence page unlock gate, the CompanyLens card,
-and the progress row's hard-coded ticks. The fourth is the culture-preferences
-derivation (§2) and is outstanding by design.
-
-The shared symptom is worth recognising on sight: **a user is told to complete
-something they have completed.** Any copy of that shape is probably a fifth
-instance.
-
-**The assessment funnel currently ends in a promise that cannot be kept.** After
-2026-09-08's unlock fix, the Intelligence hub's CompanyLens card reads "Your
-company matches are ready · Open CompanyLens™" and leads to a page that 400s and
-blames the user for not completing Work Pulse. This is a *regression introduced
-by that fix* and is the most user-visible thing outstanding. Two copy changes fix
-it: the card should say coming-soon, and the CompanyLens page's locked state
-should name the real reason instead of blaming the user.
-
-**Unit tests could not have caught any of this.** The frontend suite stubs the
-API, and its fixtures set the legacy flags by hand — so the mocks agreed with
-themselves while disagreeing with the server. `tests/e2e/real_stack.spec.ts` (real
-Flask, real Postgres, real browser) is what found them, and
-`tests/e2e/feature_tour.spec.ts` surveys every authenticated route the same way.
-Run those before trusting a green suite about user-facing behaviour.
-
----
-
-## 6. DRAFT — awaiting Sebastian's sign-off
-
-**Drafted 2026-09-08. Nothing in this section is decided yet.** The entries are
-written the way they would read once approved — same register, carrying the
-name and date they would carry — so that signing one off is an edit rather than
-a rewrite. On approval each entry moves up into §1 or §2 and this section
-shrinks; anything rejected gets a line here saying so and why. Until then these
-are not decisions and nothing should be built against them, per this file's own
-rule about open questions.
-
-`docs/BUILD_PLAN.md` §0.1 is the chunk that closes this section. The Situation
-Report payload entry below is the one with a build waiting on it: A-4 and A-5
-do not start until it is signed.
-
----
-
-### DRAFT — The spine is conditions: diagnose them, improve them, and match as one output
-Sebastian, 2026-09-08. *Awaiting sign-off.* **Closes the open question in §1.**
-
-The instruments measure working conditions, so that is what the product is:
-**what conditions make you effective, how far your situation is from them, and
-what you change.** That is the spine. Company matching is one output of the
-same engine — worth building, but not the frame around the product and not a
-payoff the rest of it is allowed to defer to.
-
-What this settles in practice:
-
-- An instrument whose result is narrated as a future company match is now
-  wrong copy, not merely early copy.
-- The dashboard is the largest remaining contradiction — "Here's your job
-  search overview", Job Matches / Applications stats, a Browse Jobs modal: a
-  job board's information architecture, without jobs. The reframe is
-  `BUILD_PLAN` D-6 and is deliberately sequenced last, because it embodies this
-  decision and needs the Situation Report and the Pulse to have something to
-  show first.
-- Matching is not demoted to someday. CompanyLens still waits on the causal
-  model (§2), unchanged. What changes is that the rest of the product stops
-  holding its breath for it.
-
-The counter-consideration recorded in §1 — that the conditions framing was
-proposed by an agent reading the code, not by the market — stands, and stays
-worth testing. The cheapest test is the Situation Report itself in front of
-real users. If the diagnosis is not what they care about, this is the entry to
-reopen.
-
-### DRAFT — Launch scope is the top three ideas plus the small sharp moves
-Sebastian, 2026-09-08. *Awaiting sign-off.* **Also closes "what the
-assessment's payoff is at launch" in §3.**
+### Launch scope is the top three ideas plus the small sharp moves
+Sebastian, 2026-09-08; signed 2026-09-10, as drafted. **Also closed "what the
+assessment's payoff is at launch", formerly in §3.**
 
 Approved for launch, from `docs/PRODUCT_IDEAS.md`: the **Situation Report**
 (§3.1), the **Pulse** (§3.2), the **Manager Decoder** (§3.3), and the small
@@ -256,14 +131,14 @@ back. Interim rules scoring ships it before the model is ready, and the model
 later replaces the weights underneath without changing the surface — the same
 interim-to-destination pattern already accepted for `culture_fit_score`.
 
-Not resolved by this entry, and still open: Path Intelligence / O*NET (§3 —
-which still wants the walkthrough of the real output before keep-or-cut), the
-Feed's content, and the portable Work Profile. None of the three are in launch
-scope, and none of them are being decided by being left out of it.
+Not resolved by this entry: the Feed's content and the portable Work Profile
+stay open, and neither is being decided by being left out of launch scope.
+(Path Intelligence / O*NET was still open when this was drafted; it was
+decided the same day the entry was signed — see the backbone entry below.)
 
-### DRAFT — What a D-15-conforming Situation Report returns
-Sebastian, 2026-09-08. *Awaiting sign-off.* **This entry gates `BUILD_PLAN`
-A-4 and A-5 — the payload and the API wait on it.**
+### What a D-15-conforming Situation Report returns
+Sebastian, 2026-09-08; signed 2026-09-10, as drafted. **This entry gated
+`BUILD_PLAN` A-4 and A-5; both are now unblocked.**
 
 D-15 is unchanged and is not being carved out. The Situation Report conforms by
 construction, in two parts.
@@ -295,8 +170,8 @@ D-1) gets the same buckets and the same prohibition: instrument results inform
 advice and are never recited as numbers. An agent that can be interrogated for
 a person-side score is the same violation with a chat window in front of it.
 
-### DRAFT — Manager Decoder is green-lit, and its playbook is template-first
-Sebastian, 2026-09-08. *Awaiting sign-off.*
+### Manager Decoder is green-lit, and its playbook is template-first
+Sebastian, 2026-09-08; signed 2026-09-10, as drafted.
 
 Build it. ManagerMatch measures which management styles bring out a user's best
 and then stops; the Decoder adds the missing half — a short observational
@@ -319,8 +194,8 @@ every other instrument is written; there is no "is your manager good" item
 anywhere in it. And the manager profile is the user's private working note: it
 surfaces nowhere else, and the page says so.
 
-### DRAFT — The Pulse ships thin; condition experiments are the designated cut line
-Sebastian, 2026-09-08. *Awaiting sign-off.*
+### The Pulse ships thin; condition experiments are the designated cut line
+Sebastian, 2026-09-08; signed 2026-09-10, as drafted.
 
 Launch ships the check-in, the trend view and event annotations (`BUILD_PLAN`
 B-1 through B-4). **Condition experiments (B-5) are the designated cut line** —
@@ -336,8 +211,8 @@ consecutive unanswered check-ins drop the cadence to monthly on their own, off
 is always one click, and silence is treated as data rather than as something to
 chase the user about.
 
-### DRAFT — The core-to-8-dimension culture-preferences mapping will not be built
-Sebastian, 2026-09-08. *Awaiting sign-off.* **Amends §5.**
+### The core-to-8-dimension culture-preferences mapping will not be built
+Sebastian, 2026-09-08; signed 2026-09-10, as drafted. **Amends §5.**
 
 Do not build a mapping from `core` (24 items, 6 dimension scores) to the 8
 culture-preference dimensions. The interim 8-dimension scorer,
@@ -352,12 +227,110 @@ superseded**. Building the mapping is modelling work whose only product is a
 scorer already scheduled for deletion — the same reasoning that says not to
 seed companies to test matching (§2).
 
-### DRAFT — Engineering calls recorded here because they touch product surfaces
-Recorded 2026-09-08. Not product decisions, and they do not need sign-off; they
-belong to the engineering docs and are noted here only because a reader of the
-entries above will otherwise ask. They proceed as stated unless overruled.
+### Path Intelligence / O*NET stays — backbone, not product
+Sebastian, 2026-09-10. **Closes the keep-reduce-cut question formerly in §3.**
+
+Option 1 from that question: O*NET is kept as scaffolding — "roles where these
+conditions tend to exist", with a synthesis layer of Solverah's own on top —
+not as a standalone payoff surface. The reasoning: the information could be
+useful, and Solverah currently lacks data; cutting a working data source before
+the model lane has real data would be premature. "For now" is part of the
+ruling — this is a keep, not a commitment to invest, and it can be revisited
+when real data exists.
+
+What it changes now: the 6-dim → O*NET Work Context crosswalk question rides
+along in Julie's priors form (`BUILD_PLAN` E-1 had it conditional on exactly
+this ruling). What it does not change: Path Intelligence build work stays
+parked in `BUILD_PLAN` §8 behind the Target tier, and the real-output
+walkthrough the original entry called for is still the right first step
+whenever that work is picked up.
+
+### Engineering calls recorded here because they touch product surfaces
+Recorded 2026-09-08. Not product decisions, and they did not need sign-off;
+they belong to the engineering docs and are noted here only because a reader of
+the entries above will otherwise ask. They proceed as stated unless overruled.
 
 | # | Call | Where |
 |---|---|---|
 | ⚑4 | One **shared manager-profile store** serves both the Decoder's playbook and the Situation Report's manager section. Built once, in workstream C; consumed by A. A grows no second instrument and no second table. | `BUILD_PLAN` §2.1, §3.1 |
 | ⚑6 | The environment report stores an **optional normalized employer name** and **displays it nowhere at launch**. It is kept for the future aggregation lane (company profiles from declared reports), which is not in launch scope and does not ship at all before the N-threshold, anonymization and legal review named in `PRODUCT_IDEAS` §3.1. | `BUILD_PLAN` §3.2 |
+
+---
+
+## 3. Open
+
+*(Two entries formerly here closed 2026-09-10 and moved to §2: Path
+Intelligence / O*NET — decided "backbone, not product"; and "what the
+assessment's payoff is at launch" — the Situation Report, per the launch-scope
+entry.)*
+
+### Feed — content undecided
+Sebastian, 2026-09-08: leaning toward "information on all the products and
+companies, kind of like LinkedIn but not necessarily interacting with other
+users." Currently ships a "coming soon" state.
+
+Note for whoever builds it: with 0 companies seeded and the seeder bit-rotted, a
+company-centric feed launches empty. This is a day-one-content question before it
+is a build question.
+
+### Search empty state — fixed
+Was: `/search` with no query rendered *"No results found for """*. Fixed
+2026-09-10 (`BUILD_PLAN` D-4): an empty or whitespace query now renders an
+invitation and skips the request entirely.
+
+---
+
+## 4. Blocked on someone
+
+| Blocked | On | Notes |
+|---|---|---|
+| CompanyLens / all matching | The causal model ← Julie's priors + anchors | Julie has the hypothesis form; asked 2026-09-06, chased 2026-09-08 |
+| Launch / publicity gate | Sebastian + an attorney | `[ENTITY NAME]` ×8, `[ENTITY STATE]` ×6, `[EFFECTIVE DATE]` ×4, plus dispute resolution. Requires an incorporated entity — real calendar lead time, and nothing downstream moves without it. See `Solverah_IP/AGENT_DECISION_QUEUE.md`. |
+
+---
+
+## 5. Findings that inform the decisions above
+
+Recorded because they were expensive to discover and are not obvious from the
+code.
+
+**One unfinished migration, four places.** `core` replaced the legacy `work_pulse`
+instrument, but four call sites stayed keyed to the old one. Three were UI and
+were fixed 2026-09-08 — the Intelligence page unlock gate, the CompanyLens card,
+and the progress row's hard-coded ticks. The fourth is the culture-preferences
+derivation (§2) — *2026-09-10: now **won't fix, superseded**; the mapping will
+not be built (see §2).*
+
+The shared symptom is worth recognising on sight: **a user is told to complete
+something they have completed.** Any copy of that shape is probably a fifth
+instance.
+
+**The assessment funnel currently ends in a promise that cannot be kept.** After
+2026-09-08's unlock fix, the Intelligence hub's CompanyLens card reads "Your
+company matches are ready · Open CompanyLens™" and leads to a page that 400s and
+blames the user for not completing Work Pulse. This is a *regression introduced
+by that fix* and is the most user-visible thing outstanding. Two copy changes fix
+it: the card should say coming-soon, and the CompanyLens page's locked state
+should name the real reason instead of blaming the user. *(Fixed in
+`BUILD_PLAN` D-0, landed 2026-09-08: both surfaces now carry the honest
+coming-soon copy.)*
+
+**Unit tests could not have caught any of this.** The frontend suite stubs the
+API, and its fixtures set the legacy flags by hand — so the mocks agreed with
+themselves while disagreeing with the server. `tests/e2e/real_stack.spec.ts` (real
+Flask, real Postgres, real browser) is what found them, and
+`tests/e2e/feature_tour.spec.ts` surveys every authenticated route the same way.
+Run those before trusting a green suite about user-facing behaviour.
+
+---
+
+## 6. Sign-off record
+
+Drafted 2026-09-08. **All six entries were signed by Sebastian on 2026-09-10,
+as drafted, with no edits.** Each moved up into §1 or §2 the same day, per this
+section's own rule; the engineering-calls note (⚑4, ⚑6) moved to the end of §2.
+Nothing was rejected. The same day, Sebastian also closed the Path
+Intelligence / O*NET question ("backbone, not product" — see §2), which had
+been left open by the drafts.
+
+This section stays as the record that the promotion happened and when.
