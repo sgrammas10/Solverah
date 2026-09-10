@@ -22,22 +22,28 @@ adds two requirements the v1 core items did not carry:
 Four kinds of problem, kept separate: **positional key** (Finding 1), **halo/horn**
 (Finding 2 — new to an observational instrument and the largest risk here), **residual
 desirability skew** (Finding 3), and **who the items exclude** — industry, seniority,
-and gender coding (Findings 4–6). Finding 7 is a cross-instrument note for C-2.
+and gender coding (Findings 4–6). Finding 7 was a cross-instrument note for C-2 and is
+**resolved** (2026-09-10) — the counterpart item it names has been corrected and the
+already-stored sittings re-derived.
 
 ---
 
-## Finding 1 — positional key balance: PASS, with one bounded residual
+## Finding 1 — positional key balance: PASS, exact
 
-The requirement the chunk was written to meet. Counts, computed from the item table, not
-eyeballed:
+**Updated 2026-09-10** following Sebastian's sign-off to add `mp-q16` (Finding 3). Counts,
+computed from the item table, not eyeballed:
 
 | Dimension | items | high pole in A | high pole in B |
 |---|---|---|---|
 | autonomy | 4 | 2 | 2 |
 | feedback_style | 4 | 2 | 2 |
-| relationship | 3 | 1 | 2 |
+| relationship | 4 | 2 | 2 |
 | growth_focus | 4 | 2 | 2 |
-| **overall** | **15** | **7** | **8** |
+| **overall** | **16** | **8** | **8** |
+
+Every dimension is now exactly 2/2, and the overall split is exactly 8/8 — the bounded
+residual noted below (originally 1/2 on `relationship`, the floor for an odd count) is
+closed, not just bounded.
 
 For contrast, the counterpart instrument this one is diffed against —
 `manager_match/questions.py`, the same four dimensions:
@@ -46,28 +52,35 @@ For contrast, the counterpart instrument this one is diffed against —
 |---|---|---|---|
 | autonomy | 4 | 0 | **4** |
 | feedback_style | 4 | **4** | 0 |
-| relationship | 3 | 1 | 2 |
+| relationship | 3 | 2 | 1 |
 | growth_focus | 4 | **4** | 0 |
-| **overall** | **15** | **9** | **6** |
+| **overall** | **15** | **10** | **5** |
 
 Three of four ManagerMatch dimensions are perfectly straight-keyed: a respondent who
 picks A throughout scores 0.25 autonomy / 0.80 feedback / 0.80 growth — a confident,
 extreme, entirely artefactual profile. The new items cannot do that. Straight-lining
 either position lands mid-scale on every dimension:
 
-* all-A → autonomy 0.525, feedback 0.525, relationship 0.433, growth 0.525
-* all-B → autonomy 0.525, feedback 0.525, relationship 0.617, growth 0.525
+* all-A → autonomy 0.525, feedback 0.525, relationship 0.525, growth 0.525
+* all-B → autonomy 0.525, feedback 0.525, relationship 0.525, growth 0.525
 
 against an item anchor range of 0.25–0.80. `test_straight_lining_cannot_produce_an_extreme_profile`
-holds this to a 0.40–0.65 band, and two structural tests hold the per-dimension and
-overall counts to a difference of at most one, so neither can regress silently.
+holds this to a 0.40–0.65 band, and
+`test_straight_lining_lands_on_the_anchor_midpoint_for_every_dimension` — added with
+`mp-q16` — pins the exact value, since a band that wide no longer describes what the
+instrument does. Two structural tests hold the per-dimension and overall counts to a
+difference of at most one, which *is* exactness here rather than a loose bound: an even
+count can only split with an even difference, so 2/2 and 8/8 pass and 3/1 and 9/7 fail.
+Neither property can regress silently. With `mp-q16` in place, `relationship` lands on
+exactly the same 0.525 as the other three dimensions in both directions — the residual
+below is closed, not just narrowed.
 
-**Residual:** `relationship` is 1/2 rather than 2/2 because it has three items, and three
-cannot split evenly. The imbalance is one item, which is the floor for an odd count — but
-it is the same dimension flagged in Finding 3, and a fourth relationship item keyed high-A
-would close both at once. Held back deliberately: the chunk spec caps the instrument at 15
-items, and `test_item_count_is_in_the_specified_range` asserts that cap. Raising it to 16 is
-Sebastian's call, not a silent edit — draft item in Finding 3.
+**Residual — closed 2026-09-10.** `relationship` was 1/2 rather than 2/2 because it had
+three items, and three cannot split evenly. Sebastian signed off on raising the instrument
+to 16 items (this doc's prompt is the authorization on record); `mp-q16` is now item 4 on
+`relationship`, keyed high-A, closing this residual and Finding 3's missing warmth
+counterweight in the same item. `test_item_count_is_in_the_specified_range` now asserts
+`12 <= count <= 16`.
 
 ---
 
@@ -102,7 +115,12 @@ cohort, not deferred.
 
 ---
 
-## Finding 3 — residual desirability skew is dimensionally patterned, and `relationship` carries most of it
+## Finding 3 — residual desirability skew is dimensionally patterned, and `relationship` carried most of it
+
+**Updated 2026-09-10: `mp-q16` (below) is applied, and it changes both counts in this
+finding.** The table and prose immediately following describe the item set at the time of
+writing (15 items) so the reasoning that led to `mp-q16` stays legible; the post-fix state
+is called out where it changes.
 
 Reading each item for which pole a respondent would pick to flatter their manager:
 
@@ -117,19 +135,23 @@ Reading each item for which pole a respondent would pick to flatter their manage
 | `mp-q13` new work / work you're good at | A (mild) | **high** |
 | `mp-q6` plainly / frames carefully | B | **low** |
 | `mp-q14` pushes back / helps you execute | B | **low** |
+| `mp-q16` taken at your word / tracked without asking | B | **low** |
 | `mp-q2`, `mp-q4`, `mp-q5`, `mp-q7`, `mp-q9` | neither | — |
 
 Two things are wrong with this distribution, and they are separate.
 
 **First: warmth is positionally concentrated, even though the key is not.** Of the ten
-items carrying any warmth at all, **eight put it in option B** (`mp-q1`, `mp-q3`, `mp-q6`,
-`mp-q8`, `mp-q11`, `mp-q12`, `mp-q14`, `mp-q15`) and only two in option A (`mp-q10`,
-`mp-q13`); five are neutral. So a respondent flattering their manager and a respondent
-straight-lining position B produce similar answer sheets. What saves this is the balanced
-*key*, not the wording: because the high pole alternates, picking B throughout still lands
-mid-scale on every dimension (Finding 1), so neither respondent produces a confident
-profile. The protection is real but narrower than it should be, and it is worth being
-precise about rather than claiming a positional balance the warmth audit does not show.
+original items carrying any warmth at all, **eight put it in option B** (`mp-q1`, `mp-q3`,
+`mp-q6`, `mp-q8`, `mp-q11`, `mp-q12`, `mp-q14`, `mp-q15`) and only two in option A
+(`mp-q10`, `mp-q13`); five were neutral. So a respondent flattering their manager and a
+respondent straight-lining position B produced similar answer sheets. What saves this is
+the balanced *key*, not the wording: because the high pole alternates, picking B throughout
+still lands mid-scale on every dimension (Finding 1), so neither respondent produces a
+confident profile. The protection is real but narrower than it should be, and it is worth
+being precise about rather than claiming a positional balance the warmth audit does not
+show. `mp-q16` adds a ninth warmth-in-B item (`mp-q16`'s warmer pole, "taken at your word,"
+is option B) without adding one to A, so this positional concentration is slightly worse in
+raw count after the fix — the fix targets the *dimensional* imbalance below, not this one.
 
 *Option, needs sign-off:* have C-4 randomize which pole is presented first per item per
 sitting, storing the chosen `question_id` + pole rather than a screen position. That
@@ -139,15 +161,25 @@ alternative: leave it, on the grounds that the key balance already prevents an e
 profile. Recommend the cheap option for launch and the randomization as a fast-follow —
 but the choice should be made, not defaulted into.
 
-**Second, and larger: the dimensional spread is not balanced either.**
+**Sebastian's ruling on this option (2026-09-08, recorded here where the question was
+raised):** if and when pole-presentation randomization ships, storage persists the
+*authored* option identity (A/B as written in this file), never screen position.
+Presentation order is a free frontend choice; the backend and stored answers are keyed to
+the authored pole regardless of where either option lands on screen for a given sitting.
+This binds C-3's stored-answer shape.
+
+**Second, and larger: the dimensional spread was not balanced either.**
 
 * `feedback_style` is clean: `mp-q6`'s warmth pulls low, `mp-q8`'s pulls high, `mp-q5`
   and `mp-q7` are neutral. Skew roughly cancels.
 * `autonomy` is mildly upward (`mp-q1`, `mp-q3`) with no counterweight, but the pull is
   weak — being directed is a legitimate and commonly-described experience.
 * `growth_focus` is upward on three items with one counterweight (`mp-q14`).
-* **`relationship` has no counterweight at all.** After the `mp-q9` rewrite below, one
-  item is neutral and two (`mp-q10`, `mp-q11`) put the warmer reading on the high end.
+* **`relationship` had no counterweight at all** before the fix below. After the `mp-q9`
+  rewrite, one item was neutral and two (`mp-q10`, `mp-q11`) put the warmer reading on the
+  high end, with nothing pulling the other way. `mp-q16` is that counterweight: its warmer
+  reading ("taken at your word") sits on the **low** pole, so `relationship` now has one
+  counterweight, same as `growth_focus` and `autonomy` — no dimension is left at zero.
 
 **Consequence, and it is a real one for C-2:** halo inflates `relationship` and
 `growth_focus` specifically. Those are the two dimensions where the Decoder will
@@ -174,20 +206,20 @@ had their option texts tightened for length parity; the worst A/B length gap is 
 characters, median 8, so no item's high pole is also its longer, more-considered-looking
 option.
 
-**Proposed fix, needs sign-off (raises the count to 16):** a fourth `relationship` item
-whose warmth sits on the *low* pole and whose high pole sits in position A — closing
-Finding 1's residual and Finding 3's counterweight gap together:
+**Applied 2026-09-10, with Sebastian's sign-off** (raising the count to 16): a fourth
+`relationship` item whose warmth sits on the *low* pole and whose high pole sits in
+position A — closing Finding 1's residual and this finding's counterweight gap together:
 
 > `mp-q16` (relationship)
-> A: *"Your manager keeps track of how you're doing personally, whether or not you raise it."* (0.80)
-> B: *"Your manager takes you at your word about how you're doing."* (0.25)
+> A: *"Your manager keeps track of how you’re doing personally, whether or not you raise it."* (0.80)
+> B: *"Your manager takes you at your word about how you’re doing."* (0.25)
 
 The warmer reading — being taken at your word, treated as an adult — is the **low** pole,
 and the high pole sits in **A**, which is what makes this item close both gaps. It is also
 distinct from the rewritten `mp-q9`: that item is about the manager's interest in your life
-outside work, this one about whether they monitor your state without being told. Not
-applied: 16 items exceeds the chunk's stated 12–15 range and would need the range test
-relaxed.
+outside work, this one about whether they monitor your state without being told.
+`test_item_count_is_in_the_specified_range` in `tests/test_manager_profile.py` now asserts
+`12 <= count <= 16` rather than `<= 15`.
 
 ---
 
@@ -281,14 +313,19 @@ works with *you*, it is your read and not a verdict, and it stays private to you
 
 ---
 
-## Finding 7 — cross-instrument: the counterpart `relationship` scale is internally inconsistent
+## Finding 7 — cross-instrument: the counterpart `relationship` scale is internally inconsistent — **RESOLVED 2026-09-10**
+
+Stated below as it was found, in the present tense it was written in; the fix, the
+mechanism and what it leaves for C-2 are under **Resolved 2026-09-10** further down.
 
 Not a defect in these items, but it lands on C-2 and should not be discovered there.
 Within ManagerMatch's `relationship` dimension:
 
 * `mm-q9` keys **personal closeness** high (0.80: *"knows you as a person"*)
 * `mm-q10` keys **advocacy** high (0.70: *"advocates strongly for your interests"*)
-* `mm-q11` keys **distance** high (0.80: *"trusts you enough to be hard to reach"*)
+* `mm-q11` keyed **distance** high (0.80: *"trusts you enough to be hard to reach"*)
+  **— corrected 2026-09-10; it now keys availability high, with the other two. The rest
+  of this finding is kept as written, and its resolution is below.**
 
 `mm-q11` runs opposite to the other two. The new items key `relationship` the way `mm-q9`
 and `mm-q10` do — closeness and advocacy high — because that is what two of the three
@@ -302,6 +339,91 @@ threshold. **Not fixed here on purpose:** changing `mm-q11` changes ManagerMatch
 and its committed tests, which is out of C-1's scope and is a product decision (users have
 already taken it). Flagged for C-2 to either set the relationship threshold more
 conservatively than the other three, or to schedule a `mm-q11` rewrite with a version bump.
+
+**Resolved 2026-09-10 — corrected in place, with a scoring-key stamp and a rescore
+backfill from stored answers.** Sebastian authorized the `mm-q11` rewrite this finding
+recommends and named the mechanism: flip the item, stamp the key, and re-derive the
+already-stored sittings from the answers they kept. `mm-q11` now keys availability high
+(0.80 A / 0.25 B), with `mm-q9`'s closeness and `mm-q10`'s advocacy. The `relationship`
+scale is internally consistent, and the C-2 diff no longer subtracts a clean manager-side
+scale from a contaminated user-side one.
+
+*What made it possible without the era-tracking chunk an earlier draft here called a
+prerequisite.* That draft went looking for a **version column**, found none, and stopped.
+The mechanism already in place is the **raw answers**. `assessment_submissions.answers`
+holds the payload each respondent actually sent, for all four non-`core` kinds — an
+addition to Part 4.4 whose own docstring names re-derivation as one of the reasons the
+column exists — and the culture-preference backfill
+(`matching_service.backfill_culture_preferences`) already re-derives from stored Work Pulse
+answers. Scores are derived; answers are the source of truth. So the stored rows never
+needed to be *interpretable side by side under two keys*; they needed to be *re-derived
+under one*, which turns "separate the eras" into "eliminate the old one" and removes the
+prerequisite rather than satisfying it.
+
+*The stamp, and why it is a payload field rather than a column.*
+`manager_match.score.SCORING_KEY` (`"mm-v2"`) is returned by `score_manager_match` and
+lands in `assessment_submissions.result` as `result["scoring_key"]`. `result` is JSONB and
+`ManagerMatchResult` is `extra="allow"`, so the field costs nothing on the wire or in the
+schema. The alternatives both cost a migration: a per-kind scoring-version column, or
+bumping `form_version` for `manager_match` alone — which additionally needs
+`CLIENT_FORM_VERSION` de-shared across the four client-rendered instruments and an
+`assessment_forms('manager_match', <new>)` row seeded for the composite foreign key. None
+of that is a side-effect a bias-review fix gets to have; a field on a blob that is already
+returned verbatim is. **`"mm-v1"` is never written anywhere:** it is the *absence* of the
+key, which is precisely what every pre-correction row has.
+
+One supporting change at the write site: `submit_manager_match` now merges
+`{**llm_result, **scoring}` rather than `{**scoring, **llm_result}`, so a model reply
+carrying `archetype`, `dimension_scores` or `scoring_key` cannot shadow the deterministic
+values. A marker a model could overwrite would not be a marker, and the backfill takes this
+field at its word.
+
+*The backfill.* `Scripts/backfill_manager_match_scoring_key.py` finds every `manager_match`
+submission without the marker, re-scores it from its stored answers under the corrected
+key, replaces the deterministic half of the stored result, and stamps it. It is idempotent
+— a second run finds only already-stamped rows — and it never reads or writes any other
+kind. `core` least of all: its answers and dimension scores are behind `assessment_store`
+(D-01) and are not in this table, but the reason the script cannot reach them is the query,
+which names `manager_match` and nothing else. Rows whose answers are missing or malformed
+are counted and their public ids printed, **never rewritten and never stamped**: leaving
+one unmarked says truthfully that it is still scored under the old key, whereas stamping it
+would make it indistinguishable from a row that was actually re-derived.
+
+The property that makes re-deriving legitimate rather than a guess is asserted, not
+assumed: `tests/test_manager_match_rescore.py` seeds a sitting as it was stored under the
+contaminated key, submits the identical answers fresh through the job pair, and requires
+the backfilled row and the new one to agree exactly on `archetype`, `dimension_scores` and
+`scoring_key`.
+
+*What propagates on its own, and what does not.* `profile_repository.load_document` merges
+`manager_match_result` out of the submission row on every read — unconditionally, so a
+stale copy left anywhere else cannot shadow it — and `GET
+/me/assessments/manager_match/result` serves the same blob verbatim. Correcting the row is
+therefore the whole propagation; there is no second write site. What does **not** move is
+the stored prose: `narrative`, `what_to_look_for`, `red_flags` and `archetype_description`
+were generated by the LLM at submit time from the *old* archetype and dimension scores, and
+a backfill making a provider call per user is a different piece of work with a different
+cost. The script preserves them verbatim and reports how many rows changed archetype
+underneath them, so the consequence is visible rather than silent.
+
+*Tripwire inverted, not deleted.*
+`test_manager_match_relationship_keying_is_known_contaminated` in
+`tests/test_manager_profile.py` is now `test_manager_match_relationship_keying_is_consistent`
+and asserts the property instead of the defect. `tests/test_manager_match.py` gains
+`test_relationship_items_all_key_closeness_high`, which states the invariant behaviourally —
+choosing the closer pole must raise `relationship` on **every** item of the scale — so a
+future item cannot reintroduce this by being keyed backwards.
+
+**Still standing for C-2, and this is not a leftover.** The `relationship` mesh threshold of
+0.20 was chosen for *two independent* reasons, and only one of them was this contamination.
+The other is arithmetic: `relationship` has three user-side items to the other dimensions'
+four, so one item moves its mean by 0.183 rather than 0.1375. That reason is untouched, and
+0.20 remains the smallest threshold at which a single item cannot manufacture a grind. What
+*is* now stale is prose, not numbers: `manager_match/decoder.py`'s module docstring and
+`test_finding_7_contamination_cannot_manufacture_a_relationship_grind` still describe the
+contamination as live. Neither goes red — the correction swaps which *option text* carries
+which anchor and leaves every achievable dimension score unchanged — so they are C-2's to
+reword, not C-1's to touch.
 
 ---
 
@@ -332,19 +454,34 @@ conservatively than the other three, or to schedule a `mm-q11` rewrite with a ve
 1. **Run Finding 2's halo check on the first cohort** (manager-profile dimensions against
    A-1's `experienced` outcome item). Everything else here is a structural prediction;
    this is the one measurement that would tell us whether the instrument works at all.
-2. **Decide `mp-q16`** (Finding 3) — the fourth `relationship` item. Closes the positional
-   residual and the missing warmth counterweight on the most exposed dimension. Needs
-   Sebastian's sign-off because it moves the count to 16.
+2. ~~Decide `mp-q16`~~ **Done 2026-09-10.** Sebastian signed off; the fourth `relationship`
+   item is live in `manager_profile.py`, closing the positional residual and the missing
+   warmth counterweight on the most exposed dimension.
 3. **C-2 content review carries Findings 4 and 6**: the environment-may-be-the-cause hedge
    on low-autonomy and low-feedback protocol cells, and behavior-not-person language
    throughout.
-4. **Decide the pole-randomization question** (Finding 3, first half) before C-3 fixes the
-   stored answer shape — it is cheap to allow for now and expensive to retrofit once
-   answers are persisted by position.
-5. **C-2 threshold decision on `relationship`** (Finding 7) — either a conservative
-   threshold or a scheduled `mm-q11` rewrite.
+4. **Pole-randomization storage decided, build pending** (Finding 3, first half):
+   Sebastian ruled 2026-09-08 that storage persists the authored option identity, never
+   screen position, if and when C-4 builds randomized presentation. C-3 should treat this
+   as settled, not open.
+5. ~~Schedule the `mm-q11` rewrite~~ **Done 2026-09-10** (Finding 7). The item is
+   corrected, `manager_match.score.SCORING_KEY` stamps which key produced a stored result,
+   and `Scripts/backfill_manager_match_scoring_key.py` re-derives the pre-correction
+   sittings from the answers they kept. It landed **before** C-2 ships, which is the order
+   that mattered: the decoder re-scores the user side from stored answers on every diff, so
+   a key change after C-2 went live would have moved what users see. **C-2's `relationship`
+   threshold does not move with it.** 0.20 was chosen for two independent reasons and only
+   one was this contamination; the other — three user-side items to the other dimensions'
+   four, so one item moves the mean by 0.183 — is untouched. What C-2 still owes is prose:
+   `decoder.py`'s docstring and
+   `test_finding_7_contamination_cannot_manufacture_a_relationship_grind` describe the
+   contamination as live. Neither goes red, because the correction swaps which option text
+   carries which anchor and leaves every achievable dimension score unchanged.
 6. Watch `growth_focus` by tenure band in pilot data (Finding 5). No action before data.
 
-Nothing in `manager_profile.py` was changed after this review was written except as
-recorded under Finding 3, and nothing in the v1 review file was touched — consistent with
-how the rubric anchors went through Sebastian's ratification before being frozen.
+`manager_profile.py` has one change beyond this review's writing: `mp-q16`, added
+2026-09-10 with Sebastian's sign-off (Finding 3). The v1 review file was not touched —
+consistent with how the rubric anchors went through Sebastian's ratification before being
+frozen. `manager_match/questions.py` (`mm-q11`) **was** changed on 2026-09-10, with Sebastian's
+authorization and by the mechanism he named — flip, stamp, and rescore the stored
+sittings from their answers. See Finding 7.

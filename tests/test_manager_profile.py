@@ -27,11 +27,15 @@ _ALL_B = _answers(*(["b"] * EXPECTED_ANSWER_COUNT))
 
 # A manager read as high on every dimension: pick the 0.80 pole of each item.
 # Position varies by item precisely because the key is positionally balanced.
+# Answers are positional (mp-q{i+1}), so mp-q16 — appended after growth_focus
+# in MANAGER_PROFILE_QUESTIONS — must be the last entry here too, not grouped
+# with mp-q9..q11 even though it shares their dimension.
 _ALL_HIGH = _answers(
     "b", "a", "b", "a",   # autonomy
     "b", "a", "a", "b",   # feedback_style
-    "b", "a", "b",        # relationship
+    "b", "a", "b",        # relationship (mp-q9..q11)
     "b", "a", "a", "b",   # growth_focus
+    "a",                  # relationship (mp-q16)
 )
 _ALL_LOW = _answers(*("b" if c["choice"] == "a" else "a" for c in _ALL_HIGH))
 
@@ -70,13 +74,14 @@ def test_all_low_poles_score_at_the_bottom_anchor() -> None:
 def test_dimension_scores_are_the_mean_of_their_own_items() -> None:
     # autonomy: q1=b(0.80) q2=b(0.25) q3=a(0.25) q4=a(0.80)  -> 0.525
     # feedback: q5=a(0.25) q6=a(0.80) q7=b(0.25) q8=b(0.80)  -> 0.525
-    # relationship: q9=b(0.80) q10=a(0.80) q11=b(0.80)       -> 0.80
+    # relationship: q9=b(0.80) q10=a(0.80) q11=b(0.80) q16=a(0.80) -> 0.80
     # growth: q12=a(0.25) q13=b(0.25) q14=b(0.25) q15=a(0.25)-> 0.25
     scores = score_manager_profile(_answers(
         "b", "b", "a", "a",
         "a", "a", "b", "b",
         "b", "a", "b",
         "a", "b", "b", "a",
+        "a",
     ))["dimension_scores"]
 
     assert scores["autonomy"] == pytest.approx(0.525)
@@ -115,6 +120,25 @@ def test_straight_lining_cannot_produce_an_extreme_profile(
     """Picking one position throughout must land mid-scale, not at an anchor."""
     for dim, val in score_manager_profile(answers)["dimension_scores"].items():
         assert 0.40 <= val <= 0.65, f"{label} {dim}={val} reads as a real signal"
+
+
+def test_straight_lining_lands_on_the_anchor_midpoint_for_every_dimension() -> None:
+    """The exact form of the band test above — and what mp-q16 bought.
+
+    While `relationship` had three items it straight-lined to 0.433 (all-A) and
+    0.617 (all-B): inside the band, but off-centre and asymmetric against the
+    other three, so position carried a little real signal on that dimension.
+    With the fourth item every dimension keys exactly 2/2 and both straight-lines
+    land on the same point — the midpoint of the anchors — which is the property
+    the band test only approximates.
+    """
+    midpoint = (0.25 + 0.80) / 2
+
+    for answers, label in ((_ALL_A, "all-A"), (_ALL_B, "all-B")):
+        for dim, val in score_manager_profile(answers)["dimension_scores"].items():
+            assert val == pytest.approx(midpoint), (
+                f"{label} {dim}={val} is off the anchor midpoint {midpoint}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -166,6 +190,10 @@ def _high_pole_position(question: dict) -> str:
 def test_high_pole_position_is_balanced_overall() -> None:
     positions = Counter(_high_pole_position(q) for q in MANAGER_PROFILE_QUESTIONS)
 
+    # `<= 1` is exact while the item count is even, which it is since mp-q16: a
+    # split of an even total can only differ by an even number, so 8/8 passes and
+    # 9/7 fails. The bound stays written this way so it still states the right
+    # floor if the instrument ever carries an odd number of items again.
     assert abs(positions["a"] - positions["b"]) <= 1, (
         f"high pole sits in one position too often: {dict(positions)}"
     )
@@ -177,6 +205,8 @@ def test_high_pole_position_is_balanced_within_every_dimension() -> None:
         by_dimension.setdefault(q["dimension"], Counter())[_high_pole_position(q)] += 1
 
     for dim, positions in by_dimension.items():
+        # Same parity argument as the overall test: every dimension carries four
+        # items since mp-q16, so `<= 1` admits only an exact 2/2 and rejects 3/1.
         assert abs(positions["a"] - positions["b"]) <= 1, (
             f"{dim} keys its high pole to one position: {dict(positions)}"
         )
@@ -195,7 +225,8 @@ def test_item_ids_are_unique_and_sequential() -> None:
 
 
 def test_item_count_is_in_the_specified_range() -> None:
-    assert 12 <= EXPECTED_ANSWER_COUNT <= 15
+    # Raised from 15 to 16 by Sebastian's 2026-09-08 sign-off (mp-q16, Finding 3).
+    assert 12 <= EXPECTED_ANSWER_COUNT <= 16
 
 
 def test_dimensions_match_manager_match_exactly() -> None:
@@ -204,6 +235,34 @@ def test_dimensions_match_manager_match_exactly() -> None:
         {q["dimension"] for q in MANAGER_PROFILE_QUESTIONS}
         == {q["dimension"] for q in QUESTIONS}
     )
+
+
+def test_manager_match_relationship_keying_is_known_contaminated() -> None:
+    """Tripwire for Finding 7: mm-q11 keys `relationship` against mm-q9/mm-q10.
+
+    mm-q9 keys personal closeness high and mm-q10 keys advocacy high, but mm-q11
+    keys *distance* high, so C-2's relationship diff subtracts a contaminated
+    user-side scale from the clean manager-side one this file tests.
+
+    Correcting it changes committed ManagerMatch scoring and was attempted and
+    stopped on 2026-09-10: `manager_match` submissions carry no scoring-key
+    version that could separate old sittings from new, and non-`core` retakes
+    overwrite their one row in place (MANAGER_PROFILE_ITEMS_BIAS_REVIEW.md,
+    Finding 7). The defect is pinned here deliberately so it cannot be corrected
+    silently — when the era-tracking prerequisite lands and mm-q11 is re-keyed,
+    this test must be inverted and C-2's `relationship` thresholds re-derived
+    against the corrected scale.
+    """
+    by_id = {q["question_id"]: q for q in QUESTIONS}
+
+    def high_pole_text(qid: str) -> str:
+        q = by_id[qid]
+        return q["option_a_text"] if q["score_a"] > q["score_b"] else q["option_b_text"]
+
+    assert "knows you as a person" in high_pole_text("mm-q9")
+    assert "advocates strongly" in high_pole_text("mm-q10")
+    # The odd one out, and the whole reason this tripwire exists.
+    assert "hard to reach" in high_pole_text("mm-q11")
 
 
 def test_every_item_has_two_distinct_non_empty_options() -> None:

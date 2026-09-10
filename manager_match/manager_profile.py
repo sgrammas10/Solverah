@@ -159,6 +159,14 @@ MANAGER_PROFILE_QUESTIONS: list[ManagerProfileQuestion] = [
         "score_a": 0.25,
         "score_b": 0.80,
     },
+    {
+        "question_id": "mp-q16",
+        "option_a_text": "Your manager keeps track of how you’re doing personally, whether or not you raise it.",
+        "option_b_text": "Your manager takes you at your word about how you’re doing.",
+        "dimension": "relationship",
+        "score_a": 0.80,
+        "score_b": 0.25,
+    },
 ]
 
 EXPECTED_ANSWER_COUNT = len(MANAGER_PROFILE_QUESTIONS)
