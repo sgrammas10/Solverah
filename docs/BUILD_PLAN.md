@@ -196,46 +196,46 @@ ran — no separate landing commits were needed for this section._
 
 ### A-1 · Environment-side instrument (M)
 
-- [ ] ~10–12 items: the 6 model dimensions, environment side (what the role
+- [x] ~10–12 items: the 6 model dimensions, environment side (what the role
   *offers*: real autonomy, actual pace, feedback culture as practiced,
   collaboration shape, innovation stance, decision style), worded from the
   rater rubric's anchors (`Solverah_Company_Rating_Rubric_v2.docx`,
   read-only reference) recast in second person
-- [ ] Plus: stage/size band 1–5, comp posture 1–5 (market-relative, the
+- [x] Plus: stage/size band 1–5, comp posture 1–5 (market-relative, the
   redefined `comp`), and the model's own outcome question — "overall, how
   well is this role working for you?" 1–5 (`experienced`)
-- [ ] Employment status via existing `career_status`: employed → current
+- [x] Employment status via existing `career_status`: employed → current
   role; between_jobs/first_job → most recent role, flagged past-tense, and
   the report renders needs-forward ("what to seek") instead of gaps
-- [ ] Manager section = C-1's instrument, linked not duplicated (⚑4)
-- [ ] Same bias-review discipline; items are NOT ground-truth-sensitive the
+- [x] Manager section = C-1's instrument, linked not duplicated (⚑4)
+- [x] Same bias-review discipline; items are NOT ground-truth-sensitive the
   way core is (user describes a job, not themselves), so no token-map
   machinery needed — plain form
 
 ### A-2 · Storage (M)
 
-- [ ] Migration: `environment_reports` (user_id, submitted_at, answers,
+- [x] Migration: `environment_reports` (user_id, submitted_at, answers,
   derived env dimension scores 0–1, stage_size, comp, experienced_outcome,
   career_status snapshot, optional normalized employer name ⚑6, version).
   Append-only; history feeds Pulse trends and future training rows.
-- [ ] Column semantics deliberately aligned with the model lane's
+- [x] Column semantics deliberately aligned with the model lane's
   `schema.sql` long-format expectations so §5.4's assembly is a join, not
   a translation
 
 ### A-3 · Interim rules scoring + gap engine (M)
 
-- [ ] Env answers → 0–1 per dimension (mean of anchored items — mirrors
+- [x] Env answers → 0–1 per dimension (mean of anchored items — mirrors
   core's `mean_pole` shape)
-- [ ] Signed gap per dimension against the sealed person-side scores;
+- [x] Signed gap per dimension against the sealed person-side scores;
   ranking by |gap| with flat weights (honest about priors.yaml being
   placeholder — the model replaces this in §5.5, same interim→destination
   pattern as culture_fit_score)
-- [ ] Pure functions, no Flask (`work_pulse/situation.py` or sibling
+- [x] Pure functions, no Flask (`work_pulse/situation.py` or sibling
   module), pytest first
 
 ### A-4 · D-15-conforming payload spec (S — but the most important design in the workstream)
 
-- [ ] Response contains per dimension: env score (echo of the user's own
+- [x] Response contains per dimension: env score (echo of the user's own
   input), **gap bucket only** ∈ {feeding, aligned, straining} (3 coarse
   buckets, thresholds server-side), guidance refs. **Never** person-side
   scores, numeric gaps, or per-dim magnitudes.
@@ -258,12 +258,12 @@ ran — no separate landing commits were needed for this section._
 
 ### A-6 · Guidance content (M — content, not code)
 
-- [ ] 12 cells (6 dims × 2 gap directions) × 3 registers: *change it in
+- [x] 12 cells (6 dims × 2 gap directions) × 3 registers: *change it in
   place* (concrete ask/experiment), *negotiate it* (what to say, to whom),
   *this one rarely moves* (what a ceiling here means). LLM-drafted,
   human-reviewed once, stored as static content — the
   `insight_engine.py` pattern at full scale, no per-user generation.
-- [ ] Manager-dimension cells defer to the C-2 playbook (link, don't
+- [x] Manager-dimension cells defer to the C-2 playbook (link, don't
   duplicate)
 
 ### A-7 · Frontend (L)
