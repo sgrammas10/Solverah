@@ -312,7 +312,30 @@ the deploy — there is no further confirmation step after it.
    production was not where we measured it and the deploy deserves a second look.
 2. **Boot log** — a clean start with no `ConfigError`. `Settings.from_env()`
    reports every problem at once, so if it starts, the configuration is right.
-3. **A normal page load** — enough to confirm the service is serving.
+3. **The mm-q11 rescore backfill** — has never been run against production
+   data. `mm-q11` used to key `relationship` backwards (bias review Finding 7,
+   fixed `bf0f533`, C-1c); every ManagerMatch sitting stored before that fix
+   still serves its `relationship` score under the old key until this runs.
+   From a Render shell on `solverah-api`, after the boot log is clean and
+   before pointing real traffic at the result:
+
+   ```bash
+   python -m Scripts.backfill_manager_match_scoring_key
+   ```
+
+   It is idempotent and touches no schema — safe to run here rather than as a
+   `preDeployCommand`, since it needs the new code's `manager_match.score`
+   importable and nothing here requires the database to be mid-migration.
+   Expect a line with `rescored=`, `already_v2=`, `no_result=`,
+   `unusable_answers=` and `archetype_changed=` counts. Run it a second time
+   immediately after: `rescored=0` and every row reports `already_v2=`, which
+   is what proves the first run actually wrote rows rather than silently
+   no-op'ing against a misconfigured `DATABASE_URL`. A non-zero
+   `unusable_answers` prints the affected public ids — rows whose stored
+   answers cannot be re-derived, left unmarked on purpose (an honest old-key
+   row beats a silently mis-stamped one) — and are an operator decision, not
+   a retry.
+4. **A normal page load** — enough to confirm the service is serving.
 
 **This deploy does not touch auth.** The refresh-token work
 (`20260903_user_sessions`) and the rest of S1–S3 shipped on 2026-09-03 and have

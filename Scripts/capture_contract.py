@@ -88,6 +88,17 @@ in a stampede and must NOT, because the successor is already in the shared
 cookie jar.  A future diff that made them the same is a design regression that
 no unit test phrases as a wire fact.
 
+**Re-baselined for the mm-q11 keying fix (2026-09-10).** The third deliberate
+contract change, and A25 (docs/ARCHITECTURE.md) is the ledger of what moved.
+No step was added or removed -- the fix corrects a stored value, not a route --
+but `manager_match_result` is merged into the profile document on every read,
+so the new `relationship` score and the new `scoring_key` field surface in six
+of the 71 steps, not only the two most obviously named: `poll-manager-match-job`
+and `result-manager-match` carry it directly, and `me-profile-after-write`,
+`export`, `login-for-refresh` and `login-for-logout` carry it embedded in the
+profile document. Verified before the recapture, on the standing baseline:
+6 differences, all six the same two-field substitution and nothing else.
+
 **The LLM is stubbed, and the prompt builders with it.** Three instruments call a
 provider; a fixture that depended on one could not produce stable bytes, and the
 narrative text is the whole payload for two of them. `_chat_json` is replaced by a

@@ -38,26 +38,30 @@ the number of items on that dimension's *shorter* side:
 so `relationship` needs a wider mesh band than the other three purely on
 arithmetic.
 
-Two independent reasons land on the same number, which is why 0.20 is the value
-rather than a hedge. The second is the bias review's **Finding 7**: `mm-q11`
-keys distance high while `mm-q9` and `mm-q10` key closeness and advocacy high,
-so the relationship diff subtracts a clean manager-side scale from a
-contaminated user-side one. The rewrite that would fix it was authorized and
-then deliberately **not applied** (2026-09-10): `manager_match` submissions have
-no scoring-key era tag and retakes overwrite a single row in place, so flipping
-the key would silently reinterpret every stored sitting. It is a prerequisite
-chunk, not a side-effect. So the contamination is live, and Finding 7's
-recommendation — hold `relationship` to a more conservative threshold than the
-other three — is the operative one.
+Two independent reasons used to land on the same number, which is why 0.20 was
+the value rather than a hedge. The second was the bias review's **Finding 7**:
+`mm-q11` keyed distance high while `mm-q9` and `mm-q10` keyed closeness and
+advocacy high, so the relationship diff subtracted a clean manager-side scale
+from a contaminated user-side one. That keying was corrected 2026-09-10 (C-1c,
+`bf0f533`): `mm-q11` now keys availability — the closeness pole — high,
+consistent with the other two items. The fix landed as a flip plus a stamped
+rescore backfill (`score.SCORING_KEY`, `Scripts/backfill_manager_match_scoring_key.py`)
+rather than a silent reinterpretation of stored sittings, because `manager_match`
+submissions carry no era tag and a retake overwrites a single row in place.
+Finding 7 is closed.
 
-0.20 is the smallest threshold at which a single item, contaminated or merely
-noisy, cannot on its own manufacture a relationship grind: `mm-q11` moves the
-user-side mean by at most 0.1833. `test_no_single_item_can_manufacture_a_grind`
+0.20 stands on the arithmetic alone now: it is the smallest threshold at which
+a single item, mis-keyed or merely noisy, cannot on its own manufacture a
+relationship grind — the derivation above (0.55/3 ≈ 0.1833) sets that floor
+independent of how any one item is keyed. `test_no_single_item_can_manufacture_a_grind`
 and `test_finding_7_contamination_cannot_manufacture_a_relationship_grind` pin
-exactly that. The residual, stated rather than papered over: contamination can
-still push a gap that was already close to the line across it, in either
-direction. No threshold on a three-item scale escapes that; only fixing
-`mm-q11` does.
+exactly that; the second now exercises it as a hypothetical — one relationship
+item disagreeing with the other two, the shape Finding 7's bug produced —
+rather than a live defect, so the margin is proven to hold against a future
+keying mistake, not only against ordinary noise. The residual, stated rather
+than papered over: a mis-keyed item can still push a gap that was already close
+to the line across it, in either direction. No threshold on a three-item scale
+escapes that.
 
 The acute cut sits at 0.35 on every dimension: three items' worth of divergence
 (≈0.41) is acute, two (≈0.275) is not, and 0.35 is the gap between them. It is

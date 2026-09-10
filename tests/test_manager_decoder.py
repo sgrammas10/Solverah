@@ -219,14 +219,19 @@ def test_no_single_item_can_manufacture_a_grind(dimension: str) -> None:
 
 
 def test_finding_7_contamination_cannot_manufacture_a_relationship_grind() -> None:
-    """The named reason `relationship` gets the conservative threshold.
+    """The historical reason `relationship` gets the conservative threshold — now a tripwire.
 
-    `mm-q11` keys distance high while `mm-q9`/`mm-q10` key closeness and
-    advocacy high, and the rewrite is blocked on `manager_match` era-tracking
-    (bias review, Finding 7, 2026-09-10). So a user whose relational need is
-    genuinely high can answer `mm-q11` toward "hard to reach" and have their
-    user-side score depressed for reasons unrelated to the construct. That
-    single item must not be enough, by itself, to turn a mesh into a grind.
+    Finding 7 named a real defect: `mm-q11` used to key distance high while
+    `mm-q9`/`mm-q10` keyed closeness and advocacy high, so a user whose
+    relational need was genuinely high could answer `mm-q11` toward "hard to
+    reach" and have their user-side score depressed for reasons unrelated to
+    the construct. That keying was corrected 2026-09-10 (C-1c, `bf0f533`) —
+    `mm-q11` now keys the same direction as the other two — so the scenario
+    below is no longer live. It stays as a tripwire: one relationship item
+    disagreeing with the other two, the shape Finding 7's bug produced, must
+    still not be enough, by itself, to turn a mesh into a grind — whether that
+    disagreement comes from ordinary variance or a future keying mistake like
+    the one this fixes.
     """
     relationship_ids = {
         q["question_id"] for q in QUESTIONS if q["dimension"] == "relationship"
