@@ -4,7 +4,7 @@ import { useAuth } from '../../auth';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, FileText, Brain, Briefcase, TrendingUp } from 'lucide-react';
 import { IntakePromptModal } from '../../intake';
-import { WorkPulseBanner, WorkPulseUnlock } from '../../assessments';
+import { WorkPulseBanner, WorkPulseUnlock, PulseDashboardCard } from '../../assessments';
 
 const iconMap: Record<string, any> = { User, FileText, Brain, Briefcase, TrendingUp };
 
@@ -109,6 +109,13 @@ function JobSeekerDashboard() {
             </Link>
           </div>
         )}
+
+        {/* Pulse -- "Your pulse this week" (BUILD_PLAN B-3). Degrades to an
+            invitation on its own when there are no check-ins yet, same as
+            the Work Pulse block above it, so no gate is needed here. */}
+        <div className="mb-6">
+          <PulseDashboardCard />
+        </div>
 
         {/* Stats */}
         {dashboardData && (

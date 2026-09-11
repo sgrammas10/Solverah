@@ -48,13 +48,23 @@ beforeEach(() => {
     wpl_completed: false,
     wp_v2_completed: false,
   };
-  mocks.fetchWithAuth.mockResolvedValue({
-    profileCompletion: "60%",
-    jobMatches: "12",
-    applications: "3",
-    hasIntakeSubmission: false,
-    recentActivity: [],
-    recommendations: [],
+  // Routed by path, not a blanket resolved value: the dashboard now mounts
+  // PulseDashboardCard (BUILD_PLAN B-3) beside its own /me/dashboard query,
+  // and a call-order-blind mock would hand that card's /me/pulse/history
+  // request the dashboard fixture (or vice versa) depending on which query
+  // happens to fire first.
+  mocks.fetchWithAuth.mockImplementation((path: string) => {
+    if (path.startsWith("/me/pulse/")) {
+      return Promise.resolve({ checkins: [], events: [] });
+    }
+    return Promise.resolve({
+      profileCompletion: "60%",
+      jobMatches: "12",
+      applications: "3",
+      hasIntakeSubmission: false,
+      recentActivity: [],
+      recommendations: [],
+    });
   });
 });
 
@@ -238,13 +248,18 @@ describe("JobSeekerDashboard - empty states", () => {
 
 describe("JobSeekerDashboard - intake modal", () => {
   it("shows intake modal when profile completion is below 50%", async () => {
-    mocks.fetchWithAuth.mockResolvedValueOnce({
-      profileCompletion: "30%",
-      jobMatches: "0",
-      applications: "0",
-      hasIntakeSubmission: false,
-      recentActivity: [],
-      recommendations: [],
+    mocks.fetchWithAuth.mockImplementation((path: string) => {
+      if (path.startsWith("/me/pulse/")) {
+        return Promise.resolve({ checkins: [], events: [] });
+      }
+      return Promise.resolve({
+        profileCompletion: "30%",
+        jobMatches: "0",
+        applications: "0",
+        hasIntakeSubmission: false,
+        recentActivity: [],
+        recommendations: [],
+      });
     });
     renderJobSeekerDashboard();
     await waitFor(() => expect(screen.getByTestId("intake-modal")).toBeInTheDocument());

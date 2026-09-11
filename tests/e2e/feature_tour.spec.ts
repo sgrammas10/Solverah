@@ -52,6 +52,8 @@ const ROUTES: Array<{ path: string; label: string }> = [
   { path: "/manager-profile/playbook", label: "Manager Decoder playbook" },
   { path: "/environment-report", label: "Environment report" },
   { path: "/situation-report", label: "Situation Report" },
+  { path: "/pulse", label: "Pulse check-in" },
+  { path: "/pulse/trend", label: "Pulse trend" },
   { path: "/work-pulse/results", label: "Work Pulse results" },
   { path: "/career-quizzes", label: "Career quizzes hub" },
   { path: "/career-quizzes/early-career", label: "Quiz: early career" },

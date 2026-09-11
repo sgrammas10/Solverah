@@ -14,6 +14,8 @@
  *   /quiz-insights            Authenticated quiz insights
  *   /environment-report       Environment-side instrument (job-seeker)
  *   /situation-report         Situation Report (job-seeker)
+ *   /pulse, /pulse/trend      Pulse check-in + trend (job-seeker; /pulse is
+ *                             the Pulse prompt email's deep-link target)
  *   /trust                    Transparency page (job-seeker)
  *   *                         Catch-all → redirect to /
  *
@@ -107,6 +109,8 @@ const ManagerProfilePage = lazy(() => import("../features/assessments/components
 const ManagerPlaybookPage = lazy(() => import("../features/assessments/components/ManagerPlaybookPage"));
 const EnvironmentReportPage = lazy(() => import("../features/assessments/components/EnvironmentReportPage"));
 const SituationReportPage = lazy(() => import("../features/assessments/components/SituationReportPage"));
+const PulseCheckinPage = lazy(() => import("../features/assessments/components/PulseCheckinPage"));
+const PulseTrendPage = lazy(() => import("../features/assessments/components/PulseTrendPage"));
 const PathIntelligencePage = lazy(() => import("../features/intelligence/components/PathIntelligencePage"));
 const TrustPage = lazy(() => import("../features/intelligence/components/TrustPage"));
 
@@ -283,6 +287,12 @@ function App() {
                     instrument/report pairing the Manager Decoder above has. */}
                 <Route path="/environment-report" element={<EnvironmentReportPage />} />
                 <Route path="/situation-report" element={<SituationReportPage />} />
+
+                {/* Pulse routes (BUILD_PLAN B-3). /pulse is B-2's email
+                    deep-link target (send_pulse_prompt_email) -- this exact
+                    path must not move. */}
+                <Route path="/pulse" element={<PulseCheckinPage />} />
+                <Route path="/pulse/trend" element={<PulseTrendPage />} />
 
                 {/* CompanyLens */}
                 <Route path="/company-lens" element={<CompanyLensPage />} />
