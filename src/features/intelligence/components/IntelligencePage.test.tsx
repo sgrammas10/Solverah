@@ -29,6 +29,10 @@ const mocks = vi.hoisted(() => ({
     error: null as unknown,
     refetch: vi.fn(),
   },
+  /** What `useSituationReport` reports on the next render. Mocked directly for
+   *  the same reason `playbookQuery` is: left real it fires a third query on
+   *  the shared `fetchWithAuth` mock and eats the Work Pulse fixtures. */
+  situationQuery: { data: undefined as any },
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -70,6 +74,10 @@ vi.mock("../../assessments/useManagerPlaybook", () => ({
   useManagerPlaybook: () => mocks.playbookQuery,
 }));
 
+vi.mock("../../assessments/useSituationReport", () => ({
+  useSituationReport: () => mocks.situationQuery,
+}));
+
 vi.mock("./AssessmentsTab", () => ({
   default: () => <div data-testid="assessments-tab">Assessments</div>,
 }));
@@ -95,6 +103,9 @@ beforeEach(() => {
     }),
     refetch: vi.fn(),
   };
+  // Default: the report state is unresolved, so the Situation Report block is
+  // silent. Tests that care set it explicitly.
+  mocks.situationQuery = { data: undefined };
 });
 
 const MOCK_WP_RESULT: WpApiResponse = {
@@ -195,6 +206,66 @@ describe("IntelligencePage - completed without a narrative", () => {
     // assessment exists to feed.
     renderIntelligencePage();
     expect(screen.queryByText(/Complete Work Pulse to unlock company matching/i)).toBeNull();
+  });
+
+  // ── Situation Report block (BUILD_PLAN A-7) ──
+  //
+  // The Work Pulse completion card used to end at "nothing to check", which
+  // made the hub a dead end for a user who had just finished the instrument.
+  // It now carries the Situation Report path, and these are the three states
+  // that block can be in.
+
+  it("stays silent about the Situation Report while its state is unresolved", () => {
+    mocks.situationQuery = { data: undefined };
+    renderIntelligencePage();
+    expect(screen.queryByText(/Situation Report/i)).toBeNull();
+  });
+
+  it("prompts for the environment report when the user has not filed one", () => {
+    mocks.situationQuery = {
+      data: {
+        state: "needs_environment_report",
+        manager: { has_profile: false },
+        can_submit_environment_report: true,
+      },
+    };
+    renderIntelligencePage();
+
+    expect(screen.getByText(/about ten questions about the role/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Describe your job/ }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/environment-report");
+  });
+
+  it("offers no environment-report prompt to a user who cannot file one", () => {
+    // `first_job`: the report page renders forward rather than prompting, so a
+    // button here would be a call to action they cannot act on.
+    mocks.situationQuery = {
+      data: {
+        state: "needs_environment_report",
+        manager: { has_profile: false },
+        can_submit_environment_report: false,
+      },
+    };
+    renderIntelligencePage();
+    expect(screen.queryByRole("button", { name: /Describe your job/ })).toBeNull();
+  });
+
+  it("links to the report once both halves exist", () => {
+    mocks.situationQuery = {
+      data: {
+        state: "complete",
+        manager: { has_profile: false },
+        career_status: "employed",
+        needs_forward: false,
+        dimensions: [],
+        guidance_notice: "notice",
+      },
+    };
+    renderIntelligencePage();
+
+    fireEvent.click(screen.getByRole("button", { name: /View your Situation Report/ }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/situation-report");
+    expect(screen.queryByRole("button", { name: /Describe your job/ })).toBeNull();
   });
 
   it("shows the coming-soon CompanyLens card instead of implying matches are ready", () => {

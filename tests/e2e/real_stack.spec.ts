@@ -56,7 +56,7 @@ const USER = {
   password: "E2e-Passw0rd!" + STAMP,
 };
 
-test("REAL STACK: register -> verify -> sign in -> assessment -> results", async ({ page }) => {
+test("REAL STACK: register -> verify -> sign in -> assessment -> environment report -> Situation Report", async ({ page }) => {
   // Everything the browser complains about, collected rather than ignored. A
   // journey that "passes" while the console fills with errors is not a journey
   // a user would enjoy, and this is the cheapest place to notice.
@@ -192,6 +192,104 @@ test("REAL STACK: register -> verify -> sign in -> assessment -> results", async
     // finishing the assessment, not to encode today's copy as a requirement.
     const body = (await page.textContent("body")) ?? "";
     expect(body.length, "the results page rendered nothing at all").toBeGreaterThan(200);
+  });
+
+  // ── Workstream A: the Situation Report (BUILD_PLAN A-7, §6's "one full flow
+  //    per workstream"). Everything below is real: a real environment-report
+  //    submission, real rules scoring, a real gap against the pinned core
+  //    sitting, and the real assembled guidance content.
+
+  await test.step("give this user a career status", async () => {
+    // SETUP, and the second SQL shortcut in this file -- called out because
+    // the header promises there is only one. This is not a bypass of anything
+    // under test: `career_status` is normally set by editing the profile (a
+    // surface the feature tour already covers) and the environment instrument
+    // reads it only to pick a tense and to stamp the stored row. Driving the
+    // profile editor here would test the profile editor.
+    //
+    // `employed` deliberately, not `between_jobs`: it produces the full
+    // present-tense report, and the needs-forward slicing has its own unit
+    // coverage. A brand-new user may have no `profiles` row at all yet.
+    sql(
+      `INSERT INTO profiles (user_id, career_status, completeness, extra, version)
+         SELECT id, 'employed', 0, '{}'::jsonb, 0 FROM users WHERE email = '${USER.email}'
+       ON CONFLICT (user_id) DO UPDATE SET career_status = 'employed'`,
+    );
+    expect(
+      sql(`SELECT p.career_status FROM profiles p
+             JOIN users u ON u.id = p.user_id
+            WHERE u.email = '${USER.email}'`),
+    ).toEqual("employed");
+  });
+
+  await test.step("environment report", async () => {
+    await page.goto("/environment-report");
+    await expect(
+      page.getByRole("heading", { name: /Now the other half/ }),
+    ).toBeVisible({ timeout: 20_000 });
+    await page.screenshot({ path: "test-results/real-07-env-intro.png", fullPage: true });
+
+    await page.getByRole("button", { name: "Start" }).click();
+
+    // The count comes off the page, not a fixture constant -- the item bank
+    // lives in Python and this file must not encode a second copy of its size.
+    const counter = await page.getByText(/Question 1 of \d+/).textContent();
+    const total = Number(/of (\d+)/.exec(counter ?? "")?.[1]);
+    expect(total, "the environment form rendered no questions").toBeGreaterThan(0);
+
+    for (let n = 1; n <= total; n += 1) {
+      await expect(page.getByText(`Question ${n} of ${total}`)).toBeVisible();
+      const advance = page.getByRole("button", { name: n === total ? "Finish" : "Next" });
+      await expect(advance).toBeDisabled();
+      // Alternating anchors rather than a straight line: a straight-lined sheet
+      // lands every dimension on the midpoint by design (the anchor-order
+      // balance), which would produce a report with nothing in it to assert on.
+      await page.getByRole("radio").nth(n % 2 === 0 ? 0 : 4).click();
+      await expect(advance).toBeEnabled();
+      await advance.click();
+    }
+
+    await expect(page).toHaveURL(/\/situation-report/, { timeout: 30_000 });
+  });
+
+  await test.step("the environment report reached the database", async () => {
+    const row = sql(
+      `SELECT e.version || '|' || COALESCE(e.career_status, '?') || '|' ||
+              jsonb_array_length(to_jsonb(ARRAY(SELECT jsonb_object_keys(e.raw_answers))))
+         FROM environment_reports e
+         JOIN users u ON u.id = e.user_id
+        WHERE u.email = '${USER.email}'
+        ORDER BY e.id DESC LIMIT 1`,
+    );
+    expect(row, "the UI accepted the environment report but nothing was stored").not.toEqual("");
+    console.log("environment report version|career_status|answer-count: " + row);
+    expect(row, "the stored row did not snapshot the live career_status").toContain("|employed|");
+  });
+
+  await test.step("the Situation Report renders with buckets", async () => {
+    await page.waitForLoadState("networkidle");
+    await page.screenshot({ path: "test-results/real-08-situation-report.png", fullPage: true });
+
+    await expect(page.getByRole("heading", { name: "You, and this job" })).toBeVisible();
+
+    // At least one dimension came back classified. The three bucket words are
+    // the ENTIRE resolution the report gives out, so their presence is the
+    // assertion that the gap engine ran end to end.
+    const buckets = page.getByText(/^(Aligned|Notable|Straining)$/);
+    expect(await buckets.count(), "no dimension carried a bucket").toBeGreaterThan(0);
+
+    // The guidance notice must reach the page verbatim -- it is the scope
+    // disclaimer, not decoration.
+    await expect(page.getByText(/This guidance is general, not personal/)).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "What this is, and what it isn't" }),
+    ).toBeVisible();
+
+    // D-15, checked at the pixel rather than in a unit test's fixture: the
+    // payload carries `env_score` per dimension as a 0-1 float, and not one of
+    // them may reach the page. Any leak shows up as a decimal.
+    const body = (await page.textContent("body")) ?? "";
+    expect(body, "a 0-1 score leaked into the rendered report").not.toMatch(/\b0\.\d/);
   });
 
   await test.step("the Solverah profile actually unlocks", async () => {

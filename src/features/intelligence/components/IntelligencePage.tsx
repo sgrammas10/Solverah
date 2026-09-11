@@ -9,6 +9,7 @@ import type { FocusTypeResult } from "../../assessments";
 import { useMM } from "../../assessments";
 import type { MMResult } from "../../assessments";
 import { useManagerPlaybook } from "../../assessments";
+import { useSituationReport } from "../../assessments";
 import { ApiError } from "../../../shared/api/apiError";
 
 const ECOSYSTEM_STEPS = [
@@ -30,6 +31,7 @@ export default function IntelligencePage() {
 
   const { state: mmState } = useMM();
   const playbookQuery = useManagerPlaybook();
+  const situationQuery = useSituationReport();
 
   const { data: profile, isLoading: profileLoading } = useProfile();
   const focusTypeResult = profile?.focus_type_result as FocusTypeResult | undefined;
@@ -43,6 +45,17 @@ export default function IntelligencePage() {
     playbookErr instanceof ApiError && playbookErr.errorFor("manager_match")?.code === "no_manager_match";
   const playbookNeedsProfile =
     playbookErr instanceof ApiError && playbookErr.errorFor("manager_profile")?.code === "no_manager_profile";
+
+  // Situation Report card state. `complete` is the only state with a report to
+  // read; `needs_environment_report` is the prompt to describe the job, and it
+  // is suppressed for a `first_job` user, who has no role to describe and gets
+  // the forward-facing rendering on the report page itself rather than a form
+  // prompt they cannot act on. `needs_core` cannot reach here -- this whole
+  // block is behind `wp_v2_completed`.
+  const situation = situationQuery.data;
+  const hasSituationReport = situation?.state === "complete";
+  const canDescribeJob =
+    situation?.state === "needs_environment_report" && situation.can_submit_environment_report;
 
   // The stored result, shared with WorkPulseResultsPage through one query.
   // Disabled while the sessionStorage cache already has the narrative, and
@@ -251,6 +264,58 @@ export default function IntelligencePage() {
             View full Work Pulse analysis →
           </button>
         </div>
+        )}
+
+        {/* Situation Report — BUILD_PLAN A-7.
+
+            The Work Pulse card above used to be a dead end: "complete, and
+            there is nothing for you to look at". There is now, because Work
+            Pulse is one half of the Situation Report and the other half is a
+            form away. This sits under BOTH shapes of that card rather than
+            inside the no-narrative branch, so a legacy user carrying a stored
+            narrative reaches the report too.
+
+            Silent while the report state is still loading, and silent for a
+            `first_job` user: `can_submit_environment_report` is false for them
+            and the report page renders forward rather than prompting, so a
+            "describe your job" button here would be a prompt they cannot act
+            on. */}
+        {hasSituationReport && (
+          <div className="rounded-xl border border-forest-light bg-forest-pale px-6 py-5 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
+              ✦ Situation Report
+            </p>
+            <p className="text-sm text-ink-primary leading-relaxed">
+              Your Work Pulse and your description of your job, read against each
+              other — where the two are set the same way, and where they pull apart.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/situation-report")}
+              className="text-sm font-semibold text-forest-dark hover:underline"
+            >
+              View your Situation Report →
+            </button>
+          </div>
+        )}
+        {canDescribeJob && (
+          <div className="rounded-xl border border-cream-muted bg-white px-6 py-5 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
+              ✦ Situation Report
+            </p>
+            <p className="text-sm text-ink-primary leading-relaxed">
+              Work Pulse knows how you work. What it can’t tell you on its own is how
+              far your current job sits from that. About ten questions about the role
+              closes the gap and turns the two halves into your Situation Report.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/environment-report")}
+              className="bg-forest-dark text-white font-semibold px-4 py-2 rounded text-xs hover:bg-forest-mid"
+            >
+              Describe your job →
+            </button>
+          </div>
         )}
 
         {/* Ecosystem cards */}

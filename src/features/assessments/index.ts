@@ -14,6 +14,27 @@ export { useMM } from "./useMM";
 export type { MMResult } from "./useMM";
 export { useManagerMatchResult, managerMatchResultKeys } from "./useManagerMatchResult";
 export { useManagerPlaybook, managerPlaybookKeys } from "./useManagerPlaybook";
+export {
+  isAlignedEntry,
+  isFirstJobRefusal,
+  isNoCoreSittingRefusal,
+  situationReportKeys,
+  useRecalibrateSituationReport,
+  useSituationReport,
+  useSubmitEnvironmentReport,
+} from "./useSituationReport";
+export type {
+  AlignedDimensionEntry,
+  EnvironmentReportSubmission,
+  SituationBucket,
+  SituationComplete,
+  SituationDimension,
+  SituationDimensionEntry,
+  SituationDirection,
+  SituationManagerSection,
+  SituationReport,
+  StrainDimensionEntry,
+} from "./useSituationReport";
 export type { ManagerPlaybook, ManagerPlaybookData, ManagerPlaybookDimensionEntry } from "./useManagerPlaybook";
 export {
   isKnownScoringPhase,

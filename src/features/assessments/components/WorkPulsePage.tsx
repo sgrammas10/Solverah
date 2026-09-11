@@ -162,25 +162,48 @@ export default function WorkPulsePage() {
               to optimize — it works quietly in the background as we line up the environments
               where you'd do your best work.
             </p>
+            {/* The A-7 bridge, upgrading D-2's. What follows Work Pulse is no
+                longer a choice between two side instruments and the door: the
+                Situation Report is the other half of this one, and describing
+                the job is what completes it. The env-report CTA is therefore
+                primary and the FocusType / ManagerMatch CTAs step down to
+                secondary rather than disappearing. */}
+            <p className="text-sm text-ink-primary font-medium">
+              24 questions about you. Now ~10 about your job.
+            </p>
+            <p className="text-sm text-ink-secondary">
+              Work Pulse is half of your Situation Report. The other half is your own
+              description of the role you're in — what it actually offers, not what it
+              was advertised as — and the report is the distance between the two.
+            </p>
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => navigate("/environment-report")}
+                className="inline-flex items-center bg-forest-dark text-white text-sm font-semibold px-6 py-3 rounded hover:bg-forest-mid transition-colors"
+              >
+                Describe your job →
+              </button>
+            </div>
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={() => navigate("/focus-type")}
-                className="inline-flex items-center bg-forest-dark text-white text-sm font-semibold px-6 py-3 rounded hover:bg-forest-mid transition-colors"
+                className="inline-flex items-center border border-forest-dark text-forest-dark text-sm font-semibold px-6 py-3 rounded hover:bg-forest-pale transition-colors"
               >
                 Start FocusType →
               </button>
               <button
                 type="button"
                 onClick={() => navigate("/manager-match")}
-                className="inline-flex items-center bg-forest-dark text-white text-sm font-semibold px-6 py-3 rounded hover:bg-forest-mid transition-colors"
+                className="inline-flex items-center border border-forest-dark text-forest-dark text-sm font-semibold px-6 py-3 rounded hover:bg-forest-pale transition-colors"
               >
                 Start ManagerMatch →
               </button>
               <button
                 type="button"
                 onClick={() => navigate("/job-seeker/dashboard", { replace: true })}
-                className="inline-flex items-center bg-forest-dark text-white text-sm font-semibold px-6 py-3 rounded hover:bg-forest-mid transition-colors"
+                className="inline-flex items-center border border-forest-dark text-forest-dark text-sm font-semibold px-6 py-3 rounded hover:bg-forest-pale transition-colors"
               >
                 Back to dashboard
               </button>

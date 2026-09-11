@@ -194,4 +194,27 @@ describe("WorkPulsePage — completion", () => {
     fireEvent.click(screen.getByRole("button", { name: /start managermatch/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/manager-match");
   });
+
+  // ── The A-7 bridge, upgrading D-2's ──
+
+  it("bridges to the environment report as the primary next step", () => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
+    renderPage();
+
+    expect(
+      screen.getByText("24 questions about you. Now ~10 about your job."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /describe your job/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/environment-report");
+  });
+
+  it("keeps the FocusType and ManagerMatch CTAs alongside it, not instead of it", () => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
+    renderPage();
+
+    expect(screen.getByRole("button", { name: /describe your job/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start focustype/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start managermatch/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /back to dashboard/i })).toBeInTheDocument();
+  });
 });

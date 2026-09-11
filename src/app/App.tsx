@@ -12,6 +12,8 @@
  *   /job-seeker/*             Job-seeker-only routes
  *   /career-quizzes/*         Authenticated quiz routes
  *   /quiz-insights            Authenticated quiz insights
+ *   /environment-report       Environment-side instrument (job-seeker)
+ *   /situation-report         Situation Report (job-seeker)
  *   /trust                    Transparency page (job-seeker)
  *   *                         Catch-all → redirect to /
  *
@@ -103,6 +105,8 @@ const ManagerMatchPage = lazy(() => import("../features/assessments/components/M
 const ManagerMatchResultsPage = lazy(() => import("../features/assessments/components/ManagerMatchResultsPage"));
 const ManagerProfilePage = lazy(() => import("../features/assessments/components/ManagerProfilePage"));
 const ManagerPlaybookPage = lazy(() => import("../features/assessments/components/ManagerPlaybookPage"));
+const EnvironmentReportPage = lazy(() => import("../features/assessments/components/EnvironmentReportPage"));
+const SituationReportPage = lazy(() => import("../features/assessments/components/SituationReportPage"));
 const PathIntelligencePage = lazy(() => import("../features/intelligence/components/PathIntelligencePage"));
 const TrustPage = lazy(() => import("../features/intelligence/components/TrustPage"));
 
@@ -273,6 +277,12 @@ function App() {
                 {/* Manager Decoder routes (BUILD_PLAN C-4) */}
                 <Route path="/manager-profile" element={<ManagerProfilePage />} />
                 <Route path="/manager-profile/playbook" element={<ManagerPlaybookPage />} />
+
+                {/* Situation Report routes (BUILD_PLAN A-7). The environment
+                    instrument and its payoff surface, the same
+                    instrument/report pairing the Manager Decoder above has. */}
+                <Route path="/environment-report" element={<EnvironmentReportPage />} />
+                <Route path="/situation-report" element={<SituationReportPage />} />
 
                 {/* CompanyLens */}
                 <Route path="/company-lens" element={<CompanyLensPage />} />
