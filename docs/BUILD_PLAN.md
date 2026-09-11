@@ -164,8 +164,9 @@ ran — no separate landing commits were needed for this section._
   (positional key balance! — the v1 core items failed exactly this)
 - [x] `manager_match/manager_profile.py`: questions + pure scoring
   (mirrors `score.py`), pytest alongside
-- [ ] ⚑4: this instrument IS the manager section of the Situation Report —
+- [x] ⚑4: this instrument IS the manager section of the Situation Report —
   one table (§2.3), two consumers. Do not let A grow a second one.
+  _(Held: C-3 is the one table; A-7's report links into the Decoder.)_
 
 ### C-2 · Diff + playbook engine (M)
 
@@ -182,22 +183,22 @@ ran — no separate landing commits were needed for this section._
 
 ### C-3 · Storage + API (S–M)
 
-- [ ] Migration: `manager_profiles` (user_id, answers, dimension scores,
+- [x] Migration: `manager_profiles` (user_id, answers, dimension scores,
   version, created_at — append-only, D-16 tradition)
-- [ ] `POST /api/v1/assessments/manager-profile` (submit → scores + playbook),
+- [x] `POST /api/v1/assessments/manager-profile` (submit → scores + playbook),
   `GET /api/v1/me/manager-playbook`
-- [ ] Rate limits; OpenAPI regen; contract baseline capture (additive)
-- [ ] pytest: happy / no-ManagerMatch-yet (409 with clear message → UI
+- [x] Rate limits; OpenAPI regen; contract baseline capture (additive)
+- [x] pytest: happy / no-ManagerMatch-yet (409 with clear message → UI
   prompts to take it first) / malformed / retake versioning
 
 ### C-4 · Frontend (M)
 
-- [ ] Instrument flow (reuse ManagerMatch's forced-choice UI wholesale)
-- [ ] Playbook page — the payoff surface: mesh/grind map, protocols per
+- [x] Instrument flow (reuse ManagerMatch's forced-choice UI wholesale)
+- [x] Playbook page — the payoff surface: mesh/grind map, protocols per
   grind, print/copy-friendly
-- [ ] ManagerMatch results page bridge: "Now profile your actual manager →"
-- [ ] Intelligence hub card (replaces nothing; new card beside ManagerMatch)
-- [ ] Vitest per component; feature_tour route added
+- [x] ManagerMatch results page bridge: "Now profile your actual manager →"
+- [x] Intelligence hub card (replaces nothing; new card beside ManagerMatch)
+- [x] Vitest per component; feature_tour route added
 
 ---
 
@@ -248,22 +249,22 @@ ran — no separate landing commits were needed for this section._
   input), **gap bucket only** ∈ {feeding, aligned, straining} (3 coarse
   buckets, thresholds server-side), guidance refs. **Never** person-side
   scores, numeric gaps, or per-dim magnitudes.
-- [ ] ⚑5: the report pins to a named person-side snapshot (first completed
+- [x] ⚑5: the report pins to a named person-side snapshot (first completed
   core sitting). Core retakes do NOT silently move the report; an explicit
   "recalibrate" action re-pins and is logged. A retaker therefore has no
   gradient to watch — the D-15 mechanism, preserved.
-- [ ] This spec + the pinning rule is the text Sebastian rules on in
+- [x] This spec + the pinning rule is the text Sebastian rules on in
   chunk 0; build A-5 only after that ruling. _(Signed 2026-09-10 —
   A-4/A-5 are unblocked.)_
 
 ### A-5 · API (M)
 
-- [ ] `POST /api/v1/me/environment-report` (submit; sync — rules scoring is
+- [x] `POST /api/v1/me/environment-report` (submit; sync — rules scoring is
   instant, no Celery job needed), `GET /api/v1/me/situation-report`
-- [ ] States: env report alone (no core yet) → needs-forward partial +
+- [x] States: env report alone (no core yet) → needs-forward partial +
   bridge to Work Pulse; core alone → hub card prompts the env report
   (D-2's bridge); both → full report
-- [ ] Rate limits, OpenAPI, contract baseline, pytest per state
+- [x] Rate limits, OpenAPI, contract baseline, pytest per state
 
 ### A-6 · Guidance content (M — content, not code)
 
@@ -277,17 +278,17 @@ ran — no separate landing commits were needed for this section._
 
 ### A-7 · Frontend (L)
 
-- [ ] Env-report flow: single scrolling form or short stepper (sliders +
+- [x] Env-report flow: single scrolling form or short stepper (sliders +
   anchored choices — the machinery the MVP culture decision already chose)
-- [ ] Situation Report page — the flagship payoff surface: gaps ranked,
+- [x] Situation Report page — the flagship payoff surface: gaps ranked,
   three guidance registers per straining dimension, manager section
   linking into the Decoder, an honest "what this is / isn't" footer
   (trust page link)
-- [ ] Intelligence hub: the "Work Pulse complete — nothing to check" dead
+- [x] Intelligence hub: the "Work Pulse complete — nothing to check" dead
   end becomes the Situation Report card (completion copy remains for
   users with no env report yet)
-- [ ] Core completion screen bridge (upgrades D-2)
-- [ ] Vitest; feature_tour + real_stack flows (register → core → env report
+- [x] Core completion screen bridge (upgrades D-2)
+- [x] Vitest; feature_tour + real_stack flows (register → core → env report
   → report renders)
 
 ---
