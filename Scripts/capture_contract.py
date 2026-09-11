@@ -99,6 +99,20 @@ and `result-manager-match` carry it directly, and `me-profile-after-write`,
 profile document. Verified before the recapture, on the standing baseline:
 6 differences, all six the same two-field substitution and nothing else.
 
+**Re-baselined for BUILD_PLAN D-7b (2026-09-11).** The fourth deliberate contract
+change, and A26 (docs/ARCHITECTURE.md) is the ledger of what moved. No step was
+added or removed and no route changed -- `export_account_data` grew three new
+payload keys (`resume_parse_corrections`, `focus_type_answers`,
+`manager_match_answers`), so exactly one of the (by then 82) steps was affected:
+`export`. Verified before the recapture, on the standing baseline: 1 difference,
+and the diff is purely additive -- three new keys present with real content this
+scenario already produces (it submits FocusType and ManagerMatch before reaching
+`export`), every previously-existing key byte-identical. The scored `result` for
+both instruments is NOT part of that diff: it already reached the wire before
+this chunk, nested inside the `profile` key the mm-q11 paragraph above describes
+-- this chunk closes the narrower gap of the raw submitted `answers`, which
+reached neither `export` nor `profile` before now.
+
 **The LLM is stubbed, and the prompt builders with it.** Three instruments call a
 provider; a fixture that depended on one could not produce stable bytes, and the
 narrative text is the whole payload for two of them. `_chat_json` is replaced by a
@@ -1035,6 +1049,62 @@ def run_scenario() -> List[Dict[str, Any]]:
         "situation-report-recalibrate",
         "POST",
         "/api/v1/me/situation-report/recalibrate",
+        headers=mp_csrf,
+    )
+
+    # -- Pulse (B-2) --------------------------------------------------------
+    #
+    # Appended after the Situation Report block, exactly as that block appended
+    # after the Manager Decoder block: every record above keeps its position.
+    # Reuses `mp_csrf`'s still-open EMAIL session -- this account has never
+    # touched Pulse, so it is a fresh `sequence: 0` account, the same reasoning
+    # `pulse-next-checkin`'s capture below depends on.
+    #
+    # `pulse-checkin-malformed` pins the business-rule 422 (the served-set
+    # refusal) -- schema-level 422s (an unknown event_type, a note over 280
+    # characters, a cadence outside the three the user can set) are already
+    # covered by the routes' `enforce=True` body validators, the same reasoning
+    # `submit-manager-profile-malformed` above gives for capturing only the
+    # OTHER failure mode here.
+    from work_pulse.pulse_items import dimensions_for_checkin
+
+    with app.app_context():
+        pulse_user_id = User.query.filter_by(email=EMAIL).first().id
+
+    call("pulse-next-checkin", "GET", "/api/v1/me/pulse/next-checkin")
+    call("pulse-settings", "GET", "/api/v1/me/pulse/settings")
+
+    # sequence 1's dims, submitted as sequence 0 -- the served-set refusal.
+    wrong_dims = dimensions_for_checkin(pulse_user_id, 1)
+    call(
+        "pulse-checkin-malformed",
+        "POST",
+        "/api/v1/me/pulse/checkins",
+        json={"item_scores": {dim: 3 for dim in wrong_dims}, "experienced": 3},
+        headers=mp_csrf,
+    )
+
+    checkin_dims = dimensions_for_checkin(pulse_user_id, 0)
+    call(
+        "pulse-checkin",
+        "POST",
+        "/api/v1/me/pulse/checkins",
+        json={"item_scores": {dim: 3 for dim in checkin_dims}, "experienced": 4},
+        headers=mp_csrf,
+    )
+    call("pulse-history", "GET", "/api/v1/me/pulse/history")
+    call(
+        "pulse-event",
+        "POST",
+        "/api/v1/me/pulse/events",
+        json={"event_type": "new_manager"},
+        headers=mp_csrf,
+    )
+    call(
+        "pulse-settings-update",
+        "PATCH",
+        "/api/v1/me/pulse/settings",
+        json={"cadence": "biweekly"},
         headers=mp_csrf,
     )
 

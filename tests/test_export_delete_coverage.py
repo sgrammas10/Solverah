@@ -14,10 +14,15 @@ found -- and asserts each one is named in exactly one of the two dicts below:
 * ``COVERED``: the table's user content reaches `/me/export` and/or the
   account-deletion flow (destroyed, or kept de-identified via the tombstone --
   either is "covered"; which one is the D-16/D-01 call for that table).
-* ``ALLOWLIST``: it does not, and the reason is stated. Several entries here are
-  pre-existing gaps predating D-7 (see each reason) -- D-7's brief is exactly three
-  tables, not an invitation to fix every gap this test happens to notice, so they are
-  documented rather than silently left off the map entirely.
+* ``ALLOWLIST``: it does not, and the reason is stated -- always a deliberate one
+  (a design call, or a table with no user content to reach yet), never a bare "gap,
+  out of scope" placeholder. D-7's original brief was exactly three tables
+  (``environment_reports``, ``manager_profiles``, ``situation_report_pins``); D-7b
+  (2026-09-11) went back and triaged every table this test's own allowlist had been
+  carrying as a documented-but-unfixed gap, closing the ones that turned out to hold
+  real user content and rewriting the rest with the actual reason content-checking
+  found, rather than leaving "pre-existing gap, out of scope" standing as a
+  description of the current state.
 
 IF THIS TEST FAILS ON A TABLE NOT ALREADY LISTED BELOW
 --------------------------------------------------------
@@ -81,11 +86,17 @@ COVERED: dict[str, str] = {
     ),
     "pulse_checkins": (
         "BUILD_PLAN B-1's own D-7 wiring. export: account_service.export_account_data's "
-        "pulse_checkins key. deletion: account_repository.delete_personal_rows destroys it "
-        "(not tombstoned -- not behind D-01's doorway, B-1's own comment explains why)."
+        "pulse_checkins key. deletion: RETAINED, de-identified via the tombstone -- the "
+        "D-7b ruling (2026-09-11): no column on the row is free text (item_scores/"
+        "experienced are validated 1..5 integers), so account_repository.delete_personal_rows "
+        "does not touch it and it rides the same reconciliation as environment_reports. "
+        "tests/test_account_lifecycle.py::test_delete_retains_pulse_checkins."
     ),
     "pulse_events": (
-        "BUILD_PLAN B-1's own D-7 wiring, same as pulse_checkins."
+        "BUILD_PLAN B-1's own D-7 wiring. export: account_service.export_account_data's "
+        "pulse_events key. deletion: account_repository.delete_personal_rows destroys it -- "
+        "note is free text, and free text is never retained de-identified (D-7b ruling, "
+        "2026-09-11), which is also why pulse_checkins above no longer gets the same answer."
     ),
     "profiles": (
         "export: profile_repository.load_document's profile key. deletion: "
@@ -104,12 +115,60 @@ COVERED: dict[str, str] = {
         "update_document's resume rewrite deletes the row, and delete_account's own step 1 "
         "removes the R2 object it pointed at."
     ),
+    "resume_parse_correction": (
+        "BUILD_PLAN D-7b. deletion: account_repository.delete_personal_rows destroys it. "
+        "export: account_service.export_account_data's resume_parse_corrections key "
+        "(profile_repository.resume_corrections_for_user) -- corrected_value is what the "
+        "user typed to fix a parser-extracted field, the same kind of content "
+        "assessment_answers above already owes an export to. Closes the gap the pre-D-7b "
+        "ALLOWLIST entry for this table used to flag."
+    ),
+    "resume_parse_jobs": (
+        "BUILD_PLAN D-7b, closing SECURITY_AUDIT_2026-09 #7's residual half: the row "
+        "carries resume_name (often a person's own name) and object_key (a locator to "
+        "personal resume bytes), and resume_jobs.purge_terminal's own docstring already "
+        "named this as unreached by account deletion -- swept only by its own 30-day TTL, "
+        "regardless of whether the account behind it still exists. deletion: "
+        "account_repository.delete_personal_rows now destroys it. Not exported: it is a "
+        "transient job-status receipt, not a second copy of the parsed content -- the parse "
+        "result itself lives in the profile document, which export already covers."
+    ),
+    "scoring_jobs": (
+        "BUILD_PLAN D-7b. Held a duplicate copy of personal content for up to "
+        "scoring_jobs.PURGE_DAYS after going terminal -- payload (submitted answers, "
+        "nulled only once terminal) and result (narratives/archetypes for the three "
+        "LLM-backed instruments, computed path suggestions for the fourth) -- reached by "
+        "no export or deletion before this chunk, the same class of gap resume_parse_jobs "
+        "closes above. deletion: account_repository.delete_personal_rows now destroys it. "
+        "Not exported: every kind's permanent copy already reaches export elsewhere "
+        "(assessment_submissions, below) or is not durably persisted at all (path "
+        "suggestions) -- this row is a receipt, not a second source, per its own module "
+        "docstring."
+    ),
+    "assessment_submissions": (
+        "deletion: assessment_repository.delete_for_user destroys every kind's row. "
+        "export: wpll/work_pulse content reaches account_service._legacy_quiz; core's row "
+        "carries no answers under a check constraint (its content is the D-01-gated "
+        "tables, which ARE exported); focus_type/manager_match's scored `result` already "
+        "reached export before this chunk, nested at "
+        "profile.focus_type_result/profile.manager_match_result -- "
+        "profile_repository.load_document merges document_domain.ASSESSMENT_RESULT_KEYS on "
+        "every read, and A25's contract ledger (docs/ARCHITECTURE.md) independently "
+        "confirms `export` is one of the six wire steps manager_match_result is embedded "
+        "in. The pre-D-7b ALLOWLIST reason claiming `result` was missing was stale; the "
+        "real BUILD_PLAN D-7b gap was narrower -- the raw submitted `answers` for those "
+        "two kinds were in neither place -- and is closed by "
+        "account_service.export_account_data's focus_type_answers/manager_match_answers "
+        "keys."
+    ),
 }
 
 # Every user-keyed table NOT reachable through /me/export or account-deletion, and why
-# that is either deliberate or a known, out-of-scope gap. D-7's brief is exactly three
-# tables (environment_reports, manager_profiles, situation_report_pins) -- everything
-# else here predates it and is documented, not fixed, in this chunk.
+# that is deliberate rather than an oversight. D-7's original brief was exactly three
+# tables (environment_reports, manager_profiles, situation_report_pins); D-7b
+# (2026-09-11) re-triaged everything else this file had been carrying and closed what
+# turned out to hold real user content -- see COVERED above for what moved. What is
+# left here is left on purpose, for the reason stated.
 ALLOWLIST: dict[str, str] = {
     "user_sessions": (
         "Credential material, not user content -- a refresh-token row, never surfaced on "
@@ -125,37 +184,20 @@ ALLOWLIST: dict[str, str] = {
         "retention_cleanup.py.' Not exported to the subject by design (pre-D-7 scope "
         "decision); situation_report_recalibrate rows ride this same handling."
     ),
-    "resume_parse_correction": (
-        "deletion: account_repository.delete_personal_rows destroys it. export: NOT "
-        "currently in /me/export's payload (the corrected field values -- e.g. a fixed "
-        "phone number -- are personal content the export arguably owes). Pre-existing gap "
-        "predating D-7; out of this chunk's exact three-table scope, flagged in its report."
-    ),
-    "assessment_submissions": (
-        "deletion: assessment_repository.delete_for_user destroys every kind's row. export: "
-        "PARTIAL -- wpll/work_pulse content reaches account_service._legacy_quiz, core's row "
-        "carries no answers under a check constraint (its content is the D-01-gated tables, "
-        "which ARE exported), but focus_type/manager_match sittings' own `result` "
-        "(narrative/archetype text) is not currently in /me/export. Pre-existing gap "
-        "predating D-7; out of scope here."
-    ),
     "match_recommendation": (
-        "Not exported (distinct from, and not to be confused with, the `job_recommendation` "
-        "table that IS exported) and not destroyed/retained on deletion. Pre-existing gap "
-        "predating D-7; out of scope here."
+        "No application write path exists. Verified by search: the table is declared in "
+        "model.py and exercised only by tests/test_company_side_tables.py and "
+        "tests/test_partitioning.py -- the causal-model matching lane (S-07) has not "
+        "shipped a route that ever inserts a row here. There is no user content in this "
+        "table today for /me/export or account-deletion to reach; revisit when a write "
+        "path lands. Distinct from, and not to be confused with, the `job_recommendation` "
+        "table above, which IS live and IS covered."
     ),
     "outcome_experienced": (
-        "Not exported and not touched on deletion. Pre-existing gap predating D-7; out of "
-        "scope here."
-    ),
-    "resume_parse_jobs": (
-        "Transient job-status row (queued/running/succeeded/failed), swept by its own "
-        "TTL/purge mechanism, not by the account-deletion flow. Not exported. Pre-existing "
-        "gap predating D-7; out of scope here."
-    ),
-    "scoring_jobs": (
-        "Same as resume_parse_jobs -- transient, TTL-swept, not exported, not touched on "
-        "deletion. Pre-existing gap predating D-7; out of scope here."
+        "Same call as match_recommendation, same evidence: no application write path "
+        "exists today (model.py only, exercised by tests/test_company_side_tables.py and "
+        "tests/test_partitioning.py). Nothing for /me/export or account-deletion to reach "
+        "yet; revisit when the matching model's outcome check-in ships a route."
     ),
 }
 

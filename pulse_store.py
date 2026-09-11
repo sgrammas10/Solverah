@@ -14,8 +14,15 @@ History is the point -- it is what B-3's trend view and E-4's training data both
 D-7 (BUILD_PLAN, 2026-09-10 cross-cutting rule): `pulse_checkins` and `pulse_events`
 join `/me/export` and the account-deletion flow the same commit that creates them.
 `solverah/services/account_service.py` and `solverah/repositories/account_repository.py`
-call `pulse_checkin_history`/`pulse_events_in_range` and delete both tables' rows
-directly -- see those modules for the wiring; nothing about D-7 lives in this file.
+call `pulse_checkin_history`/`pulse_events_in_range` for export -- see those modules for
+the wiring; nothing about D-7 lives in this file.
+
+D-7b (2026-09-11 ruling): the two tables split on deletion. `pulse_checkins` holds no
+free text -- `item_scores` and `experienced` are plain 1..5 integers -- so it rides the
+tombstone de-identified, the same as `environment_reports`; `account_repository`
+touches it nowhere in the deletion path at all. `pulse_events.note` IS free text, and
+free text is never retained de-identified, so `account_repository.delete_personal_rows`
+destroys every row for the deleting user.
 """
 
 from __future__ import annotations

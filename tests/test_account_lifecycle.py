@@ -364,23 +364,61 @@ def test_delete_removes_dependent_personal_rows(client, monkeypatch):
         assert UserIntake.query.filter_by(user_id=user_id).count() == 0
 
 
-def test_delete_removes_pulse_checkins_and_events(client, monkeypatch):
-    """The other half of BUILD_PLAN B-1's D-7 rule: both tables are destroyed on
-    deletion, not tombstoned or retained de-identified -- neither is behind D-01's
-    doorway the way the core assessment rows are."""
-    csrf, user_id = _register_and_login(client, monkeypatch)
+def test_delete_retains_pulse_checkins(client, monkeypatch):
+    """D-7b ruling (2026-09-11): pulse_checkins rides the tombstone, de-identified,
+    exactly like environment_reports -- no column on the row is free text, so it does
+    not qualify for the "must be destroyed" class the way pulse_events does. A
+    bystander's check-in is untouched either way."""
+    _, bystander_id = _register_and_login(
+        client, monkeypatch, email="d7b-pulse-bystander@example.com"
+    )
+    csrf, user_id = _register_and_login(client, monkeypatch, email="d7b-pulse@example.com")
 
     from app import app
-    from model import PulseCheckin, PulseEvent, db
-    from pulse_store import write_pulse_checkin, write_pulse_event
+    from model import PulseCheckin, db
+    from pulse_store import write_pulse_checkin
     from work_pulse.pulse_items import dimensions_for_checkin
 
     with app.app_context():
-        item_scores = {dim: 4 for dim in dimensions_for_checkin(user_id, 0)}
-        write_pulse_checkin(
-            db, user_id, sequence=0, item_scores=item_scores,
-            experienced=3, version="pulse-v1-test",
-        )
+        for uid in (bystander_id, user_id):
+            item_scores = {dim: 4 for dim in dimensions_for_checkin(uid, 0)}
+            write_pulse_checkin(
+                db, uid, sequence=0, item_scores=item_scores,
+                experienced=3, version="pulse-v1-test",
+            )
+        db.session.commit()
+
+    res = client.delete("/api/v1/me", json={"confirm": "DELETE"},
+                      headers={"X-CSRF-TOKEN": csrf})
+    assert res.status_code == 200
+
+    with app.app_context():
+        # Not destroyed, not reassigned -- still hanging off the now-tombstoned
+        # user_id, the same "nothing to do" reconciliation as environment_reports.
+        surviving = PulseCheckin.query.filter_by(user_id=user_id).all()
+        assert len(surviving) == 1
+        assert surviving[0].experienced == 3
+
+        from model import User
+        deleted_user = db.session.get(User, user_id)
+        assert deleted_user.email == f"deleted-{user_id}@tombstone.invalid"
+
+        # Bystander untouched.
+        assert PulseCheckin.query.filter_by(user_id=bystander_id).count() == 1
+
+
+def test_delete_removes_pulse_events(client, monkeypatch):
+    """The other half of the D-7b split: pulse_events IS destroyed on deletion,
+    never tombstoned or retained de-identified -- `note` is free text, and free text
+    is never retained de-identified. Neither table is behind D-01's doorway the way
+    the core assessment rows are."""
+    csrf, user_id = _register_and_login(client, monkeypatch)
+
+    from app import app
+    from model import PulseEvent, db
+    from pulse_store import write_pulse_event
+
+    with app.app_context():
         write_pulse_event(db, user_id, event_type="reorg")
         db.session.commit()
 
@@ -389,7 +427,6 @@ def test_delete_removes_pulse_checkins_and_events(client, monkeypatch):
     assert res.status_code == 200
 
     with app.app_context():
-        assert PulseCheckin.query.filter_by(user_id=user_id).count() == 0
         assert PulseEvent.query.filter_by(user_id=user_id).count() == 0
 
 
@@ -592,3 +629,222 @@ def test_the_blob_scrub_is_part_of_the_tombstone_not_a_later_write(
         restored = db.session.get(User, user_id)
         assert restored.status != "deleted"
         assert restored.profile_data["phone"] == "+1-555-0100"
+
+
+# ── D-7b: export/delete gap closures (2026-09-11) ───────────────────────────
+#
+# tests/test_export_delete_coverage.py carried resume_parse_correction, resume_parse_jobs,
+# scoring_jobs and (partially) assessment_submissions in ALLOWLIST as documented,
+# unfixed gaps. Each test below is the regression that guard's now-COVERED entry for
+# that table points at.
+
+
+def test_export_includes_resume_parse_corrections(client, monkeypatch):
+    """resume_parse_correction's corrected_value is what the user typed to fix a
+    parser-extracted field -- the same class of content assessment_answers already
+    gets an export for. Closes the gap the pre-D-7b ALLOWLIST entry flagged."""
+    csrf, user_id = _register_and_login(client, monkeypatch, email="d7b-correction@example.com")
+
+    from app import app
+    from model import db
+    from solverah.repositories import profile_repository
+
+    with app.app_context():
+        profile_repository.record_resume_corrections(
+            user_id, "profile/%s/x/resume.pdf" % user_id,
+            [("phone", "+1-000-0000", "+1-555-0100")],
+        )
+        db.session.commit()
+
+    res = client.get("/api/v1/me/export")
+    assert res.status_code == 200
+    payload = res.get_json()
+
+    assert len(payload["resume_parse_corrections"]) == 1
+    correction = payload["resume_parse_corrections"][0]
+    assert correction["resume_key"] == "profile/%s/x/resume.pdf" % user_id
+    assert correction["field"] == "phone"
+    assert correction["parsed_value"] == "+1-000-0000"
+    assert correction["corrected_value"] == "+1-555-0100"
+
+
+def test_delete_removes_resume_parse_corrections(client, monkeypatch):
+    csrf, user_id = _register_and_login(
+        client, monkeypatch, email="d7b-correction-delete@example.com"
+    )
+
+    from app import app
+    from model import ResumeParseCorrection, db
+    from solverah.repositories import profile_repository
+
+    with app.app_context():
+        profile_repository.record_resume_corrections(
+            user_id, "profile/%s/x/resume.pdf" % user_id,
+            [("phone", "+1-000-0000", "+1-555-0100")],
+        )
+        db.session.commit()
+
+    res = client.delete("/api/v1/me", json={"confirm": "DELETE"},
+                      headers={"X-CSRF-TOKEN": csrf})
+    assert res.status_code == 200
+
+    with app.app_context():
+        assert ResumeParseCorrection.query.filter_by(user_id=user_id).count() == 0
+
+
+def test_delete_removes_resume_parse_jobs(client, monkeypatch):
+    """BUILD_PLAN D-7b, closing SECURITY_AUDIT_2026-09 #7's residual half: the row
+    carries resume_name (often a person's own name) and object_key (a locator to
+    personal resume bytes) and previously survived account deletion untouched --
+    swept only by resume_jobs.purge_terminal's own 30-day TTL, whether or not the
+    account behind it still exists."""
+    csrf, user_id = _register_and_login(client, monkeypatch, email="d7b-parse-job@example.com")
+
+    from app import app
+    from model import ResumeParseJob, db
+
+    with app.app_context():
+        db.session.add(ResumeParseJob(
+            user_id=user_id,
+            object_key="profile/%s/x/resume.pdf" % user_id,
+            mime="application/pdf",
+            size_bytes=2048,
+            resume_name="Lifecycle User Resume.pdf",
+            status="succeeded",
+        ))
+        db.session.commit()
+
+    res = client.delete("/api/v1/me", json={"confirm": "DELETE"},
+                      headers={"X-CSRF-TOKEN": csrf})
+    assert res.status_code == 200
+
+    with app.app_context():
+        assert ResumeParseJob.query.filter_by(user_id=user_id).count() == 0
+
+
+def test_delete_removes_scoring_jobs(client, monkeypatch):
+    """BUILD_PLAN D-7b: scoring_jobs holds a duplicate copy of personal content --
+    payload (submitted answers, pre-terminal) or result (a scored narrative/archetype,
+    post-terminal) -- that previously outlived account deletion for up to
+    scoring_jobs.PURGE_DAYS, the same class of gap resume_parse_jobs closes above."""
+    csrf, user_id = _register_and_login(client, monkeypatch, email="d7b-scoring-job@example.com")
+
+    from app import app
+    from model import ScoringJob, db
+
+    with app.app_context():
+        db.session.add(ScoringJob(
+            user_id=user_id,
+            job_type="assessment_scoring",
+            kind="work_pulse",
+            payload={},
+            status="succeeded",
+            result={"narrative": "a scored narrative about this person"},
+        ))
+        db.session.commit()
+
+    res = client.delete("/api/v1/me", json={"confirm": "DELETE"},
+                      headers={"X-CSRF-TOKEN": csrf})
+    assert res.status_code == 200
+
+    with app.app_context():
+        assert ScoringJob.query.filter_by(user_id=user_id).count() == 0
+
+
+#: The exact payload Scripts/capture_contract.py exercises for FocusType -- reused
+#: rather than invented, so this test's shape is one already proven to score.
+_FOCUS_TYPE_PAYLOAD = {
+    "scene_1": ["big_project", "planning_doc", "urgent_client", "teammate_feedback",
+                "emails", "admin_tasks"],
+    "scene_2": {
+        "now": ["email_client_important", "slack_mentioned"],
+        "later": ["slack_teammate_question"],
+        "ignore": ["email_newsletter", "calendar_meeting_invite", "task_new_ticket",
+                   "task_planning_doc", "slack_team_channel", "email_system_report",
+                   "calendar_team_lunch"],
+    },
+    "scene_3": {"deep_solo": 2.5, "planning": 0.5, "social": 0.5, "breaks": 0.25,
+                "exploring": 0.25},
+    "scene_4": {
+        "now": ["deep_research"],
+        "tomorrow": ["reply_teammate", "write_report_draft", "update_task_tracker",
+                     "quick_call_unblock", "send_followup_email", "review_others_work",
+                     "sketch_tomorrow_plan"],
+        "avg_decision_time_ms": 500,
+    },
+    "scene_5": ["deep_work", "wind_down"],
+}
+
+_MM_ANSWERS = [{"question_id": "mm-q%d" % i, "choice": "a"} for i in range(1, 16)]
+
+
+def _mock_openai_client(monkeypatch, narrative="A test narrative."):
+    import json as json_module
+    from unittest.mock import MagicMock
+
+    mock_client = MagicMock()
+    llm_body = {
+        "narrative": narrative,
+        "what_to_look_for": ["one thing to ask about"],
+        "red_flags": ["one flag to watch for"],
+        "archetype_description": "A test archetype description.",
+    }
+    mock_choice = MagicMock()
+    mock_choice.message.content = json_module.dumps(llm_body)
+    mock_response = MagicMock()
+    mock_response.choices = [mock_choice]
+    mock_client.chat.completions.create.return_value = mock_response
+    monkeypatch.setattr("solverah.infra.llm.get_openai_client", lambda: mock_client)
+
+
+def test_export_includes_focus_type_and_manager_match_answers(client, monkeypatch):
+    """BUILD_PLAN D-7b. The scored `result` for both kinds already reached export
+    before this chunk -- nested at profile.focus_type_result/profile.manager_match_result
+    via profile_repository.load_document -- so this test locks that prior behaviour in
+    too, rather than asserting only the raw `answers` this chunk actually adds."""
+    csrf, user_id = _register_and_login(client, monkeypatch, email="d7b-ft-mm@example.com")
+
+    ft_res = client.post(
+        "/api/v1/assessments/focus_type/submissions",
+        json=_FOCUS_TYPE_PAYLOAD,
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert ft_res.status_code == 200
+
+    _mock_openai_client(monkeypatch)
+    queued = client.post(
+        "/api/v1/assessments/manager_match/scoring-jobs",
+        json={"answers": _MM_ANSWERS},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert queued.status_code == 202
+    poll = client.get(
+        "/api/v1/assessments/manager_match/scoring-jobs/%s" % queued.get_json()["job_id"]
+    )
+    assert poll.get_json()["status"] == "succeeded"
+
+    res = client.get("/api/v1/me/export")
+    assert res.status_code == 200
+    payload = res.get_json()
+
+    # The gap this chunk closes: the raw answers, absent from export before now.
+    assert payload["focus_type_answers"] == _FOCUS_TYPE_PAYLOAD
+    assert payload["manager_match_answers"] == _MM_ANSWERS
+
+    # The behaviour this chunk did NOT need to add, locked in so it cannot regress
+    # unnoticed: the scored result, nested in the profile document.
+    assert payload["profile"]["manager_match_result"]["narrative"] == "A test narrative."
+    assert "archetype" in payload["profile"]["focus_type_result"]
+
+
+def test_export_omits_focus_type_and_manager_match_answers_when_never_sat(client, monkeypatch):
+    """The omission half: a bystander who never sat either instrument gets null, not
+    another account's answers or a KeyError."""
+    csrf, user_id = _register_and_login(client, monkeypatch, email="d7b-ft-mm-bystander@example.com")
+
+    res = client.get("/api/v1/me/export")
+    assert res.status_code == 200
+    payload = res.get_json()
+
+    assert payload["focus_type_answers"] is None
+    assert payload["manager_match_answers"] is None

@@ -12,9 +12,16 @@ These commands are those two jobs as Flask CLI entry points, so a separate
 Render **Cron Job** service can run them with nothing but the repo and the
 dashboard env vars:
 
-    flask outbox sweep       # suggested: every 5 minutes
-    flask retention run      # suggested: daily
-    flask backups run        # suggested: daily, 03:30 UTC
+    flask outbox sweep         # suggested: every 5 minutes
+    flask retention run        # suggested: daily
+    flask backups run          # suggested: daily, 03:30 UTC
+    flask pulse send-prompts   # suggested: daily (BUILD_PLAN B-2)
+
+``pulse send-prompts`` is the newest of the four and not load-bearing the way
+the first two are -- nothing breaks if a run is skipped, a due user is simply
+prompted on the next one -- but it shares the same idempotency shape (see
+``solverah.services.pulse_cadence_service``) and the same reason for being a
+cron entry point rather than a beat task.
 
 Both boot through ``create_app()`` (the Flask CLI imports ``app.py``), so fatal
 config validation and Sentry apply exactly as they do to the web service --
@@ -48,15 +55,25 @@ infrastructure.
 from __future__ import annotations
 
 import json
+import os
 
 import click
 from flask.cli import AppGroup
 
-__all__ = ["backups_cli", "outbox_cli", "register_cli", "retention_cli"]
+__all__ = ["backups_cli", "outbox_cli", "pulse_cli", "register_cli", "retention_cli"]
 
 outbox_cli = AppGroup("outbox", help="Transactional-outbox operations (cron entry points).")
 retention_cli = AppGroup("retention", help="Data-retention purges (cron entry points).")
 backups_cli = AppGroup("backups", help="Database backups (cron entry point).")
+pulse_cli = AppGroup("pulse", help="Pulse check-in cadence (cron entry point).")
+
+#: The frontend origin the Pulse deep link is built against, when neither the
+#: env var nor `--base-url` supplies one. Same value as `factory.py`'s
+#: `PRODUCTION_CORS_ORIGINS`' apex entry -- there is no existing "the frontend's
+#: base URL" setting to reuse (every email before this one sent an OTP code, not
+#: a link), so this mirrors `solverah/infra/email.py`'s own style of a plain
+#: `os.environ.get` rather than growing `solverah.config.Settings` for one value.
+DEFAULT_APP_BASE_URL = "https://solverah.com"
 
 #: Retention window for *delivered* outbox rows, in hours.
 #:
@@ -267,8 +284,34 @@ def backups_run(
     click.echo(json.dumps(summary))
 
 
+@pulse_cli.command("send-prompts")
+@click.option(
+    "--base-url",
+    default=None,
+    help="Frontend origin for the deep link (default: $APP_BASE_URL or %r)."
+    % DEFAULT_APP_BASE_URL,
+)
+def pulse_send_prompts(base_url: str) -> None:
+    """Email every confirmed-email user whose Pulse cadence says they are due.
+
+    Idempotent, same contract as `outbox sweep`: a re-run within the same
+    cadence window emails nobody twice, because due-ness is `last_prompted_at`
+    plus the cadence interval, and that timestamp is only ever set once a
+    prompt's outbox row and it commit together (`pulse_cadence_service`'s
+    docstring). Exits non-zero only if the pass itself crashed; an individual
+    send failing is the outbox's normal weather and is retried by the next
+    `outbox sweep`, not by this command.
+    """
+    from solverah.services import pulse_cadence_service
+
+    resolved_base_url = base_url or os.environ.get("APP_BASE_URL", DEFAULT_APP_BASE_URL)
+    summary = pulse_cadence_service.send_due_prompts(base_url=resolved_base_url)
+    click.echo(json.dumps({"event": "pulse_send_prompts", **summary}))
+
+
 def register_cli(app) -> None:
     """Attach the operational command groups to *app*'s CLI."""
     app.cli.add_command(outbox_cli)
     app.cli.add_command(retention_cli)
     app.cli.add_command(backups_cli)
+    app.cli.add_command(pulse_cli)

@@ -81,6 +81,20 @@
             "title": "Exported At",
             "type": "string"
           },
+          "focus_type_answers": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The FocusType sitting's raw submitted answers, or null if never sat (BUILD_PLAN D-7b). The scored result is not duplicated here -- it already reaches export nested at profile.focus_type_result.",
+            "title": "Focus Type Answers"
+          },
           "intake_submissions": {
             "items": {
               "$ref": "#/components/schemas/ExportedIntakeSubmission"
@@ -105,6 +119,23 @@
               }
             ],
             "default": null
+          },
+          "manager_match_answers": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The Manager Decoder sitting's raw submitted answers, or null if never sat (BUILD_PLAN D-7b). The scored result is not duplicated here -- it already reaches export nested at profile.manager_match_result.",
+            "title": "Manager Match Answers"
           },
           "manager_profiles": {
             "description": "Every sitting of the manager-profile instrument, newest first (append-only, D-16).",
@@ -134,6 +165,14 @@
               "$ref": "#/components/schemas/ExportedPulseEvent"
             },
             "title": "Pulse Events",
+            "type": "array"
+          },
+          "resume_parse_corrections": {
+            "description": "Every parser-field correction the user has saved, newest first (BUILD_PLAN D-7b).",
+            "items": {
+              "$ref": "#/components/schemas/ExportedResumeCorrection"
+            },
+            "title": "Resume Parse Corrections",
             "type": "array"
           },
           "situation_report_pin": {
@@ -1623,6 +1662,72 @@
           "event_type"
         ],
         "title": "ExportedPulseEvent",
+        "type": "object"
+      },
+      "ExportedResumeCorrection": {
+        "additionalProperties": false,
+        "description": "One resume-parser field correction the user made and saved (BUILD_PLAN D-7b).\n\n``corrected_value`` is what the user typed; ``parsed_value`` is what the parser\noriginally produced, kept for comparison and never overwritten by a later edit of\nthe same field (``profile_repository.record_resume_corrections``'s own rule).",
+        "properties": {
+          "corrected_value": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Corrected Value"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 timestamp.",
+            "title": "Created At"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "parsed_value": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Parsed Value"
+          },
+          "resume_key": {
+            "title": "Resume Key",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 timestamp.",
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "resume_key",
+          "field"
+        ],
+        "title": "ExportedResumeCorrection",
         "type": "object"
       },
       "ExportedSituationReportPin": {
@@ -3262,6 +3367,461 @@
           "profile"
         ],
         "title": "ProfilePatchRequest",
+        "type": "object"
+      },
+      "PulseCadenceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "cadence": {
+            "description": "'monthly' is reachable only via the anti-nag auto-drop, never set directly.",
+            "enum": [
+              "weekly",
+              "biweekly",
+              "monthly",
+              "off"
+            ],
+            "title": "Cadence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cadence"
+        ],
+        "title": "PulseCadenceResponse",
+        "type": "object"
+      },
+      "PulseCadenceUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "cadence": {
+            "description": "The three cadences a user can choose. 'off' is always this one call.",
+            "enum": [
+              "weekly",
+              "biweekly",
+              "off"
+            ],
+            "title": "Cadence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cadence"
+        ],
+        "title": "PulseCadenceUpdateRequest",
+        "type": "object"
+      },
+      "PulseCheckinItem": {
+        "additionalProperties": false,
+        "properties": {
+          "dimension": {
+            "title": "Dimension",
+            "type": "string"
+          },
+          "high_anchor": {
+            "title": "High Anchor",
+            "type": "string"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "low_anchor": {
+            "title": "Low Anchor",
+            "type": "string"
+          },
+          "stem": {
+            "title": "Stem",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id",
+          "dimension",
+          "stem",
+          "low_anchor",
+          "high_anchor"
+        ],
+        "title": "PulseCheckinItem",
+        "type": "object"
+      },
+      "PulseCheckinRecord": {
+        "additionalProperties": false,
+        "description": "One check-in as ``GET /me/pulse/history`` lists it.",
+        "properties": {
+          "experienced": {
+            "title": "Experienced",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "item_scores": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Item Scores",
+            "type": "object"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "taken_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Taken At"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sequence",
+          "item_scores",
+          "experienced",
+          "version"
+        ],
+        "title": "PulseCheckinRecord",
+        "type": "object"
+      },
+      "PulseCheckinRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "experienced": {
+            "description": "pulse-experienced: 'This week, how well is work working for you?'",
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Experienced",
+            "type": "integer"
+          },
+          "item_scores": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Exactly the dimensions work_pulse.pulse_items.dimensions_for_checkin served for this user's next sequence, each answered 1..5. The server derives which dimensions that is -- posting a different set, or a score outside 1..5, is refused (422).",
+            "title": "Item Scores",
+            "type": "object"
+          }
+        },
+        "required": [
+          "item_scores",
+          "experienced"
+        ],
+        "title": "PulseCheckinRequest",
+        "type": "object"
+      },
+      "PulseCheckinResponse": {
+        "additionalProperties": false,
+        "description": "``POST /me/pulse/checkins`` -- an echo of what was recorded, like\n`EnvironmentReportSubmitResponse`: a Pulse answer already IS its own score,\nso there is nothing derived to add.",
+        "properties": {
+          "experienced": {
+            "title": "Experienced",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "item_scores": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Item Scores",
+            "type": "object"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "taken_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Taken At"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sequence",
+          "item_scores",
+          "experienced",
+          "version"
+        ],
+        "title": "PulseCheckinResponse",
+        "type": "object"
+      },
+      "PulseEventRecord": {
+        "additionalProperties": false,
+        "description": "One event as ``GET /me/pulse/history`` lists it -- the same shape as\n`PulseEventResponse`, named separately because the two responses document\ndifferent endpoints.",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "At"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          }
+        },
+        "required": [
+          "id",
+          "event_type"
+        ],
+        "title": "PulseEventRecord",
+        "type": "object"
+      },
+      "PulseEventRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "event_type": {
+            "enum": [
+              "new_manager",
+              "reorg",
+              "remote_change",
+              "role_change",
+              "other"
+            ],
+            "title": "Event Type",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 280,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional short context, mainly for 'other'. model.PULSE_EVENT_NOTE_MAX_LENGTH caps it at 280 characters.",
+            "title": "Note"
+          }
+        },
+        "required": [
+          "event_type"
+        ],
+        "title": "PulseEventRequest",
+        "type": "object"
+      },
+      "PulseEventResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "At"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          }
+        },
+        "required": [
+          "id",
+          "event_type"
+        ],
+        "title": "PulseEventResponse",
+        "type": "object"
+      },
+      "PulseHistoryQuery": {
+        "description": "Query parameters for ``GET /me/pulse/history``.",
+        "properties": {
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Max check-ins returned, clamped 1..100. Unbounded when absent. Events are never limited.",
+            "title": "Limit"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO-8601 datetime, inclusive lower bound on taken_at/at.",
+            "title": "Since"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO-8601 datetime, inclusive upper bound on taken_at/at.",
+            "title": "Until"
+          }
+        },
+        "title": "PulseHistoryQuery",
+        "type": "object"
+      },
+      "PulseHistoryResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "checkins": {
+            "items": {
+              "$ref": "#/components/schemas/PulseCheckinRecord"
+            },
+            "title": "Checkins",
+            "type": "array"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/PulseEventRecord"
+            },
+            "title": "Events",
+            "type": "array"
+          }
+        },
+        "required": [
+          "checkins",
+          "events"
+        ],
+        "title": "PulseHistoryResponse",
+        "type": "object"
+      },
+      "PulseNextCheckinResponse": {
+        "additionalProperties": false,
+        "description": "``GET /me/pulse/next-checkin`` -- `work_pulse.pulse_items.render_checkin`'s\nshape verbatim: server-derived and FORM_VERSION-stamped, so a client always\nknows which three dimensions (plus the outcome item) to render next without\ncomputing the round-robin itself.",
+        "properties": {
+          "experienced_item": {
+            "$ref": "#/components/schemas/PulseOutcomeItem"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PulseCheckinItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sequence",
+          "version",
+          "items",
+          "experienced_item"
+        ],
+        "title": "PulseNextCheckinResponse",
+        "type": "object"
+      },
+      "PulseOutcomeItem": {
+        "additionalProperties": false,
+        "properties": {
+          "high_anchor": {
+            "title": "High Anchor",
+            "type": "string"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "low_anchor": {
+            "title": "Low Anchor",
+            "type": "string"
+          },
+          "stem": {
+            "title": "Stem",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id",
+          "stem",
+          "low_anchor",
+          "high_anchor"
+        ],
+        "title": "PulseOutcomeItem",
         "type": "object"
       },
       "QuizInsight": {
@@ -6897,6 +7457,421 @@
           }
         ],
         "summary": "Merge a partial profile over the stored document",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/pulse/checkins": {
+      "post": {
+        "description": "The server derives both the sequence (`pulse_checkin_count`) and the three dimensions it must answer (`dimensions_for_checkin`) -- the client never chooses either. Posting a different dimension set, or a score outside 1..5, is refused `422` in problem+json rather than accepted or 500ing.",
+        "operationId": "post_me_post_my_pulse_checkin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PulseCheckinRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PulseCheckinResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Submit a Pulse check-in",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/pulse/events": {
+      "post": {
+        "description": "One of new_manager / reorg / remote_change / role_change / other, with an optional 280-character note. B-4 reads these to prompt an environment-report resubmission; B-3's trend view plots them on the check-in axis. Nothing here scores anything.",
+        "operationId": "post_me_post_my_pulse_event",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PulseEventRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PulseEventResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Log a Pulse life/work event",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/pulse/history": {
+      "get": {
+        "description": "Newest first, optionally windowed by `since`/`until` (ISO-8601, inclusive). `limit` bounds check-ins (1..100, clamped) and is unbounded when absent; events are never limited -- B-4 reads every one to decide when a Situation Report resubmission prompt applies.",
+        "operationId": "get_me_get_my_pulse_history",
+        "parameters": [
+          {
+            "description": "ISO-8601 datetime, inclusive lower bound on taken_at/at.",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Since"
+            }
+          },
+          {
+            "description": "ISO-8601 datetime, inclusive upper bound on taken_at/at.",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Until"
+            }
+          },
+          {
+            "description": "Max check-ins returned, clamped 1..100. Unbounded when absent. Events are never limited.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PulseHistoryResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Read Pulse check-in and event history",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/pulse/next-checkin": {
+      "get": {
+        "description": "`work_pulse.pulse_items.render_checkin`'s shape verbatim: server-derived and FORM_VERSION-stamped, so a client always knows which three dimensions (plus the outcome item) to render next without computing the round-robin itself -- and it is the same instrument `POST /me/pulse/checkins` validates the answer against.",
+        "operationId": "get_me_get_my_pulse_next_checkin",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PulseNextCheckinResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Read the items this user's next Pulse check-in will serve",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/pulse/settings": {
+      "get": {
+        "description": "GET /me/pulse/settings - the current cadence.",
+        "operationId": "get_me_get_my_pulse_settings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PulseCadenceResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Read the Pulse check-in cadence",
+        "tags": [
+          "me"
+        ]
+      },
+      "patch": {
+        "description": "weekly (default), biweekly, or off -- off is always this one call. Also clears the anti-nag state: an explicit choice is never held against a prior silence (PRODUCT_DECISIONS.md \u00a72).",
+        "operationId": "patch_me_patch_my_pulse_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PulseCadenceUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PulseCadenceResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Set the Pulse check-in cadence",
         "tags": [
           "me"
         ]

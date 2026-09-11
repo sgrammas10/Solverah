@@ -49,6 +49,17 @@ from solverah.repositories import user_repository
 from solverah.schemas import PROBLEM_RESPONSE_MODEL, LegacyError
 from solverah.schemas.account import AccountDeleteRequest, AccountDeleteResponse, AccountExportResponse
 from solverah.schemas.manager_playbook import ManagerPlaybookResponse
+from solverah.schemas.pulse import (
+    PulseCadenceResponse,
+    PulseCadenceUpdateRequest,
+    PulseCheckinRequest,
+    PulseCheckinResponse,
+    PulseEventRequest,
+    PulseEventResponse,
+    PulseHistoryQuery,
+    PulseHistoryResponse,
+    PulseNextCheckinResponse,
+)
 from solverah.schemas.profile import (
     CareerStatusRequest,
     CareerStatusResponse,
@@ -76,6 +87,7 @@ from solverah.services import (
     account_service,
     manager_playbook_service,
     profile_service,
+    pulse_service,
     resume_jobs,
     situation_report_service,
 )
@@ -691,3 +703,167 @@ def get_my_resume_parse_job(job_id: str):
         return jsonify({"error": "Job not found"}), 404
 
     return jsonify(resume_jobs.status_for(job)), 200
+
+
+# ---------------------------------------------------------------------------
+# Pulse (BUILD_PLAN B-2)
+# ---------------------------------------------------------------------------
+#
+# What a user's own requests can do. The cron half that decides WHO gets
+# prompted (`flask pulse send-prompts`, `solverah/cli.py`) is a separate module,
+# `solverah.services.pulse_cadence_service` -- a Flask CLI process and a request
+# here are different callers with different lifecycles.
+#
+# Cadence/anti-nag state has no table of its own: it rides on the profile
+# document (`solverah.services.pulse_settings`) rather than adding one, per
+# BUILD_PLAN's D-7 cross-cutting rule -- a new user-data table would have to
+# join the `GET /me/export` / account-deletion seam D-7b owns this wave.
+#
+# Matches the Situation Report submission routes' budget: both write instantly
+# and deterministically, with no provider spend to bound.
+PULSE_SUBMIT_LIMIT = "5 per minute"
+
+
+@document(
+    "Submit a Pulse check-in",
+    tags=["me"],
+    request=PulseCheckinRequest,
+    responses={200: PulseCheckinResponse, 404: LegacyError, 422: PROBLEM_RESPONSE_MODEL},
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "The server derives both the sequence (`pulse_checkin_count`) and the three "
+        "dimensions it must answer (`dimensions_for_checkin`) -- the client never "
+        "chooses either. Posting a different dimension set, or a score outside 1..5, "
+        "is refused `422` in problem+json rather than accepted or 500ing."
+    ),
+)
+@me_bp.route("/me/pulse/checkins", methods=["POST"])
+@limiter.limit(PULSE_SUBMIT_LIMIT)
+@jwt_required()
+def post_my_pulse_checkin():
+    """POST /me/pulse/checkins - record one check-in for this user's next sequence."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(pulse_service.submit_checkin(user, _body())), 200
+
+
+@document(
+    "Read Pulse check-in and event history",
+    tags=["me"],
+    query=PulseHistoryQuery,
+    responses={200: PulseHistoryResponse, 404: LegacyError, 422: PROBLEM_RESPONSE_MODEL},
+    security=_AUTHENTICATED,
+    enforce=True,
+    description=(
+        "Newest first, optionally windowed by `since`/`until` (ISO-8601, inclusive). "
+        "`limit` bounds check-ins (1..100, clamped) and is unbounded when absent; "
+        "events are never limited -- B-4 reads every one to decide when a Situation "
+        "Report resubmission prompt applies."
+    ),
+)
+@me_bp.route("/me/pulse/history", methods=["GET"])
+@jwt_required()
+def get_my_pulse_history():
+    """GET /me/pulse/history - check-ins and events, newest first."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    result = pulse_service.get_history(
+        user,
+        since_raw=request.args.get("since"),
+        until_raw=request.args.get("until"),
+        limit_raw=request.args.get("limit"),
+    )
+    return jsonify(result), 200
+
+
+@document(
+    "Read the items this user's next Pulse check-in will serve",
+    tags=["me"],
+    responses={200: PulseNextCheckinResponse, 404: LegacyError},
+    security=_AUTHENTICATED,
+    enforce=True,
+    description=(
+        "`work_pulse.pulse_items.render_checkin`'s shape verbatim: server-derived and "
+        "FORM_VERSION-stamped, so a client always knows which three dimensions (plus "
+        "the outcome item) to render next without computing the round-robin itself -- "
+        "and it is the same instrument `POST /me/pulse/checkins` validates the answer "
+        "against."
+    ),
+)
+@me_bp.route("/me/pulse/next-checkin", methods=["GET"])
+@jwt_required()
+def get_my_pulse_next_checkin():
+    """GET /me/pulse/next-checkin - the three dimensions + outcome item to render next."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(pulse_service.get_next_checkin(user)), 200
+
+
+@document(
+    "Log a Pulse life/work event",
+    tags=["me"],
+    request=PulseEventRequest,
+    responses={200: PulseEventResponse, 404: LegacyError, 422: PROBLEM_RESPONSE_MODEL},
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "One of new_manager / reorg / remote_change / role_change / other, with an "
+        "optional 280-character note. B-4 reads these to prompt an environment-report "
+        "resubmission; B-3's trend view plots them on the check-in axis. Nothing here "
+        "scores anything."
+    ),
+)
+@me_bp.route("/me/pulse/events", methods=["POST"])
+@limiter.limit(PULSE_SUBMIT_LIMIT)
+@jwt_required()
+def post_my_pulse_event():
+    """POST /me/pulse/events - log one dated annotation."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(pulse_service.submit_event(user, _body())), 200
+
+
+@document(
+    "Read the Pulse check-in cadence",
+    tags=["me"],
+    responses={200: PulseCadenceResponse, 404: LegacyError},
+    security=_AUTHENTICATED,
+    enforce=True,
+)
+@me_bp.route("/me/pulse/settings", methods=["GET"])
+@jwt_required()
+def get_my_pulse_settings():
+    """GET /me/pulse/settings - the current cadence."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(pulse_service.get_settings(user)), 200
+
+
+@document(
+    "Set the Pulse check-in cadence",
+    tags=["me"],
+    request=PulseCadenceUpdateRequest,
+    responses={200: PulseCadenceResponse, 404: LegacyError, 422: PROBLEM_RESPONSE_MODEL},
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "weekly (default), biweekly, or off -- off is always this one call. Also "
+        "clears the anti-nag state: an explicit choice is never held against a prior "
+        "silence (PRODUCT_DECISIONS.md §2)."
+    ),
+)
+@me_bp.route("/me/pulse/settings", methods=["PATCH"])
+@limiter.limit(PULSE_SUBMIT_LIMIT)
+@jwt_required()
+def patch_my_pulse_settings():
+    """PATCH /me/pulse/settings - change the cadence."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(pulse_service.update_settings(user, _body())), 200

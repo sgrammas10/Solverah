@@ -1468,9 +1468,15 @@ class SituationReportPin(db.Model):
 # account-deletion flow the day it is created." `environment_reports` and
 # `manager_profiles` predate that rule and are its tracked gap (BUILD_PLAN D-7); these
 # two tables do not inherit it -- `solverah/services/account_service.py`'s
-# `export_account_data` and `solverah/repositories/account_repository.py`'s
-# `delete_personal_rows` both reach `pulse_checkins`/`pulse_events` from the same
-# commit that creates them.
+# `export_account_data` reaches `pulse_checkins`/`pulse_events` from the same commit
+# that creates them, both exported unconditionally.
+#
+# D-7b (2026-09-11 ruling): the two tables do NOT share one deletion answer.
+# `pulse_checkins` carries no free text -- every column is a validated 1..5 integer --
+# so it rides the tombstone de-identified, same reconciliation as `environment_reports`
+# above; `account_repository.delete_personal_rows` does not touch it. `pulse_events.note`
+# is free text, and free text is never retained de-identified, so that table is destroyed
+# on deletion, same as before.
 
 #: `pulse_events.event_type`'s vocabulary -- BUILD_PLAN B-1. A plain CHECK-constrained
 #: string, same convention as `CAREER_STATUSES` above: validated in code and in the
@@ -1494,6 +1500,12 @@ class PulseCheckin(db.Model):
     No derived-score column anywhere, unlike `EnvironmentReport`/`EnvironmentDimensionScore`:
     a Pulse answer already IS its own score (a plain 1..5), so there is nothing to
     compute between the answer and what B-3's chart reads.
+
+    RETAINED, DE-IDENTIFIED, ON ACCOUNT DELETION (D-7b, 2026-09-11)
+    -----------------------------------------------------------------
+    No column on this table is free text, so `account_repository.delete_personal_rows`
+    does not touch it -- it rides the tombstone exactly like `EnvironmentReport`.
+    `PulseEvent` beside it makes the opposite call, because `note` is free text.
     """
 
     __tablename__ = "pulse_checkins"
@@ -1543,6 +1555,13 @@ class PulseEvent(db.Model):
     dated annotation -- B-4's wiring (`BUILD_PLAN` B-4) reads these to decide when an
     environment-report resubmission should be prompted, and B-3's trend view plots them
     on the same axis as check-ins. Nothing here scores anything.
+
+    DESTROYED, NOT RETAINED, ON ACCOUNT DELETION (D-7b, 2026-09-11)
+    -------------------------------------------------------------------
+    `note` is free text, and free text is never retained de-identified --
+    `account_repository.delete_personal_rows` destroys every row for the deleting
+    user. `PulseCheckin` beside it makes the opposite call: none of its columns are
+    free text, so it rides the tombstone instead.
     """
 
     __tablename__ = "pulse_events"

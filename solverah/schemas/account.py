@@ -27,6 +27,7 @@ __all__ = [
     "ExportedManagerProfile",
     "ExportedPulseCheckin",
     "ExportedPulseEvent",
+    "ExportedResumeCorrection",
     "ExportedSituationReportPin",
 ]
 
@@ -162,6 +163,22 @@ class ExportedPulseEvent(SolverahModel):
     note: Optional[str] = None
 
 
+class ExportedResumeCorrection(SolverahModel):
+    """One resume-parser field correction the user made and saved (BUILD_PLAN D-7b).
+
+    ``corrected_value`` is what the user typed; ``parsed_value`` is what the parser
+    originally produced, kept for comparison and never overwritten by a later edit of
+    the same field (``profile_repository.record_resume_corrections``'s own rule).
+    """
+
+    resume_key: str
+    field: str
+    parsed_value: Optional[Any] = None
+    corrected_value: Optional[Any] = None
+    created_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
+    updated_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
+
+
 class AccountExportResponse(SolverahModel):
     """Every identified data class held for the authenticated user.
 
@@ -209,6 +226,26 @@ class AccountExportResponse(SolverahModel):
         description="The D-15 re-pin override, or null if the user has never recalibrated.",
     )
     job_recommendations: List[ExportedJobRecommendation] = Field(default_factory=list)
+    resume_parse_corrections: List[ExportedResumeCorrection] = Field(
+        default_factory=list,
+        description="Every parser-field correction the user has saved, newest first (BUILD_PLAN D-7b).",
+    )
+    focus_type_answers: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "The FocusType sitting's raw submitted answers, or null if never sat "
+            "(BUILD_PLAN D-7b). The scored result is not duplicated here -- it "
+            "already reaches export nested at profile.focus_type_result."
+        ),
+    )
+    manager_match_answers: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "The Manager Decoder sitting's raw submitted answers, or null if never "
+            "sat (BUILD_PLAN D-7b). The scored result is not duplicated here -- it "
+            "already reaches export nested at profile.manager_match_result."
+        ),
+    )
 
 
 class AccountDeleteRequest(SolverahModel):

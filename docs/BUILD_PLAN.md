@@ -310,14 +310,19 @@ ran — no separate landing commits were needed for this section._
 
 ### B-2 · API + cadence engine (M)
 
-- [ ] `POST /me/pulse/checkins`, `GET /me/pulse/history`,
+- [x] `POST /me/pulse/checkins`, `GET /me/pulse/history`,
   `POST /me/pulse/events`, cadence setting (weekly default / biweekly /
-  off) on the profile
-- [ ] Celery beat job: users due → Resend email with deep link (beat +
-  Resend infra already in place)
-- [ ] Anti-nag rule: 3 consecutive unanswered → auto-drop to monthly with a
+  off) on the profile _(plus `GET /me/pulse/next-checkin` — the client
+  never chooses its items)_
+- [x] Celery beat job: users due → Resend email with deep link (beat +
+  Resend infra already in place) _(Landed 2026-09-11 as `flask pulse
+  send-prompts` — the Scenario A cron pattern, not beat: it is the
+  scheduling mechanism production actually runs. Runbook carries the new
+  cron + `APP_BASE_URL`.)_
+- [x] Anti-nag rule: 3 consecutive unanswered → auto-drop to monthly with a
   one-line "we've slowed down" note; off is always one click. Silence is
-  data, never a guilt trip.
+  data, never a guilt trip. _(Banned-words test greps the real rendered
+  email HTML.)_
 
 ### B-3 · Frontend (M–L)
 

@@ -337,6 +337,21 @@ the deploy — there is no further confirmation step after it.
    a retry.
 4. **A normal page load** — enough to confirm the service is serving.
 
+**Added since this runbook's verification (accumulated 2026-09-11):**
+
+- Step 1's "exactly one migration" expectation is stale — the branch has since
+  gained `20260910_manager_profiles`, `20260910_situation_report_pins` and
+  `20260911_pulse_checkins`. Re-measure production's alembic head on deploy
+  day (§3a) and expect the pre-deploy to apply the whole delta.
+- **New cron to configure in Render:** `flask pulse send-prompts` — the Pulse
+  cadence engine (B-2), same Scenario A cron pattern as the outbox/backups
+  jobs; daily is the right schedule (the command itself decides who is due).
+  Without it no pulse prompt email ever sends — silent, non-fatal, easy to
+  miss.
+- **New env var on the API service:** `APP_BASE_URL` — the pulse email's
+  deep link builds from it (defaults to `https://solverah.com`; set it
+  explicitly rather than relying on the default).
+
 **This deploy does not touch auth.** The refresh-token work
 (`20260903_user_sessions`) and the rest of S1–S3 shipped on 2026-09-03 and have
 been running for five days; nothing in this merge changes the login path, cookie

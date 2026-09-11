@@ -17,15 +17,20 @@ migration:
       the tombstone id -- de-identified research data. This module never touches
       those two tables directly; it reads them through ``assessment_store``, the
       single auditable doorway D-01 keeps the allowlist closed around.
-    * ``environment_reports``/``environment_dimension_score``, ``manager_profiles``, and
-      ``situation_report_pins`` (BUILD_PLAN D-7) follow the identical reconciliation and
-      for the identical reason: the first two are E-4's training data for the causal
-      model, append-only (D-16) exactly like the person-side rows above, and none of
-      the three carries a name, email, or free-text identifier -- a `user_id` pointing
-      at the now-anonymous tombstone is all that is left. This module does not touch
-      them either; nothing in :func:`delete_account` needs to, which is the point.
-    * Everything else containing personal content is destroyed, including every
-      resume object in R2.
+    * ``environment_reports``/``environment_dimension_score``, ``manager_profiles``,
+      ``situation_report_pins`` (BUILD_PLAN D-7), and ``pulse_checkins`` (BUILD_PLAN
+      D-7b, 2026-09-11) follow the identical reconciliation and for the identical
+      reason: none of the four carries a name, email, or free-text identifier -- a
+      `user_id` pointing at the now-anonymous tombstone is all that is left. This
+      module does not touch any of them either; nothing in :func:`delete_account`
+      needs to, which is the point. ``pulse_checkins`` differs from the other three in
+      *why* it qualifies: it is not D-16 append-only research data, it qualifies
+      because none of its columns are free text (`item_scores`/`experienced` are
+      validated 1..5 integers) -- the D-7b ruling's actual test, which the other three
+      also happen to pass.
+    * Everything else containing personal content is destroyed, including
+      ``pulse_events`` (``note`` is free text, so D-7b puts it on the other side of
+      that same line) and every resume object in R2.
     * ``AuditLog`` event rows are kept (they now point at the tombstone); their
       IP/user-agent columns age out separately via retention_cleanup.py. This is also
       where ``situation_report_recalibrate`` events end up -- an ordinary
@@ -177,6 +182,16 @@ def export_account_data(user: User) -> AccountResult:
     intakes = account_repository.find_intakes_for_email(user.email)
     person_side = export_person_side(user.id)
     recommendations = account_repository.find_job_recommendations(user.id)
+    resume_corrections = profile_repository.resume_corrections_for_user(user.id)
+    # BUILD_PLAN D-7b: focus_type/manager_match's *answers* are the export gap this
+    # closes. Their scored `result` is NOT missing -- it never was -- it reaches
+    # export already, nested at `profile.focus_type_result`/`profile.manager_match_result`
+    # via `profile_repository.load_document`'s merge of `document_domain.ASSESSMENT_RESULT_KEYS`
+    # (confirmed on the wire by A25's contract ledger, docs/ARCHITECTURE.md: `export` is
+    # one of the six steps `manager_match_result` is embedded in). Only the raw
+    # submitted answers were absent from every part of the payload.
+    focus_type_submission = assessment_repository.current_submission(user.id, "focus_type")
+    manager_match_submission = assessment_repository.current_submission(user.id, "manager_match")
 
     payload = {
         "exported_at": _now(),
@@ -234,6 +249,29 @@ def export_account_data(user: User) -> AccountResult:
             }
             for r in recommendations
         ],
+        # BUILD_PLAN D-7b: corrected_value is what the user typed to fix a
+        # parser-extracted field, so it is their own content the same way
+        # `assessment_answers` above is.
+        "resume_parse_corrections": [
+            {
+                "resume_key": c.resume_key,
+                "field": c.field,
+                "parsed_value": c.parsed_value,
+                "corrected_value": c.corrected_value,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+            }
+            for c in resume_corrections
+        ],
+        # BUILD_PLAN D-7b. See the comment above these two submissions are fetched:
+        # this is deliberately only the raw answers, not a repeat of `result`, which
+        # already reaches export inside `profile`.
+        "focus_type_answers": (
+            focus_type_submission.answers if focus_type_submission is not None else None
+        ),
+        "manager_match_answers": (
+            manager_match_submission.answers if manager_match_submission is not None else None
+        ),
     }
 
     # `GET /me/export` is a read, so it does not commit (Phase 3, P0-3's server
@@ -274,9 +312,10 @@ def delete_account(user: User, confirm: Any) -> AccountResult:
     #    -- de-identified via the tombstone (the decided D-16 reconciliation).
     #    Nothing to do here; that is the point of tombstoning instead of
     #    deleting the row. environment_reports/environment_dimension_score,
-    #    manager_profiles, and situation_report_pins (BUILD_PLAN D-7) ride the
-    #    identical mechanism for the identical reason -- see this module's
-    #    docstring -- so there is nothing to do for them here either.
+    #    manager_profiles, situation_report_pins (BUILD_PLAN D-7), and
+    #    pulse_checkins (BUILD_PLAN D-7b, 2026-09-11) ride the identical
+    #    mechanism -- see this module's docstring -- so there is nothing to do
+    #    for any of them here either.
 
     audit.log_audit_event(
         action="account_deleted",
