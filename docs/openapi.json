@@ -68,6 +68,14 @@
             "title": "Dimension Scores",
             "type": "array"
           },
+          "environment_reports": {
+            "description": "Every sitting of the environment-side instrument, newest first (append-only, D-16).",
+            "items": {
+              "$ref": "#/components/schemas/ExportedEnvironmentReport"
+            },
+            "title": "Environment Reports",
+            "type": "array"
+          },
           "exported_at": {
             "description": "ISO 8601 timestamp of this export.",
             "title": "Exported At",
@@ -98,11 +106,47 @@
             ],
             "default": null
           },
+          "manager_profiles": {
+            "description": "Every sitting of the manager-profile instrument, newest first (append-only, D-16).",
+            "items": {
+              "$ref": "#/components/schemas/ExportedManagerProfile"
+            },
+            "title": "Manager Profiles",
+            "type": "array"
+          },
           "profile": {
             "additionalProperties": true,
             "description": "The profile document. Assembled from the profile tables since Phase 2a; open-ended because the unpromoted keys genuinely vary per user.",
             "title": "Profile",
             "type": "object"
+          },
+          "pulse_checkins": {
+            "description": "Every completed Pulse check-in, newest first (append-only, D-16).",
+            "items": {
+              "$ref": "#/components/schemas/ExportedPulseCheckin"
+            },
+            "title": "Pulse Checkins",
+            "type": "array"
+          },
+          "pulse_events": {
+            "description": "Every logged Pulse event, newest first (append-only, D-16).",
+            "items": {
+              "$ref": "#/components/schemas/ExportedPulseEvent"
+            },
+            "title": "Pulse Events",
+            "type": "array"
+          },
+          "situation_report_pin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExportedSituationReportPin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The D-15 re-pin override, or null if the user has never recalibrated."
           }
         },
         "required": [
@@ -1086,6 +1130,95 @@
         "title": "ExportedAccount",
         "type": "object"
       },
+      "ExportedEnvironmentReport": {
+        "additionalProperties": false,
+        "description": "One sitting of the Situation Report's environment-side instrument (BUILD_PLAN D-7).\n\nPassed straight through from ``environment_report_store``'s own serialization --\nthe same dict the store already hands the ``GET /me/situation-report`` read path --\nrather than a second, export-specific shape.",
+        "properties": {
+          "career_status": {
+            "title": "Career Status",
+            "type": "string"
+          },
+          "comp": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Comp"
+          },
+          "dimension_scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Dimension Scores",
+            "type": "object"
+          },
+          "employer_name_normalized": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Employer Name Normalized"
+          },
+          "experienced_outcome": {
+            "title": "Experienced Outcome",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "raw_answers": {
+            "additionalProperties": true,
+            "title": "Raw Answers",
+            "type": "object"
+          },
+          "stage_size": {
+            "title": "Stage Size",
+            "type": "integer"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 timestamp.",
+            "title": "Submitted At"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "stage_size",
+          "experienced_outcome",
+          "career_status",
+          "version"
+        ],
+        "title": "ExportedEnvironmentReport",
+        "type": "object"
+      },
       "ExportedIntakeSubmission": {
         "additionalProperties": false,
         "description": "One pre-launch intake submission matched to the account's email.",
@@ -1327,6 +1460,202 @@
           }
         },
         "title": "ExportedLegacyQuiz",
+        "type": "object"
+      },
+      "ExportedManagerProfile": {
+        "additionalProperties": false,
+        "description": "One sitting of the Manager Decoder's observed-manager instrument (BUILD_PLAN D-7).\n\n``answers`` stores authored option identity (\"a\"/\"b\"), never screen position --\nsee ``model.ManagerProfile``'s docstring.",
+        "properties": {
+          "answers": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Answers",
+            "type": "array"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 timestamp.",
+            "title": "Created At"
+          },
+          "dimension_scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Dimension Scores",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "scoring_key": {
+            "title": "Scoring Key",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "scoring_key",
+          "version"
+        ],
+        "title": "ExportedManagerProfile",
+        "type": "object"
+      },
+      "ExportedPulseCheckin": {
+        "additionalProperties": false,
+        "description": "One completed Pulse check-in (BUILD_PLAN B-1, D-7).\n\n``item_scores`` holds only the round-robin dimensions that check-in served --\nnever all five -- straight from ``pulse_store``'s own serialization, the same\ndict B-2/B-3's reads will use.",
+        "properties": {
+          "experienced": {
+            "title": "Experienced",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "item_scores": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Item Scores",
+            "type": "object"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "taken_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 timestamp.",
+            "title": "Taken At"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "sequence",
+          "experienced",
+          "version"
+        ],
+        "title": "ExportedPulseCheckin",
+        "type": "object"
+      },
+      "ExportedPulseEvent": {
+        "additionalProperties": false,
+        "description": "One logged Pulse event (BUILD_PLAN B-1, D-7).",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 timestamp.",
+            "title": "At"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "event_type"
+        ],
+        "title": "ExportedPulseEvent",
+        "type": "object"
+      },
+      "ExportedSituationReportPin": {
+        "additionalProperties": false,
+        "description": "The D-15 re-pin override (BUILD_PLAN A-5 \u26915, D-7), or absent if the user has\nnever called ``POST /me/situation-report/recalibrate``. Unlike the two lists\nabove, there is exactly one of these per user -- the table's own docstring -- so\nthe export carries a single object, not a list.",
+        "properties": {
+          "pinned_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 timestamp.",
+            "title": "Pinned At"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id",
+          "submission_id"
+        ],
+        "title": "ExportedSituationReportPin",
         "type": "object"
       },
       "FocusTypeResult": {

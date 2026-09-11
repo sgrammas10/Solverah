@@ -17,10 +17,20 @@ migration:
       the tombstone id -- de-identified research data. This module never touches
       those two tables directly; it reads them through ``assessment_store``, the
       single auditable doorway D-01 keeps the allowlist closed around.
+    * ``environment_reports``/``environment_dimension_score``, ``manager_profiles``, and
+      ``situation_report_pins`` (BUILD_PLAN D-7) follow the identical reconciliation and
+      for the identical reason: the first two are E-4's training data for the causal
+      model, append-only (D-16) exactly like the person-side rows above, and none of
+      the three carries a name, email, or free-text identifier -- a `user_id` pointing
+      at the now-anonymous tombstone is all that is left. This module does not touch
+      them either; nothing in :func:`delete_account` needs to, which is the point.
     * Everything else containing personal content is destroyed, including every
       resume object in R2.
     * ``AuditLog`` event rows are kept (they now point at the tombstone); their
-      IP/user-agent columns age out separately via retention_cleanup.py.
+      IP/user-agent columns age out separately via retention_cleanup.py. This is also
+      where ``situation_report_recalibrate`` events end up -- an ordinary
+      ``log_audit_event`` call (`solverah/services/situation_report_service.py`), so it
+      rides this existing handling rather than needing a mechanism of its own.
 
 The order of operations in :func:`delete_account` is deliberate: **object
 storage first**. A failed database transaction can be retried; a resume left in
@@ -35,7 +45,11 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from assessment_store import export_person_side
+from environment_report_store import environment_report_history
+from manager_profile_store import manager_profile_history
 from model import IntakeSubmission, User, db
+from pulse_store import pulse_checkin_history, pulse_events_in_range
+from situation_report_pin_store import explicit_pin
 from solverah.domain import auth as auth_domain
 from solverah.infra import storage
 from solverah.repositories import (
@@ -199,6 +213,19 @@ def export_account_data(user: User) -> AccountResult:
         # contract.
         "assessment_answers": person_side["answers"],
         "dimension_scores": person_side["dimension_scores"],
+        # BUILD_PLAN B-1's D-7 rule: pulse_checkins/pulse_events join export the same
+        # commit that creates them. Unbounded reads (no since/until) -- a subject-access
+        # export is "everything held", not a recent window.
+        "pulse_checkins": pulse_checkin_history(user.id),
+        "pulse_events": pulse_events_in_range(user.id),
+        # BUILD_PLAN D-7: environment_reports and manager_profiles are append-only
+        # (D-16) -- every sitting is a real one, so the export is the full history,
+        # unbounded, same reasoning as the pulse reads above. situation_report_pin is
+        # the opposite shape on purpose: at most one row per user (the table's own
+        # docstring), so a single object-or-null is the honest export, not a list.
+        "environment_reports": environment_report_history(user.id),
+        "manager_profiles": manager_profile_history(user.id),
+        "situation_report_pin": explicit_pin(user.id),
         "job_recommendations": [
             {
                 "job_id": r.job_id,
@@ -246,7 +273,10 @@ def delete_account(user: User, confirm: Any) -> AccountResult:
     # 4. The person-side response and dimension-score rows are deliberately kept
     #    -- de-identified via the tombstone (the decided D-16 reconciliation).
     #    Nothing to do here; that is the point of tombstoning instead of
-    #    deleting the row.
+    #    deleting the row. environment_reports/environment_dimension_score,
+    #    manager_profiles, and situation_report_pins (BUILD_PLAN D-7) ride the
+    #    identical mechanism for the identical reason -- see this module's
+    #    docstring -- so there is nothing to do for them here either.
 
     audit.log_audit_event(
         action="account_deleted",

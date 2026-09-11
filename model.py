@@ -1455,6 +1455,126 @@ class SituationReportPin(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# The Pulse: recurring check-in storage (BUILD_PLAN B-1)
+# ---------------------------------------------------------------------------
+# `work_pulse/pulse_items.py` owns the item bank and the round-robin selection; these
+# two tables hold only what a submission or an event says, unmodified -- the same
+# division of labour as `EnvironmentReport`/`environment_report_store.py`. Both
+# APPEND-ONLY (D-16 tradition): a check-in is one dated observation and an event is one
+# dated fact, never an update to an earlier row -- history is the point, since B-3's
+# trend view and E-4's training rows both read across it.
+#
+# D-7 (BUILD_PLAN, added 2026-09-10): "any table added later joins /me/export and the
+# account-deletion flow the day it is created." `environment_reports` and
+# `manager_profiles` predate that rule and are its tracked gap (BUILD_PLAN D-7); these
+# two tables do not inherit it -- `solverah/services/account_service.py`'s
+# `export_account_data` and `solverah/repositories/account_repository.py`'s
+# `delete_personal_rows` both reach `pulse_checkins`/`pulse_events` from the same
+# commit that creates them.
+
+#: `pulse_events.event_type`'s vocabulary -- BUILD_PLAN B-1. A plain CHECK-constrained
+#: string, same convention as `CAREER_STATUSES` above: validated in code and in the
+#: migration's own literal CHECK, not a DB enum type or a registry table.
+PULSE_EVENT_TYPES = ("new_manager", "reorg", "remote_change", "role_change", "other")
+
+#: `pulse_events.note`'s cap. "Short free text" (BUILD_PLAN B-1) -- long enough to name
+#: what happened, short enough that a check-in stays a 60-second interaction rather than
+#: growing a second form inside it.
+PULSE_EVENT_NOTE_MAX_LENGTH = 280
+
+
+class PulseCheckin(db.Model):
+    """One completed Pulse check-in: the three round-robin dimension scores
+    `work_pulse.pulse_items.dimensions_for_checkin` served plus the outcome item,
+    always asked. `item_scores` holds exactly the dimensions that sequence served --
+    never all five -- so a reader must not assume every key is present on every row;
+    `pulse_store.pulse_checkin_history` is what turns a run of these into a per-dimension
+    trend with gaps where a dimension wasn't asked that week.
+
+    No derived-score column anywhere, unlike `EnvironmentReport`/`EnvironmentDimensionScore`:
+    a Pulse answer already IS its own score (a plain 1..5), so there is nothing to
+    compute between the answer and what B-3's chart reads.
+    """
+
+    __tablename__ = "pulse_checkins"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True: ix_pulse_checkins_user_taken below already leads with user_id, the
+    # same reasoning EnvironmentReport's user_id column gives for skipping one.
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False)
+    taken_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    #: The round-robin sequence number this check-in was served under
+    #: (`pulse_items.dimensions_for_checkin`'s second argument). Persisted rather than
+    #: re-derived so `pulse_store.pulse_checkin_count`'s "how many has this user
+    #: completed" and "what sequence did THIS row serve" never have to agree by
+    #: recomputation -- the row states the fact it was written under.
+    sequence = db.Column(db.Integer, nullable=False)
+    #: {dimension_key: 1..5} for exactly the `pulse_items.ITEMS_PER_CHECKIN` dimensions
+    #: that sequence served. Keys are `pulse_items.DIMENSIONS` members, validated in
+    #: `pulse_store.write_pulse_checkin`, not by a DB-level JSONB schema check.
+    item_scores = db.Column(JSONB, nullable=False)
+    #: "This week, how well is work working for you?" -- `pulse_items.EXPERIENCED_ITEM`,
+    #: asked every check-in, never round-robin.
+    experienced = db.Column(db.SmallInteger, nullable=False)
+    #: Which item set produced this row -- `EnvironmentReport.version`'s role, under the
+    #: name this table's column uses (`pulse_items.FORM_VERSION`).
+    version = db.Column(db.Text, nullable=False)
+
+    __table_args__ = (
+        db.CheckConstraint("sequence >= 0", name="ck_pulsecheckin_sequence_nonneg"),
+        db.CheckConstraint(
+            "experienced >= 1 AND experienced <= 5", name="ck_pulsecheckin_experienced_range"
+        ),
+        db.Index(
+            "ix_pulse_checkins_user_taken",
+            "user_id",
+            db.text("taken_at DESC"),
+        ),
+    )
+
+    user = db.relationship("User", backref="pulse_checkins")
+
+
+class PulseEvent(db.Model):
+    """One logged life/work event a user attaches to their Pulse timeline (a manager
+    change, a reorg, going remote, a role change, or an unlisted "other"). Purely a
+    dated annotation -- B-4's wiring (`BUILD_PLAN` B-4) reads these to decide when an
+    environment-report resubmission should be prompted, and B-3's trend view plots them
+    on the same axis as check-ins. Nothing here scores anything.
+    """
+
+    __tablename__ = "pulse_events"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True: ix_pulse_events_user_at below already leads with user_id.
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False)
+    at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), nullable=False)
+    event_type = db.Column(db.Text, nullable=False)
+    #: Optional -- most event types are self-explanatory from `event_type` alone; `note`
+    #: exists for the "other" case and for anyone who wants to add context to a named one.
+    note = db.Column(db.Text, nullable=True)
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "event_type IN %s" % (PULSE_EVENT_TYPES,), name="ck_pulseevent_type_vocab"
+        ),
+        db.CheckConstraint(
+            "note IS NULL OR char_length(note) <= %d" % PULSE_EVENT_NOTE_MAX_LENGTH,
+            name="ck_pulseevent_note_length",
+        ),
+        db.Index(
+            "ix_pulse_events_user_at",
+            "user_id",
+            db.text("at DESC"),
+        ),
+    )
+
+    user = db.relationship("User", backref="pulse_events")
+
+
+# ---------------------------------------------------------------------------
 # Phase 2a -- profile_data, decomposed (docs/ARCHITECTURE.md Part 4.3)
 # ---------------------------------------------------------------------------
 #

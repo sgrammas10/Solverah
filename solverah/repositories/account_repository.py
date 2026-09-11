@@ -21,6 +21,8 @@ from sqlalchemy import func
 from model import (
     IntakeSubmission,
     JobRecommendation,
+    PulseCheckin,
+    PulseEvent,
     ResumeParseCorrection,
     User,
     UserIntake,
@@ -84,6 +86,14 @@ def delete_personal_rows(user_id: int, intakes: List[IntakeSubmission]) -> None:
     # tests/test_account_lifecycle.py -- and they are behind D-01's doorway,
     # which is exactly why the submission row it is joined to holds none of them.
     assessment_repository.delete_for_user(user_id)
+    # Pulse check-ins and events (BUILD_PLAN B-1, the D-7 cross-cutting rule: a table
+    # joins export/delete the day it is created rather than waiting for the D-7
+    # catch-up chunk that `environment_reports`/`manager_profiles` still owe). Both
+    # hold personal content -- a check-in's own answers, an event's free-text note --
+    # so they are destroyed here, not tombstoned or retained de-identified; neither is
+    # behind D-01's doorway the way the core assessment rows are.
+    PulseCheckin.query.filter_by(user_id=user_id).delete()
+    PulseEvent.query.filter_by(user_id=user_id).delete()
     # Refresh sessions (S3). Not personal *content* like everything above it,
     # but live credentials: `tombstone_user` frees the address by rewriting it
     # and every other route back into the account dies with the password -- a

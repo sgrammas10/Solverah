@@ -73,6 +73,76 @@ def _person_side(user_id):
         return export_person_side(user_id)
 
 
+# ── BUILD_PLAN D-7: environment_reports, manager_profiles, situation_report_pins ──
+#
+# Seeded through their own stores, same reasoning as `_seed_assessment_rows` above:
+# a test that hand-builds the rows is free to build ones the real write path cannot
+# produce, and `_require_all_dimensions` in particular is a real constraint a
+# hand-built row could silently violate.
+
+def _seed_environment_report(user_id):
+    from app import app
+    from environment_report_store import write_environment_report
+    from model import ENV_DIMENSIONS, db
+
+    with app.app_context():
+        write_environment_report(
+            db, user_id,
+            raw_answers={"env-autonomy-1": "mixed-a"},
+            dimension_scores={dim: 0.5 for dim in ENV_DIMENSIONS},
+            stage_size=3,
+            comp=3,
+            experienced_outcome=3,
+            career_status="employed",
+            version="v1-2026-09-10",
+        )
+        db.session.commit()
+
+
+def _seed_manager_profile(user_id):
+    from app import app
+    from manager_profile_store import write_manager_profile
+    from model import db
+
+    with app.app_context():
+        write_manager_profile(
+            db, user_id,
+            answers=[{"question_id": "mp-q1", "choice": "a"}],
+            dimension_scores={
+                "autonomy": 0.6, "feedback_style": 0.5,
+                "relationship": 0.5, "growth_focus": 0.5,
+            },
+            scoring_key="v1-2026-09-10",
+            version="v1-2026-09-10",
+        )
+        db.session.commit()
+
+
+def _seed_situation_report_pin(user_id, submission_id="a" * 32):
+    from app import app
+    from model import db
+    from situation_report_pin_store import set_pin
+
+    with app.app_context():
+        set_pin(db, user_id, submission_id)
+        db.session.commit()
+
+
+def _situation_side(user_id):
+    """What the three D-7 tables hold for this user, read through their own stores."""
+    from app import app
+    from environment_report_store import environment_report_history
+    from manager_profile_store import manager_profile_history
+    from situation_report_pin_store import explicit_pin
+
+    with app.app_context():
+        return {
+            "environment_reports": environment_report_history(user_id),
+            "manager_profiles": manager_profile_history(user_id),
+            "situation_report_pin": explicit_pin(user_id),
+        }
+
+
 # ── Export ───────────────────────────────────────────────────────────────────
 
 def test_export_returns_all_identified_data(client, monkeypatch):
@@ -90,6 +160,60 @@ def test_export_returns_all_identified_data(client, monkeypatch):
 def test_export_requires_auth(client):
     res = client.get("/api/v1/me/export")
     assert res.status_code == 401
+
+
+def test_export_includes_environment_reports_manager_profiles_and_situation_pin(
+    client, monkeypatch
+):
+    """BUILD_PLAN D-7: the three tables A-5/C-3 added join `/me/export`.
+
+    Also proves the omission half in the same test: a bystander who never sat either
+    instrument gets empty lists and a null pin, not another account's rows.
+    """
+    _, bystander_id = _register_and_login(
+        client, monkeypatch, email="d7-bystander@example.com"
+    )
+    csrf, user_id = _register_and_login(client, monkeypatch, email="d7-export@example.com")
+    _seed_environment_report(user_id)
+    _seed_manager_profile(user_id)
+    _seed_situation_report_pin(user_id)
+
+    res = client.get("/api/v1/me/export")
+    assert res.status_code == 200
+    payload = res.get_json()
+
+    assert len(payload["environment_reports"]) == 1
+    env = payload["environment_reports"][0]
+    assert env["career_status"] == "employed"
+    assert env["dimension_scores"]["autonomy"] == 0.5
+    assert env["raw_answers"] == {"env-autonomy-1": "mixed-a"}
+
+    assert len(payload["manager_profiles"]) == 1
+    mp = payload["manager_profiles"][0]
+    assert mp["scoring_key"] == "v1-2026-09-10"
+    assert mp["dimension_scores"]["autonomy"] == 0.6
+
+    assert payload["situation_report_pin"]["submission_id"] == "a" * 32
+
+    # The bystander logged in first and never sat either instrument -- their own
+    # export must not echo the other account's rows.
+    from app import app
+    from model import User, db
+
+    with app.app_context():
+        bystander = db.session.get(User, bystander_id)
+        bystander_email = bystander.email
+
+    bystander_login = client.post(
+        "/api/v1/auth/login",
+        json={"email": bystander_email, "password": "Strongpass1!"},
+    )
+    assert bystander_login.status_code == 200
+
+    bystander_export = client.get("/api/v1/me/export").get_json()
+    assert bystander_export["environment_reports"] == []
+    assert bystander_export["manager_profiles"] == []
+    assert bystander_export["situation_report_pin"] is None
 
 
 # ── Delete ───────────────────────────────────────────────────────────────────
@@ -141,6 +265,84 @@ def test_delete_tombstones_user_and_purges_pii(client, monkeypatch):
     assert len(surviving["dimension_scores"]) == 1
 
 
+def test_export_includes_pulse_checkins_and_events(client, monkeypatch):
+    """BUILD_PLAN B-1's D-7 rule: pulse_checkins/pulse_events join /me/export the same
+    commit that creates them, rather than waiting for the D-7 catch-up chunk
+    `environment_reports`/`manager_profiles` still owe."""
+    csrf, user_id = _register_and_login(client, monkeypatch)
+
+    from app import app
+    from model import db
+    from pulse_store import write_pulse_checkin, write_pulse_event
+    from work_pulse.pulse_items import dimensions_for_checkin
+
+    with app.app_context():
+        item_scores = {dim: 4 for dim in dimensions_for_checkin(user_id, 0)}
+        write_pulse_checkin(
+            db, user_id, sequence=0, item_scores=item_scores,
+            experienced=3, version="pulse-v1-test",
+        )
+        write_pulse_event(db, user_id, event_type="reorg", note="team split in two")
+        db.session.commit()
+
+    res = client.get("/api/v1/me/export")
+    assert res.status_code == 200
+    payload = res.get_json()
+
+    assert len(payload["pulse_checkins"]) == 1
+    assert payload["pulse_checkins"][0]["item_scores"] == item_scores
+    assert payload["pulse_checkins"][0]["experienced"] == 3
+
+    assert len(payload["pulse_events"]) == 1
+    assert payload["pulse_events"][0]["event_type"] == "reorg"
+    assert payload["pulse_events"][0]["note"] == "team split in two"
+
+
+def test_delete_retains_environment_reports_manager_profiles_and_situation_pin(
+    client, monkeypatch
+):
+    """BUILD_PLAN D-7: the three tables ride the same tombstone reconciliation as the
+    person-side rows above -- kept, de-identified via the now-scrubbed user row, never
+    destroyed and never updated. A bystander's rows are untouched either way."""
+    _, bystander_id = _register_and_login(
+        client, monkeypatch, email="d7-delete-bystander@example.com"
+    )
+    _seed_environment_report(bystander_id)
+    _seed_manager_profile(bystander_id)
+    _seed_situation_report_pin(bystander_id, submission_id="b" * 32)
+
+    csrf, user_id = _register_and_login(client, monkeypatch, email="d7-delete@example.com")
+    _seed_environment_report(user_id)
+    _seed_manager_profile(user_id)
+    _seed_situation_report_pin(user_id, submission_id="a" * 32)
+
+    res = client.delete("/api/v1/me", json={"confirm": "DELETE"},
+                      headers={"X-CSRF-TOKEN": csrf})
+    assert res.status_code == 200
+
+    surviving = _situation_side(user_id)
+    assert len(surviving["environment_reports"]) == 1
+    assert surviving["environment_reports"][0]["dimension_scores"]["autonomy"] == 0.5
+    assert len(surviving["manager_profiles"]) == 1
+    assert surviving["manager_profiles"][0]["scoring_key"] == "v1-2026-09-10"
+    assert surviving["situation_report_pin"]["submission_id"] == "a" * 32
+
+    # The row now hangs off a tombstoned, de-identified user_id -- not deleted, not
+    # reassigned, not touched.
+    from app import app
+    from model import User, db
+
+    with app.app_context():
+        deleted_user = db.session.get(User, user_id)
+        assert deleted_user.email == f"deleted-{user_id}@tombstone.invalid"
+
+    # Bystander untouched.
+    bystander_side = _situation_side(bystander_id)
+    assert len(bystander_side["environment_reports"]) == 1
+    assert len(bystander_side["manager_profiles"]) == 1
+    assert bystander_side["situation_report_pin"]["submission_id"] == "b" * 32
+
+
 def test_delete_removes_dependent_personal_rows(client, monkeypatch):
     csrf, user_id = _register_and_login(client, monkeypatch)
 
@@ -160,6 +362,35 @@ def test_delete_removes_dependent_personal_rows(client, monkeypatch):
     with app.app_context():
         assert JobRecommendation.query.filter_by(user_id=user_id).count() == 0
         assert UserIntake.query.filter_by(user_id=user_id).count() == 0
+
+
+def test_delete_removes_pulse_checkins_and_events(client, monkeypatch):
+    """The other half of BUILD_PLAN B-1's D-7 rule: both tables are destroyed on
+    deletion, not tombstoned or retained de-identified -- neither is behind D-01's
+    doorway the way the core assessment rows are."""
+    csrf, user_id = _register_and_login(client, monkeypatch)
+
+    from app import app
+    from model import PulseCheckin, PulseEvent, db
+    from pulse_store import write_pulse_checkin, write_pulse_event
+    from work_pulse.pulse_items import dimensions_for_checkin
+
+    with app.app_context():
+        item_scores = {dim: 4 for dim in dimensions_for_checkin(user_id, 0)}
+        write_pulse_checkin(
+            db, user_id, sequence=0, item_scores=item_scores,
+            experienced=3, version="pulse-v1-test",
+        )
+        write_pulse_event(db, user_id, event_type="reorg")
+        db.session.commit()
+
+    res = client.delete("/api/v1/me", json={"confirm": "DELETE"},
+                      headers={"X-CSRF-TOKEN": csrf})
+    assert res.status_code == 200
+
+    with app.app_context():
+        assert PulseCheckin.query.filter_by(user_id=user_id).count() == 0
+        assert PulseEvent.query.filter_by(user_id=user_id).count() == 0
 
 
 def test_deleted_account_cannot_login(client, monkeypatch):

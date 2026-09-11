@@ -89,3 +89,59 @@ Flask-SQLAlchemy/Flask-Migrate against a separate, already-migrated schema (`mod
 this in for real means either migrating `schema.sql` into that same database or standing up a
 second one — a decision this task didn't make for you, since it's a real architectural choice,
 not a detail of the join logic.
+
+---
+
+## ADDENDUM 2026-09-11 — E-4 landed, and two things above are now out of date
+
+`assemble_environment_training_data()` was added alongside the function this document
+describes. Everything above still describes `assemble_training_data()` accurately; what
+follows is what changed around it.
+
+### "Not yet true, worth naming" is no longer true
+
+The last section says `schema.sql` "has never been migrated into the app's actual Postgres
+database" and leaves the migrate-vs-second-database choice open. That choice was made and
+executed on 2026-08-19 (S-07): `schema.sql` was migrated INTO the app's database, with
+`person_id` becoming `user_id` and `schema.sql`'s `company` reconciled into the existing
+`Company` rather than standing up a parallel table. `migrations/versions/` now carries
+`20260819_person_assessment` and `20260819_company_model`, and `model.py` holds the ORM
+definitions with the reconciliation reasoning in its section comments. There is one
+database, and it is the app's.
+
+### The training rows do not come from where this document assumes
+
+This document assumes the training pair is (person, company) with an
+`outcome_appeal`/`outcome_experienced` row behind it. BUILD_PLAN §5's E-4 says the rows that
+exist AT LAUNCH come from somewhere else entirely — A-2's `environment_reports`, where the
+env side is the user's own description of their own job and the outcome is that form's one
+evaluative item. No company scoring, no recommendation, no placement required. That is what
+`assemble_environment_training_data()` assembles, and why it is a second entry point rather
+than a parameter on the first: the two sources differ in what selected the pair, not merely
+in where the numbers are stored.
+
+Three consequences worth naming rather than discovering:
+
+1. **The source-priority machinery does not apply.** `resolve_best_by_source` exists because
+   `company_dimension_score` can hold several rows per (company, dimension). An
+   environment report holds exactly one score per dimension
+   (`uq_edscore_report_dim`), so there is nothing to resolve and no policy to sign off.
+2. **`min_company_confidence` has no analogue.** There is no confidence on a self-report and
+   no source axis to trade off. Decision 3 above is silent here because the question does
+   not arise.
+3. **Incomplete rows are still dropped with a reason, never imputed** (decision 4 above,
+   unchanged) — but `comp` is now a documented, expected NULL rather than an incomplete row.
+   The "not sure" option is a signed ruling (PRODUCT_DECISIONS.md §2, 2026-09-10), so the
+   row carries NaN plus an explicit `conf_missing` mask and stays in the training set. What
+   to do about it — exclude the term, model the missingness — is the model config's call,
+   and the row shape is built to let it still be made.
+
+### The gap this document found is now the blocking one
+
+"`build_model.py` has no path for `experienced` outcomes" was filed above as *not a blocker
+for this task*. It is a blocker now. `experienced` is the ONLY outcome the environment
+source produces — `appeal` means "did this recommendation look like a fit" and there is no
+recommendation — so `build_model.build_model()` attaching `pm.Bernoulli` unconditionally is
+the one thing standing between these rows and a fit run. `solverah_model_config.yaml`'s
+`settings.outcome` block still describes only the binary head (`type: binary`). E-5 cannot
+start on this source until an `OrderedLogistic` branch exists.

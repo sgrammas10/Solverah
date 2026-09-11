@@ -22,6 +22,7 @@ from typing import Any, Optional
 __all__ = [
     "write_manager_profile",
     "latest_manager_profile",
+    "manager_profile_history",
 ]
 
 
@@ -82,3 +83,20 @@ def latest_manager_profile(user_id: int) -> Optional[dict[str, Any]]:
         .first()
     )
     return _serialize(row) if row is not None else None
+
+
+def manager_profile_history(user_id: int) -> list[dict[str, Any]]:
+    """Every sitting for this user, newest first. Unbounded, unlike
+    `latest_manager_profile`: a subject-access export (BUILD_PLAN D-7) asks "what do you
+    HOLD about me", not "what applies right now", and this table is append-only (D-16) --
+    every retake is a real, separate sitting, not a superseded draft. Same ordering as
+    `latest_manager_profile`, matching `ix_manager_profiles_user_created`.
+    """
+    from model import ManagerProfile
+
+    rows = (
+        ManagerProfile.query.filter_by(user_id=user_id)
+        .order_by(ManagerProfile.created_at.desc(), ManagerProfile.id.desc())
+        .all()
+    )
+    return [_serialize(row) for row in rows]

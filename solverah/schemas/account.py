@@ -20,9 +20,14 @@ __all__ = [
     "AccountDeleteResponse",
     "AccountExportResponse",
     "ExportedAccount",
+    "ExportedEnvironmentReport",
     "ExportedIntakeSubmission",
     "ExportedJobRecommendation",
     "ExportedLegacyQuiz",
+    "ExportedManagerProfile",
+    "ExportedPulseCheckin",
+    "ExportedPulseEvent",
+    "ExportedSituationReportPin",
 ]
 
 
@@ -82,6 +87,81 @@ class ExportedJobRecommendation(SolverahModel):
     created_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
 
 
+class ExportedEnvironmentReport(SolverahModel):
+    """One sitting of the Situation Report's environment-side instrument (BUILD_PLAN D-7).
+
+    Passed straight through from ``environment_report_store``'s own serialization --
+    the same dict the store already hands the ``GET /me/situation-report`` read path --
+    rather than a second, export-specific shape.
+    """
+
+    id: int
+    user_id: int
+    submitted_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
+    raw_answers: Dict[str, Any] = Field(default_factory=dict)
+    dimension_scores: Dict[str, float] = Field(default_factory=dict)
+    stage_size: int
+    comp: Optional[int] = None
+    experienced_outcome: int
+    career_status: str
+    employer_name_normalized: Optional[str] = None
+    version: str
+
+
+class ExportedManagerProfile(SolverahModel):
+    """One sitting of the Manager Decoder's observed-manager instrument (BUILD_PLAN D-7).
+
+    ``answers`` stores authored option identity ("a"/"b"), never screen position --
+    see ``model.ManagerProfile``'s docstring.
+    """
+
+    id: int
+    user_id: int
+    created_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
+    answers: List[Dict[str, Any]] = Field(default_factory=list)
+    dimension_scores: Dict[str, float] = Field(default_factory=dict)
+    scoring_key: str
+    version: str
+
+
+class ExportedSituationReportPin(SolverahModel):
+    """The D-15 re-pin override (BUILD_PLAN A-5 ⚑5, D-7), or absent if the user has
+    never called ``POST /me/situation-report/recalibrate``. Unlike the two lists
+    above, there is exactly one of these per user -- the table's own docstring -- so
+    the export carries a single object, not a list."""
+
+    user_id: int
+    submission_id: str
+    pinned_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
+
+
+class ExportedPulseCheckin(SolverahModel):
+    """One completed Pulse check-in (BUILD_PLAN B-1, D-7).
+
+    ``item_scores`` holds only the round-robin dimensions that check-in served --
+    never all five -- straight from ``pulse_store``'s own serialization, the same
+    dict B-2/B-3's reads will use.
+    """
+
+    id: int
+    user_id: int
+    taken_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
+    sequence: int
+    item_scores: Dict[str, int] = Field(default_factory=dict)
+    experienced: int
+    version: str
+
+
+class ExportedPulseEvent(SolverahModel):
+    """One logged Pulse event (BUILD_PLAN B-1, D-7)."""
+
+    id: int
+    user_id: int
+    at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
+    event_type: str
+    note: Optional[str] = None
+
+
 class AccountExportResponse(SolverahModel):
     """Every identified data class held for the authenticated user.
 
@@ -108,6 +188,26 @@ class AccountExportResponse(SolverahModel):
         ),
     )
     dimension_scores: List[Dict[str, Any]] = Field(default_factory=list)
+    pulse_checkins: List[ExportedPulseCheckin] = Field(
+        default_factory=list,
+        description="Every completed Pulse check-in, newest first (append-only, D-16).",
+    )
+    pulse_events: List[ExportedPulseEvent] = Field(
+        default_factory=list,
+        description="Every logged Pulse event, newest first (append-only, D-16).",
+    )
+    environment_reports: List[ExportedEnvironmentReport] = Field(
+        default_factory=list,
+        description="Every sitting of the environment-side instrument, newest first (append-only, D-16).",
+    )
+    manager_profiles: List[ExportedManagerProfile] = Field(
+        default_factory=list,
+        description="Every sitting of the manager-profile instrument, newest first (append-only, D-16).",
+    )
+    situation_report_pin: Optional[ExportedSituationReportPin] = Field(
+        default=None,
+        description="The D-15 re-pin override, or null if the user has never recalibrated.",
+    )
     job_recommendations: List[ExportedJobRecommendation] = Field(default_factory=list)
 
 
