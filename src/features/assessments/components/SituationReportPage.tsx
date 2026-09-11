@@ -58,6 +58,7 @@ import {
 } from "../useSituationReport";
 import type {
   AlignedDimensionEntry,
+  SituationDimensionEntry,
   SituationManagerSection,
   StrainDimensionEntry,
 } from "../useSituationReport";
@@ -114,6 +115,42 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
     <h4 className="text-xs font-semibold uppercase tracking-widest text-forest-light">
       {children}
     </h4>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The at-a-glance strip (BUILD_PLAN A-7b). Words only -- see the header's
+// D-15 note. Mirrors ManagerPlaybookPage's `priority` chip strip in shape,
+// not in content: no ordinal prefix, no count, nothing beyond the dimension
+// name and its bucket word. Renders exactly the dimensions the server sent,
+// in the order it sent them -- that order IS the ranking (document order),
+// so this never re-sorts, re-slices, or backfills a dropped row.
+// ---------------------------------------------------------------------------
+
+const CHIP_BUCKET_CLASSES: Record<string, string> = {
+  straining: "border-amber-300 bg-amber-50 text-amber-800",
+  notable: "border-cream-muted bg-white text-ink-secondary",
+  aligned: "border-forest-light bg-forest-pale text-forest-dark",
+};
+
+function FocusStrip({ dimensions }: { dimensions: SituationDimensionEntry[] }) {
+  return (
+    <section className="space-y-2">
+      <SectionHeading>At a glance</SectionHeading>
+      <ol className="flex flex-wrap gap-2">
+        {dimensions.map((entry) => (
+          <li
+            key={entry.dimension}
+            className={[
+              "rounded-full border px-3 py-1 text-sm font-semibold",
+              CHIP_BUCKET_CLASSES[entry.bucket],
+            ].join(" ")}
+          >
+            {dimensionLabel(entry.dimension)} — {BUCKET_LABELS[entry.bucket]}
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
@@ -533,7 +570,7 @@ export default function SituationReportPage() {
             <p className="text-sm text-ink-secondary leading-relaxed">
               So there is nothing to report, and we would rather say that than assemble
               something out of a role you have never held. The moment you are in one,
-              describe it in about ten questions and the report comes back the same day.
+              describe it in fifteen questions and the report comes back the same day.
             </p>
             <p className="text-sm text-ink-secondary leading-relaxed">
               What is worth doing now is the half that needs no employer. FocusType maps
@@ -578,7 +615,7 @@ export default function SituationReportPage() {
             One half to go
           </h1>
           <p className="text-sm text-ink-secondary leading-relaxed">
-            Work Pulse told us how you work. Now about ten questions about your job —
+            Work Pulse told us how you work. Now fifteen questions about your job —
             what the role actually offers, in your words rather than the job
             description's. About five minutes, and the report comes back straight away.
           </p>
@@ -634,6 +671,8 @@ export default function SituationReportPage() {
             </p>
           )}
         </header>
+
+        {report.dimensions.length > 0 && <FocusStrip dimensions={report.dimensions} />}
 
         {report.dimensions.length === 0 ? (
           <section className="rounded-xl border border-forest-light bg-forest-pale px-6 py-5">

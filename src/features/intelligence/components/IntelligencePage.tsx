@@ -305,8 +305,8 @@ export default function IntelligencePage() {
             </p>
             <p className="text-sm text-ink-primary leading-relaxed">
               Work Pulse knows how you work. What it can’t tell you on its own is how
-              far your current job sits from that. About ten questions about the role
-              closes the gap and turns the two halves into your Situation Report.
+              far your current job sits from that. Fifteen questions about the role
+              close the gap and turn the two halves into your Situation Report.
             </p>
             <button
               type="button"

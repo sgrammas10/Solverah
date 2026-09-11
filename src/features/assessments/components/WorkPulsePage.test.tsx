@@ -202,7 +202,7 @@ describe("WorkPulsePage — completion", () => {
     renderPage();
 
     expect(
-      screen.getByText("24 questions about you. Now ~10 about your job."),
+      screen.getByText("24 questions about you. Now 15 about your job."),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /describe your job/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/environment-report");
