@@ -109,11 +109,12 @@ export function usePulseHistory(options: { limit?: number } = {}) {
   const { limit } = options;
   return useQuery({
     queryKey: pulseKeys.history(limit),
-    queryFn: () =>
-      fetchWithAuth<PulseHistory>(
-        `/me/pulse/history${limit ? `?limit=${limit}` : ""}`,
-        { method: "GET" },
-      ),
+    queryFn: () => {
+      const query = limit ? `?limit=${limit}` : "";
+      return fetchWithAuth<PulseHistory>("/me/pulse/history" + query, {
+        method: "GET",
+      });
+    },
   });
 }
 
