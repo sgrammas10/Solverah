@@ -142,9 +142,12 @@ ran — no separate landing commits were needed for this section._
 
 ### D-7 · Export/delete catch-up for the new user-data tables (S–M) — before launch
 
-- [ ] `environment_reports`, `manager_profiles`, and `situation_report_pins`
+- [x] `environment_reports`, `manager_profiles`, and `situation_report_pins`
   (added 2026-09-10 by A-5) join `/me/export` and the
   account-deletion tombstone flow (S2's scrub discipline is the pattern).
+  _(Landed 2026-09-11. Deletion needed no code: all three ride the existing
+  retain-de-identified tombstone precedent. The guard test found 8 allowlisted
+  pre-existing gaps — named follow-up D-7b, see the coverage test.)_
   Both tables carry user answers; flagged by C-3 2026-09-10 — the gap is
   shared, so close it in one chunk. Any table added later joins the same
   flows the day it is created (cross-cutting rule, §6).
@@ -297,11 +300,11 @@ ran — no separate landing commits were needed for this section._
 
 ### B-1 · Check-in instrument + storage (M)
 
-- [ ] Items: the teaser's five dimensions (fragmentation, sustainability,
+- [x] Items: the teaser's five dimensions (fragmentation, sustainability,
   environmental friction, recognition, pace — `insight_engine.py`'s
   QUESTION_DIMENSIONS), 3 per check-in round-robin, + `experienced` 1–5.
   60 seconds, hard budget.
-- [ ] Migrations: `pulse_checkins` (user_id, taken_at, item scores,
+- [x] Migrations: `pulse_checkins` (user_id, taken_at, item scores,
   experienced), `pulse_events` (user_id, at, type enum: new_manager /
   reorg / remote_change / role_change / other+short text). Append-only.
 
@@ -347,8 +350,9 @@ ran — no separate landing commits were needed for this section._
 
 ### E-1 · Julie round-trip (external gate — send is ready)
 
-- [ ] Send the priors form (built + verified 2026-09-06; asked 2026-09-06,
-  chased 2026-09-08)
+- [x] Send the priors form (built + verified 2026-09-06; asked 2026-09-06,
+  chased 2026-09-08) _(SENT 2026-09-06; no reply as of 2026-09-11 — a
+  gentle follow-up to Julie is the open move)_
 - [ ] ⚑ Append to her queue — same async, resumable, valid-half-finished
   format, ONE form not a second sitting: (a) the environment-side
   self-report anchors sanity check (A-1 items vs her rubric reading),
@@ -378,13 +382,17 @@ ran — no separate landing commits were needed for this section._
 
 ### E-4 · DB → model glue (M)
 
-- [ ] `assemble_training_data(db)` → (person, env, confounders, outcome):
+- [x] `assemble_training_data(db)` → (person, env, confounders, outcome):
   person rows from core sittings; env + `experienced` rows from
   A-2's environment_reports (this is the inversion paying off — training
   pairs exist at launch); synthetic fixtures retired (scoring_key_version
   discipline keeps eras separable)
-- [ ] Funnel/collider fields carried per the handoff (capture how each
+- [x] Funnel/collider fields carried per the handoff (capture how each
   pair entered the data)
+  _(Landed 2026-09-11: 14 supplied + 12 explicit NULLs with capture notes as
+  data. Two E-5 blockers named in ASSEMBLE_TRAINING_DATA_NOTES.md: the
+  Bernoulli outcome likelihood vs 1–5 `experienced`, and preprocess_conf's
+  NULL handling.)_
 
 ### E-5 · Fit run + serving (M–L, after E-1 + E-2)
 
