@@ -87,11 +87,89 @@ def _ago(**kwargs):
     return (datetime.datetime.now(UTC) - datetime.timedelta(**kwargs)).isoformat()
 
 
+def _ago_dt(**kwargs):
+    return datetime.datetime.now(UTC) - datetime.timedelta(**kwargs)
+
+
+def _seed_checkin(user_id, *, taken_at=None):
+    """Complete one check-in for *user_id* via the real `pulse_store` write
+    path -- the zero-check-in gate reads `pulse_store.latest_pulse_checkin`,
+    not `pulse_settings`, so these tests need a real row, not a settings
+    fixture. `taken_at` optionally backdates the server-defaulted timestamp,
+    to control the never-prompted "one interval after the first check-in"
+    math."""
+    import pulse_store
+    from model import db
+    from work_pulse.pulse_items import FORM_VERSION, dimensions_for_checkin
+
+    sequence = pulse_store.pulse_checkin_count(user_id)
+    item_scores = {dim: 3 for dim in dimensions_for_checkin(user_id, sequence)}
+    checkin_id = pulse_store.write_pulse_checkin(
+        db,
+        user_id,
+        sequence=sequence,
+        item_scores=item_scores,
+        experienced=3,
+        version=FORM_VERSION,
+    )
+    db.session.commit()
+
+    if taken_at is not None:
+        from model import PulseCheckin
+
+        row = db.session.get(PulseCheckin, checkin_id)
+        row.taken_at = taken_at
+        db.session.commit()
+
+    return checkin_id
+
+
 # ── who gets prompted ────────────────────────────────────────────────────────
 
 
-def test_never_prompted_confirmed_user_is_prompted(ctx, sent):
-    user_id = _seed("never-prompted@example.test")
+def test_zero_checkin_confirmed_user_is_never_selected(ctx, sent):
+    """2026-09-11 ruling: checking in once is the opt-in. A confirmed user who
+    has never completed a check-in is excluded no matter what their cadence or
+    `last_prompted_at` says -- there is no such thing as an unsolicited first
+    Pulse email."""
+    user_id = _seed("zero-checkins@example.test")
+    _set_pulse_settings(
+        user_id, cadence="weekly", last_prompted_at=_ago(days=30),
+        awaiting_response=False, consecutive_unanswered=0,
+    )
+
+    exit_code, payload, _ = _invoke(ctx, "pulse", "send-prompts")
+
+    assert exit_code == 0
+    assert payload["sent"] == 0
+    assert sent == []
+
+
+def test_first_prompt_waits_a_full_interval_after_the_first_checkin(ctx, sent):
+    """Not due before the interval elapses, even though the user has never
+    been prompted -- the clock starts at the check-in, not at signup or at
+    cron-discovery time."""
+    user_id = _seed("fresh-checkin@example.test")
+    _seed_checkin(user_id, taken_at=_ago_dt(days=3))  # weekly default: not due yet
+
+    exit_code, payload, _ = _invoke(ctx, "pulse", "send-prompts")
+
+    assert exit_code == 0
+    assert payload["sent"] == 0
+    assert sent == []
+
+    from solverah.services import pulse_settings
+
+    settings = pulse_settings.read_settings(user_id)
+    assert settings["last_prompted_at"] is None
+
+
+def test_never_prompted_user_is_prompted_one_interval_after_first_checkin_with_clean_counters(ctx, sent):
+    """A user whose first-ever action is a check-in enters the loop with clean
+    counters: once their check-in is old enough to clear the cadence interval,
+    they are prompted exactly like any other due user."""
+    user_id = _seed("earned-prompt@example.test")
+    _seed_checkin(user_id, taken_at=_ago_dt(days=8))  # weekly default: past due
 
     exit_code, payload, _ = _invoke(ctx, "pulse", "send-prompts", "--base-url", "https://app.test")
 
@@ -99,7 +177,7 @@ def test_never_prompted_confirmed_user_is_prompted(ctx, sent):
     assert payload["event"] == "pulse_send_prompts"
     assert payload["sent"] == 1
     assert sent == [
-        {"to": "never-prompted@example.test", "deep_link": "https://app.test/pulse", "slowdown_notice": False}
+        {"to": "earned-prompt@example.test", "deep_link": "https://app.test/pulse", "slowdown_notice": False}
     ]
 
     from solverah.services import pulse_settings
@@ -112,6 +190,7 @@ def test_never_prompted_confirmed_user_is_prompted(ctx, sent):
 
 def test_off_users_are_excluded(ctx, sent):
     user_id = _seed("off@example.test")
+    _seed_checkin(user_id, taken_at=_ago_dt(days=30))
     _set_pulse_settings(
         user_id, cadence="off", last_prompted_at=None, awaiting_response=False,
         consecutive_unanswered=0,
@@ -139,11 +218,13 @@ def test_unconfirmed_users_are_excluded(ctx, sent):
 
 def test_biweekly_is_honored(ctx, sent):
     not_yet = _seed("biweekly-not-due@example.test")
+    _seed_checkin(not_yet)
     _set_pulse_settings(
         not_yet, cadence="biweekly", last_prompted_at=_ago(days=10),
         awaiting_response=False, consecutive_unanswered=0,
     )
     due = _seed("biweekly-due@example.test")
+    _seed_checkin(due)
     _set_pulse_settings(
         due, cadence="biweekly", last_prompted_at=_ago(days=15),
         awaiting_response=False, consecutive_unanswered=0,
@@ -160,7 +241,8 @@ def test_biweekly_is_honored(ctx, sent):
 
 
 def test_rerun_within_the_same_window_does_not_double_send(ctx, sent):
-    _seed("once-only@example.test")
+    user_id = _seed("once-only@example.test")
+    _seed_checkin(user_id, taken_at=_ago_dt(days=8))  # weekly default: past due
 
     first_exit, first_payload, _ = _invoke(ctx, "pulse", "send-prompts")
     second_exit, second_payload, _ = _invoke(ctx, "pulse", "send-prompts")
@@ -176,6 +258,7 @@ def test_rerun_within_the_same_window_does_not_double_send(ctx, sent):
 
 def test_three_consecutive_unanswered_drops_to_monthly_with_a_slowdown_note(ctx, sent):
     user_id = _seed("quiet@example.test")
+    _seed_checkin(user_id)
     _set_pulse_settings(
         user_id, cadence="weekly", last_prompted_at=_ago(days=8),
         awaiting_response=True, consecutive_unanswered=2,
@@ -198,6 +281,7 @@ def test_three_consecutive_unanswered_drops_to_monthly_with_a_slowdown_note(ctx,
 def test_answering_before_the_next_due_date_resets_the_unanswered_count(ctx, sent):
     """A user who checks in resets the counter -- no streak survives an answer."""
     user_id = _seed("answers@example.test")
+    _seed_checkin(user_id)
     _set_pulse_settings(
         user_id, cadence="weekly", last_prompted_at=_ago(days=8),
         awaiting_response=False,  # they answered -- pulse_service.submit_checkin's job

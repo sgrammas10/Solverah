@@ -168,7 +168,6 @@ def test_record_prompt_sets_every_field(client, seed_user):
 @pytest.mark.parametrize(
     "cadence,days_since_prompt,expected",
     [
-        ("weekly", None, True),      # never prompted -> due immediately
         ("weekly", 3, False),
         ("weekly", 8, True),
         ("biweekly", 10, False),
@@ -194,3 +193,47 @@ def test_is_due(cadence, days_since_prompt, expected):
     }
 
     assert pulse_settings.is_due(settings, now=now) is expected
+
+
+def test_is_due_never_prompted_with_no_checkin_anchor_is_never_due():
+    """Defensive branch: `send_due_prompts` never reaches `is_due` for a
+    never-prompted user without a check-in (it excludes those first), but
+    `is_due` itself must not default to "due" if ever called that way."""
+    from solverah.services import pulse_settings
+
+    now = datetime.datetime(2026, 6, 1, tzinfo=UTC)
+    settings = {
+        "cadence": "weekly",
+        "last_prompted_at": None,
+        "awaiting_response": False,
+        "consecutive_unanswered": 0,
+    }
+
+    assert pulse_settings.is_due(settings, now=now) is False
+
+
+@pytest.mark.parametrize(
+    "cadence,days_since_checkin,expected",
+    [
+        ("weekly", 3, False),   # inside the quiet interval since the first check-in
+        ("weekly", 8, True),
+        ("biweekly", 10, False),
+        ("biweekly", 15, True),
+        ("off", 100, False),    # off is never due, even with a long-past check-in
+    ],
+)
+def test_is_due_never_prompted_uses_the_checkin_as_the_baseline(cadence, days_since_checkin, expected):
+    """2026-09-11 ruling: for a never-prompted user, the clock starts at their
+    most recent check-in, not at cron-discovery time."""
+    from solverah.services import pulse_settings
+
+    now = datetime.datetime(2026, 6, 1, tzinfo=UTC)
+    last_checkin_at = now - datetime.timedelta(days=days_since_checkin)
+    settings = {
+        "cadence": cadence,
+        "last_prompted_at": None,
+        "awaiting_response": False,
+        "consecutive_unanswered": 0,
+    }
+
+    assert pulse_settings.is_due(settings, now=now, last_checkin_at=last_checkin_at) is expected

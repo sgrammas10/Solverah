@@ -59,9 +59,18 @@ def send_due_prompts(
     address nobody has proven ownership of is not a call this pass should make
     silently. Flagged in BUILD_PLAN B-2's report for Sebastian's review.
 
+    A user with zero completed check-ins is excluded too, regardless of cadence
+    or confirmation status (2026-09-11 ruling): checking in once is the opt-in,
+    users are recruited in-product, and Pulse never sends a first, unsolicited
+    invitation by email. For an eligible user never yet prompted, the due
+    baseline is their most recent check-in's `taken_at`, not cron-discovery
+    time -- see `pulse_settings.is_due`'s docstring.
+
     Returns:
         Counts keyed by outcome, for the cron's JSON log line.
     """
+    import pulse_store
+
     now = now if now is not None else datetime.datetime.now(datetime.timezone.utc)
 
     checked = 0
@@ -76,8 +85,13 @@ def send_due_prompts(
     # this scan in Python instead of a JSONB query in the first place.
     for user in User.query.filter(User.email_confirmed).all():
         checked += 1
+        latest_checkin = pulse_store.latest_pulse_checkin(user.id)
+        if latest_checkin is None:
+            continue
+
         settings = pulse_settings.read_settings(user.id)
-        if not pulse_settings.is_due(settings, now=now):
+        last_checkin_at = datetime.datetime.fromisoformat(latest_checkin["taken_at"])
+        if not pulse_settings.is_due(settings, now=now, last_checkin_at=last_checkin_at):
             continue
 
         consecutive_unanswered = settings["consecutive_unanswered"]

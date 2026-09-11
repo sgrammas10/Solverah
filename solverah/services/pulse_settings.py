@@ -98,21 +98,36 @@ def read_settings(user_id: int) -> Dict[str, Any]:
     return _with_defaults(document.get(SETTINGS_KEY))
 
 
-def is_due(settings: Dict[str, Any], *, now: datetime.datetime) -> bool:
+def is_due(
+    settings: Dict[str, Any],
+    *,
+    now: datetime.datetime,
+    last_checkin_at: Optional[datetime.datetime] = None,
+) -> bool:
     """Whether *settings* (as `read_settings` returns it) is due a prompt at *now*.
 
-    `off` is never due. A user never prompted (`last_prompted_at` is None) is
-    due immediately -- there is no "wait N days after signup" grace period; see
-    BUILD_PLAN B-2's report for why that is a deliberate simplification flagged
-    for review rather than a silent product decision.
+    `off` is never due. A user never prompted (`last_prompted_at` is None) is due
+    `CADENCE_INTERVALS[cadence]` after *last_checkin_at* -- their most recent
+    completed check-in -- rather than immediately (2026-09-11 ruling: checking in
+    once is the opt-in, and the clock starts at that check-in, so a fresh first
+    check-in buys a full quiet interval before the first prompt instead of
+    everyone who ever checked in getting emailed the moment a cron first runs).
+
+    *last_checkin_at* is the caller's job to supply for a never-prompted user --
+    `pulse_cadence_service.send_due_prompts`, the only caller, already excludes
+    every zero-check-in user before reaching this function. A never-prompted user
+    asked about here with no *last_checkin_at* is never due, defensively.
     """
     cadence = settings["cadence"]
     if cadence == "off":
         return False
     last_prompted_at = settings["last_prompted_at"]
     if last_prompted_at is None:
-        return True
-    last = datetime.datetime.fromisoformat(last_prompted_at)
+        if last_checkin_at is None:
+            return False
+        last = last_checkin_at
+    else:
+        last = datetime.datetime.fromisoformat(last_prompted_at)
     return now - last >= CADENCE_INTERVALS[cadence]
 
 
