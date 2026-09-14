@@ -326,14 +326,16 @@ ran — no separate landing commits were needed for this section._
 
 ### B-3 · Frontend (M–L)
 
-- [ ] Check-in flow: one screen, tap-tap-tap-done, then ONE thing back
+- [x] Check-in flow: one screen, tap-tap-tap-done, then ONE thing back
   (this week vs last — even "two points make your first trend")
-- [ ] Trend view: per-dimension sparklines + experienced line, event
+- [x] Trend view: per-dimension sparklines + experienced line, event
   annotations on the axis; degrade gracefully at 1–2 points (load the
   dataviz discipline when building the chart; prefer a lightweight
-  approach over a heavy chart dependency)
-- [ ] Dashboard card: "Your pulse this week" (feeds D-6)
-- [ ] Vitest; feature_tour route
+  approach over a heavy chart dependency) _(Landed 2026-09-11: inline-SVG
+  small multiples labelled Focus / Workload / Surroundings / Recognition /
+  Pace; event ticks on the experienced line only.)_
+- [x] Dashboard card: "Your pulse this week" (feeds D-6)
+- [x] Vitest; feature_tour route
 
 ### B-4 · Situation Report ↔ Pulse wiring (S)
 

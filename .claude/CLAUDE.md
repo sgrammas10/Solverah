@@ -50,6 +50,8 @@ frontend/         # React + TypeScript
 
 - Ask before big changes
 - If stuck: stop, re-plan, reach out early
+- User-facing wording: make a best guess and ship it. Julie owns final copy and revises
+  on the built product; never block a chunk on a copy read from Sebastian
 
 ## Testing
 
