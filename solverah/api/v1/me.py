@@ -49,6 +49,12 @@ from solverah.repositories import user_repository
 from solverah.schemas import PROBLEM_RESPONSE_MODEL, LegacyError
 from solverah.schemas.account import AccountDeleteRequest, AccountDeleteResponse, AccountExportResponse
 from solverah.schemas.manager_playbook import ManagerPlaybookResponse
+from solverah.schemas.experiments import (
+    ExperimentAbandonResponse,
+    ExperimentListResponse,
+    ExperimentStartRequest,
+    ExperimentStartResponse,
+)
 from solverah.schemas.pulse import (
     PulseCadenceResponse,
     PulseCadenceUpdateRequest,
@@ -85,6 +91,7 @@ from solverah.schemas.situation_report import (
 )
 from solverah.services import (
     account_service,
+    experiment_service,
     manager_playbook_service,
     profile_service,
     pulse_service,
@@ -870,3 +877,91 @@ def patch_my_pulse_settings():
     if not user:
         return jsonify({"error": "User not found"}), 404
     return jsonify(pulse_service.update_settings(user, _body())), 200
+
+
+# ---------------------------------------------------------------------------
+# Condition experiments (BUILD_PLAN B-5)
+# ---------------------------------------------------------------------------
+#
+# Generated from A-6's `change_in_place` guidance cells: a user runs a named
+# two-week change against one of the twelve the gap engine can diagnose, and
+# the readout reads Pulse `experienced` check-ins from before and after.
+# Matches the Situation Report / Pulse submission routes' budget: every write
+# here scores nothing and calls no provider.
+EXPERIMENT_SUBMIT_LIMIT = "5 per minute"
+
+
+@document(
+    "Start a condition experiment",
+    tags=["me"],
+    request=ExperimentStartRequest,
+    responses={
+        201: ExperimentStartResponse,
+        404: LegacyError,
+        409: PROBLEM_RESPONSE_MODEL,
+        422: PROBLEM_RESPONSE_MODEL,
+    },
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "`dimension`/`direction` must name one of the twelve real `change_in_place` "
+        "cells (`errors[0].code == \"not_a_change_in_place_cell\"` otherwise, 422). "
+        "Refuses `409` (`errors[0].code == \"experiment_already_active\"`) if this "
+        "user already has one running -- a two-week change is confounded by a second "
+        "concurrent one, so at most one may run at a time."
+    ),
+)
+@me_bp.route("/me/experiments", methods=["POST"])
+@limiter.limit(EXPERIMENT_SUBMIT_LIMIT)
+@jwt_required()
+def post_my_experiment():
+    """POST /me/experiments - start a two-week condition experiment."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(experiment_service.start_experiment(user, _body())), 201
+
+
+@document(
+    "List this user's condition experiments",
+    tags=["me"],
+    responses={200: ExperimentListResponse, 404: LegacyError},
+    security=_AUTHENTICATED,
+    enforce=True,
+    description=(
+        "Newest first. Each entry carries the derived `phase` ('running' / 'ended' / "
+        "'abandoned'), the before/after `readout` (a verdict word plus the two "
+        "check-in counts, never a delta), and the cell's own `experiment_name`."
+    ),
+)
+@me_bp.route("/me/experiments", methods=["GET"])
+@jwt_required()
+def get_my_experiments():
+    """GET /me/experiments - every experiment this user has started, newest first."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(experiment_service.list_experiments(user)), 200
+
+
+@document(
+    "Abandon a condition experiment",
+    tags=["me"],
+    responses={200: ExperimentAbandonResponse, 404: LegacyError},
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "Idempotent: abandoning an already-abandoned experiment is a 200 with the "
+        "row unchanged, not an error. 404 if the id does not exist or belongs to "
+        "someone else -- the two are deliberately indistinguishable."
+    ),
+)
+@me_bp.route("/me/experiments/<int:experiment_id>/abandon", methods=["POST"])
+@limiter.limit(EXPERIMENT_SUBMIT_LIMIT)
+@jwt_required()
+def post_my_experiment_abandon(experiment_id: int):
+    """POST /me/experiments/{id}/abandon - stop a running experiment."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(experiment_service.abandon_experiment(user, experiment_id)), 200

@@ -145,3 +145,11 @@ recommendation — so `build_model.build_model()` attaching `pm.Bernoulli` uncon
 the one thing standing between these rows and a fit run. `solverah_model_config.yaml`'s
 `settings.outcome` block still describes only the binary head (`type: binary`). E-5 cannot
 start on this source until an `OrderedLogistic` branch exists.
+
+### Pointer: condition experiments (BUILD_PLAN B-5)
+
+The `experiments` table (`model.Experiment`) holds one row per user per two-week
+change-in-place attempt, with a before/after `experienced` readout served to the user as a
+word, never a delta. The per-user word is not this lane's food; the aggregate pattern across
+many users' attempts on the same `(dimension, direction)` cell is, whenever this source gets
+built out. Nothing here assembles it yet.

@@ -76,6 +76,14 @@
             "title": "Environment Reports",
             "type": "array"
           },
+          "experiments": {
+            "description": "Every condition experiment the user has started, newest first (BUILD_PLAN B-5).",
+            "items": {
+              "$ref": "#/components/schemas/ExportedExperiment"
+            },
+            "title": "Experiments",
+            "type": "array"
+          },
           "exported_at": {
             "description": "ISO 8601 timestamp of this export.",
             "title": "Exported At",
@@ -1106,6 +1114,280 @@
         "title": "EnvironmentReportSubmitResponse",
         "type": "object"
       },
+      "ExperimentAbandonResponse": {
+        "additionalProperties": false,
+        "description": "``POST /me/experiments/{id}/abandon`` -- 200, idempotent.",
+        "properties": {
+          "abandoned_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Abandoned At"
+          },
+          "dimension": {
+            "title": "Dimension",
+            "type": "string"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "ends_at": {
+            "title": "Ends At",
+            "type": "string"
+          },
+          "experiment_name": {
+            "description": "The cell's own name, resolved from work_pulse.situation_content.",
+            "title": "Experiment Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "phase": {
+            "description": "'running' / 'ended' / 'abandoned' -- derived on read from status and ends_at, never stored.",
+            "title": "Phase",
+            "type": "string"
+          },
+          "readout": {
+            "$ref": "#/components/schemas/ExperimentReadout"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "description": "'active' or 'abandoned' -- the stored fact.",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "dimension",
+          "direction",
+          "started_at",
+          "ends_at",
+          "status",
+          "phase",
+          "experiment_name",
+          "readout"
+        ],
+        "title": "ExperimentAbandonResponse",
+        "type": "object"
+      },
+      "ExperimentListResponse": {
+        "additionalProperties": false,
+        "description": "``GET /me/experiments`` -- newest first.",
+        "properties": {
+          "experiments": {
+            "items": {
+              "$ref": "#/components/schemas/ExperimentRecord"
+            },
+            "title": "Experiments",
+            "type": "array"
+          }
+        },
+        "required": [
+          "experiments"
+        ],
+        "title": "ExperimentListResponse",
+        "type": "object"
+      },
+      "ExperimentReadout": {
+        "additionalProperties": false,
+        "description": "`work_pulse.experiments.compute_readout`'s output, unchanged. Never a\ndelta or a mean -- see that module's docstring for why.",
+        "properties": {
+          "after_count": {
+            "description": "Check-ins in [started_at, ends_at].",
+            "title": "After Count",
+            "type": "integer"
+          },
+          "before_count": {
+            "description": "Check-ins in the 14 days before started_at.",
+            "title": "Before Count",
+            "type": "integer"
+          },
+          "verdict": {
+            "description": "One of 'not_enough_data', 'moved_up', 'moved_down', 'about_the_same'.",
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict",
+          "before_count",
+          "after_count"
+        ],
+        "title": "ExperimentReadout",
+        "type": "object"
+      },
+      "ExperimentRecord": {
+        "additionalProperties": false,
+        "description": "One experiment, as `POST /me/experiments`, `GET /me/experiments`, and\n`POST /me/experiments/{id}/abandon` all return it.",
+        "properties": {
+          "abandoned_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Abandoned At"
+          },
+          "dimension": {
+            "title": "Dimension",
+            "type": "string"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "ends_at": {
+            "title": "Ends At",
+            "type": "string"
+          },
+          "experiment_name": {
+            "description": "The cell's own name, resolved from work_pulse.situation_content.",
+            "title": "Experiment Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "phase": {
+            "description": "'running' / 'ended' / 'abandoned' -- derived on read from status and ends_at, never stored.",
+            "title": "Phase",
+            "type": "string"
+          },
+          "readout": {
+            "$ref": "#/components/schemas/ExperimentReadout"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "description": "'active' or 'abandoned' -- the stored fact.",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "dimension",
+          "direction",
+          "started_at",
+          "ends_at",
+          "status",
+          "phase",
+          "experiment_name",
+          "readout"
+        ],
+        "title": "ExperimentRecord",
+        "type": "object"
+      },
+      "ExperimentStartRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "dimension": {
+            "description": "One of work_pulse.situation.DIMENSIONS ('autonomy', 'pace', \u2026).",
+            "title": "Dimension",
+            "type": "string"
+          },
+          "direction": {
+            "description": "'under' or 'over' -- work_pulse.situation's short vocabulary, the same one a StrainDimensionEntry's own `direction` field already carries.",
+            "title": "Direction",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dimension",
+          "direction"
+        ],
+        "title": "ExperimentStartRequest",
+        "type": "object"
+      },
+      "ExperimentStartResponse": {
+        "additionalProperties": false,
+        "description": "``POST /me/experiments`` -- 201 with the new row.",
+        "properties": {
+          "abandoned_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Abandoned At"
+          },
+          "dimension": {
+            "title": "Dimension",
+            "type": "string"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "ends_at": {
+            "title": "Ends At",
+            "type": "string"
+          },
+          "experiment_name": {
+            "description": "The cell's own name, resolved from work_pulse.situation_content.",
+            "title": "Experiment Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "phase": {
+            "description": "'running' / 'ended' / 'abandoned' -- derived on read from status and ends_at, never stored.",
+            "title": "Phase",
+            "type": "string"
+          },
+          "readout": {
+            "$ref": "#/components/schemas/ExperimentReadout"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "description": "'active' or 'abandoned' -- the stored fact.",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "dimension",
+          "direction",
+          "started_at",
+          "ends_at",
+          "status",
+          "phase",
+          "experiment_name",
+          "readout"
+        ],
+        "title": "ExperimentStartResponse",
+        "type": "object"
+      },
       "ExportedAccount": {
         "additionalProperties": false,
         "description": "Identity fields of the exporting user.",
@@ -1256,6 +1538,99 @@
           "version"
         ],
         "title": "ExportedEnvironmentReport",
+        "type": "object"
+      },
+      "ExportedExperiment": {
+        "additionalProperties": false,
+        "description": "One condition experiment (BUILD_PLAN B-5, D-7).\n\nStraight from ``experiment_store``'s own serialization -- the raw stored\nrow, not the service layer's enriched shape: the derived ``phase``/\n``readout`` are computed from live Pulse data at read time and are not\nthis user's own stored content, the same reasoning\n``account_service.export_account_data`` states for using the store's\ndict here rather than ``experiment_service.list_experiments``'s.",
+        "properties": {
+          "abandoned_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 timestamp.",
+            "title": "Abandoned At"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 timestamp.",
+            "title": "Created At"
+          },
+          "dimension": {
+            "title": "Dimension",
+            "type": "string"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "ends_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 timestamp.",
+            "title": "Ends At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "register": {
+            "description": "Always 'change_in_place' today.",
+            "title": "Register",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 timestamp.",
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "dimension",
+          "direction",
+          "register",
+          "status"
+        ],
+        "title": "ExportedExperiment",
         "type": "object"
       },
       "ExportedIntakeSubmission": {
@@ -6828,6 +7203,191 @@
           }
         ],
         "summary": "Submit the environment-side instrument for the Situation Report",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/experiments": {
+      "get": {
+        "description": "Newest first. Each entry carries the derived `phase` ('running' / 'ended' / 'abandoned'), the before/after `readout` (a verdict word plus the two check-in counts, never a delta), and the cell's own `experiment_name`.",
+        "operationId": "get_me_get_my_experiments",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "List this user's condition experiments",
+        "tags": [
+          "me"
+        ]
+      },
+      "post": {
+        "description": "`dimension`/`direction` must name one of the twelve real `change_in_place` cells (`errors[0].code == \"not_a_change_in_place_cell\"` otherwise, 422). Refuses `409` (`errors[0].code == \"experiment_already_active\"`) if this user already has one running -- a two-week change is confounded by a second concurrent one, so at most one may run at a time.",
+        "operationId": "post_me_post_my_experiment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExperimentStartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentStartResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Start a condition experiment",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/experiments/{experiment_id}/abandon": {
+      "post": {
+        "description": "Idempotent: abandoning an already-abandoned experiment is a 200 with the row unchanged, not an error. 404 if the id does not exist or belongs to someone else -- the two are deliberately indistinguishable.",
+        "operationId": "post_me_post_my_experiment_abandon",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "experiment_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentAbandonResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Abandon a condition experiment",
         "tags": [
           "me"
         ]

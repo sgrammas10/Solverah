@@ -18,16 +18,17 @@ migration:
       those two tables directly; it reads them through ``assessment_store``, the
       single auditable doorway D-01 keeps the allowlist closed around.
     * ``environment_reports``/``environment_dimension_score``, ``manager_profiles``,
-      ``situation_report_pins`` (BUILD_PLAN D-7), and ``pulse_checkins`` (BUILD_PLAN
-      D-7b, 2026-09-11) follow the identical reconciliation and for the identical
-      reason: none of the four carries a name, email, or free-text identifier -- a
-      `user_id` pointing at the now-anonymous tombstone is all that is left. This
-      module does not touch any of them either; nothing in :func:`delete_account`
-      needs to, which is the point. ``pulse_checkins`` differs from the other three in
-      *why* it qualifies: it is not D-16 append-only research data, it qualifies
-      because none of its columns are free text (`item_scores`/`experienced` are
-      validated 1..5 integers) -- the D-7b ruling's actual test, which the other three
-      also happen to pass.
+      ``situation_report_pins`` (BUILD_PLAN D-7), ``pulse_checkins`` (BUILD_PLAN
+      D-7b, 2026-09-11), and ``experiments`` (BUILD_PLAN B-5) follow the identical
+      reconciliation and for the identical reason: none carries a name, email, or
+      free-text identifier -- a `user_id` pointing at the now-anonymous tombstone is
+      all that is left. This module does not touch any of them either; nothing in
+      :func:`delete_account` needs to, which is the point. ``pulse_checkins`` and
+      ``experiments`` differ from the other three in *why* they qualify: neither is
+      D-16 append-only research data, they qualify because none of their columns are
+      free text (`item_scores`/`experienced` on one, `dimension`/`direction`/
+      `register`/`status` -- all closed vocabularies -- on the other) -- the D-7b
+      ruling's actual test, which the other three also happen to pass.
     * Everything else containing personal content is destroyed, including
       ``pulse_events`` (``note`` is free text, so D-7b puts it on the other side of
       that same line) and every resume object in R2.
@@ -51,6 +52,7 @@ from typing import Any, Dict, List, Optional
 
 from assessment_store import export_person_side
 from environment_report_store import environment_report_history
+from experiment_store import experiments_for_user
 from manager_profile_store import manager_profile_history
 from model import IntakeSubmission, User, db
 from pulse_store import pulse_checkin_history, pulse_events_in_range
@@ -233,6 +235,15 @@ def export_account_data(user: User) -> AccountResult:
         # export is "everything held", not a recent window.
         "pulse_checkins": pulse_checkin_history(user.id),
         "pulse_events": pulse_events_in_range(user.id),
+        # BUILD_PLAN B-5: experiments joins export the same commit that creates it,
+        # per the cross-cutting D-7 rule. Unbounded, same reasoning as the pulse
+        # reads above -- every experiment a user has ever started, not a recent
+        # window. Raw store rows, not the service layer's enriched shape: the
+        # derived `phase`/`readout` are computed from live Pulse data at read time
+        # and are not this user's own stored content, so an export is the row as
+        # written, the same distinction `dimension_scores` above draws for the
+        # person-side tables.
+        "experiments": experiments_for_user(user.id),
         # BUILD_PLAN D-7: environment_reports and manager_profiles are append-only
         # (D-16) -- every sitting is a real one, so the export is the full history,
         # unbounded, same reasoning as the pulse reads above. situation_report_pin is

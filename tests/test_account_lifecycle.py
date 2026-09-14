@@ -407,6 +407,45 @@ def test_delete_retains_pulse_checkins(client, monkeypatch):
         assert PulseCheckin.query.filter_by(user_id=bystander_id).count() == 1
 
 
+def test_delete_retains_experiments(client, monkeypatch):
+    """BUILD_PLAN B-5's own D-7 wiring, applying the D-7b test fresh: dimension,
+    direction, register and status are all closed vocabularies, so the row rides
+    the tombstone de-identified exactly like pulse_checkins/environment_reports.
+    A bystander's experiment is untouched either way."""
+    _, bystander_id = _register_and_login(
+        client, monkeypatch, email="b5-experiments-bystander@example.com"
+    )
+    csrf, user_id = _register_and_login(client, monkeypatch, email="b5-experiments@example.com")
+
+    from app import app
+    from experiment_store import start_experiment
+    from model import Experiment, db
+
+    with app.app_context():
+        for uid in (bystander_id, user_id):
+            start_experiment(db, uid, dimension="autonomy", direction="under")
+        db.session.commit()
+
+    res = client.delete("/api/v1/me", json={"confirm": "DELETE"},
+                      headers={"X-CSRF-TOKEN": csrf})
+    assert res.status_code == 200
+
+    with app.app_context():
+        # Not destroyed, not reassigned -- still hanging off the now-tombstoned
+        # user_id, the same "nothing to do" reconciliation as pulse_checkins.
+        surviving = Experiment.query.filter_by(user_id=user_id).all()
+        assert len(surviving) == 1
+        assert surviving[0].dimension == "autonomy"
+        assert surviving[0].status == "active"
+
+        from model import User
+        deleted_user = db.session.get(User, user_id)
+        assert deleted_user.email == f"deleted-{user_id}@tombstone.invalid"
+
+        # Bystander untouched.
+        assert Experiment.query.filter_by(user_id=bystander_id).count() == 1
+
+
 def test_delete_removes_pulse_events(client, monkeypatch):
     """The other half of the D-7b split: pulse_events IS destroyed on deletion,
     never tombstoned or retained de-identified -- `note` is free text, and free text

@@ -67,6 +67,7 @@ function serve(
   report: unknown,
   recalibrate?: () => Promise<unknown>,
   pulseHistory: unknown = { checkins: [], events: [] },
+  experiments: unknown = { experiments: [] },
 ) {
   mocks.fetchWithAuth.mockImplementation((path: string) => {
     if (path === "/me/situation-report") return Promise.resolve(report);
@@ -74,6 +75,7 @@ function serve(
       return recalibrate ? recalibrate() : Promise.resolve({ recalibrated: false });
     }
     if (path === "/me/pulse/history") return Promise.resolve(pulseHistory);
+    if (path === "/me/experiments") return Promise.resolve(experiments);
     return Promise.reject(new Error(`unexpected path ${path}`));
   });
 }
@@ -132,6 +134,31 @@ const NOTABLE_FEEDBACK: SituationDimensionEntry = {
     },
   },
   defers_to_decoder: true,
+  decoder_crossref: null,
+};
+
+/** A second straining, change-in-place-carrying dimension, distinct from
+ *  `STRAINING_AUTONOMY` -- the condition-experiments tests need two real
+ *  cells to prove "disabled elsewhere" means something. */
+const STRAINING_PACE: SituationDimensionEntry = {
+  dimension: "pace",
+  env_score: 0.7654,
+  bucket: "straining",
+  direction: "over",
+  rank: 1,
+  diagnosis: {
+    headline: "The tempo is set higher than you can hold",
+    text: "This role runs faster and hotter than that.",
+  },
+  registers: {
+    change_in_place: {
+      experiment_name: "Defend one block, for two weeks",
+      experiment: "Take one protected block back and prove it costs nothing.",
+      steps: ["Pick the block and put it in the calendar."],
+      signal: "How much of the week is reactive rather than planned.",
+    },
+  },
+  defers_to_decoder: false,
   decoder_crossref: null,
 };
 
@@ -641,6 +668,170 @@ describe("SituationReportPage", () => {
       await waitFor(() =>
         expect(screen.getByText(/There is no Work Pulse sitting to pin to yet/)).toBeInTheDocument(),
       );
+    });
+  });
+
+  describe("condition experiments (BUILD_PLAN B-5)", () => {
+    const TWO_CELL_REPORT: SituationComplete = {
+      ...COMPLETE,
+      dimensions: [STRAINING_AUTONOMY, STRAINING_PACE],
+    };
+
+    /** A stateful mock: POST starts/abandons mutate `experiments` in place, so
+     *  the GET the query-client refetches after invalidation reflects the
+     *  write -- the same round trip the real API/react-query pair makes. */
+    function serveWithExperiments(experiments: Record<string, unknown>[]) {
+      let nextId = experiments.length + 1;
+      mocks.fetchWithAuth.mockImplementation((path: string, options?: { method?: string; body?: string }) => {
+        if (path === "/me/situation-report") return Promise.resolve(TWO_CELL_REPORT);
+        if (path === "/me/pulse/history") return Promise.resolve({ checkins: [], events: [] });
+
+        if (path === "/me/experiments" && (!options || options.method === "GET" || !options.method)) {
+          return Promise.resolve({ experiments });
+        }
+        if (path === "/me/experiments" && options?.method === "POST") {
+          const { dimension, direction } = JSON.parse(options.body ?? "{}");
+          const created = {
+            id: nextId++,
+            dimension, direction,
+            started_at: "2026-09-14T00:00:00Z",
+            ends_at: "2026-09-28T00:00:00Z",
+            status: "active",
+            abandoned_at: null,
+            phase: "running",
+            experiment_name: "Defend one block, for two weeks",
+            readout: { verdict: "not_enough_data", before_count: 0, after_count: 0 },
+          };
+          experiments.unshift(created);
+          return Promise.resolve(created);
+        }
+        const abandonMatch = path.match(/^\/me\/experiments\/(\d+)\/abandon$/);
+        if (abandonMatch) {
+          const id = Number(abandonMatch[1]);
+          const row = experiments.find((e) => e.id === id);
+          if (row) {
+            row.status = "abandoned";
+            row.phase = "abandoned";
+            row.abandoned_at = "2026-09-15T00:00:00Z";
+          }
+          return Promise.resolve(row);
+        }
+        return Promise.reject(new Error(`unexpected path ${path}`));
+      });
+    }
+
+    it("offers a button on a change-in-place cell when nothing is running", async () => {
+      serveWithExperiments([]);
+      renderPage();
+
+      const buttons = await screen.findAllByRole("button", { name: /Try this for two weeks/ });
+      expect(buttons).toHaveLength(2);
+      buttons.forEach((button) => expect(button).not.toBeDisabled());
+    });
+
+    it("starts an experiment and shows the running state", async () => {
+      serveWithExperiments([]);
+      renderPage();
+
+      const [firstButton] = await screen.findAllByRole("button", { name: /Try this for two weeks/ });
+      fireEvent.click(firstButton);
+
+      expect(await screen.findByText(/Running since/)).toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: "Abandon" })).toBeInTheDocument();
+    });
+
+    it("disables the other cell's button with a one-line reason once one is running", async () => {
+      serveWithExperiments([
+        {
+          id: 1, dimension: "autonomy", direction: "under",
+          started_at: "2026-09-01T00:00:00Z", ends_at: "2026-09-15T00:00:00Z",
+          status: "active", abandoned_at: null, phase: "running",
+          experiment_name: "One piece, your method, for a fortnight",
+          readout: { verdict: "not_enough_data", before_count: 0, after_count: 0 },
+        },
+      ]);
+      renderPage();
+
+      expect(await screen.findByText(/Running since/)).toBeInTheDocument();
+      const otherButton = await screen.findByRole("button", { name: /Try this for two weeks/ });
+      expect(otherButton).toBeDisabled();
+      expect(
+        screen.getByText(/Only one experiment can run at a time/),
+      ).toBeInTheDocument();
+    });
+
+    it("abandons a running experiment with one plain click and no confirmation step", async () => {
+      serveWithExperiments([
+        {
+          id: 1, dimension: "autonomy", direction: "under",
+          started_at: "2026-09-01T00:00:00Z", ends_at: "2026-09-15T00:00:00Z",
+          status: "active", abandoned_at: null, phase: "running",
+          experiment_name: "One piece, your method, for a fortnight",
+          readout: { verdict: "not_enough_data", before_count: 0, after_count: 0 },
+        },
+      ]);
+      renderPage();
+
+      const abandon = await screen.findByRole("button", { name: "Abandon" });
+      // No modal, no window.confirm -- one click is the whole interaction.
+      fireEvent.click(abandon);
+
+      await waitFor(() => expect(screen.queryByText(/Running since/)).not.toBeInTheDocument());
+      const buttons = await screen.findAllByRole("button", { name: /Try this for two weeks/ });
+      expect(buttons).toHaveLength(2);
+    });
+
+    it("shows the ended readout in words, with counts, and no digit in the verdict sentence", async () => {
+      serveWithExperiments([
+        {
+          id: 1, dimension: "autonomy", direction: "under",
+          started_at: "2026-08-01T00:00:00Z", ends_at: "2026-08-15T00:00:00Z",
+          status: "active", abandoned_at: null, phase: "ended",
+          experiment_name: "One piece, your method, for a fortnight",
+          readout: { verdict: "moved_up", before_count: 2, after_count: 3 },
+        },
+      ]);
+      renderPage();
+
+      const verdict = await screen.findByText("Your numbers moved up over those two weeks.");
+      expect(verdict.textContent ?? "").not.toMatch(/\d/);
+      expect(
+        screen.getByText("That's based on 2 check-ins before, 3 after."),
+      ).toBeInTheDocument();
+    });
+
+    it("lists past experiments under the guidance section", async () => {
+      serveWithExperiments([
+        {
+          id: 1, dimension: "autonomy", direction: "under",
+          started_at: "2026-08-01T00:00:00Z", ends_at: "2026-08-15T00:00:00Z",
+          status: "abandoned", abandoned_at: "2026-08-10T00:00:00Z", phase: "abandoned",
+          experiment_name: "One piece, your method, for a fortnight",
+          readout: { verdict: "not_enough_data", before_count: 0, after_count: 1 },
+        },
+      ]);
+      renderPage();
+
+      const heading = await screen.findByText("Your experiments");
+      const guidance = await screen.findByText(GUIDANCE_NOTICE);
+      // Positioned after the guidance notice, per the brief's "under the
+      // guidance section".
+      expect(heading.compareDocumentPosition(guidance) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+
+      const list = heading.closest("section") as HTMLElement;
+      expect(within(list).getByText(/One piece, your method, for a fortnight/)).toBeInTheDocument();
+      expect(within(list).getByText("Abandoned")).toBeInTheDocument();
+    });
+
+    it("does not offer the experiment button in the needs-forward rendering", async () => {
+      serve(COMPLETE_NEEDS_FORWARD, undefined, { checkins: [], events: [] }, { experiments: [] });
+      renderPage();
+
+      await screen.findByRole("heading", { name: "What to look for next" });
+      expect(
+        screen.queryByRole("button", { name: /Try this for two weeks/ }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Your experiments")).not.toBeInTheDocument();
     });
   });
 });

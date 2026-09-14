@@ -125,6 +125,24 @@ so `situation-report-after-pulse-event` is what captures `events_since_report`
 non-empty for the first time, appended at the very end so the 89 records above
 it keep their positions.
 
+**Extended for BUILD_PLAN B-5 (2026-09-14): condition experiments.** A new
+surface, not a change to any existing one -- every record above keeps its
+position, exactly as the Pulse block appended after the Situation Report
+block. `EMAIL` already has everything this needs: a completed `core` sitting
+and a submitted environment report, both from the Situation Report block
+above. `post-experiment-malformed` pins the business-rule 422 (a dimension
+that names no real `change_in_place` cell) -- schema-level 422s are already
+covered by `enforce=True`, the same reasoning every other `-malformed` step in
+this script gives for capturing only the other failure mode.
+`post-experiment-conflict` captures the 409 a second `POST` gets while the
+first is still active -- the methodological one-active-at-a-time rule
+(`model.Experiment`'s docstring) made visible on the wire. `readout` reads
+`not_enough_data` throughout this block: EMAIL has never completed a Pulse
+check-in in this scenario, and inventing one only to backdate it would cost a
+real check-in's worth of Pulse-block state for a readout word this script does
+not need to prove -- `tests/test_experiment_api.py` proves every other verdict
+word against real, controlled check-in timestamps instead.
+
 **The LLM is stubbed, and the prompt builders with it.** Three instruments call a
 provider; a fixture that depended on one could not produce stable bytes, and the
 narrative text is the whole payload for two of them. `_chat_json` is replaced by a
@@ -1131,6 +1149,50 @@ def run_scenario() -> List[Dict[str, Any]]:
     # for the first time. `situation-report-complete` above still captures the
     # empty-list case, which is the common one.
     call("situation-report-after-pulse-event", "GET", "/api/v1/me/situation-report")
+
+    # -- Condition experiments (B-5) ---------------------------------------
+    #
+    # Appended after the Situation Report <-> Pulse block so every record above
+    # keeps its position. Reuses `mp_csrf`'s still-open EMAIL session -- this
+    # account already carries a completed core sitting and a submitted
+    # environment report from the Situation Report block above, which is all
+    # `POST /me/experiments`'s cell-pair validation needs.
+    call(
+        "post-experiment-malformed",
+        "POST",
+        "/api/v1/me/experiments",
+        json={"dimension": "nonexistent", "direction": "under"},
+        headers=mp_csrf,
+    )
+    call(
+        "post-experiment",
+        "POST",
+        "/api/v1/me/experiments",
+        json={"dimension": "autonomy", "direction": "under"},
+        headers=mp_csrf,
+    )
+    call(
+        "post-experiment-conflict",
+        "POST",
+        "/api/v1/me/experiments",
+        json={"dimension": "pace", "direction": "over"},
+        headers=mp_csrf,
+    )
+    call("get-experiments", "GET", "/api/v1/me/experiments")
+    call(
+        "post-experiment-abandon",
+        "POST",
+        "/api/v1/me/experiments/1/abandon",
+        headers=mp_csrf,
+    )
+    # Idempotent: the same call again is still 200, unchanged.
+    call(
+        "post-experiment-abandon-again",
+        "POST",
+        "/api/v1/me/experiments/1/abandon",
+        headers=mp_csrf,
+    )
+    call("get-experiments-after-abandon", "GET", "/api/v1/me/experiments")
 
     return records
 

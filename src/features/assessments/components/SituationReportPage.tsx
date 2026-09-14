@@ -58,6 +58,7 @@ import {
 } from "../useSituationReport";
 import type {
   AlignedDimensionEntry,
+  SituationComplete,
   SituationDimensionEntry,
   SituationManagerSection,
   SituationReportEventSinceReport,
@@ -65,6 +66,13 @@ import type {
 } from "../useSituationReport";
 import { usePulseHistory } from "../usePulse";
 import type { PulseEventType } from "../usePulse";
+import {
+  isExperimentAlreadyActive,
+  useAbandonExperiment,
+  useExperiments,
+  useStartExperiment,
+} from "../useExperiments";
+import type { Experiment } from "../useExperiments";
 import PulseSparkline from "./PulseSparkline";
 
 const DIMENSION_LABELS: Record<string, string> = {
@@ -91,6 +99,16 @@ function directionLabel(direction: "under" | "over", past: boolean): string {
 
 function dimensionLabel(dimension: string): string {
   return DIMENSION_LABELS[dimension] ?? dimension;
+}
+
+/** A calendar date, never a raw ISO string -- `started_at`/`ends_at` render
+ *  as dates, per the page's own "dates render as dates" rule (digits are
+ *  fine here; it is score-shaped digits -- decimals, percentages -- the
+ *  no-digits guard actually forbids). */
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: "numeric", month: "short", day: "numeric",
+  });
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -243,6 +261,111 @@ function ExperiencedTrendSection() {
 }
 
 // ---------------------------------------------------------------------------
+// Condition experiments (BUILD_PLAN B-5). An offer, never a nag -- the same
+// house rule B-2's anti-nag copy follows: "moved / didn't", never "worked",
+// because a two-week, single-user, unblinded before/after comparison cannot
+// support a causal claim. Verdicts are words; the two counts are the only
+// numbers, and they are plain check-in counts, never a delta or a percentage.
+// ---------------------------------------------------------------------------
+
+const READOUT_COPY: Record<string, string> = {
+  not_enough_data: "There weren't enough check-ins on one side of this to say anything yet.",
+  moved_up: "Your numbers moved up over those two weeks.",
+  moved_down: "Your numbers moved down over those two weeks.",
+  about_the_same: "Your numbers didn't move much over those two weeks.",
+};
+
+function readoutCountsProse(before: number, after: number): string {
+  const beforeText = `${before} check-in${before === 1 ? "" : "s"} before`;
+  const afterText = `${after} after`;
+  return `That's based on ${beforeText}, ${afterText}.`;
+}
+
+/** The one cell-level control for a `change_in_place` register: a button
+ *  that starts a two-week experiment, a running state once it exists, and
+ *  the readout in words once it has ended. Not shown in the needs-forward
+ *  rendering -- the server never sends `experiment_name` there, and there is
+ *  no live job to run an experiment against. */
+function ExperimentControl({
+  dimension,
+  direction,
+  experiments,
+  hasActiveElsewhere,
+}: {
+  dimension: string;
+  direction: "under" | "over";
+  experiments: Experiment[];
+  hasActiveElsewhere: boolean;
+}) {
+  const start = useStartExperiment();
+  const abandon = useAbandonExperiment();
+
+  // Newest first off the wire, and an abandoned attempt on this cell is
+  // treated as if it never happened -- abandoning is "let me try something
+  // else, or the same thing again," not a state this cell keeps showing.
+  const current = experiments.find(
+    (experiment) =>
+      experiment.dimension === dimension &&
+      experiment.direction === direction &&
+      experiment.phase !== "abandoned",
+  );
+
+  if (current?.phase === "running") {
+    return (
+      <div className="rounded-lg border border-forest-light bg-white/70 px-4 py-3 space-y-2">
+        <p className="text-sm text-ink-primary leading-relaxed">
+          Running since {formatDate(current.started_at)}, through {formatDate(current.ends_at)}.
+        </p>
+        <button
+          type="button"
+          onClick={() => abandon.mutate(current.id)}
+          disabled={abandon.isPending}
+          className="text-sm font-semibold text-ink-tertiary hover:underline disabled:opacity-50 disabled:no-underline"
+        >
+          Abandon
+        </button>
+      </div>
+    );
+  }
+
+  if (current?.phase === "ended") {
+    return (
+      <div className="rounded-lg border border-cream-muted bg-white/70 px-4 py-3 space-y-1">
+        <p className="text-sm text-ink-primary leading-relaxed">
+          {READOUT_COPY[current.readout.verdict]}
+        </p>
+        <p className="text-xs text-ink-tertiary">
+          {readoutCountsProse(current.readout.before_count, current.readout.after_count)}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <button
+        type="button"
+        onClick={() => start.mutate({ dimension: dimension as never, direction })}
+        disabled={start.isPending || hasActiveElsewhere}
+        className="text-sm font-semibold text-forest-dark hover:underline disabled:opacity-50 disabled:no-underline disabled:text-ink-tertiary"
+      >
+        Try this for two weeks →
+      </button>
+      {hasActiveElsewhere && (
+        <p className="text-xs text-ink-tertiary">
+          Only one experiment can run at a time — finish or abandon the other one first.
+        </p>
+      )}
+      {start.isError && !isExperimentAlreadyActive(start.error) && (
+        <p className="text-xs text-red-700" role="alert">
+          We couldn't start that just now. Please try again in a moment.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Dimension cards
 // ---------------------------------------------------------------------------
 
@@ -266,10 +389,14 @@ function StrainCard({
   entry,
   past,
   manager,
+  experiments,
+  hasActiveElsewhere,
 }: {
   entry: StrainDimensionEntry;
   past: boolean;
   manager: SituationManagerSection;
+  experiments: Experiment[];
+  hasActiveElsewhere: boolean;
 }) {
   const { registers } = entry;
   const isStraining = entry.bucket === "straining";
@@ -344,6 +471,19 @@ function StrainCard({
               {registers.change_in_place.signal}
             </p>
           </div>
+          {/* Not shown in the needs-forward rendering: there is no live job
+              to run a two-week change against, and the server never sends
+              `experiment_name` for that slice. */}
+          {!past && registers.change_in_place.experiment_name && (
+            <div className="pt-1">
+              <ExperimentControl
+                dimension={entry.dimension}
+                direction={entry.direction}
+                experiments={experiments}
+                hasActiveElsewhere={hasActiveElsewhere}
+              />
+            </div>
+          )}
         </section>
       )}
 
@@ -476,6 +616,54 @@ function GuidanceNotice({ notice }: { notice: string }) {
   return (
     <section className="rounded-lg border border-cream-muted bg-white px-5 py-4">
       <p className="text-sm text-ink-secondary leading-relaxed">{notice}</p>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// "Your experiments" (BUILD_PLAN B-5). Under the guidance section, short --
+// this is a record of past attempts, not a second payoff surface. Nothing
+// here renders when nobody has ever started one.
+// ---------------------------------------------------------------------------
+
+const EXPERIMENT_PHASE_LABELS: Record<string, string> = {
+  running: "Running",
+  ended: "Ended",
+  abandoned: "Abandoned",
+};
+
+function ExperimentsSection({ experiments }: { experiments: Experiment[] }) {
+  if (experiments.length === 0) return null;
+
+  return (
+    <section className="space-y-3 border-t border-cream-muted pt-6">
+      <SectionHeading>Your experiments</SectionHeading>
+      <ul className="space-y-3">
+        {experiments.map((experiment) => (
+          <li
+            key={experiment.id}
+            className="rounded-lg border border-cream-muted bg-white px-4 py-3 space-y-1"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-ink-primary">
+                {dimensionLabel(experiment.dimension)} — {experiment.experiment_name}
+              </p>
+              <span className="text-xs font-semibold text-ink-tertiary">
+                {EXPERIMENT_PHASE_LABELS[experiment.phase]}
+              </span>
+            </div>
+            <p className="text-xs text-ink-tertiary">
+              {formatDate(experiment.started_at)} – {formatDate(experiment.ends_at)}
+            </p>
+            {experiment.phase === "ended" && (
+              <p className="text-sm text-ink-primary leading-relaxed">
+                {READOUT_COPY[experiment.readout.verdict]}{" "}
+                {readoutCountsProse(experiment.readout.before_count, experiment.readout.after_count)}
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -723,7 +911,23 @@ export default function SituationReportPage() {
   }
 
   // ── complete ──────────────────────────────────────────────────────────────
+  return <CompleteReport report={report} />;
+}
+
+/**
+ * The `complete` state, as its own component so `useExperiments` -- a hook --
+ * is called unconditionally on every one of ITS renders, the same reasoning
+ * `ExperiencedTrendSection` is a separate component rather than an inline
+ * call inside `SituationReportPage`'s early-return-laden body.
+ */
+function CompleteReport({ report }: { report: SituationComplete }) {
   const past = report.needs_forward;
+  const experimentsQuery = useExperiments();
+  const experiments = experimentsQuery.data?.experiments ?? [];
+  // Whichever cell owns the running one already short-circuits past this --
+  // `ExperimentControl` only consults this prop from the "offer the button"
+  // branch, which a cell with its own running experiment never reaches.
+  const hasActiveExperiment = experiments.some((experiment) => experiment.phase === "running");
 
   return (
     <Shell>
@@ -787,6 +991,8 @@ export default function SituationReportPage() {
                   entry={entry}
                   past={past}
                   manager={report.manager}
+                  experiments={experiments}
+                  hasActiveElsewhere={hasActiveExperiment}
                 />
               ),
             )}
@@ -796,6 +1002,8 @@ export default function SituationReportPage() {
         <ManagerSection manager={report.manager} />
 
         <GuidanceNotice notice={report.guidance_notice} />
+
+        {!past && <ExperimentsSection experiments={experiments} />}
       </article>
 
       <HonestFooter />

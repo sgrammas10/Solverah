@@ -21,6 +21,7 @@ __all__ = [
     "AccountExportResponse",
     "ExportedAccount",
     "ExportedEnvironmentReport",
+    "ExportedExperiment",
     "ExportedIntakeSubmission",
     "ExportedJobRecommendation",
     "ExportedLegacyQuiz",
@@ -163,6 +164,39 @@ class ExportedPulseEvent(SolverahModel):
     note: Optional[str] = None
 
 
+class ExportedExperiment(SolverahModel):
+    """One condition experiment (BUILD_PLAN B-5, D-7).
+
+    Straight from ``experiment_store``'s own serialization -- the raw stored
+    row, not the service layer's enriched shape: the derived ``phase``/
+    ``readout`` are computed from live Pulse data at read time and are not
+    this user's own stored content, the same reasoning
+    ``account_service.export_account_data`` states for using the store's
+    dict here rather than ``experiment_service.list_experiments``'s.
+    """
+
+    id: int
+    user_id: int
+    dimension: str
+    direction: str
+    # Attribute name deliberately not `register`: `SolverahModel`'s pydantic v2
+    # `BaseModel` subclasses `abc.ABCMeta` for `abc.ABC` support, and `ABCMeta`
+    # exposes a `register` classmethod every model class inherits -- a field
+    # literally named `register` shadows it, which both warns at class-definition
+    # time and, worse, makes OpenAPI generation choke on a bound method it treats
+    # as the field's default (`solverah/schemas/experiments.py` hit this first
+    # and dropped the field from the wire entirely; the export keeps it, since
+    # completeness matters more than wire cleanliness for a subject-access dump).
+    # The alias is what the wire actually calls it -- `experiment_store`'s own
+    # serialization key -- so validating a real response body needs no renaming.
+    register_: str = Field(alias="register", description="Always 'change_in_place' today.")
+    started_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
+    ends_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
+    status: str
+    abandoned_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
+    created_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
+
+
 class ExportedResumeCorrection(SolverahModel):
     """One resume-parser field correction the user made and saved (BUILD_PLAN D-7b).
 
@@ -245,6 +279,10 @@ class AccountExportResponse(SolverahModel):
             "sat (BUILD_PLAN D-7b). The scored result is not duplicated here -- it "
             "already reaches export nested at profile.manager_match_result."
         ),
+    )
+    experiments: List[ExportedExperiment] = Field(
+        default_factory=list,
+        description="Every condition experiment the user has started, newest first (BUILD_PLAN B-5).",
     )
 
 

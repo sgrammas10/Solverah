@@ -1594,6 +1594,110 @@ class PulseEvent(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Condition experiments (BUILD_PLAN B-5)
+# ---------------------------------------------------------------------------
+# ⚑2 (PRODUCT_DECISIONS.md §2, "The Pulse ships thin"): the designated cut line,
+# built after B-1..B-4 landed. One experiment is a user running a named two-week
+# change against one of `work_pulse.situation_content.GUIDANCE_CELLS`'s twelve
+# `change_in_place` cells; the readout reads Pulse `experienced` check-ins from
+# before and after (`work_pulse.experiments.compute_readout`). `register` is
+# always `"change_in_place"` today -- the other two registers (`negotiate`,
+# `rarely_moves`) describe a conversation or a ceiling, neither of which a
+# two-week window can measure -- but the column exists rather than a hard-coded
+# literal so a later register that IS runnable would not need a migration to be
+# experimented on.
+#
+# MUTABLE, unlike `EnvironmentReport`/`PulseCheckin`'s append-only rows -- a
+# running experiment's `status` moves to `abandoned` in place, the same shape
+# `SituationReportPin` mutates rather than appending. NO free text anywhere on
+# the row, so it rides the tombstone de-identified on account deletion exactly
+# like `pulse_checkins` (D-7b) -- see `solverah/services/account_service.py`.
+
+
+class Experiment(db.Model):
+    """One user's attempt at a named change-in-place cell, over a fixed two-week
+    window.
+
+    ONE ACTIVE EXPERIMENT PER USER, ENFORCED AT THE DATABASE
+    -----------------------------------------------------------------
+    `uq_experiments_one_active_per_user` below is a partial unique index on
+    `user_id` where `status = 'active'`, not merely a service-layer check
+    (`solverah.services.experiment_service` checks first and answers a `409`, but
+    the index is what makes a race lose rather than silently double-book). The
+    rule is a methodological one, not a UI nicety: a two-week change is
+    confounded by a second concurrent one, so only one may run at a time.
+
+    `ends_at` IS STORED, NOT COMPUTED
+    -----------------------------------------------------------------
+    `started_at + 14 days` at write time, not derived on read. A later change to
+    the window length must not silently move the end date of an experiment
+    already in flight.
+
+    `dimension`/`direction` NAME A CELL, NOT A FREE CHOICE
+    -----------------------------------------------------------------
+    Both are validated (`solverah.services.experiment_service`) against
+    `work_pulse.situation_content.GUIDANCE_CELLS` before a row is written: the
+    pair must be a real `change_in_place` cell, one of the twelve the gap engine
+    can actually diagnose. `direction` uses `work_pulse.situation`'s short
+    vocabulary (`under`/`over`) -- the same one `SituationDimensionReport.direction`
+    already puts on the wire -- rather than `situation_content`'s longer
+    `under_supplied`/`over_supplied`, so the report page can start an experiment
+    from the exact `{dimension, direction}` pair a `StrainDimensionEntry` already
+    carries, with no re-encoding.
+    """
+
+    __tablename__ = "experiments"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True: ix_experiments_user_created below already leads with user_id,
+    # the same reasoning EnvironmentReport's user_id column gives for skipping one.
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False)
+    dimension = db.Column(db.Text, nullable=False)
+    direction = db.Column(db.Text, nullable=False)
+    #: Always `"change_in_place"` today -- see the section docstring.
+    register = db.Column(db.Text, nullable=False)
+    started_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    #: `started_at` + the two-week window, stored at write time -- see the class
+    #: docstring's "ends_at is stored, not computed".
+    ends_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    status = db.Column(db.Text, nullable=False, default="active")
+    abandoned_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "dimension IN %s" % (ENV_DIMENSIONS,), name="ck_experiment_dimension_vocab"
+        ),
+        db.CheckConstraint(
+            "direction IN ('under', 'over')", name="ck_experiment_direction_vocab"
+        ),
+        db.CheckConstraint(
+            "register = 'change_in_place'", name="ck_experiment_register_vocab"
+        ),
+        db.CheckConstraint(
+            "status IN ('active', 'abandoned')", name="ck_experiment_status_vocab"
+        ),
+        db.CheckConstraint(
+            "(status = 'abandoned') = (abandoned_at IS NOT NULL)",
+            name="ck_experiment_abandoned_at_matches_status",
+        ),
+        db.Index("ix_experiments_user_created", "user_id", db.text("created_at DESC")),
+        db.Index(
+            "uq_experiments_one_active_per_user",
+            "user_id",
+            unique=True,
+            postgresql_where=db.text("status = 'active'"),
+        ),
+    )
+
+    user = db.relationship("User", backref="experiments")
+
+
+# ---------------------------------------------------------------------------
 # Phase 2a -- profile_data, decomposed (docs/ARCHITECTURE.md Part 4.3)
 # ---------------------------------------------------------------------------
 #

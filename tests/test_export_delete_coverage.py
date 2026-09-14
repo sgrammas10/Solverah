@@ -98,6 +98,14 @@ COVERED: dict[str, str] = {
         "note is free text, and free text is never retained de-identified (D-7b ruling, "
         "2026-09-11), which is also why pulse_checkins above no longer gets the same answer."
     ),
+    "experiments": (
+        "BUILD_PLAN B-5's own D-7 wiring, wired the day the table was created. export: "
+        "account_service.export_account_data's experiments key (experiment_store."
+        "experiments_for_user). deletion: RETAINED, de-identified via the tombstone, the "
+        "D-7b test applied fresh -- dimension/direction/register/status are all closed "
+        "vocabularies, no column on the row is free text, so account_repository."
+        "delete_personal_rows does not touch it, the same reconciliation as pulse_checkins."
+    ),
     "profiles": (
         "export: profile_repository.load_document's profile key. deletion: "
         "account_repository.tombstone_user rewrites it to {'deleted_at': ...} via "

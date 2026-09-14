@@ -343,17 +343,45 @@ ran — no separate landing commits were needed for this section._
 
 ### B-4 · Situation Report ↔ Pulse wiring (S)
 
-- [ ] Env-report resubmission prompts when events land (new_manager →
-  "does your Situation Report still describe this job?")
-- [ ] Report page shows the experienced trend beside the diagnosis
+- [x] Env-report resubmission prompts when events land (new_manager →
+  "does your Situation Report still describe this job?") _(Landed 2026-09-14:
+  additive `events_since_report` [{type, date}] on the complete state, never
+  the note; banner worded off the newest event, four specific leads + one
+  generic; no dismiss state — resubmitting clears it. Contract 89→90.)_
+- [x] Report page shows the experienced trend beside the diagnosis _(compact
+  PulseSparkline after the at-a-glance strip, sourced from usePulseHistory;
+  B-3's 0/1/2+ degrade; "See your full trend →" to /pulse/trend.)_
 
 ### B-5 · ⚑2 Condition experiments (M — designated cut line, may slip past launch)
 
-- [ ] Experiment cards generated from A-6's *change-it-in-place* cells:
-  named change, 2-week window, before/after from pulse deltas
-- [ ] `experiments` table (user_id, guidance cell ref, start/end, status)
-- [ ] Honest stats copy: "your numbers moved / didn't" — no causal claims
+- [x] Experiment cards generated from A-6's *change-it-in-place* cells:
+  named change, 2-week window, before/after from pulse deltas _(Landed
+  2026-09-14: "Try this for two weeks →" on every change-in-place cell in the
+  present-tense rendering; running state shows started/ends dates + a plain
+  one-click Abandon; ended state shows the readout in words. Not offered in
+  the needs-forward rendering — no live job to run a change against.)_
+- [x] `experiments` table (user_id, guidance cell ref, start/end, status)
+  _(`dimension`/`direction` name the cell — `work_pulse.situation`'s short
+  under/over vocabulary, matching what a `StrainDimensionEntry` already
+  carries — plus `register` (always `change_in_place` today), `started_at`,
+  `ends_at` (stored, not computed), `status` {active, abandoned},
+  `abandoned_at`, `created_at`. One active experiment per user enforced by a
+  partial unique index at the database, not only the 409 check. Migration
+  `20260914_experiments`, chained on `20260911_pulse_checkins`, proven from
+  empty. D-7 wired the same commit: exported unbounded, retained
+  de-identified on deletion (no free text on the row).)_
+- [x] Honest stats copy: "your numbers moved / didn't" — no causal claims
   per-user; the aggregate is the model lane's food, not the user's chart
+  _(Readout is one of four words — `not_enough_data` / `moved_up` /
+  `moved_down` / `about_the_same` — plus the two check-in counts, never a
+  delta or a mean. Threshold and reasoning live in
+  `work_pulse.experiments`'s module docstring; a one-line pointer for the
+  model lane lives in `causal_graph/v1_model/ASSEMBLE_TRAINING_DATA_NOTES.md`.
+  Routes: `POST /me/experiments` (201; 422 `not_a_change_in_place_cell`; 409
+  `experiment_already_active`), `GET /me/experiments` (phase + readout +
+  `experiment_name` per row), `POST /me/experiments/{id}/abandon` (200,
+  idempotent, 404 cross-user). Contract 90→97, additive (`export` gained one
+  key); `docs/ARCHITECTURE.md` A27.)_
 
 ---
 
