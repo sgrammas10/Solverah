@@ -100,6 +100,12 @@ function CareerStatusModal({ onDismiss }: CareerStatusModalProps) {
               </p>
             </button>
           </div>
+
+          {selectStatus.isError && (
+            <p role="alert" className="text-sm text-red-700 pt-2">
+              We couldn't save that just now. Try again.
+            </p>
+          )}
         </div>
       </div>
     </div>

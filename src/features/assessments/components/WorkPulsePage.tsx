@@ -63,6 +63,7 @@ function WorkPulseForm({
     submitting,
     setAnswer,
     submit,
+    reloadForm,
   } = useAssessment();
 
   async function handleComplete() {
@@ -107,9 +108,20 @@ function WorkPulseForm({
       </div>
 
       {loadError && (
-        <p role="alert" className="text-sm text-red-700">
-          {loadError}
-        </p>
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700"
+        >
+          <p className="font-medium mb-1">We couldn't load Work Pulse right now.</p>
+          <p className="text-xs">Please try again in a moment.</p>
+          <button
+            type="button"
+            onClick={() => reloadForm()}
+            className="mt-3 text-xs font-semibold text-red-700 underline"
+          >
+            Try again
+          </button>
+        </div>
       )}
 
       {!loadError && items === null && (

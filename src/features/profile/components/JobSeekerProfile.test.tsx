@@ -1,8 +1,13 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
 import JobSeekerProfile from "./JobSeekerProfile";
+import { createQueryClient } from "../../../shared/api/queryClient";
+import { ApiError } from "../../../shared/api/apiError";
 
 const mocks = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  fetchWithAuth: vi.fn(),
   profileForm: {
     formData: {
       firstName: "Ada",
@@ -62,6 +67,15 @@ vi.mock("../useProfileForm", () => ({
   useProfileForm: () => mocks.profileForm,
 }));
 
+vi.mock("../../auth/useAuth", () => ({
+  useAuth: () => ({ fetchWithAuth: mocks.fetchWithAuth }),
+}));
+
+vi.mock("react-router-dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router-dom")>();
+  return { ...actual, useNavigate: () => mocks.navigate };
+});
+
 vi.mock("./PersonalInfoTab", () => ({
   default: () => <div data-testid="personal-info-tab">Personal Info Tab</div>,
 }));
@@ -86,6 +100,23 @@ function renderJobSeekerProfile(search = "") {
     <MemoryRouter initialEntries={[{ pathname: "/job-seeker/profile", search }]}>
       <JobSeekerProfile />
     </MemoryRouter>
+  );
+}
+
+/** Navigated here with the modal already open, as `EnvironmentReportPage`'s
+ *  "Set your career status" button does. Needs a real query client -- the
+ *  modal's save is a `useMutation`. */
+function renderWithCareerStatusModal() {
+  render(
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter
+        initialEntries={[
+          { pathname: "/job-seeker/profile", state: { showCareerStatusModal: true } },
+        ]}
+      >
+        <JobSeekerProfile />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 
@@ -175,5 +206,42 @@ describe("JobSeekerProfile - save button", () => {
     mocks.profileForm.isSaving = true;
     renderJobSeekerProfile();
     expect(screen.getByRole("button", { name: /saving/i })).toBeDisabled();
+  });
+});
+
+// ─── career status modal (G13) ────────────────────────────────────────────────
+
+/**
+ * Regression: a failed `PATCH /me/career-status` used to just re-enable the
+ * buttons with no other feedback -- indistinguishable from the click not
+ * having registered at all.
+ */
+describe("JobSeekerProfile - career status modal (G13)", () => {
+  it("shows an inline alert and re-enables the buttons when the save fails", async () => {
+    mocks.fetchWithAuth.mockRejectedValue(new ApiError("boom", { status: 403 }));
+    renderWithCareerStatusModal();
+
+    fireEvent.click(screen.getByRole("button", { name: /currently unemployed/i }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("We couldn't save that just now. Try again.");
+    expect(screen.getByRole("button", { name: /currently unemployed/i })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: /looking for my first job/i })).not.toBeDisabled();
+    // The modal stays open -- there is nowhere else for this user to go.
+    expect(screen.getByText("Where are you in your career?")).toBeInTheDocument();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("navigates once a retried save succeeds", async () => {
+    mocks.fetchWithAuth
+      .mockRejectedValueOnce(new ApiError("boom", { status: 403 }))
+      .mockResolvedValueOnce({});
+    renderWithCareerStatusModal();
+
+    fireEvent.click(screen.getByRole("button", { name: /currently unemployed/i }));
+    await screen.findByRole("alert");
+
+    fireEvent.click(screen.getByRole("button", { name: /currently unemployed/i }));
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith("/intelligence/paths"));
   });
 });

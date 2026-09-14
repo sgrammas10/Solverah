@@ -210,5 +210,7 @@ export function useAssessment() {
     submitting,
     setAnswer,
     submit,
+    /** Retries the form fetch -- the "Try again" on a failed load. */
+    reloadForm: formQuery.refetch,
   };
 }

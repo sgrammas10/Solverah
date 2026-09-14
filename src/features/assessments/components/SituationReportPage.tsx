@@ -281,6 +281,12 @@ function readoutCountsProse(before: number, after: number): string {
   return `That's based on ${beforeText}, ${afterText}.`;
 }
 
+/** `useExperiments()` boiled down to what a cell needs to decide whether it
+ *  may offer its start button -- a failed or in-flight fetch must never look
+ *  like "definitely nothing running", which is what an empty `experiments`
+ *  array would otherwise say. */
+type ExperimentsStatus = "loading" | "error" | "ready";
+
 /** The one cell-level control for a `change_in_place` register: a button
  *  that starts a two-week experiment, a running state once it exists, and
  *  the readout in words once it has ended. Not shown in the needs-forward
@@ -291,11 +297,13 @@ function ExperimentControl({
   direction,
   experiments,
   hasActiveElsewhere,
+  status,
 }: {
   dimension: string;
   direction: "under" | "over";
   experiments: Experiment[];
   hasActiveElsewhere: boolean;
+  status: ExperimentsStatus;
 }) {
   const start = useStartExperiment();
   const abandon = useAbandonExperiment();
@@ -339,6 +347,16 @@ function ExperimentControl({
         </p>
       </div>
     );
+  }
+
+  // A failed or in-flight `experiments` fetch is not "nothing running" --
+  // offering the button on that reading would let a click land on a running
+  // experiment the page just doesn't know about yet, and hit the server's 409.
+  if (status === "loading") {
+    return <p className="text-xs text-ink-tertiary">Loading…</p>;
+  }
+  if (status === "error") {
+    return null;
   }
 
   return (
@@ -391,12 +409,14 @@ function StrainCard({
   manager,
   experiments,
   hasActiveElsewhere,
+  experimentsStatus,
 }: {
   entry: StrainDimensionEntry;
   past: boolean;
   manager: SituationManagerSection;
   experiments: Experiment[];
   hasActiveElsewhere: boolean;
+  experimentsStatus: ExperimentsStatus;
 }) {
   const { registers } = entry;
   const isStraining = entry.bucket === "straining";
@@ -481,6 +501,7 @@ function StrainCard({
                 direction={entry.direction}
                 experiments={experiments}
                 hasActiveElsewhere={hasActiveElsewhere}
+                status={experimentsStatus}
               />
             </div>
           )}
@@ -632,7 +653,37 @@ const EXPERIMENT_PHASE_LABELS: Record<string, string> = {
   abandoned: "Abandoned",
 };
 
-function ExperimentsSection({ experiments }: { experiments: Experiment[] }) {
+function ExperimentsSection({
+  experiments,
+  status,
+  onRetry,
+}: {
+  experiments: Experiment[];
+  status: ExperimentsStatus;
+  onRetry: () => void;
+}) {
+  // Shown even with an empty list -- a failed fetch is not the same fact as
+  // "you have never started one," and the two must not render identically.
+  if (status === "error") {
+    return (
+      <section className="space-y-3 border-t border-cream-muted pt-6">
+        <SectionHeading>Your experiments</SectionHeading>
+        <div className="rounded-lg border border-cream-muted bg-white px-4 py-3">
+          <p className="text-sm text-ink-secondary leading-relaxed mb-2">
+            We couldn't load your experiments right now.
+          </p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="text-xs font-semibold text-forest-dark hover:underline"
+          >
+            Try again
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   if (experiments.length === 0) return null;
 
   return (
@@ -928,6 +979,14 @@ function CompleteReport({ report }: { report: SituationComplete }) {
   // `ExperimentControl` only consults this prop from the "offer the button"
   // branch, which a cell with its own running experiment never reaches.
   const hasActiveExperiment = experiments.some((experiment) => experiment.phase === "running");
+  // `isFetching` on an error means a retry is already in flight -- treated as
+  // loading so "Try again" doesn't look dead while it resolves.
+  const experimentsStatus: ExperimentsStatus =
+    experimentsQuery.isLoading || (experimentsQuery.isError && experimentsQuery.isFetching)
+      ? "loading"
+      : experimentsQuery.isError
+        ? "error"
+        : "ready";
 
   return (
     <Shell>
@@ -993,6 +1052,7 @@ function CompleteReport({ report }: { report: SituationComplete }) {
                   manager={report.manager}
                   experiments={experiments}
                   hasActiveElsewhere={hasActiveExperiment}
+                  experimentsStatus={experimentsStatus}
                 />
               ),
             )}
@@ -1003,7 +1063,13 @@ function CompleteReport({ report }: { report: SituationComplete }) {
 
         <GuidanceNotice notice={report.guidance_notice} />
 
-        {!past && <ExperimentsSection experiments={experiments} />}
+        {!past && (
+          <ExperimentsSection
+            experiments={experiments}
+            status={experimentsStatus}
+            onRetry={() => experimentsQuery.refetch()}
+          />
+        )}
       </article>
 
       <HonestFooter />

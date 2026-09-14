@@ -61,13 +61,27 @@ function JobSeekerDashboard() {
   const { user, fetchWithAuth } = useAuth();
 
   // A failed fetch (after queryClient.ts's bounded retries) leaves `data`
-  // undefined and this page renders without the two grid cards and without the
-  // intake prompt, exactly as the hand-rolled catch-and-log did. (Until D-6 it
-  // was "without the stats row"; the row is gone, the posture is not.)
-  const { data: dashboardData } = useQuery({
+  // undefined. The intake prompt already stays off in that case -- the effect
+  // below bails out on `!dashboardData` -- and the two grid cards below now
+  // show their own loading/error state rather than reading the failure as
+  // "no activity, no recommendations."
+  const {
+    data: dashboardData,
+    isLoading: dashboardLoading,
+    isError: dashboardIsError,
+    isFetching: dashboardIsFetching,
+    refetch: refetchDashboard,
+  } = useQuery({
     queryKey: dashboardKeys.summary(),
     queryFn: () => fetchWithAuth<any>('/me/dashboard'),
   });
+  // Loading covers a retry in flight too, so "Try again" doesn't look dead.
+  const dashboardCardsLoading = dashboardLoading || (dashboardIsError && dashboardIsFetching);
+  // Tri-state, never forced to `false` while the document is unknown -- so
+  // nothing below prompts a user to redo an intake the server may already
+  // hold. Only `IntakePromptModal` reads this, and only once `dashboardData`
+  // exists (the effect below never opens the modal before then).
+  const hasIntakeSubmission = dashboardData ? Boolean(dashboardData.hasIntakeSubmission) : undefined;
 
   useEffect(() => {
     if (!dashboardData) return;
@@ -90,7 +104,7 @@ function JobSeekerDashboard() {
     <div className="min-h-screen bg-cream-base font-sans text-ink-primary">
       <IntakePromptModal
         open={intakeModalOpen}
-        hasIntakeSubmission={dashboardData?.hasIntakeSubmission ?? false}
+        hasIntakeSubmission={hasIntakeSubmission ?? false}
         onClose={() => setIntakeModalOpen(false)}
         onSuccess={() => { setIntakeModalOpen(false); navigate('/job-seeker/profile'); }}
       />
@@ -168,84 +182,110 @@ function JobSeekerDashboard() {
             furniture from a job board, and "Profile Completion" as a number
             duplicated the alert above it. */}
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Recent Activity */}
-          <div className="lg:col-span-2">
+        {dashboardCardsLoading ? (
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <div className={cardCls}>
+                <p className="text-sm text-ink-secondary">Loading…</p>
+              </div>
+            </div>
             <div className={cardCls}>
-              <h2 className="font-display text-lg font-semibold text-ink-primary mb-5">Recent Activity</h2>
-              {/* The empty branch is not decoration. This is the first screen after
-                  sign-up and both arrays are empty for every new account, so without
-                  it the card renders as a heading over nothing and reads as broken
-                  rather than new. Found by the real-stack E2E walkthrough. */}
-              {dashboardData?.recentActivity?.length ? (
-                <div className="space-y-4">
-                  {dashboardData.recentActivity.map((activity: any, index: number) => {
-                    const Icon = iconMap[activity.icon] || User;
-                    return (
-                      <div key={index} className="flex items-start gap-3">
-                        <div className="p-2 bg-cream-subtle rounded-lg shrink-0">
-                          <Icon className="h-4 w-4 text-ink-secondary" />
+              <p className="text-sm text-ink-secondary">Loading…</p>
+            </div>
+          </div>
+        ) : dashboardIsError ? (
+          <div className={cardCls}>
+            <p className="text-sm text-ink-secondary leading-relaxed mb-2">
+              We couldn't load your dashboard right now.
+            </p>
+            <button
+              type="button"
+              onClick={() => refetchDashboard()}
+              className="text-xs font-semibold text-forest-dark hover:underline"
+            >
+              Try again
+            </button>
+          </div>
+        ) : (
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Recent Activity */}
+            <div className="lg:col-span-2">
+              <div className={cardCls}>
+                <h2 className="font-display text-lg font-semibold text-ink-primary mb-5">Recent Activity</h2>
+                {/* The empty branch is not decoration. This is the first screen after
+                    sign-up and both arrays are empty for every new account, so without
+                    it the card renders as a heading over nothing and reads as broken
+                    rather than new. Found by the real-stack E2E walkthrough. */}
+                {dashboardData?.recentActivity?.length ? (
+                  <div className="space-y-4">
+                    {dashboardData.recentActivity.map((activity: any, index: number) => {
+                      const Icon = iconMap[activity.icon] || User;
+                      return (
+                        <div key={index} className="flex items-start gap-3">
+                          <div className="p-2 bg-cream-subtle rounded-lg shrink-0">
+                            <Icon className="h-4 w-4 text-ink-secondary" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-ink-primary">{activity.text}</p>
+                            <p className="text-xs text-ink-tertiary mt-0.5">{activity.time}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm text-ink-primary">{activity.text}</p>
-                          <p className="text-xs text-ink-tertiary mt-0.5">{activity.time}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-10">
+                    <TrendingUp className="h-8 w-8 text-ink-tertiary mx-auto mb-3" />
+                    <p className="text-sm text-ink-secondary">Nothing here yet.</p>
+                    <p className="text-xs text-ink-tertiary mt-1">
+                      Your activity shows up here as you complete Work Pulse and fill in your profile.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Recommendations */}
+            <div className={cardCls}>
+              <h2 className="font-display text-lg font-semibold text-ink-primary mb-5">Recommendations</h2>
+              {!dashboardData?.recommendations?.length && (
                 <div className="text-center py-10">
-                  <TrendingUp className="h-8 w-8 text-ink-tertiary mx-auto mb-3" />
-                  <p className="text-sm text-ink-secondary">Nothing here yet.</p>
+                  <Brain className="h-8 w-8 text-ink-tertiary mx-auto mb-3" />
+                  <p className="text-sm text-ink-secondary">No recommendations yet.</p>
                   <p className="text-xs text-ink-tertiary mt-1">
-                    Your activity shows up here as you complete Work Pulse and fill in your profile.
+                    Once you finish Work Pulse we&rsquo;ll suggest what to do next.
                   </p>
                 </div>
               )}
-            </div>
-          </div>
-
-          {/* Recommendations */}
-          <div className={cardCls}>
-            <h2 className="font-display text-lg font-semibold text-ink-primary mb-5">Recommendations</h2>
-            {!dashboardData?.recommendations?.length && (
-              <div className="text-center py-10">
-                <Brain className="h-8 w-8 text-ink-tertiary mx-auto mb-3" />
-                <p className="text-sm text-ink-secondary">No recommendations yet.</p>
-                <p className="text-xs text-ink-tertiary mt-1">
-                  Once you finish Work Pulse we&rsquo;ll suggest what to do next.
-                </p>
-              </div>
-            )}
-            <div className="space-y-3">
-              {dashboardData?.recommendations?.map((rec: any, index: number) => (
-                <button
-                  key={index}
-                  onClick={() => goToProfileTab(rec.href)}
-                  className="w-full text-left p-4 rounded-lg border border-cream-muted bg-cream-base hover:border-forest-pale transition-colors"
-                >
-                  <h3 className="text-sm font-semibold text-ink-primary">{rec.title}</h3>
-                  {rec.description && (
-                    <p className="text-xs text-ink-secondary mt-1">{rec.description}</p>
-                  )}
-                  <p className="text-xs font-semibold text-forest-mid mt-2">
-                    {rec.action || 'Open'} →
-                  </p>
-                  <span
-                    className={`mt-2 inline-block px-2 py-0.5 text-xs rounded font-medium ${
-                      rec.priority === 'urgent'
-                        ? 'bg-red-50 text-red-700 border border-red-200'
-                        : 'bg-forest-pale text-forest-dark'
-                    }`}
+              <div className="space-y-3">
+                {dashboardData?.recommendations?.map((rec: any, index: number) => (
+                  <button
+                    key={index}
+                    onClick={() => goToProfileTab(rec.href)}
+                    className="w-full text-left p-4 rounded-lg border border-cream-muted bg-cream-base hover:border-forest-pale transition-colors"
                   >
-                    {rec.priority === 'urgent' ? 'Action Needed' : 'Optional'}
-                  </span>
-                </button>
-              ))}
+                    <h3 className="text-sm font-semibold text-ink-primary">{rec.title}</h3>
+                    {rec.description && (
+                      <p className="text-xs text-ink-secondary mt-1">{rec.description}</p>
+                    )}
+                    <p className="text-xs font-semibold text-forest-mid mt-2">
+                      {rec.action || 'Open'} →
+                    </p>
+                    <span
+                      className={`mt-2 inline-block px-2 py-0.5 text-xs rounded font-medium ${
+                        rec.priority === 'urgent'
+                          ? 'bg-red-50 text-red-700 border border-red-200'
+                          : 'bg-forest-pale text-forest-dark'
+                      }`}
+                    >
+                      {rec.priority === 'urgent' ? 'Action Needed' : 'Optional'}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Quick Actions */}
         <div className="mt-8">

@@ -122,27 +122,27 @@ Already understood. Do not file these; reference them.
 
 | ID | Gap | Where |
 |---|---|---|
-| **G1** | **No account-settings screen exists.** `GET /api/v1/me/export` and `DELETE /api/v1/me` are implemented and tested, but nothing in `src/` calls either. Meanwhile the shipped Privacy Policy ("Download a copy of your data from your account settings at any time"), the Terms ("delete your account at any time in account settings") and `/trust` ("You can delete your account and the data behind it") all promise a screen that does not exist. This is a live copy/compliance mismatch, not just a missing feature. | S20 |
+| **G1** | ~~No account-settings screen exists.~~ **CLOSED 2026-09-14.** `/settings` ("Account settings") ships the data-export and account-deletion controls the Privacy Policy, Terms and `/trust` promise; the entry point is the gear icon in the header. Backend unchanged. Walk S20 as a pass. | S20 |
 | **G2** | **No mobile menu.** `Header.tsx` has no hamburger and no responsive branch — the same flex row renders at every width, so five nav items plus the user's name overflow on a phone. | S7 |
 | **G3** | **The Feed nav item does not navigate.** It calls `preventDefault()` and opens a modal: "Feature coming soon" / "The feed will be available soon. Check back after launch." / "Got it". The `/feed` route exists behind the guard but the header never reaches it. | S17 |
 | **G4** | **CompanyLens is coming-soon for everyone**, by decision (⚑3) — the matching model isn't built. Both the Intelligence card and `/company-lens` say so. | S17 |
-| **G5** | **Experiments have no loading and no error state.** `experimentsQuery.data?.experiments ?? []` — a failed fetch is indistinguishable from "no experiments", and every start button renders as available. | S12 |
-| **G6** | **Environment Report's gate failure is unhandled.** `reportQuery.isError` has no branch, so a failed `GET /me/situation-report` silently renders the intro and un-gates the form. The submit-time 409 is the only remaining catch. | S9 |
-| **G7** | **Work Pulse's load-failure state has no retry button** — just the raw `error.message` in red. The user must reload or navigate away. | S8 |
+| **G5** | ~~Experiments have no loading and no error state.~~ **CLOSED 2026-09-14.** Start buttons are withheld while `/me/experiments` loads or fails; a failure shows "We couldn't load your experiments right now." + "Try again". See S12.8. | S12 |
+| **G6** | ~~Environment Report's gate failure is unhandled.~~ **CLOSED 2026-09-14.** A failed `GET /me/situation-report` renders an error card with "Try again", never the intro. See S9.11. | S9 |
+| **G7** | ~~Work Pulse's load-failure state has no retry button.~~ **CLOSED 2026-09-14.** House error panel with "Try again"; the raw error text is gone. See S8.10. | S8 |
 | **G8** | **Raw backend strings leak into the verify-email UI**: a wrong code shows `invalid code` and an expired one `code expired`, lowercase, unpunctuated. (The forgot-password twin normalises correctly to "Invalid or expired code. Please try again.") | S5 |
 | **G9** | **Intake-created accounts get a 32-char hex** (`uuid4().hex`) rendered in the letter-spaced box of an email that says "6-digit code". The source file's own comment acknowledges it. | S2 |
 | **G10** | **`EarlyAccessModal` on `/` is dead UI** — no button on the page ever sets `isOpen`. | S1 |
 | **G11** | **`/landing` advertises "For Recruiters"** and is generally stale relative to `/`. No recruiter role exists anywhere in routing. | S1 |
 | **G12** | **`?tab=` is unvalidated** on the profile: `?tab=bogus` selects no tab and renders an empty body under the tab strip. | S19 |
-| **G13** | **Career-status modal failure is silent** — a failed `PATCH /me/career-status` just re-enables the buttons, with no error copy. | S19 |
-| **G14** | **A failed `/me/dashboard` renders the page anyway**, with empty cards and no error message and no loading state. | S7 |
-| **G15** | **`/search` has no error state.** A failed fetch leaves `data` undefined and falls into "No results found for …" — a server failure reads as a successful empty search. | S17 |
+| **G13** | ~~Career-status modal failure is silent.~~ **CLOSED 2026-09-14.** A failed `PATCH /me/career-status` shows "We couldn't save that just now. Try again." inside the modal. See S19.9. | S19 |
+| **G14** | ~~A failed `/me/dashboard` renders the page anyway.~~ **CLOSED 2026-09-14.** The two cards show "Loading…" while pending and one "We couldn't load your dashboard right now." + "Try again" notice on failure; the empty states never masquerade as an error. See S7.7. | S7 |
+| **G15** | ~~`/search` has no error state.~~ **CLOSED 2026-09-14.** A failed fetch shows "We couldn't run that search right now" + "Try again", never "No results found". See S17.4. | S17 |
 | **G16** | **Quiz group mismatch:** the guest branch of `NextChapterYourWayQuiz` posts `quizGroup: "careerJobSearch"`, the signed-in branch posts `"careerQuizzes"`. | S4 |
 | **G17** | **Wrong-role redirect is unexplained** — `Navigate to="/"` with no state and no copy. Low impact today, since `job-seeker` is the only role. | S6 |
 | **G18** | **`flask pulse send-prompts` is not in `render.yaml`.** It exists only in `cli.py` and as a manual dashboard step in the deploy runbook. It is the one scheduled job that puts mail in a user's inbox, and the one not codified. | S23 |
 | **G19** | **Guest dead-end on an unknown quiz key:** "Back to Assessments" points at `/intelligence`, which requires auth, so a signed-out visitor bounces to `/login`. | S4 |
 | **G20** | **`/quiz-preview/insights` holds its insight in router state only** — refresh or direct-visit loses it and shows "No insights found." | S4 |
-| **G21** | **Monthly cadence is a one-way door.** The anti-nag auto-drop sets `monthly`; checking in clears the unanswered counter but never touches the cadence, and `monthly` is not offered in the UI. The only exit is explicitly choosing Weekly / Every two weeks / Off. Worth a ruling on whether that is intended. | S13 |
+| **G21** | ~~Monthly cadence is a one-way door.~~ **CLOSED 2026-09-14 (ruling).** "Monthly" is now the fourth cadence option, so the auto-dropped state renders as selected; the "slowed these down" note shows only when the drop was automatic (`auto_slowed`), never for a user who chose Monthly. Checking in still never changes cadence — by decision, not omission. Also fixed: the auto-drop no longer re-fires on a user already at monthly (it used to resend the slowdown paragraph each time). See S13.11 / S13.13. | S13 |
 
 ---
 
@@ -459,6 +459,10 @@ Storage: answers go to **`localStorage["pendingQuizSave"]`**; the one-quiz locko
   complete Work Pulse and fill in your profile."
   → "Recommendations" → "No recommendations yet." + "Once you finish Work Pulse we'll
   suggest what to do next."
+  → (If you can force `/me/dashboard` to fail — block it in devtools.) Both cards are
+  replaced by one notice: "We couldn't load your dashboard right now." + "Try again".
+  While it loads, each card reads "Loading…" and neither empty state shows. (Was
+  `G14`; fixed 2026-09-14.)
 - **S7.8** — Check Quick Actions.
   → Exactly two tiles: "Edit Profile" / "Update your information" → `/job-seeker/profile`;
   "Your Solverah profile" / "Work Pulse, FocusType and ManagerMatch" → `/intelligence`.
@@ -517,8 +521,9 @@ Draft storage: `sessionStorage["solverah_assessment_answers"]`.
   12-question instrument. No copy, no explanation. Judge whether that's acceptable
   for anyone who bookmarked it.
 - **S8.10** — (If you can induce a failed form fetch — e.g. block the request in
-  devtools.) → Red `role="alert"` text with the raw error message, and **no retry
-  button**. `G7`.
+  devtools.) → A red panel: "We couldn't load Work Pulse right now." / "Please try
+  again in a moment." / **"Try again"**, which refetches. The raw error text is never
+  shown. (Was `G7`; fixed 2026-09-14.)
 
 ---
 
@@ -564,8 +569,9 @@ Draft storage: `sessionStorage["env_report_answers"]`.
   `/situation-report`.
 - **S9.10** — (If you can force a submit failure.) → Inline, above the nav row: "We
   couldn't save that just now. Your answers are still here — try again."
-- **S9.11** — (Gap check.) If `GET /me/situation-report` fails when this page loads,
-  the page **renders the intro anyway** and un-gates the form. `G6`.
+- **S9.11** — (If `GET /me/situation-report` fails when this page loads.) → "We
+  couldn't load your report right now." / "Please try again in a moment." / "Try
+  again" — never the intro, never the form. (Was `G6`; fixed 2026-09-14.)
 
 ---
 
@@ -674,8 +680,10 @@ The entire feature lives inside the complete Situation Report.
 - **S12.7** — **Before you have ever started one**, look for the experiments section.
   → **There is nothing at all** — no heading, no invitation, no empty state. A user who
   never starts one never learns the feature exists except through a strain card.
-- **S12.8** — (Gap.) A failed `GET /me/experiments` is indistinguishable from having
-  none, and every start button still renders as available. `G5`.
+- **S12.8** — (Loading and failure.) While `/me/experiments` loads, each strain cell
+  shows a quiet "Loading…" and no start button. If it fails: no start buttons anywhere,
+  and a "Your experiments" section appears with "We couldn't load your experiments
+  right now." + "Try again". (Was `G5`; fixed 2026-09-14.)
 - **S12.9** — (After two weeks, or on seeded data.) An ended experiment reads out in
   verdict words only: "Your numbers moved up over those two weeks." / "…moved down…" /
   "Your numbers didn't move much over those two weeks." / "There weren't enough
@@ -719,7 +727,8 @@ The entire feature lives inside the complete Situation Report.
   Report should now show the resubmission banner.
 - **S13.10** — Type 281 characters in the note. → Rejected at 280.
 - **S13.11** — Find "Check-in cadence".
-  → Exactly three options: **"Weekly"**, **"Every two weeks"**, **"Off"**.
+  → Exactly four options: **"Weekly"**, **"Every two weeks"**, **"Monthly"**, **"Off"**.
+  (Monthly added by ruling 2026-09-14, `G21`.)
 - **S13.12** — Set it to "Off", then back to "Weekly".
   → Each is a single PATCH with **no confirmation step** (a product decision). Error
   copy if it fails: "We couldn't save that just now. Try again."
@@ -729,9 +738,11 @@ The entire feature lives inside the complete Situation Report.
   check-ins down to once a month since it's been quiet -- no rush, and you can check
   in any time." and on `/pulse/trend`: "We've slowed these down to once a month since
   it's been quiet — no rush, and you can check in any time."
-  → In that state **none of the three cadence buttons appears selected**, because
-  `monthly` is not one of them. **Checking in does not leave monthly** — only
-  explicitly picking Weekly / Every two weeks / Off does. `G21`.
+  → In that state **"Monthly" appears selected** and the note above is shown.
+  Checking in does not change the cadence (by ruling, 2026-09-14). Picking any
+  cadence — including "Monthly" itself — clears the note; a user who chose Monthly
+  never sees it. A user already at monthly who goes quiet again gets a plain monthly
+  prompt, never a second "slowed down" paragraph. (Was `G21`; closed 2026-09-14.)
 - **S13.14** — Empty state check (use a fresh account): `/pulse/trend` with zero
   check-ins → "Nothing to show yet. Your trend builds from check-ins — it takes about
   a minute." + "Check in now →".
@@ -743,18 +754,19 @@ The entire feature lives inside the complete Situation Report.
 **Account** ACC-1 · **Routes** `/manager-match`, `/manager-profile`, `/manager-profile/playbook`
 
 **The precondition chain is ManagerMatch (15) → Manager Profile (16) → Playbook**, and
-the most important thing to test here is that **`/manager-profile` enforces nothing**.
+`/manager-profile` now enforces the first link **before question 1** (ruling
+2026-09-14; frontend gate only, the API still accepts a profile without ManagerMatch).
 
-- **S14.1** — **Before taking ManagerMatch**, go straight to `/manager-profile` and
-  answer all 16 questions.
-  → It lets you. The submit returns a null playbook, the page navigates to
-  `/manager-profile/playbook` anyway, and only *there* do you meet the gate: H1
-  **"Take ManagerMatch first"** / "Your playbook diffs what you need from a manager
-  against how your manager actually works. Take ManagerMatch so there's something to
-  compare your manager profile against." / "Take ManagerMatch →".
-  → This is intentional (one bridge-rendering path instead of two copies of the same
-  copy) **but it means the user does 16 questions of work before being told.** This is
-  the single most likely thing in this document to want changing. Judge it.
+- **S14.1** — **Before taking ManagerMatch**, go straight to `/manager-profile`.
+  → You never reach a question. The page checks `GET /me/manager-playbook` first (a
+  brief "Loading…"), and on `no_manager_match` renders the hand-off in place of the
+  intro: H1 **"Take ManagerMatch first"** / "Your playbook diffs what you need from a
+  manager against how your manager actually works. Take ManagerMatch so there's
+  something to compare your manager profile against." / "Take ManagerMatch →".
+  Nothing is submitted, nothing is saved. A partial or complete draft in
+  sessionStorage does not bypass it.
+  → If that check fails for another reason: "We couldn't load your manager profile
+  status right now." + "Try again" — never the form.
 - **S14.2** — Take ManagerMatch.
   → Eyebrow "WorkPulse Pro"; H1 "ManagerMatch™"; "Discover which management styles
   bring out your best — and which create friction."; amber warning "Each choice is
@@ -923,8 +935,9 @@ each one **says so honestly** rather than looking broken.
   '{query}'", "Showing X–Y of N results", "Match score: N%" and pagination.
 - **S17.3** — Search for gibberish.
   → "No results found for '{query}'" / "Try adjusting your search terms."
-- **S17.4** — (Gap.) A **failed** fetch renders the same empty state. There is no
-  error branch, so a server failure reads as a successful empty search. `G15`.
+- **S17.4** — (If you can force the fetch to fail.) → "We couldn't run that search
+  right now" / "Please try again in a moment." / "Try again" — never "No results
+  found". (Was `G15`; fixed 2026-09-14.)
   → Also note `/search` is dark-slate themed, unlike the rest of the app. Decide if
   that ships.
 - **S17.5** — Navigate to `/feed` **by typing the URL** (the header won't take you —
@@ -1015,36 +1028,43 @@ each one **says so honestly** rather than looking broken.
   career and seeking an entry-level role").
 - **S19.8** — Pick one. → `PATCH /me/career-status`, then you are sent to
   `/intelligence/paths`.
-- **S19.9** — (Gap.) If that PATCH fails, the buttons simply re-enable with **no error
-  copy at all**. `G13`.
+- **S19.9** — (If that PATCH fails.) → A red alert inside the modal: "We couldn't save
+  that just now. Try again." The buttons re-enable and the modal stays open. (Was
+  `G13`; fixed 2026-09-14.)
 - **S19.10** — Note that **"employed" is not an option in this modal** — it is set by
   checking "I currently work here" on a role in the Experience tab. Confirm that path
   works, because it is the one that puts ACC-1 in present tense.
 
 ---
 
-### S20 · Export and deletion — the known hole
+### S20 · Export and deletion — account settings
 
-**Account** ACC-1 · **This scenario is expected to fail. Walk it anyway.**
+**Account** ACC-1 · **Route** `/settings` · Built 2026-09-14 (was `G1`) — walk it as a
+pass. **Use a throwaway account for S20.3: it really deletes.**
 
-- **S20.1** — Signed in, look for an account-settings screen. Check the header, the
-  profile page, every tab, and the footer.
-  → **There isn't one.** There is no `/settings` route and no `/account` route in the
-  entire route table.
-- **S20.2** — Look for a data-export control anywhere in the UI.
-  → Nothing calls `GET /api/v1/me/export`. `G1`.
-- **S20.3** — Look for an account-deletion control anywhere in the UI.
-  → Nothing calls `DELETE /api/v1/me`. `G1`.
+- **S20.1** — Signed in, find the account-settings screen.
+  → The gear icon in the header, left of the logout icon (`title` "Account
+  settings"), → `/settings`. H1 **"Account settings"**, your name and email beneath it.
+- **S20.2** — "Your data" → **"Download a copy of your data"**.
+  → The button reads "Preparing your download…" in flight, then the browser saves
+  `solverah-data-YYYY-MM-DD.json`. Nothing from the payload is ever rendered on
+  screen. On failure: "We couldn't prepare your download just now." + "Try again".
+- **S20.3** — "Delete your account" → **"Delete my account"**.
+  → Reveals "Type DELETE to confirm". "Permanently delete" stays disabled for `delete`
+  and `DELET`, enables for `DELETE`. Confirming lands you signed out on `/` with a
+  dismissible "Your account has been deleted." (a second sentence about storage
+  clean-up appears only if the server reported a file it could not remove). A login
+  with the old address now gives "Invalid credentials". On failure: "We couldn't
+  delete your account just now." + "Nothing has been changed.", and you stay signed in.
 - **S20.4** — Re-read the Privacy Policy clause from S1.8 and the Trust page line from
   S16.13 with that in mind.
-  → Three shipped documents promise a screen that does not exist. **This is the single
-  most launch-relevant finding in this document**: it is a compliance statement the
-  product does not honour, not a missing nice-to-have.
+  → All three promises are now honoured verbatim: each says "account settings", none
+  names a path, and that is the page's title.
 - **S20.5** — (Optional, to confirm the backend half is sound.) Call the endpoints
   directly with your session cookie and CSRF header.
   → `GET /api/v1/me/export` returns `application/json` — **not a file download**, no
-  `Content-Disposition`, no filename. Even once a button exists, it will need
-  client-side download handling.
+  `Content-Disposition`, no filename. The SPA builds the file client-side (a Blob),
+  which is why S20.2 works without one.
   → `DELETE /api/v1/me` with `{"confirm": "DELETE"}` returns "Account deleted.
   Assessment responses are retained in de-identified form." It tombstones the user
   row, hard-deletes personal content and every session, clears your cookies, and frees
@@ -1210,6 +1230,7 @@ Every route in `App.tsx`, and where it is walked.
 |---|---|
 | `/job-seeker/dashboard` | S7 |
 | `/job-seeker/profile` | S19 |
+| `/settings` | S20 |
 | `/assessment` | S8.1 |
 | `/work-pulse` | S8 |
 | `/work-pulse/results` | S8.9 |
@@ -1265,7 +1286,7 @@ chunk should branch on the `code`, never on the prose.
 | Code | Status | Screen it produces |
 |---|---|---|
 | `no_core_sitting` | 409 | Recalibrate footer: "There is no Work Pulse sitting to pin to yet." |
-| `no_manager_match` | 409 | Playbook gate: "Take ManagerMatch first" |
+| `no_manager_match` | 409 | Playbook gate AND the `/manager-profile` pre-question gate (S14.1): "Take ManagerMatch first" |
 | `no_manager_profile` | 409 | Playbook gate: "Profile your manager" |
 | `first_job_no_role` | 409 | Environment Report: "There's no job to describe yet" |
 | `career_status_not_set` | 400 (legacy body) | Environment Report: "One thing first: where are you right now?" — and Path Intelligence's career-status prompt |

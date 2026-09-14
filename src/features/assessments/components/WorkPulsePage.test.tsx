@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
     submitting: false,
     setAnswer: vi.fn(),
     submit: vi.fn(),
+    reloadForm: vi.fn(),
   },
   stepperProps: null as any,
 }));
@@ -63,6 +64,7 @@ beforeEach(() => {
   mocks.assessment.submitError = null;
   mocks.assessment.submitting = false;
   mocks.assessment.submit = vi.fn();
+  mocks.assessment.reloadForm = vi.fn();
   mocks.stepperProps = null;
 });
 
@@ -108,12 +110,24 @@ describe("WorkPulsePage — form state", () => {
     expect(screen.queryByTestId("assessment-stepper")).toBeNull();
   });
 
-  it("shows the load error and no stepper when the form is unservable", () => {
+  it("shows the house error panel, not the raw message, and no stepper when the form is unservable", () => {
+    // G7 regression: the page used to render `loadError` verbatim. Without
+    // the fix, this asserts the opposite of what it does now and fails.
     mocks.assessment.items = null;
-    mocks.assessment.loadError = "Assessment is temporarily unavailable";
+    mocks.assessment.loadError = "boom";
     renderPage();
-    expect(screen.getByRole("alert")).toHaveTextContent("temporarily unavailable");
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("We couldn't load Work Pulse right now.");
+    expect(alert).not.toHaveTextContent("boom");
     expect(screen.queryByTestId("assessment-stepper")).toBeNull();
+  });
+
+  it("retries the form fetch via reloadForm when Try again is clicked", () => {
+    mocks.assessment.items = null;
+    mocks.assessment.loadError = "boom";
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(mocks.assessment.reloadForm).toHaveBeenCalled();
   });
 
   it("does NOT link to previous results for a user with no old sitting", () => {
