@@ -88,6 +88,61 @@ in a stampede and must NOT, because the successor is already in the shared
 cookie jar.  A future diff that made them the same is a design regression that
 no unit test phrases as a wire fact.
 
+**Re-baselined for the mm-q11 keying fix (2026-09-10).** The third deliberate
+contract change, and A25 (docs/ARCHITECTURE.md) is the ledger of what moved.
+No step was added or removed -- the fix corrects a stored value, not a route --
+but `manager_match_result` is merged into the profile document on every read,
+so the new `relationship` score and the new `scoring_key` field surface in six
+of the 71 steps, not only the two most obviously named: `poll-manager-match-job`
+and `result-manager-match` carry it directly, and `me-profile-after-write`,
+`export`, `login-for-refresh` and `login-for-logout` carry it embedded in the
+profile document. Verified before the recapture, on the standing baseline:
+6 differences, all six the same two-field substitution and nothing else.
+
+**Re-baselined for BUILD_PLAN D-7b (2026-09-11).** The fourth deliberate contract
+change, and A26 (docs/ARCHITECTURE.md) is the ledger of what moved. No step was
+added or removed and no route changed -- `export_account_data` grew three new
+payload keys (`resume_parse_corrections`, `focus_type_answers`,
+`manager_match_answers`), so exactly one of the (by then 82) steps was affected:
+`export`. Verified before the recapture, on the standing baseline: 1 difference,
+and the diff is purely additive -- three new keys present with real content this
+scenario already produces (it submits FocusType and ManagerMatch before reaching
+`export`), every previously-existing key byte-identical. The scored `result` for
+both instruments is NOT part of that diff: it already reached the wire before
+this chunk, nested inside the `profile` key the mm-q11 paragraph above describes
+-- this chunk closes the narrower gap of the raw submitted `answers`, which
+reached neither `export` nor `profile` before now.
+
+**Re-baselined for BUILD_PLAN B-4 (2026-09-14).** The fifth deliberate contract
+change. No route changed and no step was removed -- `get_situation_report`'s
+`complete` state grew one additive key, `events_since_report` (a list of
+`{'type', 'date'}`, never a `note`), so `situation-report-complete` above now
+carries an empty list on top of its previous keys, and every other step is
+untouched. Verified before the recapture, on the standing baseline: 1
+difference, purely that addition. One step is new -- `pulse-event` above
+already logs a `new_manager` event for EMAIL *after* `submit-environment-report`,
+so `situation-report-after-pulse-event` is what captures `events_since_report`
+non-empty for the first time, appended at the very end so the 89 records above
+it keep their positions.
+
+**Extended for BUILD_PLAN B-5 (2026-09-14): condition experiments.** A new
+surface, not a change to any existing one -- every record above keeps its
+position, exactly as the Pulse block appended after the Situation Report
+block. `EMAIL` already has everything this needs: a completed `core` sitting
+and a submitted environment report, both from the Situation Report block
+above. `post-experiment-malformed` pins the business-rule 422 (a dimension
+that names no real `change_in_place` cell) -- schema-level 422s are already
+covered by `enforce=True`, the same reasoning every other `-malformed` step in
+this script gives for capturing only the other failure mode.
+`post-experiment-conflict` captures the 409 a second `POST` gets while the
+first is still active -- the methodological one-active-at-a-time rule
+(`model.Experiment`'s docstring) made visible on the wire. `readout` reads
+`not_enough_data` throughout this block: EMAIL has never completed a Pulse
+check-in in this scenario, and inventing one only to backdate it would cost a
+real check-in's worth of Pulse-block state for a readout word this script does
+not need to prove -- `tests/test_experiment_api.py` proves every other verdict
+word against real, controlled check-in timestamps instead.
+
 **The LLM is stubbed, and the prompt builders with it.** Three instruments call a
 provider; a fixture that depended on one could not produce stable bytes, and the
 narrative text is the whole payload for two of them. `_chat_json` is replaced by a
@@ -152,6 +207,7 @@ WP_ANSWERS = [
     {"question_id": "wp-q%d" % i, "option_id": "wp-q%d-b" % i} for i in range(1, 13)
 ]
 MM_ANSWERS = [{"question_id": "mm-q%d" % i, "choice": "a"} for i in range(1, 16)]
+MP_ANSWERS = [{"question_id": "mp-q%d" % i, "choice": "a"} for i in range(1, 17)]
 
 FOCUS_TYPE_PAYLOAD = {
     "scene_1": ["big_project", "planning_doc", "urgent_client", "teammate_feedback",
@@ -910,6 +966,233 @@ def run_scenario() -> List[Dict[str, Any]]:
     )
     _put_refresh_cookie(client, login_token)
     call("refresh-after-logout", "POST", REFRESH_PATH, json={})
+
+    # -- Manager Decoder storage (C-3) -------------------------------------
+    #
+    # Appended after the refresh-token block so every record above keeps its
+    # position, exactly as S3 appended after the anti-enumeration block. `logout`
+    # ended the session the refresh block was using, so this needs a login of its
+    # own too.
+    #
+    # EMAIL already completed a ManagerMatch sitting earlier in this scenario
+    # (`queue_and_poll("manager_match", ...)`), so the account reaching this block
+    # already has one -- which is what lets `submit-manager-profile` capture a
+    # non-null `playbook` on its first call. The two 409 branches
+    # (`GET /me/manager-playbook` with no ManagerMatch, and with a ManagerMatch but
+    # no manager profile) are exhaustively covered by
+    # tests/test_manager_playbook_api.py instead of here: this script's job is to
+    # pin the wire shape of a response, not to enumerate every branch a route can
+    # take, and reaching the no-ManagerMatch state honestly would cost a whole
+    # second account (register, confirm, login) for one more captured 409 the
+    # pytest suite already proves byte-for-byte in its own assertions.
+    mp_login = call(
+        "login-for-manager-profile",
+        "POST",
+        "/api/v1/auth/login",
+        json={"email": EMAIL, "password": PASSWORD},
+    )
+    mp_csrf = {"X-CSRF-TOKEN": mp_login.get_json()["csrfToken"]}
+
+    call(
+        "submit-manager-profile-malformed",
+        "POST",
+        "/api/v1/assessments/manager-profile",
+        json={"answers": MP_ANSWERS[:10]},
+        headers=mp_csrf,
+    )
+    call(
+        "submit-manager-profile",
+        "POST",
+        "/api/v1/assessments/manager-profile",
+        json={"answers": MP_ANSWERS},
+        headers=mp_csrf,
+    )
+    call("manager-playbook", "GET", "/api/v1/me/manager-playbook")
+
+    # A retake: same shape, a fresh row underneath. `manager-playbook-after-retake`
+    # is compared against `manager-playbook` above precisely because both should be
+    # structurally identical -- what changes is which values are inside, not the
+    # envelope, and a diff here would mean a retake had somehow changed the shape.
+    mp_retake = [dict(a, choice="b") for a in MP_ANSWERS]
+    call(
+        "submit-manager-profile-retake",
+        "POST",
+        "/api/v1/assessments/manager-profile",
+        json={"answers": mp_retake},
+        headers=mp_csrf,
+    )
+    call("manager-playbook-after-retake", "GET", "/api/v1/me/manager-playbook")
+
+    # -- Situation Report (A-5) --------------------------------------------
+    #
+    # Appended after the Manager Decoder block, exactly as that block appended after
+    # the refresh-token block: every record above keeps its position. Reuses
+    # `mp_login`'s still-open session rather than a fresh one -- EMAIL already carries
+    # everything this block needs by this point in the scenario: `career_status:
+    # "employed"` (the `patch-me-profile` step), a completed `core` sitting
+    # (`submit-core`), and now a `manager_profiles` row (the block just above), so
+    # `manager.has_profile` is captured `true` without a second account.
+    #
+    # `submit-environment-report-malformed` pins the business-rule 400 shape (a
+    # missing item id), the same class of capture `submit-manager-profile-malformed`
+    # is above -- schema-level 422s are already covered by the routes that carry an
+    # `enforce=True` body validator, so this is deliberately the OTHER failure mode.
+    # `situation-report-recalibrate` is captured `recalibrated: false`: EMAIL has sat
+    # `core` exactly once in this scenario, so the pin is already at the only sitting
+    # there is -- the ⚑5 idempotence branch, not the move. The move itself, and the
+    # `AuditLog` row it writes, are proven byte-for-byte in
+    # tests/test_situation_report_api.py instead: capturing it here would need a
+    # second `core` sitting for an account already carrying five other instruments'
+    # worth of state, for a shape this script already pins the other half of.
+    call("situation-report-needs-environment-report", "GET", "/api/v1/me/situation-report")
+
+    # Every environment item answered on its "mixed" pole -- picked for the same
+    # reason MM_ANSWERS/MP_ANSWERS pick one fixed choice: a stable, uninteresting
+    # middle answer whose only job is to exercise the wire shape.
+    from work_pulse import situation_items
+
+    env_answers = {
+        item["item_id"]: next(o for o in item["options"] if o["pole"] == "mixed")["key"]
+        for item in situation_items.ENVIRONMENT_ITEMS
+    }
+
+    incomplete_env_answers = dict(env_answers)
+    del incomplete_env_answers["env-autonomy-1"]
+    call(
+        "submit-environment-report-malformed",
+        "POST",
+        "/api/v1/me/environment-report",
+        json={
+            "answers": incomplete_env_answers, "stage_size": 3, "comp": 3, "experienced": 3,
+        },
+        headers=mp_csrf,
+    )
+    call(
+        "submit-environment-report",
+        "POST",
+        "/api/v1/me/environment-report",
+        json={"answers": env_answers, "stage_size": 3, "comp": 3, "experienced": 3},
+        headers=mp_csrf,
+    )
+    call("situation-report-complete", "GET", "/api/v1/me/situation-report")
+    call(
+        "situation-report-recalibrate",
+        "POST",
+        "/api/v1/me/situation-report/recalibrate",
+        headers=mp_csrf,
+    )
+
+    # -- Pulse (B-2) --------------------------------------------------------
+    #
+    # Appended after the Situation Report block, exactly as that block appended
+    # after the Manager Decoder block: every record above keeps its position.
+    # Reuses `mp_csrf`'s still-open EMAIL session -- this account has never
+    # touched Pulse, so it is a fresh `sequence: 0` account, the same reasoning
+    # `pulse-next-checkin`'s capture below depends on.
+    #
+    # `pulse-checkin-malformed` pins the business-rule 422 (the served-set
+    # refusal) -- schema-level 422s (an unknown event_type, a note over 280
+    # characters, a cadence outside the three the user can set) are already
+    # covered by the routes' `enforce=True` body validators, the same reasoning
+    # `submit-manager-profile-malformed` above gives for capturing only the
+    # OTHER failure mode here.
+    from work_pulse.pulse_items import dimensions_for_checkin
+
+    with app.app_context():
+        pulse_user_id = User.query.filter_by(email=EMAIL).first().id
+
+    call("pulse-next-checkin", "GET", "/api/v1/me/pulse/next-checkin")
+    call("pulse-settings", "GET", "/api/v1/me/pulse/settings")
+
+    # sequence 1's dims, submitted as sequence 0 -- the served-set refusal.
+    wrong_dims = dimensions_for_checkin(pulse_user_id, 1)
+    call(
+        "pulse-checkin-malformed",
+        "POST",
+        "/api/v1/me/pulse/checkins",
+        json={"item_scores": {dim: 3 for dim in wrong_dims}, "experienced": 3},
+        headers=mp_csrf,
+    )
+
+    checkin_dims = dimensions_for_checkin(pulse_user_id, 0)
+    call(
+        "pulse-checkin",
+        "POST",
+        "/api/v1/me/pulse/checkins",
+        json={"item_scores": {dim: 3 for dim in checkin_dims}, "experienced": 4},
+        headers=mp_csrf,
+    )
+    call("pulse-history", "GET", "/api/v1/me/pulse/history")
+    call(
+        "pulse-event",
+        "POST",
+        "/api/v1/me/pulse/events",
+        json={"event_type": "new_manager"},
+        headers=mp_csrf,
+    )
+    call(
+        "pulse-settings-update",
+        "PATCH",
+        "/api/v1/me/pulse/settings",
+        json={"cadence": "biweekly"},
+        headers=mp_csrf,
+    )
+
+    # -- Situation Report <-> Pulse wiring (B-4) ---------------------------
+    #
+    # Appended after the Pulse block so every record above keeps its position,
+    # exactly as that block appended after the Situation Report block. `EMAIL`
+    # already carries everything this needs by this point: a submitted
+    # environment report (`submit-environment-report`, above) and, just now,
+    # `pulse-event` logged a `new_manager` event *after* that submission -- so
+    # re-reading the report is what captures `events_since_report` non-empty
+    # for the first time. `situation-report-complete` above still captures the
+    # empty-list case, which is the common one.
+    call("situation-report-after-pulse-event", "GET", "/api/v1/me/situation-report")
+
+    # -- Condition experiments (B-5) ---------------------------------------
+    #
+    # Appended after the Situation Report <-> Pulse block so every record above
+    # keeps its position. Reuses `mp_csrf`'s still-open EMAIL session -- this
+    # account already carries a completed core sitting and a submitted
+    # environment report from the Situation Report block above, which is all
+    # `POST /me/experiments`'s cell-pair validation needs.
+    call(
+        "post-experiment-malformed",
+        "POST",
+        "/api/v1/me/experiments",
+        json={"dimension": "nonexistent", "direction": "under"},
+        headers=mp_csrf,
+    )
+    call(
+        "post-experiment",
+        "POST",
+        "/api/v1/me/experiments",
+        json={"dimension": "autonomy", "direction": "under"},
+        headers=mp_csrf,
+    )
+    call(
+        "post-experiment-conflict",
+        "POST",
+        "/api/v1/me/experiments",
+        json={"dimension": "pace", "direction": "over"},
+        headers=mp_csrf,
+    )
+    call("get-experiments", "GET", "/api/v1/me/experiments")
+    call(
+        "post-experiment-abandon",
+        "POST",
+        "/api/v1/me/experiments/1/abandon",
+        headers=mp_csrf,
+    )
+    # Idempotent: the same call again is still 200, unchanged.
+    call(
+        "post-experiment-abandon-again",
+        "POST",
+        "/api/v1/me/experiments/1/abandon",
+        headers=mp_csrf,
+    )
+    call("get-experiments-after-abandon", "GET", "/api/v1/me/experiments")
 
     return records
 

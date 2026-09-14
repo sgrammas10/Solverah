@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import JobSeekerDashboard from "./JobSeekerDashboard";
@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   user: null as any,
   fetchWithAuth: vi.fn(),
+  /** The Situation Report state under test; D-6 drives the lead card off it. */
+  situationReport: null as any,
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -40,6 +42,55 @@ vi.mock("../../assessments/components/WorkPulseUnlock", () => ({
   default: () => <div data-testid="wp-unlock">WorkPulse Unlocked</div>,
 }));
 
+/**
+ * `/me/dashboard` still answers with the whole document — D-6 stopped RENDERING
+ * the Job Matches / Applications tiles, it did not change the endpoint, and the
+ * assertions below prove those two values reach the page and are not drawn.
+ */
+const DASHBOARD_DOC = {
+  profileCompletion: "60%",
+  jobMatches: "12",
+  applications: "3",
+  hasIntakeSubmission: false,
+  recentActivity: [],
+  recommendations: [],
+};
+
+const NEEDS_CORE = {
+  state: "needs_core",
+  manager: { has_profile: false },
+  environment: null,
+};
+
+const NEEDS_ENV = {
+  state: "needs_environment_report",
+  manager: { has_profile: false },
+  can_submit_environment_report: true,
+};
+
+const FIRST_JOB = { ...NEEDS_ENV, can_submit_environment_report: false };
+
+const COMPLETE = {
+  state: "complete",
+  manager: { has_profile: false },
+  career_status: "employed",
+  needs_forward: false,
+  guidance_notice: "Notice",
+  dimensions: [
+    {
+      dimension: "autonomy",
+      env_score: 0.17,
+      bucket: "straining",
+      direction: "under",
+      rank: 1,
+      diagnosis: { headline: "Headline", text: "Text" },
+      registers: {},
+      defers_to_decoder: false,
+      decoder_crossref: null,
+    },
+  ],
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.user = {
@@ -48,13 +99,20 @@ beforeEach(() => {
     wpl_completed: false,
     wp_v2_completed: false,
   };
-  mocks.fetchWithAuth.mockResolvedValue({
-    profileCompletion: "60%",
-    jobMatches: "12",
-    applications: "3",
-    hasIntakeSubmission: false,
-    recentActivity: [],
-    recommendations: [],
+  // Routed by path, not a blanket resolved value: the dashboard now mounts
+  // PulseDashboardCard (BUILD_PLAN B-3) beside its own /me/dashboard query,
+  // and a call-order-blind mock would hand that card's /me/pulse/history
+  // request the dashboard fixture (or vice versa) depending on which query
+  // happens to fire first.
+  mocks.situationReport = NEEDS_CORE;
+  mocks.fetchWithAuth.mockImplementation((path: string) => {
+    if (path.startsWith("/me/pulse/")) {
+      return Promise.resolve({ checkins: [], events: [] });
+    }
+    if (path.startsWith("/me/situation-report")) {
+      return Promise.resolve(mocks.situationReport);
+    }
+    return Promise.resolve(DASHBOARD_DOC);
   });
 });
 
@@ -78,11 +136,12 @@ describe("JobSeekerDashboard - happy path", () => {
     expect(screen.getByText(/Welcome back, Ada Lovelace/i)).toBeInTheDocument();
   });
 
-  it("renders stats cards after data loads", async () => {
+  it("frames the page around working life, not a job search (D-6)", async () => {
     renderJobSeekerDashboard();
-    await waitFor(() => expect(screen.getByText("60%")).toBeInTheDocument());
-    expect(screen.getByText("12")).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Here's where your working life stands/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/job search overview/i)).toBeNull();
   });
 
   it("fetches /dashboard-data on mount", async () => {
@@ -105,7 +164,9 @@ describe("JobSeekerDashboard - profile completion alert", () => {
   it("does not show profile completion alert when profile is complete", async () => {
     mocks.user = { name: "Ada", profileComplete: true, wpl_completed: false, wp_v2_completed: false };
     renderJobSeekerDashboard();
-    await waitFor(() => screen.getByText("60%"));
+    // Waited on the fetch rather than on a rendered "60%": D-6 removed the
+    // Profile Completion tile that used to be this test's settle signal.
+    await waitFor(() => expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/me/dashboard"));
     expect(screen.queryByText(/Complete your profile/i)).toBeNull();
   });
 });
@@ -148,19 +209,38 @@ describe("JobSeekerDashboard - work pulse banner", () => {
 
 // ─── jobs popup ───────────────────────────────────────────────────────────────
 
-describe("JobSeekerDashboard - jobs popup modal", () => {
-  it("shows jobs coming-soon dialog when Browse Jobs is clicked", async () => {
+/**
+ * D-6: the job-board furniture is gone. These are the tests that would fail if
+ * any of it came back — the whole point of the chunk is that this screen stops
+ * being a job board without jobs (PRODUCT_DECISIONS §1).
+ */
+describe("JobSeekerDashboard - the job board is gone (D-6)", () => {
+  it("offers no Browse Jobs action and no coming-soon modal", async () => {
     renderJobSeekerDashboard();
-    fireEvent.click(screen.getByText("Browse Jobs"));
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByText(/Feature coming soon/i)).toBeInTheDocument();
+    await waitFor(() => expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/me/dashboard"));
+    expect(screen.queryByText("Browse Jobs")).toBeNull();
+    expect(screen.queryByText(/Find matching opportunities/i)).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByText(/Feature coming soon/i)).toBeNull();
   });
 
-  it("closes the dialog when Got it is clicked", async () => {
+  it("does not draw the Job Matches / Applications tiles, though the document still carries them", async () => {
     renderJobSeekerDashboard();
-    fireEvent.click(screen.getByText("Browse Jobs"));
-    fireEvent.click(screen.getByRole("button", { name: /got it/i }));
-    expect(screen.queryByRole("dialog")).toBeNull();
+    await waitFor(() => expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/me/dashboard"));
+    expect(screen.queryByText("Job Matches")).toBeNull();
+    expect(screen.queryByText("Applications")).toBeNull();
+    expect(screen.queryByText("Profile Completion")).toBeNull();
+    // The values themselves, not just the labels: a tile rendered without its
+    // label would still be a count of matches on a screen that has none.
+    expect(screen.queryByText("12")).toBeNull();
+    expect(screen.queryByText("3")).toBeNull();
+    expect(screen.queryByText("60%")).toBeNull();
+  });
+
+  it("keeps matching reachable as a plain link, with no matching framing", async () => {
+    renderJobSeekerDashboard();
+    const search = screen.getByRole("link", { name: /Search companies and roles/i });
+    expect(search).toHaveAttribute("href", "/search");
   });
 });
 
@@ -216,13 +296,18 @@ describe("JobSeekerDashboard - empty states", () => {
   it("shows the real content instead once there is any", async () => {
     // The other half of the branch: a conditional that renders the empty state
     // unconditionally would pass both tests above and break the product.
-    mocks.fetchWithAuth.mockResolvedValue({
-      profileCompletion: "60%",
-      jobMatches: "12",
-      applications: "3",
-      hasIntakeSubmission: false,
-      recentActivity: [{ icon: "User", text: "You updated your profile", time: "2h ago" }],
-      recommendations: [{ title: "Add your resume", href: "#resume", priority: "urgent" }],
+    // Routed by path, not a blanket resolved value -- the dashboard now mounts
+    // two sibling cards with their own queries (B-3's pulse card and D-6's
+    // situation card), and a call-order-blind mock would hand one of them this
+    // fixture.
+    mocks.fetchWithAuth.mockImplementation((path: string) => {
+      if (path.startsWith("/me/pulse/")) return Promise.resolve({ checkins: [], events: [] });
+      if (path.startsWith("/me/situation-report")) return Promise.resolve(mocks.situationReport);
+      return Promise.resolve({
+        ...DASHBOARD_DOC,
+        recentActivity: [{ icon: "User", text: "You updated your profile", time: "2h ago" }],
+        recommendations: [{ title: "Add your resume", href: "#resume", priority: "urgent" }],
+      });
     });
 
     renderJobSeekerDashboard();
@@ -238,15 +323,115 @@ describe("JobSeekerDashboard - empty states", () => {
 
 describe("JobSeekerDashboard - intake modal", () => {
   it("shows intake modal when profile completion is below 50%", async () => {
-    mocks.fetchWithAuth.mockResolvedValueOnce({
-      profileCompletion: "30%",
-      jobMatches: "0",
-      applications: "0",
-      hasIntakeSubmission: false,
-      recentActivity: [],
-      recommendations: [],
+    mocks.fetchWithAuth.mockImplementation((path: string) => {
+      if (path.startsWith("/me/pulse/")) {
+        return Promise.resolve({ checkins: [], events: [] });
+      }
+      if (path.startsWith("/me/situation-report")) {
+        return Promise.resolve(mocks.situationReport);
+      }
+      return Promise.resolve({ ...DASHBOARD_DOC, profileCompletion: "30%" });
     });
     renderJobSeekerDashboard();
     await waitFor(() => expect(screen.getByTestId("intake-modal")).toBeInTheDocument());
+  });
+});
+
+// ─── D-6: the working-life frame ───────────────────────────────────────────────
+
+/**
+ * The lead card, driven end to end through the real `useSituationReport` hook
+ * rather than a mocked component: what this asserts is the WIRING — that each
+ * report state reaches the dashboard and resolves to one card and one suggested
+ * action. The card's own branches are covered beside the component, in
+ * `assessments/components/SituationDashboardCard.test.tsx`.
+ */
+describe("JobSeekerDashboard - Situation Report card", () => {
+  it("needs_core: explains the missing half and lets the banner own the CTA", async () => {
+    mocks.situationReport = NEEDS_CORE;
+    renderJobSeekerDashboard();
+    expect(
+      await screen.findByText("Your conditions, once we have your side"),
+    ).toBeInTheDocument();
+    // The Work Pulse banner is on screen for this user and already says "Start
+    // now", so the card must not print a second button to the same place.
+    expect(screen.getByTestId("wp-banner")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Start Work Pulse/ })).toBeNull();
+  });
+
+  it("needs_core: takes the CTA back once the banner is dismissed", async () => {
+    mocks.situationReport = NEEDS_CORE;
+    renderJobSeekerDashboard();
+    await screen.findByText("Your conditions, once we have your side");
+    fireEvent.click(screen.getByText("Dismiss Banner"));
+    expect(screen.getByRole("link", { name: /Start Work Pulse/ })).toHaveAttribute(
+      "href",
+      "/work-pulse",
+    );
+  });
+
+  it("needs_environment_report: one card, one action — describe the job", async () => {
+    mocks.situationReport = NEEDS_ENV;
+    renderJobSeekerDashboard();
+    expect(await screen.findByText("One half to go")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Describe your job/ })).toHaveAttribute(
+      "href",
+      "/environment-report",
+    );
+  });
+
+  it("first_job: goes straight to the report, and does not offer a form it cannot accept", async () => {
+    mocks.situationReport = FIRST_JOB;
+    renderJobSeekerDashboard();
+    expect(await screen.findByText("Your report starts when the job does")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /See your Situation Report/ })).toHaveAttribute(
+      "href",
+      "/situation-report",
+    );
+    expect(screen.queryByRole("link", { name: /Describe your job/ })).toBeNull();
+  });
+
+  it("complete: summarises conditions as words and offers exactly one next action", async () => {
+    mocks.situationReport = COMPLETE;
+    renderJobSeekerDashboard();
+    expect(await screen.findByText("How your conditions sit")).toBeInTheDocument();
+    expect(screen.getByText("Autonomy — Straining")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /See your Situation Report/ })).toHaveAttribute(
+      "href",
+      "/situation-report",
+    );
+
+    const card = screen.getByTestId("situation-card");
+    expect(within(card).getAllByText("Next")).toHaveLength(1);
+    expect(within(card).getByRole("link", { name: /Profile your manager/ })).toHaveAttribute(
+      "href",
+      "/manager-profile",
+    );
+  });
+
+  it("complete: not one digit reaches the conditions summary (D-15)", async () => {
+    // Scoped to the card, not the page: PulseDashboardCard legitimately renders
+    // a date beside it. The rule is about the report's own resolution — the
+    // payload's `env_score` and `rank` may not surface here in any form.
+    mocks.situationReport = COMPLETE;
+    renderJobSeekerDashboard();
+    await screen.findByText("How your conditions sit");
+    const text = screen.getByTestId("situation-card").textContent ?? "";
+    expect(text, "a number reached the conditions summary").not.toMatch(/\d/);
+  });
+});
+
+describe("JobSeekerDashboard - what D-6 keeps", () => {
+  it("still mounts the pulse card", async () => {
+    renderJobSeekerDashboard();
+    // Its no-check-ins invitation, i.e. the real B-3 card rendering for a new
+    // account rather than a stand-in.
+    expect(await screen.findByText("Keep a pulse on work")).toBeInTheDocument();
+  });
+
+  it("still offers Edit Profile and the one instrument action", async () => {
+    renderJobSeekerDashboard();
+    expect(screen.getByText("Edit Profile")).toBeInTheDocument();
+    expect(screen.getByText("Your Solverah profile")).toBeInTheDocument();
   });
 });

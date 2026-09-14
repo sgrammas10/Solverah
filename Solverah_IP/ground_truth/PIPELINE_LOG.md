@@ -31,6 +31,48 @@ packet it has been run against so far.
 
 ---
 
+## 2026-09-09 harvest
+
+RESEARCH   P-11 Regeneron -- packet 45 excerpts (A 7, B 15, C 11, D 4/3 sources, E 2, F 6),
+           collector v4.10 -- moved to packets/. RUN_REPORT.md pre-flight confirmed a clean
+           build folder (no prior packet, no stale collector copy). All three structural
+           checks passed: SECTION 1 marker present, `prompt version : v4.10` present, all
+           six A-F subsections present. Check 4 (terminal `END OF PACKET` marker) does not
+           apply -- v4.10 predates the v4.11 requirement that introduced it. RUN_REPORT.md
+           carried no IN PROGRESS/COMPLETE/ABORTED status line (a report written before that
+           rule existed, per the 2026-09-08 operator note below); judged by the packet
+           instead, which is present and passed every check that applies to it, so the run
+           is treated as COMPLETE.
+           Builder flagged 3 STRUCTURAL defects, none of which triggered the freeze: (1) the
+           plain-fetch layer fabricated quotation marks around reported speech attributed to
+           the named CEO -- every Section 1 excerpt was consequently re-retrieved and
+           confirmed through the renderer; (2) two passes over the same review page
+           disagreed on truncation, resolved by the renderer (7/15 reviews truncated,
+           46.7%, over the B7 one-third threshold -- NOTE TO RATER left in the packet); (3)
+           the renderer was not bot-walled on the review aggregator, contrary to v4.10's
+           stated prior. 4 COSMETIC defects also logged (undated first-party page dated by
+           access date; D yield reported as "4 passages from 3 sources"; a shared-URL
+           double-count judgment call recorded in-packet; templated posting-date metadata
+           ignored in favor of confirmed-open-on dates). Full detail was in RUN_REPORT.md,
+           now folded in here and deleted.
+SCRUB      none -- `_scrub_env/packets_raw/` and `packets_out/` were both already empty
+           (only `.gitkeep`) at inventory time, so no scrub ran to promote. Consistent with
+           the prior harvest, which left `packets_raw/` empty because `to_be_scrubbed.txt`
+           had no entries then.
+LISTS      to_be_researched: 1 remaining (P-12 Duke Energy) - to_be_scrubbed: 1 waiting
+           (P-11 Regeneron, researched 2026-09-08 v4.10) -- both left untouched; research
+           already updated them correctly and no scrub completed to strike a line.
+STAGED     P-11 copied to `_scrub_env/packets_raw/` for tonight (topmost, and only, line on
+           `to_be_scrubbed.txt`).
+REFUSED    nothing -- no destination collisions, no partial scrub set, no packet that failed
+           its structural checks.
+RULESET    `_scrub_env/ANONYMIZATION_RULES_DRAFT.md` checked byte-for-byte against
+           `anonymization/ANONYMIZATION_RULES_DRAFT.md` (already identical) and refreshed
+           anyway, per standing instruction.
+NOT YET VERIFIED -- nothing promoted to `anonymization/` this run, so there is nothing new to
+           verify. P-10 Twilio remains the most recently promoted packet, verification
+           status unchanged from its own harvest.
+
 ## 2026-09-08 operator note — not a harvest entry
 
 Written by hand between the 06:00 harvest and the rescheduled 21:00 one. Recorded here because the

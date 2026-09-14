@@ -47,7 +47,11 @@ from solverah.schemas.assessments import (
     WpllResultResponse,
     WpllSubmitRequest,
 )
-from solverah.services import assessment_service, scoring_jobs
+from solverah.schemas.manager_playbook import (
+    ManagerProfileSubmitRequest,
+    ManagerProfileSubmitResponse,
+)
+from solverah.services import assessment_service, manager_playbook_service, scoring_jobs
 
 __all__ = ["assessments_bp"]
 
@@ -413,6 +417,57 @@ def assessment_kind_result(kind: str):
     if not user:
         return jsonify({"error": "User not found"}), 404
     return _respond(assessment_service.result(resolved, user))
+
+
+# ---------------------------------------------------------------------------
+# Manager Decoder: the observed-manager instrument (BUILD_PLAN C-3)
+# ---------------------------------------------------------------------------
+#
+# Deliberately not a sixth `{kind}` in the unified registry above. ⚑4 makes
+# `manager_profiles` its own shared store, read by the Decoder's playbook today and
+# the Situation Report's manager section later -- folding it into `assessment_submissions`
+# would put it behind that table's single-current-row-per-kind constraint, which is wrong
+# for an append-only instrument, and behind `{kind}`'s job/sync split, which is wrong for
+# an instrument that scores deterministically and instantly like `focus_type`.
+#
+# `GET /me/manager-playbook` lives in `solverah/api/v1/me.py` -- it is a read about the
+# authenticated principal, the same reason `GET /me/assessments/{kind}/result` lives there
+# and not here.
+
+
+@document(
+    "Submit a manager-profile sitting; score, store, and assemble the playbook",
+    tags=["assessments"],
+    request=ManagerProfileSubmitRequest,
+    responses={
+        200: ManagerProfileSubmitResponse,
+        400: LegacyError,
+        404: LegacyError,
+    },
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "Scores deterministically and instantly, like `focus_type` -- no provider call, "
+        "no job, no polling. Stores an append-only `manager_profiles` row (D-16 "
+        "tradition: a retake is a new row, never an update) and, when this user already "
+        "has a completed ManagerMatch sitting, assembles the diff playbook in the same "
+        "response. `playbook` is `null` when there is no ManagerMatch yet -- that is not "
+        "an error here; `GET /me/manager-playbook` is where a missing ManagerMatch "
+        "answers `409`."
+    ),
+)
+@assessments_bp.route("/assessments/manager-profile", methods=["POST"])
+@limiter.limit(DEFAULT_SUBMISSION_LIMIT)
+@jwt_required()
+def submit_manager_profile():
+    """POST /assessments/manager-profile - score, persist, and diff against ManagerMatch."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    result = manager_playbook_service.submit_manager_profile(user, data.get("answers"))
+    return jsonify(result.body), result.status
 
 
 # ---------------------------------------------------------------------------

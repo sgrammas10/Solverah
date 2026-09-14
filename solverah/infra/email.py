@@ -190,6 +190,57 @@ def send_confirmation_email(to_email: str, token: str) -> None:
     send_verification_email(to_email, token)
 
 
+def send_pulse_prompt_email(to_email: str, deep_link: str, *, slowdown_notice: bool = False) -> None:
+    """Invite a user to their next Pulse check-in (BUILD_PLAN B-2).
+
+    No streak language, no count of what was missed: PRODUCT_DECISIONS.md §2's
+    anti-nag rule is "silence is data, never a guilt trip", and that applies to
+    wording as much as to cadence. `slowdown_notice` adds one neutral line when
+    the cadence engine has just auto-dropped this user to monthly after three
+    unanswered prompts in a row -- stating the fact, not apologizing for it or
+    asking why they went quiet.
+    """
+    if not RESEND_API_KEY:
+        raise EmailConfigError("RESEND_API_KEY is not set")
+    if not EMAIL_FROM:
+        raise EmailConfigError("EMAIL_FROM is not set")
+
+    slowdown_html = (
+        """
+      <p style="color: #7a7a72; font-size: 13px; margin: 24px 0 0 0;">
+        We've slowed these check-ins down to once a month since it's been quiet --
+        no rush, and you can check in any time.
+      </p>
+        """
+        if slowdown_notice
+        else ""
+    )
+
+    html_content = f"""
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #faf8f5; color: #1a1a18; border-radius: 12px; border: 1px solid #e8e4dd;">
+      <p style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6a8f72; margin: 0 0 8px 0;">Pulse check-in</p>
+      <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1a1a18;">How's work been going?</h2>
+      <p style="color: #4a4a44; font-size: 15px; margin: 0 0 24px 0;">Three quick questions, about a minute.</p>
+      <a href="{deep_link}" style="display: inline-block; font-size: 15px; font-weight: 700; color: #ffffff; background: #1a3d25; padding: 14px 28px; border-radius: 8px; text-decoration: none;">Check in</a>
+      {slowdown_html}
+    </div>
+    """
+
+    try:
+        import resend as resend_lib
+    except ImportError:
+        raise EmailConfigError("resend package is not installed. Run: pip install resend")
+
+    resend_lib.api_key = RESEND_API_KEY
+    params = {
+        "from": EMAIL_FROM,
+        "to": [to_email],
+        "subject": "How's work been going?",
+        "html": html_content,
+    }
+    resend_lib.Emails.send(params)
+
+
 def send_password_reset_email(to_email: str, code: str) -> None:
     """Send a 6-digit password-reset OTP via Resend."""
     if not RESEND_API_KEY:

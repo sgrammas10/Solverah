@@ -18,6 +18,21 @@ const mocks = vi.hoisted(() => ({
   setCachedResult: vi.fn(),
   mmCachedResult: null as any,
   formData: {} as any,
+  /** What `useManagerPlaybook` reports on the next render. Mocked directly
+   *  (rather than left real, as `useWorkPulseResult` is) so this page's own
+   *  `fetchWithAuth` fixtures for the Work Pulse query are not consumed by a
+   *  second, unrelated query firing on the same mock. */
+  playbookQuery: {
+    data: undefined as any,
+    isLoading: false,
+    isError: false,
+    error: null as unknown,
+    refetch: vi.fn(),
+  },
+  /** What `useSituationReport` reports on the next render. Mocked directly for
+   *  the same reason `playbookQuery` is: left real it fires a third query on
+   *  the shared `fetchWithAuth` mock and eats the Work Pulse fixtures. */
+  situationQuery: { data: undefined as any },
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -55,6 +70,14 @@ vi.mock("../../assessments/useMM", () => ({
   useMM: () => ({ state: { cachedResult: mocks.mmCachedResult } }),
 }));
 
+vi.mock("../../assessments/useManagerPlaybook", () => ({
+  useManagerPlaybook: () => mocks.playbookQuery,
+}));
+
+vi.mock("../../assessments/useSituationReport", () => ({
+  useSituationReport: () => mocks.situationQuery,
+}));
+
 vi.mock("./AssessmentsTab", () => ({
   default: () => <div data-testid="assessments-tab">Assessments</div>,
 }));
@@ -66,6 +89,23 @@ beforeEach(() => {
   mocks.wpState = { answers: [], cachedResult: null };
   mocks.mmCachedResult = null;
   mocks.formData = {};
+  // Default: a fresh user who has taken neither instrument yet -- the
+  // realistic starting state, so tests unrelated to the Manager Decoder card
+  // see its "take ManagerMatch first" variant rather than the generic
+  // unexpected-failure one.
+  mocks.playbookQuery = {
+    data: undefined,
+    isLoading: false,
+    isError: true,
+    error: new ApiError("Take ManagerMatch first", {
+      status: 409,
+      fieldErrors: [{ field: "manager_match", code: "no_manager_match" }],
+    }),
+    refetch: vi.fn(),
+  };
+  // Default: the report state is unresolved, so the Situation Report block is
+  // silent. Tests that care set it explicitly.
+  mocks.situationQuery = { data: undefined };
 });
 
 const MOCK_WP_RESULT: WpApiResponse = {
@@ -166,7 +206,89 @@ describe("IntelligencePage - completed without a narrative", () => {
     // assessment exists to feed.
     renderIntelligencePage();
     expect(screen.queryByText(/Complete Work Pulse to unlock company matching/i)).toBeNull();
-    expect(screen.getByRole("button", { name: /open companylens/i })).toBeInTheDocument();
+  });
+
+  // ── Situation Report block (BUILD_PLAN A-7) ──
+  //
+  // The Work Pulse completion card used to end at "nothing to check", which
+  // made the hub a dead end for a user who had just finished the instrument.
+  // It now carries the Situation Report path, and these are the three states
+  // that block can be in.
+
+  it("stays silent about the Situation Report while its state is unresolved", () => {
+    mocks.situationQuery = { data: undefined };
+    renderIntelligencePage();
+    expect(screen.queryByText(/Situation Report/i)).toBeNull();
+  });
+
+  it("prompts for the environment report when the user has not filed one", () => {
+    mocks.situationQuery = {
+      data: {
+        state: "needs_environment_report",
+        manager: { has_profile: false },
+        can_submit_environment_report: true,
+      },
+    };
+    renderIntelligencePage();
+
+    expect(screen.getByText(/fifteen questions about the role/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Describe your job/ }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/environment-report");
+  });
+
+  it("offers no environment-report prompt to a user who cannot file one", () => {
+    // `first_job`: the report page renders forward rather than prompting, so a
+    // button here would be a call to action they cannot act on.
+    mocks.situationQuery = {
+      data: {
+        state: "needs_environment_report",
+        manager: { has_profile: false },
+        can_submit_environment_report: false,
+      },
+    };
+    renderIntelligencePage();
+    expect(screen.queryByRole("button", { name: /Describe your job/ })).toBeNull();
+  });
+
+  it("links to the report once both halves exist", () => {
+    mocks.situationQuery = {
+      data: {
+        state: "complete",
+        manager: { has_profile: false },
+        career_status: "employed",
+        needs_forward: false,
+        dimensions: [],
+        guidance_notice: "notice",
+      },
+    };
+    renderIntelligencePage();
+
+    fireEvent.click(screen.getByRole("button", { name: /View your Situation Report/ }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/situation-report");
+    expect(screen.queryByRole("button", { name: /Describe your job/ })).toBeNull();
+  });
+
+  it("shows the coming-soon CompanyLens card instead of implying matches are ready", () => {
+    // Until 2026-09-08 this card read "Your company matches are ready." with a
+    // button to /company-lens, which 400s for every current-instrument user:
+    // ⚑3 (BUILD_PLAN.md §0.2) shelved the culture-preferences mapping the
+    // matches endpoint needs. The gate never meant anything -- CompanyLens is
+    // coming-soon regardless of wp_v2_completed.
+    renderIntelligencePage();
+    expect(screen.getByText(/CompanyLens™/)).toBeInTheDocument();
+    expect(screen.getByText(/Coming soon/i)).toBeInTheDocument();
+    expect(screen.queryByText(/matches are ready/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /open companylens/i })).toBeNull();
+  });
+
+  it("links to the trust page from the hub footer", () => {
+    // BUILD_PLAN D-3. The Work Pulse card above says there is no score to
+    // check; this is the only place on the hub that explains why, so a footer
+    // link going missing turns that card back into an unexplained absence.
+    renderIntelligencePage();
+    expect(
+      screen.getByRole("link", { name: /how this works, and what we hold back/i }),
+    ).toHaveAttribute("href", "/trust");
   });
 
   it("does not tick Work Pulse Lite for someone who never took it", () => {
@@ -285,13 +407,6 @@ describe("IntelligencePage - FocusType card", () => {
     expect(mocks.navigate).toHaveBeenCalledWith("/focus-type");
   });
 
-  it("CompanyLens button navigates to /company-lens", () => {
-    mocks.user = { wpl_completed: true, wp_v2_completed: true };
-    mocks.wpState = { answers: [], cachedResult: MOCK_WP_RESULT };
-    renderIntelligencePage();
-    fireEvent.click(screen.getByRole("button", { name: /open companylens/i }));
-    expect(mocks.navigate).toHaveBeenCalledWith("/company-lens");
-  });
 });
 
 // ─── ManagerMatch card ─────────────────────────────────────────────────────────
@@ -363,5 +478,108 @@ describe("IntelligencePage - ManagerMatch card", () => {
     renderIntelligencePage();
     expect(screen.getByText("The Collaborator")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /view results/i })).toBeInTheDocument();
+  });
+});
+
+// ─── Manager Decoder card ──────────────────────────────────────────────────────
+
+describe("IntelligencePage - Manager Decoder card", () => {
+  beforeEach(() => {
+    mocks.user = { wpl_completed: true, wp_v2_completed: true };
+    mocks.wpState = { answers: [], cachedResult: MOCK_WP_RESULT };
+  });
+
+  it("shows a loading placeholder while the playbook query is in flight", () => {
+    mocks.playbookQuery = { ...mocks.playbookQuery, isLoading: true, isError: false, error: null };
+    renderIntelligencePage();
+    expect(screen.queryByText(/Manager Decoder/i)).toBeNull();
+  });
+
+  it("'take ManagerMatch first' state on the no_manager_match 409", () => {
+    // beforeEach's default already fixtures this; asserted explicitly here.
+    renderIntelligencePage();
+    expect(
+      screen.getByText(/Take ManagerMatch first — the Decoder diffs your manager profile/i)
+    ).toBeInTheDocument();
+  });
+
+  it("'take ManagerMatch first' CTA navigates to /manager-match", () => {
+    renderIntelligencePage();
+    fireEvent.click(screen.getByRole("button", { name: /Take ManagerMatch™/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/manager-match");
+  });
+
+  it("'start' state on the no_manager_profile 409", () => {
+    mocks.playbookQuery = {
+      ...mocks.playbookQuery,
+      isError: true,
+      error: new ApiError("Profile your manager first", {
+        status: 409,
+        fieldErrors: [{ field: "manager_profile", code: "no_manager_profile" }],
+      }),
+    };
+    renderIntelligencePage();
+    expect(
+      screen.getByText(/Profile how your manager actually works/i)
+    ).toBeInTheDocument();
+  });
+
+  it("'start' CTA navigates to /manager-profile", () => {
+    mocks.playbookQuery = {
+      ...mocks.playbookQuery,
+      isError: true,
+      error: new ApiError("Profile your manager first", {
+        status: 409,
+        fieldErrors: [{ field: "manager_profile", code: "no_manager_profile" }],
+      }),
+    };
+    renderIntelligencePage();
+    fireEvent.click(screen.getByRole("button", { name: /Profile your manager/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/manager-profile");
+  });
+
+  it("'view playbook' state when the playbook is ready", () => {
+    mocks.playbookQuery = {
+      ...mocks.playbookQuery,
+      isError: false,
+      error: null,
+      data: {
+        dimension_scores: {},
+        scoring_key: "mp-v1",
+        version: "v1",
+        playbook: { privacy_notice: "...", dimensions: [], priority: ["autonomy"], grind_count: 1, mesh_count: 3 },
+      },
+    };
+    renderIntelligencePage();
+    expect(screen.getByText(/1 dimension to work on/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /view your playbook/i })).toBeInTheDocument();
+  });
+
+  it("'view playbook' CTA navigates to /manager-profile/playbook", () => {
+    mocks.playbookQuery = {
+      ...mocks.playbookQuery,
+      isError: false,
+      error: null,
+      data: {
+        dimension_scores: {},
+        scoring_key: "mp-v1",
+        version: "v1",
+        playbook: { privacy_notice: "...", dimensions: [], priority: [], grind_count: 0, mesh_count: 4 },
+      },
+    };
+    renderIntelligencePage();
+    fireEvent.click(screen.getByRole("button", { name: /view your playbook/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/manager-profile/playbook");
+  });
+
+  it("shows a distinct card for an unexpected (non-409) failure", () => {
+    mocks.playbookQuery = {
+      ...mocks.playbookQuery,
+      isError: true,
+      error: new ApiError("Server error", { status: 500 }),
+    };
+    renderIntelligencePage();
+    expect(screen.getByText(/couldn't check your Manager Decoder status/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Take ManagerMatch first/i)).toBeNull();
   });
 });

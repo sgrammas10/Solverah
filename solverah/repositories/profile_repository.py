@@ -69,6 +69,7 @@ __all__ = [
     "load_document",
     "record_resume_corrections",
     "referenced_resume_keys",
+    "resume_corrections_for_user",
     "update_document",
     "user_ids_missing",
 ]
@@ -613,6 +614,20 @@ def record_resume_corrections(
             )
         written += 1
     return written
+
+
+def resume_corrections_for_user(user_id: int) -> List[ResumeParseCorrection]:
+    """Every resume-parser correction this user has saved, newest first.
+
+    BUILD_PLAN D-7b: ``corrected_value`` is what the user typed to fix a
+    parser-extracted field, so ``/me/export`` owes it the same way it owes any other
+    answer the user gave -- this is the query that closes that gap.
+    """
+    return (
+        ResumeParseCorrection.query.filter_by(user_id=user_id)
+        .order_by(ResumeParseCorrection.created_at.desc())
+        .all()
+    )
 
 
 def count_job_recommendations(user_id: int) -> int:

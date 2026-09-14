@@ -339,9 +339,17 @@ def intake_quiz_preview_insights():
 
     Same generation path as the authenticated endpoint; the result is returned
     and not stored.
+
+    Answers directly rather than through this module's `_respond`: that
+    helper is typed for `intake_service.IntakeResult` and reads
+    `result.issue_token` to decide whether to open a session.
+    `insight_service.generate_for_guest` returns a plain `InsightResult`
+    (status/body only, no session to open, matching
+    `intelligence.py`'s own `_respond` for the authenticated sibling route)
+    -- routing it through the session-aware helper raised an `AttributeError`
+    on every call (D-5, docs/BUILD_PLAN.md).
     """
-    return _respond(
-        insight_service.generate_for_guest(
-            request.get_json(silent=True) or {}, current_app.logger
-        )
+    result = insight_service.generate_for_guest(
+        request.get_json(silent=True) or {}, current_app.logger
     )
+    return jsonify(result.body), result.status

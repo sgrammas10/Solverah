@@ -91,6 +91,16 @@ describe("WorkPulsePage — form state", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers the trust page from the intro", () => {
+    // BUILD_PLAN D-3. The two lines above make claims; this is the link to the
+    // page that backs them. A reader who doubts the employer line should not
+    // have to go hunting through the hub for the explanation.
+    renderPage();
+    expect(
+      screen.getByRole("link", { name: /how this works, and what we hold back/i })
+    ).toHaveAttribute("href", "/trust");
+  });
+
   it("shows a loading state before the form arrives", () => {
     mocks.assessment.items = null;
     renderPage();
@@ -173,5 +183,38 @@ describe("WorkPulsePage — completion", () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: /back to dashboard/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/job-seeker/dashboard", { replace: true });
+  });
+
+  it("offers next-instrument CTAs and navigates to FocusType and ManagerMatch", () => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /start focustype/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/focus-type");
+
+    fireEvent.click(screen.getByRole("button", { name: /start managermatch/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/manager-match");
+  });
+
+  // ── The A-7 bridge, upgrading D-2's ──
+
+  it("bridges to the environment report as the primary next step", () => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
+    renderPage();
+
+    expect(
+      screen.getByText("24 questions about you. Now 15 about your job."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /describe your job/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/environment-report");
+  });
+
+  it("keeps the FocusType and ManagerMatch CTAs alongside it, not instead of it", () => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
+    renderPage();
+
+    expect(screen.getByRole("button", { name: /describe your job/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start focustype/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start managermatch/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /back to dashboard/i })).toBeInTheDocument();
   });
 });

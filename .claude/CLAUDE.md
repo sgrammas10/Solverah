@@ -50,6 +50,8 @@ frontend/         # React + TypeScript
 
 - Ask before big changes
 - If stuck: stop, re-plan, reach out early
+- User-facing wording: make a best guess and ship it. Julie owns final copy and revises
+  on the built product; never block a chunk on a copy read from Sebastian
 
 ## Testing
 
@@ -58,7 +60,8 @@ frontend/         # React + TypeScript
 - Test: happy path, errors, edge cases
 - Prefer real dependencies over mocks — only mock external services (APIs, databases)
 - Every bug fix must include a regression test that fails without the fix
-- Run the full test suite before marking any task complete
+- Run the full test suite ONCE, at the end, before marking any task complete. Do not
+  run a "baseline" pass first: HEAD's baseline is CI's result on that commit
 
 **A green local suite is not a green CI suite.** `app.py` calls `load_dotenv()`, so a
 developer with a populated `.env` gets `SOLVERAH_FORM_TOKEN_SECRET`, `OPENAI_API_KEY`,

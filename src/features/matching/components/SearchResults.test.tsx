@@ -114,13 +114,27 @@ describe("SearchResults - happy path", () => {
     expect(screen.queryByText("Senior React Developer")).toBeNull();
   });
 
-  it("shows all results when query is empty (returns all jobs)", async () => {
-    mocks.fetchWithAuth.mockResolvedValueOnce({ data: MOCK_JOBS, next_cursor: null });
+});
+
+// ─── empty query ──────────────────────────────────────────────────────────────
+
+describe("SearchResults - empty query", () => {
+  it("shows an invitation to search instead of querying when the query is empty", async () => {
     renderSearchResults("");
     await waitFor(() =>
-      expect(screen.getByText("Senior React Developer")).toBeInTheDocument()
+      expect(screen.getByText(/search for companies and roles/i)).toBeInTheDocument()
     );
-    expect(screen.getByText("Python Backend Engineer")).toBeInTheDocument();
+    expect(screen.queryByText(/no results found/i)).toBeNull();
+    expect(mocks.fetchWithAuth).not.toHaveBeenCalled();
+  });
+
+  it("shows an invitation to search instead of querying when the query is whitespace-only", async () => {
+    renderSearchResults("   ");
+    await waitFor(() =>
+      expect(screen.getByText(/search for companies and roles/i)).toBeInTheDocument()
+    );
+    expect(screen.queryByText(/no results found/i)).toBeNull();
+    expect(mocks.fetchWithAuth).not.toHaveBeenCalled();
   });
 });
 

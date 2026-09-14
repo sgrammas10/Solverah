@@ -21,7 +21,11 @@ from sqlalchemy import func
 from model import (
     IntakeSubmission,
     JobRecommendation,
+    PulseCheckin,
+    PulseEvent,
     ResumeParseCorrection,
+    ResumeParseJob,
+    ScoringJob,
     User,
     UserIntake,
     UserSession,
@@ -84,6 +88,34 @@ def delete_personal_rows(user_id: int, intakes: List[IntakeSubmission]) -> None:
     # tests/test_account_lifecycle.py -- and they are behind D-01's doorway,
     # which is exactly why the submission row it is joined to holds none of them.
     assessment_repository.delete_for_user(user_id)
+    # Pulse events (BUILD_PLAN B-1). `note` is short free text, and free text is never
+    # retained de-identified (D-7b ruling, 2026-09-11) -- so the row is destroyed here,
+    # the same as everything else in this function, and is not behind D-01's doorway the
+    # way the core assessment rows are.
+    #
+    # `pulse_checkins` does NOT appear in this function any more. Its `item_scores` and
+    # `experienced` columns are plain 1..5 integers -- no free text anywhere on the row
+    # -- so Sebastian's 2026-09-11 ruling keeps it out of the "must be destroyed" class
+    # and rides the tombstone instead, exactly like `environment_reports`: nothing to do
+    # here, which is the point of tombstoning instead of deleting (see
+    # `tombstone_user`/`solverah/services/account_service.py`'s module docstring).
+    PulseEvent.query.filter_by(user_id=user_id).delete()
+    # Resume-parser job receipts (SECURITY_AUDIT_2026-09 #7, closed D-7b). `resume_name`
+    # is often a person's own name and `object_key` locates their resume bytes; neither
+    # survived past `resume_jobs.purge_terminal`'s window before that fix, and even after
+    # it a fresh row could outlive a deleted account for up to `PURGE_DAYS`. Destroyed
+    # rather than retained -- a job receipt has no research value once resolved, unlike
+    # the append-only (D-16) tables above.
+    ResumeParseJob.query.filter_by(user_id=user_id).delete()
+    # Scoring job receipts (3b). `payload` holds submitted answers until the job goes
+    # terminal, and `result` -- narratives and archetypes for the three LLM-backed
+    # instruments, computed path suggestions for the fourth -- survives for
+    # `scoring_jobs.PURGE_DAYS` after that regardless of what happens to the account in
+    # between. Both are already destroyed elsewhere the moment they have a permanent
+    # home (`assessment_repository.delete_for_user` above); this row is a duplicate
+    # receipt with no reader once the account is gone, so it is destroyed rather than
+    # left to the purge sweep.
+    ScoringJob.query.filter_by(user_id=user_id).delete()
     # Refresh sessions (S3). Not personal *content* like everything above it,
     # but live credentials: `tombstone_user` frees the address by rewriting it
     # and every other route back into the account dies with the password -- a

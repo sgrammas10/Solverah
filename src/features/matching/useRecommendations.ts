@@ -22,7 +22,7 @@ export const recommendationKeys = {
   list: () => ["recommendations", "list"] as const,
 };
 
-export function useRecommendations() {
+export function useRecommendations(options?: { enabled?: boolean }) {
   const { fetchWithAuth } = useAuth();
 
   return useQuery({
@@ -34,5 +34,6 @@ export function useRecommendations() {
       );
       return res.data ?? [];
     },
+    enabled: options?.enabled ?? true,
   });
 }

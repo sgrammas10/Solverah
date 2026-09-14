@@ -1186,6 +1186,518 @@ class OutcomeExperienced(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Environment side -- the Situation Report instrument (BUILD_PLAN A-2)
+# ---------------------------------------------------------------------------
+# A self-report about the user's OWN job, not a company profile: there is no `company`
+# row behind it and no scraped/researched/declared source axis. That is the "inversion"
+# BUILD_PLAN's E-4 names -- training pairs for the causal model come from what the user
+# says about their own environment, keyed to their own user_id, the same key their
+# `person_dimension_score` rows already carry. So `environment_dimension_score` is
+# deliberately shaped like `person_dimension_score` (long-format rows, dimension_key a
+# plain validated-in-code string, no registry table -- schema.sql principle 1 and the
+# person-side precedent above) rather than like `company_dimension_score`: the join
+# E-4's assemble_training_data needs is (user_id, dimension_key, score) on both sides,
+# not a (company_id, source, as_of) resolution.
+#
+# APPEND-ONLY, D-16 tradition, and unlike `person_dimension_score`: every submission
+# writes a brand-new `environment_reports` row and a brand-new set of
+# `environment_dimension_score` rows. There is no "current" row per user to upsert --
+# person-side scoring upserts per (user, dimension, scoring_key_version) because there
+# is exactly one live score per key version, but here the history itself is the point:
+# Pulse trends and future training rows both read the full sequence of a user's reports,
+# not just the latest. Nothing in this module updates an existing row.
+#
+# D-15 pinning (⚑5 / PRODUCT_DECISIONS §2) is deliberately NOT implemented here. The
+# Situation Report pins to a named person-side snapshot, not to an environment report --
+# environment data is the side that is allowed to vary freely (PRODUCT_DECISIONS: "what
+# does vary freely is the environment side ... nobody has a reason to game"). Storage
+# that let one of these rows reference a person-side submission would put a pin where
+# the product decision says there must not be one; A-5 does the pinning, elsewhere, over
+# `person_dimension_score.submission_id`, which this table does not touch.
+ENV_DIMENSIONS = ("autonomy", "pace", "collaboration", "feedback", "innovation", "decision")
+
+#: `Profile.career_status`'s vocabulary (`backend/services/path_scoring.py`,
+#: `path_narrative.py`), snapshotted at submission time because A-1's needs-forward
+#: framing (BUILD_PLAN A-1) depends on which one was true the day the user described
+#: their job, not on whatever the profile says later.
+CAREER_STATUSES = ("employed", "between_jobs", "first_job")
+
+
+class EnvironmentReport(db.Model):
+    """One submission of the environment-side instrument. Append-only: id is not a person's
+    "current" report, it is one dated observation, and a resubmission (Pulse event-triggered
+    or otherwise) is always a new row, never an update to this one.
+
+    `raw_answers` holds the payload as sent (item key -> choice), the same shape
+    `assessment_submissions.answers` already uses for the app's other non-`core`
+    instruments. A JSONB blob rather than a normalized per-item table on purpose: these
+    items are not D-01-sensitive (A-1: "user describes a job, not themselves"), so none of
+    the token-map/re-derivation machinery `assessment_response` exists for applies, and
+    keeping the raw shape generic means A-1's item bank can land, and change, without a
+    migration here -- this table was built before A-1's item keys existed.
+    """
+
+    __tablename__ = "environment_reports"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True here: ix_environment_reports_user_submitted below already leads with
+    # user_id, so a separate single-column index would be redundant (assessment_submissions
+    # follows the same rule for the same reason).
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False)
+    submitted_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    raw_answers = db.Column(JSONB, nullable=False)
+    # 1 (seed) .. 5 (enterprise) -- schema.sql's `stage_size` confounder, unscaled.
+    stage_size = db.Column(db.SmallInteger, nullable=False)
+    # 1..5 MARKET-RELATIVE pay posture, NOT dollars -- schema.sql's `comp` confounder,
+    # redefined the same way on this side as on the company side. NULLable: the
+    # environment instrument's "not sure" option (PRODUCT_DECISIONS.md §2,
+    # "Environment-instrument rulings", 2026-09-10) stores a real "I don't know"
+    # rather than forcing a guess -- Finding 6's measurement error is non-random,
+    # so a forced 1..5 answer would under-report underpayment exactly where it
+    # is worst.
+    comp = db.Column(db.SmallInteger, nullable=True)
+    # "Overall, how well is this role working for you?" 1..5 -- the model's outcome node,
+    # same ordinal shape as `outcome_experienced.working_scale`.
+    experienced_outcome = db.Column(db.SmallInteger, nullable=False)
+    career_status = db.Column(db.Text, nullable=False)
+    #: ⚑6: optional, stored, displayed nowhere at launch -- the future company-aggregation
+    #: lane's join key, not a launch feature. Pre-normalized (lowercased/trimmed) by the
+    #: caller so a later aggregation query is a GROUP BY, not a fuzzy match.
+    employer_name_normalized = db.Column(db.Text, nullable=True)
+    #: Which item set produced `raw_answers` -- `assessment_response.form_version`'s role,
+    #: under the name BUILD_PLAN §3.2 gives this column.
+    version = db.Column(db.Text, nullable=False)
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "stage_size >= 1 AND stage_size <= 5", name="ck_envreport_stage_size_range"
+        ),
+        db.CheckConstraint(
+            "comp IS NULL OR (comp >= 1 AND comp <= 5)", name="ck_envreport_comp_range"
+        ),
+        db.CheckConstraint(
+            "experienced_outcome >= 1 AND experienced_outcome <= 5",
+            name="ck_envreport_experienced_outcome_range",
+        ),
+        db.CheckConstraint(
+            "career_status IN %s" % (CAREER_STATUSES,),
+            name="ck_envreport_career_status_vocab",
+        ),
+        db.Index(
+            "ix_environment_reports_user_submitted",
+            "user_id",
+            db.text("submitted_at DESC"),
+        ),
+    )
+
+    user = db.relationship("User", backref="environment_reports")
+
+
+class EnvironmentDimensionScore(db.Model):
+    """Derived 0..1 score for one environment report on one dimension. Long-format, mirroring
+    `person_dimension_score` so E-4's `assemble_training_data` reads both sides through the
+    same shape -- a JOIN on `user_id`/`dimension_key`, not a translation layer.
+
+    `user_id` is denormalized here rather than reached through `environment_report_id`
+    alone: `person_dimension_score` is queried by `user_id` directly, and giving this table
+    the same column lets a consumer write the identical query against either one.
+
+    No uniqueness on `(user_id, dimension_key)` -- deliberately unlike
+    `person_dimension_score`. Many historical reports per user must coexist, each
+    contributing its own six rows; only `(environment_report_id, dimension_key)` needs to
+    be unique, to stop one submission writing the same dimension twice.
+    """
+
+    __tablename__ = "environment_dimension_score"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    environment_report_id = db.Column(
+        db.BigInteger,
+        db.ForeignKey("environment_reports.id"),
+        nullable=False,
+        index=True,
+    )
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False, index=True)
+    dimension_key = db.Column(db.String(32), nullable=False)
+    score = db.Column(db.Float, nullable=False)
+    scored_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "environment_report_id", "dimension_key", name="uq_edscore_report_dim"
+        ),
+        db.CheckConstraint("score >= 0 AND score <= 1", name="ck_edscore_score_range"),
+    )
+
+    environment_report = db.relationship("EnvironmentReport", backref="dimension_scores")
+    user = db.relationship("User", backref="environment_dimension_scores")
+
+
+# ---------------------------------------------------------------------------
+# Manager Decoder: the observed-manager instrument's storage (BUILD_PLAN C-3)
+# ---------------------------------------------------------------------------
+# ⚑4 (PRODUCT_DECISIONS.md §2): one shared manager-profile store, built once here,
+# consumed by two features -- the Decoder's playbook (`manager_match/decoder.py`) today,
+# the Situation Report's manager section (workstream A) once it lands. Neither consumer
+# gets its own copy; a table named for the Decoder specifically would have made the
+# second consumer's landing look like a migration instead of a query.
+#
+# APPEND-ONLY, D-16 tradition, same shape as `EnvironmentReport`: `id` is not a person's
+# "current" sitting, it is one dated observation, and a retake is always a new row.
+# `manager_profile_store.latest_manager_profile` is what "current" means to every reader.
+
+
+class ManagerProfile(db.Model):
+    """One sitting of the manager-profile instrument (`manager_match/manager_profile.py`),
+    for one user, about their actual manager.
+
+    `answers` STORES AUTHORED OPTION IDENTITY, NOT SCREEN POSITION
+    -----------------------------------------------------------------
+    Sebastian's 2026-09-10 storage ruling: `answers[i]["choice"]` is `"a"` or `"b"` exactly
+    as `manager_match/manager_profile.py`'s `MANAGER_PROFILE_QUESTIONS` keys the option,
+    never which side of the screen it rendered on. Presentation order is a free frontend
+    choice forever precisely because storage never depends on it --
+    `score_manager_profile`'s own validation already enforces this shape (`choice` must be
+    `"a"` or `"b"`, looked up against the question's own `score_a`/`score_b`), so this
+    column is a direct persistence of what the scorer already required, not a second
+    encoding of it.
+
+    `scoring_key` IS A COLUMN, NOT A JSONB FIELD, AND THAT IS THE POINT
+    ---------------------------------------------------------------------
+    `manager_match/score.py`'s `SCORING_KEY` -- and the mm-q11 episode it documents -- is
+    why: a marker living inside an optional JSON blob can be silently absent from an old
+    row, and absence becomes indistinguishable from "scored under some earlier, unmarked
+    key". A NOT NULL column with no server default forces every write path to state it, so
+    a caller that forgets fails loudly at insert instead of leaving a row ambiguous.
+    """
+
+    __tablename__ = "manager_profiles"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True: ix_manager_profiles_user_created below already leads with user_id,
+    # the same reasoning EnvironmentReport's user_id column gives for skipping one.
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    #: The respondent's raw sitting -- see the class docstring's authored-identity rule.
+    answers = db.Column(JSONB, nullable=False)
+    #: {"autonomy": .., "feedback_style": .., "relationship": .., "growth_focus": ..} --
+    #: `score_manager_profile`'s own output, persisted unmodified.
+    dimension_scores = db.Column(JSONB, nullable=False)
+    #: Which scoring key produced `dimension_scores`. See the class docstring.
+    scoring_key = db.Column(db.Text, nullable=False)
+    #: Which item set produced `answers` -- `EnvironmentReport.version`'s role, under the
+    #: same name.
+    version = db.Column(db.Text, nullable=False)
+
+    __table_args__ = (
+        db.Index(
+            "ix_manager_profiles_user_created",
+            "user_id",
+            db.text("created_at DESC"),
+        ),
+    )
+
+    user = db.relationship("User", backref="manager_profiles")
+
+
+# ---------------------------------------------------------------------------
+# Situation Report: the D-15 pin (BUILD_PLAN A-4/A-5, ⚑5)
+# ---------------------------------------------------------------------------
+# PRODUCT_DECISIONS.md §2, "What a D-15-conforming Situation Report returns": each
+# report reads through a NAMED person-side snapshot -- the first completed `core`
+# sitting -- so a retake is not a watchable gradient. `PersonDimensionScore` upserts
+# in place per (user, dimension, scoring_key_version) (see its own docstring), so it
+# cannot hold that history itself; a retake would silently move every report that
+# read through it.
+#
+# The default pin needs no row here at all: "the first completed core sitting" is
+# `assessment_store.first_completed_core_submission_id`, a stable fact computed live
+# from the append-only `assessment_submissions`/`assessment_response` rows (adding a
+# LATER sitting never changes which one was first). This table exists only to hold
+# the EXPLICIT override an Enterprise "recalibrate" action writes -- absence means
+# "still pinned to the first sitting", not "unset".
+
+
+class SituationReportPin(db.Model):
+    """One user's explicit re-pin target, written only by
+    `POST /me/situation-report/recalibrate`.
+
+    Mutable, unlike `EnvironmentReport`/`ManagerProfile`'s append-only rows -- there is
+    exactly one active override per user, and moving it is a deliberate, explicit
+    action rather than a routine submission. The history of WHEN it moved lives in
+    `AuditLog` (`solverah.services.audit.log_audit_event`, action
+    `"situation_report_recalibrate"`), not in a second row here.
+
+    `submission_id` names an `assessment_submissions.public_id.hex` for a
+    `kind="core"` sitting. No foreign key: `PersonDimensionScore`/`AssessmentResponse`'s
+    own `submission_id` columns are plain strings for the same reason -- `public_id`
+    carries no unique index to reference, and reading through it stays behind
+    `assessment_store` (D-01) rather than behind a joinable key another table could
+    reach through.
+    """
+
+    __tablename__ = "situation_report_pins"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    user_id = db.Column(
+        db.BigInteger, db.ForeignKey("users.id"), nullable=False, unique=True
+    )
+    submission_id = db.Column(db.String(36), nullable=False)
+    pinned_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    user = db.relationship("User", backref=db.backref("situation_report_pin", uselist=False))
+
+
+# ---------------------------------------------------------------------------
+# The Pulse: recurring check-in storage (BUILD_PLAN B-1)
+# ---------------------------------------------------------------------------
+# `work_pulse/pulse_items.py` owns the item bank and the round-robin selection; these
+# two tables hold only what a submission or an event says, unmodified -- the same
+# division of labour as `EnvironmentReport`/`environment_report_store.py`. Both
+# APPEND-ONLY (D-16 tradition): a check-in is one dated observation and an event is one
+# dated fact, never an update to an earlier row -- history is the point, since B-3's
+# trend view and E-4's training rows both read across it.
+#
+# D-7 (BUILD_PLAN, added 2026-09-10): "any table added later joins /me/export and the
+# account-deletion flow the day it is created." `environment_reports` and
+# `manager_profiles` predate that rule and are its tracked gap (BUILD_PLAN D-7); these
+# two tables do not inherit it -- `solverah/services/account_service.py`'s
+# `export_account_data` reaches `pulse_checkins`/`pulse_events` from the same commit
+# that creates them, both exported unconditionally.
+#
+# D-7b (2026-09-11 ruling): the two tables do NOT share one deletion answer.
+# `pulse_checkins` carries no free text -- every column is a validated 1..5 integer --
+# so it rides the tombstone de-identified, same reconciliation as `environment_reports`
+# above; `account_repository.delete_personal_rows` does not touch it. `pulse_events.note`
+# is free text, and free text is never retained de-identified, so that table is destroyed
+# on deletion, same as before.
+
+#: `pulse_events.event_type`'s vocabulary -- BUILD_PLAN B-1. A plain CHECK-constrained
+#: string, same convention as `CAREER_STATUSES` above: validated in code and in the
+#: migration's own literal CHECK, not a DB enum type or a registry table.
+PULSE_EVENT_TYPES = ("new_manager", "reorg", "remote_change", "role_change", "other")
+
+#: `pulse_events.note`'s cap. "Short free text" (BUILD_PLAN B-1) -- long enough to name
+#: what happened, short enough that a check-in stays a 60-second interaction rather than
+#: growing a second form inside it.
+PULSE_EVENT_NOTE_MAX_LENGTH = 280
+
+
+class PulseCheckin(db.Model):
+    """One completed Pulse check-in: the three round-robin dimension scores
+    `work_pulse.pulse_items.dimensions_for_checkin` served plus the outcome item,
+    always asked. `item_scores` holds exactly the dimensions that sequence served --
+    never all five -- so a reader must not assume every key is present on every row;
+    `pulse_store.pulse_checkin_history` is what turns a run of these into a per-dimension
+    trend with gaps where a dimension wasn't asked that week.
+
+    No derived-score column anywhere, unlike `EnvironmentReport`/`EnvironmentDimensionScore`:
+    a Pulse answer already IS its own score (a plain 1..5), so there is nothing to
+    compute between the answer and what B-3's chart reads.
+
+    RETAINED, DE-IDENTIFIED, ON ACCOUNT DELETION (D-7b, 2026-09-11)
+    -----------------------------------------------------------------
+    No column on this table is free text, so `account_repository.delete_personal_rows`
+    does not touch it -- it rides the tombstone exactly like `EnvironmentReport`.
+    `PulseEvent` beside it makes the opposite call, because `note` is free text.
+    """
+
+    __tablename__ = "pulse_checkins"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True: ix_pulse_checkins_user_taken below already leads with user_id, the
+    # same reasoning EnvironmentReport's user_id column gives for skipping one.
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False)
+    taken_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    #: The round-robin sequence number this check-in was served under
+    #: (`pulse_items.dimensions_for_checkin`'s second argument). Persisted rather than
+    #: re-derived so `pulse_store.pulse_checkin_count`'s "how many has this user
+    #: completed" and "what sequence did THIS row serve" never have to agree by
+    #: recomputation -- the row states the fact it was written under.
+    sequence = db.Column(db.Integer, nullable=False)
+    #: {dimension_key: 1..5} for exactly the `pulse_items.ITEMS_PER_CHECKIN` dimensions
+    #: that sequence served. Keys are `pulse_items.DIMENSIONS` members, validated in
+    #: `pulse_store.write_pulse_checkin`, not by a DB-level JSONB schema check.
+    item_scores = db.Column(JSONB, nullable=False)
+    #: "This week, how well is work working for you?" -- `pulse_items.EXPERIENCED_ITEM`,
+    #: asked every check-in, never round-robin.
+    experienced = db.Column(db.SmallInteger, nullable=False)
+    #: Which item set produced this row -- `EnvironmentReport.version`'s role, under the
+    #: name this table's column uses (`pulse_items.FORM_VERSION`).
+    version = db.Column(db.Text, nullable=False)
+
+    __table_args__ = (
+        db.CheckConstraint("sequence >= 0", name="ck_pulsecheckin_sequence_nonneg"),
+        db.CheckConstraint(
+            "experienced >= 1 AND experienced <= 5", name="ck_pulsecheckin_experienced_range"
+        ),
+        db.Index(
+            "ix_pulse_checkins_user_taken",
+            "user_id",
+            db.text("taken_at DESC"),
+        ),
+    )
+
+    user = db.relationship("User", backref="pulse_checkins")
+
+
+class PulseEvent(db.Model):
+    """One logged life/work event a user attaches to their Pulse timeline (a manager
+    change, a reorg, going remote, a role change, or an unlisted "other"). Purely a
+    dated annotation -- B-4's wiring (`BUILD_PLAN` B-4) reads these to decide when an
+    environment-report resubmission should be prompted, and B-3's trend view plots them
+    on the same axis as check-ins. Nothing here scores anything.
+
+    DESTROYED, NOT RETAINED, ON ACCOUNT DELETION (D-7b, 2026-09-11)
+    -------------------------------------------------------------------
+    `note` is free text, and free text is never retained de-identified --
+    `account_repository.delete_personal_rows` destroys every row for the deleting
+    user. `PulseCheckin` beside it makes the opposite call: none of its columns are
+    free text, so it rides the tombstone instead.
+    """
+
+    __tablename__ = "pulse_events"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True: ix_pulse_events_user_at below already leads with user_id.
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False)
+    at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), nullable=False)
+    event_type = db.Column(db.Text, nullable=False)
+    #: Optional -- most event types are self-explanatory from `event_type` alone; `note`
+    #: exists for the "other" case and for anyone who wants to add context to a named one.
+    note = db.Column(db.Text, nullable=True)
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "event_type IN %s" % (PULSE_EVENT_TYPES,), name="ck_pulseevent_type_vocab"
+        ),
+        db.CheckConstraint(
+            "note IS NULL OR char_length(note) <= %d" % PULSE_EVENT_NOTE_MAX_LENGTH,
+            name="ck_pulseevent_note_length",
+        ),
+        db.Index(
+            "ix_pulse_events_user_at",
+            "user_id",
+            db.text("at DESC"),
+        ),
+    )
+
+    user = db.relationship("User", backref="pulse_events")
+
+
+# ---------------------------------------------------------------------------
+# Condition experiments (BUILD_PLAN B-5)
+# ---------------------------------------------------------------------------
+# ⚑2 (PRODUCT_DECISIONS.md §2, "The Pulse ships thin"): the designated cut line,
+# built after B-1..B-4 landed. One experiment is a user running a named two-week
+# change against one of `work_pulse.situation_content.GUIDANCE_CELLS`'s twelve
+# `change_in_place` cells; the readout reads Pulse `experienced` check-ins from
+# before and after (`work_pulse.experiments.compute_readout`). `register` is
+# always `"change_in_place"` today -- the other two registers (`negotiate`,
+# `rarely_moves`) describe a conversation or a ceiling, neither of which a
+# two-week window can measure -- but the column exists rather than a hard-coded
+# literal so a later register that IS runnable would not need a migration to be
+# experimented on.
+#
+# MUTABLE, unlike `EnvironmentReport`/`PulseCheckin`'s append-only rows -- a
+# running experiment's `status` moves to `abandoned` in place, the same shape
+# `SituationReportPin` mutates rather than appending. NO free text anywhere on
+# the row, so it rides the tombstone de-identified on account deletion exactly
+# like `pulse_checkins` (D-7b) -- see `solverah/services/account_service.py`.
+
+
+class Experiment(db.Model):
+    """One user's attempt at a named change-in-place cell, over a fixed two-week
+    window.
+
+    ONE ACTIVE EXPERIMENT PER USER, ENFORCED AT THE DATABASE
+    -----------------------------------------------------------------
+    `uq_experiments_one_active_per_user` below is a partial unique index on
+    `user_id` where `status = 'active'`, not merely a service-layer check
+    (`solverah.services.experiment_service` checks first and answers a `409`, but
+    the index is what makes a race lose rather than silently double-book). The
+    rule is a methodological one, not a UI nicety: a two-week change is
+    confounded by a second concurrent one, so only one may run at a time.
+
+    `ends_at` IS STORED, NOT COMPUTED
+    -----------------------------------------------------------------
+    `started_at + 14 days` at write time, not derived on read. A later change to
+    the window length must not silently move the end date of an experiment
+    already in flight.
+
+    `dimension`/`direction` NAME A CELL, NOT A FREE CHOICE
+    -----------------------------------------------------------------
+    Both are validated (`solverah.services.experiment_service`) against
+    `work_pulse.situation_content.GUIDANCE_CELLS` before a row is written: the
+    pair must be a real `change_in_place` cell, one of the twelve the gap engine
+    can actually diagnose. `direction` uses `work_pulse.situation`'s short
+    vocabulary (`under`/`over`) -- the same one `SituationDimensionReport.direction`
+    already puts on the wire -- rather than `situation_content`'s longer
+    `under_supplied`/`over_supplied`, so the report page can start an experiment
+    from the exact `{dimension, direction}` pair a `StrainDimensionEntry` already
+    carries, with no re-encoding.
+    """
+
+    __tablename__ = "experiments"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True: ix_experiments_user_created below already leads with user_id,
+    # the same reasoning EnvironmentReport's user_id column gives for skipping one.
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False)
+    dimension = db.Column(db.Text, nullable=False)
+    direction = db.Column(db.Text, nullable=False)
+    #: Always `"change_in_place"` today -- see the section docstring.
+    register = db.Column(db.Text, nullable=False)
+    started_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    #: `started_at` + the two-week window, stored at write time -- see the class
+    #: docstring's "ends_at is stored, not computed".
+    ends_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    status = db.Column(db.Text, nullable=False, default="active")
+    abandoned_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "dimension IN %s" % (ENV_DIMENSIONS,), name="ck_experiment_dimension_vocab"
+        ),
+        db.CheckConstraint(
+            "direction IN ('under', 'over')", name="ck_experiment_direction_vocab"
+        ),
+        db.CheckConstraint(
+            "register = 'change_in_place'", name="ck_experiment_register_vocab"
+        ),
+        db.CheckConstraint(
+            "status IN ('active', 'abandoned')", name="ck_experiment_status_vocab"
+        ),
+        db.CheckConstraint(
+            "(status = 'abandoned') = (abandoned_at IS NOT NULL)",
+            name="ck_experiment_abandoned_at_matches_status",
+        ),
+        db.Index("ix_experiments_user_created", "user_id", db.text("created_at DESC")),
+        db.Index(
+            "uq_experiments_one_active_per_user",
+            "user_id",
+            unique=True,
+            postgresql_where=db.text("status = 'active'"),
+        ),
+    )
+
+    user = db.relationship("User", backref="experiments")
+
+
+# ---------------------------------------------------------------------------
 # Phase 2a -- profile_data, decomposed (docs/ARCHITECTURE.md Part 4.3)
 # ---------------------------------------------------------------------------
 #

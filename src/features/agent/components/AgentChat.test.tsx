@@ -86,6 +86,10 @@ describe("AgentChat — sending a message", () => {
     await waitFor(() => {
       expect(screen.getByText("What should I study?")).toBeInTheDocument();
       expect(screen.getByText("Great question!")).toBeInTheDocument();
+      // handleSubmit's chunk loop awaits a real setTimeout between SSE parts;
+      // waiting for isLoading to clear (textarea re-enables) drains that before
+      // the test returns, so no dangling setState fires after teardown.
+      expect(textarea).not.toBeDisabled();
     });
   });
 
@@ -102,6 +106,10 @@ describe("AgentChat — sending a message", () => {
 
     await waitFor(() => {
       expect(textarea).toHaveValue("");
+      // input clears synchronously at the top of handleSubmit, so this alone
+      // would resolve before the SSE chunk loop's real setTimeout(s) finish;
+      // also wait for isLoading to clear so the test doesn't return early.
+      expect(textarea).not.toBeDisabled();
     });
   });
 
@@ -118,6 +126,9 @@ describe("AgentChat — sending a message", () => {
 
     await waitFor(() => {
       expect(mockStreamFetch).toHaveBeenCalledTimes(1);
+      // wait out the SSE chunk loop's real setTimeout(s) too, so this test
+      // doesn't return while handleSubmit is still mid-flight.
+      expect(textarea).not.toBeDisabled();
     });
   });
 
@@ -150,6 +161,14 @@ describe("AgentChat — loading state", () => {
     expect(screen.getByRole("button", { name: /send message/i })).toBeDisabled();
 
     await act(async () => { resolveStream(makeSseResponse(["Done"])); });
+
+    // Drain the SSE chunk loop's real setTimeout so handleSubmit's finally
+    // (setIsLoading(false)) runs before the test returns — otherwise it fires
+    // later against a torn-down test environment (unhandled "window is not
+    // defined" from React's scheduler in a subsequent test file).
+    await waitFor(() => {
+      expect(textarea).not.toBeDisabled();
+    });
   });
 
   it("hides loading dots and shows no error when clear chat is clicked mid-stream", async () => {

@@ -79,11 +79,102 @@ def _evict_expired_locked(now: float) -> None:
         del _resume_cache[key]
 
 
+def _focus_type_section(focus_type: dict) -> Optional[str]:
+    """FocusType context: archetype + recommendations. No dimension scores.
+
+    ``focus_type_result`` also carries ``dimension_scores`` (see
+    ``focus_type/score.py``), left out here deliberately -- the agent needs the
+    archetype and what to do about it, not a number to feed back to the user.
+    """
+    archetype = focus_type.get("archetype")
+    if not archetype:
+        return None
+
+    lines = [f"Archetype: {archetype}"]
+    recommendations = focus_type.get("recommendations")
+    if isinstance(recommendations, list) and recommendations:
+        lines.append(
+            "Recommendations:\n"
+            + "\n".join(f"- {r}" for r in recommendations if isinstance(r, str))
+        )
+    return "## FocusType\n" + "\n".join(lines)
+
+
+def _manager_match_section(manager_match: dict) -> Optional[str]:
+    """ManagerMatch context: archetype + a dimension summary.
+
+    These are management-style preference dimensions (autonomy, feedback style,
+    relationship, growth focus) from a 15-item forced-choice instrument -- not
+    `core`'s person-side work-style scores, which D-15 puts off-limits.
+    """
+    archetype = manager_match.get("archetype")
+    if not archetype:
+        return None
+
+    lines = [f"Archetype: {archetype}"]
+    dimension_scores = manager_match.get("dimension_scores")
+    if isinstance(dimension_scores, dict) and dimension_scores:
+        summary = ", ".join(
+            f"{dim}: {score:.2f}" if isinstance(score, (int, float)) else f"{dim}: {score}"
+            for dim, score in dimension_scores.items()
+        )
+        lines.append(f"Preference dimensions: {summary}")
+    return "## ManagerMatch\n" + "\n".join(lines)
+
+
+def _quiz_insights_section(quiz_insights: dict) -> Optional[str]:
+    """Quiz insights context: whatever AI-generated summaries exist today.
+
+    ``quizInsights`` is written by ``insight_service.generate_for_user`` only
+    when a user has actually generated an insight for a quiz group -- so most
+    users have none, some have one group, few have all. Two shapes exist per
+    group: ``careerQuizzes`` holds one entry per sub-quiz (plus underscore-
+    prefixed group metadata); every other group is a single flat document. Both
+    are handled generically here rather than by hard-coding group names, since
+    ``quizGroup`` is caller-supplied and not a closed set on the backend.
+
+    The flat shape is checked *first*, by looking for the group's own
+    ``summary`` key, rather than by checking for the absence of dict-valued
+    sub-entries. ``insight_service._single_group_store`` puts the model's
+    cross-quiz ``overallInsight`` on a flat group too, and that value is
+    itself a dict with no leading underscore -- checking sub-entries first
+    would misread it as one, and report the cross-quiz synthesis where the
+    quiz's own summary belongs (D-5, docs/BUILD_PLAN.md).
+    """
+    if not isinstance(quiz_insights, dict):
+        return None
+
+    lines = []
+    for group_key, group_data in quiz_insights.items():
+        if not isinstance(group_data, dict):
+            continue
+
+        flat_summary = group_data.get("summary")
+        if isinstance(flat_summary, str) and flat_summary:
+            lines.append(f"- {group_data.get('title') or group_key}: {flat_summary}")
+            continue
+
+        sub_entries = {
+            key: value
+            for key, value in group_data.items()
+            if not key.startswith("_") and isinstance(value, dict)
+        }
+        for entry in sub_entries.values():
+            summary = entry.get("summary")
+            if summary:
+                title = entry.get("title") or group_key
+                lines.append(f"- {title}: {summary}")
+
+    return "## Quiz Insights\n" + "\n".join(lines) if lines else None
+
+
 def build_agent_context(user: User, resume_text: str = "") -> str:
     """Assemble a RAG system prompt from the user's profile and company data."""
     parts = [
         "You are Solverah AI, a career assistant. Use the context below to give "
-        "personalized advice. Do not reveal raw context data verbatim."
+        "personalized advice. Do not reveal raw context data verbatim. Assessment "
+        "results below inform the advice you give -- they are not to be recited "
+        "back to the user as numbers, scores, or percentages."
     ]
 
     profile = profile_repository.load_document(user.id)
@@ -134,8 +225,25 @@ def build_agent_context(user: User, resume_text: str = "") -> str:
             company_lines.append(f"- {line}")
         parts.append("## Companies in Network\n" + "\n".join(company_lines))
 
-    # TODO: inject quiz results here once scoring is built
-    parts.append("## Quiz Results\n[Not yet available — coming soon]")
+    # FocusType and ManagerMatch results are explicitly allowed in agent context
+    # (PRODUCT_DECISIONS.md D-15). What is NEVER allowed here is `core`'s
+    # person-side dimension scores -- D-15 exists precisely so a retaker cannot
+    # use any surface, including this chat, to interrogate them. That is not a
+    # filter applied below: `profile_repository.load_document` never assembles
+    # `core`/`work_pulse` results into the document in the first place (only
+    # `focus_type_result` and `manager_match_result` are merged in), so there is
+    # nothing here to filter.
+    if focus_type := profile.get("focus_type_result"):
+        if section := _focus_type_section(focus_type):
+            parts.append(section)
+
+    if manager_match := profile.get("manager_match_result"):
+        if section := _manager_match_section(manager_match):
+            parts.append(section)
+
+    if quiz_insights := profile.get("quizInsights"):
+        if section := _quiz_insights_section(quiz_insights):
+            parts.append(section)
 
     if resume_text:
         # Resume text is USER-SUPPLIED, therefore attacker-controllable input

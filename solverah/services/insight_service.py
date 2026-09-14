@@ -136,7 +136,15 @@ def generate_for_guest(data: Dict[str, Any], logger) -> InsightResult:
         return error
 
     insights = payload.get("insights") if isinstance(payload, dict) else None
-    overall_summary = payload.get("overallSummary") if isinstance(payload, dict) else None
+    # `coerce_insight_payload` names this field `overallInsight` on both
+    # paths -- there is no `overallSummary` key on `payload` for this to have
+    # ever read, so it was always None. The guest response deliberately
+    # flattens the dict to just its `summary` text (D-5, docs/BUILD_PLAN.md):
+    # `GuestQuizInsights.tsx` types `overallSummary` as a plain string and
+    # renders it directly, unlike the authenticated page, which renders
+    # `overallInsight`'s keyTakeaways/nextSteps as a full dict too.
+    overall_insight = payload.get("overallInsight") if isinstance(payload, dict) else None
+    overall_summary = overall_insight.get("summary") if isinstance(overall_insight, dict) else None
 
     if not isinstance(insights, list):
         return _error(500, "Malformed insight response")

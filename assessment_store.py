@@ -57,10 +57,13 @@ import os
 from assessment_form import ScoredSubmission
 
 __all__ = [
+    "dimension_scores_for_submission",
     "export_person_side",
+    "first_completed_core_submission_id",
     "get_dimension_confidences",
     "get_dimension_scores",
     "has_completed_assessment",
+    "latest_completed_core_submission_id",
     "persist_submission",
     "respondent_id_for_user",
 ]
@@ -248,6 +251,82 @@ def get_dimension_confidences(user_id: int) -> dict[str, float | None] | None:
     if not rows:
         return None
     return {r.dimension_key: r.confidence for r in rows}
+
+
+def dimension_scores_for_submission(submission_id: str) -> dict[str, float] | None:
+    """Re-derive the six dimension scores for one identified `core` sitting, from its
+    raw responses -- independent of what `PersonDimensionScore` currently holds.
+
+    THE sanctioned read for BUILD_PLAN A-5's D-15 pin (⚑5): the Situation Report pins
+    to a NAMED sitting rather than "whatever is current", and `PersonDimensionScore`
+    is upserted per (user, dimension, scoring_key_version) -- a retake overwrites it
+    in place (see that model's docstring). `AssessmentResponse` rows are append-only
+    (D-16) and never touched by a retake, so re-deriving from the pinned submission's
+    own rows via `assessment_form.score_stored_choices` is the only way to read that
+    sitting's scores once a later retake has moved "current" on.
+
+    Returns None if `submission_id` names no responses -- an unknown or malformed
+    handle, never a partial score (D-07): a caller with a real pin always gets either
+    a complete six-dimension dict or an explicit absence to handle.
+    """
+    from model import AssessmentResponse
+
+    rows = AssessmentResponse.query.filter_by(submission_id=submission_id).all()
+    if not rows:
+        return None
+
+    from assessment_form import score_stored_choices
+
+    choices = {r.item_id: r.choice for r in rows}
+    return score_stored_choices(choices)
+
+
+def first_completed_core_submission_id(user_id: int) -> str | None:
+    """This user's earliest `core` sitting's `submission_id`, or None.
+
+    THE anchor for BUILD_PLAN A-5's D-15 pin (⚑5): "the first completed core
+    sitting" means this row, by `completed_at` ascending (`id` ascending as the
+    tiebreak two sittings in the same instant would otherwise leave ambiguous).
+    Stable by construction -- `core` sittings are append-only
+    (`assessment_repository`'s docstring), so a later retake can never change which
+    row was first.
+
+    Reads `AssessmentSubmission` rather than the gated person-side tables (it is not
+    on `tests/test_employer_visibility.py`'s allowlist because it does not need to
+    be: a `core` row's `result`/`answers` are null by a check constraint, so its
+    identity carries no answer or score). Kept behind this doorway anyway, alongside
+    `latest_completed_core_submission_id` below, because
+    `solverah/repositories/assessment_repository.py`'s own docstring is explicit that
+    nothing reads a `core` row through it -- everything a caller wants from a core
+    sitting stays behind `assessment_store`.
+    """
+    from model import AssessmentSubmission
+
+    row = (
+        AssessmentSubmission.query.filter_by(user_id=user_id, kind="core")
+        .order_by(AssessmentSubmission.completed_at.asc(), AssessmentSubmission.id.asc())
+        .first()
+    )
+    return row.public_id.hex if row is not None else None
+
+
+def latest_completed_core_submission_id(user_id: int) -> str | None:
+    """This user's most recent `core` sitting's `submission_id`, or None.
+
+    The "latest" half of BUILD_PLAN A-5's D-15 pin (⚑5): what an explicit
+    `POST /me/situation-report/recalibrate` re-pins to. Mirrors
+    `assessment_repository.current_submission`'s descending order, kept here rather
+    than there for the same reason `first_completed_core_submission_id` is -- see its
+    docstring.
+    """
+    from model import AssessmentSubmission
+
+    row = (
+        AssessmentSubmission.query.filter_by(user_id=user_id, kind="core")
+        .order_by(AssessmentSubmission.completed_at.desc(), AssessmentSubmission.id.desc())
+        .first()
+    )
+    return row.public_id.hex if row is not None else None
 
 
 def export_person_side(user_id: int) -> dict[str, list[dict]]:

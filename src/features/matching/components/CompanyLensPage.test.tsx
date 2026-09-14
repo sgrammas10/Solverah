@@ -144,30 +144,39 @@ describe("CompanyLensPage - happy path", () => {
   });
 });
 
-// ─── no-prefs state ────────────────────────────────────────────────────────────
+// ─── model-pending state ───────────────────────────────────────────────────────
 
-describe("CompanyLensPage - no-prefs state", () => {
-  it("shows 'Complete Work Pulse' CTA when culture preferences missing", async () => {
+describe("CompanyLensPage - model-pending state", () => {
+  // Renamed from "no-prefs state" 2026-09-08 (⚑3, BUILD_PLAN.md §0.2): the
+  // core→8-dim culture-preferences mapping this 400/409 reports is not being
+  // built, so the old "Complete Work Pulse to unlock CompanyLens™" copy blamed
+  // a user who had already finished it. Coming-soon copy replaces it; the
+  // detection (message substring) is unchanged.
+  it("shows coming-soon copy when culture preferences missing, with no gated language", async () => {
     // A 409 ApiError, as the server actually sends it: 4xx is not retryable,
-    // so the no-prefs screen appears without the query retrying into the
+    // so the model-pending screen appears without the query retrying into the
     // mock's exhausted (undefined) responses.
     mocks.fetchWithAuth
       .mockRejectedValueOnce(new ApiError("culture preferences not set", { status: 409 }))
       .mockRejectedValueOnce(new ApiError("culture preferences not set", { status: 409 }));
     renderCompanyLensPage();
     await waitFor(() =>
-      expect(screen.getByText(/Complete Work Pulse to unlock CompanyLens/i)).toBeInTheDocument()
+      expect(screen.getByText(/CompanyLens™ is coming soon/i)).toBeInTheDocument()
     );
+    expect(screen.queryByRole("button", { name: /start work pulse/i })).toBeNull();
+    // feature_tour.spec.ts classifies this route's body against these regexes;
+    // GATED must not fire alongside COMING-SOON.
+    expect(document.body.textContent).not.toMatch(/unlock|locked/i);
   });
 
-  it("navigates to /work-pulse when 'Start Work Pulse' clicked", async () => {
+  it("navigates to /intelligence when 'Back to Intelligence' clicked", async () => {
     mocks.fetchWithAuth
       .mockRejectedValueOnce(new ApiError("Work Pulse not completed", { status: 409 }))
       .mockRejectedValueOnce(new ApiError("Work Pulse not completed", { status: 409 }));
     renderCompanyLensPage();
-    await waitFor(() => screen.getByRole("button", { name: /start work pulse/i }));
-    fireEvent.click(screen.getByRole("button", { name: /start work pulse/i }));
-    expect(mocks.navigate).toHaveBeenCalledWith("/work-pulse");
+    await waitFor(() => screen.getByRole("button", { name: /back to intelligence/i }));
+    fireEvent.click(screen.getByRole("button", { name: /back to intelligence/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/intelligence");
   });
 });
 
