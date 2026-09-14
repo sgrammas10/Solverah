@@ -79,6 +79,8 @@ describe("ForgotPassword - error handling", () => {
   // (`3 per minute`) is what actually reaches it now, so `resolve` is used the
   // same way the fallback test below uses it: off the typed response map on
   // purpose, because that is where a 429 lives.
+  // findByText, not getByText: the mutation's error re-render is notified via
+  // notifyManager's setTimeout(0), so it can land after act() returns.
   it("shows server error message when response is not ok", async () => {
     server.use(
       mock("post", "/api/v1/auth/password/forgot").resolve(
@@ -87,7 +89,7 @@ describe("ForgotPassword - error handling", () => {
     );
     renderForgotPassword();
     await submitEmail();
-    expect(screen.getByText(/3 per 1 minute/i)).toBeInTheDocument();
+    expect(await screen.findByText(/3 per 1 minute/i)).toBeInTheDocument();
   });
 
   it("navigates to the code screen for an unknown address, like a known one", async () => {
@@ -116,7 +118,7 @@ describe("ForgotPassword - error handling", () => {
     );
     renderForgotPassword();
     await submitEmail();
-    expect(screen.getByText(/Something went wrong/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Something went wrong/i)).toBeInTheDocument();
   });
 
   it("shows network error message when the request fails outright", async () => {
@@ -128,7 +130,7 @@ describe("ForgotPassword - error handling", () => {
     );
     renderForgotPassword();
     await submitEmail();
-    expect(screen.getByText(/Network error/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Network error/i)).toBeInTheDocument();
   });
 });
 
