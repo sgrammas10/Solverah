@@ -31,6 +31,100 @@ security work, and produced a "nothing is deployed" reading that was false.
 
 ---
 
+## Deploy 2 — the launch delta (prepared 2026-09-14)
+
+**Deploy 1 happened.** PR #150 merged this branch into `main` on 2026-09-08
+(`origin/main` = `b2900fe`) and auto-deployed the same day. Everything §1–§4
+below verified is in production, including `20260906_scorer_run` — production's
+alembic head, confirmed 2026-09-14 with `flask db current` from a Render shell.
+The one data-touching migration in this runbook's history is therefore behind us.
+
+**What deploy 2 ships:** `BUILD_PLAN.md` workstreams A (Situation Report), B
+(Pulse + condition experiments), C (Manager Decoder) and D (small moves +
+dashboard reframe) — 34 commits ahead of `origin/main` at `d1d4f2c`, all on the
+request path. This is a product deploy, not a plumbing deploy; the post-deploy
+checks are page loads, not just a boot log.
+
+### Gate
+
+**CI green on the final branch commit.** `.github/workflows/tests.yml` runs
+type-check, Vitest, the production build, `npm run size`, `npm audit`, the
+backend suite on Postgres 18, and `flask db upgrade` from empty with a
+single-head assertion — on every push to the branch. Two checks CI does not run
+were done by hand on 2026-09-14 at `d1d4f2c`'s tree: `size-limit` (entry JS
+96.08 / 99 kB, CSS 9.1 / 9.5 kB gzipped — **0.4 kB of CSS headroom; the next
+novel utility class may tip it**) and `pip-audit` (no known vulnerabilities).
+
+Watch the CI run on `d1d4f2c` for three tests the B-5 agent reported as
+pre-existing flakes under load (`test_two_simultaneous_refreshes_of_one_token…`,
+`test_lite_lite_result_returns_insight_and_locked_sections`,
+`test_biweekly_is_honored`). Green in CI means they were lane-DB contention.
+Red on any of them is a fix before merging — a flaky gate is no gate.
+
+### Migrations — five, all new tables, in this order
+
+| Revision | Adds | Touches existing data? |
+|---|---|---|
+| `20260910_environment_reports` | `environment_reports` + long-format dimension scores | no |
+| `20260910_manager_profiles` | `manager_profiles` | no |
+| `20260910_situation_report_pins` | `situation_report_pins` | no |
+| `20260911_pulse_checkins` | `pulse_checkins`, `pulse_events` | no |
+| `20260914_experiments` | `experiments` (partial unique index, five CHECK constraints) | no |
+
+Expect the pre-deploy log to apply **exactly five**, from `20260906_scorer_run`.
+More or fewer means production was not where it was measured — stop and look.
+
+### Render, already done (2026-09-14)
+
+- `APP_BASE_URL=https://solverah.com` set in the **`solverah-prod` env group**
+  (not on the web service — the pulse cron builds the email deep link from it
+  and never sees service-level variables). The group change redeployed the web
+  service and both crons; all booted clean on the legacy code.
+- `solverah-backups` cron created (Docker runtime, `infra/docker/Dockerfile.backup`,
+  `30 3 * * *`, own R2 bucket + bucket-scoped token). First manual run: 267 KB
+  dump, verified, uploaded, exit 0. All three Scenario A crons now run.
+- `DATABASE_URL`, `REDIS_URL`, `CELERY_TASK_ALWAYS_EAGER`, `SOLVERAH_FORM_TOKEN_SECRET`,
+  `SENTRY_DSN` confirmed present in the group. Vercel `VITE_API_URL` confirmed.
+
+### Merge
+
+```bash
+git status                        # clean
+git fetch origin
+git merge origin/main             # expect: already up to date, or trivial
+# CI green on the resulting commit, then open the PR and merge it.
+```
+
+### Watch, in this order
+
+1. **Pre-deploy log** — five migrations, `scorer_run → … → experiments`.
+2. **Boot log** — clean start, no `ConfigError`. One expected warning:
+   "queued work runs inline" (eager Celery, the chosen posture).
+3. **mm-q11 rescore backfill** — §4 step 3 below, unchanged: run it twice from
+   a Render shell; the second run must report `rescored=0`.
+4. **Create the pulse cron** — `flask pulse send-prompts`, native Python runtime
+   (no `pg_dump`, so no Docker), daily, linked to `solverah-prod`. The command
+   decides who is due; without the cron no prompt email ever sends, silently.
+5. **Page loads on the live site**, signed in: `/job-seeker/dashboard` (the
+   reframed page with the Situation Report card), `/situation-report`,
+   `/environment-report`, `/pulse`, `/pulse/trend`, `/manager-profile`, `/trust`.
+   Then one real Pulse check-in end to end.
+
+### Rollback
+
+Five additive tables — code and schema rollback are separable, and only the
+first should ever be needed: redeploy the previous `main` commit from the Render
+dashboard; the new tables sit unused. See `RUNBOOK_DATABASE_ROLLBACK.md` only if
+a migration itself is the fault.
+
+---
+
+*Everything below this line is the deploy-1 runbook, kept as the record of
+what was verified and why. Where it conflicts with the section above, the
+section above is current.*
+
+---
+
 ## 1. What was verified, 2026-09-08
 
 Run at CI parity from the repo root — `SOLVERAH_IGNORE_DOTENV=1`, no `.env`, and
@@ -337,20 +431,19 @@ the deploy — there is no further confirmation step after it.
    a retry.
 4. **A normal page load** — enough to confirm the service is serving.
 
-**Added since this runbook's verification (accumulated 2026-09-11):**
+**Added since this runbook's verification (accumulated 2026-09-11; resolved
+into the "Deploy 2" section at the top on 2026-09-14):**
 
-- Step 1's "exactly one migration" expectation is stale — the branch has since
-  gained `20260910_manager_profiles`, `20260910_situation_report_pins` and
-  `20260911_pulse_checkins`. Re-measure production's alembic head on deploy
-  day (§3a) and expect the pre-deploy to apply the whole delta.
+- Step 1's "exactly one migration" expectation belonged to deploy 1, which
+  shipped. Deploy 2 applies five, listed at the top.
 - **New cron to configure in Render:** `flask pulse send-prompts` — the Pulse
   cadence engine (B-2), same Scenario A cron pattern as the outbox/backups
   jobs; daily is the right schedule (the command itself decides who is due).
   Without it no pulse prompt email ever sends — silent, non-fatal, easy to
-  miss.
-- **New env var on the API service:** `APP_BASE_URL` — the pulse email's
-  deep link builds from it (defaults to `https://solverah.com`; set it
-  explicitly rather than relying on the default).
+  miss. Create it AFTER the merge: the command does not exist on the current
+  `main`.
+- **New env var:** `APP_BASE_URL` — the pulse email's deep link builds from it.
+  Set 2026-09-14 in the `solverah-prod` group, where the cron can see it.
 
 **This deploy does not touch auth.** The refresh-token work
 (`20260903_user_sessions`) and the rest of S1–S3 shipped on 2026-09-03 and have

@@ -68,13 +68,17 @@ ran — no separate landing commits were needed for this section._
 
 ### 0.4 · External gates (not engineering, tracked so nothing pretends otherwise)
 
-- **Julie:** priors form built + verified, awaiting send. Everything in §5
-  behind the "priors gate" waits on her returned form. Async-only — see §5.1.
+- **Julie:** priors form sent 2026-09-06; she answered the anchors_v3 memo
+  from the same email instead (rulings in
+  `Solverah_IP/ANCHORS_V3_JULIE_RESPONSE_2026-09-14.md`) and was re-asked for
+  the form only on 2026-09-14. Everything in §5 behind the "priors gate"
+  waits on her returned form. Async-only — see §5.1.
 - **Launch/publicity gate:** entity + attorney (`[ENTITY NAME]`
   placeholders, dispute resolution). Real calendar lead time; §7's launch
   tiers are all hostage to it, so it should start now, in parallel.
-- **Redis:** `REDIS_URL` must be set in Render before the next main merge
-  (memory:// is FATAL in prod since S1).
+  _Unstarted as of 2026-09-14._
+- **Redis:** _done 2026-09-08_ — `REDIS_URL` + `CELERY_TASK_ALWAYS_EAGER`
+  set, in production since deploy 1 (PR #150).
 
 ---
 
