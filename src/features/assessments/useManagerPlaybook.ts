@@ -20,6 +20,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "../auth";
+import { ApiError } from "../../shared/api/apiError";
 
 /** One dimension of the diff (`manager_match.decoder.DimensionVerdict` + content). */
 export interface ManagerPlaybookDimensionEntry {
@@ -74,4 +75,15 @@ export function useManagerPlaybook(options: { enabled?: boolean } = {}) {
     queryFn: () => fetchWithAuth<ManagerPlaybookData>("/me/manager-playbook", { method: "GET" }),
     enabled: options.enabled ?? true,
   });
+}
+
+/** True when `error` is the 409 this endpoint returns before any ManagerMatch sitting. */
+export function isNoManagerMatch(error: unknown): boolean {
+  return error instanceof ApiError && error.errorFor("manager_match")?.code === "no_manager_match";
+}
+
+/** True when `error` is the 409 this endpoint returns when ManagerMatch is
+ *  done but no manager-profile is sitting yet. */
+export function isNoManagerProfile(error: unknown): boolean {
+  return error instanceof ApiError && error.errorFor("manager_profile")?.code === "no_manager_profile";
 }
