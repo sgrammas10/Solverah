@@ -60,8 +60,12 @@ import type {
   AlignedDimensionEntry,
   SituationDimensionEntry,
   SituationManagerSection,
+  SituationReportEventSinceReport,
   StrainDimensionEntry,
 } from "../useSituationReport";
+import { usePulseHistory } from "../usePulse";
+import type { PulseEventType } from "../usePulse";
+import PulseSparkline from "./PulseSparkline";
 
 const DIMENSION_LABELS: Record<string, string> = {
   autonomy: "Autonomy",
@@ -150,6 +154,90 @@ function FocusStrip({ dimensions }: { dimensions: SituationDimensionEntry[] }) {
           </li>
         ))}
       </ol>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Resubmission prompt (BUILD_PLAN B-4). An offer, never a nag: it says
+// nothing when `events_since_report` is empty, and there is no dismiss state
+// to track, because resubmitting the environment report is what actually
+// clears it -- the new report's `submitted_at` moves past every event that
+// prompted this banner. `events[0]` is the newest (the server orders newest
+// first), so a mixed batch of event types is worded off the most recent one.
+// ---------------------------------------------------------------------------
+
+const RESUBMISSION_LEAD: Record<PulseEventType, string> = {
+  new_manager: "You logged a new manager since this report",
+  reorg: "Your team went through a reorg since this report",
+  remote_change: "Where you work changed since this report",
+  role_change: "Your role changed since this report",
+  // `other` has no sensible specific wording -- this is the generic line.
+  other: "Something about this job has changed since this report",
+};
+
+function ResubmissionBanner({ events }: { events: SituationReportEventSinceReport[] }) {
+  if (events.length === 0) return null;
+  const lead = RESUBMISSION_LEAD[events[0].type] ?? RESUBMISSION_LEAD.other;
+
+  return (
+    <section className="rounded-xl border border-forest-light bg-forest-pale px-5 py-4 space-y-2">
+      <p className="text-sm text-forest-dark leading-relaxed">
+        {lead} — does your Situation Report still describe this job?
+      </p>
+      <Link
+        to="/environment-report"
+        className="inline-block text-sm font-semibold text-forest-dark hover:underline"
+      >
+        Describe it again →
+      </Link>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The experienced trend, beside the diagnosis (BUILD_PLAN B-4). Sourced from
+// the same `usePulseHistory` hook B-3's trend view uses -- no situation-report
+// payload field for this, since the raw check-ins already reached the wire
+// there. Degrades exactly as B-3's own experienced line does: nothing at zero
+// check-ins but a one-line invitation, a single dot at one, the line from two.
+// ---------------------------------------------------------------------------
+
+function ExperiencedTrendSection() {
+  const { data, isLoading } = usePulseHistory();
+
+  if (isLoading) return null;
+
+  const checkins = data?.checkins ?? [];
+
+  if (checkins.length === 0) {
+    return (
+      <section className="rounded-xl border border-cream-muted bg-white px-5 py-4">
+        <p className="text-sm text-ink-secondary leading-relaxed">
+          You haven't checked in on Pulse yet.{" "}
+          <Link to="/pulse" className="font-semibold text-forest-dark hover:underline">
+            Check in →
+          </Link>
+        </p>
+      </section>
+    );
+  }
+
+  // Newest first off the wire; the chart wants ascending (oldest first, left to right).
+  const points = [...checkins].reverse().map((c) => ({ date: c.taken_at ?? "", value: c.experienced }));
+
+  return (
+    <section className="rounded-xl border border-cream-muted bg-white px-5 py-4 space-y-2">
+      <SectionHeading>How work's been working for you</SectionHeading>
+      <PulseSparkline ariaLabel="How work's working for you, over time" points={points} compact />
+      {points.length === 1 && (
+        <p className="text-xs text-ink-tertiary">
+          One check-in so far — the line fills in as you add more.
+        </p>
+      )}
+      <Link to="/pulse/trend" className="inline-block text-xs font-semibold text-forest-dark hover:underline">
+        See your full trend →
+      </Link>
     </section>
   );
 }
@@ -672,7 +760,11 @@ export default function SituationReportPage() {
           )}
         </header>
 
+        <ResubmissionBanner events={report.events_since_report} />
+
         {report.dimensions.length > 0 && <FocusStrip dimensions={report.dimensions} />}
+
+        <ExperiencedTrendSection />
 
         {report.dimensions.length === 0 ? (
           <section className="rounded-xl border border-forest-light bg-forest-pale px-6 py-5">

@@ -133,11 +133,15 @@ ran — no separate landing commits were needed for this section._
 
 ### D-6 · Dashboard reframe (M) — LAST, after A + B exist
 
-- [ ] "Here's your job search overview" + Job Matches / Applications stats +
+- [x] "Here's your job search overview" + Job Matches / Applications stats +
   Browse Jobs modal → working-life frame: current conditions summary
   (Situation Report card), this week's pulse, next suggested action
-- [ ] Keep Edit Profile; quiz/instrument quick action stays
-- [ ] This chunk *embodies* the §1 decision — sequence strictly after chunk 0
+  _(Landed 2026-09-14: `SituationDashboardCard` leads, one next action derived
+  from report state via `nextActionFor()`, no digits in the complete state;
+  `/search` demoted to a plain link below the fold; `/me/dashboard` query
+  retained for the intake modal and grid cards.)_
+- [x] Keep Edit Profile; quiz/instrument quick action stays
+- [x] This chunk *embodies* the §1 decision — sequence strictly after chunk 0
   records it and A/B give it content to show
 
 ### D-7 · Export/delete catch-up for the new user-data tables (S–M) — before launch

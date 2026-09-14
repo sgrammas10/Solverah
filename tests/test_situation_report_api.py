@@ -450,6 +450,127 @@ def test_comp_not_sure_round_trips_as_null(client, monkeypatch):
         assert stored["comp"] is None
 
 
+# ── Pulse-event resubmission prompt (BUILD_PLAN B-4) ─────────────────────────
+
+
+def _log_pulse_event(client, csrf, event_type="new_manager", note=None):
+    body = {"event_type": event_type}
+    if note is not None:
+        body["note"] = note
+    resp = client.post(
+        "/api/v1/me/pulse/events", json=body, headers={"X-CSRF-TOKEN": csrf}
+    )
+    assert resp.status_code == 200, resp.get_json()
+    return resp.get_json()
+
+
+def _backdate_latest_environment_report(email, minutes=60):
+    """Push the latest environment report's `submitted_at` into the past, so a
+    Pulse event logged afterward with the real clock is unambiguously newer --
+    without this, two requests close enough together in a fast test run could
+    land within the same timestamp precision and make the ordering a coin flip
+    rather than a fact about the code under test."""
+    import datetime as dt
+
+    from app import app
+    from model import EnvironmentReport, User, db
+
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        report = (
+            EnvironmentReport.query.filter_by(user_id=user.id)
+            .order_by(EnvironmentReport.submitted_at.desc(), EnvironmentReport.id.desc())
+            .first()
+        )
+        report.submitted_at = report.submitted_at - dt.timedelta(minutes=minutes)
+        db.session.commit()
+
+
+def _setup_complete_report(client, csrf, email):
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+    _submit_env(client, csrf, pole="mixed")
+
+
+def test_events_since_report_is_empty_with_nothing_logged(client, monkeypatch):
+    email = "b4_no_events@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _setup_complete_report(client, csrf, email)
+
+    body = _get_report(client).get_json()
+
+    assert body["state"] == "complete"
+    assert body["events_since_report"] == []
+
+
+def test_events_since_report_excludes_events_logged_before_submission(client, monkeypatch):
+    email = "b4_events_before@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+    # Logged, then the environment report is submitted afterward -- this event
+    # is history the report already accounts for, not a reason to resurface it.
+    _log_pulse_event(client, csrf, event_type="new_manager")
+    _submit_env(client, csrf, pole="mixed")
+
+    body = _get_report(client).get_json()
+
+    assert body["state"] == "complete"
+    assert body["events_since_report"] == []
+
+
+def test_events_since_report_includes_events_logged_after_submission(client, monkeypatch):
+    email = "b4_events_after@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _setup_complete_report(client, csrf, email)
+    _backdate_latest_environment_report(email)
+
+    logged = _log_pulse_event(client, csrf, event_type="new_manager")
+
+    body = _get_report(client).get_json()
+
+    assert body["state"] == "complete"
+    assert body["events_since_report"] == [
+        {"type": "new_manager", "date": logged["at"]}
+    ]
+
+
+def test_events_since_report_orders_newest_first(client, monkeypatch):
+    email = "b4_events_order@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _setup_complete_report(client, csrf, email)
+    _backdate_latest_environment_report(email)
+
+    first = _log_pulse_event(client, csrf, event_type="reorg")
+    second = _log_pulse_event(client, csrf, event_type="new_manager")
+
+    body = _get_report(client).get_json()
+
+    assert body["events_since_report"] == [
+        {"type": "new_manager", "date": second["at"]},
+        {"type": "reorg", "date": first["at"]},
+    ]
+
+
+def test_events_since_report_never_carries_note_text(client, monkeypatch):
+    email = "b4_no_note_leak@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _setup_complete_report(client, csrf, email)
+    _backdate_latest_environment_report(email)
+
+    secret_note = "a private detail only this user typed"
+    _log_pulse_event(client, csrf, event_type="other", note=secret_note)
+
+    resp = _get_report(client)
+    body = resp.get_json()
+
+    assert body["events_since_report"] == [
+        {"type": "other", "date": body["events_since_report"][0]["date"]}
+    ]
+    assert set(body["events_since_report"][0]) == {"type", "date"}
+    assert secret_note not in resp.get_data(as_text=True)
+
+
 # ── Malformed answers ─────────────────────────────────────────────────────
 
 

@@ -497,7 +497,10 @@ def post_my_environment_report():
         "snapshot (⚑5) -- a core retake with no explicit "
         "`POST /me/situation-report/recalibrate` leaves this response byte-identical. "
         "`manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the "
-        "Manager Decoder."
+        "Manager Decoder. `complete` additionally carries `events_since_report` "
+        "(BUILD_PLAN B-4): Pulse life/work events logged after the environment "
+        "report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- "
+        "what the frontend's resubmission banner reads."
     ),
 )
 @me_bp.route("/me/situation-report", methods=["GET"])

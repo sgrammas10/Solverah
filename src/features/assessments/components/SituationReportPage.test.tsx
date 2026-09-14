@@ -60,13 +60,20 @@ function renderPage() {
   );
 }
 
-/** Serve the report, and whatever the recalibrate button asks for after it. */
-function serve(report: unknown, recalibrate?: () => Promise<unknown>) {
+/** Serve the report, whatever the recalibrate button asks for after it, and
+ *  the Pulse history the experienced-trend section reads -- zero check-ins by
+ *  default, since most of these tests have nothing to do with that section. */
+function serve(
+  report: unknown,
+  recalibrate?: () => Promise<unknown>,
+  pulseHistory: unknown = { checkins: [], events: [] },
+) {
   mocks.fetchWithAuth.mockImplementation((path: string) => {
     if (path === "/me/situation-report") return Promise.resolve(report);
     if (path === "/me/situation-report/recalibrate") {
       return recalibrate ? recalibrate() : Promise.resolve({ recalibrated: false });
     }
+    if (path === "/me/pulse/history") return Promise.resolve(pulseHistory);
     return Promise.reject(new Error(`unexpected path ${path}`));
   });
 }
@@ -144,6 +151,7 @@ const COMPLETE: SituationComplete = {
   needs_forward: false,
   dimensions: [STRAINING_AUTONOMY, NOTABLE_FEEDBACK, ALIGNED_PACE],
   guidance_notice: GUIDANCE_NOTICE,
+  events_since_report: [],
 };
 
 /** The needs-forward slice of the autonomy row, written out in full rather
@@ -182,6 +190,7 @@ const COMPLETE_NEEDS_FORWARD: SituationComplete = {
   needs_forward: true,
   dimensions: [NEEDS_FORWARD_AUTONOMY],
   guidance_notice: GUIDANCE_NOTICE,
+  events_since_report: [],
 };
 
 /** No digit from `env_score` or `rank` may appear anywhere on the page. */
@@ -452,6 +461,145 @@ describe("SituationReportPage", () => {
       const strip = heading.closest("section");
       const chips = within(strip as HTMLElement).getAllByRole("listitem");
       expect(chips.map((chip) => chip.textContent)).toEqual(["Autonomy — Straining"]);
+    });
+  });
+
+  describe("resubmission banner (BUILD_PLAN B-4)", () => {
+    it("says nothing when no events landed since the report", async () => {
+      serve(COMPLETE);
+      renderPage();
+
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expect(screen.queryByText(/still describe this job/)).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: /Describe it again/ })).not.toBeInTheDocument();
+    });
+
+    it("uses new_manager's specific wording and links to the environment form", async () => {
+      serve({
+        ...COMPLETE,
+        events_since_report: [{ type: "new_manager", date: "2026-09-12T00:00:00Z" }],
+      });
+      renderPage();
+
+      expect(
+        await screen.findByText(
+          "You logged a new manager since this report — does your Situation Report still describe this job?",
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /Describe it again/ })).toHaveAttribute(
+        "href",
+        "/environment-report",
+      );
+    });
+
+    it.each([
+      ["reorg", "Your team went through a reorg since this report"],
+      ["remote_change", "Where you work changed since this report"],
+      ["role_change", "Your role changed since this report"],
+    ] as const)("uses %s's specific wording", async (eventType, lead) => {
+      serve({
+        ...COMPLETE,
+        events_since_report: [{ type: eventType, date: "2026-09-12T00:00:00Z" }],
+      });
+      renderPage();
+
+      expect(await screen.findByText(new RegExp(lead))).toBeInTheDocument();
+    });
+
+    it("falls back to the generic line for 'other', which has no sensible specific wording", async () => {
+      serve({
+        ...COMPLETE,
+        events_since_report: [{ type: "other", date: "2026-09-12T00:00:00Z" }],
+      });
+      renderPage();
+
+      expect(
+        await screen.findByText(/Something about this job has changed since this report/),
+      ).toBeInTheDocument();
+    });
+
+    it("words the banner off the most recent event when more than one landed", async () => {
+      serve({
+        ...COMPLETE,
+        events_since_report: [
+          { type: "role_change", date: "2026-09-13T00:00:00Z" },
+          { type: "new_manager", date: "2026-09-10T00:00:00Z" },
+        ],
+      });
+      renderPage();
+
+      expect(
+        await screen.findByText(/Your role changed since this report/),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/new manager/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("experienced trend (BUILD_PLAN B-4)", () => {
+    it("invites a user with no check-ins to Pulse, rather than showing an empty chart", async () => {
+      serve(COMPLETE, undefined, { checkins: [], events: [] });
+      renderPage();
+
+      expect(
+        await screen.findByText(/You haven't checked in on Pulse yet/),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /Check in/ })).toHaveAttribute("href", "/pulse");
+      // No trend link when there is nothing to see a trend of.
+      expect(screen.queryByRole("link", { name: /See your full trend/ })).not.toBeInTheDocument();
+    });
+
+    it("degrades to a single point with the honest one-checkin caption", async () => {
+      serve(COMPLETE, undefined, {
+        checkins: [
+          {
+            id: 1,
+            taken_at: "2026-09-10T00:00:00Z",
+            sequence: 0,
+            item_scores: { fragmentation: 3 },
+            experienced: 4,
+            version: "v1",
+          },
+        ],
+        events: [],
+      });
+      renderPage();
+
+      expect(
+        await screen.findByText(/One check-in so far — the line fills in as you add more/),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /See your full trend/ })).toHaveAttribute(
+        "href",
+        "/pulse/trend",
+      );
+    });
+
+    it("draws the line at two or more check-ins, with no one-point caption", async () => {
+      serve(COMPLETE, undefined, {
+        checkins: [
+          {
+            id: 2,
+            taken_at: "2026-09-12T00:00:00Z",
+            sequence: 1,
+            item_scores: { fragmentation: 4 },
+            experienced: 3,
+            version: "v1",
+          },
+          {
+            id: 1,
+            taken_at: "2026-09-05T00:00:00Z",
+            sequence: 0,
+            item_scores: { fragmentation: 3 },
+            experienced: 4,
+            version: "v1",
+          },
+        ],
+        events: [],
+      });
+      renderPage();
+
+      const link = await screen.findByRole("link", { name: /See your full trend/ });
+      expect(link).toHaveAttribute("href", "/pulse/trend");
+      expect(screen.queryByText(/One check-in so far/)).not.toBeInTheDocument();
     });
   });
 

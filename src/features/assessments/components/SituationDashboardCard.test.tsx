@@ -85,6 +85,7 @@ const COMPLETE: SituationComplete = {
   career_status: "employed",
   needs_forward: false,
   guidance_notice: "Notice",
+  events_since_report: [],
   dimensions: [
     strain("autonomy", "straining", 1, 0.17),
     strain("feedback", "notable", 2, 0.42),

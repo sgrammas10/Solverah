@@ -113,6 +113,18 @@ this chunk, nested inside the `profile` key the mm-q11 paragraph above describes
 -- this chunk closes the narrower gap of the raw submitted `answers`, which
 reached neither `export` nor `profile` before now.
 
+**Re-baselined for BUILD_PLAN B-4 (2026-09-14).** The fifth deliberate contract
+change. No route changed and no step was removed -- `get_situation_report`'s
+`complete` state grew one additive key, `events_since_report` (a list of
+`{'type', 'date'}`, never a `note`), so `situation-report-complete` above now
+carries an empty list on top of its previous keys, and every other step is
+untouched. Verified before the recapture, on the standing baseline: 1
+difference, purely that addition. One step is new -- `pulse-event` above
+already logs a `new_manager` event for EMAIL *after* `submit-environment-report`,
+so `situation-report-after-pulse-event` is what captures `events_since_report`
+non-empty for the first time, appended at the very end so the 89 records above
+it keep their positions.
+
 **The LLM is stubbed, and the prompt builders with it.** Three instruments call a
 provider; a fixture that depended on one could not produce stable bytes, and the
 narrative text is the whole payload for two of them. `_chat_json` is replaced by a
@@ -1107,6 +1119,18 @@ def run_scenario() -> List[Dict[str, Any]]:
         json={"cadence": "biweekly"},
         headers=mp_csrf,
     )
+
+    # -- Situation Report <-> Pulse wiring (B-4) ---------------------------
+    #
+    # Appended after the Pulse block so every record above keeps its position,
+    # exactly as that block appended after the Situation Report block. `EMAIL`
+    # already carries everything this needs by this point: a submitted
+    # environment report (`submit-environment-report`, above) and, just now,
+    # `pulse-event` logged a `new_manager` event *after* that submission -- so
+    # re-reading the report is what captures `events_since_report` non-empty
+    # for the first time. `situation-report-complete` above still captures the
+    # empty-list case, which is the common one.
+    call("situation-report-after-pulse-event", "GET", "/api/v1/me/situation-report")
 
     return records
 

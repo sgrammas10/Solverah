@@ -24,8 +24,9 @@ byte-identical: nothing this function reads changes when a new sitting merely ex
 
 from __future__ import annotations
 
+import datetime
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from model import User, db
 from solverah.errors import ConflictError
@@ -221,6 +222,26 @@ def _current_role_slice(assembled: dict) -> dict:
     }
 
 
+def _events_since_report(user_id: int, submitted_at: Optional[str]) -> List[Dict[str, str]]:
+    """Pulse events strictly newer than the environment report's `submitted_at`
+    (BUILD_PLAN B-4) -- what the frontend's resubmission banner reads to ask
+    "does your Situation Report still describe this job?". `type` and `date`
+    only, never `note`: `pulse_events.note` is free text a user typed, and D-15
+    holds for this payload the same as every other field in it.
+    """
+    import pulse_store
+
+    if not submitted_at:
+        return []
+    since = datetime.datetime.fromisoformat(submitted_at)
+    events = pulse_store.pulse_events_in_range(user_id, since=since)
+    return [
+        {"type": event["event_type"], "date": event["at"]}
+        for event in events
+        if event["at"] is not None and datetime.datetime.fromisoformat(event["at"]) > since
+    ]
+
+
 def get_situation_report(user: User) -> SituationReportResult:
     """The three states, per BUILD_PLAN §3.5. D-15 (structural, every state): no
     person-side score, no numeric gap, no per-dimension magnitude, anywhere.
@@ -313,6 +334,7 @@ def get_situation_report(user: User) -> SituationReportResult:
             "dimensions": dimensions,
             "guidance_notice": situation_content.GUIDANCE_NOTICE,
             "manager": manager,
+            "events_since_report": _events_since_report(user.id, env["submitted_at"]),
         },
     )
 

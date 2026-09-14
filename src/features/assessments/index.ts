@@ -33,6 +33,7 @@ export type {
   SituationDirection,
   SituationManagerSection,
   SituationReport,
+  SituationReportEventSinceReport,
   StrainDimensionEntry,
 } from "./useSituationReport";
 export type { ManagerPlaybook, ManagerPlaybookData, ManagerPlaybookDimensionEntry } from "./useManagerPlaybook";

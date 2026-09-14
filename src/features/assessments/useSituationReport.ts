@@ -32,6 +32,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth";
 import { ApiError } from "../../shared/api/apiError";
+import type { PulseEventType } from "./usePulse";
 
 /** The six model dimensions, as the server names them. */
 export type SituationDimension =
@@ -115,6 +116,16 @@ export interface SituationManagerSection {
   has_profile: boolean;
 }
 
+/** One Pulse life/work event logged after the environment report's own
+ *  `submitted_at` (BUILD_PLAN B-4) -- `type` and `date` only, never `note`:
+ *  `pulse_events.note` is free text a user typed, and D-15 holds here the same
+ *  as everywhere else in this payload. Newest first, matching
+ *  `pulse_store.pulse_events_in_range`'s order. */
+export interface SituationReportEventSinceReport {
+  type: PulseEventType;
+  date: string;
+}
+
 /** No completed `core` sitting yet. An already-submitted environment report is
  *  echoed as bare dimension scores -- there is nothing to diff it against. */
 export interface SituationNeedsCore {
@@ -147,6 +158,10 @@ export interface SituationComplete {
   needs_forward: boolean;
   dimensions: SituationDimensionEntry[];
   guidance_notice: string;
+  /** BUILD_PLAN B-4. Empty when nothing has happened since this report was
+   *  filed -- that is the common case, and it is what keeps the resubmission
+   *  banner from ever nagging. */
+  events_since_report: SituationReportEventSinceReport[];
 }
 
 export type SituationReport =

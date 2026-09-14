@@ -3,10 +3,12 @@
 `SituationReportResponse` is open (``extra="allow"``) for the same reason
 `ManagerPlaybook` is: the payload's shape genuinely varies by `state` (`needs_core`
 carries `environment`, `needs_environment_report` carries
-`can_submit_environment_report`, `complete` carries `dimensions` and
-`guidance_notice`), and a closed model over the union would either flatten every
-field to `Any` or lie about which state guarantees which key. `state` and `manager`
-are the two keys every state carries, so they are the two this module declares.
+`can_submit_environment_report`, `complete` carries `dimensions`,
+`guidance_notice` and `events_since_report` -- BUILD_PLAN B-4's Pulse-event
+resubmission prompt, `{'type', 'date'}` per event, never a `note`), and a closed
+model over the union would either flatten every field to `Any` or lie about
+which state guarantees which key. `state` and `manager` are the two keys every
+state carries, so they are the two this module declares.
 """
 
 from __future__ import annotations
