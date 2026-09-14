@@ -276,6 +276,104 @@ def test_three_consecutive_unanswered_drops_to_monthly_with_a_slowdown_note(ctx,
     settings = pulse_settings.read_settings(user_id)
     assert settings["cadence"] == "monthly"
     assert settings["consecutive_unanswered"] == 0
+    assert settings["auto_slowed"] is True
+
+
+def test_already_monthly_user_is_not_dropped_again_and_gets_no_second_slowdown_note(ctx, sent):
+    """The drop is a one-way door, not a recurring event. A user the engine
+    already slowed to monthly who stays quiet for three more prompts has
+    nowhere slower to go, so re-running the drop writes the same cadence back
+    and -- before G21, 2026-09-14 -- re-sent the "we've slowed these down"
+    paragraph every third prompt, forever, and over-counted `dropped_to_monthly`
+    in the cron's log line. The unanswered counter still resets: three prompts
+    have been accounted for either way."""
+    user_id = _seed("still-quiet@example.test")
+    _seed_checkin(user_id)
+    _set_pulse_settings(
+        user_id, cadence="monthly", last_prompted_at=_ago(days=31),
+        awaiting_response=True, consecutive_unanswered=2, auto_slowed=True,
+    )
+
+    exit_code, payload, _ = _invoke(ctx, "pulse", "send-prompts")
+
+    assert exit_code == 0
+    assert payload["sent"] == 1
+    assert payload["dropped_to_monthly"] == 0, "re-dropped a user already on monthly"
+    assert len(sent) == 1
+    assert sent[0]["slowdown_notice"] is False, "sent the slowdown paragraph a second time"
+
+    from solverah.services import pulse_settings
+
+    settings = pulse_settings.read_settings(user_id)
+    assert settings["cadence"] == "monthly"
+    assert settings["consecutive_unanswered"] == 0
+    assert settings["auto_slowed"] is True
+
+
+def test_user_who_chose_monthly_is_prompted_without_a_slowdown_note(ctx, sent):
+    """G21: monthly is a cadence a user can pick. Being on it is not evidence
+    the engine put them there, so their prompt carries no slowdown note and
+    `auto_slowed` stays False -- which is what the trend page reads to decide
+    whether that paragraph is true of this user."""
+    user_id = _seed("chose-monthly@example.test")
+    _seed_checkin(user_id)
+    # Reached the way a user reaches it -- `set_cadence` is what PATCH calls,
+    # and it rejected "monthly" outright before G21. Seeding the state directly
+    # would let this test pass against code that still refuses the choice.
+    _set_pulse_settings(
+        user_id, cadence="weekly", last_prompted_at=_ago(days=31),
+        awaiting_response=True, consecutive_unanswered=1,
+    )
+
+    from model import db
+    from solverah.services import pulse_settings
+
+    pulse_settings.set_cadence(user_id, "monthly")
+    db.session.commit()
+    assert pulse_settings.read_settings(user_id)["auto_slowed"] is False
+
+    exit_code, payload, _ = _invoke(ctx, "pulse", "send-prompts")
+
+    assert exit_code == 0
+    assert payload["sent"] == 1
+    assert payload["dropped_to_monthly"] == 0
+    assert sent[0]["slowdown_notice"] is False
+
+    settings = pulse_settings.read_settings(user_id)
+    assert settings["cadence"] == "monthly"
+    assert settings["auto_slowed"] is False
+
+
+def test_choosing_a_cadence_after_an_auto_drop_ends_the_auto_slowed_state(ctx, sent):
+    """The user takes the wheel back. `set_cadence` -- what `PATCH
+    /me/pulse/settings` calls -- clears `auto_slowed`, so the next prompt the
+    engine sends passes the cleared value through instead of resurrecting the
+    note, and the trend page stops explaining a slowdown that no longer
+    describes anything."""
+    user_id = _seed("took-the-wheel@example.test")
+    _seed_checkin(user_id)
+    _set_pulse_settings(
+        user_id, cadence="monthly", last_prompted_at=_ago(days=31),
+        awaiting_response=True, consecutive_unanswered=2, auto_slowed=True,
+    )
+
+    from model import db
+    from solverah.services import pulse_settings
+
+    pulse_settings.set_cadence(user_id, "weekly")
+    db.session.commit()
+    assert pulse_settings.read_settings(user_id)["auto_slowed"] is False
+
+    exit_code, payload, _ = _invoke(ctx, "pulse", "send-prompts")
+
+    assert exit_code == 0
+    assert payload["sent"] == 1
+    assert payload["dropped_to_monthly"] == 0
+    assert sent[0]["slowdown_notice"] is False
+
+    settings = pulse_settings.read_settings(user_id)
+    assert settings["cadence"] == "weekly"
+    assert settings["auto_slowed"] is False
 
 
 def test_answering_before_the_next_due_date_resets_the_unanswered_count(ctx, sent):

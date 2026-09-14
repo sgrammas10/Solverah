@@ -48,6 +48,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/assessments/manager-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit a manager-profile sitting; score, store, and assemble the playbook
+         * @description Scores deterministically and instantly, like `focus_type` -- no provider call, no job, no polling. Stores an append-only `manager_profiles` row (D-16 tradition: a retake is a new row, never an update) and, when this user already has a completed ManagerMatch sitting, assembles the diff playbook in the same response. `playbook` is `null` when there is no ManagerMatch yet -- that is not an error here; `GET /me/manager-playbook` is where a missing ManagerMatch answers `409`.
+         */
+        post: operations["post_assessments_submit_manager_profile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/assessments/{kind}/form": {
         parameters: {
             query?: never;
@@ -634,6 +654,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/environment-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit the environment-side instrument for the Situation Report
+         * @description Scores the twelve environment items instantly (rules-scored, no Celery) and stores an append-only `environment_reports` row (D-16 tradition: a resubmission is a new row, never an update). `career_status` is snapshotted from the caller's profile at submit time, not taken from the request body. `first_job` has no role to describe and is refused with a distinguishable `409` (`errors[0].code == "first_job_no_role"`) the UI turns into the skip path (PRODUCT_DECISIONS.md §2, 2026-09-10).
+         */
+        post: operations["post_me_post_my_environment_report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/experiments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List this user's condition experiments
+         * @description Newest first. Each entry carries the derived `phase` ('running' / 'ended' / 'abandoned'), the before/after `readout` (a verdict word plus the two check-in counts, never a delta), and the cell's own `experiment_name`.
+         */
+        get: operations["get_me_get_my_experiments"];
+        put?: never;
+        /**
+         * Start a condition experiment
+         * @description `dimension`/`direction` must name one of the twelve real `change_in_place` cells (`errors[0].code == "not_a_change_in_place_cell"` otherwise, 422). Refuses `409` (`errors[0].code == "experiment_already_active"`) if this user already has one running -- a two-week change is confounded by a second concurrent one, so at most one may run at a time.
+         */
+        post: operations["post_me_post_my_experiment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/experiments/{experiment_id}/abandon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abandon a condition experiment
+         * @description Idempotent: abandoning an already-abandoned experiment is a 200 with the row unchanged, not an error. 404 if the id does not exist or belongs to someone else -- the two are deliberately indistinguishable.
+         */
+        post: operations["post_me_post_my_experiment_abandon"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/export": {
         parameters: {
             query?: never;
@@ -646,6 +730,26 @@ export interface paths {
          * @description GET /me/export - one JSON document of everything we hold.
          */
         get: operations["get_me_export_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/manager-playbook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the Manager Decoder playbook for this user's latest manager profile
+         * @description Diffs this user's ManagerMatch needs against their latest manager-profile sitting (`POST /assessments/manager-profile`) and returns the assembled playbook. Two states answer `409`, distinguishably: no ManagerMatch sitting yet (`errors[0].code == "no_manager_match"`), and a ManagerMatch sitting but no manager profile yet (`"no_manager_profile"`) -- a client routes the user at whichever instrument is missing rather than showing a generic error.
+         */
+        get: operations["get_me_get_my_manager_playbook"];
         put?: never;
         post?: never;
         delete?: never;
@@ -823,6 +927,110 @@ export interface paths {
         patch: operations["patch_me_patch_my_profile"];
         trace?: never;
     };
+    "/api/v1/me/pulse/checkins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit a Pulse check-in
+         * @description The server derives both the sequence (`pulse_checkin_count`) and the three dimensions it must answer (`dimensions_for_checkin`) -- the client never chooses either. Posting a different dimension set, or a score outside 1..5, is refused `422` in problem+json rather than accepted or 500ing.
+         */
+        post: operations["post_me_post_my_pulse_checkin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/pulse/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Log a Pulse life/work event
+         * @description One of new_manager / reorg / remote_change / role_change / other, with an optional 280-character note. B-4 reads these to prompt an environment-report resubmission; B-3's trend view plots them on the check-in axis. Nothing here scores anything.
+         */
+        post: operations["post_me_post_my_pulse_event"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/pulse/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Pulse check-in and event history
+         * @description Newest first, optionally windowed by `since`/`until` (ISO-8601, inclusive). `limit` bounds check-ins (1..100, clamped) and is unbounded when absent; events are never limited -- B-4 reads every one to decide when a Situation Report resubmission prompt applies.
+         */
+        get: operations["get_me_get_my_pulse_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/pulse/next-checkin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the items this user's next Pulse check-in will serve
+         * @description `work_pulse.pulse_items.render_checkin`'s shape verbatim: server-derived and FORM_VERSION-stamped, so a client always knows which three dimensions (plus the outcome item) to render next without computing the round-robin itself -- and it is the same instrument `POST /me/pulse/checkins` validates the answer against.
+         */
+        get: operations["get_me_get_my_pulse_next_checkin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/pulse/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the Pulse check-in cadence
+         * @description GET /me/pulse/settings - the current cadence.
+         */
+        get: operations["get_me_get_my_pulse_settings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set the Pulse check-in cadence
+         * @description weekly (default), biweekly, monthly, or off -- off is always this one call. Also clears the anti-nag state, `auto_slowed` included: an explicit choice is never held against a prior silence (PRODUCT_DECISIONS.md §2).
+         */
+        patch: operations["patch_me_patch_my_pulse_settings"];
+        trace?: never;
+    };
     "/api/v1/me/quiz-insights": {
         parameters: {
             query?: never;
@@ -990,6 +1198,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/situation-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the Situation Report
+         * @description Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (⚑5) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads.
+         */
+        get: operations["get_me_get_my_situation_report"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/situation-report/recalibrate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-pin the Situation Report to the latest completed core sitting
+         * @description ⚑5: the explicit, logged re-pin action. Idempotent when already pinned to the latest completed core sitting -- `recalibrated` is `false` and nothing is written or logged. Refuses `409` (`errors[0].code == "no_core_sitting"`) before any core sitting exists.
+         */
+        post: operations["post_me_post_my_situation_report_recalibrate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/skills": {
         parameters: {
             query?: never;
@@ -1091,10 +1339,28 @@ export interface components {
                 [key: string]: unknown;
             }[];
             /**
+             * Environment Reports
+             * @description Every sitting of the environment-side instrument, newest first (append-only, D-16).
+             */
+            environment_reports?: components["schemas"]["ExportedEnvironmentReport"][];
+            /**
+             * Experiments
+             * @description Every condition experiment the user has started, newest first (BUILD_PLAN B-5).
+             */
+            experiments?: components["schemas"]["ExportedExperiment"][];
+            /**
              * Exported At
              * @description ISO 8601 timestamp of this export.
              */
             exported_at: string;
+            /**
+             * Focus Type Answers
+             * @description The FocusType sitting's raw submitted answers, or null if never sat (BUILD_PLAN D-7b). The scored result is not duplicated here -- it already reaches export nested at profile.focus_type_result.
+             * @default null
+             */
+            focus_type_answers: {
+                [key: string]: unknown;
+            } | null;
             /** Intake Submissions */
             intake_submissions?: components["schemas"]["ExportedIntakeSubmission"][];
             /** Job Recommendations */
@@ -1102,12 +1368,45 @@ export interface components {
             /** @default null */
             legacy_quiz: components["schemas"]["ExportedLegacyQuiz"] | null;
             /**
+             * Manager Match Answers
+             * @description The Manager Decoder sitting's raw submitted answers, or null if never sat (BUILD_PLAN D-7b). The scored result is not duplicated here -- it already reaches export nested at profile.manager_match_result.
+             * @default null
+             */
+            manager_match_answers: {
+                [key: string]: unknown;
+            }[] | null;
+            /**
+             * Manager Profiles
+             * @description Every sitting of the manager-profile instrument, newest first (append-only, D-16).
+             */
+            manager_profiles?: components["schemas"]["ExportedManagerProfile"][];
+            /**
              * Profile
              * @description The profile document. Assembled from the profile tables since Phase 2a; open-ended because the unpromoted keys genuinely vary per user.
              */
             profile?: {
                 [key: string]: unknown;
             };
+            /**
+             * Pulse Checkins
+             * @description Every completed Pulse check-in, newest first (append-only, D-16).
+             */
+            pulse_checkins?: components["schemas"]["ExportedPulseCheckin"][];
+            /**
+             * Pulse Events
+             * @description Every logged Pulse event, newest first (append-only, D-16).
+             */
+            pulse_events?: components["schemas"]["ExportedPulseEvent"][];
+            /**
+             * Resume Parse Corrections
+             * @description Every parser-field correction the user has saved, newest first (BUILD_PLAN D-7b).
+             */
+            resume_parse_corrections?: components["schemas"]["ExportedResumeCorrection"][];
+            /**
+             * @description The D-15 re-pin override, or null if the user has never recalibrated.
+             * @default null
+             */
+            situation_report_pin: components["schemas"]["ExportedSituationReportPin"] | null;
         };
         /** AgentChatMessage */
         AgentChatMessage: {
@@ -1551,6 +1850,218 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** EnvironmentReportSubmitRequest */
+        EnvironmentReportSubmitRequest: {
+            /**
+             * Answers
+             * @description The twelve environment-dimension item ids -> chosen option key ('a'..'e'), exactly (work_pulse.situation_items.ENVIRONMENT_ITEMS).
+             */
+            answers: {
+                [key: string]: string;
+            };
+            /**
+             * Comp
+             * @description 1..5 market-relative pay posture, or null for 'not sure'.
+             * @default null
+             */
+            comp: number | null;
+            /**
+             * Employer Name
+             * @description Optional, displayed nowhere at launch (⚑6) -- stored for a future aggregation lane.
+             * @default null
+             */
+            employer_name: string | null;
+            /**
+             * Experienced
+             * @description Overall, how well is this role working for you?
+             */
+            experienced: number;
+            /**
+             * Stage Size
+             * @description 1 (seed) .. 5 (enterprise).
+             */
+            stage_size: number;
+        };
+        /**
+         * EnvironmentReportSubmitResponse
+         * @description ``POST /me/environment-report`` -- an echo of the user's own description of
+         *     their job. Never a person-side score, per D-15: this is the environment side
+         *     alone, with nothing yet to diff it against.
+         */
+        EnvironmentReportSubmitResponse: {
+            /** Career Status */
+            career_status: string;
+            /**
+             * Comp
+             * @default null
+             */
+            comp: number | null;
+            /** Dimension Scores */
+            dimension_scores: {
+                [key: string]: number;
+            };
+            /** Experienced */
+            experienced: number;
+            /** Stage Size */
+            stage_size: number;
+            /** Version */
+            version: string;
+        };
+        /**
+         * ExperimentAbandonResponse
+         * @description ``POST /me/experiments/{id}/abandon`` -- 200, idempotent.
+         */
+        ExperimentAbandonResponse: {
+            /**
+             * Abandoned At
+             * @default null
+             */
+            abandoned_at: string | null;
+            /** Dimension */
+            dimension: string;
+            /** Direction */
+            direction: string;
+            /** Ends At */
+            ends_at: string;
+            /**
+             * Experiment Name
+             * @description The cell's own name, resolved from work_pulse.situation_content.
+             */
+            experiment_name: string;
+            /** Id */
+            id: number;
+            /**
+             * Phase
+             * @description 'running' / 'ended' / 'abandoned' -- derived on read from status and ends_at, never stored.
+             */
+            phase: string;
+            readout: components["schemas"]["ExperimentReadout"];
+            /** Started At */
+            started_at: string;
+            /**
+             * Status
+             * @description 'active' or 'abandoned' -- the stored fact.
+             */
+            status: string;
+        };
+        /**
+         * ExperimentListResponse
+         * @description ``GET /me/experiments`` -- newest first.
+         */
+        ExperimentListResponse: {
+            /** Experiments */
+            experiments: components["schemas"]["ExperimentRecord"][];
+        };
+        /**
+         * ExperimentReadout
+         * @description `work_pulse.experiments.compute_readout`'s output, unchanged. Never a
+         *     delta or a mean -- see that module's docstring for why.
+         */
+        ExperimentReadout: {
+            /**
+             * After Count
+             * @description Check-ins in [started_at, ends_at].
+             */
+            after_count: number;
+            /**
+             * Before Count
+             * @description Check-ins in the 14 days before started_at.
+             */
+            before_count: number;
+            /**
+             * Verdict
+             * @description One of 'not_enough_data', 'moved_up', 'moved_down', 'about_the_same'.
+             */
+            verdict: string;
+        };
+        /**
+         * ExperimentRecord
+         * @description One experiment, as `POST /me/experiments`, `GET /me/experiments`, and
+         *     `POST /me/experiments/{id}/abandon` all return it.
+         */
+        ExperimentRecord: {
+            /**
+             * Abandoned At
+             * @default null
+             */
+            abandoned_at: string | null;
+            /** Dimension */
+            dimension: string;
+            /** Direction */
+            direction: string;
+            /** Ends At */
+            ends_at: string;
+            /**
+             * Experiment Name
+             * @description The cell's own name, resolved from work_pulse.situation_content.
+             */
+            experiment_name: string;
+            /** Id */
+            id: number;
+            /**
+             * Phase
+             * @description 'running' / 'ended' / 'abandoned' -- derived on read from status and ends_at, never stored.
+             */
+            phase: string;
+            readout: components["schemas"]["ExperimentReadout"];
+            /** Started At */
+            started_at: string;
+            /**
+             * Status
+             * @description 'active' or 'abandoned' -- the stored fact.
+             */
+            status: string;
+        };
+        /** ExperimentStartRequest */
+        ExperimentStartRequest: {
+            /**
+             * Dimension
+             * @description One of work_pulse.situation.DIMENSIONS ('autonomy', 'pace', …).
+             */
+            dimension: string;
+            /**
+             * Direction
+             * @description 'under' or 'over' -- work_pulse.situation's short vocabulary, the same one a StrainDimensionEntry's own `direction` field already carries.
+             */
+            direction: string;
+        };
+        /**
+         * ExperimentStartResponse
+         * @description ``POST /me/experiments`` -- 201 with the new row.
+         */
+        ExperimentStartResponse: {
+            /**
+             * Abandoned At
+             * @default null
+             */
+            abandoned_at: string | null;
+            /** Dimension */
+            dimension: string;
+            /** Direction */
+            direction: string;
+            /** Ends At */
+            ends_at: string;
+            /**
+             * Experiment Name
+             * @description The cell's own name, resolved from work_pulse.situation_content.
+             */
+            experiment_name: string;
+            /** Id */
+            id: number;
+            /**
+             * Phase
+             * @description 'running' / 'ended' / 'abandoned' -- derived on read from status and ends_at, never stored.
+             */
+            phase: string;
+            readout: components["schemas"]["ExperimentReadout"];
+            /** Started At */
+            started_at: string;
+            /**
+             * Status
+             * @description 'active' or 'abandoned' -- the stored fact.
+             */
+            status: string;
+        };
         /**
          * ExportedAccount
          * @description Identity fields of the exporting user.
@@ -1578,6 +2089,104 @@ export interface components {
              * @default null
              */
             role: string | null;
+        };
+        /**
+         * ExportedEnvironmentReport
+         * @description One sitting of the Situation Report's environment-side instrument (BUILD_PLAN D-7).
+         *
+         *     Passed straight through from ``environment_report_store``'s own serialization --
+         *     the same dict the store already hands the ``GET /me/situation-report`` read path --
+         *     rather than a second, export-specific shape.
+         */
+        ExportedEnvironmentReport: {
+            /** Career Status */
+            career_status: string;
+            /**
+             * Comp
+             * @default null
+             */
+            comp: number | null;
+            /** Dimension Scores */
+            dimension_scores?: {
+                [key: string]: number;
+            };
+            /**
+             * Employer Name Normalized
+             * @default null
+             */
+            employer_name_normalized: string | null;
+            /** Experienced Outcome */
+            experienced_outcome: number;
+            /** Id */
+            id: number;
+            /** Raw Answers */
+            raw_answers?: {
+                [key: string]: unknown;
+            };
+            /** Stage Size */
+            stage_size: number;
+            /**
+             * Submitted At
+             * @description ISO 8601 timestamp.
+             * @default null
+             */
+            submitted_at: string | null;
+            /** User Id */
+            user_id: number;
+            /** Version */
+            version: string;
+        };
+        /**
+         * ExportedExperiment
+         * @description One condition experiment (BUILD_PLAN B-5, D-7).
+         *
+         *     Straight from ``experiment_store``'s own serialization -- the raw stored
+         *     row, not the service layer's enriched shape: the derived ``phase``/
+         *     ``readout`` are computed from live Pulse data at read time and are not
+         *     this user's own stored content, the same reasoning
+         *     ``account_service.export_account_data`` states for using the store's
+         *     dict here rather than ``experiment_service.list_experiments``'s.
+         */
+        ExportedExperiment: {
+            /**
+             * Abandoned At
+             * @description ISO 8601 timestamp.
+             * @default null
+             */
+            abandoned_at: string | null;
+            /**
+             * Created At
+             * @description ISO 8601 timestamp.
+             * @default null
+             */
+            created_at: string | null;
+            /** Dimension */
+            dimension: string;
+            /** Direction */
+            direction: string;
+            /**
+             * Ends At
+             * @description ISO 8601 timestamp.
+             * @default null
+             */
+            ends_at: string | null;
+            /** Id */
+            id: number;
+            /**
+             * Register
+             * @description Always 'change_in_place' today.
+             */
+            register: string;
+            /**
+             * Started At
+             * @description ISO 8601 timestamp.
+             * @default null
+             */
+            started_at: string | null;
+            /** Status */
+            status: string;
+            /** User Id */
+            user_id: number;
         };
         /**
          * ExportedIntakeSubmission
@@ -1695,6 +2304,145 @@ export interface components {
             wpll_insight_text: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * ExportedManagerProfile
+         * @description One sitting of the Manager Decoder's observed-manager instrument (BUILD_PLAN D-7).
+         *
+         *     ``answers`` stores authored option identity ("a"/"b"), never screen position --
+         *     see ``model.ManagerProfile``'s docstring.
+         */
+        ExportedManagerProfile: {
+            /** Answers */
+            answers?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Created At
+             * @description ISO 8601 timestamp.
+             * @default null
+             */
+            created_at: string | null;
+            /** Dimension Scores */
+            dimension_scores?: {
+                [key: string]: number;
+            };
+            /** Id */
+            id: number;
+            /** Scoring Key */
+            scoring_key: string;
+            /** User Id */
+            user_id: number;
+            /** Version */
+            version: string;
+        };
+        /**
+         * ExportedPulseCheckin
+         * @description One completed Pulse check-in (BUILD_PLAN B-1, D-7).
+         *
+         *     ``item_scores`` holds only the round-robin dimensions that check-in served --
+         *     never all five -- straight from ``pulse_store``'s own serialization, the same
+         *     dict B-2/B-3's reads will use.
+         */
+        ExportedPulseCheckin: {
+            /** Experienced */
+            experienced: number;
+            /** Id */
+            id: number;
+            /** Item Scores */
+            item_scores?: {
+                [key: string]: number;
+            };
+            /** Sequence */
+            sequence: number;
+            /**
+             * Taken At
+             * @description ISO 8601 timestamp.
+             * @default null
+             */
+            taken_at: string | null;
+            /** User Id */
+            user_id: number;
+            /** Version */
+            version: string;
+        };
+        /**
+         * ExportedPulseEvent
+         * @description One logged Pulse event (BUILD_PLAN B-1, D-7).
+         */
+        ExportedPulseEvent: {
+            /**
+             * At
+             * @description ISO 8601 timestamp.
+             * @default null
+             */
+            at: string | null;
+            /** Event Type */
+            event_type: string;
+            /** Id */
+            id: number;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+            /** User Id */
+            user_id: number;
+        };
+        /**
+         * ExportedResumeCorrection
+         * @description One resume-parser field correction the user made and saved (BUILD_PLAN D-7b).
+         *
+         *     ``corrected_value`` is what the user typed; ``parsed_value`` is what the parser
+         *     originally produced, kept for comparison and never overwritten by a later edit of
+         *     the same field (``profile_repository.record_resume_corrections``'s own rule).
+         */
+        ExportedResumeCorrection: {
+            /**
+             * Corrected Value
+             * @default null
+             */
+            corrected_value: unknown | null;
+            /**
+             * Created At
+             * @description ISO 8601 timestamp.
+             * @default null
+             */
+            created_at: string | null;
+            /** Field */
+            field: string;
+            /**
+             * Parsed Value
+             * @default null
+             */
+            parsed_value: unknown | null;
+            /** Resume Key */
+            resume_key: string;
+            /**
+             * Updated At
+             * @description ISO 8601 timestamp.
+             * @default null
+             */
+            updated_at: string | null;
+        };
+        /**
+         * ExportedSituationReportPin
+         * @description The D-15 re-pin override (BUILD_PLAN A-5 ⚑5, D-7), or absent if the user has
+         *     never called ``POST /me/situation-report/recalibrate``. Unlike the two lists
+         *     above, there is exactly one of these per user -- the table's own docstring -- so
+         *     the export carries a single object, not a list.
+         */
+        ExportedSituationReportPin: {
+            /**
+             * Pinned At
+             * @description ISO 8601 timestamp.
+             * @default null
+             */
+            pinned_at: string | null;
+            /** Submission Id */
+            submission_id: string;
+            /** User Id */
+            user_id: number;
         };
         /** FocusTypeResult */
         FocusTypeResult: {
@@ -2212,6 +2960,104 @@ export interface components {
             answers: components["schemas"]["ManagerMatchAnswer"][];
         };
         /**
+         * ManagerPlaybook
+         * @description `manager_match.decoder.build_playbook`'s output, verbatim.
+         */
+        ManagerPlaybook: {
+            /**
+             * Dimensions
+             * @description All four dimensions, mesh and grind alike.
+             */
+            dimensions?: {
+                [key: string]: unknown;
+            }[];
+            /** Grind Count */
+            grind_count: number;
+            /** Mesh Count */
+            mesh_count: number;
+            /**
+             * Priority
+             * @description Grind dimensions, widest gap first.
+             */
+            priority?: string[];
+            /** Privacy Notice */
+            privacy_notice: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ManagerPlaybookResponse
+         * @description ``GET /me/manager-playbook`` -- the latest manager profile and its playbook.
+         *
+         *     Always carries a `playbook`: the route answers `409` rather than `200` with a null
+         *     one when either side of the diff is missing (`ManagerProfileSubmitResponse` is where
+         *     a null playbook is a real, reachable state).
+         */
+        ManagerPlaybookResponse: {
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: string | null;
+            /** Dimension Scores */
+            dimension_scores: {
+                [key: string]: number;
+            };
+            playbook: components["schemas"]["ManagerPlaybook"];
+            /** Scoring Key */
+            scoring_key: string;
+            /** Version */
+            version: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** ManagerProfileAnswer */
+        ManagerProfileAnswer: {
+            /**
+             * Choice
+             * @description "a" or "b", as authored.
+             * @default null
+             */
+            choice: string | null;
+            /**
+             * Question Id
+             * @default null
+             */
+            question_id: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** ManagerProfileSubmitRequest */
+        ManagerProfileSubmitRequest: {
+            /**
+             * Answers
+             * @description Exactly 16 forced-choice answers, authored option identity.
+             */
+            answers: components["schemas"]["ManagerProfileAnswer"][];
+        };
+        /**
+         * ManagerProfileSubmitResponse
+         * @description ``POST /assessments/manager-profile``.
+         *
+         *     `playbook` is `None` when this user has no ManagerMatch sitting yet -- there is
+         *     nothing to diff the freshly-stored profile against. `GET /me/manager-playbook` picks
+         *     it up once one exists.
+         */
+        ManagerProfileSubmitResponse: {
+            /** Dimension Scores */
+            dimension_scores: {
+                [key: string]: number;
+            };
+            /** @default null */
+            playbook: components["schemas"]["ManagerPlaybook"] | null;
+            /** Scoring Key */
+            scoring_key: string;
+            /** Version */
+            version: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * MatchesQuery
          * @description Query parameters for ``GET /me/matches``.
          */
@@ -2605,6 +3451,220 @@ export interface components {
             profile: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * PulseCadenceResponse
+         * @description ``GET``/``PATCH /me/pulse/settings`` -- one shape for both, because the
+         *     client caches the PATCH echo as the GET value.
+         */
+        PulseCadenceResponse: {
+            /**
+             * Auto Slowed
+             * @description True only when the anti-nag auto-drop moved this user to 'monthly' on its own. A user who chose 'monthly' is False. Gates the 'we've slowed these down' note, which belongs only to the state the server chose.
+             */
+            auto_slowed: boolean;
+            /**
+             * Cadence
+             * @description The four cadences, all of them user-settable.
+             * @enum {string}
+             */
+            cadence: "weekly" | "biweekly" | "monthly" | "off";
+        };
+        /** PulseCadenceUpdateRequest */
+        PulseCadenceUpdateRequest: {
+            /**
+             * Cadence
+             * @description The four cadences a user can choose. 'off' is always this one call.
+             * @enum {string}
+             */
+            cadence: "weekly" | "biweekly" | "monthly" | "off";
+        };
+        /** PulseCheckinItem */
+        PulseCheckinItem: {
+            /** Dimension */
+            dimension: string;
+            /** High Anchor */
+            high_anchor: string;
+            /** Item Id */
+            item_id: string;
+            /** Low Anchor */
+            low_anchor: string;
+            /** Stem */
+            stem: string;
+        };
+        /**
+         * PulseCheckinRecord
+         * @description One check-in as ``GET /me/pulse/history`` lists it.
+         */
+        PulseCheckinRecord: {
+            /** Experienced */
+            experienced: number;
+            /** Id */
+            id: number;
+            /** Item Scores */
+            item_scores: {
+                [key: string]: number;
+            };
+            /** Sequence */
+            sequence: number;
+            /**
+             * Taken At
+             * @default null
+             */
+            taken_at: string | null;
+            /** Version */
+            version: string;
+        };
+        /** PulseCheckinRequest */
+        PulseCheckinRequest: {
+            /**
+             * Experienced
+             * @description pulse-experienced: 'This week, how well is work working for you?'
+             */
+            experienced: number;
+            /**
+             * Item Scores
+             * @description Exactly the dimensions work_pulse.pulse_items.dimensions_for_checkin served for this user's next sequence, each answered 1..5. The server derives which dimensions that is -- posting a different set, or a score outside 1..5, is refused (422).
+             */
+            item_scores: {
+                [key: string]: number;
+            };
+        };
+        /**
+         * PulseCheckinResponse
+         * @description ``POST /me/pulse/checkins`` -- an echo of what was recorded, like
+         *     `EnvironmentReportSubmitResponse`: a Pulse answer already IS its own score,
+         *     so there is nothing derived to add.
+         */
+        PulseCheckinResponse: {
+            /** Experienced */
+            experienced: number;
+            /** Id */
+            id: number;
+            /** Item Scores */
+            item_scores: {
+                [key: string]: number;
+            };
+            /** Sequence */
+            sequence: number;
+            /**
+             * Taken At
+             * @default null
+             */
+            taken_at: string | null;
+            /** Version */
+            version: string;
+        };
+        /**
+         * PulseEventRecord
+         * @description One event as ``GET /me/pulse/history`` lists it -- the same shape as
+         *     `PulseEventResponse`, named separately because the two responses document
+         *     different endpoints.
+         */
+        PulseEventRecord: {
+            /**
+             * At
+             * @default null
+             */
+            at: string | null;
+            /** Event Type */
+            event_type: string;
+            /** Id */
+            id: number;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+        };
+        /** PulseEventRequest */
+        PulseEventRequest: {
+            /**
+             * Event Type
+             * @enum {string}
+             */
+            event_type: "new_manager" | "reorg" | "remote_change" | "role_change" | "other";
+            /**
+             * Note
+             * @description Optional short context, mainly for 'other'. model.PULSE_EVENT_NOTE_MAX_LENGTH caps it at 280 characters.
+             * @default null
+             */
+            note: string | null;
+        };
+        /** PulseEventResponse */
+        PulseEventResponse: {
+            /**
+             * At
+             * @default null
+             */
+            at: string | null;
+            /** Event Type */
+            event_type: string;
+            /** Id */
+            id: number;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+        };
+        /**
+         * PulseHistoryQuery
+         * @description Query parameters for ``GET /me/pulse/history``.
+         */
+        PulseHistoryQuery: {
+            /**
+             * Limit
+             * @description Max check-ins returned, clamped 1..100. Unbounded when absent. Events are never limited.
+             * @default null
+             */
+            limit: number | null;
+            /**
+             * Since
+             * @description ISO-8601 datetime, inclusive lower bound on taken_at/at.
+             * @default null
+             */
+            since: string | null;
+            /**
+             * Until
+             * @description ISO-8601 datetime, inclusive upper bound on taken_at/at.
+             * @default null
+             */
+            until: string | null;
+        };
+        /** PulseHistoryResponse */
+        PulseHistoryResponse: {
+            /** Checkins */
+            checkins: components["schemas"]["PulseCheckinRecord"][];
+            /** Events */
+            events: components["schemas"]["PulseEventRecord"][];
+        };
+        /**
+         * PulseNextCheckinResponse
+         * @description ``GET /me/pulse/next-checkin`` -- `work_pulse.pulse_items.render_checkin`'s
+         *     shape verbatim: server-derived and FORM_VERSION-stamped, so a client always
+         *     knows which three dimensions (plus the outcome item) to render next without
+         *     computing the round-robin itself.
+         */
+        PulseNextCheckinResponse: {
+            experienced_item: components["schemas"]["PulseOutcomeItem"];
+            /** Items */
+            items: components["schemas"]["PulseCheckinItem"][];
+            /** Sequence */
+            sequence: number;
+            /** Version */
+            version: string;
+        };
+        /** PulseOutcomeItem */
+        PulseOutcomeItem: {
+            /** High Anchor */
+            high_anchor: string;
+            /** Item Id */
+            item_id: string;
+            /** Low Anchor */
+            low_anchor: string;
+            /** Stem */
+            stem: string;
         };
         /** QuizInsight */
         QuizInsight: {
@@ -3057,6 +4117,37 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * SituationReportRecalibrateResponse
+         * @description ``POST /me/situation-report/recalibrate``.
+         */
+        SituationReportRecalibrateResponse: {
+            /**
+             * Recalibrated
+             * @description Whether the pin actually moved. False when already pinned to the latest completed core sitting -- the ⚑5 idempotence rule -- and nothing was written.
+             */
+            recalibrated: boolean;
+        };
+        /**
+         * SituationReportResponse
+         * @description ``GET /me/situation-report``. See the module docstring for why this is open.
+         */
+        SituationReportResponse: {
+            /**
+             * Manager
+             * @description {'has_profile': bool} -- link-or-prompt to the Manager Decoder.
+             */
+            manager: {
+                [key: string]: unknown;
+            };
+            /**
+             * State
+             * @description One of 'needs_core', 'needs_environment_report', 'complete'.
+             */
+            state: string;
+        } & {
+            [key: string]: unknown;
+        };
         /** SkillRating */
         SkillRating: {
             /** Name */
@@ -3352,6 +4443,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssessmentCatalogueResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    post_assessments_submit_manager_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManagerProfileSubmitRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagerProfileSubmitResponse"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
                 };
             };
             /** @description Not found */
@@ -4610,6 +5752,204 @@ export interface operations {
             };
         };
     };
+    post_me_post_my_environment_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnvironmentReportSubmitRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvironmentReportSubmitResponse"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    get_me_get_my_experiments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentListResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    post_me_post_my_experiment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExperimentStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentStartResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    post_me_post_my_experiment_abandon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentAbandonResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
     get_me_export_me: {
         parameters: {
             query?: never;
@@ -4635,6 +5975,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    get_me_get_my_manager_playbook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagerPlaybookResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
                 };
             };
             /** @description Unexpected error (RFC 9457 problem document) */
@@ -5007,6 +6394,289 @@ export interface operations {
             };
         };
     };
+    post_me_post_my_pulse_checkin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PulseCheckinRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulseCheckinResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    post_me_post_my_pulse_event: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PulseEventRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulseEventResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    get_me_get_my_pulse_history: {
+        parameters: {
+            query?: {
+                /** @description ISO-8601 datetime, inclusive lower bound on taken_at/at. */
+                since?: string | null;
+                /** @description ISO-8601 datetime, inclusive upper bound on taken_at/at. */
+                until?: string | null;
+                /** @description Max check-ins returned, clamped 1..100. Unbounded when absent. Events are never limited. */
+                limit?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulseHistoryResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    get_me_get_my_pulse_next_checkin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulseNextCheckinResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    get_me_get_my_pulse_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulseCadenceResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    patch_me_patch_my_pulse_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PulseCadenceUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulseCadenceResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
     post_intelligence_post_my_quiz_insights: {
         parameters: {
             query?: never;
@@ -5305,6 +6975,91 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    get_me_get_my_situation_report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SituationReportResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    post_me_post_my_situation_report_recalibrate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SituationReportRecalibrateResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
                 };
             };
             /** @description Unexpected error (RFC 9457 problem document) */

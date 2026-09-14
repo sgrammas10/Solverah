@@ -1092,7 +1092,7 @@ def run_scenario() -> List[Dict[str, Any]]:
     #
     # `pulse-checkin-malformed` pins the business-rule 422 (the served-set
     # refusal) -- schema-level 422s (an unknown event_type, a note over 280
-    # characters, a cadence outside the three the user can set) are already
+    # characters, a cadence outside the four the user can set) are already
     # covered by the routes' `enforce=True` body validators, the same reasoning
     # `submit-manager-profile-malformed` above gives for capturing only the
     # OTHER failure mode here.

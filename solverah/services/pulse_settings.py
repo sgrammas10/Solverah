@@ -8,28 +8,37 @@ document already does. `profile_repository.load_document`/`update_document`
 thread this key through both for free; nothing here has to.
 
 Shape (every key optional -- a user who has never touched Pulse has none of
-them, and `read_settings` fills every default)::
+them, and `read_settings` fills every default; rows written before the
+2026-09-14 G21 ruling have the first four keys only, so `auto_slowed` must
+default like the rest rather than be assumed present)::
 
     {
       "cadence": "weekly" | "biweekly" | "monthly" | "off",
       "last_prompted_at": "<iso8601>" | None,
       "awaiting_response": bool,
       "consecutive_unanswered": int,
+      "auto_slowed": bool,
     }
 
-`monthly` is reachable only through the anti-nag auto-drop
-(`pulse_cadence_service.send_due_prompts`) -- a user can set themselves to
-`weekly`, `biweekly`, or `off` and never directly to `monthly`.
+All four cadences are user-settable (G21, 2026-09-14): `monthly` is a real
+menu option now, *and* still where the anti-nag auto-drop lands a quiet user
+(PRODUCT_DECISIONS.md §"Pulse"). Those two are not the same state, which is
+what `auto_slowed` records: True only when the engine moved this user to
+`monthly` on its own, so the "we've slowed these down" note is shown to the
+user it is true of and never to the user who chose monthly themselves.
 
 **Who writes which field.** `set_cadence` (an explicit user choice) is the only
-writer of `cadence` for the three user-settable values, and always clears the
-anti-nag counters -- an explicit choice is never held against a prior silence
-(PRODUCT_DECISIONS.md §2: "silence is data, never a guilt trip", which cuts
-both ways). `mark_answered` (a completed check-in) is the only writer of
+writer of `cadence` for user-chosen values, always clears the anti-nag
+counters, and always clears `auto_slowed` -- an explicit choice is never held
+against a prior silence (PRODUCT_DECISIONS.md §2: "silence is data, never a
+guilt trip", which cuts both ways), and choosing a cadence ends the auto state
+even when the cadence chosen is the same `monthly` the drop had landed on.
+`mark_answered` (a completed check-in) is the only writer of
 `awaiting_response`'s False transition. `record_prompt` (the cadence engine,
 about to send a prompt) is the only writer of `last_prompted_at`,
-`awaiting_response`'s True transition, `consecutive_unanswered`, and the one
-place `cadence` moves to `monthly`. No two callers ever race to set the same
+`awaiting_response`'s True transition, `consecutive_unanswered`, and
+`auto_slowed`'s True transition, and is the one place `cadence` moves to
+`monthly` without the user asking. No two callers ever race to set the same
 field for a reason other than `profile_repository`'s own optimistic-concurrency
 retry, which already handles that.
 """
@@ -58,9 +67,10 @@ SETTINGS_KEY = "pulse_settings"
 #: PRODUCT_DECISIONS.md §2 / BUILD_PLAN B-2: "weekly default".
 DEFAULT_CADENCE = "weekly"
 
-#: The three cadences a user can choose directly. `monthly` is deliberately
-#: absent -- it is where the anti-nag drop lands a user, not a menu option.
-USER_SETTABLE_CADENCES = ("weekly", "biweekly", "off")
+#: The four cadences a user can choose directly. `monthly` joined them in the
+#: G21 ruling (2026-09-14); it remains the anti-nag drop's landing spot too,
+#: and `auto_slowed` is what tells the two apart.
+USER_SETTABLE_CADENCES = ("weekly", "biweekly", "monthly", "off")
 
 CADENCE_INTERVALS: Dict[str, datetime.timedelta] = {
     "weekly": datetime.timedelta(days=7),
@@ -77,6 +87,7 @@ _DEFAULTS: Dict[str, Any] = {
     "last_prompted_at": None,
     "awaiting_response": False,
     "consecutive_unanswered": 0,
+    "auto_slowed": False,
 }
 
 
@@ -136,10 +147,14 @@ def set_cadence(user_id: int, cadence: str) -> Dict[str, Any]:
 
     Always resets `awaiting_response` and `consecutive_unanswered`: picking a
     cadence is itself a re-engagement signal, so nothing about a prior silence
-    carries into what happens next. `last_prompted_at` is left alone -- it
-    states a fact (when this user was last emailed) that switching cadence does
-    not change, and clearing it would make the very next cadence run treat them
-    as never-prompted and email them again immediately.
+    carries into what happens next. Always clears `auto_slowed` for the same
+    reason -- once the user has stated a cadence, the slowdown the engine chose
+    for them is no longer the explanation for the one they are on, including
+    when they pick the very `monthly` the drop had landed them on.
+    `last_prompted_at` is left alone -- it states a fact (when this user was
+    last emailed) that switching cadence does not change, and clearing it would
+    make the very next cadence run treat them as never-prompted and email them
+    again immediately.
 
     Raises:
         ValueError: *cadence* is not one of `USER_SETTABLE_CADENCES`.
@@ -158,6 +173,7 @@ def set_cadence(user_id: int, cadence: str) -> Dict[str, Any]:
             "cadence": cadence,
             "awaiting_response": False,
             "consecutive_unanswered": 0,
+            "auto_slowed": False,
         }
         return {**document, SETTINGS_KEY: updated}
 
@@ -195,6 +211,7 @@ def record_prompt(
     cadence: str,
     consecutive_unanswered: int,
     prompted_at: datetime.datetime,
+    auto_slowed: bool = False,
 ) -> None:
     """The cadence engine's write: a prompt is about to be sent.
 
@@ -202,6 +219,11 @@ def record_prompt(
     `pulse_cadence_service.send_due_prompts`), before either is committed --
     so a crash before commit means neither happened, and the next run
     reprocesses this user exactly as if nothing had been attempted.
+
+    *auto_slowed* is written on every prompt, not only on a drop: the engine
+    passes True when this call is the drop and otherwise passes the value it
+    already read back through, so an auto-dropped user stays flagged across
+    later prompts and a user who chose `monthly` themselves stays unflagged.
     """
     from solverah.repositories import profile_repository
 
@@ -212,6 +234,7 @@ def record_prompt(
             last_prompted_at=prompted_at.isoformat(),
             awaiting_response=True,
             consecutive_unanswered=consecutive_unanswered,
+            auto_slowed=auto_slowed,
         )
         return {**document, SETTINGS_KEY: settings}
 

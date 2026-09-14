@@ -152,12 +152,22 @@ class PulseNextCheckinResponse(SolverahModel):
 
 
 class PulseCadenceResponse(SolverahModel):
+    """``GET``/``PATCH /me/pulse/settings`` -- one shape for both, because the
+    client caches the PATCH echo as the GET value."""
+
     cadence: Literal["weekly", "biweekly", "monthly", "off"] = Field(
-        description="'monthly' is reachable only via the anti-nag auto-drop, never set directly."
+        description="The four cadences, all of them user-settable."
+    )
+    auto_slowed: bool = Field(
+        description=(
+            "True only when the anti-nag auto-drop moved this user to 'monthly' on its "
+            "own. A user who chose 'monthly' is False. Gates the 'we've slowed these "
+            "down' note, which belongs only to the state the server chose."
+        )
     )
 
 
 class PulseCadenceUpdateRequest(SolverahModel):
-    cadence: Literal["weekly", "biweekly", "off"] = Field(
-        description="The three cadences a user can choose. 'off' is always this one call."
+    cadence: Literal["weekly", "biweekly", "monthly", "off"] = Field(
+        description="The four cadences a user can choose. 'off' is always this one call."
     )

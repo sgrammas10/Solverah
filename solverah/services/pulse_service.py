@@ -197,14 +197,22 @@ def submit_event(user: User, payload: Any) -> Dict[str, Any]:
     }
 
 
+#: `GET` and `PATCH /me/pulse/settings` return the *same* keys, deliberately:
+#: the client writes the PATCH echo straight into the cache slot the GET fills
+#: (`usePulse.ts`'s `useUpdatePulseSettings`), so a PATCH that answered with a
+#: narrower body would blank `auto_slowed` on screen until the next refetch.
+def _settings_response(settings: Dict[str, Any]) -> Dict[str, Any]:
+    return {"cadence": settings["cadence"], "auto_slowed": settings["auto_slowed"]}
+
+
 def get_settings(user: User) -> Dict[str, Any]:
-    settings = pulse_settings.read_settings(user.id)
-    return {"cadence": settings["cadence"]}
+    return _settings_response(pulse_settings.read_settings(user.id))
 
 
 def update_settings(user: User, payload: Any) -> Dict[str, Any]:
-    """weekly / biweekly / off, always one call -- and always a clean slate for
-    the anti-nag state (`pulse_settings.set_cadence`'s docstring)."""
+    """weekly / biweekly / monthly / off, always one call -- and always a clean
+    slate for the anti-nag state (`pulse_settings.set_cadence`'s docstring),
+    `auto_slowed` included."""
     payload = _require_dict(payload)
     cadence = payload.get("cadence")
     try:
@@ -214,4 +222,4 @@ def update_settings(user: User, payload: Any) -> Dict[str, Any]:
             detail=str(exc), errors=[{"field": "cadence", "code": "invalid_cadence"}]
         ) from exc
     db.session.commit()
-    return {"cadence": updated["cadence"]}
+    return _settings_response(updated)

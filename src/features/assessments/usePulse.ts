@@ -77,11 +77,22 @@ export interface PulseHistory {
   events: PulseEventRecord[];
 }
 
-/** The three user-settable cadences, plus `monthly` -- the anti-nag auto-drop
- *  state, reachable only from the server and never a menu option
- *  (`pulse_settings.USER_SETTABLE_CADENCES`). */
+/** All four cadences, every one of them user-settable since G21 (2026-09-14)
+ *  -- `monthly` is both a menu option and where the anti-nag auto-drop lands a
+ *  quiet user (`pulse_settings.USER_SETTABLE_CADENCES`). `PulseSettableCadence`
+ *  survives as the alias the settings UI and the PATCH mutation speak, now
+ *  that the two sets have converged. */
 export type PulseCadence = "weekly" | "biweekly" | "monthly" | "off";
-export type PulseSettableCadence = "weekly" | "biweekly" | "off";
+export type PulseSettableCadence = PulseCadence;
+
+/** `GET` and `PATCH /me/pulse/settings` -- one shape, which is load-bearing:
+ *  `useUpdatePulseSettings` writes the PATCH echo into the GET's cache slot.
+ *  `auto_slowed` distinguishes "the server slowed you down" from "you chose
+ *  monthly", and only the first earns the slowdown note. */
+export interface PulseSettings {
+  cadence: PulseCadence;
+  auto_slowed: boolean;
+}
 
 export const pulseKeys = {
   all: ["pulse"] as const,
@@ -165,7 +176,7 @@ export function usePulseSettings() {
   const { fetchWithAuth } = useAuth();
   return useQuery({
     queryKey: pulseKeys.settings(),
-    queryFn: () => fetchWithAuth<{ cadence: PulseCadence }>("/me/pulse/settings", { method: "GET" }),
+    queryFn: () => fetchWithAuth<PulseSettings>("/me/pulse/settings", { method: "GET" }),
   });
 }
 
@@ -176,7 +187,7 @@ export function useUpdatePulseSettings() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (cadence: PulseSettableCadence) =>
-      fetchWithAuth<{ cadence: PulseCadence }>("/me/pulse/settings", {
+      fetchWithAuth<PulseSettings>("/me/pulse/settings", {
         method: "PATCH",
         body: JSON.stringify({ cadence }),
       }),

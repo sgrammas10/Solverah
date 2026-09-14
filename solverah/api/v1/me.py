@@ -863,9 +863,9 @@ def get_my_pulse_settings():
     security=_AUTHENTICATED_WRITE,
     enforce=True,
     description=(
-        "weekly (default), biweekly, or off -- off is always this one call. Also "
-        "clears the anti-nag state: an explicit choice is never held against a prior "
-        "silence (PRODUCT_DECISIONS.md §2)."
+        "weekly (default), biweekly, monthly, or off -- off is always this one call. "
+        "Also clears the anti-nag state, `auto_slowed` included: an explicit choice is "
+        "never held against a prior silence (PRODUCT_DECISIONS.md §2)."
     ),
 )
 @me_bp.route("/me/pulse/settings", methods=["PATCH"])

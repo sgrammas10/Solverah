@@ -3746,9 +3746,15 @@
       },
       "PulseCadenceResponse": {
         "additionalProperties": false,
+        "description": "``GET``/``PATCH /me/pulse/settings`` -- one shape for both, because the\nclient caches the PATCH echo as the GET value.",
         "properties": {
+          "auto_slowed": {
+            "description": "True only when the anti-nag auto-drop moved this user to 'monthly' on its own. A user who chose 'monthly' is False. Gates the 'we've slowed these down' note, which belongs only to the state the server chose.",
+            "title": "Auto Slowed",
+            "type": "boolean"
+          },
           "cadence": {
-            "description": "'monthly' is reachable only via the anti-nag auto-drop, never set directly.",
+            "description": "The four cadences, all of them user-settable.",
             "enum": [
               "weekly",
               "biweekly",
@@ -3760,7 +3766,8 @@
           }
         },
         "required": [
-          "cadence"
+          "cadence",
+          "auto_slowed"
         ],
         "title": "PulseCadenceResponse",
         "type": "object"
@@ -3769,10 +3776,11 @@
         "additionalProperties": false,
         "properties": {
           "cadence": {
-            "description": "The three cadences a user can choose. 'off' is always this one call.",
+            "description": "The four cadences a user can choose. 'off' is always this one call.",
             "enum": [
               "weekly",
               "biweekly",
+              "monthly",
               "off"
             ],
             "title": "Cadence",
@@ -8369,7 +8377,7 @@
         ]
       },
       "patch": {
-        "description": "weekly (default), biweekly, or off -- off is always this one call. Also clears the anti-nag state: an explicit choice is never held against a prior silence (PRODUCT_DECISIONS.md \u00a72).",
+        "description": "weekly (default), biweekly, monthly, or off -- off is always this one call. Also clears the anti-nag state, `auto_slowed` included: an explicit choice is never held against a prior silence (PRODUCT_DECISIONS.md \u00a72).",
         "operationId": "patch_me_patch_my_pulse_settings",
         "requestBody": {
           "content": {

@@ -805,7 +805,7 @@
     "status": 200,
     "mimetype": "application/json",
     "cookies_set": [],
-    "body": "{\"cadence\":\"weekly\"}\n"
+    "body": "{\"auto_slowed\":false,\"cadence\":\"weekly\"}\n"
   },
   {
     "step": "pulse-checkin-malformed",
@@ -850,7 +850,7 @@
     "status": 200,
     "mimetype": "application/json",
     "cookies_set": [],
-    "body": "{\"cadence\":\"biweekly\"}\n"
+    "body": "{\"auto_slowed\":false,\"cadence\":\"biweekly\"}\n"
   },
   {
     "step": "situation-report-after-pulse-event",
