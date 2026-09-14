@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../features/auth/useAuth';
-import { User, LogOut, MessageSquare, Brain } from 'lucide-react';
+import { User, LogOut, MessageSquare, Brain, Settings } from 'lucide-react';
 
 function Header() {
   const { user, logout } = useAuth();
@@ -96,6 +96,14 @@ function Header() {
                   <span className="text-sm text-ink-tertiary">
                     {user.name}
                   </span>
+                  <Link
+                    to="/settings"
+                    aria-label="Account settings"
+                    title="Account settings"
+                    className="p-2 text-ink-tertiary hover:text-forest-mid transition-colors rounded hover:bg-cream-subtle"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="p-2 text-ink-tertiary hover:text-red-600 transition-colors rounded hover:bg-red-50"

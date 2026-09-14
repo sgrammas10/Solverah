@@ -10,6 +10,8 @@
  *   /agent                    AI agent chat (job-seeker)
  *   /feed, /search            Shared authenticated routes (job-seeker)
  *   /job-seeker/*             Job-seeker-only routes
+ *   /settings                 Account settings — data export + account deletion
+ *                             (job-seeker; the screen the legal pages promise)
  *   /career-quizzes/*         Authenticated quiz routes
  *   /quiz-insights            Authenticated quiz insights
  *   /environment-report       Environment-side instrument (job-seeker)
@@ -91,6 +93,7 @@ const HowMatchingWorksPage = lazy(() => import("../features/landing/components/H
 // ── Lazy: the authenticated application ─────────────────────────────────────
 const JobSeekerDashboard = lazy(() => import("../features/profile/components/JobSeekerDashboard"));
 const JobSeekerProfile = lazy(() => import("../features/profile/components/JobSeekerProfile"));
+const AccountSettingsPage = lazy(() => import("../features/profile/components/AccountSettingsPage"));
 const Feed = lazy(() => import("../features/matching/components/Feed"));
 const SearchResults = lazy(() => import("../features/matching/components/SearchResults"));
 const QuizInsights = lazy(() => import("../features/intelligence/components/QuizInsights"));
@@ -249,6 +252,7 @@ function App() {
                 {/* Job Seeker routes */}
                 <Route path="/job-seeker/dashboard" element={<JobSeekerDashboard />} />
                 <Route path="/job-seeker/profile" element={<JobSeekerProfile />} />
+                <Route path="/settings" element={<AccountSettingsPage />} />
 
                 {/* Quiz routes */}
                 <Route path="/career-quizzes" element={<CareerQuizzes />} />
