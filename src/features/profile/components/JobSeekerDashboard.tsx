@@ -1,10 +1,39 @@
+/**
+ * JobSeekerDashboard -- reframed around working life rather than a job hunt
+ * (BUILD_PLAN D-6; PRODUCT_DECISIONS §1).
+ *
+ * WHAT LEFT, AND WHY. "Here's your job search overview and recommendations",
+ * the Job Matches / Applications stat tiles and the Browse Jobs quick action
+ * with its coming-soon modal were a job board's information architecture on a
+ * product that has no jobs and is not trying to be one. §1 names this screen
+ * "the largest remaining contradiction" and settles the spine: conditions --
+ * diagnose them, improve them, and match as ONE output. So the screen now
+ * opens with where the reader's conditions stand (`SituationDashboardCard`),
+ * then this week's pulse, and the single next thing worth doing lives inside
+ * the first card. Matching is demoted, not deleted: `/search` keeps a plain
+ * link below the fold, with no modal and no "find matching opportunities"
+ * framing around it.
+ *
+ * THE `/me/dashboard` QUERY STAYS. Its tiles are gone, but the document still
+ * feeds `IntakePromptModal` (`profileCompletion`, `hasIntakeSubmission`) and
+ * both cards in the grid. Removing the endpoint is backend work this chunk is
+ * explicitly not doing.
+ */
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../auth';
 import { Link, useNavigate } from 'react-router-dom';
+// `Briefcase` is no longer rendered by this file directly -- it stays because
+// `iconMap` resolves icon names the /me/dashboard document sends for activity
+// rows, and "Briefcase" is one of them.
 import { User, FileText, Brain, Briefcase, TrendingUp } from 'lucide-react';
 import { IntakePromptModal } from '../../intake';
-import { WorkPulseBanner, WorkPulseUnlock, PulseDashboardCard } from '../../assessments';
+import {
+  WorkPulseBanner,
+  WorkPulseUnlock,
+  PulseDashboardCard,
+  SituationDashboardCard,
+} from '../../assessments';
 
 const iconMap: Record<string, any> = { User, FileText, Brain, Briefcase, TrendingUp };
 
@@ -27,14 +56,14 @@ function JobSeekerDashboard() {
     );
   };
 
-  const [jobsPopupOpen, setJobsPopupOpen] = useState(false);
   const [intakeModalOpen, setIntakeModalOpen] = useState(false);
   const [wplBannerDismissed, setWplBannerDismissed] = useState(false);
   const { user, fetchWithAuth } = useAuth();
 
   // A failed fetch (after queryClient.ts's bounded retries) leaves `data`
-  // undefined and this page renders without the stats row, exactly as the
-  // hand-rolled catch-and-log did.
+  // undefined and this page renders without the two grid cards and without the
+  // intake prompt, exactly as the hand-rolled catch-and-log did. (Until D-6 it
+  // was "without the stats row"; the row is gone, the posture is not.)
   const { data: dashboardData } = useQuery({
     queryKey: dashboardKeys.summary(),
     queryFn: () => fetchWithAuth<any>('/me/dashboard'),
@@ -50,6 +79,12 @@ function JobSeekerDashboard() {
 
   const cardCls =
     'border border-cream-muted rounded-xl bg-white p-6';
+
+  /* Computed once and passed down, so the Situation Report card knows whether
+     the Work Pulse banner is already offering "Start now" for the same
+     instrument. Two buttons to one place on one screen is the thing D-6 is
+     cleaning up, not something to reintroduce three inches lower. */
+  const workPulseBannerVisible = Boolean(user) && !user?.wp_v2_completed && !wplBannerDismissed;
 
   return (
     <div className="min-h-screen bg-cream-base font-sans text-ink-primary">
@@ -70,7 +105,7 @@ function JobSeekerDashboard() {
             Welcome back, {user?.name}
           </h1>
           <p className="text-ink-secondary mt-2 text-base">
-            Here's your job search overview and recommendations.
+            Here's where your working life stands, and the one thing worth doing next.
           </p>
         </div>
 
@@ -84,11 +119,11 @@ function JobSeekerDashboard() {
             <WorkPulseUnlock />
           </div>
         ) : (
-          user && !wplBannerDismissed && (
+          workPulseBannerVisible && (
             <div className="mb-6">
               <WorkPulseBanner
                 onDismiss={() => setWplBannerDismissed(true)}
-                retake={Boolean(user.wpl_completed)}
+                retake={Boolean(user?.wpl_completed)}
               />
             </div>
           )
@@ -98,8 +133,11 @@ function JobSeekerDashboard() {
         {!user?.profileComplete && (
           <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center gap-4">
             <User className="h-5 w-5 text-amber-600 shrink-0" />
+            {/* Was "…to get better job matches and increase visibility" — the
+                job-board register D-6 exists to remove, on the one alert that
+                every incomplete account sees. */}
             <p className="text-sm text-amber-800 flex-1">
-              Complete your profile to get better job matches and increase visibility.
+              Complete your profile — it's what the rest of Solverah reads from.
             </p>
             <Link
               to="/job-seeker/profile"
@@ -110,35 +148,25 @@ function JobSeekerDashboard() {
           </div>
         )}
 
+        {/* Conditions first (D-6). Renders nothing while the report is in
+            flight or if it fails — see the card's own header. */}
+        <div className="mb-6">
+          <SituationDashboardCard workPulseOfferedElsewhere={workPulseBannerVisible} />
+        </div>
+
         {/* Pulse -- "Your pulse this week" (BUILD_PLAN B-3). Degrades to an
             invitation on its own when there are no check-ins yet, same as
             the Work Pulse block above it, so no gate is needed here. */}
-        <div className="mb-6">
+        <div className="mb-8">
           <PulseDashboardCard />
         </div>
 
-        {/* Stats */}
-        {dashboardData && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            {[
-              { label: 'Profile Completion', value: dashboardData.profileCompletion, icon: User, color: 'text-forest-mid bg-forest-pale' },
-              { label: 'Job Matches', value: dashboardData.jobMatches, icon: Briefcase, color: 'text-forest-mid bg-forest-pale' },
-              { label: 'Applications', value: dashboardData.applications, icon: FileText, color: 'text-ink-secondary bg-cream-subtle' },
-            ].map(({ label, value, icon: Icon, color }) => (
-              <div key={label} className={cardCls}>
-                <div className="flex items-center gap-4">
-                  <div className={`p-2.5 rounded-lg ${color}`}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-ink-secondary">{label}</p>
-                    <p className="text-2xl font-semibold text-ink-primary">{value}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* The Job Matches / Applications / Profile Completion tiles stood here
+            until D-6. `dashboardData` is still fetched and still used — by the
+            intake modal and by both cards below — but a count of matches on a
+            product whose matching is blocked on the causal model (§2) was
+            furniture from a job board, and "Profile Completion" as a number
+            duplicated the alert above it. */}
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Recent Activity */}
@@ -222,7 +250,9 @@ function JobSeekerDashboard() {
         {/* Quick Actions */}
         <div className="mt-8">
           <h2 className="font-display text-lg font-semibold text-ink-primary mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Two, not three. "Browse Jobs / Find matching opportunities" and its
+              coming-soon modal were removed by D-6 — see the file header. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Link
               to="/job-seeker/profile"
               className="flex items-center gap-4 p-5 rounded-xl border border-cream-muted bg-white hover:border-forest-pale transition-colors"
@@ -255,49 +285,22 @@ function JobSeekerDashboard() {
                 <p className="text-sm text-ink-secondary">Work Pulse, FocusType and ManagerMatch</p>
               </div>
             </button>
-
-            <button
-              onClick={() => setJobsPopupOpen(true)}
-              className="flex items-center gap-4 p-5 rounded-xl border border-cream-muted bg-white hover:border-forest-pale transition-colors text-left"
-            >
-              <div className="p-2 bg-forest-pale rounded-lg shrink-0">
-                <Briefcase className="h-4 w-4 text-forest-mid" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-ink-primary">Browse Jobs</h3>
-                <p className="text-sm text-ink-secondary">Find matching opportunities</p>
-              </div>
-            </button>
           </div>
+        </div>
+
+        {/* Matching, demoted rather than deleted (§1: one output of the engine,
+            not the frame around it). A plain link below the fold — no tile, no
+            modal, and nothing promising a match, because CompanyLens is still
+            waiting on the causal model. */}
+        <div className="mt-10 border-t border-cream-muted pt-6">
+          <Link
+            to="/search"
+            className="text-sm text-ink-secondary hover:text-ink-primary hover:underline"
+          >
+            Search companies and roles →
+          </Link>
         </div>
       </div>
-
-      {/* Jobs coming-soon modal */}
-      {jobsPopupOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-ink-primary/50 backdrop-blur-sm px-4 pt-24"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="jobs-popup-title"
-        >
-          <div className="w-full max-w-xl rounded-xl border border-cream-muted bg-cream-base p-8 shadow-2xl">
-            <p id="jobs-popup-title" className="font-display text-xl font-semibold text-ink-primary">
-              Feature coming soon
-            </p>
-            <p className="mt-2 text-sm text-ink-secondary leading-relaxed">
-              Job browsing will be available after launch.
-            </p>
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setJobsPopupOpen(false)}
-                className="bg-forest-dark text-white text-sm font-semibold px-6 py-2.5 rounded hover:bg-forest-mid transition-colors"
-              >
-                Got it
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
