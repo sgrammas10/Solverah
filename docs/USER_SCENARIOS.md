@@ -10,14 +10,37 @@ opened against that ID and nothing else has to be re-explained.
 broken IDs afterwards — which is why every step carries the exact copy and the exact
 error `code` rather than a description of them.
 
-**Provenance.** Derived by reading the code at commit `b5b8eec`, which is
-`origin/main`, which is what production runs. There is no branch drift to account
-for: what is written here is what is deployed. If you walk this after the next
-deploy, re-derive anything that looks off before filing it.
-
-**Status.** Written 2026-09-14. Never walked. Every expectation below is read out of
-the source, not observed in a browser — which is exactly why walking it is worth
+**Provenance.** Derived by reading the code, not by using the product. Every
+expectation below is read out of source — which is exactly why walking it is worth
 doing.
+
+> ### ⚠ Deploy state — read before you walk
+>
+> **This document describes the branch, not production.**
+>
+> Production is `b5b8eec` (`origin/main`). The four fix chunks of 2026-09-14 — `G1`
+> (account settings), `G21` (monthly cadence), `S14.1` (Manager Profile gate), and the
+> failed-fetch family (`G5`, `G6`, `G7`, `G13`, `G14`, `G15`) — are on the branch and
+> **not deployed**.
+>
+> Ten steps therefore describe behaviour that does not exist on solverah.com yet:
+>
+> **S7.7 · S8.10 · S9.11 · S12.8 · S13.11 · S13.13 · S14.1 · S17.4 · S19.9 · all of S20**
+>
+> Walking prod today, every one of those fails — correctly, and uninterestingly. Two
+> honest ways to walk it:
+>
+> - **Deploy first**, then walk the whole document as written. Preferred: it is the
+>   only way the ten get tested at all.
+> - **Walk prod as it stands** and skip the ten. Everything else in the document is
+>   accurate against `b5b8eec`.
+>
+> Do not log those ten as findings against production. If you walk locally instead,
+> the branch is accurate — but a local walk cannot see the email, cron, or R2 paths
+> in S23.
+
+**Status.** Written 2026-09-14; revised the same day after the four fix chunks landed.
+Never walked.
 
 ---
 
@@ -123,7 +146,7 @@ Already understood. Do not file these; reference them.
 | ID | Gap | Where |
 |---|---|---|
 | **G1** | ~~No account-settings screen exists.~~ **CLOSED 2026-09-14.** `/settings` ("Account settings") ships the data-export and account-deletion controls the Privacy Policy, Terms and `/trust` promise; the entry point is the gear icon in the header. Backend unchanged. Walk S20 as a pass. | S20 |
-| **G2** | **No mobile menu.** `Header.tsx` has no hamburger and no responsive branch — the same flex row renders at every width, so five nav items plus the user's name overflow on a phone. | S7 |
+| **G2** | **No mobile menu.** `Header.tsx` has no hamburger and no responsive branch — the same flex row renders at every width, so the nav plus the user's name overflows on a phone. **Worse since 2026-09-14:** the `G1` fix added a seventh item (the settings gear). Still open. | S7 |
 | **G3** | **The Feed nav item does not navigate.** It calls `preventDefault()` and opens a modal: "Feature coming soon" / "The feed will be available soon. Check back after launch." / "Got it". The `/feed` route exists behind the guard but the header never reaches it. | S17 |
 | **G4** | **CompanyLens is coming-soon for everyone**, by decision (⚑3) — the matching model isn't built. Both the Intelligence card and `/company-lens` say so. | S17 |
 | **G5** | ~~Experiments have no loading and no error state.~~ **CLOSED 2026-09-14.** Start buttons are withheld while `/me/experiments` loads or fails; a failure shows "We couldn't load your experiments right now." + "Try again". See S12.8. | S12 |
@@ -1043,12 +1066,25 @@ each one **says so honestly** rather than looking broken.
 pass. **Use a throwaway account for S20.3: it really deletes.**
 
 - **S20.1** — Signed in, find the account-settings screen.
-  → The gear icon in the header, left of the logout icon (`title` "Account
-  settings"), → `/settings`. H1 **"Account settings"**, your name and email beneath it.
+  → The gear icon in the header, left of the logout icon (`aria-label` and `title`
+  both "Account settings"), → `/settings`. H1 **"Account settings"**, your name and
+  email beneath it.
+  → `/settings` is inside the `RequireAuth` tree and lazy-loaded, so a signed-out
+  visit to it directly shows the grey skeleton, bounces to `/login`, and returns you
+  here after sign-in. Worth one check — it is the newest route in the app.
+  → (Aside, not a step: the gear got an `aria-label`; the logout button beside it
+  still has only a `title`. Same gap as S6.11, now more visible by contrast.)
 - **S20.2** — "Your data" → **"Download a copy of your data"**.
   → The button reads "Preparing your download…" in flight, then the browser saves
-  `solverah-data-YYYY-MM-DD.json`. Nothing from the payload is ever rendered on
-  screen. On failure: "We couldn't prepare your download just now." + "Try again".
+  `solverah-data-YYYY-MM-DD.json` (your local date, not UTC). Nothing from the payload
+  is ever rendered on screen. On failure: "We couldn't prepare your download just
+  now." + "Please try again in a moment." + "Try again".
+  → **Then open the file.** Confirm it is non-empty and parses as JSON, and that it
+  contains your assessment answers. This is the one step here a test cannot stand in
+  for: the blob URL is deliberately revoked **60 seconds** after the click rather than
+  on the same tick, to dodge a Firefox bug that otherwise saves a 0-byte file. The
+  unit test can prove the timing but not the browser.
+  → **Do this step in Firefox as well as Chrome**, for the same reason.
 - **S20.3** — "Delete your account" → **"Delete my account"**.
   → Reveals "Type DELETE to confirm". "Permanently delete" stays disabled for `delete`
   and `DELET`, enables for `DELETE`. Confirming lands you signed out on `/` with a
