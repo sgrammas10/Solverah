@@ -1,0 +1,16 @@
+Run 3 of the P-07 scrub, 2026-09-07 — the PROMOTED run. First packet in the set
+de-identified by prompt rather than by hand.
+
+Ran under SCRUB_BRIEF.md carrying Rule Three and amendments A5/A6/A7. Verified by
+Scripts/verify_scrub.py: 51 bullets in / 51 out (A8 B17 C10 D6 E4 F6), 36 quote bodies
+byte-identical and 15 differing only at declared substitution points, zero punctuation
+drift in any section, section C parsing 10/10 where the raw parses 0, and no surviving
+identifier among Cummins / Accelera / Amplify / the state employment agency / the county.
+
+The packet went to anonymization/P-07_packet_ANON.txt and the defect list to
+packets/P-07_cummins/. This copy is the run record: the diff is the only artifact holding
+the minted-token mapping, which under A6(a) must never live in the rater-facing file.
+
+This run also produced two corrections to the rules it was given -- A6(a) (log the removed
+string in the diff, not in the packet's own scrub log) and the finding that R2's harness
+normalisation requirement was never implemented in scorer_pipeline._normalize.

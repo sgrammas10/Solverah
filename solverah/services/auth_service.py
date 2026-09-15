@@ -205,6 +205,19 @@ def login(*, email: str, password: str, check_password, wp_v2_completed) -> Auth
     if user and user.locked_until and user.locked_until > domain.utcnow():
         return _error(423, "Account locked. Try again later.")
 
+    if user is None:
+        # Burn the same bcrypt work a real account would, then fall through to
+        # the identical 401 below.  Without this the `not user` short-circuit
+        # answers tens of milliseconds sooner than a wrong password does, and
+        # the 2026-09 audit probed exactly that: same status, same body, two
+        # populations separable by the clock.  Enumerating a mailing list off a
+        # timing difference is slower than off a status code, not harder.
+        #
+        # The result is deliberately discarded -- `TIMING_EQUALISER_HASH` has no
+        # matching plaintext, so it can only ever be False, and branching on it
+        # would put the branch back.
+        check_password(domain.TIMING_EQUALISER_HASH, password)
+
     if not user or not check_password(user.password_hash, password):
         if user:
             user.failed_login_count += 1
@@ -281,18 +294,41 @@ def confirm_email(*, email: str, code: str) -> AuthResult:
     return AuthResult(status=200, body={"message": "email confirmed"}, user=user)
 
 
+#: The only body ``resend_confirmation`` ever returns once the address parses,
+#: and the only one ``request_password_reset`` ever returns.  Named so the three
+#: outcomes each function has -- sent, already-confirmed, no such account --
+#: cannot drift apart by someone editing one return and not the others.
+RESEND_UNIFORM_BODY = {"message": "confirmation_sent"}
+RESET_UNIFORM_BODY = {"message": "reset_sent"}
+
+
 def resend_confirmation(*, email: str, is_valid_email) -> AuthResult:
-    """Issue a fresh OTP for an unconfirmed account."""
+    """Issue a fresh OTP for an unconfirmed account, disclosing nothing.
+
+    Answers ``200 confirmation_sent`` for all three outcomes -- code sent,
+    address already confirmed, no such account -- because the three are
+    indistinguishable to anyone who is not reading that inbox, and that is the
+    point.  Until S1 they were ``200`` / ``400 "Email already confirmed"`` /
+    ``404 "Account not found"``, which the 2026-09 audit probed live: replay a
+    mailing list here and the status codes sort it into registered, registered-
+    and-verified, and unknown.
+
+    The malformed-address ``400`` stays, and is not a leak: it depends only on
+    the *string*, never on whether it names an account, so it answers the same
+    for both populations.
+
+    No work is done for an unknown address -- no row, no outbox entry, no email
+    -- so an attacker cannot use this to make the system send mail to a third
+    party either.
+    """
     email = (email or "").strip().lower()
     if not email or not is_valid_email(email):
         return _error(400, "Valid email is required")
 
     user = user_repository.find_by_email(email)
-    if not user:
-        return _error(404, "Account not found")
-
-    if getattr(user, "email_confirmed", False):
-        return _error(400, "Email already confirmed")
+    if not user or getattr(user, "email_confirmed", False):
+        # Nothing to do, and nothing to say about which of the two it was.
+        return AuthResult(status=200, body=dict(RESEND_UNIFORM_BODY), user=user)
 
     code = domain.generate_verification_code()
     user.confirmation_token = code
@@ -308,7 +344,7 @@ def resend_confirmation(*, email: str, is_valid_email) -> AuthResult:
     db.session.commit()
     outbox.publish_soon(entry_id)
 
-    return AuthResult(status=200, body={"message": "confirmation_sent"}, user=user)
+    return AuthResult(status=200, body=dict(RESEND_UNIFORM_BODY), user=user)
 
 
 # ---------------------------------------------------------------------------
@@ -316,18 +352,33 @@ def resend_confirmation(*, email: str, is_valid_email) -> AuthResult:
 # ---------------------------------------------------------------------------
 
 def request_password_reset(*, email: str) -> AuthResult:
-    """Send a 6-digit OTP for passwordless login.
+    """Send a 6-digit sign-in OTP, disclosing nothing about who has an account.
 
-    Answers 404 for an unknown or unconfirmed address, which discloses account
-    existence.  Preserved as-is: Part 5.3 changes this to a uniform 200 with a
-    per-email rate limit, and that is a client-visible behaviour change, so it
-    belongs with the rest of 1b rather than here.
+    Answers ``200 reset_sent`` whether or not the address names a confirmed
+    account.  The 404 that stood here until S1 -- "No account found with that
+    email address." -- was the cleanest enumeration oracle in the application,
+    and the 2026-09 audit probed it live: POST a mailing list, keep the 200s,
+    and the result is a verified list of this product's users.  Its own
+    docstring had been carrying the fix as a deferred to-do since Phase 1b.
+
+    ``verify_password_reset`` was already written to hold up its half of this:
+    every one of its failure modes answers the same ``invalid_or_expired_code``,
+    so the code someone types after this 200 cannot re-open the question.
+
+    The UI stays coherent because it never distinguished the two either -- it
+    navigates to the code-entry screen on 200 and shows the server's wording on
+    an error, so an unknown address now reaches a screen that says a code was
+    sent and never receives one, which is the standard shape of this flow.
     """
     email = (email or "").strip().lower()
 
     user = user_repository.find_by_email(email)
     if not user or not getattr(user, "email_confirmed", False):
-        return _error(404, "No account found with that email address.")
+        # No row to write, no email to owe, nothing to disclose.  An unconfirmed
+        # account lands here too: this endpoint mints a *session*, so handing
+        # one to an address nobody has proved they control would make email
+        # confirmation optional.
+        return AuthResult(status=200, body=dict(RESET_UNIFORM_BODY), user=user)
 
     code = domain.generate_verification_code()
     user.reset_token = code
@@ -338,7 +389,7 @@ def request_password_reset(*, email: str) -> AuthResult:
     db.session.commit()
     outbox.publish_soon(entry_id)
 
-    return AuthResult(status=200, body={"message": "reset_sent"}, user=user)
+    return AuthResult(status=200, body=dict(RESET_UNIFORM_BODY), user=user)
 
 
 def verify_password_reset(*, email: str, code: str) -> AuthResult:

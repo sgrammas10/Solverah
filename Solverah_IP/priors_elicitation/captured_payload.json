@@ -1,0 +1,106 @@
+{
+  "instrument": "priors_elicitation_v1",
+  "model_config": "solverah_model_config.yaml (6 active dimensions)",
+  "saved_at": "2026-09-06T18:55:18.377Z",
+  "scale": "count out of 10 still doing well after one year",
+  "baseline": {
+    "out_of_10": 7
+  },
+  "dimensions": {
+    "pace": {
+      "above": {
+        "out_of_10": 5
+      },
+      "below": {
+        "out_of_10": 4
+      },
+      "confidence": "fairly",
+      "note": ""
+    },
+    "feedback": {
+      "above": {
+        "out_of_10": 6
+      },
+      "below": {
+        "out_of_10": 3
+      },
+      "confidence": "unsure",
+      "note": ""
+    },
+    "decision": {
+      "above": {
+        "out_of_10": null
+      },
+      "below": {
+        "out_of_10": null
+      },
+      "confidence": "abstain",
+      "note": "I genuinely don't know on this one."
+    },
+    "innovation": {
+      "above": {
+        "out_of_10": 4
+      },
+      "below": {
+        "out_of_10": 6
+      },
+      "confidence": "fairly",
+      "note": ""
+    },
+    "autonomy": {
+      "above": {
+        "out_of_10": 3
+      },
+      "below": {
+        "out_of_10": 5
+      },
+      "confidence": "confident",
+      "note": "Biggest one by far in my experience."
+    },
+    "collaboration": {
+      "above": {
+        "out_of_10": 5,
+        "range": [
+          4,
+          7
+        ]
+      },
+      "below": {
+        "out_of_10": 4
+      },
+      "confidence": "fairly",
+      "note": ""
+    }
+  },
+  "recheck": {
+    "dimension": "pace",
+    "scenario": "above",
+    "answer": {
+      "out_of_10": 4
+    }
+  },
+  "confounders": {
+    "stage_size": {
+      "large": {
+        "out_of_10": 7
+      },
+      "small": {
+        "out_of_10": 6
+      }
+    },
+    "comp": {
+      "above_market": {
+        "out_of_10": 8
+      },
+      "below_market": {
+        "out_of_10": 5
+      }
+    },
+    "industry_matters": "a_little"
+  },
+  "notes": {
+    "baseline": "",
+    "industry": "",
+    "free": "Level matters more than any of this for early-career people."
+  }
+}

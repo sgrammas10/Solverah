@@ -1,0 +1,36 @@
+P-10 Twilio, scrubbed 2026-09-07 by prompt (Opus 5), run manually before the schedule went
+live. Complete four-file set. First packet scrubbed against amendments A8, A9 and A6(a) --
+P-09's scrubber never saw A6(a), because the scrub folder's copy of the ruleset had drifted a
+day behind the canonical one.
+
+Verified by Scripts/verify_scrub.py: PASSED. 45 excerpts (A8 B15 C10 D5 E3 F4). A, B and C sit
+inside the prompt's required ranges; D, E and F match the builder's own declared yields exactly.
+40 quote bodies paired against the raw, 13 changed and every one declared on its line, zero
+undeclared, no URLs, no "Twilio", no lookup-key tokens. Together with P-09 this is one of the
+two cleanest packets in the set.
+
+CD-1 is the finding that matters and it is BUILD-side. The Section 4 pre-flag block -- the
+block SCRUB_BRIEF tells the scrubber to read -- is wrong about where the identifiers are in
+three separate ways: it pins the derived employee term on the wrong section A excerpt, omits
+two section B reviews whose quote bodies carry the company name, and never flags the review
+headline containing it. A scrubber trusting that block instead of sweeping the full text ships
+the company name into a rater-facing packet three times. This run swept mechanically and used
+the block only as a cross-check, which is why nothing survived. The brief's wording currently
+invites the trusting reading.
+
+FL-1, unresolved: a section D quote body names a city-scale place and a country in one
+sentence. The city was tokenised ([Site E]); the country was left literal, because the packet's
+own scope declaration states that country as a coverage boundary and tokenising it there
+destroys the scope note, while tokenising only the in-body instance is the split A6 forbids.
+R5 does not say whether it reaches country scale. Needs deciding before the first
+international packet.
+
+FL-3, timing: the ruleset's OPEN section on reviewer-level re-identification said any
+forward-only rule would apply "from P-10". P-10 has now been scrubbed without that rule, so
+the boundary as written is no longer reachable. Corrected in the ruleset the same day to name
+P-11 as the earliest forward boundary, with P-07 through P-10 on the pre-rule side.
+
+Also recorded: CD-2 (the FEEDBACK coverage call in 2b cites a job-posting line that is not in
+section C, and FEEDBACK is the one dimension marked THIN, so that citation is load-bearing),
+CD-3 (2g's location tally covers 14 of 15 reviews and understates the remote share), CD-4,
+CD-5.

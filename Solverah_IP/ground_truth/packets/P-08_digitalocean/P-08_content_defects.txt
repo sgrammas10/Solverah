@@ -1,0 +1,91 @@
+P-08 — CONTENT DEFECTS FOUND DURING THE SCRUB PASS
+scrubbed 2026-09-07 · source: packets_raw/P-08_packet.txt (build v4.6, built 2026-08-27)
+
+Six found. None was corrected. Each is reproduced verbatim in the scrubbed packet and the
+scrub worked around it. These are build-record items: the build is what needs correcting.
+
+
+CD-1 — Section B header declares 12–15 excerpts; the section holds 11.
+  Header, verbatim:  --- B. EMPLOYEE REVIEWS (12–15, one per line, most recent first) ---
+  Actual bullets:    11
+  The post-build correction of 2026-08-27 removed one review as a confirmed different company,
+  taking the section from 12 to 11, and the header was not updated. Section 2a records the
+  shortfall honestly ("B reviews: 11/12") and the SCOPE DECLARATION and NOTE TO RATER (3 of 3)
+  both state eleven, so the header is the only place carrying the pre-correction range.
+  Note this is a hard ceiling, not a sampling shortfall — 2a and the source-access log both say
+  the required source is exhausted at eleven. The header's range is unachievable for this
+  company, which is itself worth recording: it is the required-yield floor that is wrong here,
+  not the collection.
+
+
+CD-2 — Section C header declares 6–10 excerpts; the section holds 14.
+  Header, verbatim:  --- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+  Actual bullets:    14
+  Section 2a records "C excerpts: 14/6", treating 6 as a floor and not flagging the ceiling.
+  The header states a range with an upper bound of 10 and the section exceeds it by four.
+  Either the header's range or 2a's floor-only reading is wrong; they cannot both be right.
+
+
+CD-3 — Section E header declares yield 3; the section holds 4 excerpts.
+  Header, verbatim:  --- E. RECENT NEWS (yield: 3 · searches logged) ---
+  Actual bullets:    4
+  Section 2a contradicts the header directly: "E excerpts: 4    searches logged: 4". The fourth
+  excerpt (the CEO's statement about the incoming Chief Product and Technology Officer, dated
+  2026-01-20) is the one the header does not account for. This is the same defect shape as
+  P-07's section E header.
+
+
+CD-4 — NOTE TO RATER (2 of 3) states a stale denominator.
+  Verbatim:  "Eight of the twelve reviews were cut off at the source's "Show more" control and
+             are marked […]."
+  Eight is correct — eight of the printed reviews carry the […] marker. Twelve is not: the
+  population is eleven after the post-build correction. Every other rater-facing count in the
+  packet was updated to eleven; this one was missed. A rater reading it will conclude that four
+  reviews survived intact when three did.
+
+
+CD-5 — Section D's VOICE COMPOSITION FLAG miscounts and mislabels.
+  Verbatim:  "VOICE COMPOSITION FLAG FOR THE RATER: three of the four passages below are
+             senior-leadership or executive voice (Deputy Chief Information Security Officer;
+             Chief Executive Officer). One is an individual-contributor engineer."
+  Two problems, both affecting how a rater weights the section.
+  (a) The parenthetical names two sources against a count of three. Section 2a resolves the
+      third — the public-repository maintainer collective, "treated as company voice" — but the
+      rater-facing flag does not say so, so the flag reads as internally inconsistent.
+  (b) "the four passages below" refers to the four distinct SOURCES. The section holds eleven
+      excerpts, and 2a says so ("D passages: 11 excerpts across 4 distinct sources"). A rater
+      reading "four passages" and counting eleven bullets has no way to reconcile the two, and
+      the section header's "yield: 4" repeats the same ambiguity.
+  The substance of the flag is right and the scrub left it verbatim; the wording is what needs
+  fixing at the build.
+
+
+CD-6 — The SCOPE DECLARATION omits the executive voice from its own role list.
+  Verbatim:  "drawn from sales, software engineering, executive assistance, marketing,
+             administration, customer success management, trust and safety, volunteer staff,
+             and an intern"
+  Nine categories are listed and eleven reviews are printed. Ten of the eleven map onto the
+  list. The eleventh — the 2012 COO review, which the post-build correction specifically
+  checked and RETAINED — has no entry: "executive assistance" is the Executive Assistant, not
+  the COO. The scope block is the thing a rater reads to calibrate how much of the company the
+  reviews cover, and it currently tells them no executive voice is present when one is. Likely
+  the same missed edit as CD-4: the list was written against the pre-correction population and
+  updated for the removal but not for what remained.
+
+
+MINOR — recorded without asserting an error
+  · The SCOPE DECLARATION says the reviews are "spread over fourteen years". The oldest is
+    2012-07-25 and the newest 2025-01-29, a span of about twelve and a half years; fourteen is
+    right only if inclusive calendar years are being counted (2012 through 2025). Defensible
+    either way, flagged so the build can pick one convention.
+  · Section 2a's "B reviews within 24 months: 1/12" carries the same stale denominator as CD-4.
+    Not rater-facing, so not a packet defect, but it is the same missed edit and should be
+    fixed in the same pass.
+
+NOT A DEFECT — checked and clean
+  · No excerpt was found quoting text absent from the section it is attributed to.
+  · No attribution contradicts its excerpt.
+  · No date in Section 1 is impossible, and the ordering claims hold: the newest review is
+    2025-01-29 as NOTE 1 states, and all four Section E events (2026-01-20 ×2, 2026-06-10,
+    2026-08-04) postdate it as NOTE 1 states.
+  · No internal contradiction was found between any two company-authored excerpts.

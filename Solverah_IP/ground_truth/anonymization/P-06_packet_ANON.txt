@@ -1,0 +1,278 @@
+PACKET P-06   ·   ANONYMIZED   ·   RATER-FACING
+  scrubbed from : P-06_packet.txt (build v4.6, model claude-opus-5, built 2026-08-14)
+  ruleset       : ANONYMIZATION_RULES_DRAFT.md
+  scrubbed      : 2026-08-15
+  status        : DRAFT. Source packet is a one-method build (plain HTTP fetch only),
+                  scheduled for rebuild under v4.7 with the renderer connected.
+
+  DO NOT SEARCH FOR ANY PHRASE IN THIS PACKET. If you recognise the company, that is
+  expected and is not a failure — record it on the recognition flag and keep scoring
+  from the evidence in front of you, not from what you know.
+
+
+########## SECTION 1 — EVIDENCE PACKET ##########
+
+SCOPE DECLARATION: The employee reviews in this packet come from branch and home-office
+operations, client-service, IT support, financial-advisor and intern roles at a large US
+financial services firm, sampled company-wide and newest-first; four of the fifteen carry
+no job title at all. Other parts of this company — investment banking, capital markets,
+asset management, software engineering, legal and human resources — are almost entirely
+absent from them. Company-authored sources describe the whole organisation.
+
+RETRIEVAL LIMITATION AFFECTING THIS PACKET: only one retrieval method was available during
+this build — plain HTTP fetch. No JavaScript-rendering browser was connected. Nothing in
+this packet should be read as "does not exist"; where a source is described as not reached,
+it means not reached by plain fetch. For the same reason the "needed JS" field reads "not
+determinable" on every line rather than Y or N.
+
+
+--- A. CAREERS / VALUES PAGE (5-8 excerpts) ---
+
+NOTE ON SOURCING FOR THIS SECTION: the company's own careers and culture pages could not be
+read — plain fetch of those URLs returns site navigation only and is cut off before reaching
+any page body, and the renderer that would normally solve this was unavailable. The excerpts
+below therefore come from two other first-party, company-authored sources: the company's
+applicant-tracking careers site, and its Code of Business Conduct and Ethics, which carries
+a values section. Four of the eight excerpts are taken from the careers landing page's
+metadata rather than its rendered body text.
+
+   • "Our business is deeply focused on people and their financial well-being."  — [company careers site, landing page] — company-authored — accessed 2026-08-14, no publication date shown — needed JS: not determinable
+
+   • "We believe doing well and doing good aren't mutually exclusive."  — [company careers site, landing page] — company-authored — accessed 2026-08-14, no publication date shown — needed JS: not determinable
+
+   • "As an established but ever-evolving company, you can start – or continue – growing your career here. We invest in you with wide-ranging benefits and the support of leaders and colleagues who care."  — [company careers site, landing page] — company-authored — accessed 2026-08-14, no publication date shown — needed JS: not determinable
+
+   • "Our people-first culture is outlined in our [a named internal culture document]. Check it out to see why many choose to work at [the company] – and why they stay."  — [company careers site, landing page] — company-authored — accessed 2026-08-14, no publication date shown — needed JS: not determinable — [proper noun rewritten in brackets; clause otherwise verbatim] — [SEE RECURRENCE NOTE AT SECTION F]
+
+   • "Our culture is people-driven, values-built and future-focused – and it starts with you."  — [company code of conduct, first-party document, p.5] — company-authored — version approved 2026-05-13 (board of directors, annual review) — needed JS: not determinable
+
+   • "We value independence. We respect autonomy, celebrate individuality and welcome diverse perspectives, while encouraging collaboration and innovation."  — [company code of conduct, "Our values"] — company-authored — version approved 2026-05-13 — needed JS: not determinable
+
+   • "We think long term. We act responsibly, taking a conservative approach that translates into a strong, stable firm for clients, advisors, associates and shareholders."  — [company code of conduct, "Our values"] — company-authored — version approved 2026-05-13 — needed JS: not determinable
+
+   • "Create the kind of workplace where individuals feel comfortable coming forward with questions or concerns, and supported when they raise issues. Never retaliate when an individual shares concerns, and always work to prevent retaliation by others."  — [company code of conduct, "Responsibilities for leaders, managers and supervisors", p.7] — company-authored — version approved 2026-05-13 — needed JS: not determinable
+
+
+--- B. EMPLOYEE REVIEWS (12-15, one per line, most recent first) ---
+
+NOTE TO RATER: 6 of the 15 reviews below were cut off by the source site at a "Show more"
+control that does not expand on fetch — 40% of this sample. The cut is marked […]. Reviews
+that survived intact are systematically the SHORT ones, so the longer and more detailed
+accounts are the ones you are reading only the opening of. This is a property of the source,
+not of the company.
+
+SECOND NOTE TO RATER: 4 of the 15 reviews were posted with no job title and appear as
+"title: not stated". They cannot be assigned to a function. A further 8 carry no location.
+
+Reviews are company-wide, sorted newest-first, taken in strict date order with no selection
+on content. Job title is recorded exactly as the reviewer gave it.
+
+   • "Decent company to work for, generally good management and leadership. Outdated tech and systems make many things more difficult or mundane than they need to be"  — [employee review rev-01] — title: not stated · location: not stated — 2026-07-16 — needed JS: not determinable
+
+   • "Good pay with good benefits. Headquarters is a nice campus as well. People are typically friendly and they offer a hybrid work enviroment [sic] which is nice"  — [employee review rev-02] — title: not stated · location: not stated — 2026-06-17 — needed JS: not determinable — ["enviroment" appears for "environment" in the source; preserved]
+
+   • "Pros: My career has steadily progressed in my 10 years at [the company]. I enjoy coming to work, I like the culture here (as a woman working in a brokerage firm) and the firm is committed to providing the most up-to-date tech tools. Cons: New additions to local/regional management have made me question the culture […]"  — [employee review rev-03] — title: Branch Operations Manager · location: not stated — 2026-06-08 — needed JS: not determinable — [truncated at source]
+
+   • "Solid place. Worked for a little bit. Was mainly learning to gather more experience within the field to better understand if the area was somewhere to pursue"  — [employee review rev-04] — title: not stated · location: not stated — 2026-06-07 — needed JS: not determinable
+
+   • "Great company to work with! Professional, responsive, and reliable service from start to finish. Highly recommend to anyone seeking quality! I would for sure work here again."  — [employee review rev-05] — title: Intern · location: not stated — 2026-05-18 — needed JS: not determinable
+
+   • "Great company with room for growth, team wants you to succeed and gives you ample opportunities to do so. Would recommend for people looking for good culture and good people."  — [employee review rev-06] — title: Financial Advisor · location: [Site A] — 2026-05-07 — needed JS: not determinable
+
+   • "Great place to start with a great culture. Good place to start as a young professional and coworkers care about your growth within the company. Recommend"  — [employee review rev-07] — title: not stated · location: not stated — 2026-04-30 — needed JS: not determinable
+
+   • "Phenomenal office and company culture. Enjoyed working there for 10 years. Unfortunately all it took was one terrible manager to change everything and ruin a 10 year tenure. That manager was gone 2 months after me but the damage was already done"  — [employee review rev-08] — title: Regional Director · location: [Site B] — 2026-03-22 — needed JS: not determinable
+
+   • "This job can be very busy one day and slow the next. Everyday is different which can be enjoyable. Management appears to be on top of things. They will help you with advancement and license if you wish. You get annual bonuses. You also get benefits from day one. Some positions can be hybrid, which […]"  — [employee review rev-09] — title: Branch Operations Specialist · location: [Site C] — 2025-12-16 — needed JS: not determinable — [truncated at source]
+
+   • "My time at [the company] as a Mutual Funds Support Associate was genuinely positive. The culture was great, the training fully prepared me for the role, and the team provided constant support. The job wasn't too difficult, but it challenged me in the right ways and helped me grow both professionally […]"  — [employee review rev-10] — title: Senior Trading Support Associate · location: [Site D] — 2025-12-04 — needed JS: not determinable — [truncated at source]
+
+   • "As title states. The work culture is extremely toxic and your treated as a machine unit with their high micro managing kpi standards. Very high turnover so they prevent promotions as much as possible. […]"  — [employee review rev-11] — title: New Accounts Ambassador · location: [Site D] — 2025-10-15 — needed JS: not determinable — [truncated at source] — ["your treated" and "micro managing" appear as written in the source; preserved]
+
+   • "It is okay to work here. A lot of good and smart people in IT department. The pay is somewhat fair comparing to others similar places, all usual benefits, 401, stocks, etc. However, to grow professionally here you will need either to join the right team from the very beginning or be a flexible person […]"  — [employee review rev-12] — title: IT Specialist · location: not stated — 2025-10-01 — needed JS: not determinable — [truncated at source]
+
+   • "The bank does not keep up with the times. Benefits are decent (they have to be - they are a Fortune 500 company), but their policies are not modern. They're proud to be very conservative, they believe in working on site and they believe in top down micromanagement. I've heard it's different at the firm, […]"  — [employee review rev-13] — title: Senior Banking Ops Associate · location: not stated — 2025-09-23 — needed JS: not determinable — [truncated at source]
+
+   • "They are very supportive and team-oriented. When you are on vacation, you are on vacation, no work calls. They have a great program to get you up to speed."  — [employee review rev-14] — title: Consultant · location: Remote — 2025-09-11 — needed JS: not determinable
+
+   • "Pay bad for first few years and then Gets better. A lot of underperformers stay around and are effectively cheap labor. Company could probably be more aggressive/generous with paying high performers and would be a net benefit to company."  — [employee review rev-15] — title: Analyst · location: [Site E] — 2025-08-28 — needed JS: not determinable
+
+
+--- C. JOB POSTINGS (6-10 excerpts from 3+ open postings, different functions) ---
+
+Five currently-open postings were opened individually on 2026-08-14. Each rendered a live
+apply control and none carried a removal or expiry notice. Functions: advisor marketing
+support; retirement plan services operations; client account services (call centre);
+marketing data analytics; front-end software engineering. Postings are identified by
+function label only.
+
+   • "Under direct supervision, uses general knowledge and skills obtained through training and experience to assist financial advisors with marketing efforts. General instructions and procedures are provided to perform routine standardized tasks."  — [job posting, advisor marketing support function] — employer-authored posting body — confirmed open 2026-08-14 — needed JS: not determinable
+
+   • "At [the company] our associates use five guiding behaviors [five named behaviours] to deliver on the firm's core values of client-first, integrity, independence and a conservative, long-term view."  — [job posting] — employer-authored standing block appearing verbatim in all five postings opened — confirmed open 2026-08-14 — needed JS: not determinable — [the parenthetical list of five behaviour names rewritten; clause otherwise verbatim]
+
+   • "During our peak period from November to April, mandatory overtime is required."  — [job posting, retirement plan services operations function] — employer-authored posting body — confirmed open 2026-08-14 — needed JS: not determinable
+
+   • "Training: You will be in office full time during the first 60 days of employment. Training is comprehensive, lasting approximately three months. This will prepare you thoroughly for your role."  — [job posting, retirement plan services operations function] — employer-authored posting body — confirmed open 2026-08-14 — needed JS: not determinable
+
+   • "Works to navigate customer conversations by leveraging the four parts of a service conversation: open, learn, reply, and close. Typically works under close supervision."  — [job posting, client account services function] — employer-authored posting body — confirmed open 2026-08-14 — needed JS: not determinable
+
+   • "Follow a range of mandatory procedures to ensure that work is carried out to the required quality standards and/or to ensure adherence to external regulatory codes and internal codes of conduct."  — [job posting, client account services function] — employer-authored posting body — confirmed open 2026-08-14 — needed JS: not determinable
+
+   • "You will define, monitor, and maintain key performance indicators (KPIs), conduct analyses using techniques ranging from summary statistics to diagnostic and predictive modeling (with guidance as needed), and create and maintain reports and dashboards that support decision-making."  — [job posting, marketing data analytics function] — employer-authored posting body — confirmed open 2026-08-14 — needed JS: not determinable
+
+   • "Manage multiple projects and priorities in a fast-paced environment while maintaining quality, meeting deadlines and client service expectations."  — [job posting, marketing data analytics function] — employer-authored posting body — confirmed open 2026-08-14 — needed JS: not determinable
+
+   • "Participate in architectural discussions and contribute to front-end standards, best practices, and reusable component libraries."  — [job posting, front-end software engineering function] — employer-authored posting body — confirmed open 2026-08-14 — needed JS: not determinable
+
+   • "Work within Agile teams to deliver high-quality software in iterative releases."  — [job posting, front-end software engineering function] — employer-authored posting body — confirmed open 2026-08-14 — needed JS: not determinable
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 4 · ladder fully attempted) ---
+
+VOICE COMPOSITION FLAG FOR THE RATER: two of the four passages below are the chief
+executive; two are a field branch/complex manager. No individual-contributor first-person
+account was reached. Executive description of how a company works is not evidence about the
+rest of the organisation.
+
+   • "We have zero cross-selling requirements. There's not one financial advisor that will tell you — out of our [several thousand] advisors — that they have a cross-selling requirement to hit a deferred comp program goal."  — [long-form trade press profile, direct quote] — the chief executive (executive), speaking at the firm's annual institutional investor conference — independent publication, quote is the speaker's own words — 2026-03-02 — needed JS: not determinable — [advisor headcount replaced with magnitude language]
+
+   • "They know they're treated like free agents. They want to stay at [the company] because we have a unique value, unique culture and a robust platform that we're investing in. So why would they want to go anywhere else?"  — [long-form trade press profile, direct quote] — the chief executive (executive) — 2026-03-02 — needed JS: not determinable
+
+   • "He's my boss, but he knows I've also been in his role, so he treats me with that respect. But he'll be the first to say, 'Well, [name], I disagree,' and I appreciate that."  — [company culture magazine, first-person profile] — a complex manager (field management, non-executive) — company-authored publication — Summer 2026 issue — needed JS: not determinable — [the speaker's own first name inside the reported speech replaced]
+
+   • "I'm not one of these guys who likes to work from home. It's just like going to the gym. When you go the gym, you know what you're supposed to do – you work out. I'm more effective in the office."  — [company culture magazine, first-person profile] — a complex manager (field management, non-executive) — company-authored publication — Summer 2026 issue — needed JS: not determinable
+
+
+--- E. RECENT NEWS (yield: 3 · searches logged: 3) ---
+
+   • "[The company] also completed its acquisition of [an asset management firm], adding wealth-focused capabilities along with [a substantial sum] in combined assets under management and nondiscretionary assets, according to [the chief executive]."  — [trade press reporting] — independent, not company-authored — 2026-07-23 — needed JS: not determinable — [acquired firm's name and the transaction figure removed]
+
+   • "In its third quarter, the firm completed an enterprise rollout of [a proprietary internal AI assistant], he said."  — [trade press reporting] — independent, not company-authored — 2026-07-23 — needed JS: not determinable — [tool name removed; it is a pun on the company name]
+
+   • "[The chief executive] also drew attention to what [the company] calls its [a named advisor-rights policy]. This is an agreement allowing departing advisors to take their client list with them to another firm with no risk of legal action — provided they abide by various industry laws and standards."  — [trade press reporting] — independent, not company-authored — 2026-03-02 — needed JS: not determinable — [policy name rewritten; clause otherwise verbatim]
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 6 · public/private: PUBLIC) ---
+
+Source for all six: Item 1, "Human Capital", Annual Report on Form 10-K for the fiscal year
+ended 2025-09-30. Company-authored and legally accountable. All headcounts, dollar figures
+and percentages stripped at collection. Named internal programmes rewritten in place, clause
+preserved.
+
+   • "Our 'associates' (which include our employee financial advisors and all of our other employees) and our independent contractor financial advisors (which we call our 'independent advisors') are vital to our success."  — [10-K Item 1 Human Capital] — company-authored regulatory filing — fiscal year ended 2025-09-30 — needed JS: not determinable
+
+   • "We also endeavor to foster and maintain our unique and long-standing values-based culture."  — [10-K Item 1 Human Capital] — company-authored regulatory filing — fiscal year ended 2025-09-30 — needed JS: not determinable
+
+   • "Our values are memorialized in a document we refer to as [a named internal culture document] that is communicated to all associates."  — [10-K Item 1 Human Capital] — company-authored regulatory filing — fiscal year ended 2025-09-30 — needed JS: not determinable — [proper noun rewritten; clause otherwise verbatim] — RECURRENCE NOTE FOR THE RATER: this is the SAME named document referred to in the fourth Section A excerpt. Two sources naming one internal document is one claim appearing twice, not two independent sources agreeing. Do not read it as corroboration. That it recurs in a legal filing is itself informative — it says the culture claim is load-bearing enough to enter a regulatory document.
+
+   • "One way in which we measure the health of our culture is through firmwide and targeted surveys in which we routinely ask our associates about their experiences at the firm. Feedback provided through these surveys is also used to create and continually enhance programs that support our associates' needs."  — [10-K Item 1 Human Capital] — company-authored regulatory filing — fiscal year ended 2025-09-30 — needed JS: not determinable
+
+   • "Through our annual performance review process, associates and managers collaborate to define performance goals which are reviewed during mid-year touch points and formal end-of-year discussions."  — [10-K Item 1 Human Capital] — company-authored regulatory filing — fiscal year ended 2025-09-30 — needed JS: not determinable
+
+   • "To provide associates opportunity to compete for new positions, we require that all roles, with the exception of certain revenue-generating positions and certain senior-level roles, be posted on our internal online career platform."  — [10-K Item 1 Human Capital] — company-authored regulatory filing — fiscal year ended 2025-09-30 — needed JS: not determinable
+
+
+########## END OF PACKET ##########
+
+
+SCRUB LOG — for the run record, not for the rater
+  R1 attribution stripped : 47 excerpt lines. All source URLs removed. Review permalinks
+                            (which carry a slug derived from the review title, and are
+                            exact-match searchable) replaced with rev-01..rev-15. Job keys
+                            removed; postings identified by function label only.
+  R2 in-quote name subs   : 7  (A×2, B×2, C×1, D×1, E×2 — counting the two E lines that
+                            carry both a name and another substitution once each). "RJ" in
+                            rev-03 treated as a company-name occurrence and substituted.
+  R3 names stripped       : 4  (chief executive → role token in D×2 and E×2; complex manager
+                            → role token in D×2; two trade-press bylines → publication class).
+                            The complex manager's own FIRST NAME appears inside reported
+                            speech in the third D excerpt — stripping the attribution alone
+                            would not have anonymised it. Replaced with [name].
+  R4 programmes rewritten : 4  (culture "blueprint" → [a named internal culture document], in
+                            BOTH A and F; the five named guiding behaviours → generic; the
+                            proprietary AI assistant → generic; the named advisor-rights
+                            policy → generic)
+  R5 locations tokenised  : 5 places → Site A–E. Southfield appears in two reviews and is a
+                            single token [Site D], so the rater can see two accounts from one
+                            site. "Remote" kept literal per R5. 8 of 15 reviews carry no
+                            location and are left as stated.
+  R6 figures stripped     : 3  (Section E — the acquisition sum → "a substantial sum";
+                            Section D — the advisor headcount inside a quote → "several
+                            thousand"; the acquired firm's name removed alongside the figure)
+  R7 typos retained       : 3  ("enviroment", "your treated", "micro managing")
+  Brand/product subs      : 1  (the proprietary AI assistant, counted under R4 as well —
+                            it is a named internal tool AND a pun on the company name, which
+                            is why it was removed rather than kept as a bare product name)
+
+  DEVIATIONS FROM THE RULESET — flagged, not hidden
+
+   · R6 EXTENDED TO SECTION D. The ruleset writes R6 against Section E and Section F. The
+     advisor headcount inside the first D excerpt ("out of our 9,000 or so advisors") is a
+     one-query identification within this company's peer set and carries no dimension signal
+     — the claim about cross-selling requirements is the signal, and it survives intact.
+     Precedent exists: P-02 applied magnitude language inside an E quote body. Recommend R6
+     be rewritten as "strip identifying figures wherever they appear, in any section" and
+     folded into v4.7 that way. NEEDS YOUR SIGN-OFF.
+
+   · JC-1 AND R4 COLLIDE ON THE FIVE GUIDING BEHAVIOURS. JC-1 says distinctive verbatim
+     self-descriptions stay; R4 says rewrite the branded proper noun and keep the clause. The
+     five-word behaviour list is both. I generalised the parenthetical list and kept the core
+     values clause ("client-first, integrity, independence and a conservative, long-term
+     view"), on the ground that the values clause is far richer in dimension signal —
+     independence maps to autonomy, "conservative, long-term" to pace and innovation — while
+     the five behaviour names are near-pure fingerprint. The source packet's own pre-flags
+     recommend the same split. This is the first packet where the two rules have met.
+
+   · R8 APPLIED AS A VISIBLE NOTE, NOT AS A DELETION. R8 says that when a claim appears in
+     both A and F, quote it once and note the recurrence. Applying that literally here would
+     have dropped one excerpt and made P-06 inconsistent with P-01 through P-05, which were
+     scrubbed before R8 was written. I kept both excerpts and put the recurrence note in the
+     rater-facing text instead, which achieves R8's actual purpose — preventing the rater
+     from reading one company claim in two costumes as triangulation — without changing the
+     excerpt count. Decide whether the rebuild does this or the deletion.
+
+  KNOWN RESIDUAL EXPOSURE, ACCEPTED UNDER THE RULESET
+   · "We believe doing well and doing good aren't mutually exclusive." — per the source
+     packet's own pre-flags this exact string appears in the careers site, the code of
+     conduct AND the 10-K. A three-source exact match makes it the single most searchable
+     string in this packet. Retained under JC-1. It is also a real signal line. FLAGGED.
+   · "Our culture is people-driven, values-built and future-focused" — retained under JC-1.
+   · "client-first, integrity, independence and a conservative, long-term view" — retained
+     under JC-1; strong autonomy and pace signal.
+   · "We have zero cross-selling requirements" — appears in a published headline and is
+     therefore indexed. Retained under JC-1. It is the highest-information autonomy line in
+     Section D. This is a T2 exposure only, and R1 has removed the URL.
+   · "the four parts of a service conversation: open, learn, reply, and close" — unusual
+     phrasing, likely traceable to this employer's own service curriculum. Retained under
+     JC-1; it is direct evidence on autonomy and decision latitude in the call-centre role.
+   · The three preserved typos — each is exact-match searchable and will return the original
+     review. Retained per R7.
+   · "Fortune 500 company" inside rev-13 — narrows the field, does not identify alone.
+     Retained; it also carries the reviewer's own reasoning about why benefits are decent.
+   · rev-13's distinction between "the bank" and "the firm" reflects a real internal
+     structure and is mildly identifying. Retained — it is direct evidence that conditions
+     differ across the organisation, which is exactly what the scope declaration warns about.
+   · A non-calendar fiscal year ending 30 September is retained in Section F's attribution.
+     Mildly narrowing. Removing it would cost the date, which R1 treats as load-bearing.
+   · Industry is inferable from job titles, the reviews and the scope declaration, and was
+     not treated as a leak, per the ruleset's own finding.
+   · Section E survives at all only under JC-2, which is still open. Scrubbed of the named
+     acquisition, the transaction figure, the named AI tool and the named policy, what
+     remains is "a large financial services firm made an acquisition, rolled out an internal
+     AI assistant, and lets departing advisors take their clients". The third of those is
+     high-value autonomy evidence from a non-company-authored source, which is precisely what
+     the 0.7 measurement wants. The first two are near-zero dimension signal at non-trivial
+     re-identification cost. If JC-2 resolves toward trimming, the first two E excerpts are
+     the ones to drop, not the third.
+
+  DEFECTS IN THE SOURCE PACKET FOUND DURING THE SCRUB — not anonymization issues
+   · Section 4's pre-flag block quotes A excerpt 4 as "Raymond James is where good people
+     grow". No such string exists anywhere in Section 1. The actual A excerpt 4 is the
+     culture-document line. The company-name occurrence the pre-flag was pointing at is real;
+     the quoted text is not. Someone wrote the pre-flag from memory.
+   · Section 4 states "Six of fifteen reviews carry no location". The correct count is EIGHT
+     (rev-01, 02, 03, 04, 05, 07, 12, 13). The rater-facing note in this file uses eight.
+   · rev-10's attribution title ("Senior Trading Support Associate") contradicts the role the
+     reviewer names in their own body text ("Mutual Funds Support Associate"). Left verbatim
+     — it is the source's inconsistency, not the packet's, and the v4.6 rule is to record the
+     title exactly as given.

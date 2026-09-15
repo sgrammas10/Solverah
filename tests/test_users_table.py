@@ -124,8 +124,18 @@ def test_the_rename_left_nothing_carrying_the_old_name(client):
     """A rename moves the table and nothing else.
 
     The sequence, the primary key, and the confirmation-token index all kept
-    `user_` until they were renamed or replaced explicitly. `users_` is the
-    correct prefix; a bare `user_` is one that was missed.
+    `user_` until they were renamed or replaced explicitly. A survivor is an
+    object named after a table that no longer exists.
+
+    That last sentence is the assertion, and it did not used to be. The check
+    was a prefix allowlist -- anything not starting `users` or `user_intake` was
+    a straggler -- which read as the same rule and is not: it flags any NEW
+    table whose name happens to begin with `user_`, and S3's `user_sessions`
+    (Part 4.2's spelling, never renamed from anything) is the first one to
+    arrive and be wrongly accused. Deriving the allowlist from the tables that
+    actually exist says what is meant, needs no maintenance, and is strictly
+    stricter: `user_pkey` fails it because there is no `user` table, which is
+    exactly the leftover being hunted.
     """
     from app import app
     from model import db
@@ -141,9 +151,22 @@ def test_the_rename_left_nothing_carrying_the_old_name(client):
                 """
             )
         ).scalars().all()
+        tables = db.session.execute(
+            text(
+                """
+                SELECT c.relname FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+                  AND c.relname LIKE 'user%'
+                """
+            )
+        ).scalars().all()
 
-    stragglers = [n for n in names if not n.startswith("users") and not n.startswith("user_intake")]
-    assert stragglers == [], "objects still carrying the pre-rename name: %s" % stragglers
+    assert "users" in tables, "the users table is missing; this guard proves nothing"
+    stragglers = [
+        n for n in names if not any(n == t or n.startswith(t + "_") for t in tables)
+    ]
+    assert stragglers == [], "objects named after a table that no longer exists: %s" % stragglers
 
 
 # ── id: BIGINT, identity, still an integer on the wire ──────────────────────

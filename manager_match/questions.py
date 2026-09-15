@@ -97,8 +97,18 @@ QUESTIONS: list[Question] = [
         "option_a_text": "A manager who is available and accessible gives you confidence.",
         "option_b_text": "A manager who trusts you enough to be hard to reach gives you confidence.",
         "dimension": "relationship",
-        "score_a": 0.25,
-        "score_b": 0.80,
+        # Corrected 2026-09-10 -- MANAGER_PROFILE_ITEMS_BIAS_REVIEW.md, Finding 7.
+        # This item keyed `relationship` backwards: "hard to reach" scored 0.80
+        # while mm-q9's "knows you as a person" and mm-q10's "advocates strongly"
+        # also score high, so one of the scale's three items ran against the other
+        # two and depressed a genuinely high relational need by up to 0.183.
+        # Availability is the closeness pole and now scores with them.
+        #
+        # Sittings stored under the old key are re-derived from the answers they
+        # kept, by `Scripts/backfill_manager_match_scoring_key.py`;
+        # `score.SCORING_KEY` is what tells the two eras apart on a stored row.
+        "score_a": 0.80,
+        "score_b": 0.25,
     },
     {
         "question_id": "mm-q12",

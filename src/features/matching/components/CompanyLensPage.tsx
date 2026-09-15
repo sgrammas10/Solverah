@@ -207,7 +207,10 @@ export default function CompanyLensPage() {
   const data = matchesQuery.data ?? null;
   const errorMsg =
     matchesQuery.error instanceof Error ? matchesQuery.error.message : "";
-  const needsPrefs =
+  // The 400/409 the backend sends while the culture-preferences mapping this
+  // endpoint needs is unbuilt (⚑3, BUILD_PLAN.md §0.2). Not something a user
+  // can fix -- the model is what's pending, not their Work Pulse completion.
+  const modelPending =
     matchesQuery.isError &&
     (errorMsg.includes("culture preferences") ||
       errorMsg.includes("Work Pulse not completed"));
@@ -227,7 +230,7 @@ export default function CompanyLensPage() {
     );
   }
 
-  if (matchesQuery.isError && !needsPrefs) {
+  if (matchesQuery.isError && !modelPending) {
     return (
       <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
         <div className="max-w-sm w-full rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
@@ -245,23 +248,24 @@ export default function CompanyLensPage() {
     );
   }
 
-  if (needsPrefs) {
+  if (modelPending) {
     return (
       <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
         <div className="rounded-xl border border-cream-muted bg-white px-6 py-8 text-center max-w-sm w-full">
           <h2 className="font-display text-xl font-semibold text-ink-primary mb-2">
-            Complete Work Pulse to unlock CompanyLens™
+            CompanyLens™ is coming soon
           </h2>
           <p className="text-sm text-ink-secondary leading-relaxed mb-6">
-            Work Pulse takes about 4 minutes and gives Solverah enough to score
-            companies against how you work.
+            We're still building the matching model behind it. Your Work Pulse
+            results are already saved and will feed it the moment it's ready
+            — there's nothing you need to do.
           </p>
           <button
             type="button"
-            onClick={() => navigate("/work-pulse")}
+            onClick={() => navigate("/intelligence")}
             className="w-full bg-forest-dark text-white font-semibold py-3 rounded hover:bg-forest-mid transition-colors"
           >
-            Start Work Pulse
+            Back to Intelligence
           </button>
         </div>
       </div>

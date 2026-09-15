@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
     submitting: false,
     setAnswer: vi.fn(),
     submit: vi.fn(),
+    reloadForm: vi.fn(),
   },
   stepperProps: null as any,
 }));
@@ -63,6 +64,7 @@ beforeEach(() => {
   mocks.assessment.submitError = null;
   mocks.assessment.submitting = false;
   mocks.assessment.submit = vi.fn();
+  mocks.assessment.reloadForm = vi.fn();
   mocks.stepperProps = null;
 });
 
@@ -91,6 +93,16 @@ describe("WorkPulsePage — form state", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers the trust page from the intro", () => {
+    // BUILD_PLAN D-3. The two lines above make claims; this is the link to the
+    // page that backs them. A reader who doubts the employer line should not
+    // have to go hunting through the hub for the explanation.
+    renderPage();
+    expect(
+      screen.getByRole("link", { name: /how this works, and what we hold back/i })
+    ).toHaveAttribute("href", "/trust");
+  });
+
   it("shows a loading state before the form arrives", () => {
     mocks.assessment.items = null;
     renderPage();
@@ -98,12 +110,24 @@ describe("WorkPulsePage — form state", () => {
     expect(screen.queryByTestId("assessment-stepper")).toBeNull();
   });
 
-  it("shows the load error and no stepper when the form is unservable", () => {
+  it("shows the house error panel, not the raw message, and no stepper when the form is unservable", () => {
+    // G7 regression: the page used to render `loadError` verbatim. Without
+    // the fix, this asserts the opposite of what it does now and fails.
     mocks.assessment.items = null;
-    mocks.assessment.loadError = "Assessment is temporarily unavailable";
+    mocks.assessment.loadError = "boom";
     renderPage();
-    expect(screen.getByRole("alert")).toHaveTextContent("temporarily unavailable");
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("We couldn't load Work Pulse right now.");
+    expect(alert).not.toHaveTextContent("boom");
     expect(screen.queryByTestId("assessment-stepper")).toBeNull();
+  });
+
+  it("retries the form fetch via reloadForm when Try again is clicked", () => {
+    mocks.assessment.items = null;
+    mocks.assessment.loadError = "boom";
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(mocks.assessment.reloadForm).toHaveBeenCalled();
   });
 
   it("does NOT link to previous results for a user with no old sitting", () => {
@@ -173,5 +197,38 @@ describe("WorkPulsePage — completion", () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: /back to dashboard/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/job-seeker/dashboard", { replace: true });
+  });
+
+  it("offers next-instrument CTAs and navigates to FocusType and ManagerMatch", () => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /start focustype/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/focus-type");
+
+    fireEvent.click(screen.getByRole("button", { name: /start managermatch/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/manager-match");
+  });
+
+  // ── The A-7 bridge, upgrading D-2's ──
+
+  it("bridges to the environment report as the primary next step", () => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
+    renderPage();
+
+    expect(
+      screen.getByText("24 questions about you. Now 15 about your job."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /describe your job/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/environment-report");
+  });
+
+  it("keeps the FocusType and ManagerMatch CTAs alongside it, not instead of it", () => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
+    renderPage();
+
+    expect(screen.getByRole("button", { name: /describe your job/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start focustype/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start managermatch/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /back to dashboard/i })).toBeInTheDocument();
   });
 });

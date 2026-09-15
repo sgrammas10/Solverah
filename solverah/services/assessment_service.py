@@ -342,7 +342,13 @@ def submit_manager_match(user: User, answers: Any, logger) -> AssessmentResult:
     if not all(key in llm_result for key in required):
         return _error(500, "Malformed response from model")
 
-    result = {**scoring, **llm_result}
+    # Scoring wins over the model's reply, not the other way round. The three
+    # deterministic keys -- `archetype`, `dimension_scores`, and the
+    # `scoring_key` saying which era the numbers belong to -- must not be
+    # shadowed by a reply that happens to carry one of them. A marker a model
+    # could overwrite would not be a marker, and the backfill that re-derives
+    # unmarked rows takes this field at its word.
+    result = {**llm_result, **scoring}
 
     _store(
         user,

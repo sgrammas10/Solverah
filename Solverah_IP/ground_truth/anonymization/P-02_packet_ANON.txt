@@ -1,0 +1,203 @@
+PACKET P-02   ·   ANONYMIZED   ·   RATER-FACING
+  scrubbed from : P-02_packet.txt (build v4.6, model claude-opus-5, built 2026-08-13)
+  ruleset       : ANONYMIZATION_RULES_DRAFT.md
+  scrubbed      : 2026-08-14
+  status        : DRAFT. Source packet is a one-method build, scheduled for rebuild under v4.7.
+
+  DO NOT SEARCH FOR ANY PHRASE IN THIS PACKET. If you recognise the company, that is
+  expected and is not a failure — record it on the recognition flag and keep scoring
+  from the evidence in front of you, not from what you know.
+
+
+########## SECTION 1 — EVIDENCE PACKET ##########
+
+SCOPE DECLARATION: The employee reviews in this packet come from store-level and
+distribution-centre roles at a large consumer electronics retailer — sales advisors,
+in-store technical services agents, customer service and product-flow/warehouse staff.
+Other parts of this company — its corporate, engineering, product, finance and marketing
+organisations — are not represented in them. Company-authored sources describe the whole
+organisation.
+
+RETRIEVAL LIMITATION AFFECTING THIS PACKET: the company's own careers site is a JavaScript
+application that returns only a "Loading..." shell to a plain HTTP fetch, and no
+JavaScript-rendering browser was available during this build. Section A was therefore built
+from the company's server-rendered corporate site and its published Code of Ethics rather
+than from the careers/values pages themselves. The careers pages are NOT absent — they were
+reached and returned a shell.
+
+
+--- A. CAREERS / VALUES PAGE (5-8 excerpts) ---
+
+   • "At [the company], our purpose is to enrich lives through technology. We do that by leveraging our unique combination of tech expertise and human touch to meet our customers' everyday needs, whether they come to us online, visit our stores or invite us into their homes."  — [company website, About page] — company-authored — page last modified 2026-04-15 — needed JS: N
+
+   • "Inclusion and belonging are the heart and soul of [the company]."  — [company website, Inclusion & Belonging page] — company-authored — page last modified 2025-07-23 — needed JS: N
+
+   • "At my core, I believe our people are the secret to our success. It is my responsibility as CEO to unleash their power by nurturing a culture of belonging and engagement, one in which employees can bring their whole selves — their best selves — to work each day."  — [company website, Inclusion & Belonging page] — attributed on the page to the chief executive — page last modified 2025-07-23 — needed JS: N
+
+   • "For more than 50 years, [the company] has been a purposeful, values-driven, human organization."  — [company website, Ethics page] — company-authored — page last modified 2025-08-27 — needed JS: N
+
+   • "Courage: empowering everyone to speak up and take action for what is right."  — [company Code of Ethics, "Inclusive Behaviors" list] — company-authored — FY26 edition, published 2025-08 — needed JS: N
+
+   • "Grace: creating an environment to take calculated risks and learn from mistakes."  — [company Code of Ethics, "Inclusive Behaviors" list] — company-authored — FY26 edition, published 2025-08 — needed JS: N
+
+   • "Foster an environment in which employees feel comfortable coming to you with questions and concerns."  — [company Code of Ethics, "Our leaders' responsibilities"] — company-authored — FY26 edition, published 2025-08 — needed JS: N
+
+   • "Remember your moral compass when things get tough. Because ultimately, no document, including this Code, is a substitute for your good judgment."  — [company Code of Ethics] — company-authored — FY26 edition, published 2025-08 — needed JS: N
+
+
+--- B. EMPLOYEE REVIEWS (12-15, one per line, most recent first) ---
+
+NOTE TO RATER: 9 of the 15 reviews below were cut off by the source site at a "Show more"
+control that does not expand when the page is fetched, and the cut point is marked […].
+That is 60% of this sample. The reviews that survived intact are systematically the SHORT
+ones, so the longer and more detailed accounts appear here only as their opening
+paragraphs. Read the sample with that in mind.
+
+SECOND NOTE TO RATER: 4 of the 15 reviews were posted with no job title and appear as
+"title: not stated". They cannot be assigned to a function.
+
+   • "My coworkers were great and were the only reason I stayed as long as I did. The managers however where either incompetent or didn't want to help, and would frequently scream at employees and customers for small things.[…]"  — [employee review rev-01] — title: Carrier Services Representative · location: [Site A] — 2026-08-12 — needed JS: N — [truncated at source] — ["where" appears for "were" in the source; preserved]
+
+   • "Great to try and get your foot in the door for IT or to try and build experience, but very stressful in my experience. Expect to be busy all day long, every appointment slot booked especially if you work in a store that services [a major consumer hardware brand]'s products, on top of having multiple other tasks that pile up while[…]"  — [employee review rev-02] — title: Consultation Agent, in-store technical services · location: not stated — 2026-08-12 — needed JS: N — [truncated at source]
+
+   • "You know what you're getting into. Customers are usually ok but some can be a nightmare. Overworked at times but it paid some bills when I needed it to"  — [employee review rev-03] — title: not stated · location: not stated — 2026-08-11 — needed JS: N
+
+   • "Overall it's a decent experience but for all the incoming workers for the holidays be prepared to work. Depending on the store the work environment can be stressful"  — [employee review rev-04] — title: not stated · location: not stated — 2026-08-11 — needed JS: N
+
+   • "While I worked as a "Seasonal Employee", I was very interested to get hired on as a "regular" employee. I was looking for full time after my seasonal work, and would have been pleased gaining even part-time employment. Unfortunately, I did not receive an offer for either positon. I wish only the[…]"  — [employee review rev-05] — title: Retail Sales Associate (Seasonal) · location: [Site B] — 2026-08-10 — needed JS: N — [truncated at source] — ["positon" appears for "position" in the source; preserved]
+
+   • "Pay is low but they have great benefits and if you're manager is chill it can be a really fun environment. Great part time gig just don't sink your life into it go get a full time career gig too."  — [employee review rev-06] — title: In-store technical services agent · location: not stated — 2026-08-09 — needed JS: N — ["you're" appears for "your" in the source; preserved]
+
+   • "Good culture overall. Pay could've been better with better benefits.[…]"  — [employee review rev-07] — title: Customer Service Specialist · location: [Site C] — 2026-08-07 — needed JS: N — [truncated at source]
+
+   • "I liked working there for a long time but eventually it got too overwhelming, professional standards are way lower than they used to be, dramatic reduction in store leadership every year. Very very little opportunity for growth."  — [employee review rev-08] — title: not stated · location: not stated — 2026-08-07 — needed JS: N
+
+   • "[The company] experienced market competition for decades with mixed results. At the store level the changes are obvious with our new layouts, house brands and sales experience. We are in our next transition and hope springs. Overall employee experience is mixed. You'll do fine if have a good work ethic,[…]"  — [employee review rev-09] — title: Dept. Supervisor · location: not stated — 2026-08-06 — needed JS: N — [truncated at source] — ["if have" appears for "if you have" in the source; preserved]
+
+   • "If it wasn't for the fact I list this job due to my own ignorance and neglect of my mental health during a personal crisis, I would still be working for this company because they gave me a chance when most didn't. The 5 years I was employed at the [Site D] location actually gave me a career path that I[…]"  — [employee review rev-10] — title: Warehouse merchandise · location: [Site D] — 2026-08-03 — needed JS: N — [truncated at source] — ["list" appears for "lost" in the source; preserved]
+
+   • "Actual work in the store is fine, but there is a disconnect between corporate and all the stores. I was terminated because I touched [a collectible product] didn't steal them just moved them. There was a policy that was not told to anyone and I guess I broke that policy. Very bad communications.[…]"  — [employee review rev-11] — title: Product Flow Associate · location: [Site E] — 2026-08-03 — needed JS: N — [truncated at source]
+
+   • "Was a great job working for the company during my college years. Sales development is taken seriously if you take it seriously. Will depend on the management team of course, but great company, great benefits & discount is amazing"  — [employee review rev-12] — title: not stated · location: [Site F] — 2026-08-03 — needed JS: N
+
+   • "I had a lot of great experiences getting to learn new things, help people find actual solutions for their needs, and collaborate with great team members throughout my time in a sales position at [the company]. Unfortunately, getting to help others always felt hampered by the sales goals that were set for[…]"  — [employee review rev-13] — title: Sales Advisor · location: [Site G] — 2026-08-01 — needed JS: N — [truncated at source]
+
+   • "Did not want to include location but I work at a particularly strong [store]. Constantly busy and the goals are not too hard to hit. Plenty of accommodations for employees and the hours were very easy to work with, and management at my particular location has been more than just that but they've treated[…]"  — [employee review rev-14] — title: Sales Advisor · location: withheld by the reviewer — 2026-07-30 — needed JS: N — [truncated at source]
+
+   • "Fun place to work with an amazing team and a positive atmosphere. Management and coworkers are great, but the pay could be more competitive overall good job for if you're young"  — [employee review rev-15] — title: Retail Sales Associate · location: [Site H] — 2026-07-30 — needed JS: N
+
+
+--- C. JOB POSTINGS (6-10 excerpts from 3+ open postings, different functions) ---
+
+All five postings below were opened individually on 2026-08-13 and each rendered as a live
+posting with no removal or "no longer accepting applications" notice.
+
+   • "We'll train you with the skills and knowledge you need to confidently recommend the right tech products and services to meet each person's unique needs."  — [job posting, retail sales function] — employer-authored posting body — confirmed open 2026-08-13 — needed JS: N
+
+   • "3 months of experience working in retail or another fast-paced, team-oriented environment"  — [job posting, retail sales function] — employer-authored posting body — confirmed open 2026-08-13 — needed JS: N
+
+   • "You'll work as part of a team to move products to their designated locations within the distribution center and safely use forklifts and other powered equipment."  — [job posting, supply chain / distribution function] — employer-authored posting body — confirmed open 2026-08-13 — needed JS: N
+
+   • "By working together to receive and ship products, you'll help ensure everything arrives to our customers when, where and how they want it."  — [job posting, supply chain / distribution function] — employer-authored posting body — confirmed open 2026-08-13 — needed JS: N
+
+   • "You'll perform repairs by troubleshooting and following our procedures."  — [job posting, in-store technical services function] — employer-authored posting body — confirmed open 2026-08-13 — needed JS: N
+
+   • "Establish and maintain consistent rhythms for timely follow-up and ensure expectations are met or exceeded"  — [job posting, in-store technical services function] — employer-authored posting body — confirmed open 2026-08-13 — needed JS: N
+
+   • "This role will be highly collaborative and responsible for communicating insights and recommendations from the data to drive positive results."  — [job posting, corporate analytics function] — employer-authored posting body — confirmed open 2026-08-13 — needed JS: N
+
+   • "This role is hybrid, which means you will be required to work on site Monday through Thursday at the […] corporate office […]. You can work virtually from home or another non-[company] location on Friday."  — [job posting, corporate analytics function] — employer-authored posting body — confirmed open 2026-08-13 — needed JS: N — [elisions remove the office location per collection rule; no other wording changed]
+
+   • "You'll focus on providing positive employee experiences, skill development and performance management."  — [job posting, retail store leadership function] — employer-authored posting body — confirmed open 2026-08-13 — needed JS: N
+
+   • "Lead efforts to maximize positive results or course-correct when needed"  — [job posting, retail store leadership function] — employer-authored posting body — confirmed open 2026-08-13 — needed JS: N
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 5 · ladder fully attempted) ---
+
+VOICE COMPOSITION FLAG FOR THE RATER: four of the five passages below are non-executive
+voices and one is executive. All four non-executive passages come from a single article
+published by the company itself, and all four speakers are summer interns. They are
+first-person accounts of working at this company, but they were selected and published by
+the employer, not volunteered independently.
+
+   • "They want you to learn, they want you to be challenged, and that's the beauty of it, right?" he said. "I think being able to challenge yourself to be the best version of yourself is what we should all strive for."  — [company newsroom article] — a supply chain intern and operations supervisor at a reverse logistics centre (non-executive) — 2026-07-30 — needed JS: N
+
+   • "One thing that really stood out to me, whether it's in the stores or in corporate, is the people," she said. "This is who I am now today, helping out the interns because I love the people that were here for me, and I want to keep doing that."  — [company newsroom article] — an Early Careers intern and store sales associate (non-executive) — 2026-07-30 — needed JS: N
+
+   • "Even without holding a formal title, as a three-time intern here, it's very easy for me to step into the shoes of an informal leader for my peers,"  — [company newsroom article] — a category management intern (non-executive) — 2026-07-30 — needed JS: N
+
+   • "The biggest thing that keeps me coming back year after year is the culture of the company," the same intern said. "I feel like people care, and I'm valued for who I am, not just what I bring to the business. It's easy to feel like I belong here."  — [company newsroom article] — a category management intern (non-executive) — 2026-07-30 — needed JS: N
+
+   • "Our four priorities give us a clear view of where we're headed, and there's an incredible foundation and momentum getting us there," said the incoming chief executive officer. "But to truly become the [company] we know we can be, we have to organize against the right work and with the right leaders."  — [company newsroom article] — the incoming CEO (executive) — 2026-07-14 — needed JS: N
+
+
+--- E. RECENT NEWS (yield: 4 · searches logged) ---
+
+   • "In a planned departure, [the company]'s chief executive will step down from the top role and as a member of the board on Oct. 31, according to a Wednesday press release. She will remain at the company as a strategic adviser for six months after stepping down."  — [trade press reporting] — independent, not company-authored — 2026-04-22 — needed JS: N
+
+   • "[The chief executive]'s departure comes as the electronics retailer's growth has stagnated."  — [trade press reporting] — independent, not company-authored — 2026-04-22 — needed JS: N
+
+   • "[The company] has named five executives to restructured executive team roles reporting to the incoming CEO, realigning strategy, revenue, retail, ads and fulfillment functions ahead of his October 31 handoff."  — [trade press reporting] — independent, not company-authored — 2026-07-15 — needed JS: N
+
+   • "The restructuring follows a stretch of stabilizing performance. [The company] posted its first positive full-year comparable sales in several years and disclosed plans to open a small number of net new U.S. stores this year, its first domestic store count growth in more than a decade, leaning on a smaller-format prototype and continued investment in its marketplace and advertising businesses."  — [trade press reporting] — independent, not company-authored — 2026-07-15 — needed JS: N
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 6 · public/private: PUBLIC) ---
+
+Source for all six: Item 1, "Human Capital Management", Annual Report on Form 10-K for the
+fiscal year ended 2026-01-31, filed 2026-03-18. Company-authored and legally accountable.
+All headcounts, dollar figures and percentages stripped at collection. Named internal
+programmes rewritten in place, clause preserved.
+
+   • "We believe in the power of our people. Our culture is built on the belief that engaged and committed employees — supported by opportunities to learn, grow, innovate and explore — can lead to extraordinary outcomes."  — [10-K Item 1 Human Capital] — company-authored regulatory filing — filed 2026-03-18 — needed JS: N
+
+   • "We believe in a culture of belonging where everyone feels valued, can thrive and has equal opportunities at all levels in the organization. At the core of this inclusive environment are our company values, which were founded decades ago. One of our values — [a named value about developing people] — emphasizes that everyone can learn, grow and be the best version of themselves."  — [10-K Item 1 Human Capital] — company-authored regulatory filing — filed 2026-03-18 — needed JS: N
+
+   • "Prioritizing foundational and leadership skill development helps to meet employees where they are at, which creates a more adaptable and resilient workforce and enhances our competitive advantage."  — [10-K Item 1 Human Capital] — company-authored regulatory filing — filed 2026-03-18 — needed JS: N
+
+   • "With the continued goal of creating learning opportunities that are tailored to the unique work of each role and a focus on solving the most important problems in our business, we expanded our variety of training experiences in fiscal 2026."  — [10-K Item 1 Human Capital] — company-authored regulatory filing — filed 2026-03-18 — needed JS: N
+
+   • "We evolved our leadership development offerings to grow and transform [the company] for its future. This included [a named leadership development programme] designed for corporate, supply chain and retail leaders, and expanding [a named leadership fundamentals programme] to build core leadership capabilities that help employees grow and succeed in leadership roles."  — [10-K Item 1 Human Capital] — company-authored regulatory filing — filed 2026-03-18 — needed JS: N — [proper nouns rewritten in brackets; clause otherwise verbatim]
+
+   • "We hosted a [named onboarding event] with trained onboarding captains to train and prepare our seasonal workforce, while simultaneously helping foster a sense of belonging, connect staff and celebrate our company culture and values."  — [10-K Item 1 Human Capital] — company-authored regulatory filing — filed 2026-03-18 — needed JS: N
+
+
+########## END OF PACKET ##########
+
+
+SCRUB LOG — for the run record, not for the rater
+  R1 attribution stripped : 43 excerpt lines. Review URLs replaced with rev-01..rev-15.
+  R2 in-quote name subs   : 9  (A×3, B×3, C×1, D×1, F×1)
+  R3 names stripped       : 7  (2 executives → role tokens, 4 intern first names → role
+                            tokens, 2 journalist bylines → publication class). Section D's
+                            fourth excerpt reworded "Ethan said" → "the same intern said"
+                            to preserve the fact that two quotes share one speaker.
+  R4 programmes rewritten : 3  ("Culture Weekend" → [named onboarding event]; the named
+                            company value in F; two leadership programmes already bracketed
+                            at collection, left as found)
+  R5 locations tokenised  : 8 places → Site A–H. "Davie" tokenised in BOTH the attribution
+                            and the review body per the Section 4 warning. The reviewer who
+                            withheld their own location is preserved as stated.
+  R6 figures stripped     : 2  (Section E — "first positive full-year comparable sales since
+                            fiscal 2022" → "in several years"; "six net new U.S. stores" →
+                            "a small number")
+  R7 typos retained       : 5  (where / positon / you're / if have / list)
+  Brand/product subs      : 3  (partner telecom brand → "Carrier Services Representative"
+                            in a job title and the body; hardware brand → generic; the
+                            collectible product category → generic). Sub-brands in D and E
+                            (marketplace, ads) reduced to generic descriptors.
+
+  KNOWN RESIDUAL EXPOSURE, ACCEPTED UNDER THE RULESET
+   · "enrich lives through technology" — the registered purpose statement, and per the
+     source packet's own Section 4 the single most identifying string here. Retained under
+     JC-1. If you want ONE exception to JC-1 across all six packets, this is the strongest
+     candidate: it is a trademarked slogan, not a description of how people work, so
+     removing it costs almost no dimension signal. FLAGGED FOR YOUR CALL.
+   · "Courage" / "Grace" as named behaviours — two of a unique four-part set. Retained.
+   · "onboarding captains" — distinctive internal role name, retained inside a quote whose
+     surrounding programme name was rewritten.
+   · the five preserved typos — exact-match searchable, retained per R7.
+   · industry is inferable from job titles and store references and was not treated as a leak.
+   · CEO transition is a dateable public event; Section E is unavoidably identifying at the
+     level of "a large electronics retailer that changed CEO in 2026". Accepted per JC-2.

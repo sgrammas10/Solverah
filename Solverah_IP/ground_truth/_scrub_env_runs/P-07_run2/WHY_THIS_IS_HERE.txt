@@ -1,0 +1,13 @@
+Run 2 of the P-07 scrub, 2026-09-06. VERIFIED CLEAN, and superseded the same night.
+
+Scripts/verify_scrub.py PASSED: 51 bullets in / 51 out (A8 B17 C10 D6 E4 F6), 36 quote
+bodies byte-identical and 15 differing only at declared substitution points, zero
+punctuation drift in any section, no URLs, no company name. Section C parses 10/10 where
+the raw packet parses 0 — Rule Three working.
+
+Superseded because it predates amendments A5/A6/A7, added 2026-09-07 off the back of the
+three gaps THIS run flagged. Under A6 it is non-compliant: a named state employment agency
+and a county survive in a section E quote body, which run 2 left in place correctly, because
+the brief at the time forbade minting a token.
+
+Kept as the evidence that the prompt works. Not promoted to ground_truth/anonymization/.

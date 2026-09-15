@@ -46,8 +46,26 @@ from solverah.extensions import limiter
 from solverah.infra.storage import ALLOWED_MIME, MAX_BYTES
 from solverah.openapi import document
 from solverah.repositories import user_repository
-from solverah.schemas import LegacyError
+from solverah.schemas import PROBLEM_RESPONSE_MODEL, LegacyError
 from solverah.schemas.account import AccountDeleteRequest, AccountDeleteResponse, AccountExportResponse
+from solverah.schemas.manager_playbook import ManagerPlaybookResponse
+from solverah.schemas.experiments import (
+    ExperimentAbandonResponse,
+    ExperimentListResponse,
+    ExperimentStartRequest,
+    ExperimentStartResponse,
+)
+from solverah.schemas.pulse import (
+    PulseCadenceResponse,
+    PulseCadenceUpdateRequest,
+    PulseCheckinRequest,
+    PulseCheckinResponse,
+    PulseEventRequest,
+    PulseEventResponse,
+    PulseHistoryQuery,
+    PulseHistoryResponse,
+    PulseNextCheckinResponse,
+)
 from solverah.schemas.profile import (
     CareerStatusRequest,
     CareerStatusResponse,
@@ -65,7 +83,21 @@ from solverah.schemas.profile import (
     SkillsPutRequest,
     SkillsResponse,
 )
-from solverah.services import account_service, profile_service, resume_jobs
+from solverah.schemas.situation_report import (
+    EnvironmentReportSubmitRequest,
+    EnvironmentReportSubmitResponse,
+    SituationReportRecalibrateResponse,
+    SituationReportResponse,
+)
+from solverah.services import (
+    account_service,
+    experiment_service,
+    manager_playbook_service,
+    profile_service,
+    pulse_service,
+    resume_jobs,
+    situation_report_service,
+)
 from validators import clean_profile_data
 
 __all__ = ["me_bp"]
@@ -381,6 +413,144 @@ def get_my_dashboard():
 
 
 # ---------------------------------------------------------------------------
+# Manager Decoder (BUILD_PLAN C-3)
+# ---------------------------------------------------------------------------
+
+@document(
+    "Read the Manager Decoder playbook for this user's latest manager profile",
+    tags=["me"],
+    responses={200: ManagerPlaybookResponse, 404: LegacyError, 409: PROBLEM_RESPONSE_MODEL},
+    security=_AUTHENTICATED,
+    enforce=True,
+    description=(
+        "Diffs this user's ManagerMatch needs against their latest manager-profile "
+        "sitting (`POST /assessments/manager-profile`) and returns the assembled "
+        "playbook. Two states answer `409`, distinguishably: no ManagerMatch sitting "
+        "yet (`errors[0].code == \"no_manager_match\"`), and a ManagerMatch sitting but "
+        "no manager profile yet (`\"no_manager_profile\"`) -- a client routes the user "
+        "at whichever instrument is missing rather than showing a generic error."
+    ),
+)
+@me_bp.route("/me/manager-playbook", methods=["GET"])
+@jwt_required()
+def get_my_manager_playbook():
+    """GET /me/manager-playbook - the Decoder's playbook for this user's latest sitting."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    result = manager_playbook_service.get_manager_playbook(user)
+    return jsonify(result.body), result.status
+
+
+# ---------------------------------------------------------------------------
+# Situation Report (BUILD_PLAN A-5)
+# ---------------------------------------------------------------------------
+#
+# Matches the sibling assessment routes' submission budget
+# (`solverah/api/v1/assessments.py`'s `DEFAULT_SUBMISSION_LIMIT`) -- both writes here
+# score deterministically and instantly, like `focus_type` and the Manager Decoder's
+# storage, so there is no provider-spend reason for a different number.
+SITUATION_REPORT_SUBMIT_LIMIT = "5 per minute"
+
+
+@document(
+    "Submit the environment-side instrument for the Situation Report",
+    tags=["me"],
+    request=EnvironmentReportSubmitRequest,
+    responses={
+        200: EnvironmentReportSubmitResponse,
+        400: LegacyError,
+        404: LegacyError,
+        409: PROBLEM_RESPONSE_MODEL,
+    },
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "Scores the twelve environment items instantly (rules-scored, no Celery) and "
+        "stores an append-only `environment_reports` row (D-16 tradition: a "
+        "resubmission is a new row, never an update). `career_status` is snapshotted "
+        "from the caller's profile at submit time, not taken from the request body. "
+        "`first_job` has no role to describe and is refused with a distinguishable "
+        "`409` (`errors[0].code == \"first_job_no_role\"`) the UI turns into the skip "
+        "path (PRODUCT_DECISIONS.md §2, 2026-09-10)."
+    ),
+)
+@me_bp.route("/me/environment-report", methods=["POST"])
+@limiter.limit(SITUATION_REPORT_SUBMIT_LIMIT)
+@jwt_required()
+def post_my_environment_report():
+    """POST /me/environment-report - score and store one environment-report sitting."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    result = situation_report_service.submit_environment_report(user, _body())
+    return jsonify(result.body), result.status
+
+
+@document(
+    "Read the Situation Report",
+    tags=["me"],
+    responses={200: SituationReportResponse, 404: LegacyError},
+    security=_AUTHENTICATED,
+    enforce=True,
+    description=(
+        "Three states, distinguished by `state`: `needs_core` (no completed `core` "
+        "sitting yet -- an already-submitted environment report is echoed as bare "
+        "dimension scores, with no gap to compute), `needs_environment_report` (core "
+        "done, no environment report yet), and `complete` (the full gap report, "
+        "needs-forward sliced when the pinned career_status is past-tense). D-15 "
+        "(structural, every state): no person-side score, no numeric gap, no "
+        "per-dimension magnitude, ever. Person-side reads go through the pinned "
+        "snapshot (⚑5) -- a core retake with no explicit "
+        "`POST /me/situation-report/recalibrate` leaves this response byte-identical. "
+        "`manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the "
+        "Manager Decoder. `complete` additionally carries `events_since_report` "
+        "(BUILD_PLAN B-4): Pulse life/work events logged after the environment "
+        "report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- "
+        "what the frontend's resubmission banner reads."
+    ),
+)
+@me_bp.route("/me/situation-report", methods=["GET"])
+@jwt_required()
+def get_my_situation_report():
+    """GET /me/situation-report - the Situation Report, in whichever state applies."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    result = situation_report_service.get_situation_report(user)
+    return jsonify(result.body), result.status
+
+
+@document(
+    "Re-pin the Situation Report to the latest completed core sitting",
+    tags=["me"],
+    responses={
+        200: SituationReportRecalibrateResponse,
+        404: LegacyError,
+        409: PROBLEM_RESPONSE_MODEL,
+    },
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "⚑5: the explicit, logged re-pin action. Idempotent when already pinned to "
+        "the latest completed core sitting -- `recalibrated` is `false` and nothing "
+        "is written or logged. Refuses `409` "
+        "(`errors[0].code == \"no_core_sitting\"`) before any core sitting exists."
+    ),
+)
+@me_bp.route("/me/situation-report/recalibrate", methods=["POST"])
+@limiter.limit(SITUATION_REPORT_SUBMIT_LIMIT)
+@jwt_required()
+def post_my_situation_report_recalibrate():
+    """POST /me/situation-report/recalibrate - re-pin to the latest core sitting."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    result = situation_report_service.recalibrate(user)
+    return jsonify(result.body), result.status
+
+
+# ---------------------------------------------------------------------------
 # Resumes
 # ---------------------------------------------------------------------------
 
@@ -543,3 +713,255 @@ def get_my_resume_parse_job(job_id: str):
         return jsonify({"error": "Job not found"}), 404
 
     return jsonify(resume_jobs.status_for(job)), 200
+
+
+# ---------------------------------------------------------------------------
+# Pulse (BUILD_PLAN B-2)
+# ---------------------------------------------------------------------------
+#
+# What a user's own requests can do. The cron half that decides WHO gets
+# prompted (`flask pulse send-prompts`, `solverah/cli.py`) is a separate module,
+# `solverah.services.pulse_cadence_service` -- a Flask CLI process and a request
+# here are different callers with different lifecycles.
+#
+# Cadence/anti-nag state has no table of its own: it rides on the profile
+# document (`solverah.services.pulse_settings`) rather than adding one, per
+# BUILD_PLAN's D-7 cross-cutting rule -- a new user-data table would have to
+# join the `GET /me/export` / account-deletion seam D-7b owns this wave.
+#
+# Matches the Situation Report submission routes' budget: both write instantly
+# and deterministically, with no provider spend to bound.
+PULSE_SUBMIT_LIMIT = "5 per minute"
+
+
+@document(
+    "Submit a Pulse check-in",
+    tags=["me"],
+    request=PulseCheckinRequest,
+    responses={200: PulseCheckinResponse, 404: LegacyError, 422: PROBLEM_RESPONSE_MODEL},
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "The server derives both the sequence (`pulse_checkin_count`) and the three "
+        "dimensions it must answer (`dimensions_for_checkin`) -- the client never "
+        "chooses either. Posting a different dimension set, or a score outside 1..5, "
+        "is refused `422` in problem+json rather than accepted or 500ing."
+    ),
+)
+@me_bp.route("/me/pulse/checkins", methods=["POST"])
+@limiter.limit(PULSE_SUBMIT_LIMIT)
+@jwt_required()
+def post_my_pulse_checkin():
+    """POST /me/pulse/checkins - record one check-in for this user's next sequence."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(pulse_service.submit_checkin(user, _body())), 200
+
+
+@document(
+    "Read Pulse check-in and event history",
+    tags=["me"],
+    query=PulseHistoryQuery,
+    responses={200: PulseHistoryResponse, 404: LegacyError, 422: PROBLEM_RESPONSE_MODEL},
+    security=_AUTHENTICATED,
+    enforce=True,
+    description=(
+        "Newest first, optionally windowed by `since`/`until` (ISO-8601, inclusive). "
+        "`limit` bounds check-ins (1..100, clamped) and is unbounded when absent; "
+        "events are never limited -- B-4 reads every one to decide when a Situation "
+        "Report resubmission prompt applies."
+    ),
+)
+@me_bp.route("/me/pulse/history", methods=["GET"])
+@jwt_required()
+def get_my_pulse_history():
+    """GET /me/pulse/history - check-ins and events, newest first."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    result = pulse_service.get_history(
+        user,
+        since_raw=request.args.get("since"),
+        until_raw=request.args.get("until"),
+        limit_raw=request.args.get("limit"),
+    )
+    return jsonify(result), 200
+
+
+@document(
+    "Read the items this user's next Pulse check-in will serve",
+    tags=["me"],
+    responses={200: PulseNextCheckinResponse, 404: LegacyError},
+    security=_AUTHENTICATED,
+    enforce=True,
+    description=(
+        "`work_pulse.pulse_items.render_checkin`'s shape verbatim: server-derived and "
+        "FORM_VERSION-stamped, so a client always knows which three dimensions (plus "
+        "the outcome item) to render next without computing the round-robin itself -- "
+        "and it is the same instrument `POST /me/pulse/checkins` validates the answer "
+        "against."
+    ),
+)
+@me_bp.route("/me/pulse/next-checkin", methods=["GET"])
+@jwt_required()
+def get_my_pulse_next_checkin():
+    """GET /me/pulse/next-checkin - the three dimensions + outcome item to render next."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(pulse_service.get_next_checkin(user)), 200
+
+
+@document(
+    "Log a Pulse life/work event",
+    tags=["me"],
+    request=PulseEventRequest,
+    responses={200: PulseEventResponse, 404: LegacyError, 422: PROBLEM_RESPONSE_MODEL},
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "One of new_manager / reorg / remote_change / role_change / other, with an "
+        "optional 280-character note. B-4 reads these to prompt an environment-report "
+        "resubmission; B-3's trend view plots them on the check-in axis. Nothing here "
+        "scores anything."
+    ),
+)
+@me_bp.route("/me/pulse/events", methods=["POST"])
+@limiter.limit(PULSE_SUBMIT_LIMIT)
+@jwt_required()
+def post_my_pulse_event():
+    """POST /me/pulse/events - log one dated annotation."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(pulse_service.submit_event(user, _body())), 200
+
+
+@document(
+    "Read the Pulse check-in cadence",
+    tags=["me"],
+    responses={200: PulseCadenceResponse, 404: LegacyError},
+    security=_AUTHENTICATED,
+    enforce=True,
+)
+@me_bp.route("/me/pulse/settings", methods=["GET"])
+@jwt_required()
+def get_my_pulse_settings():
+    """GET /me/pulse/settings - the current cadence."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(pulse_service.get_settings(user)), 200
+
+
+@document(
+    "Set the Pulse check-in cadence",
+    tags=["me"],
+    request=PulseCadenceUpdateRequest,
+    responses={200: PulseCadenceResponse, 404: LegacyError, 422: PROBLEM_RESPONSE_MODEL},
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "weekly (default), biweekly, monthly, or off -- off is always this one call. "
+        "Also clears the anti-nag state, `auto_slowed` included: an explicit choice is "
+        "never held against a prior silence (PRODUCT_DECISIONS.md §2)."
+    ),
+)
+@me_bp.route("/me/pulse/settings", methods=["PATCH"])
+@limiter.limit(PULSE_SUBMIT_LIMIT)
+@jwt_required()
+def patch_my_pulse_settings():
+    """PATCH /me/pulse/settings - change the cadence."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(pulse_service.update_settings(user, _body())), 200
+
+
+# ---------------------------------------------------------------------------
+# Condition experiments (BUILD_PLAN B-5)
+# ---------------------------------------------------------------------------
+#
+# Generated from A-6's `change_in_place` guidance cells: a user runs a named
+# two-week change against one of the twelve the gap engine can diagnose, and
+# the readout reads Pulse `experienced` check-ins from before and after.
+# Matches the Situation Report / Pulse submission routes' budget: every write
+# here scores nothing and calls no provider.
+EXPERIMENT_SUBMIT_LIMIT = "5 per minute"
+
+
+@document(
+    "Start a condition experiment",
+    tags=["me"],
+    request=ExperimentStartRequest,
+    responses={
+        201: ExperimentStartResponse,
+        404: LegacyError,
+        409: PROBLEM_RESPONSE_MODEL,
+        422: PROBLEM_RESPONSE_MODEL,
+    },
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "`dimension`/`direction` must name one of the twelve real `change_in_place` "
+        "cells (`errors[0].code == \"not_a_change_in_place_cell\"` otherwise, 422). "
+        "Refuses `409` (`errors[0].code == \"experiment_already_active\"`) if this "
+        "user already has one running -- a two-week change is confounded by a second "
+        "concurrent one, so at most one may run at a time."
+    ),
+)
+@me_bp.route("/me/experiments", methods=["POST"])
+@limiter.limit(EXPERIMENT_SUBMIT_LIMIT)
+@jwt_required()
+def post_my_experiment():
+    """POST /me/experiments - start a two-week condition experiment."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(experiment_service.start_experiment(user, _body())), 201
+
+
+@document(
+    "List this user's condition experiments",
+    tags=["me"],
+    responses={200: ExperimentListResponse, 404: LegacyError},
+    security=_AUTHENTICATED,
+    enforce=True,
+    description=(
+        "Newest first. Each entry carries the derived `phase` ('running' / 'ended' / "
+        "'abandoned'), the before/after `readout` (a verdict word plus the two "
+        "check-in counts, never a delta), and the cell's own `experiment_name`."
+    ),
+)
+@me_bp.route("/me/experiments", methods=["GET"])
+@jwt_required()
+def get_my_experiments():
+    """GET /me/experiments - every experiment this user has started, newest first."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(experiment_service.list_experiments(user)), 200
+
+
+@document(
+    "Abandon a condition experiment",
+    tags=["me"],
+    responses={200: ExperimentAbandonResponse, 404: LegacyError},
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "Idempotent: abandoning an already-abandoned experiment is a 200 with the "
+        "row unchanged, not an error. 404 if the id does not exist or belongs to "
+        "someone else -- the two are deliberately indistinguishable."
+    ),
+)
+@me_bp.route("/me/experiments/<int:experiment_id>/abandon", methods=["POST"])
+@limiter.limit(EXPERIMENT_SUBMIT_LIMIT)
+@jwt_required()
+def post_my_experiment_abandon(experiment_id: int):
+    """POST /me/experiments/{id}/abandon - stop a running experiment."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(experiment_service.abandon_experiment(user, experiment_id)), 200

@@ -111,7 +111,7 @@ python run_vignette_probe.py --pairs vignette_probe_pairs_v4_bleed_diagnostic.ya
 
 # ARM B — isolates the ANCHOR contribution (round-3 vignettes verbatim, proposed anchors)
 python run_vignette_probe.py --pairs vignette_probe_pairs_v3_autonomy_ladder.yaml \
-       --anchors ../../../Solverah_IP/ground_truth/rater_app/anchors_v2_PROPOSED.json \
+       --anchors ../../Solverah_IP/ground_truth/rater_app/anchors_v2_PROPOSED.json \
        --allow-rubric-mismatch --out vignette_probe_results_v4_armB.csv
 ```
 
@@ -274,7 +274,7 @@ vignettes and it has never been scored:
 
 ```
 python run_vignette_probe.py --pairs vignette_probe_pairs_v4_bleed_diagnostic.yaml \
-       --anchors ..\..\..\Solverah_IP\ground_truth\rater_app\anchors_v3_PROPOSED.json \
+       --anchors ..\..\Solverah_IP\ground_truth\rater_app\anchors_v3_PROPOSED.json \
        --allow-rubric-mismatch --out vignette_probe_results_v6_combined.csv
 ```
 

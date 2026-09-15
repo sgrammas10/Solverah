@@ -1,0 +1,229 @@
+{
+  "packet_id": "P-02",
+  "rater": "A",
+  "rubric_version": "v1-frozen-2026-08-15",
+  "anchors_hash": "55c4501b25c5",
+  "session_start": "2026-08-18T17:51:26.554Z",
+  "submitted_at": "2026-08-19T02:51:10.864Z",
+  "duration_seconds": 32384,
+  "commit_order": [
+    "pace",
+    "autonomy",
+    "feedback",
+    "collaboration",
+    "innovation",
+    "decision"
+  ],
+  "recognition": "yes",
+  "recognition_detail": "Only retail big box tech company. Job descriptions stated that the company will teach them how to help customers solve problems with their tech.",
+  "searched": "no",
+  "search_detail": "",
+  "free_note": "See above.",
+  "scores": [
+    {
+      "dimension": "autonomy",
+      "score": 0.1,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "• \"You'll perform repairs by troubleshooting and following our procedures.\" — [job posting, in-store technical services function] — employer-authored posting body — confirmed open 2026-08-13 — needed JS: N",
+          "eid": "C5",
+          "sec": "C",
+          "src": "company"
+        }
+      ],
+      "note": "Similar to my comment on Pace, the examples cited here are too narrow in scope and don't cover the corporate side of the business. Job postings cited are mainly  field (retail / shipping / delivery / tech support) we really need to be sure that all are considered when building the LLM",
+      "committed_at": "2026-08-18T23:09:29.923Z",
+      "commit_position": 2,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "C5"
+      ]
+    },
+    {
+      "dimension": "pace",
+      "score": 0.7,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "• \"Great to try and get your foot in the door for IT or to try and build experience, but very stressful in my experience. Expect to be busy all day long, every appointment slot booked especially if you work in a store that services [a major consumer hardware brand]'s products, on top of having multiple other tasks that pile up while[…]\" — [employee review rev-02] — title: Consultation Agent, in-store technical services · location: not stated — 2026-08-12 — needed JS: N — [truncated at source]",
+          "eid": "B2",
+          "sec": "B",
+          "src": "noncompany"
+        },
+        {
+          "text": "• \"[The company] experienced market competition for decades with mixed results. At the store level the changes are obvious with our new layouts, house brands and sales experience. We are in our next transition and hope springs. Overall employee experience is mixed. You'll do fine if have a good work ethic,[…]\" — [employee review rev-09] — title: Dept. Supervisor · location: not stated — 2026-08-06 — needed JS: N — [truncated at source] — [\"if have\" appears for \"if you have\" in the source; preserved]",
+          "eid": "B9",
+          "sec": "B",
+          "src": "noncompany"
+        }
+      ],
+      "note": "I would like to have seen more reviews from other areas of the business than retail.",
+      "committed_at": "2026-08-18T23:05:16.504Z",
+      "commit_position": 1,
+      "source_mix": {
+        "company": 0,
+        "noncompany": 2,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "B2",
+        "B9"
+      ]
+    },
+    {
+      "dimension": "collaboration",
+      "score": 0.3,
+      "confidence": 0.1,
+      "quotes": [
+        {
+          "text": "• \"Actual work in the store is fine, but there is a disconnect between corporate and all the stores. I was terminated because I touched [a collectible product] didn't steal them just moved them. There was a policy that was not told to anyone and I guess I broke that policy. Very bad communications.[…]\" — [employee review rev-11] — title: Product Flow Associate · location: [Site E] — 2026-08-03 — needed JS: N — [truncated at source]",
+          "eid": "B11",
+          "sec": "B",
+          "src": "noncompany"
+        }
+      ],
+      "note": "This one is challenging as none of the evidence packet really provided a balanced look at collaboration. I would not feel comfortable scoring this dimension based upon the evidence.",
+      "committed_at": "2026-08-19T02:35:09.589Z",
+      "commit_position": 4,
+      "source_mix": {
+        "company": 0,
+        "noncompany": 1,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "B11"
+      ]
+    },
+    {
+      "dimension": "feedback",
+      "score": 0.3,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "• \"One thing that really stood out to me, whether it's in the stores or in corporate, is the people,\" she said. \"This is who I am now today, helping out the interns because I love the people that were here for me, and I want to keep doing that.\" — [company newsroom article] — an Early Careers intern and store sales associate (non-executive) — 2026-07-30 — needed JS: N",
+          "eid": "D2",
+          "sec": "D",
+          "src": "disputed"
+        },
+        {
+          "text": "• \"Even without holding a formal title, as a three-time intern here, it's very easy for me to step into the shoes of an informal leader for my peers,\" — [company newsroom article] — a category management intern (non-executive) — 2026-07-30 — needed JS: N",
+          "eid": "D3",
+          "sec": "D",
+          "src": "disputed"
+        },
+        {
+          "text": "• \"Courage: empowering everyone to speak up and take action for what is right.\" — [company Code of Ethics, \"Inclusive Behaviors\" list] — company-authored — FY26 edition, published 2025-08 — needed JS: N",
+          "eid": "A5",
+          "sec": "A",
+          "src": "company"
+        },
+        {
+          "text": "• \"Grace: creating an environment to take calculated risks and learn from mistakes.\" — [company Code of Ethics, \"Inclusive Behaviors\" list] — company-authored — FY26 edition, published 2025-08 — needed JS: N",
+          "eid": "A6",
+          "sec": "A",
+          "src": "company"
+        }
+      ],
+      "note": "The intern experience in the reviews is very different from a permanent employee. Interns don't carry the responsibilities of a typical permanent employee. We will need to ensure that  there is a healthy balance of type of employee, positions, departments.",
+      "committed_at": "2026-08-19T02:28:04.916Z",
+      "commit_position": 3,
+      "source_mix": {
+        "company": 2,
+        "noncompany": 0,
+        "disputed": 2,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "D2",
+        "D3",
+        "A5",
+        "A6"
+      ]
+    },
+    {
+      "dimension": "innovation",
+      "score": 0.3,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "• \"Our four priorities give us a clear view of where we're headed, and there's an incredible foundation and momentum getting us there,\" said the incoming chief executive officer. \"But to truly become the [company] we know we can be, we have to organize against the right work and with the right leaders.\" — [company newsroom article] — the incoming CEO (executive) — 2026-07-14 — needed JS: N",
+          "eid": "D5",
+          "sec": "D",
+          "src": "company"
+        },
+        {
+          "text": "• \"In a planned departure, [the company]'s chief executive will step down from the top role and as a member of the board on Oct. 31, according to a Wednesday press release. She will remain at the company as a strategic adviser for six months after stepping down.\" — [trade press reporting] — independent, not company-authored — 2026-04-22 — needed JS: N",
+          "eid": "E1",
+          "sec": "E",
+          "src": "noncompany"
+        },
+        {
+          "text": "• \"[The company] has named five executives to restructured executive team roles reporting to the incoming CEO, realigning strategy, revenue, retail, ads and fulfillment functions ahead of his October 31 handoff.\" — [trade press reporting] — independent, not company-authored — 2026-07-15 — needed JS: N",
+          "eid": "E3",
+          "sec": "E",
+          "src": "noncompany"
+        }
+      ],
+      "note": "We need to look at sources for this dimension as these are too limited and would not provide the model a strong enough foundation for correctly scoring.\n\nThere is a mention in one review about the store experience being updated, this is definitely not enough to confidently rate this dimension.",
+      "committed_at": "2026-08-19T02:41:27.074Z",
+      "commit_position": 5,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 2,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "D5",
+        "E1",
+        "E3"
+      ]
+    },
+    {
+      "dimension": "decision",
+      "score": 0.5,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "• \"[The company] has named five executives to restructured executive team roles reporting to the incoming CEO, realigning strategy, revenue, retail, ads and fulfillment functions ahead of his October 31 handoff.\" — [trade press reporting] — independent, not company-authored — 2026-07-15 — needed JS: N",
+          "eid": "E3",
+          "sec": "E",
+          "src": "noncompany"
+        },
+        {
+          "text": "• \"The restructuring follows a stretch of stabilizing performance. [The company] posted its first positive full-year comparable sales in several years and disclosed plans to open a small number of net new U.S. stores this year, its first domestic store count growth in more than a decade, leaning on a smaller-format prototype and continued investment in its marketplace and advertising businesses.\" — [trade press reporting] — independent, not company-authored — 2026-07-15 — needed JS: N",
+          "eid": "E4",
+          "sec": "E",
+          "src": "noncompany"
+        }
+      ],
+      "note": "I believe this company is Best Buy. What gave it away for me was the retail, electronics bib box and several other statements around CEO (Best Buy was a former client of mine). \n\nMajor exec changes may reflect chaos, instability, etc. I believe this is important for solverah users to have a view of this and wondering if this is a dimension or not?",
+      "committed_at": "2026-08-19T02:49:33.726Z",
+      "commit_position": 6,
+      "source_mix": {
+        "company": 0,
+        "noncompany": 2,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "E3",
+        "E4"
+      ]
+    }
+  ]
+}

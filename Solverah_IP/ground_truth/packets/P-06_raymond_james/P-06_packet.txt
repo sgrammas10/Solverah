@@ -1,0 +1,522 @@
+BUILD RECORD
+  prompt version : v4.6
+  model          : claude-opus-5   (string reported by the runtime environment; if this is a
+                   vendor alias rather than a dated build string, the operator must resolve it —
+                   no dated string was exposed to me)
+  built          : 2026-08-14
+  environment    : clean session, one company, no prior packet context
+  assisted       : NO
+
+  RETRIEVAL LIMITATION AFFECTING THIS WHOLE PACKET — read before Section 1.
+  Only ONE retrieval method was available: plain HTTP fetch. The JavaScript renderer
+  (browser tooling) was not connected in this environment; two attempts returned
+  "not connected". v4.6 requires trying both methods before recording anything as absent.
+  Every "not reached" finding below is therefore weaker than the prompt intends and must be
+  read as "not reached by plain fetch", never as "does not exist". See defect S1.
+  Consequently `needed JS: Y/N` is recorded as "not determinable" on every line.
+
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE DECLARATION
+  The employee reviews in this packet come from branch and home-office operations,
+  client-service, IT support, financial-advisor and intern roles at a large US financial
+  services firm, sampled company-wide and newest-first; four of the fifteen carry no job
+  title at all. Other parts of this company — investment banking, capital markets, asset
+  management, software engineering, legal and human resources — are almost entirely absent
+  from them. Company-authored sources describe the whole organisation.
+
+
+--- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
+
+NOTE ON SOURCING FOR THIS SECTION: the company's own careers and culture pages at
+www.raymondjames.com could not be read. Plain fetch of those URLs returns site navigation
+only and is cut off at roughly 104,700 characters before reaching any page body; the
+renderer that would normally solve this was unavailable. The excerpts below therefore come
+from two other first-party, company-authored sources: the company's applicant-tracking
+careers site, and its Code of Business Conduct and Ethics PDF, which is titled "MORE THAN A
+CODE, A CULTURE" and carries a values section. See defect S2.
+
+   • "Our business is deeply focused on people and their financial well-being."  — [company careers site] — Raymond James, careers landing page — https://raymondjames.wd1.myworkdayjobs.com/RaymondJamesCareers — accessed 2026-08-14, no publication date shown — needed JS: not determinable
+   • "We believe doing well and doing good aren't mutually exclusive."  — [company careers site] — Raymond James, careers landing page — https://raymondjames.wd1.myworkdayjobs.com/RaymondJamesCareers — accessed 2026-08-14, no publication date shown — needed JS: not determinable
+   • "As an established but ever-evolving company, you can start – or continue – growing your career here. We invest in you with wide-ranging benefits and the support of leaders and colleagues who care."  — [company careers site] — Raymond James, careers landing page — https://raymondjames.wd1.myworkdayjobs.com/RaymondJamesCareers — accessed 2026-08-14, no publication date shown — needed JS: not determinable
+   • "Our people-first culture is outlined in our Culture Blueprint. Check it out to see why many choose to work at Raymond James – and why they stay."  — [company careers site] — Raymond James, careers landing page — https://raymondjames.wd1.myworkdayjobs.com/RaymondJamesCareers — accessed 2026-08-14, no publication date shown — needed JS: not determinable
+   • "Our culture is people-driven, values-built and future-focused – and it starts with you."  — [company code of conduct, first-party PDF] — Raymond James, Code of Business Conduct and Ethics, p.5 — https://www.raymondjames.com/investor-relations/corporate-governance/-/media/rj/dotcom/files/about-us/codeofconductrjcom.pdf — version approved 2026-05-13 (RJF Board of Directors, annual review) — needed JS: not determinable
+   • "We value independence. We respect autonomy, celebrate individuality and welcome diverse perspectives, while encouraging collaboration and innovation."  — [company code of conduct, first-party PDF] — Raymond James, "Our values" — same URL — version approved 2026-05-13 — needed JS: not determinable
+   • "We think long term. We act responsibly, taking a conservative approach that translates into a strong, stable firm for clients, advisors, associates and shareholders."  — [company code of conduct, first-party PDF] — Raymond James, "Our values" — same URL — version approved 2026-05-13 — needed JS: not determinable
+   • "Create the kind of workplace where individuals feel comfortable coming forward with questions or concerns, and supported when they raise issues. Never retaliate when an individual shares concerns, and always work to prevent retaliation by others."  — [company code of conduct, first-party PDF] — Raymond James, "Responsibilities for leaders, managers and supervisors", p.7 — same URL — version approved 2026-05-13 — needed JS: not determinable
+
+
+--- B. EMPLOYEE REVIEWS (12–15, one per line, most recent first) ---
+
+NOTE TO RATER: 6 of the 15 reviews below were cut off by the source site at a "Show more"
+control that does not expand on fetch — 40% of this sample. The cut is marked […]. Reviews
+that survived intact are systematically the SHORT ones, so the longer and more detailed
+accounts are the ones you are reading only the opening of. This is a property of the source,
+not of the company.
+
+Review text is from Indeed, company-wide, sorted newest-first, taken in strict date order
+with no selection on content. Job title is recorded exactly as the reviewer gave it;
+"title: not stated" means the review was posted anonymously without one.
+
+   • "Decent company to work for, generally good management and leadership. Outdated tech and systems make many things more difficult or mundane than they need to be"  — [employee review] — employee, title: not stated, location not stated — https://www.indeed.com/cmp/Raymond-James/reviews/decent-company?id=948e48506ee5b588 — 2026-07-16 — needed JS: not determinable
+   • "Good pay with good benefits. Headquarters is a nice campus as well. People are typically friendly and they offer a hybrid work enviroment [sic] which is nice"  — [employee review] — employee, title: not stated, location not stated — https://www.indeed.com/cmp/Raymond-James/reviews/good-pay-good-benefits?id=0d19306d57d0d901 — 2026-06-17 — needed JS: not determinable
+   • "Pros: My career has steadily progressed in my 10 years at RJ. I enjoy coming to work, I like the culture here (as a woman working in a brokerage firm) and the firm is committed to providing the most up-to-date tech tools. Cons: New additions to local/regional management have made me question the culture […]"  — [employee review] — employee, title: Branch Operations Manager, location not stated — https://www.indeed.com/cmp/Raymond-James/reviews/great-culture-but-pay-benefits-are-lacking?id=e1caaee5def6ae30 — 2026-06-08 — TRUNCATED AT SOURCE — needed JS: not determinable
+   • "Solid place. Worked for a little bit. Was mainly learning to gather more experience within the field to better understand if the area was somewhere to pursue"  — [employee review] — employee, title: not stated, location not stated — https://www.indeed.com/cmp/Raymond-James/reviews/i-enjoyed?id=59d925fd943fff14 — 2026-06-07 — needed JS: not determinable
+   • "Great company to work with! Professional, responsive, and reliable service from start to finish. Highly recommend to anyone seeking quality! I would for sure work here again."  — [employee review] — employee, title: Intern, location not stated — https://www.indeed.com/cmp/Raymond-James/reviews/great-experience?id=60546cb99ff1c980 — 2026-05-18 — needed JS: not determinable
+   • "Great company with room for growth, team wants you to succeed and gives you ample opportunities to do so. Would recommend for people looking for good culture and good people."  — [employee review] — employee, title: Financial Advisor, Miami, FL — https://www.indeed.com/cmp/Raymond-James/reviews/great-company?id=8f101a36472fb961 — 2026-05-07 — needed JS: not determinable
+   • "Great place to start with a great culture. Good place to start as a young professional and coworkers care about your growth within the company. Recommend"  — [employee review] — employee, title: not stated, location not stated — https://www.indeed.com/cmp/Raymond-James/reviews/great-place-to-work?id=825a176d33300a7c — 2026-04-30 — needed JS: not determinable
+   • "Phenomenal office and company culture. Enjoyed working there for 10 years. Unfortunately all it took was one terrible manager to change everything and ruin a 10 year tenure. That manager was gone 2 months after me but the damage was already done"  — [employee review] — employee, title: Regional Director, Troy, MI — https://www.indeed.com/cmp/Raymond-James/reviews/great-company-culture?id=cf5bf2a4f555f4ac — 2026-03-22 — needed JS: not determinable
+   • "This job can be very busy one day and slow the next. Everyday is different which can be enjoyable. Management appears to be on top of things. They will help you with advancement and license if you wish. You get annual bonuses. You also get benefits from day one. Some positions can be hybrid, which […]"  — [employee review] — employee, title: Branch Operations Specialist, Oakbrook Terrace, IL — https://www.indeed.com/cmp/Raymond-James/reviews/good-place-to-work-for?id=9a47f6700326c276 — 2025-12-16 — TRUNCATED AT SOURCE — needed JS: not determinable
+   • "My time at Raymond James as a Mutual Funds Support Associate was genuinely positive. The culture was great, the training fully prepared me for the role, and the team provided constant support. The job wasn't too difficult, but it challenged me in the right ways and helped me grow both professionally […]"  — [employee review] — employee, title: Senior Trading Support Associate, Southfield, MI — https://www.indeed.com/cmp/Raymond-James/reviews/great-company?id=925f3dc20ee46ce7 — 2025-12-04 — TRUNCATED AT SOURCE — needed JS: not determinable
+   • "As title states. The work culture is extremely toxic and your treated as a machine unit with their high micro managing kpi standards. Very high turnover so they prevent promotions as much as possible. […]"  — [employee review] — employee, title: New Accounts Ambassador, Southfield, MI — https://www.indeed.com/cmp/Raymond-James/reviews/extremely-toxic-with-environment-and-incompetent-management?id=ff4a709c11af603c — 2025-10-15 — TRUNCATED AT SOURCE — source typos preserved verbatim ("your treated", "micro managing") — needed JS: not determinable
+   • "It is okay to work here. A lot of good and smart people in IT department. The pay is somewhat fair comparing to others similar places, all usual benefits, 401, stocks, etc. However, to grow professionally here you will need either to join the right team from the very beginning or be a flexible person […]"  — [employee review] — employee, title: IT Specialist, location not stated — https://www.indeed.com/cmp/Raymond-James/reviews/peculiar-work-process-and-working-environment?id=790a26c5748b6945 — 2025-10-01 — TRUNCATED AT SOURCE — needed JS: not determinable
+   • "The bank does not keep up with the times. Benefits are decent (they have to be - they are a Fortune 500 company), but their policies are not modern. They're proud to be very conservative, they believe in working on site and they believe in top down micromanagement. I've heard it's different at the firm, […]"  — [employee review] — employee, title: Senior Banking Ops Associate, location not stated — https://www.indeed.com/cmp/Raymond-James/reviews/rj?id=8c0e6ee2de276605 — 2025-09-23 — TRUNCATED AT SOURCE — needed JS: not determinable
+   • "They are very supportive and team-oriented. When you are on vacation, you are on vacation, no work calls. They have a great program to get you up to speed."  — [employee review] — employee, title: Consultant, Remote — https://www.indeed.com/cmp/Raymond-James/reviews/great-company-to-work-for?id=dc962b30f85df414 — 2025-09-11 — needed JS: not determinable
+   • "Pay bad for first few years and then Gets better. A lot of underperformers stay around and are effectively cheap labor. Company could probably be more aggressive/generous with paying high performers and would be a net benefit to company."  — [employee review] — employee, title: Analyst, St. Petersburg, FL — https://www.indeed.com/cmp/Raymond-James/reviews/need-to-stay-long-to-get-paid?id=4470e98ca3430c6a — 2025-08-28 — needed JS: not determinable
+
+
+--- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+
+Five currently-open postings were opened individually on 2026-08-14. Each rendered a live
+apply control and none carried a removal or expiry notice. Functions: advisor marketing
+support; retirement plan services operations; client account services (call centre);
+marketing data analytics; front-end software engineering. Postings are identified by
+function label only.
+
+   • "Under direct supervision, uses general knowledge and skills obtained through training and experience to assist financial advisors with marketing efforts. General instructions and procedures are provided to perform routine standardized tasks."  — [job posting] — employer, advisor marketing support role — https://www.indeed.com/viewjob?jk=0cfea1a1fc30465d — opened and confirmed open 2026-08-14 — needed JS: not determinable
+   • "At Raymond James our associates use five guiding behaviors (Develop, Collaborate, Decide, Deliver, Improve) to deliver on the firm's core values of client-first, integrity, independence and a conservative, long-term view."  — [job posting] — employer, standing block appearing verbatim in all five postings opened — https://www.indeed.com/viewjob?jk=0cfea1a1fc30465d — opened 2026-08-14 — needed JS: not determinable
+   • "During our peak period from November to April, mandatory overtime is required."  — [job posting] — employer, retirement plan services operations role — https://www.indeed.com/viewjob?jk=0c51c2d63752a5be — opened and confirmed open 2026-08-14 — needed JS: not determinable
+   • "Training: You will be in office full time during the first 60 days of employment. Training is comprehensive, lasting approximately three months. This will prepare you thoroughly for your role."  — [job posting] — employer, retirement plan services operations role — https://www.indeed.com/viewjob?jk=0c51c2d63752a5be — opened 2026-08-14 — needed JS: not determinable
+   • "Works to navigate customer conversations by leveraging the four parts of a service conversation: open, learn, reply, and close. Typically works under close supervision."  — [job posting] — employer, client account services role — https://www.indeed.com/viewjob?jk=9ba66a4cc529f4e3 — opened and confirmed open 2026-08-14 — needed JS: not determinable
+   • "Follow a range of mandatory procedures to ensure that work is carried out to the required quality standards and/or to ensure adherence to external regulatory codes and internal codes of conduct."  — [job posting] — employer, client account services role — https://www.indeed.com/viewjob?jk=9ba66a4cc529f4e3 — opened 2026-08-14 — needed JS: not determinable
+   • "You will define, monitor, and maintain key performance indicators (KPIs), conduct analyses using techniques ranging from summary statistics to diagnostic and predictive modeling (with guidance as needed), and create and maintain reports and dashboards that support decision-making."  — [job posting] — employer, marketing data analytics role — https://www.indeed.com/rc/clk?jk=7337ab966e3937d4 — opened and confirmed open 2026-08-14 — needed JS: not determinable
+   • "Manage multiple projects and priorities in a fast-paced environment while maintaining quality, meeting deadlines and client service expectations."  — [job posting] — employer, marketing data analytics role — https://www.indeed.com/rc/clk?jk=7337ab966e3937d4 — opened 2026-08-14 — needed JS: not determinable
+   • "Participate in architectural discussions and contribute to front-end standards, best practices, and reusable component libraries."  — [job posting] — employer, front-end software engineering role — https://www.indeed.com/viewjob?jk=f16ccb3bc0c2cfd0 — opened and confirmed open 2026-08-14 — needed JS: not determinable
+   • "Work within Agile teams to deliver high-quality software in iterative releases."  — [job posting] — employer, front-end software engineering role — https://www.indeed.com/viewjob?jk=f16ccb3bc0c2cfd0 — opened 2026-08-14 — needed JS: not determinable
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 4 · ladder fully attempted) ---
+
+VOICE COMPOSITION FLAG FOR THE RATER: two of the four passages below are the chief
+executive; two are a field branch/complex manager. No individual-contributor first-person
+account was reached. Executive description of how a company works is not evidence about the
+rest of the organisation.
+
+   • "We have zero cross-selling requirements. There's not one financial advisor that will tell you — out of our 9,000 or so advisors — that they have a cross-selling requirement to hit a deferred comp program goal."  — [long-form trade press profile, direct quote] — Paul Shoukry, Chief Executive Officer, speaking at the firm's annual institutional investor conference — https://www.financial-planning.com/news/raymond-james-has-zero-cross-selling-requirements-ceo — 2026-03-02 — needed JS: not determinable
+   • "They know they're treated like free agents. They want to stay at Raymond James because we have a unique value, unique culture and a robust platform that we're investing in. So why would they want to go anywhere else?"  — [long-form trade press profile, direct quote] — Paul Shoukry, Chief Executive Officer — https://www.financial-planning.com/news/raymond-james-has-zero-cross-selling-requirements-ceo — 2026-03-02 — needed JS: not determinable
+   • "He's my boss, but he knows I've also been in his role, so he treats me with that respect. But he'll be the first to say, 'Well, Michael, I disagree,' and I appreciate that."  — [company culture magazine, first-person profile] — Michael Turnbough, complex manager (field management, non-executive) — https://www.raymondjames.com/-/media/rj/dotcom/files/pdfs/the-culture/the-culture-summer-2026.pdf — Summer 2026 issue — needed JS: not determinable
+   • "I'm not one of these guys who likes to work from home. It's just like going to the gym. When you go the gym, you know what you're supposed to do – you work out. I'm more effective in the office."  — [company culture magazine, first-person profile] — Michael Turnbough, complex manager (field management, non-executive) — https://www.raymondjames.com/-/media/rj/dotcom/files/pdfs/the-culture/the-culture-summer-2026.pdf — Summer 2026 issue — needed JS: not determinable
+
+
+--- E. RECENT NEWS (yield: 3 · searches logged: 3) ---
+
+   • "Raymond James also completed its acquisition of Clark Capital, adding wealth-focused capabilities along with $47 billion in combined assets under management and nondiscretionary assets, according to Shoukry."  — [trade press reporting] — Grace L. Williams, Financial Planning — https://www.financial-planning.com/news/raymond-james-on-track-to-top-advisor-recruiting-record-ceo-says — 2026-07-23 — needed JS: not determinable
+   • "In its third quarter, the firm completed an enterprise rollout of a proprietary AI assistant called Raimond, he said."  — [trade press reporting] — Grace L. Williams, Financial Planning — https://www.financial-planning.com/news/raymond-james-on-track-to-top-advisor-recruiting-record-ceo-says — 2026-07-23 — needed JS: not determinable
+   • "Shoukry also drew attention to what Raymond James calls its 'financial advisor bill of rights.' This is an agreement allowing departing advisors to take their client list with them to another firm with no risk of legal action — provided they abide by various industry laws and standards."  — [trade press reporting] — Dan Shaw, Financial Planning — https://www.financial-planning.com/news/raymond-james-has-zero-cross-selling-requirements-ceo — 2026-03-02 — needed JS: not determinable
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 6 · public/private: PUBLIC) ---
+
+Company-authored. Item 1, Human Capital, Form 10-K for the fiscal year ended 2025-09-30.
+All headcounts, dollar figures and percentages stripped at collection, as required.
+
+   • "Our 'associates' (which include our employee financial advisors and all of our other employees) and our independent contractor financial advisors (which we call our 'independent advisors') are vital to our success."  — [10-K Item 1 Human Capital, company-authored] — Raymond James Financial, Inc. — https://www.sec.gov/Archives/edgar/data/720005/000072000525000093/rjf-20250930.htm — fiscal year ended 2025-09-30 — needed JS: not determinable
+   • "We also endeavor to foster and maintain our unique and long-standing values-based culture."  — [10-K Item 1 Human Capital, company-authored] — Raymond James Financial, Inc. — same URL — fiscal year ended 2025-09-30 — needed JS: not determinable
+   • "Our values are memorialized in a document we refer to as our culture 'blueprint' that is communicated to all associates."  — [10-K Item 1 Human Capital, company-authored] — Raymond James Financial, Inc. — same URL — fiscal year ended 2025-09-30 — needed JS: not determinable
+   • "One way in which we measure the health of our culture is through firmwide and targeted surveys in which we routinely ask our associates about their experiences at the firm. Feedback provided through these surveys is also used to create and continually enhance programs that support our associates' needs."  — [10-K Item 1 Human Capital, company-authored] — Raymond James Financial, Inc. — same URL — fiscal year ended 2025-09-30 — needed JS: not determinable
+   • "Through our annual performance review process, associates and managers collaborate to define performance goals which are reviewed during mid-year touch points and formal end-of-year discussions."  — [10-K Item 1 Human Capital, company-authored] — Raymond James Financial, Inc. — same URL — fiscal year ended 2025-09-30 — needed JS: not determinable
+   • "To provide associates opportunity to compete for new positions, we require that all roles, with the exception of certain revenue-generating positions and certain senior-level roles, be posted on our internal online career platform."  — [10-K Item 1 Human Capital, company-authored] — Raymond James Financial, Inc. — same URL — fiscal year ended 2025-09-30 — needed JS: not determinable
+
+
+########## SECTION 2 — RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+2a. YIELD AUDIT
+
+    REQUIRED TO YIELD — a shortfall here means go back and collect more:
+       A excerpts: 8/5       B reviews: 15/12      C excerpts: 10/6
+       C postings: 5/3       C outside engineering: 4/1
+       B reviews within 24 months: 15/15
+
+    C EXEMPTION CLAIMED (company not hiring)?  NO
+       (340 open roles listed on the reviews-site jobs tab on 2026-08-14.)
+
+    REQUIRED TO ATTEMPT — record the yield, do not gate on it:
+       D passages: 4    ladder rungs logged: 7/7
+       D voice composition: 2 executive / 2 non-executive
+                            (if all-executive: extra rung worked? N/A — not all-executive.
+                             stale non-executive material found and rejected? none found)
+       E excerpts: 3    searches logged: 3
+       F excerpts: 6    public? YES     10-K filing date: NOT SEPARATELY VERIFIED — document is
+                        the Form 10-K for fiscal year ended 2025-09-30, EDGAR accession
+                        0000720005-25-000093. I read the filing document itself; I did not open
+                        the filing index to confirm the acceptance date.
+
+2b. EVIDENCE COVERAGE
+       autonomy: COVERED   pace: COVERED     collaboration: COVERED
+       feedback: THIN      innovation: THIN  decision: COVERED
+
+2c. LADDER CHECKLIST
+       D1 handbook          attempted Y  URL: https://www.raymondjames.com/-/media/rj/dotcom/files/about-us/blueprint.pdf
+                            outcome: FOUND BUT NOT USABLE. This is the "Culture Blueprint" the
+                            10-K and the careers site both name. The PDF fetched, but text
+                            extraction returned only marginal call-out annotations ("HOW PEOPLE
+                            ARE TREATED / HOW DECISIONS ARE MADE / HOW WORK IS DONE" and a few
+                            aside boxes); the main body text did not extract. This is a
+                            retrieval failure, NOT an absence — the document exists and is
+                            first-party. A renderer or a proper PDF text layer would likely
+                            reach it.
+       D1b handbook (alt)   attempted Y  URL: https://www.raymondjames.com/investor-relations/corporate-governance/-/media/rj/dotcom/files/about-us/codeofconductrjcom.pdf
+                            outcome: RETRIEVED IN FULL. Board-approved 2026-05-13. Used in
+                            Section A. Not counted toward D — it is policy prose, not a
+                            first-person account.
+       D2 eng/product blog  attempted Y  URL: https://www.raymondjames.com/commentary-and-insights/lifestyle-technology
+                            newest post date: not determined (page body not reachable by plain
+                            fetch) — outcome: NOT REACHED. Search across the company domain and
+                            the open web surfaced no engineering, product or design blog. The
+                            publications that do exist are client-facing market and lifestyle
+                            commentary, which is the "publication found, yields nothing on
+                            working practice" case — but I cannot state that with confidence
+                            because the pages themselves did not render. Recorded as NOT
+                            REACHED, not as absent.
+       D3 culture microsite attempted Y  URL: https://www.raymondjames.com/-/media/rj/dotcom/files/pdfs/the-culture/the-culture-summer-2026.pdf
+                            outcome: YIELDED. "The Culture", the company's own magazine, Summer
+                            2026 issue, retrieved in full as PDF. Narrative first-person
+                            profiles. Two passages taken. In date (2 months old).
+       D4 leader interview  attempted Y  URL: https://www.cnbc.com/video/2026/07/24/raymond-james-ceo.html
+                            date: 2026-07-24 — outcome: VIDEO ONLY, no transcript located. Not
+                            quotable. Executive quotes were obtained instead from rung 6.
+       D5 public repos      attempted Y  URL: https://api.github.com/search/users?q=raymond+james+type:org
+                            outcome: Two organisations carry the name — "RJ-WM" and
+                            "Raymond-James-Dev". Neither could be confirmed as the company:
+                            the repository listing endpoint returned an empty document for
+                            Raymond-James-Dev, and "RJ-WM" is an unverified initialism.
+                            NAME-COLLISION CAUTION APPLIES (see also "Raymond James Stadium",
+                            an unrelated employer entity found during the entity check).
+                            Recorded as UNCONFIRMED, not as a finding either way.
+       D6 press profile     attempted Y  URL: https://www.financial-planning.com/news/raymond-james-has-zero-cross-selling-requirements-ceo
+                            date: 2026-03-02 — outcome: YIELDED. Two executive passages. A
+                            second article at the same publication (2026-07-23) supplied a
+                            third executive quote used in Section E.
+       D7 conference talk   attempted Y  URL: searched; no talk archive or programme entry
+                            located that carried a quotable first-person account of working
+                            practice — outcome: NOT FOUND (search-based; no single URL to cite).
+       Rungs rejected as stale (>18 months): NONE. Nothing found was between 18 months and
+                            "current" — the material found was either current (rungs 3, 6) or
+                            not reached at all (rungs 1, 2, 5, 7).
+       C fallbacks tried: reviews-site job view YES (worked, primary route)
+                          ATS param found YES — Workday, tenant "raymondjames", site
+                            "RaymondJamesCareers"
+                          greenhouse N/A  lever N/A
+                          workday YES — https://raymondjames.wd1.myworkdayjobs.com/... —
+                            BOTH the HTML job page and the /wday/cxs/ JSON endpoint returned
+                            empty documents on plain fetch. The careers-site landing page did
+                            return a populated meta-description, which is where Section A's
+                            careers copy came from.
+                          ashby N/A  aggregator YES (reviews-site job search pages)
+       E news searches run: 3
+          queries used:
+            1. Raymond James news 2026 layoffs OR restructuring OR "return to office" OR
+               reorganization employees
+            2. Raymond James Financial 2026 acquisition OR "chief executive" Shoukry interview
+               strategy news July 2026
+            3. "Raymond James" technology blog engineering "how we work" developers 2026
+               (run for rung 2; also surfaced news-adjacent results)
+
+2d. SOURCE ACCESS LOG
+       https://www.raymondjames.com/careers — plain fetch — 200, NAVIGATION ONLY, truncated
+         at ~104,736 chars before body
+       https://www.raymondjames.com/careers/why-raymond-james — plain fetch — 200, NAVIGATION
+         ONLY, truncated at ~104,757 chars before body
+       https://r.jina.ai/https://www.raymondjames.com/careers/why-raymond-james — plain fetch —
+         empty document
+       (renderer attempt on the two careers URLs — tool reported "Claude in Chrome is not
+         connected", twice)
+       https://raymondjames.wd1.myworkdayjobs.com/RaymondJamesCareers — plain fetch — 200,
+         head/meta only; meta-description carried the full careers-page prose — USED
+       https://raymondjames.wd1.myworkdayjobs.com/wday/cxs/raymondjames/RaymondJamesCareers —
+         plain fetch — empty document
+       https://raymondjames.wd1.myworkdayjobs.com/wday/cxs/.../ServiceNow-Enterprise-Architect_R-0011920
+         — plain fetch — empty document
+       https://raymondjames.wd1.myworkdayjobs.com/en-US/RaymondJamesCareers/job/ServiceNow-Enterprise-Architect_R-0011920
+         — plain fetch — 200, head/meta only, no body
+       https://www.raymondjames.com/-/media/rj/dotcom/files/about-us/blueprint.pdf — plain
+         fetch — 200 PDF, partial text extraction only (see D1)
+       https://www.raymondjames.com/investor-relations/corporate-governance/-/media/rj/dotcom/files/about-us/codeofconductrjcom.pdf
+         — plain fetch — 200 PDF, full text — USED
+       https://www.raymondjames.com/-/media/rj/dotcom/files/pdfs/the-culture/the-culture-summer-2026.pdf
+         — plain fetch — 200 PDF, full text — USED
+       https://www.indeed.com/cmp/Raymond-James/reviews?sort=date&fcountry=US — plain fetch —
+         200, 20 reviews rendered newest-first — USED
+       https://www.indeed.com/cmp/Raymond-James/job-titles — plain fetch — 200, full title
+         index with counts and per-title stars — USED (2f only)
+       https://www.indeed.com/cmp/Raymond-James/about — plain fetch — 200, employer "Why Join
+         Us" copy, itself truncated at a "Show more" control — not used
+       https://www.indeed.com/cmp/Raymond-James/jobs?clearPrefilter=1 — plain fetch — 200, job
+         titles rendered but all detail hrefs were "#" (JS-populated); job keys obtained
+         instead from the reviews-page carousel and the keyword search page
+       https://www.indeed.com/companies/search?q=Raymond+James — plain fetch — 200 — entity
+         check, see 2e
+       https://www.indeed.com/q-raymond-james-software-jobs.html — plain fetch — 200, listing
+         plus one full posting body inline — USED
+       https://www.indeed.com/viewjob?jk=0cfea1a1fc30465d — plain fetch — 200, full body — USED
+       https://www.indeed.com/viewjob?jk=0c51c2d63752a5be — plain fetch — 200, full body — USED
+       https://www.indeed.com/viewjob?jk=9ba66a4cc529f4e3 — plain fetch — 200, full body — USED
+       https://www.indeed.com/viewjob?jk=f16ccb3bc0c2cfd0 — plain fetch — 200, full body — USED
+       https://www.glassdoor.com/Reviews/Raymond-James-Financial-Reviews-E559.htm — plain
+         fetch — 200, 3 reviews rendered, no sign-in wall — USED for recency cross-check only
+       https://www.sec.gov/Archives/edgar/data/720005/000072000525000093/rjf-20250930.htm —
+         plain fetch — 200, full document — USED
+       https://www.financial-planning.com/news/raymond-james-has-zero-cross-selling-requirements-ceo
+         — plain fetch — 200, full article — USED
+       https://www.financial-planning.com/news/raymond-james-on-track-to-top-advisor-recruiting-record-ceo-says
+         — plain fetch — 200, full article — USED
+       https://api.github.com/orgs/raymondjames — plain fetch — empty document
+       https://api.github.com/orgs/Raymond-James-Dev/repos — plain fetch — empty document
+       https://api.github.com/search/users?q=raymond+james+type:org — plain fetch — 200 — see D5
+
+2e. FIDELITY NOTE
+       [PARAPHRASE] tags used: NONE. Every line in Section 1 is verbatim.
+       Preserved source typos: "enviroment" (marked [sic]) in the 2026-06-17 review; "your
+         treated" and "micro managing" in the 2025-10-15 review, preserved and noted on the
+         line rather than marked [sic] inline.
+       Postings whose open/closed status could not be confirmed: NONE. All five were opened
+         individually and each rendered a live apply control with no removal notice.
+       Section A sourcing irregularity: four of the eight Section A excerpts are taken from the
+         meta-description element of the careers landing page, not from rendered body text.
+         The body of that page is JavaScript-generated and did not render on plain fetch. The
+         text is verbatim page content, but it is metadata. Flagged as defect S4.
+       Section C boilerplate: the "five guiding behaviors" block and the "We expect our
+         associates at all levels to" list appear WORD-FOR-WORD in all five postings opened.
+         One instance is quoted; it is company-wide values copy, not role-specific posting
+         language. Flagged as defect S5.
+       Entity check result: run BEFORE collecting reviews.
+         Indeed holds ONE corporate entity for this employer — "Raymond James",
+         https://www.indeed.com/cmp/Raymond-James, 933 reviews (nav tab), 3.8 stars, claimed
+         (it carries an employer-written "Why Join Us" page and an official logo).
+         Four other name matches were found and all are DIFFERENT employers, not slices of
+         this one: "Sovereign Financial Group, Inc. / Raymond James" (an affiliated independent
+         RIA practice, no review count shown), "Pinnacle Financial Center and Raymond James"
+         (2 reviews), "James Raymond and associates" (2 reviews, word order reversed), and
+         "Raymond James Stadium" (36 reviews — a naming-rights venue, an unrelated employer).
+         None was collected from.
+         Glassdoor holds one entity, E559 "Raymond James Financial", marked "Engaged Employer".
+       IMPLAUSIBLE COUNT — stated explicitly as required: 933 reviews on the primary site
+         against roughly 19,500 associates and 5,065 independent advisors disclosed in the
+         10-K is a low ratio. It is not implausible enough to suggest a split profile (the
+         entity check found none), but the review population is a small fraction of the
+         workforce and the rater should not read it as a survey.
+       CEO identity on the review site is STALE: Glassdoor displays "Paul C. Reilly" with a
+         CEO-approval percentage. Reilly ceased to be chief executive in February 2025 and the
+         current chief executive is Paul Shoukry, confirmed independently by the company's own
+         2026 code of conduct and by 2026 trade press. This is the same defect the prompt
+         records against P-04, recurring at a second company. No CEO-approval figure appears
+         anywhere in this packet.
+
+2f. VINTAGE BLOCK
+       Review entities found: 1 corporate entity per site.
+          Indeed — https://www.indeed.com/cmp/Raymond-James — see count block below — 3.8
+             overall — claimed
+          Glassdoor — https://www.glassdoor.com/Reviews/Raymond-James-Financial-Reviews-E559.htm
+             — see count block below — 4.1 overall — claimed ("Engaged Employer")
+       Review counts BY SITE, each with the ELEMENT it came from:
+          Indeed — "865 Reviews" in the <title> element
+          Indeed — "865 reviews" as the review-list H2 heading
+          Indeed — "Based on 933 reviews" in the overall-rating block
+          Indeed — "933 Reviews" in the profile nav tab
+          Indeed — "933 reviews" in the employer block on every job posting page
+          Glassdoor — "2,495" in the <title> element and the meta description
+          Glassdoor — "(2,495 total reviews)" beside the recommendation figure
+          Glassdoor — "2K reviews" in the review-list header
+          Glassdoor — "Glassdoor has 2,971 Raymond James Financial reviews" in the page footer
+       Conflicting counts observed on a single page: YES, on both sites. Indeed shows
+          865 / 865 / 933 / 933 simultaneously. Glassdoor shows 2,495 / 2K / 2,971
+          simultaneously. Defect D4 confirmed at a fourth company. No site-reported total
+          appears in Section 1.
+       Headline ratings BY SITE: Indeed 3.8 overall, work-life balance 3.7.
+          Glassdoor 4.1 overall, work/life balance 3.9. Divergence recorded, not reconciled.
+       Job titles sampled: NONE — v4.6 frame is recency, company-wide. Titles are per-review
+          metadata only. Title index counts, each from the /job-titles index element:
+          Financial Advisor 48, Associate 30, Administrative Assistant 23, Operations
+          Associate 22, Client Services Associate 22, Customer Service Representative 18,
+          Accounts Assistant 16, Intern 14, Registered Client Associate 13, Sales Assistant 11,
+          Analyst 10, Business Analyst 10, Compliance Officer 10, Finance Intern 10,
+          Manager 9, Senior Vice President 9.
+          Technology titles for comparison: Technical Support Specialist 6, Application
+          Developer 5, Systems Administrator 4, IT Technician 4, Software Engineer 2,
+          Senior Software Engineer 2, Technical Lead 2, Front End Developer 2.
+          Capital markets / banking titles: Investment Banking Analyst 5, Corporate Actions
+          Analyst 5, Portfolio Analyst 3, Asset Manager 3.
+          Human Resources: every title in the category holds exactly 1 review.
+       Per-title subratings: NOT COLLECTED — removed in v4.5, see section B.
+       Achievability gate run on every percentage recorded anywhere in the packet: YES.
+          Percentages encountered: Glassdoor "80% would recommend" at n=2,495 (step size 0.04
+          points — 80% is achievable, PASS); Glassdoor "89% approve of CEO" and "76% positive
+          business outlook" (denominators not printed beside them, so the gate cannot be run —
+          and all three are EVALUATIVE metrics barred from Section 1 by hard rule 8 regardless).
+          The 10-K workforce percentages were stripped at collection per Section F and never
+          entered the packet. No percentage appears anywhere in Section 1.
+       Percentages struck for failing the gate: NONE struck for arithmetic failure. Two struck
+          as ungateable (CEO approval, business outlook) and separately barred by rule 8.
+       Titles present but NOT sampled, with counts: not applicable under the v4.6 recency
+          frame. Counts above are the population description, not a sampling record.
+       Interview write-ups excluded from review lists: 0 encountered in the 20 reviews rendered.
+       Newest review date BY SITE: Indeed 2026-07-16. Glassdoor 2026-07-14. Divergence is
+          2 days — this is NOT the P-03/P-04 staleness signature. Indeed's coverage of this
+          company is current.
+       Oldest review used: 2025-08-28.
+       Median age of reviews used: 4.7 months (2026-03-22, the 8th of 15 in date order).
+       Reviews truncated at source: 6/15 = 40%.  >33%, NOTE TO RATER placed at the head of
+          section B as required by B7.
+       Source-site duplicates retained: 0 encountered.
+       Newest careers-page modification date: NOT DETERMINED — the careers pages did not
+          render. The nearest first-party proxy is the code of conduct, board-approved
+          2026-05-13, and the culture magazine, Summer 2026.
+       Structural events found and their dates:
+          2025-02-20 — chief executive succession: Paul C. Reilly to executive chair, Paul M.
+             Shoukry to chief executive.
+          FY2026 Q3 (April–June 2026) — completed acquisition of an asset management firm
+             (Clark Capital), reported 2026-07-23.
+          2026 — completed acquisition of a boutique investment business (GreensLedge).
+          FY2026 Q3 — enterprise rollout of a proprietary internal AI assistant.
+       Does any structural event postdate the newest review?  NO. The newest review
+          (2026-07-16) postdates every structural event found.
+
+2g. SCOPE BLOCK
+       A careers / values     population: company-wide (careers site and board-approved code
+                              of conduct; both address all associates)
+       B employee reviews     population: branch and home-office operations, client account
+                              services, retirement plan services, trading support, banking
+                              operations, IT support, one financial advisor, one intern, one
+                              regional director, one consultant — plus 4 of 15 with no title
+                              at all, which cannot be assigned to any function
+       C job postings         population: advisor marketing support, retirement plan services
+                              operations, client account services, marketing data analytics,
+                              front-end software engineering
+       D first-person         population: the chief executive, and one field branch/complex
+                              manager from the advisor organisation
+       E news                 population: company-wide, but reported through the wealth
+                              management trade press, so framed around advisors
+       F human capital        population: company-wide, all associates and independent advisors
+
+       Working environments known to exist in this company but ABSENT from the review
+       population: investment banking and capital markets (Investment Banking Analyst holds 5
+       reviews), asset management, software engineering (Software Engineer 2, Senior Software
+       Engineer 2, Front End Developer 2 — single digits across the whole engineering
+       category), legal (Attorney 1), human resources (every title exactly 1), and the
+       non-US organisations in Canada, the UK and Germany that the 10-K says exist. The
+       company is hiring actively in several of these — five of the postings in Section C sit
+       in functions the review population barely contains.
+
+       Does the company-authored evidence (A, F) describe a wider population than the
+       experiential evidence (B)?  YES.
+
+       One-line scope declaration for the head of the packet: placed at the top of Section 1.
+
+
+########## SECTION 3 — ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+
+- Approx. headcount: approximately 19,500 associates (including 3,878 employee financial
+  advisors) plus 5,065 independent contractor advisors, as of 2025-09-30. Source: Form 10-K
+  Item 1 Human Capital, https://www.sec.gov/Archives/edgar/data/720005/000072000525000093/rjf-20250930.htm
+  CONFIDENCE: HIGH — company-sourced, legally accountable filing, current fiscal year.
+  The same filing states this was an increase of approximately 500 associates year over year.
+  A third-party source (Indeed company profile) shows only the band "10,000+", which is
+  consistent but far less precise; do not use it.
+
+- Stage/size cues: PUBLIC. Listed on the New York Stock Exchange under the symbol RJF.
+  Source: company careers site meta description and the 10-K. Founded 1962, headquartered in
+  St. Petersburg, Florida. Operates in four countries across North America and Europe per the
+  10-K. Third-party revenue band from the Indeed profile: "$5B to $10B (USD)" — this is a
+  third-party estimate and is NOT company-sourced; treat with low confidence, as the same
+  profile's employee band is also coarse.
+
+- Pay-posture EVIDENCE vs. talent-market peers (no band assigned):
+  • Employee review, Analyst, 2025-08-28: "Pay bad for first few years and then Gets better.
+    A lot of underperformers stay around and are effectively cheap labor. Company could
+    probably be more aggressive/generous with paying high performers".
+  • Employee review, Branch Operations Manager, 2026-06-08: review titled "Great culture but
+    pay & benefits are lacking".
+  • Employee review, 2026-06-17: "Good pay with good benefits."
+  • Glassdoor category rating, compensation and benefits: 3.5 of 5, the LOWEST of its six
+    categories, against 4.1 overall — the site's own text notes this rating "has decreased by
+    3% over the last 12 months". Evaluative; QA metadata only.
+  • Posted ranges observed on open roles span roughly $18/hour entry operations to $180,700
+    for a lead infrastructure engineer.
+  CORRECT REFERENCE CLASS: diversified financial services / wealth management and brokerage
+  peers (the review site's own comparison set for this employer was Morgan Stanley, UBS,
+  Charles Schwab, Fisher Investments, Ameriprise) — NOT technology-sector pay bands, even for
+  the engineering roles, which sit inside a financial services compensation structure.
+
+- Industry: FINANCE. Justification: the company is a diversified financial services firm
+  providing wealth management, capital markets, asset management and banking; its regulatory
+  filings, its review-site industry classification and its own self-description all agree.
+
+
+########## SECTION 4 — ANONYMIZATION PRE-FLAGS ##########
+
+COMPANY NAME OCCURRENCES IN SECTION 1
+  "Raymond James" appears in: A excerpt 4 ("Raymond James is where good people grow" —
+  embedded in the quote), C excerpt 2 ("At Raymond James our associates use five guiding
+  behaviors..."), D excerpt 2 ("They want to stay at Raymond James because..."), E excerpt 3
+  ("what Raymond James calls its 'financial advisor bill of rights'"), E excerpt 1 ("Raymond
+  James also completed its acquisition..."). Also "RJ" inside the 2026-06-08 review ("my 10
+  years at RJ") and "Raymond James" inside the 2025-12-04 review.
+
+NAMED INTERNAL PROGRAMMES AND TOOLS — all are instant fingerprints
+  • "Culture Blueprint" / culture "blueprint" — appears in A excerpt 4 AND F excerpt 3. In
+    Section F apply the rewrite-the-proper-noun rule: "a document we refer to as our culture
+    blueprint" becomes "a named internal culture document". Do NOT drop the F excerpt — the
+    clause is the section's best evidence that values are formally codified and distributed.
+  • "Raimond" — the proprietary AI assistant, E excerpt 2. Uniquely identifying (it is a pun
+    on the company name). Replace with "a proprietary internal AI assistant".
+  • "financial advisor bill of rights" — E excerpt 3. Distinctive named policy, searchable.
+  • The five guiding behaviors "(Develop, Collaborate, Decide, Deliver, Improve)" — C excerpt
+    2. This exact five-word list is a fingerprint. The surrounding clause carries the
+    dimension signal and should survive; the parenthetical list can be generalised to "five
+    named guiding behaviors".
+  • "Myrjbenefits.com" — appears in the posting boilerplate but was NOT quoted into Section 1.
+    Confirm it stays out.
+
+EXECUTIVE AND AUTHOR NAMES IN SECTION 1
+  • Paul Shoukry (chief executive) — D excerpts 1 and 2, E excerpts 1 and 3.
+  • Michael Turnbough (complex manager) — D excerpts 3 and 4; the quote in D3 contains his own
+    first name inside the reported speech ("Well, Michael, I disagree") — removing the
+    attribution alone will NOT anonymise it.
+  • Grace L. Williams and Dan Shaw (reporters, Financial Planning) — attribution lines only.
+
+OFFICE LOCATIONS IN REVIEW ATTRIBUTIONS — replace with generic site tokens, do not delete
+  Miami, FL → [Site A]        Troy, MI → [Site B]
+  Oakbrook Terrace, IL → [Site C]   Southfield, MI → [Site D] (two reviews)
+  St. Petersburg, FL → [Site E]     Remote → keep as "Remote", it is already generic
+  Six of fifteen reviews carry no location; leave those as "location not stated".
+  NOTE: St. Petersburg is also the headquarters city and appears in Section 3 — the
+  dispersion field needs [Site E] preserved as distinct from the others.
+
+VERBATIM SELF-DESCRIPTIONS — searchable even after the name is removed
+  • "We believe doing well and doing good aren't mutually exclusive." (A) — appears in the
+    careers site, the code of conduct AND the 10-K; a three-source exact match makes it the
+    single most searchable string in the packet.
+  • "Our culture is people-driven, values-built and future-focused" (A).
+  • "client-first, integrity, independence and a conservative, long-term view" (C).
+  • "We have zero cross-selling requirements" (D) — quoted in a headline, therefore indexed.
+  • "the four parts of a service conversation: open, learn, reply, and close" (C) — unusual
+    phrasing, likely traceable to this employer's own service curriculum.
+
+PRESERVED SOURCE TYPOS — unique-string identifiers, flag before release
+  • "enviroment" — 2026-06-17 review.
+  • "your treated" and "micro managing" — 2025-10-15 review.
+  Each of these is individually searchable and will return the original review verbatim.
+
+OTHER IDENTIFYING TOKENS
+  • "9,000 or so advisors" (D excerpt 1) — a headcount inside a quote; identifies the firm
+    within its peer set.
+  • "$47 billion" and the named acquisition (E excerpt 1) — the deal is uniquely identifying;
+    consider generalising to "an asset management firm".
+  • "Fortune 500 company" (inside the 2025-09-23 review) — narrows the field but does not
+    identify alone.
+  • Review permalink URLs and job keys throughout Section 1 resolve directly to the employer
+    profile. All source URLs must be stripped or hashed at the anonymization step.
+
+
+########## END OF PACKET ##########

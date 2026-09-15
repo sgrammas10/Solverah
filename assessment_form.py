@@ -80,6 +80,7 @@ __all__ = [
     "PresentationContractError",
     "ScoredSubmission",
     "get_form",
+    "score_stored_choices",
     "scoring_key_version",
     "submit_form",
     "EXPECTED_RESPONSE_COUNT",
@@ -235,3 +236,34 @@ def submit_form(
         choices=choices,
         confidences=confidences,
     )
+
+
+def score_stored_choices(
+    choices: dict[str, str], items_path: Path | str = DEFAULT_ITEMS_PATH
+) -> dict[str, float]:
+    """Re-derive dimension scores from already-resolved {item_id: option_key} pairs.
+
+    The raw per-item rows `assessment_store.persist_submission` writes are already
+    canonical item_id -> chosen option key -- the same shape `submit_form`'s
+    `ScoredSubmission.choices` carries, with the token map and respondent_id already
+    resolved away at submission time. No shuffle, no secret, no re-derivation of the
+    presentation layer: this is a pure re-application of `score_all_dimensions` over
+    rows that were already de-shuffled once.
+
+    THE doorway for BUILD_PLAN A-5's D-15 pin (⚑5): the person-side score store
+    upserts in place per (user, dimension, scoring_key_version), so it holds only the
+    CURRENT sitting's score -- a retake overwrites it. The pinned sitting's raw rows
+    are append-only (D-16) and never overwritten, so re-scoring them here is the only
+    way to read a NAMED sitting's scores after a later retake has moved "current" on.
+    `assessment_store.dimension_scores_for_submission` is the only caller; nothing
+    else in the web layer may import `score_person_side` directly (see this module's
+    own DECISION 2 and `tests/test_employer_visibility.py`'s instrument-layer test).
+    """
+    if not isinstance(choices, dict):
+        raise AssessmentError("choices must be an object of {item_id: option_key}")
+
+    items_index = load_items(Path(items_path))
+    try:
+        return score_all_dimensions(choices, items_index)
+    except ValueError as exc:
+        raise AssessmentError(str(exc)) from exc

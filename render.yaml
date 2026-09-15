@@ -86,19 +86,56 @@ services:
           name: solverah-db
           property: connectionString
 
+  # ----------------------------------------------------------- cron: backups
+  # Does NOT exist in the dashboard yet. `flask backups run` dumps the database
+  # (-Fc), verifies the artifact with `pg_restore --list` BEFORE uploading it,
+  # uploads to the backup bucket, and prunes artifacts older than 30 days —
+  # never the newest, and never at all if fewer than 7 would remain. Before
+  # this, the whole backup posture was Render's 7-day PITR plus one manually
+  # rehearsed dump (PROD_READINESS_2026-09.md §6): nothing scheduled, and
+  # nothing stored anywhere a compromise of this Render account would not also
+  # reach. That second half is why the credentials below are their own.
+  #
+  # `runtime: docker`, unlike the two crons above and unlike the web service.
+  # This is the only service here that shells out to pg_dump, the client major
+  # must be >= the server's 18.3, and Render's native Python runtime guarantees
+  # no PostgreSQL client at all. infra/docker/Dockerfile.backup pins
+  # postgresql-client-18 and fails its own build if that ever stops being true.
+  #
+  # 03:30 UTC: an hour before the retention purge at 04:30, so a backup taken
+  # tonight still contains the rows tonight's purge is about to delete.
+  - type: cron
+    runtime: docker
+    name: solverah-backups
+    branch: main
+    schedule: "30 3 * * *"
+    dockerfilePath: ./infra/docker/Dockerfile.backup
+    dockerContext: .
+    startCommand: flask backups run
+    envVars:
+      - fromGroup: solverah-prod
+      - fromGroup: solverah-backups
+      - key: DATABASE_URL
+        fromDatabase:
+          name: solverah-db
+          property: connectionString
+
 # ------------------------------------------------------------------ database
 # Exists today, dashboard-created. Measured 2026-08-27 as PostgreSQL 18.3 —
 # uuidv7() is a native built-in the schema depends on (DEFAULT uuidv7()), so
 # 18 is load-bearing; never downgrade this to make anything pass. PITR window
-# 7 days (re-confirmed 2026-09-02); no scheduled logical backups.
+# 7 days (re-confirmed 2026-09-02). Scheduled logical backups are the
+# solverah-backups cron above — off-platform storage and a 30-day window, which
+# is what PITR alone (7 days, same account, same vendor) does not give.
 databases:
   - name: solverah-db
     postgresMajorVersion: "18"
 
-# ---------------------------------------------------------------- env group
+# ---------------------------------------------------------------- env groups
 # The dashboard currently sets these directly on the web service, not in a
-# group. A group is used here so the web service and both cron jobs share one
-# set — on Blueprint adoption Render prompts for every sync: false value.
+# group. A group is used here so the web service and the cron jobs share one
+# set — on Blueprint adoption Render prompts for every sync: false value. The
+# backup credentials are a second group precisely so they are NOT shared.
 #
 # Present in the dashboard but NOT codified:
 #   - CONFIRM_TOKEN_EXP_HOURS, FRONTEND_URL, JWT_COOKIE_DOMAIN — read by no
@@ -122,6 +159,20 @@ envVarGroups:
       - key: SOLVERAH_FORM_TOKEN_SECRET
         sync: false             # no default by design (D-05); read at call time —
                                 # missing = every assessment route 500s, boot stays green
+      # ⚠ DEPLOY DEPENDENCY (S1, 2026-09-03). NOT SET IN PRODUCTION TODAY, and
+      # as of S1 the app will not boot in production without it: `memory://`
+      # rate-limit storage raises ConfigError instead of warning, because
+      # per-worker counters make every limit in the application decorative
+      # (2026-09 audit 9.1, its highest-impact finding). Provision a Render
+      # Key-Value instance and set this BEFORE merging S1 to main — a deploy in
+      # the other order fails at boot, not at first request.
+      #
+      # One variable, three consumers: the rate limiter (fatal, above), the
+      # Celery broker/result backend (warns), and the read cache (silent).
+      # RATELIMIT_STORAGE_URI / CELERY_BROKER_URL split them if they ever need
+      # separate instances.
+      - key: REDIS_URL
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: GROQ_API_KEY
@@ -145,3 +196,21 @@ envVarGroups:
       - key: SENTRY_DSN
         sync: false             # optional: error tracking is disabled when unset
                                 # (added 6b8584d; not yet in the 2026-09-02 intake list)
+
+  # A SECOND group, attached only to solverah-backups — and the separation is
+  # the point, not tidiness. These credentials must belong to an identity that
+  # can write the backup bucket and that the web service cannot use, so that a
+  # stolen application key cannot read or delete the backups. `solverah/config.py`
+  # validates the group all-or-nothing at boot and REFUSES if either the bucket
+  # or the access key id matches the app's S3_* values; there is no fallback to
+  # them anywhere in the code. Do not add this group to the web service.
+  - name: solverah-backups
+    envVars:
+      - key: BACKUP_S3_ENDPOINT_URL
+        sync: false
+      - key: BACKUP_S3_BUCKET_NAME
+        sync: false             # a DIFFERENT bucket from S3_BUCKET_NAME
+      - key: BACKUP_S3_ACCESS_KEY_ID
+        sync: false             # a DIFFERENT token from S3_ACCESS_KEY_ID
+      - key: BACKUP_S3_SECRET_ACCESS_KEY
+        sync: false

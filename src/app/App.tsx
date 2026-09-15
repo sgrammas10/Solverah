@@ -10,8 +10,15 @@
  *   /agent                    AI agent chat (job-seeker)
  *   /feed, /search            Shared authenticated routes (job-seeker)
  *   /job-seeker/*             Job-seeker-only routes
+ *   /settings                 Account settings — data export + account deletion
+ *                             (job-seeker; the screen the legal pages promise)
  *   /career-quizzes/*         Authenticated quiz routes
  *   /quiz-insights            Authenticated quiz insights
+ *   /environment-report       Environment-side instrument (job-seeker)
+ *   /situation-report         Situation Report (job-seeker)
+ *   /pulse, /pulse/trend      Pulse check-in + trend (job-seeker; /pulse is
+ *                             the Pulse prompt email's deep-link target)
+ *   /trust                    Transparency page (job-seeker)
  *   *                         Catch-all → redirect to /
  *
  * Access control:
@@ -86,6 +93,7 @@ const HowMatchingWorksPage = lazy(() => import("../features/landing/components/H
 // ── Lazy: the authenticated application ─────────────────────────────────────
 const JobSeekerDashboard = lazy(() => import("../features/profile/components/JobSeekerDashboard"));
 const JobSeekerProfile = lazy(() => import("../features/profile/components/JobSeekerProfile"));
+const AccountSettingsPage = lazy(() => import("../features/profile/components/AccountSettingsPage"));
 const Feed = lazy(() => import("../features/matching/components/Feed"));
 const SearchResults = lazy(() => import("../features/matching/components/SearchResults"));
 const QuizInsights = lazy(() => import("../features/intelligence/components/QuizInsights"));
@@ -100,7 +108,14 @@ const CompanyDetailPage = lazy(() => import("../features/companies/components/Co
 const CompanyLensPage = lazy(() => import("../features/matching/components/CompanyLensPage"));
 const ManagerMatchPage = lazy(() => import("../features/assessments/components/ManagerMatchPage"));
 const ManagerMatchResultsPage = lazy(() => import("../features/assessments/components/ManagerMatchResultsPage"));
+const ManagerProfilePage = lazy(() => import("../features/assessments/components/ManagerProfilePage"));
+const ManagerPlaybookPage = lazy(() => import("../features/assessments/components/ManagerPlaybookPage"));
+const EnvironmentReportPage = lazy(() => import("../features/assessments/components/EnvironmentReportPage"));
+const SituationReportPage = lazy(() => import("../features/assessments/components/SituationReportPage"));
+const PulseCheckinPage = lazy(() => import("../features/assessments/components/PulseCheckinPage"));
+const PulseTrendPage = lazy(() => import("../features/assessments/components/PulseTrendPage"));
 const PathIntelligencePage = lazy(() => import("../features/intelligence/components/PathIntelligencePage"));
+const TrustPage = lazy(() => import("../features/intelligence/components/TrustPage"));
 
 // Routes that render their own full navigation bar (hide the global Header).
 const ROUTES_WITHOUT_HEADER = new Set(["/", "/start"]);
@@ -237,6 +252,7 @@ function App() {
                 {/* Job Seeker routes */}
                 <Route path="/job-seeker/dashboard" element={<JobSeekerDashboard />} />
                 <Route path="/job-seeker/profile" element={<JobSeekerProfile />} />
+                <Route path="/settings" element={<AccountSettingsPage />} />
 
                 {/* Quiz routes */}
                 <Route path="/career-quizzes" element={<CareerQuizzes />} />
@@ -266,11 +282,31 @@ function App() {
                 <Route path="/manager-match" element={<ManagerMatchPage />} />
                 <Route path="/manager-match/results" element={<ManagerMatchResultsPage />} />
 
+                {/* Manager Decoder routes (BUILD_PLAN C-4) */}
+                <Route path="/manager-profile" element={<ManagerProfilePage />} />
+                <Route path="/manager-profile/playbook" element={<ManagerPlaybookPage />} />
+
+                {/* Situation Report routes (BUILD_PLAN A-7). The environment
+                    instrument and its payoff surface, the same
+                    instrument/report pairing the Manager Decoder above has. */}
+                <Route path="/environment-report" element={<EnvironmentReportPage />} />
+                <Route path="/situation-report" element={<SituationReportPage />} />
+
+                {/* Pulse routes (BUILD_PLAN B-3). /pulse is B-2's email
+                    deep-link target (send_pulse_prompt_email) -- this exact
+                    path must not move. */}
+                <Route path="/pulse" element={<PulseCheckinPage />} />
+                <Route path="/pulse/trend" element={<PulseTrendPage />} />
+
                 {/* CompanyLens */}
                 <Route path="/company-lens" element={<CompanyLensPage />} />
 
                 {/* Path Intelligence */}
                 <Route path="/intelligence/paths" element={<PathIntelligencePage />} />
+
+                {/* Transparency (authenticated). The public twin waits on the
+                    publicity gate — /how-matching-works is the public page. */}
+                <Route path="/trust" element={<TrustPage />} />
 
                 {/* Company detail */}
                 <Route path="/companies/:id" element={<CompanyDetailPage />} />

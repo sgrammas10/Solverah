@@ -70,7 +70,8 @@
     "mimetype": "application/json",
     "cookies_set": [
       "access_token_cookie",
-      "csrf_access_token"
+      "csrf_access_token",
+      "refresh_token_cookie"
     ],
     "body": "{\"csrfToken\":\"<CSRF>\",\"message\":\"login successful\",\"user\":{\"email\":\"contract-primary@example.test\",\"id\":1,\"name\":\"Contract User\",\"profileData\":{\"certifications\":[],\"education\":[],\"email\":\"contract-primary@example.test\",\"experience\":[],\"firstName\":\"Contract\",\"lastName\":\"User\",\"legal_acceptance\":{\"accepted_at\":\"<TS>\",\"age_16_plus_attested\":true,\"terms_version\":\"unversioned\"},\"linkedinUrl\":\"\",\"location\":\"\",\"performanceReviews\":[],\"phone\":\"\",\"primaryLocation\":\"\",\"psychometricResults\":{\"communication\":{\"completed\":false,\"percentile\":null,\"score\":null},\"creativity\":{\"completed\":false,\"percentile\":null,\"score\":null},\"leadership\":{\"completed\":false,\"percentile\":null,\"score\":null},\"problemSolving\":{\"completed\":false,\"percentile\":null,\"score\":null},\"teamwork\":{\"completed\":false,\"percentile\":null,\"score\":null}},\"secondaryLocations\":[],\"skill_levels\":{},\"skills\":[],\"summary\":\"\"},\"role\":\"job-seeker\",\"wp_v2_completed\":false,\"wpl_completed\":false,\"wpll_completed\":false}}\n"
   },
@@ -324,7 +325,7 @@
     "status": 200,
     "mimetype": "application/json",
     "cookies_set": [],
-    "body": "{\"error\":null,\"job_id\":\"<JID>\",\"result\":{\"archetype\":\"The Operator\",\"archetype_description\":\"Autonomy with an explicit target.\",\"dimension_scores\":{\"autonomy\":0.25,\"feedback_style\":0.8,\"growth_focus\":0.7875000000000001,\"relationship\":0.39999999999999997},\"narrative\":\"You want a manager who sets direction and then gets out of the way.\",\"red_flags\":[\"decisions that only happen in the room\"],\"what_to_look_for\":[\"clear written goals\",\"few standing meetings\"]},\"status\":\"succeeded\"}\n"
+    "body": "{\"error\":null,\"job_id\":\"<JID>\",\"result\":{\"archetype\":\"The Operator\",\"archetype_description\":\"Autonomy with an explicit target.\",\"dimension_scores\":{\"autonomy\":0.25,\"feedback_style\":0.8,\"growth_focus\":0.7875000000000001,\"relationship\":0.5833333333333334},\"narrative\":\"You want a manager who sets direction and then gets out of the way.\",\"red_flags\":[\"decisions that only happen in the room\"],\"scoring_key\":\"mm-v2\",\"what_to_look_for\":[\"clear written goals\",\"few standing meetings\"]},\"status\":\"succeeded\"}\n"
   },
   {
     "step": "submit-core",
@@ -360,7 +361,7 @@
     "status": 200,
     "mimetype": "application/json",
     "cookies_set": [],
-    "body": "{\"archetype\":\"The Operator\",\"archetype_description\":\"Autonomy with an explicit target.\",\"dimension_scores\":{\"autonomy\":0.25,\"feedback_style\":0.8,\"growth_focus\":0.7875000000000001,\"relationship\":0.39999999999999997},\"narrative\":\"You want a manager who sets direction and then gets out of the way.\",\"red_flags\":[\"decisions that only happen in the room\"],\"what_to_look_for\":[\"clear written goals\",\"few standing meetings\"]}\n"
+    "body": "{\"archetype\":\"The Operator\",\"archetype_description\":\"Autonomy with an explicit target.\",\"dimension_scores\":{\"autonomy\":0.25,\"feedback_style\":0.8,\"growth_focus\":0.7875000000000001,\"relationship\":0.5833333333333334},\"narrative\":\"You want a manager who sets direction and then gets out of the way.\",\"red_flags\":[\"decisions that only happen in the room\"],\"scoring_key\":\"mm-v2\",\"what_to_look_for\":[\"clear written goals\",\"few standing meetings\"]}\n"
   },
   {
     "step": "result-wpll-not-stored",
@@ -405,7 +406,7 @@
     "status": 200,
     "mimetype": "application/json",
     "cookies_set": [],
-    "body": "{\"profile\":{\"career_status\":\"employed\",\"certifications\":[\"AWS SAA\"],\"culture_preferences\":{\"adaptability\":0.6,\"creative_drive\":0.65,\"data_orientation\":0.625,\"empathy\":0.5167,\"futuristic\":0.665,\"harmony\":0.6,\"pace\":\"moderate\",\"work_environment\":[\"collaborative\"]},\"education\":[{\"degree\":\"BS\",\"endDate\":\"2018\",\"field\":\"Computer Science\",\"gpa\":\"3.8\",\"id\":2,\"school\":\"State University\"}],\"email\":\"contract-primary@example.test\",\"experience\":[{\"company\":\"Acme\",\"description\":\"Built things.\",\"endDate\":\"Present\",\"id\":1,\"startDate\":\"2019-01-01\",\"title\":\"Engineer\"}],\"firstName\":\"Contract\",\"focus_type_result\":{\"archetype\":\"Deep Diver\",\"dimension_scores\":{\"burst_energy\":2,\"deep_focus\":11,\"reactivity\":1,\"social_fuel\":1,\"structure_need\":3,\"urgency_drive\":3},\"recommendations\":[\"Block 3\\u20134 hour focus windows every morning before meetings\",\"Work in environments with zero notifications \\u2014 phone on Do Not Disturb\",\"Batch all async communication into 2 dedicated windows per day\",\"Avoid open-plan offices or hot-desking \\u2014 you need a consistent, quiet space\",\"Best tools: time-blocking calendar, noise-cancelling headphones, single-tab browser sessions\"]},\"lastName\":\"User\",\"legal_acceptance\":{\"accepted_at\":\"<TS>\",\"age_16_plus_attested\":true,\"terms_version\":\"unversioned\"},\"linkedinUrl\":\"https://example.test/in/contract\",\"location\":\"Austin, TX\",\"manager_match_result\":{\"archetype\":\"The Operator\",\"archetype_description\":\"Autonomy with an explicit target.\",\"dimension_scores\":{\"autonomy\":0.25,\"feedback_style\":0.8,\"growth_focus\":0.7875000000000001,\"relationship\":0.39999999999999997},\"narrative\":\"You want a manager who sets direction and then gets out of the way.\",\"red_flags\":[\"decisions that only happen in the room\"],\"what_to_look_for\":[\"clear written goals\",\"few standing meetings\"]},\"performanceReviews\":[],\"phone\":\"\",\"primaryLocation\":\"\",\"psychometricResults\":{\"communication\":{\"completed\":false,\"percentile\":null,\"score\":null},\"creativity\":{\"completed\":false,\"percentile\":null,\"score\":null},\"leadership\":{\"completed\":false,\"percentile\":null,\"score\":null},\"problemSolving\":{\"completed\":false,\"percentile\":null,\"score\":null},\"teamwork\":{\"completed\":false,\"percentile\":null,\"score\":null}},\"secondaryLocations\":[],\"skill_levels\":{\"Node.js\":\"intermediate\",\"Python\":\"advanced\"},\"skills\":[\"Python\",\"Node.js\",\"C++\"],\"skills_proficiency_confirmed\":true,\"summary\":\"A profile that exercises every promoted column.\"}}\n"
+    "body": "{\"profile\":{\"career_status\":\"employed\",\"certifications\":[\"AWS SAA\"],\"culture_preferences\":{\"adaptability\":0.6,\"creative_drive\":0.65,\"data_orientation\":0.625,\"empathy\":0.5167,\"futuristic\":0.665,\"harmony\":0.6,\"pace\":\"moderate\",\"work_environment\":[\"collaborative\"]},\"education\":[{\"degree\":\"BS\",\"endDate\":\"2018\",\"field\":\"Computer Science\",\"gpa\":\"3.8\",\"id\":2,\"school\":\"State University\"}],\"email\":\"contract-primary@example.test\",\"experience\":[{\"company\":\"Acme\",\"description\":\"Built things.\",\"endDate\":\"Present\",\"id\":1,\"startDate\":\"2019-01-01\",\"title\":\"Engineer\"}],\"firstName\":\"Contract\",\"focus_type_result\":{\"archetype\":\"Deep Diver\",\"dimension_scores\":{\"burst_energy\":2,\"deep_focus\":11,\"reactivity\":1,\"social_fuel\":1,\"structure_need\":3,\"urgency_drive\":3},\"recommendations\":[\"Block 3\\u20134 hour focus windows every morning before meetings\",\"Work in environments with zero notifications \\u2014 phone on Do Not Disturb\",\"Batch all async communication into 2 dedicated windows per day\",\"Avoid open-plan offices or hot-desking \\u2014 you need a consistent, quiet space\",\"Best tools: time-blocking calendar, noise-cancelling headphones, single-tab browser sessions\"]},\"lastName\":\"User\",\"legal_acceptance\":{\"accepted_at\":\"<TS>\",\"age_16_plus_attested\":true,\"terms_version\":\"unversioned\"},\"linkedinUrl\":\"https://example.test/in/contract\",\"location\":\"Austin, TX\",\"manager_match_result\":{\"archetype\":\"The Operator\",\"archetype_description\":\"Autonomy with an explicit target.\",\"dimension_scores\":{\"autonomy\":0.25,\"feedback_style\":0.8,\"growth_focus\":0.7875000000000001,\"relationship\":0.5833333333333334},\"narrative\":\"You want a manager who sets direction and then gets out of the way.\",\"red_flags\":[\"decisions that only happen in the room\"],\"scoring_key\":\"mm-v2\",\"what_to_look_for\":[\"clear written goals\",\"few standing meetings\"]},\"performanceReviews\":[],\"phone\":\"\",\"primaryLocation\":\"\",\"psychometricResults\":{\"communication\":{\"completed\":false,\"percentile\":null,\"score\":null},\"creativity\":{\"completed\":false,\"percentile\":null,\"score\":null},\"leadership\":{\"completed\":false,\"percentile\":null,\"score\":null},\"problemSolving\":{\"completed\":false,\"percentile\":null,\"score\":null},\"teamwork\":{\"completed\":false,\"percentile\":null,\"score\":null}},\"secondaryLocations\":[],\"skill_levels\":{\"Node.js\":\"intermediate\",\"Python\":\"advanced\"},\"skills\":[\"Python\",\"Node.js\",\"C++\"],\"skills_proficiency_confirmed\":true,\"summary\":\"A profile that exercises every promoted column.\"}}\n"
   },
   {
     "step": "session-after-write",
@@ -441,7 +442,7 @@
     "status": 200,
     "mimetype": "application/json",
     "cookies_set": [],
-    "body": "{\"account\":{\"email\":\"contract-primary@example.test\",\"email_confirmed\":true,\"id\":1,\"name\":\"Renamed User\",\"role\":\"job-seeker\"},\"assessment_answers\":[{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"au4v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"fb1v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"co1v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"fb3v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"in1v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"fb4v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"in4v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"co2v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"au2v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"pa2v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"de4v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"pa1v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"co4v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"in3v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"pa3v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"fb2v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"de3v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"au1v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"de2v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"au3v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"de1v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"co3v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"in2v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"pa4v2\",\"submission_id\":\"<SID>\"}],\"dimension_scores\":[{\"confidence\":0.5,\"dimension\":\"autonomy\",\"score\":0.5,\"scored_at\":\"<TS>\",\"scoring_key_version\":\"v2-2026-08-18+mean_pole\",\"submission_id\":\"<SID>\"},{\"confidence\":0.0,\"dimension\":\"collaboration\",\"score\":0.5,\"scored_at\":\"<TS>\",\"scoring_key_version\":\"v2-2026-08-18+mean_pole\",\"submission_id\":\"<SID>\"},{\"confidence\":0.5,\"dimension\":\"decision\",\"score\":0.5,\"scored_at\":\"<TS>\",\"scoring_key_version\":\"v2-2026-08-18+mean_pole\",\"submission_id\":\"<SID>\"},{\"confidence\":null,\"dimension\":\"feedback\",\"score\":0.5,\"scored_at\":\"<TS>\",\"scoring_key_version\":\"v2-2026-08-18+mean_pole\",\"submission_id\":\"<SID>\"},{\"confidence\":0.5,\"dimension\":\"innovation\",\"score\":0.5,\"scored_at\":\"<TS>\",\"scoring_key_version\":\"v2-2026-08-18+mean_pole\",\"submission_id\":\"<SID>\"},{\"confidence\":0.5,\"dimension\":\"pace\",\"score\":0.5,\"scored_at\":\"<TS>\",\"scoring_key_version\":\"v2-2026-08-18+mean_pole\",\"submission_id\":\"<SID>\"}],\"exported_at\":\"<TS>\",\"intake_submissions\":[],\"job_recommendations\":[],\"legacy_quiz\":{\"wpl_answers\":[{\"option_id\":\"wp-q1-b\",\"question_id\":\"wp-q1\"},{\"option_id\":\"wp-q2-b\",\"question_id\":\"wp-q2\"},{\"option_id\":\"wp-q3-b\",\"question_id\":\"wp-q3\"},{\"option_id\":\"wp-q4-b\",\"question_id\":\"wp-q4\"},{\"option_id\":\"wp-q5-b\",\"question_id\":\"wp-q5\"},{\"option_id\":\"wp-q6-b\",\"question_id\":\"wp-q6\"},{\"option_id\":\"wp-q7-b\",\"question_id\":\"wp-q7\"},{\"option_id\":\"wp-q8-b\",\"question_id\":\"wp-q8\"},{\"option_id\":\"wp-q9-b\",\"question_id\":\"wp-q9\"},{\"option_id\":\"wp-q10-b\",\"question_id\":\"wp-q10\"},{\"option_id\":\"wp-q11-b\",\"question_id\":\"wp-q11\"},{\"option_id\":\"wp-q12-b\",\"question_id\":\"wp-q12\"}],\"wpl_narrative\":\"You do your best work in long uninterrupted stretches.\",\"wpl_result\":{\"archetype\":\"The Deep Worker\",\"archetype_description\":\"Sustained focus is where your output comes from.\",\"emerging_signals\":[\"depth over breadth\",\"low tolerance for context switching\"],\"narrative\":\"You do your best work in long uninterrupted stretches.\"},\"wpll_answers\":[{\"option_id\":\"wpll-q1-c\",\"question_id\":\"wpll-q1\"},{\"option_id\":\"wpll-q2-c\",\"question_id\":\"wpll-q2\"},{\"option_id\":\"wpll-q3-c\",\"question_id\":\"wpll-q3\"},{\"option_id\":\"wpll-q4-c\",\"question_id\":\"wpll-q4\"},{\"option_id\":\"wpll-q5-c\",\"question_id\":\"wpll-q5\"}],\"wpll_insight_text\":\"Claimed from the anonymous session.\"},\"profile\":{\"career_status\":\"employed\",\"certifications\":[\"AWS SAA\"],\"culture_preferences\":{\"adaptability\":0.6,\"creative_drive\":0.65,\"data_orientation\":0.625,\"empathy\":0.5167,\"futuristic\":0.665,\"harmony\":0.6,\"pace\":\"moderate\",\"work_environment\":[\"collaborative\"]},\"education\":[{\"degree\":\"BS\",\"endDate\":\"2018\",\"field\":\"Computer Science\",\"gpa\":\"3.8\",\"id\":2,\"school\":\"State University\"}],\"email\":\"contract-primary@example.test\",\"experience\":[{\"company\":\"Acme\",\"description\":\"Built things.\",\"endDate\":\"Present\",\"id\":1,\"startDate\":\"2019-01-01\",\"title\":\"Engineer\"}],\"firstName\":\"Contract\",\"focus_type_result\":{\"archetype\":\"Deep Diver\",\"dimension_scores\":{\"burst_energy\":2,\"deep_focus\":11,\"reactivity\":1,\"social_fuel\":1,\"structure_need\":3,\"urgency_drive\":3},\"recommendations\":[\"Block 3\\u20134 hour focus windows every morning before meetings\",\"Work in environments with zero notifications \\u2014 phone on Do Not Disturb\",\"Batch all async communication into 2 dedicated windows per day\",\"Avoid open-plan offices or hot-desking \\u2014 you need a consistent, quiet space\",\"Best tools: time-blocking calendar, noise-cancelling headphones, single-tab browser sessions\"]},\"lastName\":\"User\",\"legal_acceptance\":{\"accepted_at\":\"<TS>\",\"age_16_plus_attested\":true,\"terms_version\":\"unversioned\"},\"linkedinUrl\":\"https://example.test/in/contract\",\"location\":\"Austin, TX\",\"manager_match_result\":{\"archetype\":\"The Operator\",\"archetype_description\":\"Autonomy with an explicit target.\",\"dimension_scores\":{\"autonomy\":0.25,\"feedback_style\":0.8,\"growth_focus\":0.7875000000000001,\"relationship\":0.39999999999999997},\"narrative\":\"You want a manager who sets direction and then gets out of the way.\",\"red_flags\":[\"decisions that only happen in the room\"],\"what_to_look_for\":[\"clear written goals\",\"few standing meetings\"]},\"performanceReviews\":[],\"phone\":\"\",\"primaryLocation\":\"\",\"psychometricResults\":{\"communication\":{\"completed\":false,\"percentile\":null,\"score\":null},\"creativity\":{\"completed\":false,\"percentile\":null,\"score\":null},\"leadership\":{\"completed\":false,\"percentile\":null,\"score\":null},\"problemSolving\":{\"completed\":false,\"percentile\":null,\"score\":null},\"teamwork\":{\"completed\":false,\"percentile\":null,\"score\":null}},\"secondaryLocations\":[],\"skill_levels\":{\"Node.js\":\"intermediate\",\"Python\":\"advanced\"},\"skills\":[\"Python\",\"Node.js\",\"C++\"],\"skills_proficiency_confirmed\":true,\"summary\":\"A profile that exercises every promoted column.\"}}\n"
+    "body": "{\"account\":{\"email\":\"contract-primary@example.test\",\"email_confirmed\":true,\"id\":1,\"name\":\"Renamed User\",\"role\":\"job-seeker\"},\"assessment_answers\":[{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"au4v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"fb1v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"co1v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"fb3v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"in1v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"fb4v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"in4v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"co2v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"au2v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"pa2v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"de4v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"pa1v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"co4v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"in3v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"pa3v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"fb2v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"de3v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"au1v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"de2v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"au3v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"de1v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"co3v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"in2v2\",\"submission_id\":\"<SID>\"},{\"answered_at\":\"<TS>\",\"choice\":\"A\",\"form_version\":\"v2-2026-08-18\",\"item_id\":\"pa4v2\",\"submission_id\":\"<SID>\"}],\"dimension_scores\":[{\"confidence\":0.5,\"dimension\":\"autonomy\",\"score\":0.5,\"scored_at\":\"<TS>\",\"scoring_key_version\":\"v2-2026-08-18+mean_pole\",\"submission_id\":\"<SID>\"},{\"confidence\":0.0,\"dimension\":\"collaboration\",\"score\":0.5,\"scored_at\":\"<TS>\",\"scoring_key_version\":\"v2-2026-08-18+mean_pole\",\"submission_id\":\"<SID>\"},{\"confidence\":0.5,\"dimension\":\"decision\",\"score\":0.5,\"scored_at\":\"<TS>\",\"scoring_key_version\":\"v2-2026-08-18+mean_pole\",\"submission_id\":\"<SID>\"},{\"confidence\":null,\"dimension\":\"feedback\",\"score\":0.5,\"scored_at\":\"<TS>\",\"scoring_key_version\":\"v2-2026-08-18+mean_pole\",\"submission_id\":\"<SID>\"},{\"confidence\":0.5,\"dimension\":\"innovation\",\"score\":0.5,\"scored_at\":\"<TS>\",\"scoring_key_version\":\"v2-2026-08-18+mean_pole\",\"submission_id\":\"<SID>\"},{\"confidence\":0.5,\"dimension\":\"pace\",\"score\":0.5,\"scored_at\":\"<TS>\",\"scoring_key_version\":\"v2-2026-08-18+mean_pole\",\"submission_id\":\"<SID>\"}],\"environment_reports\":[],\"experiments\":[],\"exported_at\":\"<TS>\",\"focus_type_answers\":{\"scene_1\":[\"big_project\",\"planning_doc\",\"urgent_client\",\"teammate_feedback\",\"emails\",\"admin_tasks\"],\"scene_2\":{\"ignore\":[\"email_newsletter\",\"calendar_meeting_invite\",\"task_new_ticket\",\"task_planning_doc\",\"slack_team_channel\",\"email_system_report\",\"calendar_team_lunch\"],\"later\":[\"slack_teammate_question\"],\"now\":[\"email_client_important\",\"slack_mentioned\"]},\"scene_3\":{\"breaks\":0.25,\"deep_solo\":2.5,\"exploring\":0.25,\"planning\":0.5,\"social\":0.5},\"scene_4\":{\"avg_decision_time_ms\":500,\"now\":[\"deep_research\"],\"tomorrow\":[\"reply_teammate\",\"write_report_draft\",\"update_task_tracker\",\"quick_call_unblock\",\"send_followup_email\",\"review_others_work\",\"sketch_tomorrow_plan\"]},\"scene_5\":[\"deep_work\",\"wind_down\"]},\"intake_submissions\":[],\"job_recommendations\":[],\"legacy_quiz\":{\"wpl_answers\":[{\"option_id\":\"wp-q1-b\",\"question_id\":\"wp-q1\"},{\"option_id\":\"wp-q2-b\",\"question_id\":\"wp-q2\"},{\"option_id\":\"wp-q3-b\",\"question_id\":\"wp-q3\"},{\"option_id\":\"wp-q4-b\",\"question_id\":\"wp-q4\"},{\"option_id\":\"wp-q5-b\",\"question_id\":\"wp-q5\"},{\"option_id\":\"wp-q6-b\",\"question_id\":\"wp-q6\"},{\"option_id\":\"wp-q7-b\",\"question_id\":\"wp-q7\"},{\"option_id\":\"wp-q8-b\",\"question_id\":\"wp-q8\"},{\"option_id\":\"wp-q9-b\",\"question_id\":\"wp-q9\"},{\"option_id\":\"wp-q10-b\",\"question_id\":\"wp-q10\"},{\"option_id\":\"wp-q11-b\",\"question_id\":\"wp-q11\"},{\"option_id\":\"wp-q12-b\",\"question_id\":\"wp-q12\"}],\"wpl_narrative\":\"You do your best work in long uninterrupted stretches.\",\"wpl_result\":{\"archetype\":\"The Deep Worker\",\"archetype_description\":\"Sustained focus is where your output comes from.\",\"emerging_signals\":[\"depth over breadth\",\"low tolerance for context switching\"],\"narrative\":\"You do your best work in long uninterrupted stretches.\"},\"wpll_answers\":[{\"option_id\":\"wpll-q1-c\",\"question_id\":\"wpll-q1\"},{\"option_id\":\"wpll-q2-c\",\"question_id\":\"wpll-q2\"},{\"option_id\":\"wpll-q3-c\",\"question_id\":\"wpll-q3\"},{\"option_id\":\"wpll-q4-c\",\"question_id\":\"wpll-q4\"},{\"option_id\":\"wpll-q5-c\",\"question_id\":\"wpll-q5\"}],\"wpll_insight_text\":\"Claimed from the anonymous session.\"},\"manager_match_answers\":[{\"choice\":\"a\",\"question_id\":\"mm-q1\"},{\"choice\":\"a\",\"question_id\":\"mm-q2\"},{\"choice\":\"a\",\"question_id\":\"mm-q3\"},{\"choice\":\"a\",\"question_id\":\"mm-q4\"},{\"choice\":\"a\",\"question_id\":\"mm-q5\"},{\"choice\":\"a\",\"question_id\":\"mm-q6\"},{\"choice\":\"a\",\"question_id\":\"mm-q7\"},{\"choice\":\"a\",\"question_id\":\"mm-q8\"},{\"choice\":\"a\",\"question_id\":\"mm-q9\"},{\"choice\":\"a\",\"question_id\":\"mm-q10\"},{\"choice\":\"a\",\"question_id\":\"mm-q11\"},{\"choice\":\"a\",\"question_id\":\"mm-q12\"},{\"choice\":\"a\",\"question_id\":\"mm-q13\"},{\"choice\":\"a\",\"question_id\":\"mm-q14\"},{\"choice\":\"a\",\"question_id\":\"mm-q15\"}],\"manager_profiles\":[],\"profile\":{\"career_status\":\"employed\",\"certifications\":[\"AWS SAA\"],\"culture_preferences\":{\"adaptability\":0.6,\"creative_drive\":0.65,\"data_orientation\":0.625,\"empathy\":0.5167,\"futuristic\":0.665,\"harmony\":0.6,\"pace\":\"moderate\",\"work_environment\":[\"collaborative\"]},\"education\":[{\"degree\":\"BS\",\"endDate\":\"2018\",\"field\":\"Computer Science\",\"gpa\":\"3.8\",\"id\":2,\"school\":\"State University\"}],\"email\":\"contract-primary@example.test\",\"experience\":[{\"company\":\"Acme\",\"description\":\"Built things.\",\"endDate\":\"Present\",\"id\":1,\"startDate\":\"2019-01-01\",\"title\":\"Engineer\"}],\"firstName\":\"Contract\",\"focus_type_result\":{\"archetype\":\"Deep Diver\",\"dimension_scores\":{\"burst_energy\":2,\"deep_focus\":11,\"reactivity\":1,\"social_fuel\":1,\"structure_need\":3,\"urgency_drive\":3},\"recommendations\":[\"Block 3\\u20134 hour focus windows every morning before meetings\",\"Work in environments with zero notifications \\u2014 phone on Do Not Disturb\",\"Batch all async communication into 2 dedicated windows per day\",\"Avoid open-plan offices or hot-desking \\u2014 you need a consistent, quiet space\",\"Best tools: time-blocking calendar, noise-cancelling headphones, single-tab browser sessions\"]},\"lastName\":\"User\",\"legal_acceptance\":{\"accepted_at\":\"<TS>\",\"age_16_plus_attested\":true,\"terms_version\":\"unversioned\"},\"linkedinUrl\":\"https://example.test/in/contract\",\"location\":\"Austin, TX\",\"manager_match_result\":{\"archetype\":\"The Operator\",\"archetype_description\":\"Autonomy with an explicit target.\",\"dimension_scores\":{\"autonomy\":0.25,\"feedback_style\":0.8,\"growth_focus\":0.7875000000000001,\"relationship\":0.5833333333333334},\"narrative\":\"You want a manager who sets direction and then gets out of the way.\",\"red_flags\":[\"decisions that only happen in the room\"],\"scoring_key\":\"mm-v2\",\"what_to_look_for\":[\"clear written goals\",\"few standing meetings\"]},\"performanceReviews\":[],\"phone\":\"\",\"primaryLocation\":\"\",\"psychometricResults\":{\"communication\":{\"completed\":false,\"percentile\":null,\"score\":null},\"creativity\":{\"completed\":false,\"percentile\":null,\"score\":null},\"leadership\":{\"completed\":false,\"percentile\":null,\"score\":null},\"problemSolving\":{\"completed\":false,\"percentile\":null,\"score\":null},\"teamwork\":{\"completed\":false,\"percentile\":null,\"score\":null}},\"secondaryLocations\":[],\"skill_levels\":{\"Node.js\":\"intermediate\",\"Python\":\"advanced\"},\"skills\":[\"Python\",\"Node.js\",\"C++\"],\"skills_proficiency_confirmed\":true,\"summary\":\"A profile that exercises every promoted column.\"},\"pulse_checkins\":[],\"pulse_events\":[],\"resume_parse_corrections\":[],\"situation_report_pin\":null}\n"
   },
   {
     "step": "company-detail",
@@ -501,5 +502,426 @@
     "mimetype": "application/json",
     "cookies_set": [],
     "body": "{\"msg\":\"Missing cookie \\\"access_token_cookie\\\"\"}\n"
+  },
+  {
+    "step": "forgot-password-known",
+    "method": "POST",
+    "path": "/api/v1/auth/password/forgot",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"message\":\"reset_sent\"}\n"
+  },
+  {
+    "step": "forgot-password-unknown",
+    "method": "POST",
+    "path": "/api/v1/auth/password/forgot",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"message\":\"reset_sent\"}\n"
+  },
+  {
+    "step": "resend-verification-unconfirmed",
+    "method": "POST",
+    "path": "/api/v1/auth/email/verify/resend",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"message\":\"confirmation_sent\"}\n"
+  },
+  {
+    "step": "resend-verification-confirmed",
+    "method": "POST",
+    "path": "/api/v1/auth/email/verify/resend",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"message\":\"confirmation_sent\"}\n"
+  },
+  {
+    "step": "resend-verification-unknown",
+    "method": "POST",
+    "path": "/api/v1/auth/email/verify/resend",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"message\":\"confirmation_sent\"}\n"
+  },
+  {
+    "step": "login-for-refresh",
+    "method": "POST",
+    "path": "/api/v1/auth/login",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"csrfToken\":\"<CSRF>\",\"message\":\"login successful\",\"user\":{\"email\":\"contract-primary@example.test\",\"id\":1,\"name\":\"Renamed User\",\"profileData\":{\"career_status\":\"employed\",\"certifications\":[\"AWS SAA\"],\"culture_preferences\":{\"adaptability\":0.6,\"creative_drive\":0.65,\"data_orientation\":0.625,\"empathy\":0.5167,\"futuristic\":0.665,\"harmony\":0.6,\"pace\":\"moderate\",\"work_environment\":[\"collaborative\"]},\"education\":[{\"degree\":\"BS\",\"endDate\":\"2018\",\"field\":\"Computer Science\",\"gpa\":\"3.8\",\"id\":2,\"school\":\"State University\"}],\"email\":\"contract-primary@example.test\",\"experience\":[{\"company\":\"Acme\",\"description\":\"Built things.\",\"endDate\":\"Present\",\"id\":1,\"startDate\":\"2019-01-01\",\"title\":\"Engineer\"}],\"firstName\":\"Contract\",\"focus_type_result\":{\"archetype\":\"Deep Diver\",\"dimension_scores\":{\"burst_energy\":2,\"deep_focus\":11,\"reactivity\":1,\"social_fuel\":1,\"structure_need\":3,\"urgency_drive\":3},\"recommendations\":[\"Block 3\\u20134 hour focus windows every morning before meetings\",\"Work in environments with zero notifications \\u2014 phone on Do Not Disturb\",\"Batch all async communication into 2 dedicated windows per day\",\"Avoid open-plan offices or hot-desking \\u2014 you need a consistent, quiet space\",\"Best tools: time-blocking calendar, noise-cancelling headphones, single-tab browser sessions\"]},\"lastName\":\"User\",\"legal_acceptance\":{\"accepted_at\":\"<TS>\",\"age_16_plus_attested\":true,\"terms_version\":\"unversioned\"},\"linkedinUrl\":\"https://example.test/in/contract\",\"location\":\"Austin, TX\",\"manager_match_result\":{\"archetype\":\"The Operator\",\"archetype_description\":\"Autonomy with an explicit target.\",\"dimension_scores\":{\"autonomy\":0.25,\"feedback_style\":0.8,\"growth_focus\":0.7875000000000001,\"relationship\":0.5833333333333334},\"narrative\":\"You want a manager who sets direction and then gets out of the way.\",\"red_flags\":[\"decisions that only happen in the room\"],\"scoring_key\":\"mm-v2\",\"what_to_look_for\":[\"clear written goals\",\"few standing meetings\"]},\"performanceReviews\":[],\"phone\":\"\",\"primaryLocation\":\"\",\"psychometricResults\":{\"communication\":{\"completed\":false,\"percentile\":null,\"score\":null},\"creativity\":{\"completed\":false,\"percentile\":null,\"score\":null},\"leadership\":{\"completed\":false,\"percentile\":null,\"score\":null},\"problemSolving\":{\"completed\":false,\"percentile\":null,\"score\":null},\"teamwork\":{\"completed\":false,\"percentile\":null,\"score\":null}},\"secondaryLocations\":[],\"skill_levels\":{\"Node.js\":\"intermediate\",\"Python\":\"advanced\"},\"skills\":[\"Python\",\"Node.js\",\"C++\"],\"skills_proficiency_confirmed\":true,\"summary\":\"A profile that exercises every promoted column.\"},\"role\":\"job-seeker\",\"wp_v2_completed\":true,\"wpl_completed\":true,\"wpll_completed\":true}}\n"
+  },
+  {
+    "step": "refresh",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"csrfToken\":\"<CSRF>\",\"message\":\"refreshed\"}\n"
+  },
+  {
+    "step": "refresh-rotated",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"csrfToken\":\"<CSRF>\",\"message\":\"refreshed\"}\n"
+  },
+  {
+    "step": "refresh-replayed-in-grace",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token"
+    ],
+    "body": "{\"csrfToken\":\"<CSRF>\",\"message\":\"refreshed\"}\n"
+  },
+  {
+    "step": "refresh-replayed-after-grace",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "status": 401,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "csrf_refresh_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"error\":\"invalid_refresh_token\"}\n"
+  },
+  {
+    "step": "refresh-after-family-revoked",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "status": 401,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "csrf_refresh_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"error\":\"invalid_refresh_token\"}\n"
+  },
+  {
+    "step": "refresh-cross-site-origin",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "status": 403,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"cross_site_request_refused\"}\n"
+  },
+  {
+    "step": "refresh-form-content-type",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "status": 415,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"unsupported_media_type\"}\n"
+  },
+  {
+    "step": "login-for-logout",
+    "method": "POST",
+    "path": "/api/v1/auth/login",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"csrfToken\":\"<CSRF>\",\"message\":\"login successful\",\"user\":{\"email\":\"contract-primary@example.test\",\"id\":1,\"name\":\"Renamed User\",\"profileData\":{\"career_status\":\"employed\",\"certifications\":[\"AWS SAA\"],\"culture_preferences\":{\"adaptability\":0.6,\"creative_drive\":0.65,\"data_orientation\":0.625,\"empathy\":0.5167,\"futuristic\":0.665,\"harmony\":0.6,\"pace\":\"moderate\",\"work_environment\":[\"collaborative\"]},\"education\":[{\"degree\":\"BS\",\"endDate\":\"2018\",\"field\":\"Computer Science\",\"gpa\":\"3.8\",\"id\":2,\"school\":\"State University\"}],\"email\":\"contract-primary@example.test\",\"experience\":[{\"company\":\"Acme\",\"description\":\"Built things.\",\"endDate\":\"Present\",\"id\":1,\"startDate\":\"2019-01-01\",\"title\":\"Engineer\"}],\"firstName\":\"Contract\",\"focus_type_result\":{\"archetype\":\"Deep Diver\",\"dimension_scores\":{\"burst_energy\":2,\"deep_focus\":11,\"reactivity\":1,\"social_fuel\":1,\"structure_need\":3,\"urgency_drive\":3},\"recommendations\":[\"Block 3\\u20134 hour focus windows every morning before meetings\",\"Work in environments with zero notifications \\u2014 phone on Do Not Disturb\",\"Batch all async communication into 2 dedicated windows per day\",\"Avoid open-plan offices or hot-desking \\u2014 you need a consistent, quiet space\",\"Best tools: time-blocking calendar, noise-cancelling headphones, single-tab browser sessions\"]},\"lastName\":\"User\",\"legal_acceptance\":{\"accepted_at\":\"<TS>\",\"age_16_plus_attested\":true,\"terms_version\":\"unversioned\"},\"linkedinUrl\":\"https://example.test/in/contract\",\"location\":\"Austin, TX\",\"manager_match_result\":{\"archetype\":\"The Operator\",\"archetype_description\":\"Autonomy with an explicit target.\",\"dimension_scores\":{\"autonomy\":0.25,\"feedback_style\":0.8,\"growth_focus\":0.7875000000000001,\"relationship\":0.5833333333333334},\"narrative\":\"You want a manager who sets direction and then gets out of the way.\",\"red_flags\":[\"decisions that only happen in the room\"],\"scoring_key\":\"mm-v2\",\"what_to_look_for\":[\"clear written goals\",\"few standing meetings\"]},\"performanceReviews\":[],\"phone\":\"\",\"primaryLocation\":\"\",\"psychometricResults\":{\"communication\":{\"completed\":false,\"percentile\":null,\"score\":null},\"creativity\":{\"completed\":false,\"percentile\":null,\"score\":null},\"leadership\":{\"completed\":false,\"percentile\":null,\"score\":null},\"problemSolving\":{\"completed\":false,\"percentile\":null,\"score\":null},\"teamwork\":{\"completed\":false,\"percentile\":null,\"score\":null}},\"secondaryLocations\":[],\"skill_levels\":{\"Node.js\":\"intermediate\",\"Python\":\"advanced\"},\"skills\":[\"Python\",\"Node.js\",\"C++\"],\"skills_proficiency_confirmed\":true,\"summary\":\"A profile that exercises every promoted column.\"},\"role\":\"job-seeker\",\"wp_v2_completed\":true,\"wpl_completed\":true,\"wpll_completed\":true}}\n"
+  },
+  {
+    "step": "logout-revoking",
+    "method": "POST",
+    "path": "/api/v1/auth/logout",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "csrf_refresh_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"message\":\"logout successful\"}\n"
+  },
+  {
+    "step": "refresh-after-logout",
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "status": 401,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "csrf_refresh_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"error\":\"invalid_refresh_token\"}\n"
+  },
+  {
+    "step": "login-for-manager-profile",
+    "method": "POST",
+    "path": "/api/v1/auth/login",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [
+      "access_token_cookie",
+      "csrf_access_token",
+      "refresh_token_cookie"
+    ],
+    "body": "{\"csrfToken\":\"<CSRF>\",\"message\":\"login successful\",\"user\":{\"email\":\"contract-primary@example.test\",\"id\":1,\"name\":\"Renamed User\",\"profileData\":{\"career_status\":\"employed\",\"certifications\":[\"AWS SAA\"],\"culture_preferences\":{\"adaptability\":0.6,\"creative_drive\":0.65,\"data_orientation\":0.625,\"empathy\":0.5167,\"futuristic\":0.665,\"harmony\":0.6,\"pace\":\"moderate\",\"work_environment\":[\"collaborative\"]},\"education\":[{\"degree\":\"BS\",\"endDate\":\"2018\",\"field\":\"Computer Science\",\"gpa\":\"3.8\",\"id\":2,\"school\":\"State University\"}],\"email\":\"contract-primary@example.test\",\"experience\":[{\"company\":\"Acme\",\"description\":\"Built things.\",\"endDate\":\"Present\",\"id\":1,\"startDate\":\"2019-01-01\",\"title\":\"Engineer\"}],\"firstName\":\"Contract\",\"focus_type_result\":{\"archetype\":\"Deep Diver\",\"dimension_scores\":{\"burst_energy\":2,\"deep_focus\":11,\"reactivity\":1,\"social_fuel\":1,\"structure_need\":3,\"urgency_drive\":3},\"recommendations\":[\"Block 3\\u20134 hour focus windows every morning before meetings\",\"Work in environments with zero notifications \\u2014 phone on Do Not Disturb\",\"Batch all async communication into 2 dedicated windows per day\",\"Avoid open-plan offices or hot-desking \\u2014 you need a consistent, quiet space\",\"Best tools: time-blocking calendar, noise-cancelling headphones, single-tab browser sessions\"]},\"lastName\":\"User\",\"legal_acceptance\":{\"accepted_at\":\"<TS>\",\"age_16_plus_attested\":true,\"terms_version\":\"unversioned\"},\"linkedinUrl\":\"https://example.test/in/contract\",\"location\":\"Austin, TX\",\"manager_match_result\":{\"archetype\":\"The Operator\",\"archetype_description\":\"Autonomy with an explicit target.\",\"dimension_scores\":{\"autonomy\":0.25,\"feedback_style\":0.8,\"growth_focus\":0.7875000000000001,\"relationship\":0.5833333333333334},\"narrative\":\"You want a manager who sets direction and then gets out of the way.\",\"red_flags\":[\"decisions that only happen in the room\"],\"scoring_key\":\"mm-v2\",\"what_to_look_for\":[\"clear written goals\",\"few standing meetings\"]},\"performanceReviews\":[],\"phone\":\"\",\"primaryLocation\":\"\",\"psychometricResults\":{\"communication\":{\"completed\":false,\"percentile\":null,\"score\":null},\"creativity\":{\"completed\":false,\"percentile\":null,\"score\":null},\"leadership\":{\"completed\":false,\"percentile\":null,\"score\":null},\"problemSolving\":{\"completed\":false,\"percentile\":null,\"score\":null},\"teamwork\":{\"completed\":false,\"percentile\":null,\"score\":null}},\"secondaryLocations\":[],\"skill_levels\":{\"Node.js\":\"intermediate\",\"Python\":\"advanced\"},\"skills\":[\"Python\",\"Node.js\",\"C++\"],\"skills_proficiency_confirmed\":true,\"summary\":\"A profile that exercises every promoted column.\"},\"role\":\"job-seeker\",\"wp_v2_completed\":true,\"wpl_completed\":true,\"wpll_completed\":true}}\n"
+  },
+  {
+    "step": "submit-manager-profile-malformed",
+    "method": "POST",
+    "path": "/api/v1/assessments/manager-profile",
+    "status": 400,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"answers must be a list of exactly 16 items\"}\n"
+  },
+  {
+    "step": "submit-manager-profile",
+    "method": "POST",
+    "path": "/api/v1/assessments/manager-profile",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"dimension_scores\":{\"autonomy\":0.525,\"feedback_style\":0.525,\"growth_focus\":0.525,\"relationship\":0.525},\"playbook\":{\"dimensions\":[{\"agenda\":[\"What \\\"done well\\\" looks like on your current work, described concretely enough to aim at.\",\"A short standing slot to talk through work in progress \\u2014 you bring the agenda, so it reads as thinking time rather than a check-in.\",\"Whether an example of this work done well already exists somewhere you could look at.\"],\"ask\":\"Ask for definition, not supervision. Make that distinction out loud, because \\\"I'd like more direction\\\" is easily heard as \\\"I want to be checked on\\\" and will get you the opposite of what you want. What you are after is the target described more sharply up front and a standing slot to think out loud in \\u2014 neither of which takes any latitude away from you.\",\"band\":null,\"classification\":\"grind\",\"constraint_note\":null,\"dimension\":\"autonomy\",\"direction\":\"over_supplied\",\"gap\":0.275,\"headline\":\"More room than you actually want\",\"manager_style\":0.525,\"scripts\":[\"Before I start on X, can we spend ten minutes on what a good version of this looks like to you? I'd rather aim at it than approximate it.\",\"I'm not asking you to check my work \\u2014 I just think better with someone in the room. Could we keep a short weekly slot where I bring what I'm chewing on?\",\"Is there a version of this that's been done well before that I could look at?\"],\"severity\":\"notable\",\"user_need\":0.25,\"why\":\"You do better with the ground marked out \\u2014 a clear picture of what good looks like, a sense of the order, someone to think with when you are stuck. Your manager runs hands-off: outcome set, everything after it yours. That is a deliberate way to manage and it is what a lot of people most want. For you it lands as being left to guess, and the cost turns up as rework and second-guessing rather than as freedom \\u2014 you can spend a great deal of energy building the brief you were hoping to be handed.\"},{\"agenda\":[\"A short, regular \\\"how is this landing\\\" moment, kept separate from anything about status or delivery.\",\"A direct statement that you want the blunt version \\u2014 with an example of hard feedback you took well, so it is credible.\",\"One current piece of work you would like an honest read on now.\"],\"ask\":\"Ask for cadence and directness separately, because they are different requests and one is much easier to grant than the other. Cadence first: a short regular moment for how the work is landing. Then directness: say plainly that you would rather have the unsoftened version and that it does not knock you off course.\",\"band\":null,\"classification\":\"grind\",\"constraint_note\":\"Worth checking whether this is style or circumstance. If your manager is not around while you are working \\u2014 a different site, a different shift, a spread-out team, a lot of people to cover \\u2014 then immediate feedback is not something being withheld from you, it is something the setup does not allow. If that is the case, ask for a deliberate substitute rather than for more presence: a standing slot, or a way to send work over for a quick read.\",\"dimension\":\"feedback_style\",\"direction\":\"under_supplied\",\"gap\":-0.275,\"headline\":\"You want to know where you stand more often than you're told\",\"manager_style\":0.525,\"scripts\":[\"I'd find it useful to hear how my work's landing more often \\u2014 even a couple of minutes, even when the answer is that it's fine.\",\"You don't have to soften things for me. I'd rather have it straight and early than tidy and late.\",\"Can I get your honest read on X? Including what you'd have done differently.\"],\"severity\":\"notable\",\"user_need\":0.8,\"why\":\"You calibrate off feedback \\u2014 fast, plain, and often enough to steer by. Your manager comments sparingly, saves it for the right moment, or leads with the softer framing. Neither is wrong: measured feedback keeps people from being managed by every passing reaction, and a lot of people need it delivered exactly that way. The grind is that you are left filling the silence yourself, and most people fill it with the least generous reading available. That is the real cost here \\u2014 not the missing praise, but the guessing.\"},{\"band\":\"mid\",\"classification\":\"mesh\",\"dimension\":\"relationship\",\"direction\":null,\"gap\":-0.058333,\"manager_style\":0.525,\"note\":\"You both keep the relationship somewhere between personal and strictly professional, and you are reading it the same way. Little to fix here.\",\"severity\":null,\"user_need\":0.5833333333333334},{\"agenda\":[\"One specific piece of upcoming work you would like to take that would stretch you, and why you think you could carry it.\",\"A request that they argue with your ideas rather than accept them \\u2014 said explicitly, because most people will not unless invited.\",\"Where they think you are weakest. Ask directly; it is the most useful question available to you.\"],\"ask\":\"Bring the development ask as a work ask. \\\"I want to grow\\\" is hard to act on; \\\"I'd like to take X, which I haven't done before\\\" is a staffing decision your manager can actually make. Pick one concrete stretch and ask for it. Then ask for the harder version of their attention: that they push back on your thinking rather than approve it.\",\"band\":null,\"classification\":\"grind\",\"constraint_note\":\"Some of this may be the shape of the role rather than a choice your manager is making. Where a job is defined narrowly, there may genuinely be no unfamiliar work to hand you. If that is the case, the honest version of the ask is a different one: not for stretch inside the role, but for sight of what exists beyond it, and for their view on how people actually move from here to there.\",\"dimension\":\"growth_focus\",\"direction\":\"under_supplied\",\"gap\":-0.2625,\"headline\":\"You want to be developed and you're being managed\",\"manager_style\":0.525,\"scripts\":[\"When X comes up, I'd like to take it. I haven't done one before, which is exactly why I want it.\",\"You'd help me more by pushing back on this than by agreeing with it. Where's it weak?\",\"If I wanted to be doing this job's next version in two years, what would I need to get good at?\"],\"severity\":\"notable\",\"user_need\":0.7875000000000001,\"why\":\"You are motivated by getting better \\u2014 stretch work, ideas pushed back on, someone paying attention to where you are heading after this job. Your manager focuses on the work in front of you: the job, done well, now. That is a defensible way to manage and often a respectful one, treating your development as yours to own rather than something done to you. The grind is that your growth then depends entirely on what you can arrange for yourself, while the things that would move you fastest \\u2014 a stretch assignment, a hard conversation about your thinking, a word in the right room \\u2014 are mostly in your manager's gift rather than in yours.\"}],\"grind_count\":3,\"mesh_count\":1,\"priority\":[\"autonomy\",\"feedback_style\",\"growth_focus\"],\"privacy_notice\":\"This playbook is yours. It was built from two things you told us: what you need from a manager, and your own read on how your manager works. It is a private working note, not an assessment of them. Nobody at your company can see it, your manager is never shown it and is never told it exists, and nothing in it is shared with anyone. It describes the fit between two ways of working, both of which are legitimate \\u2014 it is not a verdict on either of you.\"},\"scoring_key\":\"mp-v1\",\"version\":\"v1\"}\n"
+  },
+  {
+    "step": "manager-playbook",
+    "method": "GET",
+    "path": "/api/v1/me/manager-playbook",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"created_at\":\"<TS>\",\"dimension_scores\":{\"autonomy\":0.525,\"feedback_style\":0.525,\"growth_focus\":0.525,\"relationship\":0.525},\"playbook\":{\"dimensions\":[{\"agenda\":[\"What \\\"done well\\\" looks like on your current work, described concretely enough to aim at.\",\"A short standing slot to talk through work in progress \\u2014 you bring the agenda, so it reads as thinking time rather than a check-in.\",\"Whether an example of this work done well already exists somewhere you could look at.\"],\"ask\":\"Ask for definition, not supervision. Make that distinction out loud, because \\\"I'd like more direction\\\" is easily heard as \\\"I want to be checked on\\\" and will get you the opposite of what you want. What you are after is the target described more sharply up front and a standing slot to think out loud in \\u2014 neither of which takes any latitude away from you.\",\"band\":null,\"classification\":\"grind\",\"constraint_note\":null,\"dimension\":\"autonomy\",\"direction\":\"over_supplied\",\"gap\":0.275,\"headline\":\"More room than you actually want\",\"manager_style\":0.525,\"scripts\":[\"Before I start on X, can we spend ten minutes on what a good version of this looks like to you? I'd rather aim at it than approximate it.\",\"I'm not asking you to check my work \\u2014 I just think better with someone in the room. Could we keep a short weekly slot where I bring what I'm chewing on?\",\"Is there a version of this that's been done well before that I could look at?\"],\"severity\":\"notable\",\"user_need\":0.25,\"why\":\"You do better with the ground marked out \\u2014 a clear picture of what good looks like, a sense of the order, someone to think with when you are stuck. Your manager runs hands-off: outcome set, everything after it yours. That is a deliberate way to manage and it is what a lot of people most want. For you it lands as being left to guess, and the cost turns up as rework and second-guessing rather than as freedom \\u2014 you can spend a great deal of energy building the brief you were hoping to be handed.\"},{\"agenda\":[\"A short, regular \\\"how is this landing\\\" moment, kept separate from anything about status or delivery.\",\"A direct statement that you want the blunt version \\u2014 with an example of hard feedback you took well, so it is credible.\",\"One current piece of work you would like an honest read on now.\"],\"ask\":\"Ask for cadence and directness separately, because they are different requests and one is much easier to grant than the other. Cadence first: a short regular moment for how the work is landing. Then directness: say plainly that you would rather have the unsoftened version and that it does not knock you off course.\",\"band\":null,\"classification\":\"grind\",\"constraint_note\":\"Worth checking whether this is style or circumstance. If your manager is not around while you are working \\u2014 a different site, a different shift, a spread-out team, a lot of people to cover \\u2014 then immediate feedback is not something being withheld from you, it is something the setup does not allow. If that is the case, ask for a deliberate substitute rather than for more presence: a standing slot, or a way to send work over for a quick read.\",\"dimension\":\"feedback_style\",\"direction\":\"under_supplied\",\"gap\":-0.275,\"headline\":\"You want to know where you stand more often than you're told\",\"manager_style\":0.525,\"scripts\":[\"I'd find it useful to hear how my work's landing more often \\u2014 even a couple of minutes, even when the answer is that it's fine.\",\"You don't have to soften things for me. I'd rather have it straight and early than tidy and late.\",\"Can I get your honest read on X? Including what you'd have done differently.\"],\"severity\":\"notable\",\"user_need\":0.8,\"why\":\"You calibrate off feedback \\u2014 fast, plain, and often enough to steer by. Your manager comments sparingly, saves it for the right moment, or leads with the softer framing. Neither is wrong: measured feedback keeps people from being managed by every passing reaction, and a lot of people need it delivered exactly that way. The grind is that you are left filling the silence yourself, and most people fill it with the least generous reading available. That is the real cost here \\u2014 not the missing praise, but the guessing.\"},{\"band\":\"mid\",\"classification\":\"mesh\",\"dimension\":\"relationship\",\"direction\":null,\"gap\":-0.058333,\"manager_style\":0.525,\"note\":\"You both keep the relationship somewhere between personal and strictly professional, and you are reading it the same way. Little to fix here.\",\"severity\":null,\"user_need\":0.5833333333333334},{\"agenda\":[\"One specific piece of upcoming work you would like to take that would stretch you, and why you think you could carry it.\",\"A request that they argue with your ideas rather than accept them \\u2014 said explicitly, because most people will not unless invited.\",\"Where they think you are weakest. Ask directly; it is the most useful question available to you.\"],\"ask\":\"Bring the development ask as a work ask. \\\"I want to grow\\\" is hard to act on; \\\"I'd like to take X, which I haven't done before\\\" is a staffing decision your manager can actually make. Pick one concrete stretch and ask for it. Then ask for the harder version of their attention: that they push back on your thinking rather than approve it.\",\"band\":null,\"classification\":\"grind\",\"constraint_note\":\"Some of this may be the shape of the role rather than a choice your manager is making. Where a job is defined narrowly, there may genuinely be no unfamiliar work to hand you. If that is the case, the honest version of the ask is a different one: not for stretch inside the role, but for sight of what exists beyond it, and for their view on how people actually move from here to there.\",\"dimension\":\"growth_focus\",\"direction\":\"under_supplied\",\"gap\":-0.2625,\"headline\":\"You want to be developed and you're being managed\",\"manager_style\":0.525,\"scripts\":[\"When X comes up, I'd like to take it. I haven't done one before, which is exactly why I want it.\",\"You'd help me more by pushing back on this than by agreeing with it. Where's it weak?\",\"If I wanted to be doing this job's next version in two years, what would I need to get good at?\"],\"severity\":\"notable\",\"user_need\":0.7875000000000001,\"why\":\"You are motivated by getting better \\u2014 stretch work, ideas pushed back on, someone paying attention to where you are heading after this job. Your manager focuses on the work in front of you: the job, done well, now. That is a defensible way to manage and often a respectful one, treating your development as yours to own rather than something done to you. The grind is that your growth then depends entirely on what you can arrange for yourself, while the things that would move you fastest \\u2014 a stretch assignment, a hard conversation about your thinking, a word in the right room \\u2014 are mostly in your manager's gift rather than in yours.\"}],\"grind_count\":3,\"mesh_count\":1,\"priority\":[\"autonomy\",\"feedback_style\",\"growth_focus\"],\"privacy_notice\":\"This playbook is yours. It was built from two things you told us: what you need from a manager, and your own read on how your manager works. It is a private working note, not an assessment of them. Nobody at your company can see it, your manager is never shown it and is never told it exists, and nothing in it is shared with anyone. It describes the fit between two ways of working, both of which are legitimate \\u2014 it is not a verdict on either of you.\"},\"scoring_key\":\"mp-v1\",\"version\":\"v1\"}\n"
+  },
+  {
+    "step": "submit-manager-profile-retake",
+    "method": "POST",
+    "path": "/api/v1/assessments/manager-profile",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"dimension_scores\":{\"autonomy\":0.525,\"feedback_style\":0.525,\"growth_focus\":0.525,\"relationship\":0.525},\"playbook\":{\"dimensions\":[{\"agenda\":[\"What \\\"done well\\\" looks like on your current work, described concretely enough to aim at.\",\"A short standing slot to talk through work in progress \\u2014 you bring the agenda, so it reads as thinking time rather than a check-in.\",\"Whether an example of this work done well already exists somewhere you could look at.\"],\"ask\":\"Ask for definition, not supervision. Make that distinction out loud, because \\\"I'd like more direction\\\" is easily heard as \\\"I want to be checked on\\\" and will get you the opposite of what you want. What you are after is the target described more sharply up front and a standing slot to think out loud in \\u2014 neither of which takes any latitude away from you.\",\"band\":null,\"classification\":\"grind\",\"constraint_note\":null,\"dimension\":\"autonomy\",\"direction\":\"over_supplied\",\"gap\":0.275,\"headline\":\"More room than you actually want\",\"manager_style\":0.525,\"scripts\":[\"Before I start on X, can we spend ten minutes on what a good version of this looks like to you? I'd rather aim at it than approximate it.\",\"I'm not asking you to check my work \\u2014 I just think better with someone in the room. Could we keep a short weekly slot where I bring what I'm chewing on?\",\"Is there a version of this that's been done well before that I could look at?\"],\"severity\":\"notable\",\"user_need\":0.25,\"why\":\"You do better with the ground marked out \\u2014 a clear picture of what good looks like, a sense of the order, someone to think with when you are stuck. Your manager runs hands-off: outcome set, everything after it yours. That is a deliberate way to manage and it is what a lot of people most want. For you it lands as being left to guess, and the cost turns up as rework and second-guessing rather than as freedom \\u2014 you can spend a great deal of energy building the brief you were hoping to be handed.\"},{\"agenda\":[\"A short, regular \\\"how is this landing\\\" moment, kept separate from anything about status or delivery.\",\"A direct statement that you want the blunt version \\u2014 with an example of hard feedback you took well, so it is credible.\",\"One current piece of work you would like an honest read on now.\"],\"ask\":\"Ask for cadence and directness separately, because they are different requests and one is much easier to grant than the other. Cadence first: a short regular moment for how the work is landing. Then directness: say plainly that you would rather have the unsoftened version and that it does not knock you off course.\",\"band\":null,\"classification\":\"grind\",\"constraint_note\":\"Worth checking whether this is style or circumstance. If your manager is not around while you are working \\u2014 a different site, a different shift, a spread-out team, a lot of people to cover \\u2014 then immediate feedback is not something being withheld from you, it is something the setup does not allow. If that is the case, ask for a deliberate substitute rather than for more presence: a standing slot, or a way to send work over for a quick read.\",\"dimension\":\"feedback_style\",\"direction\":\"under_supplied\",\"gap\":-0.275,\"headline\":\"You want to know where you stand more often than you're told\",\"manager_style\":0.525,\"scripts\":[\"I'd find it useful to hear how my work's landing more often \\u2014 even a couple of minutes, even when the answer is that it's fine.\",\"You don't have to soften things for me. I'd rather have it straight and early than tidy and late.\",\"Can I get your honest read on X? Including what you'd have done differently.\"],\"severity\":\"notable\",\"user_need\":0.8,\"why\":\"You calibrate off feedback \\u2014 fast, plain, and often enough to steer by. Your manager comments sparingly, saves it for the right moment, or leads with the softer framing. Neither is wrong: measured feedback keeps people from being managed by every passing reaction, and a lot of people need it delivered exactly that way. The grind is that you are left filling the silence yourself, and most people fill it with the least generous reading available. That is the real cost here \\u2014 not the missing praise, but the guessing.\"},{\"band\":\"mid\",\"classification\":\"mesh\",\"dimension\":\"relationship\",\"direction\":null,\"gap\":-0.058333,\"manager_style\":0.525,\"note\":\"You both keep the relationship somewhere between personal and strictly professional, and you are reading it the same way. Little to fix here.\",\"severity\":null,\"user_need\":0.5833333333333334},{\"agenda\":[\"One specific piece of upcoming work you would like to take that would stretch you, and why you think you could carry it.\",\"A request that they argue with your ideas rather than accept them \\u2014 said explicitly, because most people will not unless invited.\",\"Where they think you are weakest. Ask directly; it is the most useful question available to you.\"],\"ask\":\"Bring the development ask as a work ask. \\\"I want to grow\\\" is hard to act on; \\\"I'd like to take X, which I haven't done before\\\" is a staffing decision your manager can actually make. Pick one concrete stretch and ask for it. Then ask for the harder version of their attention: that they push back on your thinking rather than approve it.\",\"band\":null,\"classification\":\"grind\",\"constraint_note\":\"Some of this may be the shape of the role rather than a choice your manager is making. Where a job is defined narrowly, there may genuinely be no unfamiliar work to hand you. If that is the case, the honest version of the ask is a different one: not for stretch inside the role, but for sight of what exists beyond it, and for their view on how people actually move from here to there.\",\"dimension\":\"growth_focus\",\"direction\":\"under_supplied\",\"gap\":-0.2625,\"headline\":\"You want to be developed and you're being managed\",\"manager_style\":0.525,\"scripts\":[\"When X comes up, I'd like to take it. I haven't done one before, which is exactly why I want it.\",\"You'd help me more by pushing back on this than by agreeing with it. Where's it weak?\",\"If I wanted to be doing this job's next version in two years, what would I need to get good at?\"],\"severity\":\"notable\",\"user_need\":0.7875000000000001,\"why\":\"You are motivated by getting better \\u2014 stretch work, ideas pushed back on, someone paying attention to where you are heading after this job. Your manager focuses on the work in front of you: the job, done well, now. That is a defensible way to manage and often a respectful one, treating your development as yours to own rather than something done to you. The grind is that your growth then depends entirely on what you can arrange for yourself, while the things that would move you fastest \\u2014 a stretch assignment, a hard conversation about your thinking, a word in the right room \\u2014 are mostly in your manager's gift rather than in yours.\"}],\"grind_count\":3,\"mesh_count\":1,\"priority\":[\"autonomy\",\"feedback_style\",\"growth_focus\"],\"privacy_notice\":\"This playbook is yours. It was built from two things you told us: what you need from a manager, and your own read on how your manager works. It is a private working note, not an assessment of them. Nobody at your company can see it, your manager is never shown it and is never told it exists, and nothing in it is shared with anyone. It describes the fit between two ways of working, both of which are legitimate \\u2014 it is not a verdict on either of you.\"},\"scoring_key\":\"mp-v1\",\"version\":\"v1\"}\n"
+  },
+  {
+    "step": "manager-playbook-after-retake",
+    "method": "GET",
+    "path": "/api/v1/me/manager-playbook",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"created_at\":\"<TS>\",\"dimension_scores\":{\"autonomy\":0.525,\"feedback_style\":0.525,\"growth_focus\":0.525,\"relationship\":0.525},\"playbook\":{\"dimensions\":[{\"agenda\":[\"What \\\"done well\\\" looks like on your current work, described concretely enough to aim at.\",\"A short standing slot to talk through work in progress \\u2014 you bring the agenda, so it reads as thinking time rather than a check-in.\",\"Whether an example of this work done well already exists somewhere you could look at.\"],\"ask\":\"Ask for definition, not supervision. Make that distinction out loud, because \\\"I'd like more direction\\\" is easily heard as \\\"I want to be checked on\\\" and will get you the opposite of what you want. What you are after is the target described more sharply up front and a standing slot to think out loud in \\u2014 neither of which takes any latitude away from you.\",\"band\":null,\"classification\":\"grind\",\"constraint_note\":null,\"dimension\":\"autonomy\",\"direction\":\"over_supplied\",\"gap\":0.275,\"headline\":\"More room than you actually want\",\"manager_style\":0.525,\"scripts\":[\"Before I start on X, can we spend ten minutes on what a good version of this looks like to you? I'd rather aim at it than approximate it.\",\"I'm not asking you to check my work \\u2014 I just think better with someone in the room. Could we keep a short weekly slot where I bring what I'm chewing on?\",\"Is there a version of this that's been done well before that I could look at?\"],\"severity\":\"notable\",\"user_need\":0.25,\"why\":\"You do better with the ground marked out \\u2014 a clear picture of what good looks like, a sense of the order, someone to think with when you are stuck. Your manager runs hands-off: outcome set, everything after it yours. That is a deliberate way to manage and it is what a lot of people most want. For you it lands as being left to guess, and the cost turns up as rework and second-guessing rather than as freedom \\u2014 you can spend a great deal of energy building the brief you were hoping to be handed.\"},{\"agenda\":[\"A short, regular \\\"how is this landing\\\" moment, kept separate from anything about status or delivery.\",\"A direct statement that you want the blunt version \\u2014 with an example of hard feedback you took well, so it is credible.\",\"One current piece of work you would like an honest read on now.\"],\"ask\":\"Ask for cadence and directness separately, because they are different requests and one is much easier to grant than the other. Cadence first: a short regular moment for how the work is landing. Then directness: say plainly that you would rather have the unsoftened version and that it does not knock you off course.\",\"band\":null,\"classification\":\"grind\",\"constraint_note\":\"Worth checking whether this is style or circumstance. If your manager is not around while you are working \\u2014 a different site, a different shift, a spread-out team, a lot of people to cover \\u2014 then immediate feedback is not something being withheld from you, it is something the setup does not allow. If that is the case, ask for a deliberate substitute rather than for more presence: a standing slot, or a way to send work over for a quick read.\",\"dimension\":\"feedback_style\",\"direction\":\"under_supplied\",\"gap\":-0.275,\"headline\":\"You want to know where you stand more often than you're told\",\"manager_style\":0.525,\"scripts\":[\"I'd find it useful to hear how my work's landing more often \\u2014 even a couple of minutes, even when the answer is that it's fine.\",\"You don't have to soften things for me. I'd rather have it straight and early than tidy and late.\",\"Can I get your honest read on X? Including what you'd have done differently.\"],\"severity\":\"notable\",\"user_need\":0.8,\"why\":\"You calibrate off feedback \\u2014 fast, plain, and often enough to steer by. Your manager comments sparingly, saves it for the right moment, or leads with the softer framing. Neither is wrong: measured feedback keeps people from being managed by every passing reaction, and a lot of people need it delivered exactly that way. The grind is that you are left filling the silence yourself, and most people fill it with the least generous reading available. That is the real cost here \\u2014 not the missing praise, but the guessing.\"},{\"band\":\"mid\",\"classification\":\"mesh\",\"dimension\":\"relationship\",\"direction\":null,\"gap\":-0.058333,\"manager_style\":0.525,\"note\":\"You both keep the relationship somewhere between personal and strictly professional, and you are reading it the same way. Little to fix here.\",\"severity\":null,\"user_need\":0.5833333333333334},{\"agenda\":[\"One specific piece of upcoming work you would like to take that would stretch you, and why you think you could carry it.\",\"A request that they argue with your ideas rather than accept them \\u2014 said explicitly, because most people will not unless invited.\",\"Where they think you are weakest. Ask directly; it is the most useful question available to you.\"],\"ask\":\"Bring the development ask as a work ask. \\\"I want to grow\\\" is hard to act on; \\\"I'd like to take X, which I haven't done before\\\" is a staffing decision your manager can actually make. Pick one concrete stretch and ask for it. Then ask for the harder version of their attention: that they push back on your thinking rather than approve it.\",\"band\":null,\"classification\":\"grind\",\"constraint_note\":\"Some of this may be the shape of the role rather than a choice your manager is making. Where a job is defined narrowly, there may genuinely be no unfamiliar work to hand you. If that is the case, the honest version of the ask is a different one: not for stretch inside the role, but for sight of what exists beyond it, and for their view on how people actually move from here to there.\",\"dimension\":\"growth_focus\",\"direction\":\"under_supplied\",\"gap\":-0.2625,\"headline\":\"You want to be developed and you're being managed\",\"manager_style\":0.525,\"scripts\":[\"When X comes up, I'd like to take it. I haven't done one before, which is exactly why I want it.\",\"You'd help me more by pushing back on this than by agreeing with it. Where's it weak?\",\"If I wanted to be doing this job's next version in two years, what would I need to get good at?\"],\"severity\":\"notable\",\"user_need\":0.7875000000000001,\"why\":\"You are motivated by getting better \\u2014 stretch work, ideas pushed back on, someone paying attention to where you are heading after this job. Your manager focuses on the work in front of you: the job, done well, now. That is a defensible way to manage and often a respectful one, treating your development as yours to own rather than something done to you. The grind is that your growth then depends entirely on what you can arrange for yourself, while the things that would move you fastest \\u2014 a stretch assignment, a hard conversation about your thinking, a word in the right room \\u2014 are mostly in your manager's gift rather than in yours.\"}],\"grind_count\":3,\"mesh_count\":1,\"priority\":[\"autonomy\",\"feedback_style\",\"growth_focus\"],\"privacy_notice\":\"This playbook is yours. It was built from two things you told us: what you need from a manager, and your own read on how your manager works. It is a private working note, not an assessment of them. Nobody at your company can see it, your manager is never shown it and is never told it exists, and nothing in it is shared with anyone. It describes the fit between two ways of working, both of which are legitimate \\u2014 it is not a verdict on either of you.\"},\"scoring_key\":\"mp-v1\",\"version\":\"v1\"}\n"
+  },
+  {
+    "step": "situation-report-needs-environment-report",
+    "method": "GET",
+    "path": "/api/v1/me/situation-report",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"can_submit_environment_report\":true,\"manager\":{\"has_profile\":true},\"state\":\"needs_environment_report\"}\n"
+  },
+  {
+    "step": "submit-environment-report-malformed",
+    "method": "POST",
+    "path": "/api/v1/me/environment-report",
+    "status": 400,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"answers must name exactly the twelve environment items: env-autonomy-1, env-autonomy-2, env-collaboration-1, env-collaboration-2, env-decision-1, env-decision-2, env-feedback-1, env-feedback-2, env-innovation-1, env-innovation-2, env-pace-1, env-pace-2\"}\n"
+  },
+  {
+    "step": "submit-environment-report",
+    "method": "POST",
+    "path": "/api/v1/me/environment-report",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"career_status\":\"employed\",\"comp\":3,\"dimension_scores\":{\"autonomy\":0.5,\"collaboration\":0.5,\"decision\":0.5,\"feedback\":0.5,\"innovation\":0.5,\"pace\":0.5},\"experienced\":3,\"stage_size\":3,\"version\":\"env-v1-2026-09-10\"}\n"
+  },
+  {
+    "step": "situation-report-complete",
+    "method": "GET",
+    "path": "/api/v1/me/situation-report",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"career_status\":\"employed\",\"dimensions\":[{\"aligned_note\":\"You want the call made for you on some things and left to you on others, and that is roughly how this role splits it. What is worth doing here is naming which decisions sit on which side while it is still going well \\u2014 that boundary is unwritten in most jobs, and the moment it gets discovered is usually the moment somebody crosses it.\",\"bucket\":\"aligned\",\"dimension\":\"autonomy\",\"direction\":null,\"env_score\":0.5,\"rank\":0},{\"aligned_note\":\"Neither you nor the work wants a permanent sprint or a flat week, and the two of you are landing in much the same place. Worth watching what the busy stretches do to it: a tempo that suits you in an ordinary month is not the one you are agreeing to in a bad quarter, and it is the bad quarter that tells you whether this match holds.\",\"bucket\":\"aligned\",\"dimension\":\"pace\",\"direction\":null,\"env_score\":0.5,\"rank\":1},{\"aligned_note\":\"You want company for the thinking and quiet for the making, and the day here divides about that way. The part worth watching is the ratio rather than the total: it moves with the project and with who else is on it, and it has usually moved some way before anyone notices it has moved at all.\",\"bucket\":\"aligned\",\"dimension\":\"collaboration\",\"direction\":null,\"env_score\":0.5,\"rank\":2},{\"aligned_note\":\"You want to know where you stand without it being a running conversation, and that is about the rhythm this place keeps. Worth holding on to through the busy stretches: feedback is one of the first things a stretched team stops making time for, and its absence tends to register only in hindsight.\",\"bucket\":\"aligned\",\"dimension\":\"feedback\",\"direction\":null,\"env_score\":0.5,\"rank\":3},{\"aligned_note\":\"You want some new ground without the whole job being new ground, and that is roughly the mix here. The mix is the thing to watch rather than either half of it: it swings with what is on and what has just broken, and it can sit at one end for a couple of quarters before anyone calls that a change.\",\"bucket\":\"aligned\",\"dimension\":\"innovation\",\"direction\":null,\"env_score\":0.5,\"rank\":4},{\"aligned_note\":\"You want evidence where evidence exists and a judgement call where it does not, and that is about where decisions land here. The line between the two is what is worth watching: it is almost never written down anywhere, and it moves depending on who is in the room and how the last call of its kind turned out.\",\"bucket\":\"aligned\",\"dimension\":\"decision\",\"direction\":null,\"env_score\":0.5,\"rank\":5}],\"events_since_report\":[],\"guidance_notice\":\"This guidance is general, not personal. Every one of these suggestions was written before we knew anything about you; the report picks them by looking at the distance between what you told us about how you work and what you told us about your job. Nothing here is a judgement about your employer. Every dimension runs between two legitimate ways to organise work, and a company sitting at one end of one is not doing it wrong \\u2014 what the report says is that you and the job are set differently on that dimension, which is a fact about the pair of you and not about either one alone. It is a private working note, and nobody at your company can see it.\",\"manager\":{\"has_profile\":true},\"needs_forward\":false,\"state\":\"complete\"}\n"
+  },
+  {
+    "step": "situation-report-recalibrate",
+    "method": "POST",
+    "path": "/api/v1/me/situation-report/recalibrate",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"recalibrated\":false}\n"
+  },
+  {
+    "step": "pulse-next-checkin",
+    "method": "GET",
+    "path": "/api/v1/me/pulse/next-checkin",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"experienced_item\":{\"high_anchor\":\"Working very well\",\"item_id\":\"pulse-experienced\",\"low_anchor\":\"Not working\",\"stem\":\"This week, how well is work working for you?\"},\"items\":[{\"dimension\":\"recognition_friction\",\"high_anchor\":\"Got noticed\",\"item_id\":\"pulse-recognition_friction-1\",\"low_anchor\":\"Went unnoticed\",\"stem\":\"How much of your work got real notice this week?\"},{\"dimension\":\"work_pace\",\"high_anchor\":\"Matched well\",\"item_id\":\"pulse-work_pace-1\",\"low_anchor\":\"Badly mismatched\",\"stem\":\"How well did this week's pace match what works for you?\"},{\"dimension\":\"fragmentation\",\"high_anchor\":\"Stayed focused\",\"item_id\":\"pulse-fragmentation-1\",\"low_anchor\":\"Constantly pulled away\",\"stem\":\"How well could you focus without interruption this week?\"}],\"sequence\":0,\"version\":\"pulse-v1-2026-09-11\"}\n"
+  },
+  {
+    "step": "pulse-settings",
+    "method": "GET",
+    "path": "/api/v1/me/pulse/settings",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"auto_slowed\":false,\"cadence\":\"weekly\"}\n"
+  },
+  {
+    "step": "pulse-checkin-malformed",
+    "method": "POST",
+    "path": "/api/v1/me/pulse/checkins",
+    "status": 422,
+    "mimetype": "application/problem+json",
+    "cookies_set": [],
+    "body": "{\"detail\":\"item_scores for user 1 sequence 0 must cover exactly ['fragmentation', 'recognition_friction', 'work_pace']. missing=['fragmentation', 'work_pace'] extra=['environmental_friction', 'sustainability']\",\"errors\":[{\"code\":\"invalid_checkin\",\"field\":\"item_scores\"}],\"instance\":\"/api/v1/me/pulse/checkins\",\"request_id\":\"<RID>\",\"status\":422,\"title\":\"Validation failed\",\"type\":\"https://solverah.com/errors/validation\"}\n"
+  },
+  {
+    "step": "pulse-checkin",
+    "method": "POST",
+    "path": "/api/v1/me/pulse/checkins",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"experienced\":4,\"id\":1,\"item_scores\":{\"fragmentation\":3,\"recognition_friction\":3,\"work_pace\":3},\"sequence\":0,\"taken_at\":\"<TS>\",\"version\":\"pulse-v1-2026-09-11\"}\n"
+  },
+  {
+    "step": "pulse-history",
+    "method": "GET",
+    "path": "/api/v1/me/pulse/history",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"checkins\":[{\"experienced\":4,\"id\":1,\"item_scores\":{\"fragmentation\":3,\"recognition_friction\":3,\"work_pace\":3},\"sequence\":0,\"taken_at\":\"<TS>\",\"version\":\"pulse-v1-2026-09-11\"}],\"events\":[]}\n"
+  },
+  {
+    "step": "pulse-event",
+    "method": "POST",
+    "path": "/api/v1/me/pulse/events",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"at\":\"<TS>\",\"event_type\":\"new_manager\",\"id\":1,\"note\":null}\n"
+  },
+  {
+    "step": "pulse-settings-update",
+    "method": "PATCH",
+    "path": "/api/v1/me/pulse/settings",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"auto_slowed\":false,\"cadence\":\"biweekly\"}\n"
+  },
+  {
+    "step": "situation-report-after-pulse-event",
+    "method": "GET",
+    "path": "/api/v1/me/situation-report",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"career_status\":\"employed\",\"dimensions\":[{\"aligned_note\":\"You want the call made for you on some things and left to you on others, and that is roughly how this role splits it. What is worth doing here is naming which decisions sit on which side while it is still going well \\u2014 that boundary is unwritten in most jobs, and the moment it gets discovered is usually the moment somebody crosses it.\",\"bucket\":\"aligned\",\"dimension\":\"autonomy\",\"direction\":null,\"env_score\":0.5,\"rank\":0},{\"aligned_note\":\"Neither you nor the work wants a permanent sprint or a flat week, and the two of you are landing in much the same place. Worth watching what the busy stretches do to it: a tempo that suits you in an ordinary month is not the one you are agreeing to in a bad quarter, and it is the bad quarter that tells you whether this match holds.\",\"bucket\":\"aligned\",\"dimension\":\"pace\",\"direction\":null,\"env_score\":0.5,\"rank\":1},{\"aligned_note\":\"You want company for the thinking and quiet for the making, and the day here divides about that way. The part worth watching is the ratio rather than the total: it moves with the project and with who else is on it, and it has usually moved some way before anyone notices it has moved at all.\",\"bucket\":\"aligned\",\"dimension\":\"collaboration\",\"direction\":null,\"env_score\":0.5,\"rank\":2},{\"aligned_note\":\"You want to know where you stand without it being a running conversation, and that is about the rhythm this place keeps. Worth holding on to through the busy stretches: feedback is one of the first things a stretched team stops making time for, and its absence tends to register only in hindsight.\",\"bucket\":\"aligned\",\"dimension\":\"feedback\",\"direction\":null,\"env_score\":0.5,\"rank\":3},{\"aligned_note\":\"You want some new ground without the whole job being new ground, and that is roughly the mix here. The mix is the thing to watch rather than either half of it: it swings with what is on and what has just broken, and it can sit at one end for a couple of quarters before anyone calls that a change.\",\"bucket\":\"aligned\",\"dimension\":\"innovation\",\"direction\":null,\"env_score\":0.5,\"rank\":4},{\"aligned_note\":\"You want evidence where evidence exists and a judgement call where it does not, and that is about where decisions land here. The line between the two is what is worth watching: it is almost never written down anywhere, and it moves depending on who is in the room and how the last call of its kind turned out.\",\"bucket\":\"aligned\",\"dimension\":\"decision\",\"direction\":null,\"env_score\":0.5,\"rank\":5}],\"events_since_report\":[{\"date\":\"<TS>\",\"type\":\"new_manager\"}],\"guidance_notice\":\"This guidance is general, not personal. Every one of these suggestions was written before we knew anything about you; the report picks them by looking at the distance between what you told us about how you work and what you told us about your job. Nothing here is a judgement about your employer. Every dimension runs between two legitimate ways to organise work, and a company sitting at one end of one is not doing it wrong \\u2014 what the report says is that you and the job are set differently on that dimension, which is a fact about the pair of you and not about either one alone. It is a private working note, and nobody at your company can see it.\",\"manager\":{\"has_profile\":true},\"needs_forward\":false,\"state\":\"complete\"}\n"
+  },
+  {
+    "step": "post-experiment-malformed",
+    "method": "POST",
+    "path": "/api/v1/me/experiments",
+    "status": 422,
+    "mimetype": "application/problem+json",
+    "cookies_set": [],
+    "body": "{\"detail\":\"dimension/direction must name one of the twelve change-in-place cells the Situation Report can diagnose.\",\"errors\":[{\"code\":\"not_a_change_in_place_cell\",\"field\":\"dimension\"}],\"instance\":\"/api/v1/me/experiments\",\"request_id\":\"<RID>\",\"status\":422,\"title\":\"Validation failed\",\"type\":\"https://solverah.com/errors/validation\"}\n"
+  },
+  {
+    "step": "post-experiment",
+    "method": "POST",
+    "path": "/api/v1/me/experiments",
+    "status": 201,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"abandoned_at\":null,\"dimension\":\"autonomy\",\"direction\":\"under\",\"ends_at\":\"<TS>\",\"experiment_name\":\"One piece, your method, for a fortnight\",\"id\":1,\"phase\":\"running\",\"readout\":{\"after_count\":0,\"before_count\":1,\"verdict\":\"not_enough_data\"},\"started_at\":\"<TS>\",\"status\":\"active\"}\n"
+  },
+  {
+    "step": "post-experiment-conflict",
+    "method": "POST",
+    "path": "/api/v1/me/experiments",
+    "status": 409,
+    "mimetype": "application/problem+json",
+    "cookies_set": [],
+    "body": "{\"detail\":\"An experiment is already running -- finish or abandon it first.\",\"errors\":[{\"code\":\"experiment_already_active\",\"field\":\"experiment\"}],\"instance\":\"/api/v1/me/experiments\",\"request_id\":\"<RID>\",\"status\":409,\"title\":\"Conflict\",\"type\":\"https://solverah.com/errors/conflict\"}\n"
+  },
+  {
+    "step": "get-experiments",
+    "method": "GET",
+    "path": "/api/v1/me/experiments",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"experiments\":[{\"abandoned_at\":null,\"dimension\":\"autonomy\",\"direction\":\"under\",\"ends_at\":\"<TS>\",\"experiment_name\":\"One piece, your method, for a fortnight\",\"id\":1,\"phase\":\"running\",\"readout\":{\"after_count\":0,\"before_count\":1,\"verdict\":\"not_enough_data\"},\"started_at\":\"<TS>\",\"status\":\"active\"}]}\n"
+  },
+  {
+    "step": "post-experiment-abandon",
+    "method": "POST",
+    "path": "/api/v1/me/experiments/1/abandon",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"abandoned_at\":\"<TS>\",\"dimension\":\"autonomy\",\"direction\":\"under\",\"ends_at\":\"<TS>\",\"experiment_name\":\"One piece, your method, for a fortnight\",\"id\":1,\"phase\":\"abandoned\",\"readout\":{\"after_count\":0,\"before_count\":1,\"verdict\":\"not_enough_data\"},\"started_at\":\"<TS>\",\"status\":\"abandoned\"}\n"
+  },
+  {
+    "step": "post-experiment-abandon-again",
+    "method": "POST",
+    "path": "/api/v1/me/experiments/1/abandon",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"abandoned_at\":\"<TS>\",\"dimension\":\"autonomy\",\"direction\":\"under\",\"ends_at\":\"<TS>\",\"experiment_name\":\"One piece, your method, for a fortnight\",\"id\":1,\"phase\":\"abandoned\",\"readout\":{\"after_count\":0,\"before_count\":1,\"verdict\":\"not_enough_data\"},\"started_at\":\"<TS>\",\"status\":\"abandoned\"}\n"
+  },
+  {
+    "step": "get-experiments-after-abandon",
+    "method": "GET",
+    "path": "/api/v1/me/experiments",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"experiments\":[{\"abandoned_at\":\"<TS>\",\"dimension\":\"autonomy\",\"direction\":\"under\",\"ends_at\":\"<TS>\",\"experiment_name\":\"One piece, your method, for a fortnight\",\"id\":1,\"phase\":\"abandoned\",\"readout\":{\"after_count\":0,\"before_count\":1,\"verdict\":\"not_enough_data\"},\"started_at\":\"<TS>\",\"status\":\"abandoned\"}]}\n"
   }
 ]

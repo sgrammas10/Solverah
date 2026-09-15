@@ -1,0 +1,13 @@
+# TO BE RESEARCHED — one company per line, topmost line is next.
+#
+# Sebastian maintains this list by hand. The research task reads the top line, builds that
+# company, and removes the line. Nothing else selects a company.
+#
+# FORMAT: P-##<tab or spaces>Company Name
+# Lines starting with # are comments and are skipped.
+#
+# Which company enters the set is a pole-coverage decision, not a convenience. If this list
+# is empty the research task STOPS and says so -- it must never pick a company itself, and
+# must never read the roster looking for one.
+
+P-12    Duke Energy

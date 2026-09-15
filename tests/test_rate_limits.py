@@ -118,7 +118,11 @@ def test_password_reset_is_limited_to_three_per_minute(enforcing):
         for _ in range(4)
     ]
 
-    assert statuses[:3] == [404] * 3
+    # 200, not 404: since S1 this endpoint answers the same for an address that
+    # names no account as for one that does (tests/test_user_enumeration.py).
+    # What is under test here is the fourth call, and it is unaffected -- the
+    # limiter counts requests, not outcomes.
+    assert statuses[:3] == [200] * 3
     assert statuses[3] == 429
 
 

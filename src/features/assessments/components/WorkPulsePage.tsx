@@ -28,6 +28,10 @@
  * Neither line is a substitute for the server-side shuffle -- that remains the primary defense.
  * Do not let the copy grow into a promise the data layer does not keep.
  *
+ * Both lines now carry a link to /trust (BUILD_PLAN D-3), which is where the reasoning behind
+ * them lives at length. The link sits on the employer line rather than replacing either claim:
+ * a reader who wants the short version should not have to leave this page to get it.
+ *
  * THE RESULTS SCREEN DELIBERATELY DOES NOT EXIST for this instrument (decided 2026-08-19:
  * completion state only). Returning a respondent's six dimension scores hands a retaker a
  * gradient to optimise against and teaches the item-to-dimension mapping the shuffle and
@@ -59,6 +63,7 @@ function WorkPulseForm({
     submitting,
     setAnswer,
     submit,
+    reloadForm,
   } = useAssessment();
 
   async function handleComplete() {
@@ -84,7 +89,10 @@ function WorkPulseForm({
           sounds most employable.
         </p>
         <p className="text-xs text-ink-secondary">
-          Employers never see your answers or your dimension scores.
+          Employers never see your answers or your dimension scores.{" "}
+          <Link to="/trust" className="font-semibold text-forest-dark hover:underline">
+            How this works, and what we hold back →
+          </Link>
         </p>
         {showLegacyLink && (
           <p className="text-xs text-ink-secondary">
@@ -100,9 +108,20 @@ function WorkPulseForm({
       </div>
 
       {loadError && (
-        <p role="alert" className="text-sm text-red-700">
-          {loadError}
-        </p>
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700"
+        >
+          <p className="font-medium mb-1">We couldn't load Work Pulse right now.</p>
+          <p className="text-xs">Please try again in a moment.</p>
+          <button
+            type="button"
+            onClick={() => reloadForm()}
+            className="mt-3 text-xs font-semibold text-red-700 underline"
+          >
+            Try again
+          </button>
+        </div>
       )}
 
       {!loadError && items === null && (
@@ -155,13 +174,52 @@ export default function WorkPulsePage() {
               to optimize — it works quietly in the background as we line up the environments
               where you'd do your best work.
             </p>
-            <button
-              type="button"
-              onClick={() => navigate("/job-seeker/dashboard", { replace: true })}
-              className="mt-2 inline-flex items-center bg-forest-dark text-white text-sm font-semibold px-6 py-3 rounded hover:bg-forest-mid transition-colors"
-            >
-              Back to dashboard
-            </button>
+            {/* The A-7 bridge, upgrading D-2's. What follows Work Pulse is no
+                longer a choice between two side instruments and the door: the
+                Situation Report is the other half of this one, and describing
+                the job is what completes it. The env-report CTA is therefore
+                primary and the FocusType / ManagerMatch CTAs step down to
+                secondary rather than disappearing. */}
+            <p className="text-sm text-ink-primary font-medium">
+              24 questions about you. Now 15 about your job.
+            </p>
+            <p className="text-sm text-ink-secondary">
+              Work Pulse is half of your Situation Report. The other half is your own
+              description of the role you're in — what it actually offers, not what it
+              was advertised as — and the report is the distance between the two.
+            </p>
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => navigate("/environment-report")}
+                className="inline-flex items-center bg-forest-dark text-white text-sm font-semibold px-6 py-3 rounded hover:bg-forest-mid transition-colors"
+              >
+                Describe your job →
+              </button>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate("/focus-type")}
+                className="inline-flex items-center border border-forest-dark text-forest-dark text-sm font-semibold px-6 py-3 rounded hover:bg-forest-pale transition-colors"
+              >
+                Start FocusType →
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/manager-match")}
+                className="inline-flex items-center border border-forest-dark text-forest-dark text-sm font-semibold px-6 py-3 rounded hover:bg-forest-pale transition-colors"
+              >
+                Start ManagerMatch →
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/job-seeker/dashboard", { replace: true })}
+                className="inline-flex items-center border border-forest-dark text-forest-dark text-sm font-semibold px-6 py-3 rounded hover:bg-forest-pale transition-colors"
+              >
+                Back to dashboard
+              </button>
+            </div>
           </div>
         ) : (
           <WorkPulseForm showLegacyLink={hasLegacyResults} onCompleted={handleCompleted} />

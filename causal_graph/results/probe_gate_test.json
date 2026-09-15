@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "expected_true": {
+    "Typically works under close supervision.": true,
+    "Follow a range of mandatory procedures": true,
+    "they believe in top down micromanagement.": true
+  },
+  "expected_false": {
+    "You act on instinct and initiative, not instruction.": false,
+    "No politics, no process tax, no committees.": false
+  },
+  "interpretation": "PASS: the probe classifies harsh evidence as matching the floor band, so the reluctance does not transfer to this task shape and the flag is usable."
+}

@@ -7,10 +7,19 @@ const RESULTS_PER_PAGE = 5; // adjust as you like
 
 export default function SearchResults() {
   const [searchParams] = useSearchParams();
-  const query = (searchParams.get("q") || "").toLowerCase();
-  // Shared with Feed through useRecommendations — a failed fetch settles with
-  // `data` undefined, which renders as "no results", exactly as before.
-  const { data, isLoading: loading } = useRecommendations();
+  const rawQuery = searchParams.get("q") || "";
+  const hasQuery = rawQuery.trim().length > 0;
+  const query = rawQuery.toLowerCase();
+  // Shared with Feed through useRecommendations. Disabled for an empty/
+  // whitespace query so landing on /search with nothing typed doesn't fire
+  // the request at all.
+  const {
+    data,
+    isLoading: loading,
+    isError,
+    isFetching,
+    refetch,
+  } = useRecommendations({ enabled: hasQuery });
   const jobs = data ?? [];
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(1);
@@ -34,10 +43,45 @@ export default function SearchResults() {
     setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  if (loading)
+  if (!hasQuery)
+    return (
+      <div className="text-center py-20 text-slate-100">
+        <Search className="mx-auto h-12 w-12 text-slate-500 mb-4" />
+        <h2 className="text-lg font-semibold text-white">
+          Search for companies and roles
+        </h2>
+        <p className="text-slate-300">
+          Type a company name, job title, or keyword to get started.
+        </p>
+        <Link to="/feed" className="text-emerald-200 mt-4 hover:underline">
+          ← Back to Feed
+        </Link>
+      </div>
+    );
+
+  // `isError && isFetching` is a retry in flight, so "Try again" doesn't look dead.
+  if (loading || (isError && isFetching))
     return (
       <div className="flex justify-center items-center h-64">
         <Search className="animate-spin w-6 h-6 text-slate-400" />
+      </div>
+    );
+
+  if (isError)
+    return (
+      <div className="text-center py-20 text-slate-100">
+        <Search className="mx-auto h-12 w-12 text-slate-500 mb-4" />
+        <h2 className="text-lg font-semibold text-white">
+          We couldn't run that search right now
+        </h2>
+        <p className="text-slate-300">Please try again in a moment.</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="text-emerald-200 mt-4 hover:underline"
+        >
+          Try again
+        </button>
       </div>
     );
 

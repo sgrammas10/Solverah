@@ -1,0 +1,86 @@
+CONTENT DEFECTS — P-09
+Found during the de-identification pass of 2026-09-07, reading the raw packet as the second
+reader. RECORDED, NOT FIXED. The scrub worked around each of these and reproduced the
+affected text verbatim. The build is what needs correcting.
+
+--------------------------------------------------------------------------------------
+CD-1  Section 1 is not self-contained: four cross-references point into the build record.
+      SEVERITY: real, low harm. Two are explicit pointers, two are unsupported claims.
+
+      Section 1 is the only part a rater sees, and sections 2–5 are marked REMOVE BEFORE
+      PACKET / NEVER IN THE PACKET, so anything Section 1 cites from them dangles in the
+      rater-facing artifact. Verbatim, as built:
+
+        A, excerpt 8, retrieval note:
+          "needed JS: Y (renderer; this page was reached only through the site's own
+          navigation, see fidelity note)"
+
+        D, excerpt 2, date note:
+          "report covers calendar year 2025; published 2026 (see fidelity note)"
+
+      The fidelity note is section 2e. A rater told to "see" it has nothing to see, and in
+      both cases the pointer is doing real work — the second one is the packet's only
+      signal that the report's publication date is inferred rather than printed.
+
+      Two section headers make the same shape of claim without a pointer:
+
+        "--- D. FIRST-PERSON ACCOUNT (yield: 4 · ladder fully attempted) ---"
+        "--- E. RECENT NEWS (yield: 3 · searches logged: 5) ---"
+
+      "ladder fully attempted" and "searches logged: 5" are both assertions whose evidence
+      is the section 2c ladder checklist. They read to a rater as a warranty about coverage
+      that the packet does not carry.
+
+      This is a build-prompt gap, not a builder error: nothing tells the builder that
+      Section 1 must stand alone once the QA sections are removed. Either the caveats
+      belong inline in Section 1, or the scrub pass needs a rule for carrying them across.
+      No rule exists, so nothing was carried across and nothing was cut.
+
+--------------------------------------------------------------------------------------
+CD-2  Section E, excerpt 3, is company-authored material inside a section of press
+      reporting, and it is counted in the section's yield.
+      SEVERITY: observation. Correctly disclosed on the line; recorded for completeness.
+
+      The section is titled RECENT NEWS and its other two excerpts are trade press. The
+      third is an SEC-filed earnings release, tagged by the builder as
+
+        "[company-authored earnings release filed with the SEC — NOT independent
+        reporting]"
+
+      so a rater is told plainly and cannot mistake it for reporting. The residue is that
+      the header's "yield: 3" counts three items where only two are independent, which
+      matters if section E is ever read as corroboration of the review layer — the exact
+      use the proposed 0.7 rule would put it to. The build already self-reports this as
+      defect C-2, but C-2 lives in section 5, which no rater and no scorer reads. Recorded
+      here so it survives into the record that follows the packet.
+
+--------------------------------------------------------------------------------------
+CHECKED AND CLEAN
+  · Stated counts against actual items. Every section header's declared count or range
+    matches its bullets (A 8 in 5–8, B 15 in 12–15, C 10 in 6–10, D 4/4, E 3/3, F 4/4).
+    The truncation note's "6 of the 15 reviews in section B (40%)" matches exactly six
+    lines carrying TRUNCATED AT SOURCE. The D voice composition line (1 executive / 0
+    non-executive / 3 corporate) sums to the four D excerpts and agrees with the NOTE TO
+    RATER at the head of the packet.
+  · The scope declaration against the review titles. Its population breakdown — 4 retail
+    sales floor, 2 store leadership, 3 opticianry, 1 optometrist, 1 customer service, 1
+    optical-lab packer, 3 untitled — sums to 15 and matches the titles recorded on the
+    fifteen review lines one for one.
+  · Dates. Section B is strictly newest-first and every review falls inside the 24-month
+    gate the section claims. No attribution date postdates its retrieval date. The one
+    two-step date chain (a podcast episode aired 2026-01-15, reported 2026-02-13) is
+    ordered correctly.
+  · Attributions against excerpt content. No attribution contradicts the body it labels.
+    The one that comes closest is B rev-07, whose headline reports a decline in core values
+    while the body says the corporate mission is still being carried out; those are two
+    different claims by the same reviewer, not a contradiction, and both are retained.
+  · Company-authored excerpts against each other. A, D and F make one overlapping claim
+    (continuous feedback / continuous improvement, in A excerpt 6 and D excerpt 2) and it
+    is a restatement, not a conflict. It is handled under A3 with a recurrence note on the
+    D line, not as a defect.
+
+  NOT CHECKABLE FROM THIS FOLDER: whether each excerpt is verbatim in its source, and
+  whether any quote appears in a section it is not attributed to. Both need the sources,
+  and this pass is forbidden to retrieve anything. The build's own verification pass
+  reports 14 of 15 re-checks identical and one corrected (defect S-1); that figure is
+  carried onto the packet's status line rather than re-tested here.

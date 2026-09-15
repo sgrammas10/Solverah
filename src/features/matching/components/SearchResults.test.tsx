@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import SearchResults from "./SearchResults";
 import { createQueryClient } from "../../../shared/api/queryClient";
+import { ApiError } from "../../../shared/api/apiError";
 
 const mocks = vi.hoisted(() => ({
   fetchWithAuth: vi.fn(),
@@ -86,6 +87,38 @@ describe("SearchResults - empty state", () => {
   });
 });
 
+// ─── failed fetch (G15) ────────────────────────────────────────────────────────
+
+/**
+ * Regression: `data ?? []` used to read a failed `/me/recommendations` fetch
+ * as an empty list, which rendered as "No results found" -- indistinguishable
+ * from a real search that came up empty.
+ */
+describe("SearchResults - failed fetch (G15)", () => {
+  it("shows a retry notice rather than 'No results found'", async () => {
+    mocks.fetchWithAuth.mockRejectedValue(new ApiError("boom", { status: 403 }));
+    renderSearchResults("react");
+
+    expect(
+      await screen.findByText(/We couldn't run that search right now/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/No results found/i)).toBeNull();
+  });
+
+  it("refetches when Try again is clicked", async () => {
+    mocks.fetchWithAuth
+      .mockRejectedValueOnce(new ApiError("boom", { status: 403 }))
+      .mockResolvedValueOnce({ data: MOCK_JOBS, next_cursor: null });
+    renderSearchResults("react");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+
+    expect(
+      await screen.findByRole("heading", { name: /search results for/i }),
+    ).toBeInTheDocument();
+  });
+});
+
 // ─── happy path ────────────────────────────────────────────────────────────────
 
 describe("SearchResults - happy path", () => {
@@ -114,13 +147,27 @@ describe("SearchResults - happy path", () => {
     expect(screen.queryByText("Senior React Developer")).toBeNull();
   });
 
-  it("shows all results when query is empty (returns all jobs)", async () => {
-    mocks.fetchWithAuth.mockResolvedValueOnce({ data: MOCK_JOBS, next_cursor: null });
+});
+
+// ─── empty query ──────────────────────────────────────────────────────────────
+
+describe("SearchResults - empty query", () => {
+  it("shows an invitation to search instead of querying when the query is empty", async () => {
     renderSearchResults("");
     await waitFor(() =>
-      expect(screen.getByText("Senior React Developer")).toBeInTheDocument()
+      expect(screen.getByText(/search for companies and roles/i)).toBeInTheDocument()
     );
-    expect(screen.getByText("Python Backend Engineer")).toBeInTheDocument();
+    expect(screen.queryByText(/no results found/i)).toBeNull();
+    expect(mocks.fetchWithAuth).not.toHaveBeenCalled();
+  });
+
+  it("shows an invitation to search instead of querying when the query is whitespace-only", async () => {
+    renderSearchResults("   ");
+    await waitFor(() =>
+      expect(screen.getByText(/search for companies and roles/i)).toBeInTheDocument()
+    );
+    expect(screen.queryByText(/no results found/i)).toBeNull();
+    expect(mocks.fetchWithAuth).not.toHaveBeenCalled();
   });
 });
 

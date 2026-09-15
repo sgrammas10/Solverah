@@ -1,0 +1,180 @@
+{
+  "packet_id": "P-04",
+  "rater": "B",
+  "rubric_version": "v1-frozen-2026-08-15",
+  "anchors_hash": "55c4501b25c5",
+  "session_start": "2026-08-22T11:52:47.348Z",
+  "submitted_at": "2026-08-22T13:37:43.566Z",
+  "duration_seconds": 6296,
+  "commit_order": [
+    "autonomy",
+    "pace",
+    "collaboration",
+    "feedback",
+    "innovation",
+    "decision"
+  ],
+  "recognition": "no",
+  "recognition_detail": "",
+  "searched": "no",
+  "search_detail": "",
+  "free_note": "",
+  "scores": [
+    {
+      "dimension": "autonomy",
+      "score": 0.7,
+      "confidence": 0.9,
+      "quotes": [
+        {
+          "text": "\"Independence has allowed us to transform and change the work. [It] gives you that freedom to let go of things, because you're not part of some structure that you're expected to behave in",
+          "eid": "D2",
+          "sec": "D",
+          "src": "noncompany"
+        }
+      ],
+      "note": "Lots of comments about personal initiative",
+      "committed_at": "2026-08-22T12:12:58.287Z",
+      "commit_position": 1,
+      "source_mix": {
+        "company": 0,
+        "noncompany": 1,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "D2"
+      ]
+    },
+    {
+      "dimension": "pace",
+      "score": 0.7,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "The schedule and staffing is dictated by aggressive margins.",
+          "eid": "B4",
+          "sec": "B",
+          "src": "noncompany"
+        }
+      ],
+      "note": "Reviews talk about unhealthy work life balance and long hours.",
+      "committed_at": "2026-08-22T12:35:46.117Z",
+      "commit_position": 2,
+      "source_mix": {
+        "company": 0,
+        "noncompany": 1,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": true,
+      "excerpts_cited": [
+        "B4"
+      ]
+    },
+    {
+      "dimension": "collaboration",
+      "score": 0.5,
+      "confidence": 0.9,
+      "quotes": [
+        {
+          "text": "We're at our best when diverse voices and disciplines intersect. Innovation often happens when people with disparate perspectives come together as a team. Look for these intersections, and cultivate relationships that make them possible.\"",
+          "eid": "A7",
+          "sec": "A",
+          "src": "company"
+        }
+      ],
+      "note": "A lot of talk about teamwork and collaboration.",
+      "committed_at": "2026-08-22T13:12:04.918Z",
+      "commit_position": 3,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A7"
+      ]
+    },
+    {
+      "dimension": "feedback",
+      "score": 0.5,
+      "confidence": 0.1,
+      "quotes": [
+        {
+          "text": "We foster trusting relationships through listening sessions that encourage creativity and lead to better solutions, both in our work and how we work together.\"",
+          "eid": "A3",
+          "sec": "A",
+          "src": "company"
+        }
+      ],
+      "note": "Open to ideas and creativity but unclear how feedback plays into work culture.",
+      "committed_at": "2026-08-22T13:18:42.326Z",
+      "commit_position": 4,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A3"
+      ]
+    },
+    {
+      "dimension": "innovation",
+      "score": 0.9,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "ongoing opportunity for you to bring your imagination and talent to the work. Get ready to iterate and rethink often",
+          "eid": "A4",
+          "sec": "A",
+          "src": "company"
+        }
+      ],
+      "note": "Not afraid to have employees challenge status quo or come up with new ideas.",
+      "committed_at": "2026-08-22T13:20:19.253Z",
+      "commit_position": 5,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A4"
+      ]
+    },
+    {
+      "dimension": "decision",
+      "score": 0.7,
+      "confidence": 0.6,
+      "quotes": [
+        {
+          "text": "\"is a high-agency operator who fills in gaps without requiring a formalized process and brings rigor without bureaucracy.",
+          "eid": "C10",
+          "sec": "C",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-08-22T13:37:28.298Z",
+      "commit_position": 6,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "C10"
+      ]
+    }
+  ]
+}

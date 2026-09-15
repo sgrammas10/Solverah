@@ -1,0 +1,69 @@
+CONTENT DEFECTS — P-10
+  Found during the de-identification pass, which is the second close read this packet gets
+  before a rater sees it. NOTHING BELOW WAS CORRECTED. Each is reproduced as found and
+  scrubbed around, per the scrub brief: a defect fixed here is a defect that disappears
+  from the build record, and the build is what needs correcting.
+
+CD-1. SECTION 4 (ANONYMIZATION PRE-FLAGS) — the company-name occurrence list is wrong in three
+      ways, and it is the input the scrub pass is told to read.
+      · It attributes the derived self-referential employee term to section A excerpt 2. That
+        excerpt contains neither the company name nor the derived term. The term is in section A
+        excerpt 1, which the same sentence separately lists — so the entry is duplicated onto
+        the wrong excerpt rather than merely missing.
+      · It omits two section B reviews whose quote bodies do carry the company name: the reviews
+        dated 2024-10-03 and 2024-01-05. Eight section B quote bodies carry the name or the
+        derived term; the block names six.
+      · It does not flag the one review HEADLINE containing the company name (the review dated
+        2024-02-16), even though headlines are printed in the rater-facing attribution and are
+        kept verbatim under A7.
+      Severity: highest in the packet. The pre-flag block exists to tell the scrubber where the
+      identifiers are, and a scrubber working from it instead of from a full-text sweep would
+      have shipped the company name into a rater-facing packet three times. This pass swept the
+      text mechanically and did not rely on the block; the block was used only to confirm the
+      sweep, and it is the block that failed the comparison.
+
+CD-2. SECTION 2b (EVIDENCE COVERAGE) cites evidence that is not in the packet. The FEEDBACK
+      dimension is justified as "one values-page principle on debate norms, one job-posting line
+      on advising senior leaders". No section C excerpt is about advising senior leaders; no
+      section C line mentions seniority, leaders or advising at all. The nearest line concerns
+      influencing compliance programmes and strategic direction, which is a different claim.
+      This is the P-06 shape — a coverage judgement resting on a quote that is not where it is
+      said to be — and it matters because FEEDBACK is the one dimension the packet marks THIN,
+      so the two pieces of evidence named are load-bearing on that call.
+
+CD-3. SECTION 2g (SCOPE BLOCK) accounts for 14 of the 15 reviews. It states "8 of 15 state
+      'Remote' as their location" and then names San Francisco (3), Chicago, Atlanta and one
+      probably mis-geocoded town: 8 + 3 + 1 + 1 + 1 = 14. The fifteenth review's location
+      renders in lower case as "remote" and appears in neither tally. The remote share is
+      therefore understated — 9 of 15 describe remote work, not 8 — in the same block a rater
+      would use to judge dispersion.
+
+CD-4. SECTION C carries a date that cannot be right, and the builder disclosed it in 2e/C7.
+      Posting 3's detail-page "Date posted" field reads 2026-08-27, the same day the listing
+      page described the role as having been posted two days earlier. Recorded here for
+      completeness because the contradiction survives into the rater-facing packet: the packet
+      prints the detail-page date with nothing to show that the same board gave a different one.
+      Reproduced verbatim; not corrected.
+
+CD-5. SECTION B contains a cross-reference into a section raters never see. One review's
+      location field read "(see fidelity note — flagged, retained)", pointing at section 2e,
+      which is build record and is removed by design. The scrub had to edit that field anyway
+      under R5, because it carried a location; the pointer was therefore replaced with the
+      substance it pointed at, so the rater keeps the warning rather than a dead reference. The
+      edit is declared on the excerpt line and recorded in the diff. Recorded here as a
+      BUILD-side defect: the collector should not put a QA-section cross-reference inside
+      rater-facing text, and the durable fix belongs in the collector.
+
+WHAT WAS CHECKED AND FOUND SOUND
+  · Every section header's declared count against its actual bullet count. All six agree —
+    A 8 within a 5-8 range, B 15 within 12-15, C 10 within 6-10 across 4 postings against a 3+
+    minimum, D 5 of 5 declared, E 3 of 3, F 4 of 4. Nothing to reproduce verbatim under
+    self-check 13.
+  · The truncation note's "6 of the 15" against the six truncation markers actually present.
+  · The population note's "sixteen days newer" against the two dates it compares.
+  · The 24-month gate count (6 of 15) against the review dates, and the scope declaration's
+    "nine of the fifteen" against the same.
+  · The stated median review age and range against the review dates.
+  · Every review headline against its own excerpt body, for the P-07 CD-2 contradiction pattern.
+    None contradicts its body. Several headlines assert more than their excerpt covers, which
+    the packet's own fidelity note already explains as excerpting rather than as a defect.

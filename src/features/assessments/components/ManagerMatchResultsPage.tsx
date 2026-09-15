@@ -204,6 +204,21 @@ export default function ManagerMatchResultsPage() {
           </ul>
         </div>
 
+        {/* Manager Decoder bridge */}
+        <div className="rounded-xl border border-forest-light bg-forest-pale px-6 py-5 space-y-2">
+          <p className="text-sm text-ink-primary leading-relaxed">
+            ManagerMatch tells you what you need. The Manager Decoder tells you where
+            your actual manager stands against it.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/manager-profile")}
+            className="text-sm font-semibold text-forest-dark hover:underline"
+          >
+            Now profile your actual manager →
+          </button>
+        </div>
+
         {/* CTA */}
         <button
           type="button"

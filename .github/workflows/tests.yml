@@ -135,10 +135,52 @@ jobs:
           CREATE EXTENSION IF NOT EXISTS vector;
           SQL
 
+      # `flask backups run` shells out to pg_dump, and pg_dump REFUSES a server
+      # newer than itself — the runner image ships a client several majors
+      # behind this pg18 service container, so without this step every test
+      # that takes a real dump skips, and the backup path would be gated by
+      # nothing but its own unit tests. (Production does not have the problem:
+      # that cron runs on infra/docker/Dockerfile.backup, which pins
+      # postgresql-client-18. This step is CI catching up to the image.)
+      #
+      # Failure here is tolerated on purpose: apt.postgresql.org is a third-party
+      # archive and a merge should not depend on it being up. The tests skip
+      # with a loud reason when the client is missing, so an outage costs
+      # coverage for one run instead of turning the gate red for every commit in
+      # the meantime. Watch for those skip lines if backup behaviour ever looks
+      # unverified.
+      #
+      # The tolerance lives inside the script rather than in a step-level
+      # failure-tolerance key: the `else` branch names what was lost, in a
+      # warning annotation, where the run summary shows it. A step key would
+      # mark the step orange and say nothing about what stopped being verified.
+      # (test_config.py separately forbids that key at JOB level here — the gate
+      # must always be able to fail the build. A step swallowing its own
+      # optional dependency is a different thing from a gate that cannot gate.)
+      - name: Install PostgreSQL 18 client (for the backup cron's tests)
+        run: |
+          set -x
+          key=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          repo_url=http://apt.postgresql.org/pub/repos/apt
+          if sudo install -d "$(dirname "$key")" \
+            && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo tee "$key" > /dev/null \
+            && echo "deb [signed-by=$key] $repo_url $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null \
+            && sudo apt-get update \
+            && sudo apt-get install -y postgresql-client-18
+          then
+            pg_dump --version
+          else
+            echo "::warning::PostgreSQL 18 client unavailable; the backup cron's dump/verify/prune tests will SKIP this run."
+          fi
+
       - name: Run Tests
         # Exactly five variables, and no .env on the runner. Anything reading a
         # sixth fails here and passes on a developer machine, because app.py calls
         # load_dotenv(). That asymmetry is the point — see CLAUDE.md.
+        #
+        # Note there is still no BACKUP_S3_* here: the backup tests prove the
+        # dump, the verification and the prune for real, and mock only the object
+        # store. A test that uploaded to a real bucket would also prune one.
         env:
           APP_ENV: testing
           DATABASE_URL: postgresql://solverah:solverah@localhost:5432/solverah

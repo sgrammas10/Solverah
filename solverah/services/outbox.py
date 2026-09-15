@@ -68,6 +68,7 @@ __all__ = [
     "TOPIC_EMAIL_EARLY_ACCESS",
     "TOPIC_EMAIL_INTAKE_NOTIFICATION",
     "TOPIC_EMAIL_PASSWORD_RESET",
+    "TOPIC_EMAIL_PULSE_PROMPT",
     "TOPIC_EMAIL_VERIFICATION",
     "depth",
     "drain",
@@ -91,6 +92,7 @@ TOPIC_EMAIL_VERIFICATION = "email.verification"
 TOPIC_EMAIL_PASSWORD_RESET = "email.password_reset"
 TOPIC_EMAIL_EARLY_ACCESS = "email.early_access"
 TOPIC_EMAIL_INTAKE_NOTIFICATION = "email.intake_notification"
+TOPIC_EMAIL_PULSE_PROMPT = "email.pulse_prompt"
 
 # -- Publish outcomes -------------------------------------------------------
 #
@@ -167,12 +169,19 @@ def _send_intake_notification(payload: Dict[str, Any]) -> None:
     email_infra.send_intake_notification(**payload)
 
 
+def _send_pulse_prompt(payload: Dict[str, Any]) -> None:
+    email_infra.send_pulse_prompt_email(
+        payload["to"], payload["deep_link"], slowdown_notice=payload.get("slowdown_notice", False)
+    )
+
+
 #: Topic -> the side effect publishing it performs.
 TOPICS: Dict[str, Callable[[Dict[str, Any]], None]] = {
     TOPIC_EMAIL_VERIFICATION: _send_verification,
     TOPIC_EMAIL_PASSWORD_RESET: _send_password_reset,
     TOPIC_EMAIL_EARLY_ACCESS: _send_early_access,
     TOPIC_EMAIL_INTAKE_NOTIFICATION: _send_intake_notification,
+    TOPIC_EMAIL_PULSE_PROMPT: _send_pulse_prompt,
 }
 
 _table = Outbox.__table__
