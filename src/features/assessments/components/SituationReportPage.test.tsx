@@ -833,5 +833,59 @@ describe("SituationReportPage", () => {
       ).not.toBeInTheDocument();
       expect(screen.queryByText("Your experiments")).not.toBeInTheDocument();
     });
+
+    // G5: a failed or pending `/me/experiments` must not read as "nothing
+    // running," which is what an empty array renders as -- see
+    // SituationReportPage.tsx's `ExperimentsStatus`.
+    it("offers no start button and shows a retry notice when experiments fail to load", async () => {
+      const TWO_CELL_REPORT: SituationComplete = {
+        ...COMPLETE,
+        dimensions: [STRAINING_AUTONOMY, STRAINING_PACE],
+      };
+      let attempt = 0;
+      mocks.fetchWithAuth.mockImplementation((path: string) => {
+        if (path === "/me/situation-report") return Promise.resolve(TWO_CELL_REPORT);
+        if (path === "/me/pulse/history") return Promise.resolve({ checkins: [], events: [] });
+        if (path === "/me/experiments") {
+          attempt += 1;
+          return attempt === 1
+            ? Promise.reject(new ApiError("boom", { status: 403 }))
+            : Promise.resolve({ experiments: [] });
+        }
+        return Promise.reject(new Error(`unexpected path ${path}`));
+      });
+      renderPage();
+
+      await screen.findByRole("heading", { name: "You, and this job" });
+      // Without the fix, `experiments ?? []` reads a failed fetch as "nothing
+      // running" and both cells offer their button anyway.
+      expect(
+        screen.queryByRole("button", { name: /Try this for two weeks/ }),
+      ).not.toBeInTheDocument();
+      const notice = await screen.findByText("We couldn't load your experiments right now.");
+      fireEvent.click(within(notice.closest("section") as HTMLElement).getByRole("button", { name: "Try again" }));
+
+      const buttons = await screen.findAllByRole("button", { name: /Try this for two weeks/ });
+      expect(buttons).toHaveLength(2);
+    });
+
+    it("offers no start button while experiments are still loading", async () => {
+      const TWO_CELL_REPORT: SituationComplete = {
+        ...COMPLETE,
+        dimensions: [STRAINING_AUTONOMY, STRAINING_PACE],
+      };
+      mocks.fetchWithAuth.mockImplementation((path: string) => {
+        if (path === "/me/situation-report") return Promise.resolve(TWO_CELL_REPORT);
+        if (path === "/me/pulse/history") return Promise.resolve({ checkins: [], events: [] });
+        if (path === "/me/experiments") return new Promise(() => {});
+        return Promise.reject(new Error(`unexpected path ${path}`));
+      });
+      renderPage();
+
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expect(
+        screen.queryByRole("button", { name: /Try this for two weeks/ }),
+      ).not.toBeInTheDocument();
+    });
   });
 });

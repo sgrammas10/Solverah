@@ -40,7 +40,39 @@ def test_read_settings_defaults_for_a_user_who_never_touched_pulse(client, seed_
         "last_prompted_at": None,
         "awaiting_response": False,
         "consecutive_unanswered": 0,
+        "auto_slowed": False,
     }
+
+
+def test_read_settings_defaults_auto_slowed_on_a_pre_g21_document(client, seed_user):
+    """Every `pulse_settings` document written before the G21 ruling
+    (2026-09-14) has the four-key shape, and those rows are in production. A
+    read that assumed the fifth key would KeyError on every one of them; a read
+    that defaulted it True would put the slowdown note in front of users the
+    engine never slowed down."""
+    from app import app
+    from model import db
+    from solverah.repositories import profile_repository
+
+    seed_user(1)
+    with app.app_context():
+        from solverah.services import pulse_settings
+
+        profile_repository.update_document(
+            1,
+            lambda document: {
+                **document,
+                "pulse_settings": {
+                    "cadence": "monthly",
+                    "last_prompted_at": None,
+                    "awaiting_response": False,
+                    "consecutive_unanswered": 0,
+                },
+            },
+        )
+        db.session.commit()
+
+        assert pulse_settings.read_settings(1)["auto_slowed"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -60,8 +92,10 @@ def test_set_cadence_persists_and_rejects_unknown_values(client, seed_user):
         assert updated["cadence"] == "biweekly"
         assert pulse_settings.read_settings(1)["cadence"] == "biweekly"
 
-        with pytest.raises(ValueError):
-            pulse_settings.set_cadence(1, "monthly")
+        # G21: monthly is a user choice now. `daily` is still not a cadence.
+        assert pulse_settings.set_cadence(1, "monthly")["cadence"] == "monthly"
+        db.session.commit()
+
         with pytest.raises(ValueError):
             pulse_settings.set_cadence(1, "daily")
 
@@ -90,6 +124,67 @@ def test_set_cadence_clears_anti_nag_state_but_leaves_last_prompted_at(client, s
     assert updated["consecutive_unanswered"] == 0
     assert updated["cadence"] == "biweekly"
     assert updated["last_prompted_at"] == prompted_at.isoformat()
+
+
+def test_set_cadence_clears_auto_slowed_even_when_choosing_monthly_itself(client, seed_user):
+    """The auto-slowed flag says *the server chose this*, so any explicit choice
+    ends it -- including picking the same monthly the drop had landed on. Were
+    it kept, a user who deliberately set monthly would keep reading "we've
+    slowed these down since it's been quiet" about a cadence they picked."""
+    from app import app
+    from model import db
+    from solverah.services import pulse_settings
+
+    seed_user(1)
+    with app.app_context():
+        pulse_settings.record_prompt(
+            1,
+            cadence="monthly",
+            consecutive_unanswered=0,
+            prompted_at=datetime.datetime(2026, 1, 1, tzinfo=UTC),
+            auto_slowed=True,
+        )
+        db.session.commit()
+        assert pulse_settings.read_settings(1)["auto_slowed"] is True
+
+        updated = pulse_settings.set_cadence(1, "monthly")
+        db.session.commit()
+
+    assert updated["cadence"] == "monthly"
+    assert updated["auto_slowed"] is False
+
+
+def test_record_prompt_persists_auto_slowed(client, seed_user):
+    """The engine's write is the only True transition, and it has to survive to
+    the next read -- the note the frontend gates on is read back from here on
+    every later page load, not carried in the prompt email alone."""
+    from app import app
+    from model import db
+    from solverah.services import pulse_settings
+
+    seed_user(1)
+    with app.app_context():
+        pulse_settings.record_prompt(
+            1,
+            cadence="monthly",
+            consecutive_unanswered=0,
+            prompted_at=datetime.datetime(2026, 1, 1, tzinfo=UTC),
+            auto_slowed=True,
+        )
+        db.session.commit()
+        assert pulse_settings.read_settings(1)["auto_slowed"] is True
+
+        # A later prompt that is not itself a drop passes the stored value
+        # through; the flag is not a one-run transient.
+        pulse_settings.record_prompt(
+            1,
+            cadence="monthly",
+            consecutive_unanswered=1,
+            prompted_at=datetime.datetime(2026, 2, 1, tzinfo=UTC),
+            auto_slowed=True,
+        )
+        db.session.commit()
+        assert pulse_settings.read_settings(1)["auto_slowed"] is True
 
 
 # ---------------------------------------------------------------------------
@@ -157,6 +252,9 @@ def test_record_prompt_sets_every_field(client, seed_user):
         "last_prompted_at": now.isoformat(),
         "awaiting_response": True,
         "consecutive_unanswered": 0,
+        # Not passed, so False: `record_prompt` only flags the auto state when
+        # the engine tells it to (see `test_record_prompt_persists_auto_slowed`).
+        "auto_slowed": False,
     }
 
 

@@ -294,6 +294,7 @@ function LogChangeSection({
 const CADENCE_OPTIONS: Array<{ value: PulseSettableCadence; label: string }> = [
   { value: "weekly", label: "Weekly" },
   { value: "biweekly", label: "Every two weeks" },
+  { value: "monthly", label: "Monthly" },
   { value: "off", label: "Off" },
 ];
 
@@ -306,7 +307,11 @@ function CadenceSection() {
     <section className="space-y-3">
       <SectionHeading>Check-in cadence</SectionHeading>
       <div className="rounded-xl border border-cream-muted bg-white px-5 py-4 space-y-3">
-        {cadence === "monthly" && (
+        {/* `auto_slowed`, not `cadence === "monthly"`: since G21 a user can
+            choose monthly themselves, and telling them we slowed it down
+            because it's been quiet would be a story about a decision they
+            made. The note belongs only to the drop the server performed. */}
+        {settingsQuery.data?.auto_slowed && (
           <p className="text-sm text-ink-secondary leading-relaxed">
             We've slowed these down to once a month since it's been quiet — no rush, and you can
             check in any time.

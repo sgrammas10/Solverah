@@ -507,6 +507,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loginWithData,
     register,
     logout,
+    clearSessionLocally,
     fetchWithAuth,
     streamFetch,
     updateProfile,

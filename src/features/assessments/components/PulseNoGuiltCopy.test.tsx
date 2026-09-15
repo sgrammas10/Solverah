@@ -86,6 +86,7 @@ interface ServeOptions {
   cardHistory?: PulseHistory;
   trendHistory?: PulseHistory;
   cadence?: "weekly" | "biweekly" | "monthly" | "off";
+  autoSlowed?: boolean;
 }
 
 function serve({
@@ -93,6 +94,7 @@ function serve({
   cardHistory = { checkins: [], events: [] },
   trendHistory = { checkins: [], events: [] },
   cadence = "weekly",
+  autoSlowed = false,
 }: ServeOptions = {}) {
   mocks.fetchWithAuth.mockImplementation((path: string, init?: RequestInit) => {
     if (path === "/me/pulse/next-checkin") return Promise.resolve(NEXT_CHECKIN);
@@ -100,7 +102,7 @@ function serve({
     if (path === "/me/pulse/history?limit=2") return Promise.resolve(cardHistory);
     if (path === "/me/pulse/history") return Promise.resolve(trendHistory);
     if (path === "/me/pulse/settings" && (!init || init.method === undefined || init.method === "GET")) {
-      return Promise.resolve({ cadence });
+      return Promise.resolve({ cadence, auto_slowed: autoSlowed });
     }
     if (path === "/me/pulse/checkins" && init?.method === "POST") {
       const body = JSON.parse(init.body as string);
@@ -187,7 +189,7 @@ describe("Pulse copy has no guilt/streak/nag language anywhere", () => {
   });
 
   it("the trend page's auto-dropped-to-monthly cadence note -- reused from the email's own wording", async () => {
-    serve({ cadence: "monthly" });
+    serve({ cadence: "monthly", autoSlowed: true });
     const { container } = render(withProviders(<PulseTrendPage />));
     await screen.findByText(/We've slowed these down to once a month/);
     assertNoGuiltCopy(container.textContent ?? "");

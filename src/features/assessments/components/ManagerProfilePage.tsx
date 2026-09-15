@@ -9,16 +9,19 @@
  * unlike `manager_match`"), so there is no scoring job to enqueue and poll,
  * just one synchronous `useMutation`, exactly FocusTypePage's shape.
  *
- * The submit response's `playbook` is `null` when this user has no
- * ManagerMatch sitting yet -- that is a valid, non-error state (the profile
- * itself is stored either way), not something this page renders an error
- * for. Rather than branching on it here, every submission navigates to
- * `/manager-profile/playbook`: a non-null playbook is written into the
- * shared query cache first so that page renders with no extra request, and a
- * null one is simply not written, so the page's own `GET` fires and lands on
- * exactly the `no_manager_match` 409 state it already has to handle for a
- * user who opens that route directly. One bridge-rendering path instead of
- * two copies of the same copy.
+ * Gated (USER_SCENARIOS S14.1, Sebastian ruling 2026-09-14): a user with no
+ * completed ManagerMatch sees a "Take ManagerMatch first" hand-off in place
+ * of the intro, before any question renders. This is a client-side gate only
+ * -- `POST /assessments/manager-profile` still persists the profile and
+ * still returns `playbook: null` for a user without ManagerMatch (that
+ * shape is pinned by `docs/contract_baseline.json` and
+ * `test_manager_playbook_api.py`), it just becomes unreachable through this
+ * page's own UI once the gate is in place. The gate reuses the same
+ * `useManagerPlaybook()` query `ManagerPlaybookPage` already runs (`GET
+ * /me/manager-playbook`), so a user arriving with it already cached (e.g.
+ * from the Intelligence Hub) sees no extra loading state. A second 409 this
+ * query can return -- ManagerMatch done, no manager-profile yet -- means
+ * "go ahead": that is the ordinary state for a first-time visitor here.
  */
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,7 +30,7 @@ import { useAuth } from "../../auth";
 import { useMP } from "../useMP";
 import type { MPAnswer } from "../useMP";
 import { MP_QUESTIONS } from "../data/mpQuestions";
-import { managerPlaybookKeys } from "../useManagerPlaybook";
+import { isNoManagerMatch, isNoManagerProfile, managerPlaybookKeys, useManagerPlaybook } from "../useManagerPlaybook";
 import type { ManagerPlaybook } from "../useManagerPlaybook";
 import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
 
@@ -60,6 +63,32 @@ function QuestionIndicator({ current, total }: { current: number; total: number 
   );
 }
 
+/** The one screen a user with no completed ManagerMatch ever sees on this route. */
+function TakeManagerMatchFirst() {
+  const navigate = useNavigate();
+  return (
+    <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
+      <div className="max-w-sm w-full rounded-xl border border-cream-muted bg-white px-6 py-8 text-center space-y-4">
+        <h1 className="font-display text-xl font-semibold text-ink-primary">
+          Take ManagerMatch first
+        </h1>
+        <p className="text-sm text-ink-secondary leading-relaxed">
+          Your playbook diffs what you need from a manager against how your manager
+          actually works. Take ManagerMatch so there's something to compare your
+          manager profile against.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate("/manager-match")}
+          className="w-full bg-forest-dark text-white font-semibold py-3 rounded hover:bg-forest-mid transition-colors"
+        >
+          Take ManagerMatch →
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function ManagerProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -67,6 +96,17 @@ export default function ManagerProfilePage() {
   const { fetchWithAuth } = useAuth();
   const queryClient = useQueryClient();
   const { answers, setAnswer, reset } = useMP();
+
+  const gateQuery = useManagerPlaybook();
+  const gateError = gateQuery.error;
+  const blockedByGate = isNoManagerMatch(gateError);
+  // "Go ahead": either the ordinary first-time state (ManagerMatch done, no
+  // profile yet) or a retake (a playbook already exists).
+  const gateReady = isNoManagerProfile(gateError) || gateQuery.isSuccess;
+  // Refetching a failed gate query keeps `isError` true until the new attempt
+  // settles -- folded into "loading" so "Try again" never looks dead.
+  const gateLoading = gateQuery.isLoading || (gateQuery.isError && gateQuery.isFetching);
+  const gateFailed = gateQuery.isError && !blockedByGate && !gateReady;
 
   const [phase, setPhase] = useState<Phase>(() => {
     if (isRetake) return "intro";
@@ -108,6 +148,10 @@ export default function ManagerProfilePage() {
   });
 
   useEffect(() => {
+    // Must not fire while the gate is still loading or has blocked this user:
+    // an auto-resubmit here would send a complete draft's answers before the
+    // hand-off has had a chance to render.
+    if (!gateReady) return;
     if (isRetake) {
       reset();
       answersRef.current = [];
@@ -119,7 +163,7 @@ export default function ManagerProfilePage() {
       submitMutation.mutate(answers);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [gateReady]);
 
   function handleAnswer(choice: "a" | "b") {
     const question = MP_QUESTIONS[questionIndex];
@@ -137,6 +181,41 @@ export default function ManagerProfilePage() {
 
   function handleRetry() {
     submitMutation.mutate(answersRef.current);
+  }
+
+  // ── Gate: loading (resolves before anything else, including a mid-quiz
+  // draft or a pending submission) ──
+  if (gateLoading) {
+    return (
+      <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
+        <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
+        <p className="text-sm text-ink-secondary">Loading…</p>
+      </div>
+    );
+  }
+
+  // ── Gate: blocked -- no ManagerMatch sitting yet ──
+  if (blockedByGate) {
+    return <TakeManagerMatchFirst />;
+  }
+
+  // ── Gate: some other failure -- a real error, not a routing prompt ──
+  if (gateFailed) {
+    return (
+      <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
+        <div className="max-w-sm w-full rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+          <p className="font-medium mb-1">We couldn't load your manager profile status right now.</p>
+          <p className="text-xs">Please try again in a moment.</p>
+          <button
+            type="button"
+            onClick={() => gateQuery.refetch()}
+            className="mt-3 text-xs font-semibold text-red-700 underline"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // ── Submitting ──

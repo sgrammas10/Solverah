@@ -16,7 +16,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 
 import PulseTrendPage from "./PulseTrendPage";
 import { createQueryClient } from "../../../shared/api/queryClient";
-import type { PulseHistory } from "../usePulse";
+import type { PulseCadence, PulseHistory } from "../usePulse";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -58,18 +58,25 @@ const EMPTY_HISTORY: PulseHistory = { checkins: [], events: [] };
 
 interface ServeOptions {
   history?: PulseHistory;
-  cadence?: "weekly" | "biweekly" | "monthly" | "off";
+  cadence?: PulseCadence;
+  autoSlowed?: boolean;
 }
 
-function serve({ history = POPULATED_HISTORY, cadence = "weekly" }: ServeOptions = {}) {
+function serve({
+  history = POPULATED_HISTORY,
+  cadence = "weekly",
+  autoSlowed = false,
+}: ServeOptions = {}) {
   mocks.fetchWithAuth.mockImplementation((path: string, init?: RequestInit) => {
     if (path === "/me/pulse/history") return Promise.resolve(history);
     if (path === "/me/pulse/settings" && (!init || init.method === undefined || init.method === "GET")) {
-      return Promise.resolve({ cadence });
+      return Promise.resolve({ cadence, auto_slowed: autoSlowed });
     }
     if (path === "/me/pulse/settings" && init?.method === "PATCH") {
+      // The server's own echo shape: an explicit choice always clears the
+      // auto-slowed state (`pulse_settings.set_cadence`).
       const body = JSON.parse(init.body as string);
-      return Promise.resolve({ cadence: body.cadence });
+      return Promise.resolve({ cadence: body.cadence, auto_slowed: false });
     }
     if (path === "/me/pulse/events" && init?.method === "POST") {
       const body = JSON.parse(init.body as string);
@@ -148,16 +155,49 @@ describe("PulseTrendPage", () => {
     expect(screen.getByText('"Team split in two"')).toBeInTheDocument();
   });
 
-  it("shows the honest slowdown note when the server has auto-dropped cadence to monthly, and offers no 'monthly' button", async () => {
-    serve({ cadence: "monthly" });
+  it("shows the honest slowdown note when the server auto-dropped cadence, and renders monthly as the selected option", async () => {
+    serve({ cadence: "monthly", autoSlowed: true });
     renderPage();
 
     expect(
       await screen.findByText(/We've slowed these down to once a month since it's been quiet/),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Monthly" })).not.toBeInTheDocument();
+    // Before G21 monthly matched no button, so an auto-dropped user saw four
+    // unselected options and no answer to "how often am I being asked?".
+    expect(screen.getByRole("button", { name: "Monthly" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     ["Weekly", "Every two weeks", "Off"].forEach((label) =>
-      expect(screen.getByRole("button", { name: label })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-pressed", "false"),
+    );
+  });
+
+  it("shows no slowdown note to a user who chose monthly themselves", async () => {
+    serve({ cadence: "monthly", autoSlowed: false });
+    renderPage();
+    // The heading renders before the settings query resolves, so waiting on
+    // the pressed state is what proves the served cadence actually arrived --
+    // otherwise "no note" would pass trivially against an unresolved query.
+    await screen.findByRole("button", { name: "Monthly", pressed: true });
+
+    expect(
+      screen.queryByText(/We've slowed these down to once a month/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("sets monthly with one click, like every other cadence", async () => {
+    serve({ cadence: "weekly" });
+    renderPage();
+    await screen.findByText("Check-in cadence");
+
+    fireEvent.click(screen.getByRole("button", { name: "Monthly" }));
+
+    await waitFor(() =>
+      expect(mocks.fetchWithAuth).toHaveBeenCalledWith(
+        "/me/pulse/settings",
+        expect.objectContaining({ method: "PATCH", body: JSON.stringify({ cadence: "monthly" }) }),
+      ),
     );
   });
 

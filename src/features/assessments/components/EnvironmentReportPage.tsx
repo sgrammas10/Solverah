@@ -31,6 +31,13 @@
  * (`first_job_no_role`) catches the case where the profile changed under a
  * form already open. Both land on the same friendly hand-off, never on an
  * error card -- there is nothing here for this user to fix.
+ *
+ * A THIRD failure -- the report call itself erroring, rather than resolving
+ * to one of the states above -- gets the opposite treatment. `/me/situation-
+ * report` returns 200 in every legitimate state, so `reportQuery.isError`
+ * here always means a real failure, never "nothing yet." A failed gate is an
+ * error card, never an open form: rendering the intro anyway would let this
+ * user reach a form the page never got to confirm they may submit.
  */
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -238,12 +245,32 @@ export default function EnvironmentReportPage() {
     });
   }
 
-  // ── Loading the gate ──
-  if (reportQuery.isLoading) {
+  // ── Loading the gate ── `isError && isFetching` covers a retry in flight,
+  // so "Try again" below doesn't look dead while it resolves.
+  if (reportQuery.isLoading || (reportQuery.isError && reportQuery.isFetching)) {
     return (
       <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
         <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
         <p className="text-sm text-ink-secondary">Loading…</p>
+      </div>
+    );
+  }
+
+  // ── The gate failed to load -- see the file header's third gate failure ──
+  if (reportQuery.isError) {
+    return (
+      <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
+        <div className="max-w-sm w-full rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+          <p className="font-medium mb-1">We couldn't load your report right now.</p>
+          <p className="text-xs">Please try again in a moment.</p>
+          <button
+            type="button"
+            onClick={() => reportQuery.refetch()}
+            className="mt-3 text-xs font-semibold text-red-700 underline"
+          >
+            Try again
+          </button>
+        </div>
       </div>
     );
   }

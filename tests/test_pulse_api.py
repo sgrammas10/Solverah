@@ -327,9 +327,10 @@ def test_get_settings_defaults_to_weekly(client, auth):
     body = resp.get_json()
     PulseCadenceResponse.model_validate(body)
     assert body["cadence"] == "weekly"
+    assert body["auto_slowed"] is False
 
 
-@pytest.mark.parametrize("cadence", ["biweekly", "off", "weekly"])
+@pytest.mark.parametrize("cadence", ["biweekly", "off", "weekly", "monthly"])
 def test_patch_settings_updates_cadence(client, auth, cadence):
     csrf, _user_id = auth
 
@@ -338,6 +339,7 @@ def test_patch_settings_updates_cadence(client, auth, cadence):
     )
 
     assert resp.status_code == 200
+    PulseCadenceResponse.model_validate(resp.get_json())
     assert resp.get_json()["cadence"] == cadence
     assert client.get("/api/v1/me/pulse/settings").get_json()["cadence"] == cadence
 
@@ -355,14 +357,23 @@ def test_patch_settings_off_is_one_call(client, auth):
     assert resp.get_json()["cadence"] == "off"
 
 
-def test_patch_settings_rejects_a_cadence_the_user_cannot_set_directly(client, auth):
+def test_patch_settings_accepts_monthly(client, auth):
+    """G21 (2026-09-14): monthly is the fourth thing a user can choose, not
+    only where the anti-nag drop lands them. Choosing it is not the auto-slowed
+    state, so the echo says `auto_slowed` False -- that is what keeps the "we've
+    slowed these down" note off a screen it would be a lie on."""
     csrf, _user_id = auth
 
     resp = client.patch(
         "/api/v1/me/pulse/settings", json={"cadence": "monthly"}, headers={"X-CSRF-TOKEN": csrf}
     )
 
-    assert resp.status_code == 422
+    assert resp.status_code == 200
+    assert resp.get_json() == {"cadence": "monthly", "auto_slowed": False}
+    assert client.get("/api/v1/me/pulse/settings").get_json() == {
+        "cadence": "monthly",
+        "auto_slowed": False,
+    }
 
 
 def test_patch_settings_rejects_an_unknown_cadence(client, auth):

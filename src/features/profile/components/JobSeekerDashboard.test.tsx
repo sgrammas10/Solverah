@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import JobSeekerDashboard from "./JobSeekerDashboard";
 import { createQueryClient } from "../../../shared/api/queryClient";
+import { ApiError } from "../../../shared/api/apiError";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -418,6 +419,55 @@ describe("JobSeekerDashboard - Situation Report card", () => {
     await screen.findByText("How your conditions sit");
     const text = screen.getByTestId("situation-card").textContent ?? "";
     expect(text, "a number reached the conditions summary").not.toMatch(/\d/);
+  });
+});
+
+// ─── failed dashboard document (G14) ────────────────────────────────────────
+
+/**
+ * Regression tests: `/me/dashboard` failing used to leave `dashboardData`
+ * undefined and render straight through to the two empty-state cards ("Nothing
+ * here yet." / "No recommendations yet.") as if this were simply a new
+ * account with nothing in it, and `dashboardData?.hasIntakeSubmission ?? false`
+ * forced the intake flag to a known-wrong value the moment the fetch failed.
+ */
+describe("JobSeekerDashboard - failed dashboard document (G14)", () => {
+  it("shows a retry notice in place of both cards, not the empty states", async () => {
+    let calls = 0;
+    mocks.fetchWithAuth.mockImplementation((path: string) => {
+      if (path.startsWith("/me/pulse/")) return Promise.resolve({ checkins: [], events: [] });
+      if (path.startsWith("/me/situation-report")) return Promise.resolve(mocks.situationReport);
+      calls += 1;
+      return calls === 1
+        ? Promise.reject(new ApiError("boom", { status: 403 }))
+        : Promise.resolve(DASHBOARD_DOC);
+    });
+    renderJobSeekerDashboard();
+
+    expect(
+      await screen.findByText(/We couldn't load your dashboard right now/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Nothing here yet.")).not.toBeInTheDocument();
+    expect(screen.queryByText("No recommendations yet.")).not.toBeInTheDocument();
+    // hasIntakeSubmission must not be forced to false: the modal must not open
+    // off an unknown document.
+    expect(screen.queryByTestId("intake-modal")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("Nothing here yet.")).toBeInTheDocument();
+  });
+
+  it("shows Loading… rather than the empty-state cards while the document is in flight", async () => {
+    mocks.fetchWithAuth.mockImplementation((path: string) => {
+      if (path.startsWith("/me/pulse/")) return Promise.resolve({ checkins: [], events: [] });
+      if (path.startsWith("/me/situation-report")) return Promise.resolve(mocks.situationReport);
+      return new Promise(() => {});
+    });
+    renderJobSeekerDashboard();
+
+    expect(await screen.findAllByText("Loading…")).toHaveLength(2);
+    expect(screen.queryByText("Nothing here yet.")).not.toBeInTheDocument();
+    expect(screen.queryByText("No recommendations yet.")).not.toBeInTheDocument();
   });
 });
 

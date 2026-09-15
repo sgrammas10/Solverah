@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
 import LandingNav from "../../../shared/ui/LandingNav";
 import { IntakeForm, AccountModal, useIntakeForm, useEarlyAccess } from "../../intake";
@@ -37,6 +37,18 @@ function PrelaunchLandingPage() {
   const intake = useIntakeForm();
   const earlyAccess = useEarlyAccess();
 
+  // Account-deletion confirmation, handed over in router state by
+  // AccountSettingsPage on its way out. Router state and nothing else: the
+  // account is gone, so there is no session to read it from, and a public route
+  // that announced a deletion from a query string or localStorage would show a
+  // stranger's confirmation to whoever opened the link next.
+  const location = useLocation();
+  const deletion = location.state as
+    | { accountDeleted?: boolean; filesLeftBehind?: boolean }
+    | null;
+  const [deletionDismissed, setDeletionDismissed] = useState(false);
+  const showDeletionNote = Boolean(deletion?.accountDeleted) && !deletionDismissed;
+
   // Close modals on Escape
   useEffect(() => {
     if (!earlyAccess.isOpen && !intake.accountModalOpen) return;
@@ -57,6 +69,37 @@ function PrelaunchLandingPage() {
       >
         Skip to main content
       </a>
+
+      {showDeletionNote && (
+        <div
+          role="status"
+          className="border-b border-cream-muted bg-forest-pale px-6 py-3 text-sm text-ink-primary"
+        >
+          <div className="mx-auto flex max-w-7xl items-start justify-between gap-4">
+            <p>
+              Your account has been deleted.
+              {deletion?.filesLeftBehind && (
+                <>
+                  {" "}
+                  One or more uploaded files couldn't be removed from storage yet — email{" "}
+                  <a href="mailto:info@solverah.com" className="font-medium underline">
+                    info@solverah.com
+                  </a>{" "}
+                  and we'll confirm once they're gone.
+                </>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={() => setDeletionDismissed(true)}
+              aria-label="Dismiss"
+              className="shrink-0 font-medium text-ink-secondary hover:text-forest-mid"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       <LandingNav />
 

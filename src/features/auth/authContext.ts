@@ -122,6 +122,19 @@ export interface AuthContextType {
   loginWithData: (user: User, csrfToken: string) => void;
   register: (email: string, password: string, name: string, termsAccepted: boolean) => Promise<void>;
   logout: () => Promise<void>;
+  /**
+   * Drop every trace of this tab's session WITHOUT calling the server.
+   *
+   * `logout()` is the wrong primitive when the session is already gone
+   * server-side: it POSTs `/auth/logout` first, and that request 401s and gets
+   * console-errored on the way to the same local cleanup. Account deletion is
+   * exactly that case — `DELETE /me` already cleared the cookies and revoked
+   * the refresh family — so it calls this instead. Does the same five things
+   * logout's `finally` does, including dropping the `solverah.hasSession` hint
+   * (else the next boot burns a doomed refresh) and clearing the query cache
+   * (else the deleted account's data survives into the next sign-in here).
+   */
+  clearSessionLocally: () => void;
   fetchWithAuth: <T = any>(endpoint: string, options?: RequestInit) => Promise<T>;
   streamFetch: (endpoint: string, options?: RequestInit) => Promise<globalThis.Response>;
   /** Optimistically update the in-memory user object without a server round-trip. */

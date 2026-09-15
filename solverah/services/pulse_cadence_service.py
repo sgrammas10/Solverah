@@ -102,17 +102,28 @@ def send_due_prompts(
 
         slowdown_notice = False
         new_cadence = settings["cadence"]
+        auto_slowed = settings["auto_slowed"]
         if consecutive_unanswered >= pulse_settings.CONSECUTIVE_UNANSWERED_DROP_THRESHOLD:
-            new_cadence = pulse_settings.DROPPED_CADENCE
+            # The counter resets either way -- three unanswered prompts have
+            # been accounted for, whatever they led to. The *drop* only fires
+            # for a user not already on the dropped cadence: there is nowhere
+            # slower to go, and telling someone already at monthly that we have
+            # "slowed these down" a second and third time is the nag the rule
+            # exists to prevent (G21, 2026-09-14). `dropped_to_monthly` counts
+            # real drops for the same reason -- a no-op write is not one.
             consecutive_unanswered = 0
-            slowdown_notice = True
-            dropped_to_monthly += 1
+            if new_cadence != pulse_settings.DROPPED_CADENCE:
+                new_cadence = pulse_settings.DROPPED_CADENCE
+                slowdown_notice = True
+                auto_slowed = True
+                dropped_to_monthly += 1
 
         pulse_settings.record_prompt(
             user.id,
             cadence=new_cadence,
             consecutive_unanswered=consecutive_unanswered,
             prompted_at=now,
+            auto_slowed=auto_slowed,
         )
         entry_id = outbox.enqueue(
             outbox.TOPIC_EMAIL_PULSE_PROMPT,

@@ -329,4 +329,67 @@ describe("EnvironmentReportPage", () => {
       /Your answers are still here — try again/,
     );
   });
+
+  // G6: `/me/situation-report` returns 200 in every legitimate state, so
+  // `reportQuery.isError` here always means a real failure. Without the fix,
+  // `blockedByReport` reads `undefined` off a failed `report` as "not
+  // blocked" and the gate opens the intro on an unconfirmed first_job user.
+  describe("the report gate fails to load", () => {
+    function serveReportRejecting(onlyOnce = false) {
+      let calls = 0;
+      mocks.fetchWithAuth.mockImplementation((path: string) => {
+        if (path === "/me/profile") {
+          return Promise.resolve({ profile: { career_status: "employed" } });
+        }
+        if (path === "/me/situation-report") {
+          calls += 1;
+          if (!onlyOnce || calls === 1) {
+            return Promise.reject(new ApiError("boom", { status: 403 }));
+          }
+          return Promise.resolve(NEEDS_ENV);
+        }
+        return Promise.reject(new Error(`unexpected path ${path}`));
+      });
+    }
+
+    it("shows an error panel instead of the intro or a form", async () => {
+      serveReportRejecting();
+      renderPage();
+
+      expect(
+        await screen.findByText(/We couldn't load your report right now/),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("heading", { name: /Now the other half/ }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Start" })).not.toBeInTheDocument();
+    });
+
+    it("shows the intro once Try again resolves", async () => {
+      serveReportRejecting(true);
+      renderPage();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+
+      expect(
+        await screen.findByRole("heading", { name: "Now the other half — your job" }),
+      ).toBeInTheDocument();
+    });
+
+    it("shows Loading…, not the intro, while the report is still pending", () => {
+      mocks.fetchWithAuth.mockImplementation((path: string) => {
+        if (path === "/me/profile") {
+          return Promise.resolve({ profile: { career_status: "employed" } });
+        }
+        if (path === "/me/situation-report") return new Promise(() => {});
+        return Promise.reject(new Error(`unexpected path ${path}`));
+      });
+      renderPage();
+
+      expect(screen.getByText("Loading…")).toBeInTheDocument();
+      expect(
+        screen.queryByRole("heading", { name: /Now the other half/ }),
+      ).not.toBeInTheDocument();
+    });
+  });
 });
