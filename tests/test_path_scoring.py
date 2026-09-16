@@ -1861,6 +1861,68 @@ class TestAgainstTheRealCorpus:
         assert {"49-2094.00", "49-9051.00"} <= codes
         assert not any(m.code.startswith("15-") for m in matches)
 
+    def test_the_failure_the_soc_allow_list_patched_does_not_happen(
+        self, corpus
+    ) -> None:
+        """F-8 box 2. The evidence that deleting the allow-list was safe.
+
+        `_DEFAULT_ALLOWED_SOC_PREFIXES` existed for one reason, written down in
+        `path_scoring.py:154` at the time: *"searching 'Data Scientists' returns
+        Bioinformatics Scientists, Political Scientists, Atmospheric
+        Scientists"*. It was a patch over surface-form matching of two-word
+        TITLES, where one token dominates and "Scientists" is that token.
+
+        F-4 deleted it -- and the cost of that hack was not small: the list
+        permitted eight SOC major groups, so an electrician could not be shown a
+        single occupation from their own family, and F-2 measured three of
+        twenty evaluation profiles returning EMPTY and 500ing in production
+        because of it.
+
+        The design doc's rule for the removal was "test it, never assume it"
+        (§5 #5), and this is that test rather than an argument. Role documents
+        are ~300-400 tokens of what the job involves, so the similarity is about
+        the work and not about the noun. Measured on the 1,016-row artifact,
+        ranked by cosine from the Data Scientists row:
+
+            rank  2   0.759  Statisticians                  <- the right answer
+            rank 13   0.661  Bioinformatics Scientists
+            rank 24   0.631  Atmospheric and Space Scientists
+            rank 47   0.585  Political Scientists
+
+        Three ranks of slack on the nearest of the three, so this is a real gate
+        rather than a comfortable one. If a corpus rebuild pulls one of them into
+        the top ten, that is worth looking at -- and it is a retrieval question,
+        not a reason to bring back a list of allowed families.
+        """
+        suppressed = {
+            "19-3094.00": "Political Scientists",
+            "19-2021.00": "Atmospheric and Space Scientists",
+            "19-1029.01": "Bioinformatics Scientists",
+        }
+        for code, title in suppressed.items():
+            assert corpus.index_of(code) is not None, (
+                "%s (%s) is not in the corpus, so this test proves nothing"
+                % (code, title)
+            )
+
+        anchor = "15-2051.00"  # Data Scientists
+        top_ten = corpus.retrieve(
+            corpus.vector_for(anchor), k=10, exclude_codes=[anchor]
+        )
+        codes = [m.code for m in top_ten]
+
+        assert len(codes) == 10
+        intruders = [c for c in codes if c in suppressed]
+        assert not intruders, (
+            "the title-surface failure the allow-list patched is back: %s"
+            % [suppressed[c] for c in intruders]
+        )
+        assert "15-2041.00" in codes, (
+            "Statisticians is the answer the allow-list era could not "
+            "distinguish from the three above; if it has fallen out of the top "
+            "ten this test is measuring a different corpus"
+        )
+
     def test_zones_cover_almost_everything_that_is_retrievable(self, corpus) -> None:
         missing = [c for c in corpus.codes if c not in corpus.zones]
         real = [
