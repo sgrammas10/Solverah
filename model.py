@@ -1698,6 +1698,83 @@ class Experiment(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Path Intelligence Tier 2: the deep fit, stored per (user, occupation) -- F-5
+# ---------------------------------------------------------------------------
+# `backend/services/path_deep_fit.deep_fit` is the analysis; this table is where
+# one result is kept so a second click on the same card costs nothing. Design
+# doc PATH_INTELLIGENCE_REDESIGN.md §5 #2: "stored, invalidated on profile
+# write, mirroring `path_cache`'s `invalidate` discipline".
+#
+# MUTABLE, one row per (user, occupation) -- `SituationReportPin`'s shape, not
+# `EnvironmentReport`'s append-only one. A fit is a derived read-through cache
+# with a durable home, not an observation worth a history: nothing downstream
+# reads "what did this user's fit for 15-1252.00 look like last month", and
+# keeping every recomputation would grow a row per click per profile edit.
+#
+# DESTROYED, NOT RETAINED, ON ACCOUNT DELETION (D-7b). `payload.matched_skills`
+# is the user's own typed skill names and `gap_skills` is derived from them, so
+# the row carries free text about a person -- and free text is never retained
+# de-identified. `account_repository.delete_personal_rows` deletes it explicitly,
+# because deletion tombstones the user row rather than removing it and the
+# foreign key's cascade therefore never fires.
+
+
+class PathFit(db.Model):
+    """One user's Tier-2 deep fit for one O*NET occupation.
+
+    TWO STALENESS MECHANISMS, AND BOTH ARE LOAD-BEARING
+    ---------------------------------------------------
+    `profile_fingerprint` is a digest of exactly the `UserProfile` fields the
+    analysis reads (`solverah.repositories.path_fit_repository.fingerprint`). A
+    stored row whose fingerprint no longer matches the profile is stale and is
+    recomputed, whatever its age.
+
+    That is belt to the braces of explicit invalidation, not a replacement for
+    it. Every write that changes a scoring input calls
+    `path_fit_repository.invalidate`, enumerated and tested exactly as
+    `path_cache.invalidate`'s call sites are -- but `path_cache`'s own docstring
+    records the weakness of that enumeration: "missing one of those calls does
+    not fail loudly; it serves a stale suggestion". A fingerprint on a durable
+    row turns that silent failure into a recomputation, which costs four cached
+    O*NET calls and never a wrong answer.
+
+    `computed_at` carries the third input neither mechanism covers: O*NET's own
+    content, which changes quarterly and which no profile write invalidates.
+    `path_fit_repository.MAX_AGE` bounds it. This is the one place a TTL is the
+    right tool rather than "a second, weaker correctness mechanism next to a
+    working one" (`path_cache`), because for that input there is no first one.
+    """
+
+    __tablename__ = "path_fits"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True: uq_path_fits_user_occupation below leads with user_id, so a
+    # second index on the same column would serve nothing -- the same reasoning
+    # EnvironmentReport's user_id column gives.
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False)
+    #: O*NET-SOC, e.g. "15-1252.00". No foreign key: occupations live in the
+    #: corpus artifact (a `.npy` in S3), not in this database.
+    onet_code = db.Column(db.Text, nullable=False)
+    #: `path_deep_fit.DeepFit.to_dict()`, stored whole. Not decomposed into
+    #: columns: every consumer wants the entire panel and nothing queries into
+    #: it, so columns would buy a migration per field added and nothing else.
+    payload = db.Column(JSONB, nullable=False)
+    #: See the class docstring. Hex sha256, so a fixed 64 characters.
+    profile_fingerprint = db.Column(db.Text, nullable=False)
+    computed_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "user_id", "onet_code", name="uq_path_fits_user_occupation"
+        ),
+    )
+
+    user = db.relationship("User", backref="path_fits")
+
+
+# ---------------------------------------------------------------------------
 # Phase 2a -- profile_data, decomposed (docs/ARCHITECTURE.md Part 4.3)
 # ---------------------------------------------------------------------------
 #

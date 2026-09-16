@@ -47,11 +47,11 @@ WHAT IS *NOT* HERE ANY MORE
 ---------------------------
 The per-occupation item analysis -- O*NET skills profile, hot tech, work
 activities, and the centroid/coverage math over them -- is **Tier 2**, and
-F-5 runs it for the single occupation a user clicks.  Those helpers are still
-in this file (see the "Tier 2" section at the bottom); what is gone is the
-*fan-out* that ran them across ~40 candidates on every request.
-``tests/test_path_scoring.py::TestTombstones`` pins the deleted names so the
-funnel cannot drift back.
+F-5 moved it out to ``backend/services/path_deep_fit.py``, which runs it for
+the single occupation a user clicks.  What was deleted rather than moved is the
+*fan-out* that ran those calls across ~40 candidates on every request.
+``tests/test_path_scoring.py::TestTombstones`` pins every removed name -- the
+funnel's and Tier 2's -- so neither can drift back into this module.
 
 CALL BUDGET PER ``score_paths``
 -------------------------------
@@ -101,7 +101,6 @@ from backend.services.onet_client import (
     OnetAPIError,
     OnetClient,
     OnetRateLimitError,
-    Skill,
 )
 
 _log = logging.getLogger(__name__)
@@ -136,12 +135,6 @@ _WEIGHTS_BALANCED: tuple[float, float, float] = (0.70, 0.30, 0.00)
 _WEIGHTS_NO_ZONE_BEHAVIORAL: tuple[float, float, float] = (0.75, 0.00, 0.25)
 _WEIGHTS_NO_ZONE: tuple[float, float, float] = (1.00, 0.00, 0.00)
 
-_SKILL_LEVEL_WEIGHTS: dict[str, float] = {
-    "beginner": 0.33,
-    "intermediate": 0.67,
-    "advanced": 1.0,
-}
-
 #: Maximum number of ScoredPath objects returned.
 _TOP_N: int = 10
 
@@ -152,23 +145,6 @@ _TOP_N: int = 10
 #: and the tail is pure noise that a lucky zone delta can float to the top.
 #: Tuned on the F-2 harness (see the F-4 landing note in BUILD_PLAN §6).
 _RETRIEVE_K: int = 30
-
-# Cosine similarity threshold for an embedding match to count (Tier 2).
-_EMBED_THRESHOLD: float = 0.70
-
-# Hot tech tools from O*NET have no per-tool importance score (Tier 2).
-_HOT_TECH_IMPORTANCE: float = 75.0
-
-# Generic skills below this importance are excluded from Tier-2 scoring.
-_GENERIC_IMPORTANCE_THRESHOLD: float = 50.0
-
-# Work activity importance threshold (Tier 2).
-_WORK_ACTIVITY_IMPORTANCE_THRESHOLD: float = 50.0
-
-# Role coverage signal top-K (Tier 2).
-_COVERAGE_TOP_K: int = 5
-_CENTROID_MIX: float = 0.5
-_COVERAGE_MIX: float = 0.5
 
 #: Role-identity anchor weight, reserved by move_intent before the
 #: coverage/zone/style split (see score_paths).  ``fresh_start`` zeroes it: the
@@ -400,8 +376,10 @@ _MAX_JOB_ZONE: int = 5
 # now holds **only the user's own documents** -- the skills document, the
 # behavioural profile, and at most the title -- which is at most 3 entries per
 # distinct user scored, about 18 KB.  The budget below is left where it is
-# rather than shrunk, because F-5 will populate this cache with Tier-2 role
-# items again (for one occupation at a time, not forty), and F-8 retires it.
+# rather than shrunk, because `path_deep_fit` (F-5) populates this same cache
+# with Tier-2 role items again -- for ONE occupation per click, not forty per
+# request -- and F-8 retires it.  One cache, shared across both tiers: two would
+# double the budget arithmetic below without halving anything.
 #
 # WHERE 32 MB COMES FROM (measured 2026-09-16, not guessed).
 #
@@ -633,9 +611,9 @@ def _cosine_similarity(
     """Cosine similarity, accepting either a cached np.float32 vector or a list.
 
     asarray rather than array: cache entries are already ndarrays, so copying
-    6 KB per call is real waste.  Lists still arrive here from the Tier-2
-    centroid helpers' ``.tolist()`` results and from tests that plant vectors
-    directly.
+    6 KB per call is real waste.  Lists still arrive here from
+    ``path_deep_fit``'s centroid helpers' ``.tolist()`` results and from tests
+    that plant vectors directly.
     """
     va, vb = np.asarray(a), np.asarray(b)
     denom = float(np.linalg.norm(va) * np.linalg.norm(vb))
@@ -1480,234 +1458,3 @@ def _print_scoring_debug(
         lines.append(f"      skills: {path.overlapping_skills}")
     with open(out_path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines))
-
-
-# ---------------------------------------------------------------------------
-# Tier 2 -- per-occupation item analysis.  NOT CALLED BY score_paths.
-# ---------------------------------------------------------------------------
-#
-# Everything below here analyses ONE occupation against the user using O*NET's
-# per-occupation item data (skills profile, hot technologies, work activities).
-# BUILD_PLAN F-4 says to keep it -- "not broken, and exactly what F-5 needs for
-# a single occupation" -- and F-5 ("deep fit on click") is the chunk that wires
-# it to an endpoint.
-#
-# What was deleted instead is the *fan-out*: `_fetch_candidate_data`, the
-# `_CandidateFetch` carrier and the `_FETCH_MAX_WORKERS` thread pool that ran
-# these calls across ~40 candidates on every request.  F-5 needs none of it --
-# one occupation is three or four `_OCC_CACHE`-backed calls and no concurrency
-# at all -- and that fan-out is both the ~160-call cost and the cache pressure
-# behind the 2026-09-15 OOM.
-#
-# These functions are covered by their own unit tests and by
-# tests/test_cache_bounds.py; they are dormant, not unverified.
-
-
-def _build_role_profile(
-    hot_tech_names: set[str],
-    generic_skills: list[Skill],
-) -> list[tuple[str, float]]:
-    """Merge hot tech tools and important generic skills into one importance-weighted pool."""
-    items: list[tuple[str, float]] = [
-        (name, _HOT_TECH_IMPORTANCE) for name in hot_tech_names
-    ]
-    items += [
-        (s.name, s.importance)
-        for s in generic_skills
-        if s.importance >= _GENERIC_IMPORTANCE_THRESHOLD
-    ]
-    return items
-
-
-def _find_matched_skills(
-    user_skills: list[UserSkill],
-    role_items: list[tuple[str, float]],
-) -> list[str]:
-    """Return user skill names whose best cosine similarity to any role item >= _EMBED_THRESHOLD.
-
-    Precondition: _batch_embed has been called for all texts.
-    Used for UI display only -- does not affect the centroid score.
-    """
-    available_role = [
-        (name, _EMBED_CACHE[name])
-        for name, _ in role_items
-        if name in _EMBED_CACHE
-    ]
-    if not available_role:
-        return []
-
-    matched: list[str] = []
-    for us in user_skills:
-        user_emb = _EMBED_CACHE.get(us.name.lower())
-        if user_emb is None:
-            continue
-        best_sim = max(
-            (_cosine_similarity(user_emb, role_emb) for _, role_emb in available_role),
-            default=0.0,
-        )
-        if best_sim >= _EMBED_THRESHOLD:
-            matched.append(us.name)
-    return matched
-
-
-def _compute_centroid_score(
-    user_skills: list[UserSkill],
-    role_items: list[tuple[str, float]],
-) -> tuple[float, list[str]]:
-    """Cosine between a proficiency-weighted user centroid and an importance-weighted role centroid.
-
-    Precondition: _batch_embed has been called for all texts.
-    Role items not in cache (partial API failure) are silently excluded.
-    Returns (centroid_similarity, matched_skill_names_for_display).
-
-    **Not a Tier-1 signal any more.**  Design doc §1.1: across a *pool* of
-    candidates this averages the discriminating signal away, because O*NET's
-    Skills taxonomy is a fixed ~35 elements that every occupation carries.
-    Against a *single* occupation the user has chosen to look at, the same
-    number is a legitimate statement about that one role -- which is F-5.
-    """
-    user_vecs, user_weights = [], []
-    for us in user_skills:
-        emb = _EMBED_CACHE.get(us.name.lower())
-        if emb is None:
-            continue
-        user_vecs.append(emb)
-        user_weights.append(_SKILL_LEVEL_WEIGHTS.get(us.level, _SKILL_LEVEL_WEIGHTS["beginner"]))
-
-    if not user_vecs:
-        return 0.0, []
-
-    role_vecs, role_weights = [], []
-    for name, imp in role_items:
-        emb = _EMBED_CACHE.get(name)
-        if emb is None:
-            continue
-        role_vecs.append(emb)
-        role_weights.append(imp / 100.0)
-
-    if not role_vecs:
-        return 0.0, []
-
-    user_centroid = np.average(np.array(user_vecs), axis=0, weights=np.array(user_weights))
-    role_centroid = np.average(np.array(role_vecs), axis=0, weights=np.array(role_weights))
-
-    score = _cosine_similarity(user_centroid.tolist(), role_centroid.tolist())
-    matched = _find_matched_skills(user_skills, role_items)
-    return score, matched
-
-
-def _compute_weighted_user_centroid(
-    user_skills: list[UserSkill],
-) -> (
-    tuple[list[float], list[tuple["np.ndarray | list[float]", float]]]
-    | tuple[None, None]
-):
-    """Proficiency-weighted centroid of cached user skill embeddings.
-
-    Returns (centroid, [(emb, weight), ...]) so callers can reuse the per-skill
-    (embedding, weight) pairs without re-fetching from the cache.
-    Returns (None, None) when no embeddings are cached for any user skill.
-    """
-    available: list[tuple["np.ndarray | list[float]", float]] = []
-    for us in user_skills:
-        emb = _EMBED_CACHE.get(us.name.lower())
-        if emb is None:
-            continue
-        weight = _SKILL_LEVEL_WEIGHTS.get(us.level, _SKILL_LEVEL_WEIGHTS["beginner"])
-        available.append((emb, weight))
-    if not available:
-        return None, None
-    vecs = np.array([e for e, _ in available])
-    weights = np.array([w for _, w in available])
-    centroid: list[float] = np.average(vecs, axis=0, weights=weights).tolist()
-    return centroid, available
-
-
-def _role_coverage_score(
-    user_skills: list[UserSkill],
-    role_items: list[tuple[str, float]],
-) -> float:
-    """Coverage: top-K role items closest to the user centroid, fraction matched by user.
-
-    Asks "what does this role offer that is most relevant to this user?" then checks
-    whether the user actually has those skills.  The user centroid is
-    proficiency-weighted so advanced skills steer the direction more than beginner
-    skills, and the match threshold tightens for beginner skills.
-
-    Uses _EMBED_CACHE directly -- call after the role items have been embedded.
-    Returns 0.0 gracefully when no embeddings are available.
-    """
-    available_role = [
-        (name, emb)
-        for name, _ in role_items
-        if (emb := _EMBED_CACHE.get(name)) is not None
-    ]
-    if not available_role:
-        return 0.0
-
-    user_centroid, available_user = _compute_weighted_user_centroid(user_skills)
-    if user_centroid is None:
-        return 0.0
-
-    role_sims = sorted(
-        [
-            (name, emb, _cosine_similarity(emb, user_centroid))
-            for name, emb in available_role
-        ],
-        key=lambda x: x[2],
-        reverse=True,
-    )
-    top_k = role_sims[:_COVERAGE_TOP_K]
-
-    matched = 0
-    for _, item_emb, _ in top_k:
-        best_match = 0.0
-        best_weight = _SKILL_LEVEL_WEIGHTS["beginner"]
-        for u_emb, u_weight in available_user:  # type: ignore[union-attr]
-            sim = _cosine_similarity(item_emb, u_emb)
-            if sim > best_match:
-                best_match = sim
-                best_weight = u_weight
-        effective_threshold = _EMBED_THRESHOLD + (1.0 - best_weight) * 0.05
-        if best_match >= effective_threshold:
-            matched += 1
-
-    return matched / len(top_k) if top_k else 0.0
-
-
-def _work_style_similarity(
-    behavioral_profile: str,
-    work_activities: list[tuple[str, float]],
-    openai_client,
-) -> float:
-    """Cosine between the user's behavioural profile and a role's work activities.
-
-    The Tier-2 form of the style signal: it compares against O*NET's *item*
-    list for one occupation, which costs a ``get_work_activities`` call.  Tier 1
-    gets the same signal from the role document for free -- see
-    :func:`_build_signals`.
-    """
-    if openai_client is None or not work_activities:
-        return 0.0
-    try:
-        all_texts = [behavioral_profile] + [name for name, _ in work_activities]
-        _batch_embed(all_texts, openai_client)
-        profile_emb = _EMBED_CACHE.get(behavioral_profile)
-        if profile_emb is None:
-            return 0.0
-        activity_vecs, activity_weights = [], []
-        for name, imp in work_activities:
-            emb = _EMBED_CACHE.get(name)
-            if emb is None:
-                continue
-            activity_vecs.append(emb)
-            activity_weights.append(imp / 100.0)
-        if not activity_vecs:
-            return 0.0
-        activity_centroid = np.average(
-            np.array(activity_vecs), axis=0, weights=np.array(activity_weights)
-        )
-        return _cosine_similarity(profile_emb, activity_centroid.tolist())
-    except Exception:
-        _log.warning("work_style_similarity failed", exc_info=True)
-        return 0.0

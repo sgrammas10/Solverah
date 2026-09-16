@@ -923,5 +923,23 @@
     "mimetype": "application/json",
     "cookies_set": [],
     "body": "{\"experiments\":[{\"abandoned_at\":\"<TS>\",\"dimension\":\"autonomy\",\"direction\":\"under\",\"ends_at\":\"<TS>\",\"experiment_name\":\"One piece, your method, for a fortnight\",\"id\":1,\"phase\":\"abandoned\",\"readout\":{\"after_count\":0,\"before_count\":1,\"verdict\":\"not_enough_data\"},\"started_at\":\"<TS>\",\"status\":\"abandoned\"}]}\n"
+  },
+  {
+    "step": "path-fit-malformed-code",
+    "method": "POST",
+    "path": "/api/v1/me/path-fit/not-an-onet-code",
+    "status": 404,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"invalid_onet_code\"}\n"
+  },
+  {
+    "step": "path-fit-corpus-unavailable",
+    "method": "POST",
+    "path": "/api/v1/me/path-fit/15-1252.00",
+    "status": 503,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"corpus_unavailable\"}\n"
   }
 ]

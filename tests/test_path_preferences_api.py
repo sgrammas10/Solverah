@@ -164,3 +164,111 @@ def test_save_preferences_invalidates_path_cache(client, monkeypatch):
     )
 
     assert user_id not in path_cache.snapshot()
+
+
+# ---------------------------------------------------------------------------
+# The invalidation enumeration (extended for BUILD_PLAN F-5)
+# ---------------------------------------------------------------------------
+#
+# `path_cache`'s docstring names this file as the place its call sites are
+# enumerated "rather than left to review", because missing one does not fail
+# loudly -- it serves a stale suggestion. F-5 added a second thing to invalidate
+# on the same writes (the stored Tier-2 deep fits in `path_fits`), and a second
+# enumeration maintained by hand would drift from the first the moment somebody
+# added a seventh write site and remembered only one of them.
+#
+# So the enumeration below is not a list of sites. It is the *rule*: wherever
+# `path_cache.invalidate` is called, `path_fit_repository.invalidate` is called
+# too. Adding a write site that invalidates one and not the other fails here
+# whether or not anyone thought to update this file.
+
+
+def _service_sources():
+    """Every module under `solverah/` that invalidates path state, as text."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "solverah"
+    return {
+        path.relative_to(root.parent).as_posix(): path.read_text(encoding="utf-8")
+        for path in root.rglob("*.py")
+        if "path_cache.invalidate(" in path.read_text(encoding="utf-8")
+    }
+
+
+#: The six sites as they stand. Not the assertion -- `_service_sources()` is --
+#: but a floor, so a scan that silently stopped matching cannot pass by finding
+#: nothing. Raise it when a seventh write site is added.
+_KNOWN_INVALIDATION_SITES = 6
+
+
+def test_every_path_cache_invalidation_also_drops_the_stored_deep_fits():
+    sources = _service_sources()
+    assert sources, "the scan found no invalidation sites at all"
+
+    problems = []
+    total = 0
+    for name, text in sources.items():
+        cache_calls = text.count("path_cache.invalidate(")
+        fit_calls = text.count("path_fit_repository.invalidate(")
+        total += cache_calls
+        if cache_calls != fit_calls:
+            problems.append(
+                "%s: %d path_cache.invalidate call(s) but %d "
+                "path_fit_repository.invalidate call(s)" % (name, cache_calls, fit_calls)
+            )
+
+    assert not problems, (
+        "A write that changes a path-scoring input must drop BOTH the Tier-1 "
+        "suggestion cache and the Tier-2 stored fits (BUILD_PLAN F-5). "
+        + "; ".join(problems)
+    )
+    assert total >= _KNOWN_INVALIDATION_SITES, (
+        "the scan saw %d invalidation sites, fewer than the %d known to exist -- "
+        "it has stopped matching, not found a deletion"
+        % (total, _KNOWN_INVALIDATION_SITES)
+    )
+
+
+def test_the_three_services_that_invalidate_are_the_ones_expected():
+    """A new module invalidating path state is a review moment, not a silent fact.
+
+    The rule above is enforced per file, so a *new* file gets it for free -- but
+    only if somebody noticed the file exists. This is where they notice.
+    """
+    assert set(_service_sources()) == {
+        "solverah/services/assessment_service.py",
+        "solverah/services/intelligence_service.py",
+        "solverah/services/profile_service.py",
+    }
+
+
+def test_save_preferences_drops_the_stored_deep_fits(client, monkeypatch):
+    """The rule proved as behaviour on one site, not only as a source scan.
+
+    A scan cannot see a call that is made but never reached -- inside a branch
+    that is always false, or after an early return. One end-to-end case per
+    mechanism is what stops the scan from being the only evidence.
+    """
+    csrf = _register_and_login(client, monkeypatch, email="fits@example.com")
+
+    from app import app
+    from model import PathFit, User, db
+    from solverah.repositories import path_fit_repository
+
+    with app.app_context():
+        user = User.query.filter_by(email="fits@example.com").first()
+        user_id = user.id
+        path_fit_repository.store(
+            user_id, "15-1252.00", {"fit_score": 0.5}, "f" * 64
+        )
+        db.session.commit()
+        assert PathFit.query.filter_by(user_id=user_id).count() == 1
+
+    client.put(
+        "/api/v1/me/path-preferences",
+        json=VALID_PREFS,
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+
+    with app.app_context():
+        assert PathFit.query.filter_by(user_id=user_id).count() == 0

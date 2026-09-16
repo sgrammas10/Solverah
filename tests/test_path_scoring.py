@@ -27,7 +27,7 @@ import pytest
 
 import backend.services.path_scoring as ps
 from backend.services.occupation_retrieval import CorpusUnavailable, OccupationCorpus
-from backend.services.onet_client import OnetAPIError, OnetClient, Skill
+from backend.services.onet_client import OnetAPIError, OnetClient
 from backend.services.path_scoring import (
     InsufficientProfile,
     ScoredPath,
@@ -35,16 +35,12 @@ from backend.services.path_scoring import (
     UserSkill,
     _batch_embed,
     _build_behavioral_profile,
-    _build_role_profile,
     _compose_profile_document,
     _compose_skills_document,
     _compose_title_document,
-    _compute_centroid_score,
     _has_any_signal,
     _rescale_cosine,
-    _role_coverage_score,
     _weights,
-    _work_style_similarity,
     _zone_delta_score,
     score_paths,
 )
@@ -78,10 +74,6 @@ def unit(*values: float) -> np.ndarray:
     vec[: len(values)] = values
     norm = float(np.linalg.norm(vec))
     return vec / norm if norm else vec
-
-
-def onet_skill(name: str, importance: float = 50.0, level: float = 3.0) -> Skill:
-    return Skill(element_id="2.A.1.a", name=name, importance=importance, level=level)
 
 
 def build_corpus(
@@ -204,16 +196,23 @@ def tech_openai(profile_obj: UserProfile, vec: np.ndarray = TECH) -> FakeOpenAI:
 
 
 class TestTombstones:
-    """Names deleted by F-4.  Each one is a way the old funnel could return.
+    """Names that must not be in `path_scoring`.  Two eras, two reasons.
 
-    `_gather_candidates` and its helpers made ~160 O*NET calls per request;
-    `_DEFAULT_ALLOWED_SOC_PREFIXES` made whole occupational families
-    unreachable by the users inside them (F-2 measured an electrician at zero of
-    three primary labels); `_fetch_candidate_data` and `_FETCH_MAX_WORKERS` are
-    the per-candidate fan-out behind the 2026-09-15 OOM.  The per-occupation
-    *analysis* those calls fed is kept for F-5 -- see the Tier 2 section of the
-    module -- so what is asserted here is specifically that the **fan-out and
-    the funnel** are gone, not the maths.
+    **F-4 deleted the funnel.**  `_gather_candidates` and its helpers made ~160
+    O*NET calls per request; `_DEFAULT_ALLOWED_SOC_PREFIXES` made whole
+    occupational families unreachable by the users inside them (F-2 measured an
+    electrician at zero of three primary labels); `_fetch_candidate_data` and
+    `_FETCH_MAX_WORKERS` are the per-candidate fan-out behind the 2026-09-15
+    OOM.  None of it comes back.
+
+    **F-5 moved Tier 2 out.**  The per-occupation analysis those calls fed was
+    never wrong -- it was wrong to run it forty times to show ten cards -- so it
+    lives in `backend/services/path_deep_fit.py` now and runs for the ONE
+    occupation a user clicks (`tests/test_path_deep_fit.py`).  Its names are
+    listed here for a narrower reason than the funnel's: this module is Tier 1
+    and has to stay Tier 1.  `test_tier_two_moved_rather_than_died` is the other
+    half of that assertion, and without it deleting `path_deep_fit` outright
+    would leave this class green.
     """
 
     GONE = (
@@ -252,6 +251,26 @@ class TestTombstones:
         "_LLM_DEBUG_LOG",
         # the patch over the field-blind zone term
         "_ZONE_DAMPENING_FRESH_START",
+        # ---- F-5: Tier 2 moved out to backend/services/path_deep_fit.py ----
+        # Not deleted -- these run on every click, for ONE occupation. They are
+        # listed here because this module is Tier 1 and must stay Tier 1: a
+        # per-occupation item fetch that drifts back into `score_paths` is the
+        # ~160-call fan-out returning under a new name, whatever it is called.
+        "_build_role_profile",
+        "_find_matched_skills",
+        "_compute_centroid_score",
+        "_compute_weighted_user_centroid",
+        "_role_coverage_score",
+        "_work_style_similarity",
+        # ...and the constants that served only them
+        "_SKILL_LEVEL_WEIGHTS",
+        "_EMBED_THRESHOLD",
+        "_HOT_TECH_IMPORTANCE",
+        "_GENERIC_IMPORTANCE_THRESHOLD",
+        "_WORK_ACTIVITY_IMPORTANCE_THRESHOLD",
+        "_COVERAGE_TOP_K",
+        "_CENTROID_MIX",
+        "_COVERAGE_MIX",
     )
 
     @pytest.mark.parametrize("name", GONE)
@@ -268,17 +287,47 @@ class TestTombstones:
         assert "ThreadPoolExecutor" not in source
         assert "concurrent.futures" not in source
 
-    def test_tier_two_helpers_are_kept_for_f5(self) -> None:
-        """The per-occupation maths stays; only the fan-out went."""
+    def test_tier_two_moved_rather_than_died(self) -> None:
+        """Tombstoning a name that was *deleted* and one that *moved* are not the
+        same assertion, and reading GONE alone cannot tell them apart.
+
+        F-4 deleted the funnel.  F-5 moved the per-occupation maths to
+        `path_deep_fit`, where it runs for one occupation per click -- so every
+        Tier-2 name above must be absent here AND present there.  Without this
+        half, deleting `path_deep_fit` outright would leave the suite green.
+        """
+        from backend.services import path_deep_fit
+
         for name in (
             "_build_role_profile",
+            "_find_matched_skills",
             "_compute_centroid_score",
+            "_compute_weighted_user_centroid",
             "_role_coverage_score",
             "_work_style_similarity",
-            "_compute_weighted_user_centroid",
-            "_find_matched_skills",
         ):
-            assert hasattr(ps, name), f"{name} is what F-5 needs for one occupation"
+            assert hasattr(path_deep_fit, name), (
+                f"{name} left path_scoring in F-5 and must live in path_deep_fit"
+            )
+
+    def test_tier_one_makes_no_per_occupation_item_call(self) -> None:
+        """The four Tier-2 O*NET methods are not named anywhere in this module.
+
+        `TestScorePaths` proves the normal path makes no call; this proves the
+        *code* to make one is not here to be reached by an unusual path.
+        """
+        source = Path(ps.__file__).read_text(encoding="utf-8")
+        for method in (
+            "get_skills_profile",
+            "get_tech_skills",
+            "get_hot_technologies",
+            "get_work_activities",
+            "get_tasks",
+        ):
+            assert method not in source, (
+                f"{method} is a Tier-2 per-occupation fetch; it belongs to "
+                "path_deep_fit, one occupation at a time"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -931,43 +980,6 @@ def test_batch_embed_survives_an_api_failure() -> None:
 
 def test_embed_cache_is_bounded_by_bytes() -> None:
     assert ps._EMBED_CACHE_MAX_BYTES <= 64 * 1024 * 1024
-
-
-# ---------------------------------------------------------------------------
-# Tier 2 -- kept for F-5, not called by score_paths
-# ---------------------------------------------------------------------------
-
-
-class TestTierTwoHelpers:
-    def test_build_role_profile_merges_hot_tech_and_important_generic(self) -> None:
-        items = _build_role_profile(
-            {"Python"}, [onet_skill("Active Listening", 80.0), onet_skill("Trivia", 10.0)]
-        )
-        assert ("Python", ps._HOT_TECH_IMPORTANCE) in items
-        assert ("Active Listening", 80.0) in items
-        assert not any(name == "Trivia" for name, _ in items)
-
-    def test_centroid_score_reads_the_embedding_cache(self) -> None:
-        ps._EMBED_CACHE["python"] = unit(1, 0)
-        ps._EMBED_CACHE["Python"] = unit(1, 0)
-        score, matched = _compute_centroid_score(
-            [user_skill("Python", "advanced")], [("Python", 90.0)]
-        )
-        assert score == pytest.approx(1.0)
-        assert matched == ["Python"]
-
-    def test_centroid_score_is_zero_when_nothing_is_cached(self) -> None:
-        assert _compute_centroid_score([user_skill("Python")], [("Python", 90.0)]) == (0.0, [])
-
-    def test_role_coverage_full_and_empty(self) -> None:
-        ps._EMBED_CACHE["python"] = unit(1, 0)
-        ps._EMBED_CACHE["Python"] = unit(1, 0)
-        assert _role_coverage_score([user_skill("Python", "advanced")], [("Python", 90.0)]) == 1.0
-        assert _role_coverage_score([user_skill("Python")], []) == 0.0
-
-    def test_work_style_similarity_degrades_to_zero(self) -> None:
-        assert _work_style_similarity("profile text", [("Analyzing Data", 80.0)], None) == 0.0
-        assert _work_style_similarity("profile text", [], FakeOpenAI()) == 0.0
 
 
 # ---------------------------------------------------------------------------

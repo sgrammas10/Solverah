@@ -21,6 +21,7 @@ from sqlalchemy import func
 from model import (
     IntakeSubmission,
     JobRecommendation,
+    PathFit,
     PulseCheckin,
     PulseEvent,
     ResumeParseCorrection,
@@ -131,6 +132,13 @@ def delete_personal_rows(user_id: int, intakes: List[IntakeSubmission]) -> None:
     # deletion tombstones the user row instead of removing it, so the delete has
     # to be explicit; the same reasoning as the assessment submissions above.
     UserSession.query.filter_by(user_id=user_id).delete()
+    # Stored Tier-2 deep fits (BUILD_PLAN F-5). `payload.matched_skills` is the user's
+    # own typed skill names and `gap_skills` is derived from them, so the row carries
+    # free text about a person -- destroyed, not retained de-identified, which is the
+    # D-7b line `pulse_events` falls on and `pulse_checkins` does not. Explicit rather
+    # than by cascade, for the reason the two paragraphs above give: deletion tombstones
+    # the user row instead of removing it, so `fk_pathfit_user` never fires.
+    PathFit.query.filter_by(user_id=user_id).delete()
 
 
 def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_password: str) -> None:

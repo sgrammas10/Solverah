@@ -106,6 +106,20 @@ COVERED: dict[str, str] = {
         "vocabularies, no column on the row is free text, so account_repository."
         "delete_personal_rows does not touch it, the same reconciliation as pulse_checkins."
     ),
+    "path_fits": (
+        "BUILD_PLAN F-5's own D-7 wiring, wired the day the table was created. deletion: "
+        "account_repository.delete_personal_rows destroys it -- payload.matched_skills is "
+        "the user's own typed skill names and gap_skills is derived from them, so the row "
+        "carries free text about a person, and free text is never retained de-identified "
+        "(D-7b ruling, 2026-09-11) -- the pulse_events answer, not the pulse_checkins one. "
+        "Not exported: a stored deep fit is a derived read-through cache of an analysis "
+        "recomputable from four cached O*NET calls, and every input it is derived from "
+        "(skills, skill_levels, path_preferences, the assessment results) already reaches "
+        "export through the profile document. The same reasoning scoring_jobs and "
+        "resume_parse_jobs above give for being deletion-only: a receipt or a cache is not "
+        "a second source, and exporting one hands the subject a copy of something they "
+        "already have in a shape they cannot use."
+    ),
     "profiles": (
         "export: profile_repository.load_document's profile key. deletion: "
         "account_repository.tombstone_user rewrites it to {'deleted_at': ...} via "

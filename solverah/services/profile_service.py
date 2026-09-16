@@ -37,7 +37,11 @@ from typing import Any, Dict, List, Optional, Tuple
 from model import User, db
 from solverah.domain import profile as domain
 from solverah.infra import cache
-from solverah.repositories import assessment_repository, profile_repository
+from solverah.repositories import (
+    assessment_repository,
+    path_fit_repository,
+    profile_repository,
+)
 from solverah.services import audit, path_cache, resume_service
 
 __all__ = [
@@ -158,9 +162,15 @@ def save_profile(user: User, raw_profile_data: Any, clean_profile_data) -> Profi
             "target_user_id": user.id,
         },
     )
+    # Evaluated before the commit because the F-5 invalidation has to ride the
+    # same transaction; the Tier-1 cache is in-process and cannot.
+    path_inputs_changed = bool(profile_data.keys() & domain.PATH_INPUT_KEYS)
+    if path_inputs_changed:
+        path_fit_repository.invalidate(user.id)
+
     db.session.commit()
 
-    if profile_data.keys() & domain.PATH_INPUT_KEYS:
+    if path_inputs_changed:
         path_cache.invalidate(user.id)
 
     return ProfileResult(
@@ -202,6 +212,7 @@ def set_skill_proficiency(user: User, skills: Any) -> ProfileResult:
         return updated
 
     profile_repository.update_document(user.id, apply)
+    path_fit_repository.invalidate(user.id)  # F-5, with the Tier-1 cache below
     db.session.commit()
     path_cache.invalidate(user.id)
 

@@ -346,8 +346,18 @@ def test_embed_cache_reads_tolerate_the_stored_vector_type() -> None:
     that type change: numpy raises "truth value of an array with more than one
     element is ambiguous" on a bare ``if emb:``, so a later refactor that swaps
     an ``is None`` check for a truthiness test fails here rather than in prod.
+
+    The two read sites exercised here moved to ``path_deep_fit`` in F-5, and the
+    cache they read did not -- ``path_scoring._EMBED_CACHE`` is one dict shared
+    by both tiers, which is what the 32 MB budget above is a budget for. So the
+    call sites are imported from their new home and the cache is still poked
+    through its old one, deliberately: if those ever stop being the same object
+    the budget stops describing anything and this test says so.
     """
+    import backend.services.path_deep_fit as path_deep_fit
     from backend.services.path_scoring import UserSkill
+
+    assert path_deep_fit._EMBED_CACHE is path_scoring._EMBED_CACHE
 
     for name in ("python", "programming"):
         path_scoring._EMBED_CACHE[name] = np.asarray([1.0, 0.0], dtype=np.float32)
@@ -355,10 +365,10 @@ def test_embed_cache_reads_tolerate_the_stored_vector_type() -> None:
     skills = [UserSkill(name="Python", level="advanced")]
     role_items = [("programming", 90.0)]
 
-    score, matched = path_scoring._compute_centroid_score(skills, role_items)
+    score, matched = path_deep_fit._compute_centroid_score(skills, role_items)
     assert score == pytest.approx(1.0)
     assert matched == ["Python"]
-    assert path_scoring._role_coverage_score(skills, role_items) == pytest.approx(1.0)
+    assert path_deep_fit._role_coverage_score(skills, role_items) == pytest.approx(1.0)
 
 
 # ── onet_client occupation cache ────────────────────────────────────────────

@@ -41,6 +41,7 @@ from solverah.schemas.intelligence import (
     PathPreferencesDocument,
     PathPreferencesPutRequest,
     PathPreferencesRequest,
+    PathFitResponse,
     PathSuggestionJobAccepted,
     PathSuggestionJobStatus,
     RecommendationsPage,
@@ -73,6 +74,7 @@ _SCOPE_RECOMMENDATIONS_REFRESH = "intelligence:recommendations-refresh"
 _SCOPE_RECOMMENDATIONS_READ = "intelligence:recommendations-read"
 _SCOPE_AGENT = "intelligence:agent"
 _SCOPE_PATH_SUGGESTION_JOBS = "intelligence:path-suggestion-jobs"
+_SCOPE_PATH_FIT = "intelligence:path-fit"
 
 #: See ``solverah/api/v1/assessments.py`` for why a poll does not run on the
 #: global defaults, and why the day cap is restated rather than dropped.
@@ -472,3 +474,73 @@ def get_my_path_suggestion_job(job_id: str):
         return jsonify({"error": "Job not found"}), 404
 
     return jsonify(scoring_jobs.status_for(job)), 200
+
+
+# ---------------------------------------------------------------------------
+# F-5 -- the Tier-2 deep fit, on click
+# ---------------------------------------------------------------------------
+#
+# `POST /me/path-suggestion-jobs` above queues the Tier-1 shortlist because that
+# fan-out is slow. This one is synchronous and there is no job pair, which is
+# the design (`docs/PATH_INTELLIGENCE_REDESIGN.md` §2.3), not an omission: four
+# `_OCC_CACHE`-backed O*NET calls for one code and one batched embedding request
+# finish inside a request, and a job handle the client has to poll would cost
+# the user more round trips than the work it deferred.
+#
+# POST rather than GET, for the same reason the job enqueue is a POST: it is a
+# per-click provider spend with a stored side effect. A GET-with-cache would put
+# the spend behind a method browsers, proxies and prefetchers are entitled to
+# issue on their own, and would sit outside the CSRF guard that every other
+# write on this blueprint is behind.
+
+
+@document(
+    "Deep-fit one occupation for the signed-in user",
+    tags=["me"],
+    responses={
+        200: PathFitResponse,
+        400: LegacyError,
+        404: LegacyError,
+        500: LegacyError,
+        503: LegacyError,
+    },
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    request_required=False,
+    description=(
+        "The Tier-2 analysis of one O*NET occupation: which of the user's "
+        "skills it uses, what it rates highly that they have not named, "
+        "coverage and work-style fit, Job Zone feasibility, its tasks and its "
+        "hot technologies.\n\n"
+        "Synchronous. Costs four `_OCC_CACHE`-backed O*NET requests and one "
+        "batched embedding request; the result is stored per (user, "
+        "occupation) and returned from storage until the profile changes, so "
+        "clicking the same card twice is free. `cached` says which happened.\n\n"
+        "Rate limited for the same reason `POST /me/path-suggestion-jobs` is "
+        "(A9): this is the door to a provider spend.\n\n"
+        "`error` on a failure is one of `career_status_not_set`, "
+        "`profile_incomplete` (400); `invalid_onet_code`, `unknown_occupation`, "
+        "`unsupported_occupation` (404); or `corpus_unavailable` (503). The "
+        "first two are answered by prompting for the missing data, the next "
+        "three by dropping the card, the last by retrying."
+    ),
+)
+@intelligence_bp.route("/me/path-fit/<onet_code>", methods=["POST"])
+@limiter.shared_limit("10 per minute", scope=_SCOPE_PATH_FIT)
+@jwt_required()
+def post_my_path_fit(onet_code: str):
+    """POST /me/path-fit/{onet_code} - the deep fit for one occupation.
+
+    10 per minute, matching `POST /me/path-suggestion-jobs` and `POST
+    /me/recommendations/refresh`: the budget that bounds provider spend lives on
+    the route that reaches the provider. A shortlist is ten cards, so ten clicks
+    a minute is every card on the page and then some, and a stored fit is served
+    without spending anything -- the limit bounds a loop, not a reader.
+    """
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    return _respond(
+        intelligence_service.path_fit(user, onet_code, current_app.logger)
+    )

@@ -143,6 +143,27 @@ real check-in's worth of Pulse-block state for a readout word this script does
 not need to prove -- `tests/test_experiment_api.py` proves every other verdict
 word against real, controlled check-in timestamps instead.
 
+**Extended for BUILD_PLAN F-5 (2026-09-16): the Tier-2 deep fit.** A new surface,
+not a change to any existing one -- every record above keeps its position, exactly
+as the experiments block appended after the Situation Report <-> Pulse block.
+Verified before the recapture, on the standing baseline: **0 differences across 97
+responses**.
+
+Two steps, and neither of them reaches a provider, which is the point. This
+environment has no corpus artifact (`SOLVERAH_CORPUS_PATH` is unset here exactly
+as it is on the CI runner), so the two answers a deep fit can give without one
+are the two worth pinning: `path-fit-malformed-code` is the permanent `404
+invalid_onet_code`, and `path-fit-corpus-unavailable` is the transient `503
+corpus_unavailable`. That they differ is the property -- the code is validated
+*before* the corpus is loaded, so an S3 outage cannot turn a client bug into
+something the client retries forever. A future diff that made both 503 would be
+that ordering silently reversed, which no unit test phrases as a wire fact.
+
+`ONET_API_KEY` is set below for the same reason `SOLVERAH_FORM_TOKEN_SECRET` is:
+`OnetClient()` refuses to construct without one, and both steps would otherwise
+be 500s on both sides of the diff -- identical bytes proving nothing. No request
+is made with it; both steps refuse before the client is used.
+
 **The LLM is stubbed, and the prompt builders with it.** Three instruments call a
 provider; a fixture that depended on one could not produce stable bytes, and the
 narrative text is the whole payload for two of them. `_chat_json` is replaced by a
@@ -493,6 +514,10 @@ def run_scenario() -> List[Dict[str, Any]]:
     # so a different one in the shell would reorder `/assessments/core/form` and
     # make the two sides of the diff disagree for a reason that is not a change.
     os.environ["SOLVERAH_FORM_TOKEN_SECRET"] = FORM_TOKEN_SECRET
+    # `OnetClient()` refuses to construct without a key and `POST /me/path-fit`
+    # builds one before it can refuse the request -- so without this the two
+    # F-5 steps are 500s on both sides of the diff. Nothing is sent with it.
+    os.environ.setdefault("ONET_API_KEY", "contract-not-a-real-key")
     _load_conftest_guard()
 
     from app import app
@@ -1193,6 +1218,25 @@ def run_scenario() -> List[Dict[str, Any]]:
         headers=mp_csrf,
     )
     call("get-experiments-after-abandon", "GET", "/api/v1/me/experiments")
+
+    # -- Tier-2 deep fit (F-5) ---------------------------------------------
+    #
+    # Appended after the experiments block so every record above keeps its
+    # position. Reuses `mp_csrf`'s still-open EMAIL session. Neither step
+    # reaches O*NET or OpenAI -- see this module's docstring for why these two
+    # and why they must not answer alike.
+    call(
+        "path-fit-malformed-code",
+        "POST",
+        "/api/v1/me/path-fit/not-an-onet-code",
+        headers=mp_csrf,
+    )
+    call(
+        "path-fit-corpus-unavailable",
+        "POST",
+        "/api/v1/me/path-fit/15-1252.00",
+        headers=mp_csrf,
+    )
 
     return records
 

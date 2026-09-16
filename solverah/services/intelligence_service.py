@@ -37,7 +37,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from model import User, db
 from solverah.infra import llm
-from solverah.repositories import profile_repository
+from solverah.repositories import path_fit_repository, profile_repository
 from solverah.services import path_cache
 
 __all__ = [
@@ -50,6 +50,7 @@ __all__ = [
     "build_user_profile",
     "cached_path_suggestions",
     "derive_career_status",
+    "path_fit",
     "path_suggestions",
     "save_path_preferences",
 ]
@@ -113,6 +114,7 @@ def save_path_preferences(user: User, data: Dict[str, Any]) -> IntelligenceResul
     profile_repository.update_document(
         user.id, lambda existing: {**existing, "path_preferences": preferences}
     )
+    path_fit_repository.invalidate(user.id)  # F-5, with the Tier-1 cache below
     db.session.commit()
 
     path_cache.invalidate(user.id)
@@ -370,3 +372,109 @@ def read_path_preferences(user: User) -> IntelligenceResult:
             "priority": saved.get("priority"),
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Tier 2 -- the deep fit for one occupation (BUILD_PLAN F-5)
+# ---------------------------------------------------------------------------
+#
+# `path_suggestions` above is Tier 1: a cheap shortlist, no per-candidate O*NET
+# traffic, run off the request path by a worker. This is Tier 2: the full
+# analysis of the ONE occupation a user clicked, run *inside* the request,
+# because four `_OCC_CACHE`-backed calls for one code are fast enough that a
+# job/poll pair would cost the user more round trips than it saved (design doc
+# §2.3). The two functions share `build_user_profile`, so the fit and the card
+# it was opened from are computed from the same inputs by construction.
+
+#: The reason on a `path_deep_fit.UnknownOccupation` -> the error string the SPA
+#: branches on. Three codes rather than one, because the three want three
+#: different things from the UI: a client bug, a card from a stale shortlist,
+#: and a hand-built URL naming a SOC residual bucket.
+_UNKNOWN_OCCUPATION_ERRORS = {
+    "malformed": "invalid_onet_code",
+    "unknown": "unknown_occupation",
+    "residual": "unsupported_occupation",
+}
+
+
+def path_fit(user: User, onet_code: str, logger) -> IntelligenceResult:
+    """Deep-fit one occupation for *user*, serving a stored result when fresh.
+
+    Returns the same body either way, plus ``cached`` saying which it was --
+    a client renders one shape and an operator can see the hit rate without a
+    second endpoint.
+
+    Error strings, all in the ``{"error": "..."}`` shape the rest of this module
+    uses and `stateForFailure()` already branches on:
+
+    ``400 career_status_not_set``  the scorer needs it and it cannot be derived
+    ``400 profile_incomplete``     no job title and no skills (the F-4 branch)
+    ``404 invalid_onet_code``      not an O*NET-SOC code
+    ``404 unknown_occupation``     well-formed, not in the corpus
+    ``404 unsupported_occupation`` a "..., All Other" residual bucket
+    ``503 corpus_unavailable``     the corpus could not be loaded; retry
+    ``500``                        anything else, logged with a traceback
+    """
+    from backend.services.onet_client import OnetClient
+    from backend.services.path_deep_fit import (
+        CorpusUnavailable,
+        UnknownOccupation,
+        deep_fit,
+    )
+    from backend.services.path_scoring import InsufficientProfile
+
+    profile = profile_repository.load_document(user.id)
+    career_status = profile.get("career_status") or derive_career_status(profile)
+    if not career_status:
+        return _error(400, "career_status_not_set")
+
+    user_profile = build_user_profile(
+        {**profile, "career_status": career_status}, user.intake, career_status
+    )
+    fingerprint = path_fit_repository.fingerprint(user_profile)
+
+    stored = path_fit_repository.read(user.id, onet_code, fingerprint)
+    if stored is not None:
+        return IntelligenceResult(status=200, body={**stored, "cached": True})
+
+    try:
+        try:
+            openai_client = llm.get_openai_client()
+        except RuntimeError:
+            # No API key: deep_fit degrades to the zone and title terms rather
+            # than failing, the same promise score_paths makes.
+            openai_client = None
+        fit = deep_fit(user_profile, onet_code, OnetClient(), openai_client)
+    except InsufficientProfile:
+        logger.info(
+            "Insufficient profile for deep fit, user %s (title=%r, skills=%d)",
+            user.id,
+            user_profile.current_title,
+            len(user_profile.skills),
+        )
+        return _error(400, "profile_incomplete")
+    except UnknownOccupation as exc:
+        return _error(
+            404, _UNKNOWN_OCCUPATION_ERRORS.get(exc.reason, "unknown_occupation")
+        )
+    except CorpusUnavailable:
+        # The corpus is a build artifact fetched from S3 and cached on disk;
+        # unreachable is an outage, not a bad request, and retrying works.
+        logger.warning("Corpus unavailable for deep fit, user %s", user.id)
+        return _error(503, "corpus_unavailable")
+    except Exception:  # noqa: BLE001 -- logged with a traceback
+        logger.exception("Deep fit failed for user %s (%s)", user.id, onet_code)
+        return _error(500, "Unable to compute path fit")
+
+    body = {
+        **fit.to_dict(),
+        "computed_at": datetime.datetime.now(datetime.timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        ),
+    }
+    # `computed_at` is stored with the payload so a later cache hit reports when
+    # the analysis actually ran; `cached` is not, because it is a fact about the
+    # response and not about the fit.
+    path_fit_repository.store(user.id, onet_code, body, fingerprint)
+    db.session.commit()
+    return IntelligenceResult(status=200, body={**body, "cached": False})

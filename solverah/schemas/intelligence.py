@@ -15,6 +15,9 @@ __all__ = [
     "PathPreferencesDocument",
     "PathPreferencesPutRequest",
     "RecommendationsPage",
+    "PathFitGap",
+    "PathFitResponse",
+    "PathFitZone",
     "PathPreferencesRequest",
     "PathPreferencesResponse",
     "PathSuggestion",
@@ -314,4 +317,105 @@ class PathSuggestionJobStatus(SolverahModel):
     )
     result: Optional[PathSuggestionsResponse] = Field(
         default=None, description="Present only on 'succeeded'."
+    )
+
+
+# ===========================================================================
+# F-5 -- POST /me/path-fit/{onet_code}, the Tier-2 deep fit
+# ===========================================================================
+#
+# Tier 1 (`PathSuggestionsResponse` above) is a cheap shortlist. This is the
+# full analysis of the one occupation a user clicked: four `_OCC_CACHE`-backed
+# O*NET calls and one batched embedding request, run synchronously, stored per
+# (user, occupation) and invalidated on profile write.
+#
+# Every field is a number or a list the card can render directly. Nothing here
+# is LLM-written -- see `backend/services/path_deep_fit.py` on why the narrative
+# is deliberately deferred rather than missing.
+
+
+class PathFitZone(SolverahModel):
+    """Job Zone feasibility of this occupation for this user.
+
+    The live scale is 2-5: O*NET v2 merged zones 1 and 2. `occupation_zone` and
+    `delta` are null for the 93 corpus rows with no zone, and a missing zone is
+    NEUTRAL -- `score` is then what a role at the user's own level would get,
+    not a penalty.
+    """
+
+    user_zone: int = Field(description="The user's own Job Zone, 2-5.")
+    user_zone_resolved: bool = Field(
+        description="False when user_zone is the fallback guess rather than a real value."
+    )
+    occupation_zone: Optional[int] = Field(
+        default=None, description="This occupation's Job Zone, or null if it has none."
+    )
+    delta: Optional[int] = Field(
+        default=None, description="occupation_zone - user_zone, or null."
+    )
+    score: float = Field(description="The feasibility term, -0.3 to 1.0.")
+
+
+class PathFitGap(SolverahModel):
+    """One thing this role rates highly that the user's skills do not cover."""
+
+    name: str
+    importance: float = Field(description="O*NET importance, 0-100.")
+
+
+class PathFitResponse(SolverahModel):
+    """``200`` from ``POST /me/path-fit/{onet_code}``.
+
+    Identical whether the fit was just computed or served from storage;
+    ``cached`` is the only thing that differs, and it describes the response
+    rather than the fit.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    onet_code: str
+    title: str
+    fit_score: float = Field(
+        description=(
+            "0.0-1.0. NOT the Tier-1 card score and it will not equal it: "
+            "coverage here is measured against the occupation's own rated "
+            "skills and hot technologies, not against its role document."
+        )
+    )
+    retrieval_cosine: float = Field(
+        description="Raw cosine of the user's retrieval query against this role document."
+    )
+    centroid_score: float
+    coverage_score: float
+    skills_score: float
+    work_style_score: float
+    zone: PathFitZone
+    matched_skills: List[str] = Field(
+        default_factory=list, description="The user's own skills this role uses."
+    )
+    gap_skills: List[PathFitGap] = Field(
+        default_factory=list, description="Most important first, at most 8."
+    )
+    tasks: List[str] = Field(
+        default_factory=list, description="O*NET task statements, most important first."
+    )
+    tech_stack: List[str] = Field(
+        default_factory=list, description="Hot technologies, most in-demand first."
+    )
+    weights: Dict[str, float] = Field(
+        default_factory=dict, description="The role/coverage/zone/style split used."
+    )
+    onet_calls: int = Field(
+        description="O*NET requests this fit cost. Four unless a call failed."
+    )
+    narrative: Optional[str] = Field(
+        default=None,
+        description=(
+            "Reserved. Always null in F-5 -- adding an LLM call per click is a "
+            "latency and spend decision that has not been made."
+        ),
+    )
+    computed_at: str = Field(description="When the analysis ran, UTC.")
+    cached: bool = Field(
+        description="True when this came from storage rather than being computed now."
     )

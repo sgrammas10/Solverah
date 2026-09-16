@@ -3367,6 +3367,208 @@
         "title": "PasswordResetVerifyResponse",
         "type": "object"
       },
+      "PathFitGap": {
+        "additionalProperties": false,
+        "description": "One thing this role rates highly that the user's skills do not cover.",
+        "properties": {
+          "importance": {
+            "description": "O*NET importance, 0-100.",
+            "title": "Importance",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "importance"
+        ],
+        "title": "PathFitGap",
+        "type": "object"
+      },
+      "PathFitResponse": {
+        "additionalProperties": true,
+        "description": "``200`` from ``POST /me/path-fit/{onet_code}``.\n\nIdentical whether the fit was just computed or served from storage;\n``cached`` is the only thing that differs, and it describes the response\nrather than the fit.",
+        "properties": {
+          "cached": {
+            "description": "True when this came from storage rather than being computed now.",
+            "title": "Cached",
+            "type": "boolean"
+          },
+          "centroid_score": {
+            "title": "Centroid Score",
+            "type": "number"
+          },
+          "computed_at": {
+            "description": "When the analysis ran, UTC.",
+            "title": "Computed At",
+            "type": "string"
+          },
+          "coverage_score": {
+            "title": "Coverage Score",
+            "type": "number"
+          },
+          "fit_score": {
+            "description": "0.0-1.0. NOT the Tier-1 card score and it will not equal it: coverage here is measured against the occupation's own rated skills and hot technologies, not against its role document.",
+            "title": "Fit Score",
+            "type": "number"
+          },
+          "gap_skills": {
+            "description": "Most important first, at most 8.",
+            "items": {
+              "$ref": "#/components/schemas/PathFitGap"
+            },
+            "title": "Gap Skills",
+            "type": "array"
+          },
+          "matched_skills": {
+            "description": "The user's own skills this role uses.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Matched Skills",
+            "type": "array"
+          },
+          "narrative": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Reserved. Always null in F-5 -- adding an LLM call per click is a latency and spend decision that has not been made.",
+            "title": "Narrative"
+          },
+          "onet_calls": {
+            "description": "O*NET requests this fit cost. Four unless a call failed.",
+            "title": "Onet Calls",
+            "type": "integer"
+          },
+          "onet_code": {
+            "title": "Onet Code",
+            "type": "string"
+          },
+          "retrieval_cosine": {
+            "description": "Raw cosine of the user's retrieval query against this role document.",
+            "title": "Retrieval Cosine",
+            "type": "number"
+          },
+          "skills_score": {
+            "title": "Skills Score",
+            "type": "number"
+          },
+          "tasks": {
+            "description": "O*NET task statements, most important first.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Tasks",
+            "type": "array"
+          },
+          "tech_stack": {
+            "description": "Hot technologies, most in-demand first.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Tech Stack",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "weights": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "The role/coverage/zone/style split used.",
+            "title": "Weights",
+            "type": "object"
+          },
+          "work_style_score": {
+            "title": "Work Style Score",
+            "type": "number"
+          },
+          "zone": {
+            "$ref": "#/components/schemas/PathFitZone"
+          }
+        },
+        "required": [
+          "onet_code",
+          "title",
+          "fit_score",
+          "retrieval_cosine",
+          "centroid_score",
+          "coverage_score",
+          "skills_score",
+          "work_style_score",
+          "zone",
+          "onet_calls",
+          "computed_at",
+          "cached"
+        ],
+        "title": "PathFitResponse",
+        "type": "object"
+      },
+      "PathFitZone": {
+        "additionalProperties": false,
+        "description": "Job Zone feasibility of this occupation for this user.\n\nThe live scale is 2-5: O*NET v2 merged zones 1 and 2. `occupation_zone` and\n`delta` are null for the 93 corpus rows with no zone, and a missing zone is\nNEUTRAL -- `score` is then what a role at the user's own level would get,\nnot a penalty.",
+        "properties": {
+          "delta": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "occupation_zone - user_zone, or null.",
+            "title": "Delta"
+          },
+          "occupation_zone": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "This occupation's Job Zone, or null if it has none.",
+            "title": "Occupation Zone"
+          },
+          "score": {
+            "description": "The feasibility term, -0.3 to 1.0.",
+            "title": "Score",
+            "type": "number"
+          },
+          "user_zone": {
+            "description": "The user's own Job Zone, 2-5.",
+            "title": "User Zone",
+            "type": "integer"
+          },
+          "user_zone_resolved": {
+            "description": "False when user_zone is the fallback guess rather than a real value.",
+            "title": "User Zone Resolved",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "user_zone",
+          "user_zone_resolved",
+          "score"
+        ],
+        "title": "PathFitZone",
+        "type": "object"
+      },
       "PathPreferencesDocument": {
         "additionalProperties": false,
         "description": "``GET|PUT /me/path-preferences`` -- the three career-search preferences.\n\nThe endpoint this replaces was write-only and answered ``{\"message\": ...}``,\nso a client had no way to read back what it had saved and had to keep its\nown copy or dig the values out of the profile blob. A resource that can be\nread is most of what the redesign is for.\n\nNull on every field means the user has not set them. The fields are optional\non the *response* and required on :class:`PathPreferencesPutRequest`,\nbecause \"not yet answered\" is a real state and \"answered with nothing\" is\nnot -- the scorer branches on all three.",
@@ -7643,6 +7845,96 @@
         "summary": "Rank companies by fit for the authenticated user",
         "tags": [
           "companies"
+        ]
+      }
+    },
+    "/api/v1/me/path-fit/{onet_code}": {
+      "post": {
+        "description": "The Tier-2 analysis of one O*NET occupation: which of the user's skills it uses, what it rates highly that they have not named, coverage and work-style fit, Job Zone feasibility, its tasks and its hot technologies.\n\nSynchronous. Costs four `_OCC_CACHE`-backed O*NET requests and one batched embedding request; the result is stored per (user, occupation) and returned from storage until the profile changes, so clicking the same card twice is free. `cached` says which happened.\n\nRate limited for the same reason `POST /me/path-suggestion-jobs` is (A9): this is the door to a provider spend.\n\n`error` on a failure is one of `career_status_not_set`, `profile_incomplete` (400); `invalid_onet_code`, `unknown_occupation`, `unsupported_occupation` (404); or `corpus_unavailable` (503). The first two are answered by prompting for the missing data, the next three by dropping the card, the last by retrying.",
+        "operationId": "post_intelligence_post_my_path_fit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "onet_code",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathFitResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Deep-fit one occupation for the signed-in user",
+        "tags": [
+          "me"
         ]
       }
     },
