@@ -489,17 +489,18 @@ not. Keep it that way — see F-2's second warning.
 
 ### F-1 · Corpus builder + S3 artifact (M)
 
-- [ ] `flask corpus build` CLI: enumerate every O*NET occupation
+- [x] `flask corpus build` CLI: enumerate every O*NET occupation
   (`get_job_families` + `get_job_family_occupations` — ~23 calls, ~1,000
   occupations), fetch description + tasks each, compose the **role document**
   (title + description + tasks + hot tech)
-- [ ] Two new `onet_client` methods for description and tasks — `Occupation` is
+- [x] Two new `onet_client` methods for description and tasks — `Occupation` is
   `code` + `title` only today (`onet_client.py:88`)
-- [ ] Embed in batches; write a `float32` matrix + JSON sidecar (row → O*NET code)
+- [x] Embed in batches; write a `float32` matrix + JSON sidecar (row → O*NET code)
 - [ ] Upload to the **app** bucket (`S3_BUCKET_NAME`), versioned by filename.
+  _(deliberately NOT done in F-1 — Sebastian reviews the artifact first, then triggers the upload; F-3 wires the load)_
   NOT the backup bucket — `config.py` validates that pair all-or-nothing and
   refuses overlap by design
-- [ ] Check O*NET rate limits before firing ~3,000 calls in one batch
+- [x] Check O*NET rate limits before firing ~3,000 calls in one batch
 
 _**Embed the role document, not the bare title.** A 2-3 word title is dominated
 by one token, so title-only similarity reproduces the exact "Data Scientists →
@@ -512,11 +513,15 @@ text-embedding-3-small, under a cent. Storage decided by Sebastian 2026-09-16:
 is sub-millisecond, and an index would trade exactness for a speedup nobody
 needs._
 
+
+_2026-09-16: **F-1 landed** (376c8d7). Artifact at `Desktop/solverah-corpus/`: 1,016 x 1536 float32, 6,242,432 bytes, L2-normalised, sorted by code. 3,073 O*NET calls at 4 req/s (ToS limit is 5/s, 50k/day), ~$0.009 of embeddings. Three latent client bugs fixed on the way: `get_job_families` never worked against v2 (bare array), `get_job_family_occupations` silently capped at 100 (51-0000 has 114), and `get_tech_skills(hot_only=True)` is an unordered set so a new ordered `get_hot_technologies` was added. **For F-3:** 57 "…, All Other" rows are ~50-char title-only documents and should be filtered at retrieval; `/online/occupations` carries Job Zone for the whole catalog in ~11 calls._
+
 ### F-2 · Evaluation harness + today's baseline (M) — BEFORE the rewrite
 
-- [ ] A labelled set of (profile → acceptable occupations) pairs
-- [ ] Offline runner + metric (precision@10 / MRR) that can score any scorer
+- [x] A labelled set of (profile → acceptable occupations) pairs
+- [x] Offline runner + metric (precision@10 / MRR) that can score any scorer
 - [ ] **Measure the CURRENT scorer first and record the number**
+  _(harness ready; the live run — ~3,200 O*NET calls — is sequenced after F-3's calls finish, so two processes never race one API key)_
 
 _Design doc §6 names the absence of this as the plan's weakest point: without
 it, every weight in F-4 and F-7 is opinion and "the rewrite is better" is
@@ -530,17 +535,23 @@ this profile?" is a judgment Sebastian or a careful agent can make; it is not
 the anchors/rater work. If it turns into expert elicitation, F inherits E's
 blocker and the entire reason this lane was chosen evaporates._
 
+
+_2026-09-16: **F-2 landed** (f51bef7). 20 profiles, 249 labels (66 primary / 130 acceptable / 45 harmful / 8 anchor), 56 flagged low-confidence in a `confidence` field (`python -m backend.services.path_eval review`). Every code validated live against O*NET (48 calls). **Metric correction:** precision@10 is rank-blind and MRR saturates on a 10-card shortlist, so the harness adds **nDCG@10 (tune on it)** and **harmful_rate@10 (gate on it, target 0.0)**; calibrated — random scores nDCG ≈ 0.01-0.02, oracle 1.0, so ≥0.35 is a real scorer. **Sample-size rule for F-4:** 20 profiles supports "clearly better or worse", NOT per-axis claims (n=5-6 per cell). **Production finding:** `_DEFAULT_ALLOWED_SOC_PREFIXES` structurally excludes whole families — electrician 0/3 primaries reachable (47-/49- barred), graphic designer 1/3 (27- barred), warehouse 2/4 (53-/49-/51- barred), teacher loses 21-. Three of 20 profiles will likely return empty and 500 today — the ACC-4 shape, hitting tradespeople and designers. See F-4 and F-8._
+
 ### F-3 · Retrieval seam (M)
 
-- [ ] Load the matrix at boot; `retrieve(query_vec, k, filters)` — one
+- [x] Load the matrix at boot; `retrieve(query_vec, k, filters)` — one
   `matrix @ query`, exact, no ANN
-- [ ] Hard filters at this tier, not soft weights: Job Zone feasibility, and
+- [x] Hard filters at this tier, not soft weights: Job Zone feasibility, and
   SOC exclusions where a path calls for them
-- [ ] **Fail soft when S3 is unreachable at boot**; cache the artifact locally
+- [x] **Fail soft when S3 is unreachable at boot**; cache the artifact locally
   after first fetch
 
 _That last box is not optional. A boot-time S3 dependency is a brand-new outage
 mode on a service that has just had two (2026-09-08, 2026-09-15)._
+
+
+_2026-09-16: **F-3 landed** (88dae71). `backend/services/occupation_retrieval.py`: `get_corpus()` lazy + memoised + lock-guarded — **NOT at boot**, deliberately: `create_app()` also runs in `flask db upgrade` and every cron, so boot-loading would put a 6 MB fetch on migrations; two tests guard that `factory.py` never imports it. `retrieve(query_vec, k, *, exclude_codes, exclude_soc_prefixes, zone_max, include_all_other)` → `list[Match]`; `vector_for(code)` returns ANY row incl. filtered ones; `CorpusUnavailable` is a fresh typed exception per call (re-raising one cached instance grows its `__traceback__` — a slow leak). Sources: `SOLVERAH_CORPUS_PATH` (dir or .npy), then `SOLVERAH_CORPUS_S3_KEY` + `S3_BUCKET_NAME`, cached in `SOLVERAH_CORPUS_CACHE_DIR`; S3 mocked, not populated. **All-Other filter = title suffix, 75 rows; contamination 27/200 → 0/200.** Zones in a SEPARATE `*.zones.json` (`flask corpus zones`, 11 calls, run for real); schema untouched, reviewed artifact bytes unchanged. Latency 0.21 ms median k=10, 0.25 ms with all filters. **For F-4:** O*NET v2 has merged Job Zones 1 and 2 — live range is 2–5, `_zone_delta_score`'s 1–5 arithmetic is one step off; zones cover 923/1016 — 18 real occupations (17 military `55-`) have none and are excluded under any ceiling; read `zone.code`, never `zone.title`. Five `get_all_occupations` tests live in `test_occupation_retrieval.py` rather than `test_onet_client.py` (ownership deviation, documented)._
 
 ### F-4 · ⚑8 The substantial rewrite of `path_scoring.py` (L)
 
@@ -622,6 +633,7 @@ of relevance"._
   O*NET content changes quarterly
 - [ ] Test whether the SOC allow-list is still needed once documents replace
   titles; remove only with evidence, never on assumption (design doc §5 #5)
+  _(2026-09-16: **the evidence now exists, and it says remove.** F-2's ceiling analysis shows the list bars entire occupational families from the users IN those families (electrician: 0 of 3 primaries reachable). F-1 showed the title-domination failure it patched does not occur with role documents. F-4 must NOT carry `_filter_candidate_pool`'s prefix allow-list into the new retrieval; F-3's named hard filters replace it. This box becomes: confirm with the harness that removal did not reintroduce the original failure.)_
 - [ ] `_EMBED_CACHE` retires with the funnel — confirm the interim bound from
   the 2026-09-15 OOM work is genuinely dead before deleting it
 - [ ] A title that resolves to no O*NET code falls back to F-7's seed rather
