@@ -362,6 +362,35 @@ optional, because refusing to serve would turn a missing optional file into an
 outage. The publisher is the place that stops the bucket from getting into that
 state in the first place.
 
+### A scikit-learn bump is a corpus job
+
+`<artifact>.clusters.json` records the scikit-learn and numpy versions that
+fitted it (F-8 box 10). `KMeans(random_state=0)` is deterministic for one build
+of the library and makes no promise across builds, and two workers holding
+different cluster labels would show one user two different first pages on
+alternate requests -- with nothing in the logs to say so. So on a version
+mismatch the sidecar is refused and every worker refits in-process.
+
+That refit costs ~0.7 s **and** the scikit-learn import, per worker, on the
+512 MB dyno that OOMed on 2026-09-15. It is the same cost as having no sidecar
+at all, which is what box 9 and box 1 exist to stop.
+
+**So: bumping `scikit-learn` or `numpy` in `requirements.txt` means re-running
+`flask corpus clusters` and publishing the new sidecar.** No rebuild, no O*NET,
+no spend -- the command reads the artifact and writes one 19 KB file. The
+warning in the logs names it:
+
+```
+occupation clusters: sidecar ... was fitted with scikit-learn X / numpy Y,
+this process runs A / B; ... Re-run `flask corpus clusters` and publish the
+sidecar to stop paying for this
+```
+
+Measured 2026-09-16 on the 1.7.2 -> 1.9.0 bump this repo just took: the fresh
+fit reproduced the old labels **exactly**, 941/941 rows. The guard is therefore
+against a hazard that has not fired, kept because the cost of being wrong is
+silent and per-worker while the check is one metadata read.
+
 ### Running it locally
 
 The same `.env` trap as every other command here, and one extra edge: a
