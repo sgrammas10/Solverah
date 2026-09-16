@@ -64,6 +64,18 @@ def fingerprint(user_profile) -> str:
     actually read, so a change to any of them changes the answer and a change to
     anything else does not.
 
+    ``archetype_description`` is deliberately absent (F-8 follow-up). F-8 box 8
+    (02dd338) changed ``_build_behavioral_profile`` to compose the behavioural
+    document from the structured fields below instead and stop embedding that
+    LLM-written prose, and nothing in ``path_deep_fit.deep_fit`` or the
+    ``path_scoring`` helpers it calls has read the field since. Hashing it anyway
+    cost nothing incorrect -- a fit was never served stale -- but it invalidated
+    every stored fit whenever the description happened to be regenerated with
+    nothing the analysis reads having changed, which is waste with no correctness
+    behind it. Dropping it changes every stored fingerprint once; there is
+    nothing stored in production to invalidate, because the feature is not yet
+    deployed.
+
     Skills are sorted before hashing -- the profile document's list order is not
     meaningful and reordering it is not a change -- and the digest is over
     canonical JSON so key order cannot make two equal profiles differ.
@@ -73,7 +85,6 @@ def fingerprint(user_profile) -> str:
         "career_status": user_profile.career_status,
         "skills": sorted((s.name, s.level) for s in user_profile.skills),
         "archetype": user_profile.archetype,
-        "archetype_description": user_profile.archetype_description,
         "focus_type": user_profile.focus_type,
         "manager_match": user_profile.manager_match,
         "work_style_tags": sorted(user_profile.work_style_tags or []),

@@ -376,6 +376,51 @@ def test_an_unrelated_profile_edit_does_not_change_the_fingerprint():
     )
 
 
+def test_archetype_description_no_longer_moves_the_fingerprint():
+    """F-8 follow-up. F-8 box 8 (02dd338) stopped `_build_behavioral_profile`
+    reading `archetype_description`, so a regenerated description is no longer a
+    reason to throw away a stored fit -- nothing the analysis reads changed.
+
+    `focus_type` is the control: it IS read by `_build_behavioral_profile`, so it
+    must still move the fingerprint. Without the control this test could pass by
+    accident if `fingerprint` hashed nothing at all.
+    """
+    from backend.services.path_scoring import UserProfile, UserSkill
+    from solverah.repositories import path_fit_repository
+
+    base = UserProfile(
+        current_title="Software Engineer",
+        career_status="employed",
+        skills=[UserSkill(name="Python", level="advanced")],
+        archetype="Deep Diver",
+        archetype_description="You build momentum through sustained effort.",
+        focus_type="Structured Thinker",
+    )
+    description_changed = UserProfile(
+        current_title="Software Engineer",
+        career_status="employed",
+        skills=[UserSkill(name="Python", level="advanced")],
+        archetype="Deep Diver",
+        archetype_description="An entirely different sentence, about fire safety.",
+        focus_type="Structured Thinker",
+    )
+    focus_type_changed = UserProfile(
+        current_title="Software Engineer",
+        career_status="employed",
+        skills=[UserSkill(name="Python", level="advanced")],
+        archetype="Deep Diver",
+        archetype_description="You build momentum through sustained effort.",
+        focus_type="Something else entirely",
+    )
+
+    assert path_fit_repository.fingerprint(base) == path_fit_repository.fingerprint(
+        description_changed
+    ), "archetype_description is not read by the analysis and must not move the fingerprint"
+    assert path_fit_repository.fingerprint(base) != path_fit_repository.fingerprint(
+        focus_type_changed
+    ), "focus_type IS read by the analysis and must still move the fingerprint"
+
+
 # ---------------------------------------------------------------------------
 # Typed failures
 # ---------------------------------------------------------------------------
