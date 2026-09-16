@@ -142,6 +142,7 @@ __all__ = [
     "Match",
     "OccupationCorpus",
     "ZONES_SCHEMA_VERSION",
+    "clusters_sidecar_path",
     "fetch_job_zones",
     "get_corpus",
     "is_all_other_title",
@@ -476,6 +477,28 @@ def resolve_matrix_path(source: str | os.PathLike[str]) -> Path:
     return path
 
 
+def clusters_sidecar_path(matrix_path: str | os.PathLike[str]) -> Path:
+    """The ``*.clusters.json`` that belongs beside *matrix_path*.
+
+    **A deliberate duplicate of** ``occupation_clusters.cluster_sidecar_path``,
+    which is the owner of that name and of the file's meaning.  This module
+    cannot import it: ``occupation_clusters`` imports ``OccupationCorpus`` and
+    ``is_all_other_title`` from here, so the dependency runs one way only and
+    importing back would make it a cycle.  Six lines of duplicated path
+    arithmetic is the cheaper of the two, and
+    ``test_the_two_cluster_sidecar_path_helpers_agree`` fails if they drift.
+
+    Why this module needs the name at all (F-8 box 9): ``_fetch_from_s3`` has
+    to download the cluster sidecar alongside the matrix and the zones.  Before
+    it did, every worker on the S3 path -- i.e. all of production -- found no
+    sidecar, fell back to ``occupation_clusters``' in-process k-means, and paid
+    a 0.7 s fit **and** the scikit-learn import, per worker, on a 512 MB dyno
+    that OOMed on 2026-09-15.
+    """
+    path = Path(matrix_path)
+    return path.with_name(path.stem + ".clusters.json")
+
+
 def zone_sidecar_path(matrix_path: str | os.PathLike[str]) -> Path:
     """The ``*.zones.json`` that belongs beside *matrix_path*."""
     path = Path(matrix_path)
@@ -676,46 +699,59 @@ def _fetch_from_s3() -> Path:
     cache_dir = _corpus_cache_dir()
     matrix_path = cache_dir / Path(key).name
     sidecar_path = _sidecar_path(matrix_path)
-    zones_path = zone_sidecar_path(matrix_path)
-    sidecar_key = key[: -len(".npy")] + ".json"
-    zones_key = key[: -len(".npy")] + ".zones.json"
+    stem_key = key[: -len(".npy")]
+
+    #: The optional sidecars, as ``(what, key, local path)``.  Each is fetched
+    #: best-effort and separately from the artifact, because each is written on
+    #: its own cadence by its own CLI command and any of them can land after a
+    #: worker has already cached the matrix.
+    optional = [
+        ("zone", stem_key + ".zones.json", zone_sidecar_path(matrix_path)),
+        ("cluster", stem_key + ".clusters.json", clusters_sidecar_path(matrix_path)),
+    ]
 
     from solverah.infra import storage  # noqa: PLC0415 -- see docstring
 
     if matrix_path.is_file() and sidecar_path.is_file():
         _log.debug("occupation corpus: reusing cached artifact %s", matrix_path)
-        if not zones_path.is_file():
-            # The zones sidecar is uploaded separately and can appear after a
-            # worker has already cached the matrix.  One attempt per process
-            # load -- not per query -- so a corpus that genuinely has no zones
-            # costs one 404, and one that gained them does not stay filterless
-            # until somebody clears the cache directory.
-            _try_download_zones(storage.get_s3_client(), bucket, zones_key, zones_path)
+        missing = [row for row in optional if not row[2].is_file()]
+        if missing:
+            # A sidecar is uploaded separately and can appear after a worker has
+            # already cached the matrix.  One attempt per process load -- not
+            # per query -- so a corpus that genuinely has neither costs two
+            # 404s, and one that gained them does not stay degraded until
+            # somebody clears the cache directory.
+            client = storage.get_s3_client()
+            for what, sidecar_key, target in missing:
+                _try_download_optional(client, bucket, sidecar_key, target, what)
         return matrix_path
 
     client = storage.get_s3_client()
     cache_dir.mkdir(parents=True, exist_ok=True)
     try:
         _download(client, bucket, key, matrix_path)
-        _download(client, bucket, sidecar_key, sidecar_path)
+        _download(client, bucket, stem_key + ".json", sidecar_path)
     except Exception as exc:  # botocore raises a wide family; all are fatal here
         matrix_path.unlink(missing_ok=True)
         sidecar_path.unlink(missing_ok=True)
         raise CorpusUnavailable(
             f"could not fetch corpus {key} from {bucket}: {exc}"
         ) from exc
-    _try_download_zones(client, bucket, zones_key, zones_path)
+    for what, sidecar_key, target in optional:
+        _try_download_optional(client, bucket, sidecar_key, target, what)
 
     _log.info("occupation corpus: cached %s from %s", key, bucket)
     return matrix_path
 
 
-def _try_download_zones(client: Any, bucket: str, key: str, target: Path) -> None:
-    """Fetch the optional zone sidecar; its absence is the normal case."""
+def _try_download_optional(
+    client: Any, bucket: str, key: str, target: Path, what: str
+) -> None:
+    """Fetch one optional sidecar; its absence is a normal case, never fatal."""
     try:
         _download(client, bucket, key, target)
     except Exception as exc:  # noqa: BLE001 -- optional file, never fatal
-        _log.info("occupation corpus: no zone sidecar at %s (%s)", key, exc)
+        _log.info("occupation corpus: no %s sidecar at %s (%s)", what, key, exc)
 
 
 def _download(client: Any, bucket: str, key: str, target: Path) -> None:

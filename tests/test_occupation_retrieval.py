@@ -60,6 +60,22 @@ FIXTURE_MATRIX = FIXTURE_DIR / f"onet_corpus_{FIXTURE_VERSION}.npy"
 FIXTURE_SIDECAR = FIXTURE_DIR / f"onet_corpus_{FIXTURE_VERSION}.json"
 FIXTURE_ZONES = FIXTURE_DIR / f"onet_corpus_{FIXTURE_VERSION}.zones.json"
 
+#: The cluster sidecar (F-8 box 9) is NOT committed beside the other three.
+#: It is `occupation_clusters`' file, it is a k-means output rather than a hand
+#: table, and nothing in this module reads its contents -- `_fetch_from_s3`'s
+#: only job is to put it on disk at the right name. So it exists here as bytes
+#: for the S3 fake, and its shape is asserted by `test_occupation_clusters.py`.
+FIXTURE_CLUSTERS_NAME = f"onet_corpus_{FIXTURE_VERSION}.clusters.json"
+FIXTURE_CLUSTERS_BYTES = json.dumps(
+    {
+        "schema_version": 1,
+        "matrix_filename": f"onet_corpus_{FIXTURE_VERSION}.npy",
+        "k": 2,
+        "count": 2,
+        "clusters": {"11-1021.00": 0, "29-1141.00": 1},
+    }
+).encode("utf-8")
+
 FIXTURE_DIMS = 8
 
 #: (code, title, job zone, unnormalised vector).  Sorted by code on write, the
@@ -905,6 +921,7 @@ def s3_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> _FakeS3:
             f"corpus/{FIXTURE_MATRIX.name}": FIXTURE_MATRIX.read_bytes(),
             f"corpus/{FIXTURE_SIDECAR.name}": FIXTURE_SIDECAR.read_bytes(),
             f"corpus/{FIXTURE_ZONES.name}": FIXTURE_ZONES.read_bytes(),
+            f"corpus/{FIXTURE_CLUSTERS_NAME}": FIXTURE_CLUSTERS_BYTES,
         }
     )
     monkeypatch.setattr("solverah.infra.storage.get_s3_client", lambda: fake)
@@ -921,7 +938,104 @@ class TestS3Source:
             f"corpus/{FIXTURE_MATRIX.name}",
             f"corpus/{FIXTURE_SIDECAR.name}",
             f"corpus/{FIXTURE_ZONES.name}",
+            f"corpus/{FIXTURE_CLUSTERS_NAME}",
         ]
+
+
+class TestTheClusterSidecarComesDownToo:
+    """F-8 box 9. Without this, production never had a cluster sidecar.
+
+    `_fetch_from_s3` pulled the matrix and the zones and stopped, so every
+    worker on the S3 path -- which is all of production -- found no
+    `*.clusters.json`, fell through to `occupation_clusters`' in-process
+    k-means, and paid a 0.7 s fit plus the scikit-learn import. Per worker, on
+    the 512 MB dyno that OOMed on 2026-09-15. The local-artifact path never
+    showed it, because `flask corpus clusters` writes the file right next to
+    the matrix.
+    """
+
+    def test_the_sidecar_lands_in_the_cache_dir(
+        self, s3_env: _FakeS3, tmp_path: Path
+    ) -> None:
+        corpus = retrieval.get_corpus()
+
+        path = retrieval.clusters_sidecar_path(corpus.matrix_path)
+        assert path.is_file(), "the cluster sidecar was not cached"
+        assert path.parent == corpus.matrix_path.parent
+        assert json.loads(path.read_text(encoding="utf-8"))["k"] == 2
+
+    def test_occupation_clusters_finds_what_this_module_downloaded(
+        self, s3_env: _FakeS3
+    ) -> None:
+        """The two halves agree on the filename, proved rather than assumed.
+
+        This is the assertion the duplicated path helper exists for: a drift
+        between the name written here and the name read there would leave the
+        file on disk and the fit still running, which is exactly the bug this
+        box closes and is invisible from either side alone.
+        """
+        from backend.services import occupation_clusters
+
+        corpus = retrieval.get_corpus()
+
+        assert occupation_clusters.cluster_sidecar_path(
+            corpus.matrix_path
+        ) == retrieval.clusters_sidecar_path(corpus.matrix_path)
+
+    def test_a_missing_cluster_object_is_not_fatal(self, s3_env: _FakeS3) -> None:
+        """The fallback fit stays: a corpus with no sidecar is a working corpus."""
+        del s3_env.objects[f"corpus/{FIXTURE_CLUSTERS_NAME}"]
+
+        corpus = retrieval.get_corpus()
+
+        assert corpus.count == len(FIXTURE_ROWS)
+        assert not retrieval.clusters_sidecar_path(corpus.matrix_path).is_file()
+
+    def test_a_sidecar_uploaded_after_the_cache_was_filled_is_picked_up(
+        self, s3_env: _FakeS3
+    ) -> None:
+        """`flask corpus clusters` runs after `corpus build`, so it lands later.
+
+        The zones sidecar already had this; the cluster sidecar needs it for the
+        same reason and one step more strongly, because nobody clears a cache
+        directory on a Render dyno and the cost of not noticing is a k-means fit
+        per worker rather than a filter that does not fire.
+        """
+        key = f"corpus/{FIXTURE_CLUSTERS_NAME}"
+        payload = s3_env.objects.pop(key)
+        corpus = retrieval.get_corpus()
+        assert not retrieval.clusters_sidecar_path(corpus.matrix_path).is_file()
+
+        s3_env.objects[key] = payload
+        retrieval.reset_corpus_cache()
+        corpus = retrieval.get_corpus()
+
+        assert retrieval.clusters_sidecar_path(corpus.matrix_path).is_file()
+
+    def test_a_late_fetch_costs_one_client_not_one_per_sidecar(
+        self, s3_env: _FakeS3, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Two missing sidecars must not mean two client constructions.
+
+        `get_s3_client` builds a boto3 client each call, and this path runs on
+        the warm-cache branch that exists to be cheap.
+        """
+        del s3_env.objects[f"corpus/{FIXTURE_CLUSTERS_NAME}"]
+        del s3_env.objects[f"corpus/{FIXTURE_ZONES.name}"]
+        retrieval.get_corpus()
+        retrieval.reset_corpus_cache()
+
+        built = 0
+
+        def counting():
+            nonlocal built
+            built += 1
+            return s3_env
+
+        monkeypatch.setattr("solverah.infra.storage.get_s3_client", counting)
+        retrieval.get_corpus()
+
+        assert built == 1
 
     def test_the_cached_copy_is_reused_on_the_next_load(
         self, s3_env: _FakeS3, tmp_path: Path
