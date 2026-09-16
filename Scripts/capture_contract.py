@@ -1238,6 +1238,51 @@ def run_scenario() -> List[Dict[str, Any]]:
         headers=mp_csrf,
     )
 
+    # -- inline card feedback (F-6) -----------------------------------------
+    #
+    # Appended after the F-5 block, so every record above keeps its position.
+    # Same session, same reason none of these reaches a provider: there is no
+    # corpus artifact in this environment, exactly as there is none on the CI
+    # runner.
+    #
+    # THE THREE POSTS PIN AN ORDERING, WHICH IS THE PROPERTY WORTH A WIRE TEST.
+    # The route checks the verdict vocabulary, then the shape of the code, then
+    # the corpus -- and the three have to answer differently or a client cannot
+    # tell a bug it should fix from an outage it should retry. A future diff that
+    # made any two of them agree would be that ordering silently collapsing,
+    # which no unit test phrases as a fact about the wire.
+    call(
+        "path-feedback-invalid-verdict",
+        "POST",
+        "/api/v1/me/path-feedback",
+        json={"onet_code": "15-1252.00", "verdict": "sort-of"},
+        headers=mp_csrf,
+    )
+    call(
+        "path-feedback-malformed-code",
+        "POST",
+        "/api/v1/me/path-feedback",
+        json={"onet_code": "not-an-onet-code", "verdict": "interesting"},
+        headers=mp_csrf,
+    )
+    call(
+        "path-feedback-corpus-unavailable",
+        "POST",
+        "/api/v1/me/path-feedback",
+        json={"onet_code": "15-1252.00", "verdict": "interesting"},
+        headers=mp_csrf,
+    )
+    # The reset, on the wire. It reaches the rescore rather than refusing early,
+    # so without a corpus it is the transient answer -- which is the point: DELETE
+    # and POST fail the same way for the same reason, and a diff where one of them
+    # started answering 200 with an empty list would be a real behaviour change.
+    call(
+        "delete-path-feedback",
+        "DELETE",
+        "/api/v1/me/path-feedback",
+        headers=mp_csrf,
+    )
+
     return records
 
 

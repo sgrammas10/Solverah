@@ -32,12 +32,17 @@ Two behaviours are preserved deliberately, and one is gone.
 from __future__ import annotations
 
 import datetime
+import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 from model import User, db
 from solverah.infra import llm
-from solverah.repositories import path_fit_repository, profile_repository
+from solverah.repositories import (
+    path_feedback_repository,
+    path_fit_repository,
+    profile_repository,
+)
 from solverah.services import path_cache
 
 __all__ = [
@@ -49,9 +54,11 @@ __all__ = [
     "build_user_context",
     "build_user_profile",
     "cached_path_suggestions",
+    "clear_path_feedback",
     "derive_career_status",
     "path_fit",
     "path_suggestions",
+    "record_path_feedback",
     "save_path_preferences",
 ]
 
@@ -292,7 +299,16 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
             # No API key: score_paths falls back to non-embedding scoring rather
             # than failing the request.
             openai_client = None
-        scored = score_paths(user_profile, onet_client, openai_client)
+        # F-6: the cold generation honours the user's stored judgements too.
+        # Without this a reload after a deploy -- `path_cache` is per worker and
+        # lost on one -- would silently rebuild the DEFAULT list while the rows
+        # recording what the user asked for sat untouched in the database. The
+        # judgements are user state, not a property of one re-rank, so every
+        # generation reads them.
+        judgements = path_feedback_repository.verdicts_for_user(user.id)
+        scored = score_paths(
+            user_profile, onet_client, openai_client, feedback=judgements
+        )
     except InsufficientProfile:
         # The user has no job title and no skills, so there is nothing to score.
         # This is the ACC-4 / S16.11 defect: it used to arrive here as an empty
@@ -348,6 +364,11 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
         "generated_at": datetime.datetime.now(datetime.timezone.utc).strftime(
             "%Y-%m-%dT%H:%M:%SZ"
         ),
+        # F-6, additive. The list and the judgements that shaped it travel
+        # together, so a client that reloads can light up the controls the user
+        # already pressed and offer the reset. Without it a returning user would
+        # be handed a list bent by invisible state with no way to straighten it.
+        "feedback": judgements,
     }
 
     path_cache.store(user.id, payload)
@@ -478,3 +499,296 @@ def path_fit(user: User, onet_code: str, logger) -> IntelligenceResult:
     path_fit_repository.store(user.id, onet_code, body, fingerprint)
     db.session.commit()
     return IntelligenceResult(status=200, body={**body, "cached": False})
+
+
+# ---------------------------------------------------------------------------
+# Tier 1 -- inline card feedback for `adjacent` (BUILD_PLAN F-6)
+# ---------------------------------------------------------------------------
+#
+# `path_suggestions` above is the cold generation: a worker runs it, it costs an
+# LLM completion for ten narratives, and the job/poll pair exists because of
+# that. The two functions below are the WARM re-rank, and they are synchronous
+# for the reason F-5's deep fit is -- the work is small enough that a job handle
+# the client has to poll would cost more round trips than it deferred.
+#
+# WHAT A TAP COSTS, measured against the real corpus and the real APIs:
+# `score_paths` is **3 ms** warm -- zero O*NET, the user's own texts already in
+# `_EMBED_CACHE`, one 1,016 x 1,536 matrix product. The narrator was everything
+# else, at 1.4-4 seconds depending on how many cards the re-rank surfaced, so it
+# is **not on this path at all**. `_describe` has the measurements and the two
+# sources a card's "why" comes from instead.
+#
+# THESE FUNCTIONS INVALIDATE NOTHING. `path_cache.invalidate` and
+# `path_fit_repository.invalidate` are for writes that change a scoring *input
+# derived from the profile*; a judgement is not that. It is an input the scorer
+# takes directly, and the re-rank below stores its result INTO `path_cache`
+# rather than dropping it. The Tier-2 fits are untouched on purpose: a deep fit
+# is one occupation analysed against one profile, and the user's opinion about a
+# different card does not change it.
+#
+# `tests/test_path_preferences_api.py`'s enumeration rule -- every
+# `path_cache.invalidate` matched by a `path_fit_repository.invalidate` -- is
+# therefore satisfied by adding neither, which is why it needed no carve-out.
+
+#: O*NET-SOC, e.g. ``15-1252.00``.
+#:
+#: A second copy of `path_deep_fit._ONET_CODE_RE`, deliberately. That one is
+#: private to a module F-6 does not own, and reaching into another module's
+#: underscore name to save one line is the coupling that makes the next refactor
+#: of `path_deep_fit` break this route instead. What genuinely has to be shared
+#: -- the error *vocabulary* the SPA branches on -- is shared, through
+#: `_UNKNOWN_OCCUPATION_ERRORS` above.
+_ONET_CODE_PATTERN = re.compile(r"^\d{2}-\d{4}\.\d{2}$")
+
+
+def record_path_feedback(
+    user: User, data: Dict[str, Any], logger
+) -> IntelligenceResult:
+    """Store one judgement and return the re-ranked shortlist.
+
+    Body: ``{"onet_code": ..., "verdict": "too_similar"|"interesting"|"not_for_me"}``.
+
+    Errors, all in the ``{"error": "..."}`` shape `stateForFailure()` branches on:
+
+    ``400 invalid_verdict``        the verdict is not one of the three
+    ``400 career_status_not_set``  the scorer needs it and it cannot be derived
+    ``400 profile_incomplete``     no job title and no skills
+    ``404 invalid_onet_code``      not an O*NET-SOC code
+    ``404 unknown_occupation``     well-formed, not in the corpus
+    ``404 unsupported_occupation`` a "..., All Other" residual bucket
+    ``503 corpus_unavailable``     the corpus could not be loaded; retry
+    ``500``                        anything else, logged with a traceback
+
+    The code is checked for SHAPE before the corpus is touched and for
+    MEMBERSHIP after, which is F-5's ordering and F-5's reason: a malformed code
+    is a permanent client bug, and answering it 503 through an S3 outage would
+    send the caller retrying something that will never work.
+    """
+    verdict = (data or {}).get("verdict")
+    onet_code = (data or {}).get("onet_code")
+    if verdict not in path_feedback_repository.VERDICTS:
+        return _error(400, "invalid_verdict")
+    if not isinstance(onet_code, str) or not _ONET_CODE_PATTERN.match(onet_code):
+        return _error(404, "invalid_onet_code")
+
+    prepared = _prepare_rescore(user)
+    if isinstance(prepared, IntelligenceResult):
+        return prepared
+    _, career_status, user_profile = prepared
+
+    from backend.services.occupation_retrieval import (
+        CorpusUnavailable,
+        get_corpus,
+        is_all_other_title,
+    )
+
+    try:
+        corpus = get_corpus()
+    except CorpusUnavailable:
+        logger.warning("Corpus unavailable for path feedback, user %s", user.id)
+        return _error(503, "corpus_unavailable")
+
+    row = corpus.index_of(onet_code)
+    if row is None:
+        return _error(404, "unknown_occupation")
+    if is_all_other_title(corpus.titles[row]):
+        return _error(404, "unsupported_occupation")
+
+    path_feedback_repository.record(user.id, onet_code, verdict)
+    # Committed before the re-rank rather than after it. The judgement is what
+    # the user asked for, and it is small and durable; the shortlist is a cache.
+    # If the narrator times out on the next line the tap is still recorded and a
+    # refresh shows its effect, instead of the tap being silently lost because
+    # something downstream of it failed.
+    db.session.commit()
+
+    return _rescore(user, career_status, user_profile, logger)
+
+
+def clear_path_feedback(user: User, logger) -> IntelligenceResult:
+    """Drop every judgement for *user* and return the default shortlist.
+
+    The "start over" button. Idempotent: clearing when there is nothing to clear
+    is a 200 carrying the list a user who never tapped anything would get, not a
+    404 -- the client is asking for a state, not deleting a row it named.
+
+    Same error vocabulary as :func:`record_path_feedback`, minus the three that
+    are about a code and a verdict it is not given.
+    """
+    prepared = _prepare_rescore(user)
+    if isinstance(prepared, IntelligenceResult):
+        return prepared
+    _, career_status, user_profile = prepared
+
+    path_feedback_repository.clear_for_user(user.id)
+    db.session.commit()
+
+    return _rescore(user, career_status, user_profile, logger)
+
+
+def _prepare_rescore(user: User):
+    """``(profile_document, career_status, UserProfile)``, or the error to return.
+
+    The half of both handlers above that is about the *user* rather than about
+    the judgement, lifted out because getting it subtly different between the two
+    is how a POST and its matching DELETE end up disagreeing over whose profile
+    is complete.
+    """
+    profile = profile_repository.load_document(user.id)
+    career_status = profile.get("career_status") or derive_career_status(profile)
+    if not career_status:
+        return _error(400, "career_status_not_set")
+    profile = {**profile, "career_status": career_status}
+    return (
+        profile,
+        career_status,
+        build_user_profile(profile, user.intake, career_status),
+    )
+
+
+def _rescore(
+    user: User,
+    career_status: str,
+    user_profile,
+    logger,
+) -> IntelligenceResult:
+    """Re-run Tier 1 with the user's stored judgements and cache the result.
+
+    Writes into `path_cache` rather than invalidating it, so `GET
+    /me/path-suggestions` serves exactly the list this returned and the two
+    cannot disagree about what the user is looking at.
+    """
+    from backend.services.occupation_retrieval import CorpusUnavailable
+    from backend.services.onet_client import OnetClient
+    from backend.services.path_scoring import InsufficientProfile, score_paths
+
+    judgements = path_feedback_repository.verdicts_for_user(user.id)
+
+    try:
+        try:
+            openai_client = llm.get_openai_client()
+        except RuntimeError:
+            openai_client = None
+        scored = score_paths(
+            user_profile, OnetClient(), openai_client, feedback=judgements
+        )
+    except InsufficientProfile:
+        logger.info("Insufficient profile for path feedback rescore, user %s", user.id)
+        return _error(400, "profile_incomplete")
+    except CorpusUnavailable:
+        logger.warning(
+            "Corpus unavailable during path feedback rescore, user %s", user.id
+        )
+        return _error(503, "corpus_unavailable")
+    except Exception:  # noqa: BLE001 -- logged with a traceback
+        logger.exception("Path feedback rescore failed for user %s", user.id)
+        return _error(500, "Unable to score career paths")
+
+    if not scored:
+        # The transient-upstream case `path_suggestions` answers 500 for, plus
+        # one way in that is specific to this route: a radius wide enough to
+        # exclude everything. `path_scoring._RADIUS_MIN_SURVIVORS` is the guard
+        # that makes that unreachable rather than merely unlikely, and this
+        # branch is what it would look like if the guard ever stopped working.
+        logger.warning(
+            "Empty rescore for user %s (%d judgements)", user.id, len(judgements)
+        )
+        return _error(500, "Unable to score career paths")
+
+    payload = {
+        "suggestions": _describe(user, scored),
+        "career_status": career_status,
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        ),
+    }
+    path_cache.store(user.id, payload)
+    return IntelligenceResult(status=200, body={**payload, "feedback": judgements})
+
+
+#: Copy for a card the re-rank surfaced that had no narrative yet.
+#:
+#: Julie owns the wording; these are best guesses. What is NOT a wording
+#: question is the choice to have them at all -- see :func:`_describe`.
+def _overlap_sentence(overlapping_skills: List[str]) -> str:
+    names = [name for name in overlapping_skills if name][:3]
+    if not names:
+        return "A different direction. Open it to see how it lines up with your skills."
+    if len(names) == 1:
+        return "Uses your %s." % names[0]
+    return "Uses your %s and %s." % (", ".join(names[:-1]), names[-1])
+
+
+def _describe(user: User, scored) -> List[Dict[str, Any]]:
+    """The re-ranked list, with a "why" for every card and NO LLM call.
+
+    ── WHY THE NARRATOR IS NOT ON THIS PATH, MEASURED ─────────────────────────
+
+    The re-rank itself is **3 ms** warm: zero O*NET, the user's own texts already
+    in `_EMBED_CACHE`, one 1,016 x 1,536 matrix product. Everything else in a
+    tap was the narrator, and the narrator is not close to affordable here
+    (`gpt-4o-mini`, measured against the real API on the F-2 profiles):
+
+        cards narrated    1        2        3        5       10
+        latency        1.4-1.7s 1.9-2.1s 2.5-2.7s 3.1-3.7s  6.7s
+
+    A tap surfaces two to six new cards, so narrating them would put **1.5-4
+    seconds** on a control the user is expected to press repeatedly, and roughly
+    a second of that is fixed overhead no amount of carrying forward removes.
+    An optimistic re-order hides latency; it does not make a list that settles
+    four seconds later feel like an inline control. This is the one place F-6's
+    brief turned out to be wrong about cost, and it is recorded in the landing
+    note rather than absorbed quietly.
+
+    ── WHAT A CARD SAYS INSTEAD ───────────────────────────────────────────────
+
+    Two sources, in order:
+
+    1. **The narrative it already has.** Most of a re-rank is the same
+       occupations reordered, and a `why_text` is a function of (occupation,
+       profile) -- a tap moves neither. Those are carried across verbatim from
+       the cached payload, so the prose the user has been reading does not
+       change under them.
+    2. **Its overlapping skills**, for a card that was not on the list before.
+       `score_paths` already computes these per card at no extra cost (one
+       matrix product over skills the batch request already embedded), and they
+       are the *same data* the narrator is handed to write from. "Uses your
+       Lesson planning, Classroom management and Student assessment" is more
+       concrete than most of what an LLM writes from the same input, and it
+       arrives in microseconds.
+
+    `profile_dimensions` is left empty for those cards rather than filled with
+    invented tags: an empty list renders nothing, and a fabricated tag is worse
+    than a missing one.
+
+    **Routed onward (F-8):** if the LLM narrative is wanted on re-ranked cards,
+    it has to be earned off the request path -- a background pass, or a narrator
+    cheap enough to be worth the round trip. That is a spend-and-latency call,
+    not something to slip in here.
+    """
+    cached = path_cache.get(user.id) or {}
+    carried = {
+        item.get("onet_code"): item
+        for item in cached.get("suggestions") or []
+        if item.get("onet_code") and item.get("why_text")
+    }
+
+    out: List[Dict[str, Any]] = []
+    for path in scored:
+        prior = carried.get(path.onet_code)
+        out.append(
+            {
+                "onet_code": path.onet_code,
+                "title": path.title,
+                "why_text": (
+                    prior["why_text"]
+                    if prior
+                    else _overlap_sentence(path.overlapping_skills)
+                ),
+                "profile_dimensions": (
+                    prior.get("profile_dimensions") or [] if prior else []
+                ),
+                "match_score": path.score,
+            }
+        )
+    return out

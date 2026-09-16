@@ -86,7 +86,7 @@ import os
 import sys
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, Mapping, Sequence
 
 import numpy as np
 
@@ -162,17 +162,184 @@ _ROLE_WEIGHT_DEFAULT: float = 0.35
 #: ``adjacent`` rotates the query off the occupation anchor and toward the
 #: user's own capabilities: ``q = (1-mix)*anchor + mix*skills_document``.
 #:
-#: This is the interim form of design doc §3.2.  F-6 replaces it with the real
-#: Rocchio loop driven by inline card feedback; this is that loop with zero taps
-#: -- a fixed rotation instead of a learned one.  It exists because the F-2
-#: label set grades *the same job at a different grade band* as HARMFUL for
-#: ``adjacent`` (a High School Teacher must not be shown Middle School
-#: Teachers), and those siblings are exactly what a pure anchor query returns
-#: first: measured, they sit at cosine 0.85-0.88 against the anchor, above every
-#: genuinely adjacent role.  Rotating toward the skills document demotes them
-#: without the hand-written sibling rules the allow-list era would have reached
-#: for.
+#: This is design doc §3.2's query **with zero taps**, and F-6 keeps it as the
+#: ``q`` the Rocchio update starts from rather than replacing it.  It exists
+#: because the F-2 label set grades *the same job at a different grade band* as
+#: HARMFUL for ``adjacent`` (a High School Teacher must not be shown Middle
+#: School Teachers), and those siblings are exactly what a pure anchor query
+#: returns first: measured, they sit at cosine 0.85-0.88 against the anchor,
+#: above every genuinely adjacent role.  Rotating toward the skills document
+#: demotes them without the hand-written sibling rules the allow-list era would
+#: have reached for -- and a user with no judgements yet must still get a full,
+#: sensible list, which is the product constraint in design doc §3.2's second
+#: bullet.
 _ADJACENT_SKILLS_MIX: float = 0.45
+
+# ---------------------------------------------------------------------------
+# F-6 -- the `adjacent` feedback loop
+# ---------------------------------------------------------------------------
+#
+# Three constants' worth of algorithm, so the shape is worth stating once here
+# rather than three times below.  A user taps verdicts on the cards; those are
+# stored as JUDGEMENTS (`path_feedback`, one row per occupation) and turned back
+# into arithmetic on every request.  Two of the verdicts are different KINDS of
+# signal, which design doc §3.2 is emphatic about and which is the mistake it
+# was written to prevent:
+#
+#   too_similar  a RADIUS.     Exclude everything at least this close to the
+#                              user's own occupation.  A hard filter.
+#   interesting  a DIRECTION.  Rotate the query toward it.
+#   not_for_me   a DIRECTION.  Rotate the query away from it.
+#
+# Building only the radius is the obvious half-implementation: two occupations
+# equidistant from the anchor can lie in opposite directions, and a radius cannot
+# tell them apart.  Building only the rotation is the other half: a role that is
+# a near-copy of the user's own job scores highly on every similarity term by
+# construction, and no amount of rotating demotes it reliably.
+
+#: Rocchio: ``q' = alpha*q + beta*mean(liked) - gamma*mean(disliked)``.
+#:
+#: Normalised after the sum, so only the ratios matter.  Manning's *Introduction
+#: to Information Retrieval* §9.1.1 suggests alpha 1.0, beta 0.75, gamma 0.15;
+#: that was the starting point and the F-2 harness was the arbiter.
+#:
+#: **READ THE SIMULATION BEFORE THE NUMBERS.**  Six ``adjacent`` profiles, one
+#: simulated ``interesting`` and one ``too_similar`` each, **both taken from cards
+#: the profile was actually shown** -- because a user can only tap what is in
+#: front of them, and an earlier sweep that let ``interesting`` land on a labelled
+#: primary the scorer had *not* returned reported roughly twice the gain from a
+#: tap nobody can make.  Macro nDCG@10 under the realistic simulation, against
+#: 0.5278 with zero taps:
+#:
+#:     beta   0.00     0.15     0.25     0.40     0.60     0.75     1.00
+#:     nDCG   0.4767   0.4943   0.5050   0.5416   0.5427   0.5424   0.5431
+#:
+#: * **beta elbows at 0.40.**  0.25 -> 0.40 is worth +0.037 and everything above
+#:   0.40 is worth +0.002 in total, so 0.40 buys the whole effect without letting
+#:   one liked occupation weigh as much as the entire base query.
+#: * **gamma is flat across its useful range** (at beta 0.40: 0.5523 at 0.10,
+#:   0.5506 at 0.15, 0.5497 at 0.20, 0.5425 at 0.35), a spread well inside noise
+#:   at n=6, and it degrades steadily above.  So the literature's 0.15 is taken
+#:   rather than the sample maximum -- picking 0.10 off a 0.003 difference would
+#:   be fitting six profiles.
+#:
+#: **What one round of feedback is worth, honestly: +0.023 macro nDCG, and two of
+#: the six profiles get most of it while four get slightly worse.**  See
+#: :func:`_radius_exclusions` for why that is the metric's limit rather than the
+#: feature's, and `tests/test_path_scoring.TestSimulatedFeedbackAgainstTheRealCorpus`
+#: for the per-profile numbers and the assertions that follow from them.
+_ROCCHIO_ALPHA: float = 1.0
+_ROCCHIO_BETA: float = 0.40
+_ROCCHIO_GAMMA: float = 0.15
+
+#: How far *below* the closest-to-the-anchor rejection the radius is drawn.
+#:
+#: **The threshold is the MINIMUM cosine among the rejected cards, not the
+#: maximum**, and that is the one part of this rule that is easy to get backwards.
+#: Higher cosine means more similar to the user's own job.  If they reject a card
+#: at 0.85 and another at 0.70, a threshold of 0.85 would still show them
+#: everything between 0.70 and 0.85 -- including the 0.70 card they explicitly
+#: rejected.  The minimum is the only reading under which every rejected card is
+#: actually excluded, and it is the honest reading of the sentence the user is
+#: uttering: "anything at least this close to my job is too close".
+#:
+#: The margin then puts the threshold just under the rejected card rather than
+#: exactly on it, so a near-tie with the rejected card goes with it.  0.01 is
+#: `_ANCHOR_TIE_MARGIN`'s value for `_ANCHOR_TIE_MARGIN`'s reason: it is about
+#: the resolution of these cosines, not about strength of preference -- and the
+#: harness agrees that it is not a preference knob.  Measured at the tuned
+#: Rocchio constants, macro nDCG over the six `adjacent` profiles:
+#:
+#:     margin   0.00     0.01     0.03     0.06     0.10
+#:     nDCG     0.6116   0.6116   0.6031   0.5550   0.5524
+#:
+#: Flat to 0.01 and monotonically worse after: a bigger margin is not a stronger
+#: signal, it is the radius eating occupations the user said nothing about.
+_RADIUS_MARGIN: float = 0.01
+
+#: The radius never removes the last few options.
+#:
+#: Measured against the real corpus (941 retrievable rows): a rejection at cosine
+#: 0.75 excludes 5-27 rows, at 0.60 excludes 9-151, at 0.50 excludes 88-625 --
+#: the spread is by anchor, and the trades are the dense end.  So a plausible tap
+#: is safe and an implausible one ("too similar" on something at 0.35, which is
+#: the corpus median) could empty the result set and turn a tap into an HTTP 500.
+#: When the threshold would leave fewer than this many rows, it is raised to the
+#: value that admits exactly this many.  A short list is a real answer; an empty
+#: one is a failure.
+_RADIUS_MIN_SURVIVORS: int = 10
+
+#: How many corpus rows the ``adjacent`` path retrieves, instead of
+#: :data:`_RETRIEVE_K`.
+#:
+#: **Only the radius makes this matter, and only once it is active.**  With zero
+#: taps every value from 20 to 120 produces a byte-identical shortlist -- the
+#: re-rank's four terms simply do not reorder the tail past rank 30.  Once a
+#: "too similar" judgement removes a slice of the corpus, the pool that used to
+#: hold thirty re-rankable candidates holds fewer of the ones the user still
+#: wants, and widening it pays until it saturates.  Macro nDCG over the six
+#: ``adjacent`` profiles after one round of simulated feedback:
+#:
+#:     k        20       30       40       50       80      120
+#:     nDCG   0.5873   0.6045   0.6116   0.6116   0.6116   0.6116
+#:
+#: 50 is one step past the saturation point, which costs nothing: `retrieve`
+#: sorts the whole 1,016-row score vector whatever *k* is, so this bounds how
+#: many `Match` objects are built and nothing else.
+#:
+#: :data:`_RETRIEVE_K` itself is left alone.  It is shared by `stay_in_field` and
+#: `fresh_start`, which F-6 does not own and where the measurement above does not
+#: apply -- there is no radius on those paths to make the pool too narrow.
+_RETRIEVE_K_ADJACENT: int = 50
+
+
+# THERE IS NO MMR HERE, AND THAT IS A MEASUREMENT RATHER THAN AN OMISSION.
+#
+# BUILD_PLAN F-6's fourth box asks for Maximal Marginal Relevance on the returned
+# ten -- "top-K teaches nothing, random teaches nothing" -- on the reasoning that
+# an `adjacent` shortlist is a set of PROBES and ten variations on one occupation
+# ask the user nothing.  The reasoning is sound.  It was built, measured on the
+# F-2 harness, and it does not pay.
+#
+# THE EXPERIMENT.  Six `adjacent` profiles, two rounds.  Round 1 is the zero-tap
+# list; round 2 is the list after one simulated "interesting" and one simulated
+# "too similar".  **The taps are held fixed across arms** -- derived once from the
+# MMR-off list -- because deriving them per arm lets MMR change both the probe set
+# and the feedback, and the first version of this experiment made exactly that
+# mistake and produced a flattering answer.  Variants are `keep` (how many ranks
+# are taken by score before MMR selects the rest) and lambda.
+#
+#   arm                  r1 nDCG   r2 nDCG   r1 P@10   mean pairwise cos
+#   ------------------   -------   -------   -------   -----------------
+#   no MMR                0.5278    0.6074    0.4833         0.648
+#   keep=5 lambda=0.80    0.5085    0.5988    0.4833         0.630
+#   keep=4 lambda=0.80    0.5097    0.5918    0.4833         0.630
+#   keep=4 lambda=0.70    0.5231    0.5826    0.5000         0.612
+#   keep=0 lambda=0.70    0.4878    0.5610    0.4667         0.605
+#   keep=2 lambda=0.70    0.5393    0.5364    0.5167         0.605
+#   keep=0 lambda=0.50    0.3536    0.3860    0.3000         0.560
+#
+# **No configuration beats "no MMR" on the round that matters.**  The two that
+# come close (0.5988, 0.5918) barely diversify -- 0.630 against 0.648, where a
+# random corpus pair sits at 0.43 -- and the ones that genuinely spread the list
+# cost 0.05-0.17 nDCG.  Diversity and relevance trade smoothly and the exchange
+# rate is bad at every point on the curve.  Harm stayed 0.000 throughout, so
+# nothing here is a safety argument either way.
+#
+# WHY, AND WHY THE RADIUS IS THE BETTER ANSWER.  MMR diversifies by guessing which
+# clustering the user does not care about.  `too_similar` diversifies by being
+# *told*, and it is a hard exclusion rather than a score penalty, so it removes
+# the cluster the user actually objects to and leaves every other candidate
+# ranked on merit.  Measured, the feedback loop gains +0.080 nDCG in round 2 with
+# no MMR at all; MMR's whole claim was that it would make that number bigger, and
+# it makes it smaller.
+#
+# WHAT WOULD CHANGE THIS.  The harness measures "is this a reasonable suggestion",
+# not "did this set of ten teach the system where the user wants to go", so a
+# real defence of MMR needs an instrument the label set does not contain -- taps
+# per useful result, or round-3 quality.  F-7 shares this machinery and may build
+# one.  Until then, shipping a feature that loses on every metric available is
+# the "weights are opinion" failure F-2 exists to prevent.
 
 #: ``fresh_start`` blends the behavioural profile into the skills query.
 #:
@@ -979,6 +1146,162 @@ def _blend(
     return blended / norm if norm > 0 else primary
 
 
+def _anchor_vector(
+    anchor: _Anchor, corpus: OccupationCorpus
+) -> "np.ndarray | None":
+    """The user's own occupation as a corpus vector, or None when there is none.
+
+    None for the three cases :func:`_build_query` enumerates: an All-Other row
+    (a truthful identity and a poor query), a code the corpus does not carry, and
+    no code at all.  A writable copy, so the Rocchio arithmetic in
+    :func:`_rocchio_query` cannot reach the shared read-only matrix.
+    """
+    if (
+        anchor.code is not None
+        and not anchor.code_is_all_other
+        and corpus.index_of(anchor.code) is not None
+    ):
+        return corpus.vector_for(anchor.code)
+    return None
+
+
+# ---------------------------------------------------------------------------
+# F-6 -- rebuilding the query from stored judgements
+# ---------------------------------------------------------------------------
+
+
+def _judged_codes(feedback: "Mapping[str, str]", verdict: str) -> list[str]:
+    """Every code this user gave *verdict* to, in a stable order.
+
+    Sorted rather than dict-ordered: two requests with the same judgements must
+    build the same query, and floating-point addition is not associative, so an
+    unstable order is a list that reshuffles itself on refresh.
+    """
+    return sorted(code for code, value in feedback.items() if value == verdict)
+
+
+def _mean_vector(
+    corpus: OccupationCorpus, codes: list[str]
+) -> "np.ndarray | None":
+    """The mean corpus vector over *codes*, or None if none of them are in it.
+
+    Codes the corpus does not carry are skipped rather than raising: judgements
+    outlive corpus builds (see ``path_feedback_repository``'s module docstring),
+    and a retired occupation should stop contributing, not break the request.
+    """
+    vectors = [
+        corpus.vector_for(code) for code in codes if corpus.index_of(code) is not None
+    ]
+    if not vectors:
+        return None
+    return np.mean(np.asarray(vectors, dtype=np.float32), axis=0)
+
+
+def _rocchio_query(
+    base: "np.ndarray",
+    corpus: OccupationCorpus,
+    feedback: "Mapping[str, str]",
+) -> "np.ndarray":
+    """``q' = alpha*base + beta*mean(liked) - gamma*mean(disliked)``, normalised.
+
+    Returns *base* unchanged when there is nothing to rotate toward or away from,
+    which is the zero-tap case and has to be the identity: design doc §3.2's
+    "valid half-finished" constraint is that no answers still yields the default
+    list, not a degraded one.
+
+    ``too_similar`` is **not** the negative term.  It is a radius
+    (:func:`_radius_exclusions`), and using it here as well would be a bug
+    wearing a plausible face: a card the user called too similar sits *next to
+    the anchor* by definition, so subtracting it subtracts the anchor -- and a
+    user asking for something less like their current job has not asked to stop
+    being a person with their skills.  That is what ``not_for_me`` is for, and
+    why the verdict set has three members rather than the two the plan named.
+    """
+    liked = _mean_vector(corpus, _judged_codes(feedback, "interesting"))
+    disliked = _mean_vector(corpus, _judged_codes(feedback, "not_for_me"))
+    if liked is None and disliked is None:
+        return base
+
+    rotated = _ROCCHIO_ALPHA * base
+    if liked is not None:
+        rotated = rotated + _ROCCHIO_BETA * liked
+    if disliked is not None:
+        rotated = rotated - _ROCCHIO_GAMMA * disliked
+
+    norm = float(np.linalg.norm(rotated))
+    if norm <= 0.0 or not np.all(np.isfinite(rotated)):
+        # Exactly cancelling terms.  Vanishingly unlikely with real embeddings
+        # and not worth a failure if it ever happens: the un-rotated query is a
+        # worse answer, not a wrong one.
+        _log.warning("Rocchio update produced a degenerate query; using the base")
+        return base
+    return rotated / norm
+
+
+def _radius_exclusions(
+    corpus: OccupationCorpus,
+    anchor_vec: "np.ndarray | None",
+    feedback: "Mapping[str, str]",
+) -> tuple[float | None, list[str]]:
+    """``(r_min, codes_at_or_above_it)`` -- the "too similar" radius, as a filter.
+
+    Returns ``(None, [])`` when there is nothing to measure from: no
+    ``too_similar`` judgement, or no anchor vector to measure *against*.
+
+    See :data:`_RADIUS_MARGIN` for why the threshold is the minimum of the
+    rejected cosines and not the maximum, and :data:`_RADIUS_MIN_SURVIVORS` for
+    the floor that stops an implausible tap from emptying the corpus.
+
+    The result is handed to ``corpus.retrieve(exclude_codes=...)`` rather than
+    applied to what retrieval returns.  Both are "a hard exclusion on the
+    retrieved set", but only the first is independent of ``k``: filtering
+    afterwards would mean a user whose radius excluded the whole top 50 got a
+    short list, while one whose radius excluded the top 49 got a full one.
+
+    **THE HARNESS SCORES THIS SIGNAL AS A LOSS, AND THAT IS THE METRIC'S LIMIT
+    RATHER THAN THE FEATURE'S.**  Measured on the six ``adjacent`` profiles, the
+    radius *alone* -- Rocchio switched off -- takes macro nDCG from 0.5278 to
+    0.4767.  The reason is structural, not a defect: the card sitting nearest a
+    user's own occupation is very often one the label set grades *primary*, and
+    the label set encodes "is this a reasonable suggestion for this profile" as a
+    fixed truth about the profile.  Honouring "yes, and I do not want it" deletes
+    a labelled-good result by construction, and nDCG can only read that as a
+    mistake.  There is no version of this metric that can score a user
+    overriding it, which is precisely what this feature is for.  So the gates
+    here are the ones the labels *can* answer -- harmful_rate stays 0.000 in
+    every arm measured, the list stays populated, and nothing the user dismissed
+    comes back -- and the rest is a product judgement recorded rather than a
+    number defended.
+    """
+    marked = [
+        code
+        for code in _judged_codes(feedback, "too_similar")
+        if corpus.index_of(code) is not None
+    ]
+    if not marked or anchor_vec is None:
+        return None, []
+
+    sims = corpus.matrix @ np.asarray(anchor_vec, dtype=np.float32)
+    r_min = min(float(sims[corpus.index_of(code)]) for code in marked) - _RADIUS_MARGIN
+
+    # The floor.  Measured against what retrieval can actually return, so the
+    # 75 residual buckets it filters anyway do not count as survivors.
+    eligible = np.array(
+        [not is_all_other_title(title) for title in corpus.titles], dtype=bool
+    )
+    ascending = np.sort(sims[eligible])
+    if int((ascending < r_min).sum()) < _RADIUS_MIN_SURVIVORS:
+        r_min = float(ascending[min(_RADIUS_MIN_SURVIVORS, len(ascending) - 1)])
+        _log.info(
+            "radius floor applied: a too-similar judgement would have left "
+            "fewer than %d occupations reachable",
+            _RADIUS_MIN_SURVIVORS,
+        )
+
+    excluded = [corpus.codes[i] for i in np.nonzero(sims >= r_min)[0].tolist()]
+    return r_min, excluded
+
+
 def _build_query(
     profile: UserProfile,
     anchor: _Anchor,
@@ -1014,13 +1337,7 @@ def _build_query(
     not measuring role identity and can zero ``role_w`` instead of
     double-counting the skills document.
     """
-    anchor_vec: "np.ndarray | None" = None
-    if (
-        anchor.code is not None
-        and not anchor.code_is_all_other
-        and corpus.index_of(anchor.code) is not None
-    ):
-        anchor_vec = corpus.vector_for(anchor.code)
+    anchor_vec = _anchor_vector(anchor, corpus)
 
     if profile.move_intent == "fresh_start":
         if skills_vec is None:
@@ -1050,6 +1367,8 @@ def _retrieve_candidates(
     anchor: _Anchor,
     corpus: OccupationCorpus,
     query: "np.ndarray",
+    extra_exclusions: "Sequence[str]" = (),
+    k: int | None = None,
 ) -> list[Match]:
     """One ``matrix @ query``, with the two hard filters this tier is allowed.
 
@@ -1066,8 +1385,13 @@ def _retrieve_candidates(
     users inside the excluded families (an electrician: zero of three primary
     labels reachable) and F-1 showed the title-domination failure it was written
     to patch does not occur against role documents.
+
+    *extra_exclusions* is F-6's: the radius from a "too similar" judgement, plus
+    the cards the user has already dismissed.  It arrives as an exclusion list
+    rather than as a filter over the result, so how much the radius removes does
+    not silently depend on *k* -- see :func:`_radius_exclusions`.
     """
-    exclude_codes = list(anchor.excluded_codes)
+    exclude_codes = list(anchor.excluded_codes) + list(extra_exclusions)
     exclude_prefixes: tuple[str, ...] = ()
     if (
         profile.move_intent == "fresh_start"
@@ -1079,7 +1403,7 @@ def _retrieve_candidates(
         exclude_prefixes = (anchor.code[:_FRESH_START_EXCLUDE_PREFIX_LEN],)
     return corpus.retrieve(
         query,
-        k=_RETRIEVE_K,
+        k=k if k is not None else _RETRIEVE_K,
         exclude_codes=exclude_codes,
         exclude_soc_prefixes=exclude_prefixes,
     )
@@ -1250,6 +1574,7 @@ def score_paths(
     user_profile: UserProfile,
     onet_client: OnetClient,
     openai_client=None,
+    feedback: "Mapping[str, str] | None" = None,
 ) -> list[ScoredPath]:
     """Score candidate career paths against *user_profile* and return the top 10.
 
@@ -1264,7 +1589,9 @@ def score_paths(
        :func:`_resolve_current_zone` for the two cases that make one.
     3. Build one query vector per :attr:`UserProfile.move_intent` and retrieve
        ``_RETRIEVE_K`` candidates from the corpus -- one matrix product, no
-       network.
+       network.  For ``adjacent`` this is also where *feedback* is applied: the
+       query is rotated by :func:`_rocchio_query` and the "too similar" radius
+       becomes an exclusion list (:func:`_radius_exclusions`).
     4. Score each candidate on four terms, all read off the corpus::
 
            role     = the retrieval cosine (document-to-document)
@@ -1286,6 +1613,13 @@ def score_paths(
                        and a zone signal; coverage, style and the per-card skill
                        list are unavailable, which is a degrade rather than a
                        failure.
+        feedback:      ``{onet_code: verdict}`` from ``path_feedback`` (F-6).
+                       Read only by the ``adjacent`` path: the other two intents
+                       are answering a question the user asked directly, and
+                       reordering them by judgements made about a different
+                       question would be the scorer overriding the request.
+                       ``None`` or empty is the zero-tap case and must produce
+                       the full default list -- design doc §3.2.
 
     Raises:
         InsufficientProfile: The profile has neither a usable title nor a single
@@ -1339,6 +1673,49 @@ def score_paths(
     query, has_role_identity = _build_query(
         user_profile, anchor, corpus, skills_vec, behavioral_vec, openai_client
     )
+
+    # F-6.  Everything about the feedback loop is confined to these eight lines
+    # and to the MMR selection at the end; `is_adjacent` being false restores
+    # F-4's behaviour exactly, which is what keeps `stay_in_field` and
+    # `fresh_start` out of this chunk's blast radius.
+    is_adjacent = user_profile.move_intent == "adjacent"
+    judgements: "Mapping[str, str]" = feedback or {}
+    radius_exclusions: list[str] = []
+    if is_adjacent and judgements and query is not None:
+        anchor_vec = _anchor_vector(anchor, corpus)
+        # No corpus anchor (an All-Other row, an unresolvable title): fall back
+        # to the UN-rotated query, which is the user's own profile document and
+        # is the same sentence "too similar to what I already do" is about.  A
+        # worse referent than their actual occupation, and a far better one than
+        # refusing the signal.  Rotating first and measuring against the result
+        # would make the radius chase its own tail across taps.
+        _, radius_exclusions = _radius_exclusions(
+            corpus, anchor_vec if anchor_vec is not None else query, judgements
+        )
+        query = _rocchio_query(query, corpus, judgements)
+        # A card they dismissed does not come back.  An "interesting" one does:
+        # tapping it should pull it up and surround it with more of the same, not
+        # make it disappear.
+        radius_exclusions += [
+            code
+            for verdict in ("too_similar", "not_for_me")
+            for code in _judged_codes(judgements, verdict)
+        ]
+        # AN EXPLICIT YES OUTRANKS AN INFERRED RADIUS, and this line is not
+        # defensive tidying -- without it the feature contradicts itself.  The
+        # radius is a statement about a *region*: "anything at least this close to
+        # my job is too close".  An occupation the user separately called
+        # interesting can sit inside that region, and on the F-2 set it routinely
+        # does -- Art Directors is nearer to Graphic Designers than the card that
+        # drew the "too similar", so a designer who liked Art Directors and
+        # dismissed a different card watched the one they liked vanish.  Measured
+        # before this line existed: three of the six `adjacent` profiles lost
+        # their `interesting` pick out of the results, nDCG 0.808 -> 0.655 on that
+        # designer.  A radius is inferred from one tap about one card; "I like
+        # this" is said about the card itself, so it wins.
+        liked = set(_judged_codes(judgements, "interesting"))
+        radius_exclusions = [code for code in radius_exclusions if code not in liked]
+
     if query is None:
         # Nothing to retrieve on: no corpus anchor and no embeddings.  The
         # profile is fine; the dependency is not.  An empty list here is the
@@ -1352,7 +1729,16 @@ def score_paths(
         return []
 
     try:
-        matches = _retrieve_candidates(user_profile, anchor, corpus, query)
+        matches = _retrieve_candidates(
+            user_profile,
+            anchor,
+            corpus,
+            query,
+            extra_exclusions=radius_exclusions,
+            # A wider pool for `adjacent`, because the radius can take a slice
+            # out of it.  See _RETRIEVE_K_ADJACENT.
+            k=_RETRIEVE_K_ADJACENT if is_adjacent else None,
+        )
     except ValueError:
         _log.warning("retrieval rejected the query vector", exc_info=True)
         return []

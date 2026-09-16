@@ -983,6 +983,334 @@ def test_embed_cache_is_bounded_by_bytes() -> None:
 
 
 # ---------------------------------------------------------------------------
+# F-6 -- the `adjacent` feedback loop
+# ---------------------------------------------------------------------------
+
+
+class TestRocchioQuery:
+    """`q' = alpha*q + beta*mean(liked) - gamma*mean(disliked)`, normalised."""
+
+    def test_no_judgements_is_the_identity(self, world) -> None:
+        """Design doc §3.2: zero answers must still yield the default list.
+
+        Identity on the *vector*, not merely "still returns ten" -- a rotation
+        that was almost the identity would pass the weaker check and would still
+        mean a user who tapped nothing was being shown something other than the
+        default.
+        """
+        base = world.vector_for("15-1252.00")
+        assert ps._rocchio_query(base, world, {}) is base
+
+    def test_only_too_similar_judgements_is_also_the_identity(self, world) -> None:
+        """`too_similar` is a radius, not Rocchio's negative term.
+
+        Subtracting a card the user called too similar would subtract the anchor
+        it sits next to -- and asking for a less similar job is not asking to
+        stop being a person with these skills. `_radius_exclusions` is where that
+        verdict is answered.
+        """
+        base = world.vector_for("15-1252.00")
+        assert ps._rocchio_query(base, world, {"15-1251.00": "too_similar"}) is base
+
+    def test_interesting_rotates_the_query_toward_it(self, world) -> None:
+        base = world.vector_for("15-1252.00")
+        liked = world.vector_for("47-2111.00")
+        rotated = ps._rocchio_query(base, world, {"47-2111.00": "interesting"})
+
+        assert float(rotated @ liked) > float(base @ liked)
+        assert float(rotated @ base) < 1.0
+        assert abs(float(np.linalg.norm(rotated)) - 1.0) < 1e-5
+
+    def test_not_for_me_rotates_the_query_away_from_it(self, world) -> None:
+        base = world.vector_for("15-1252.00")
+        disliked = world.vector_for("47-2111.00")
+        rotated = ps._rocchio_query(base, world, {"47-2111.00": "not_for_me"})
+
+        assert float(rotated @ disliked) < float(base @ disliked)
+
+    def test_the_two_directions_oppose_each_other(self, world) -> None:
+        base = world.vector_for("15-1252.00")
+        target = world.vector_for("47-2111.00")
+        toward = ps._rocchio_query(base, world, {"47-2111.00": "interesting"})
+        away = ps._rocchio_query(base, world, {"47-2111.00": "not_for_me"})
+
+        assert float(toward @ target) > float(away @ target)
+
+    def test_a_code_the_corpus_does_not_carry_is_skipped(self, world) -> None:
+        """Judgements outlive corpus builds; a retired code stops contributing.
+
+        `flask corpus build` runs quarterly (F-8) and `path_feedback.onet_code`
+        has no foreign key, because occupations live in the artifact rather than
+        in the database. A row naming a code the newest build dropped has to go
+        quiet, not raise.
+        """
+        base = world.vector_for("15-1252.00")
+        assert ps._rocchio_query(base, world, {"99-9999.00": "interesting"}) is base
+
+    def test_a_degenerate_result_falls_back_to_the_base_query(self, world) -> None:
+        """Exactly cancelling terms produce a zero vector, which has no cosine."""
+        base = world.vector_for("15-1252.00")
+        # alpha*base - gamma*base == 0 when gamma == alpha and the disliked mean
+        # is the base itself.
+        with_gamma = 1.0
+        original = ps._ROCCHIO_GAMMA
+        try:
+            ps._ROCCHIO_GAMMA = with_gamma
+            assert ps._rocchio_query(base, world, {"15-1252.00": "not_for_me"}) is base
+        finally:
+            ps._ROCCHIO_GAMMA = original
+
+    def test_the_query_does_not_depend_on_judgement_order(self, world) -> None:
+        """Floating-point addition is not associative.
+
+        An unstable iteration order would give the same user a slightly different
+        list on every refresh, for no reason they could see.
+        """
+        base = world.vector_for("15-1252.00")
+        forward = ps._rocchio_query(
+            base, world, {"15-1251.00": "interesting", "47-2111.00": "interesting"}
+        )
+        backward = ps._rocchio_query(
+            base, world, {"47-2111.00": "interesting", "15-1251.00": "interesting"}
+        )
+        assert np.allclose(forward, backward)
+
+
+def arc_corpus(n: int = 30, step: float = 0.15) -> OccupationCorpus:
+    """*n* occupations on a widening arc from row 0, so cosine falls with index.
+
+    ``unit(1, i*step)`` has cosine ``1/sqrt(1 + (i*step)^2)`` against row 0: at
+    step 0.15 that is 1.00, 0.99, 0.96 ... 0.22 across thirty rows.  The five-row
+    ``world`` fixture cannot serve the radius tests at all -- it has four
+    retrievable rows against a floor of ten, so
+    :data:`~backend.services.path_scoring._RADIUS_MIN_SURVIVORS` fires on every
+    call and nothing is ever excluded, which is the floor working correctly and
+    a useless test.
+    """
+    return build_corpus(
+        [(f"15-{1200 + i}.00", f"Role {i}", unit(1, i * step)) for i in range(n)]
+    )
+
+
+class TestRadiusExclusions:
+    """"Too similar" as a cosine radius around the user's own occupation."""
+
+    def test_no_judgement_excludes_nothing(self, world) -> None:
+        r_min, excluded = ps._radius_exclusions(
+            world, world.vector_for("15-1252.00"), {"15-1251.00": "interesting"}
+        )
+        assert (r_min, excluded) == (None, [])
+
+    def test_no_anchor_excludes_nothing(self, world) -> None:
+        r_min, excluded = ps._radius_exclusions(
+            world, None, {"15-1251.00": "too_similar"}
+        )
+        assert (r_min, excluded) == (None, [])
+
+    def test_the_judged_card_is_inside_its_own_radius(self) -> None:
+        corpus = arc_corpus()
+        _, excluded = ps._radius_exclusions(
+            corpus, corpus.vector_for("15-1200.00"), {"15-1205.00": "too_similar"}
+        )
+        assert "15-1205.00" in excluded
+
+    def test_everything_closer_to_the_anchor_goes_too(self) -> None:
+        corpus = arc_corpus()
+        _, excluded = ps._radius_exclusions(
+            corpus, corpus.vector_for("15-1200.00"), {"15-1205.00": "too_similar"}
+        )
+        assert {f"15-{1200 + i}.00" for i in range(6)} <= set(excluded)
+        assert "15-1206.00" not in excluded
+
+    def test_the_threshold_is_the_minimum_rejection_not_the_maximum(self) -> None:
+        """The one part of this rule that is easy to get backwards.
+
+        With rejections at rank 3 and rank 10, a threshold taken from the *most*
+        similar of them would leave rank 10 -- a card the user explicitly
+        rejected -- reachable.  Only the minimum excludes every card they named.
+        """
+        corpus = arc_corpus()
+        _, excluded = ps._radius_exclusions(
+            corpus,
+            corpus.vector_for("15-1200.00"),
+            {"15-1203.00": "too_similar", "15-1210.00": "too_similar"},
+        )
+        assert {"15-1203.00", "15-1210.00"} <= set(excluded)
+        assert {f"15-{1200 + i}.00" for i in range(11)} <= set(excluded)
+
+    def test_a_distant_rejection_cannot_empty_the_corpus(self) -> None:
+        """`_RADIUS_MIN_SURVIVORS`: a short list is an answer, an empty one is a 500.
+
+        Here the *furthest* row is called too similar, which on the raw rule
+        would exclude every occupation in the corpus.
+        """
+        corpus = arc_corpus()
+        _, excluded = ps._radius_exclusions(
+            corpus, corpus.vector_for("15-1200.00"), {"15-1229.00": "too_similar"}
+        )
+        survivors = len(corpus.codes) - len(excluded)
+        assert survivors >= ps._RADIUS_MIN_SURVIVORS
+
+    def test_the_radius_is_a_retrieval_exclusion_not_a_post_filter(self) -> None:
+        """How much the radius removes must not depend on *k*.
+
+        Filtering what retrieval returned would mean a user whose radius covered
+        the whole top thirty got a short list while one whose radius covered
+        twenty-nine got a full one -- the same judgement answered differently by
+        an internal constant.
+        """
+        corpus = arc_corpus(n=60)
+        _, excluded = ps._radius_exclusions(
+            corpus, corpus.vector_for("15-1200.00"), {"15-1240.00": "too_similar"}
+        )
+        matches = corpus.retrieve(
+            corpus.vector_for("15-1200.00"), k=10, exclude_codes=excluded
+        )
+        assert len(matches) == 10
+        assert all(m.code not in excluded for m in matches)
+
+
+class TestFeedbackThroughScorePaths:
+    """The wiring, end to end through the public entry point."""
+
+    def _tech_profile(self) -> UserProfile:
+        return profile(
+            move_intent="adjacent",
+            skills=[user_skill("Python"), user_skill("SQL")],
+        )
+
+    def test_zero_taps_returns_the_same_list_as_no_feedback_argument(
+        self, world, onet
+    ) -> None:
+        """`None` and `{}` must be the same request.
+
+        The whole product constraint in one assertion: a user who has tapped
+        nothing gets the list the scorer produced before F-6 existed.
+        """
+        prof = self._tech_profile()
+        client = tech_openai(prof)
+        without = score_paths(prof, onet, client)
+        empty = score_paths(prof, onet, client, feedback={})
+        none = score_paths(prof, onet, client, feedback=None)
+
+        assert [p.onet_code for p in without] == [p.onet_code for p in empty]
+        assert [p.onet_code for p in without] == [p.onet_code for p in none]
+
+    def test_a_too_similar_card_does_not_come_back(self, world, onet) -> None:
+        prof = self._tech_profile()
+        client = tech_openai(prof)
+        before = [p.onet_code for p in score_paths(prof, onet, client)]
+        assert "15-1251.00" in before
+
+        after = [
+            p.onet_code
+            for p in score_paths(
+                prof, onet, client, feedback={"15-1251.00": "too_similar"}
+            )
+        ]
+        assert "15-1251.00" not in after
+
+    def test_a_not_for_me_card_does_not_come_back(self, world, onet) -> None:
+        prof = self._tech_profile()
+        client = tech_openai(prof)
+        after = [
+            p.onet_code
+            for p in score_paths(
+                prof, onet, client, feedback={"47-2111.00": "not_for_me"}
+            )
+        ]
+        assert "47-2111.00" not in after
+
+    def test_an_interesting_card_stays_in_the_results(self, world, onet) -> None:
+        """Tapping "interesting" and watching the card vanish would be the single
+        most confusing thing this feature could do."""
+        prof = self._tech_profile()
+        client = tech_openai(prof)
+        after = [
+            p.onet_code
+            for p in score_paths(
+                prof, onet, client, feedback={"47-2111.00": "interesting"}
+            )
+        ]
+        assert "47-2111.00" in after
+
+    def test_an_interesting_card_scores_higher_than_it_did(self, world, onet) -> None:
+        """Asserted on the score, not on the rank.
+
+        A rank is the score plus every other candidate's, and in a five-row world
+        the coverage term (the user's skills, which a tap does not change) can
+        hold a rotated-toward card in place.  That is the scorer working: liking
+        an occupation is a reason to rank it higher, not a reason to forget what
+        the user can do.  The score is where the rotation is visible either way.
+        """
+        prof = self._tech_profile()
+        client = tech_openai(prof)
+        before = {p.onet_code: p.score for p in score_paths(prof, onet, client)}
+        after = {
+            p.onet_code: p.score
+            for p in score_paths(
+                prof, onet, client, feedback={"47-2111.00": "interesting"}
+            )
+        }
+        assert after["47-2111.00"] > before["47-2111.00"]
+
+    @pytest.mark.parametrize("intent", ["stay_in_field", "fresh_start", None])
+    def test_the_other_intents_ignore_judgements_entirely(
+        self, world, onet, intent
+    ) -> None:
+        """`adjacent` asks the user which way to go; the other two do not.
+
+        Reordering `stay_in_field` by answers to a question it never asked would
+        be the scorer overriding the user's stated request. F-7 owns whether
+        `fresh_start` should read them -- it shares this machinery with a
+        different seed -- and until it does, it does not.
+        """
+        prof = profile(
+            move_intent=intent, skills=[user_skill("Python"), user_skill("SQL")]
+        )
+        client = tech_openai(prof)
+        plain = [p.onet_code for p in score_paths(prof, onet, client)]
+        judged = [
+            p.onet_code
+            for p in score_paths(
+                prof,
+                onet,
+                client,
+                feedback={"15-1251.00": "too_similar", "47-2111.00": "interesting"},
+            )
+        ]
+        assert plain == judged
+
+    def test_no_onet_call_is_made_on_the_feedback_path(self, world, onet) -> None:
+        """Tier 1 makes zero O*NET requests and a tap must not change that.
+
+        The `onet` fixture raises on every method, so this passes by not
+        exploding -- which is the same guarantee `TestScorePaths` holds for the
+        zero-tap path, restated for the one that runs on every tap.
+        """
+        prof = self._tech_profile()
+        client = tech_openai(prof)
+        assert score_paths(
+            prof,
+            onet,
+            client,
+            feedback={"15-1251.00": "too_similar", "47-2111.00": "interesting"},
+        )
+
+    def test_a_tap_costs_no_extra_embedding_request(self, world, onet) -> None:
+        """The judgements are corpus lookups, not texts to embed.
+
+        This is what makes the synchronous re-rank affordable: a tap is one
+        matrix product plus arithmetic, and the batched embedding request is the
+        same one the zero-tap path makes.
+        """
+        prof = self._tech_profile()
+        client = tech_openai(prof)
+        score_paths(prof, onet, client, feedback={"47-2111.00": "interesting"})
+        assert client.calls == 1
+
+
+# ---------------------------------------------------------------------------
 # Against the real 1,016-row artifact
 # ---------------------------------------------------------------------------
 
@@ -1037,3 +1365,276 @@ class TestAgainstTheRealCorpus:
         ]
         assert len(real) <= 20
         assert sum(1 for c in real if c.startswith("55-")) >= 15
+
+
+real_embeddings = pytest.mark.skipif(
+    not (os.environ.get("SOLVERAH_CORPUS_PATH") and os.environ.get("OPENAI_API_KEY")),
+    reason="needs the corpus artifact and an embedding key; CI has neither",
+)
+
+
+#: The six `adjacent` evaluation profiles.  Module-level so the fixtures below
+#: can be too: a class-scoped fixture written as an instance method is deprecated
+#: in pytest 8 and removed in 10.
+_ADJACENT_EVAL_PROFILES = (
+    "p02_frontend_dev_adjacent",
+    "p04_data_analyst_adjacent",
+    "p09_between_jobs_retail_mgr",
+    "p12_teacher_adjacent",
+    "p15_graphic_designer_adjacent",
+    "p18_marketing_mgr_adjacent",
+)
+
+
+@pytest.fixture(scope="module")
+def eval_profiles():
+    from backend.services import path_eval
+
+    return {
+        p.id: p
+        for p in path_eval.load_profiles()
+        if p.id in _ADJACENT_EVAL_PROFILES
+    }
+
+
+@pytest.fixture(scope="module")
+def openai():
+    """The real embedding client.  `real_embeddings` guarantees a key exists."""
+    from solverah.infra.llm import get_openai_client
+
+    return get_openai_client()
+
+
+@real_corpus
+@real_embeddings
+class TestSimulatedFeedbackAgainstTheRealCorpus:
+    """BUILD_PLAN F-6's offline measurement, frozen as a test.
+
+    One round of plausible feedback per ``adjacent`` evaluation profile:
+    ``interesting`` on a labelled primary, ``too_similar`` on whichever card sits
+    closest to the user's own occupation.  Then the same six profiles are
+    re-scored and measured with F-2's own metrics.
+
+    WHY THIS NEEDS AN EMBEDDING KEY, WHEN THE BRIEF ASKED FOR CORPUS-ONLY
+    --------------------------------------------------------------------
+    It was built corpus-only first, with a fake embedder that mapped every
+    document a profile produces onto that profile's own corpus row -- no network,
+    anchors recorded as data.  **It measured the fake.**  With the skills document
+    equal to the anchor, :data:`_ADJACENT_SKILLS_MIX` becomes the identity and the
+    query collapses to the bare anchor, which is precisely the query F-4 measured
+    as wrong for this intent (a High School Teacher's nearest neighbours are other
+    teaching grade bands, which the labels grade HARMFUL).  The coverage and style
+    terms collapse with it.  Under that fake, one round of feedback looked like it
+    *lowered* nDCG on five of six profiles and re-admitted a harmful suggestion on
+    the teacher -- both artefacts: with real embeddings the same simulation raises
+    macro nDCG from 0.5278 to 0.6116 and harm stays 0.000 throughout.
+
+    A fake that changes the scorer's character is worse than a skip, because it
+    fails loudly for a reason that is not about the code.  So the test takes the
+    real embedder and skips where there is none.  Cost per run: six batched
+    embedding requests and **zero O*NET calls** -- the mocked client below raises
+    on every method, so the no-O*NET guarantee is asserted here too.
+
+    It does not pin a particular nDCG.  Six profiles is the cell size F-2's
+    sample-size rule says supports "clearly better or worse" and not a number, and
+    a pinned number would turn every future tuning change into a fixture edit.
+    `tests/fixtures/path_eval` is read and never written.
+    """
+
+    ADJACENT = _ADJACENT_EVAL_PROFILES
+
+    @staticmethod
+    def _onet():
+        """A client that fails loudly.  Tier 1 makes no O*NET calls and a tap
+        must not change that -- including on the anchor-resolution path, which is
+        the only place one was ever made."""
+        client = MagicMock(spec=OnetClient)
+        client.search_occupations.side_effect = AssertionError("unexpected O*NET search")
+        client.get_job_zone.side_effect = AssertionError("unexpected get_job_zone")
+        return client
+
+    def _score(self, eval_profile, openai, feedback):
+        from backend.services import path_eval
+
+        scored = score_paths(
+            path_eval.build_user_profile(eval_profile),
+            self._onet(),
+            openai,
+            feedback=feedback,
+        )
+        return [
+            path_eval.RankedResult(onet_code=p.onet_code, title=p.title, score=p.score)
+            for p in scored
+        ]
+
+    @staticmethod
+    def _report(profile_id, results):
+        from backend.services import path_eval
+
+        run = path_eval.ScorerRun(
+            scorer_name="f6-simulated",
+            recorded_at="offline",
+            runs=[
+                path_eval.ProfileRun(
+                    profile_id=profile_id,
+                    results=list(results),
+                    elapsed_s=0.0,
+                    error=None,
+                )
+            ],
+            notes="",
+        )
+        return path_eval.evaluate(run).profiles[0]
+
+    def _simulate(self, eval_profile, baseline, corpus, openai):
+        """One "interesting" and one "too similar", the way a user would tap them.
+
+        **Both taps come off the shown list, and that constraint is load-bearing
+        rather than cosmetic.**  The first version of this simulation picked the
+        first labelled *primary* in the fixture whether or not it had been shown,
+        and for the frontend-developer profile that primary IS the user's own
+        resolved occupation -- which retrieval excludes by design, so no card for
+        it can exist to tap.  Simulating a tap on it rotated the query toward the
+        user's own job and pulled in the exact neighbourhood ``adjacent`` exists
+        to avoid (nDCG 0.617 -> 0.521).  That measured the simulation, not the
+        scorer.  A user can only tap what is in front of them.
+
+        ``interesting`` therefore goes on the highest-ranked shown card the labels
+        call primary, falling back to acceptable.  ``too_similar`` goes on
+        whichever remaining shown card sits closest to their own occupation, which
+        is the card the complaint is actually about: for the teacher profile that
+        is another teaching grade band, and the label set grades those HARMFUL.
+
+        The anchor is resolved by the real resolver rather than recorded, so a
+        corpus rebuild that moved it cannot leave this simulation quietly
+        measuring the wrong neighbourhood.
+        """
+        from backend.services import path_eval
+
+        user_profile = path_eval.build_user_profile(eval_profile)
+        anchor = ps._resolve_current_zone(user_profile, self._onet(), openai, corpus)
+        anchor_vec = ps._anchor_vector(anchor, corpus)
+
+        grades = {
+            row.onet_code: row.grade
+            for row in path_eval.load_labels().get(eval_profile.id, [])
+        }
+        shown = [r.onet_code for r in baseline]
+        feedback: dict[str, str] = {}
+
+        for wanted in ("primary", "acceptable"):
+            liked = [code for code in shown if grades.get(code) == wanted]
+            if liked:
+                feedback[liked[0]] = "interesting"
+                break
+
+        if anchor_vec is not None:
+            rated = {
+                code: float(corpus.matrix[corpus.index_of(code)] @ anchor_vec)
+                for code in shown
+                if corpus.index_of(code) is not None and code not in feedback
+            }
+            if rated:
+                feedback[max(rated, key=rated.get)] = "too_similar"
+        return feedback
+
+    #: How far one profile's nDCG may fall after a round of feedback.
+    #:
+    #: Not zero, and the reason is in `_radius_exclusions`' docstring: honouring
+    #: "yes it is a reasonable suggestion and I do not want it" deletes a
+    #: labelled-good result by construction, and nDCG can only read that as a
+    #: mistake.  Measured at the shipped constants the worst single profile loses
+    #: 0.095 (p09, from a baseline of 0.244) while the worst two *baselines* gain
+    #: 0.098 and 0.251.  0.15 is a collapse detector with room for that spread --
+    #: it catches "the radius ate the results" and does not catch "the user's
+    #: preference disagreed with the labels".
+    MAX_PROFILE_DROP = 0.15
+
+    def test_one_round_of_feedback_improves_the_set_and_harms_nobody(
+        self, corpus, eval_profiles, openai
+    ) -> None:
+        """The measurement, stated at the level the sample size supports.
+
+        F-2's own sample-size rule: twenty profiles support "clearly better or
+        worse" and not a per-axis claim, and this is a six-profile cell.  So the
+        assertion is on the SET -- macro nDCG must not fall -- with two per-profile
+        gates that are categorical rather than statistical: no harmful suggestion,
+        and no collapse.
+
+        Measured at the shipped constants, for the record and so a future change
+        can be read against it:
+
+            profile                          nDCG before -> after
+            p12_teacher_adjacent                0.194 -> 0.445
+            p04_data_analyst_adjacent           0.399 -> 0.497
+            p15_graphic_designer_adjacent       0.808 -> 0.788
+            p02_frontend_dev_adjacent           0.617 -> 0.589
+            p18_marketing_mgr_adjacent          0.904 -> 0.834
+            p09_between_jobs_retail_mgr         0.244 -> 0.150
+            MACRO                               0.528 -> 0.551
+
+        The two profiles with the worst default rankings gain the most, and the
+        ones that lose ground were already near the top of the scale -- which is
+        what an override mechanism looks like when it is measured against a fixed
+        label set.
+        """
+        before_scores, after_scores = [], []
+        for profile_id in self.ADJACENT:
+            eval_profile = eval_profiles[profile_id]
+
+            baseline = self._score(eval_profile, openai, feedback=None)
+            assert baseline, "%s: zero taps must still yield a list" % profile_id
+            before = self._report(profile_id, baseline)
+
+            feedback = self._simulate(eval_profile, baseline, corpus, openai)
+            assert feedback, "%s: the simulation produced no taps" % profile_id
+            after = self._report(profile_id, self._score(eval_profile, openai, feedback))
+
+            assert after.harmful_rate_at_k == 0.0, (
+                "%s: feedback surfaced a harmful suggestion (%s)"
+                % (profile_id, after.harms)
+            )
+            assert after.ndcg_at_k >= before.ndcg_at_k - self.MAX_PROFILE_DROP, (
+                "%s: nDCG collapsed from %.4f to %.4f"
+                % (profile_id, before.ndcg_at_k, after.ndcg_at_k)
+            )
+            before_scores.append(before.ndcg_at_k)
+            after_scores.append(after.ndcg_at_k)
+
+        macro_before = sum(before_scores) / len(before_scores)
+        macro_after = sum(after_scores) / len(after_scores)
+        assert macro_after >= macro_before, (
+            "one round of feedback lowered macro nDCG across the adjacent set: "
+            "%.4f -> %.4f" % (macro_before, macro_after)
+        )
+
+    @pytest.mark.parametrize("profile_id", ADJACENT)
+    def test_a_dismissed_card_never_returns(
+        self, corpus, eval_profiles, openai, profile_id
+    ) -> None:
+        eval_profile = eval_profiles[profile_id]
+        baseline = self._score(eval_profile, openai, feedback=None)
+        feedback = self._simulate(eval_profile, baseline, corpus, openai)
+        dismissed = {c for c, v in feedback.items() if v == "too_similar"}
+
+        after = {r.onet_code for r in self._score(eval_profile, openai, feedback)}
+        assert not (dismissed & after)
+
+    @pytest.mark.parametrize("profile_id", ADJACENT)
+    def test_the_taps_change_the_list_and_clearing_puts_it_back(
+        self, corpus, eval_profiles, openai, profile_id
+    ) -> None:
+        """Both halves matter and they pull against each other.
+
+        A loop that never changes anything would pass the reset half trivially;
+        one that could not be undone would pass the first.
+        """
+        eval_profile = eval_profiles[profile_id]
+        baseline = [r.onet_code for r in self._score(eval_profile, openai, None)]
+        feedback = self._simulate(
+            eval_profile, self._score(eval_profile, openai, None), corpus, openai
+        )
+
+        changed = [r.onet_code for r in self._score(eval_profile, openai, feedback)]
+        assert changed != baseline, "the simulated taps changed nothing"
+        assert [r.onet_code for r in self._score(eval_profile, openai, {})] == baseline

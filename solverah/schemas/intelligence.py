@@ -15,6 +15,8 @@ __all__ = [
     "PathPreferencesDocument",
     "PathPreferencesPutRequest",
     "RecommendationsPage",
+    "PathFeedbackRequest",
+    "PathFeedbackResponse",
     "PathFitGap",
     "PathFitResponse",
     "PathFitZone",
@@ -83,6 +85,18 @@ class PathSuggestionsResponse(SolverahModel):
     suggestions: List[PathSuggestion] = Field(default_factory=list)
     career_status: str
     generated_at: str = Field(description="ISO 8601 UTC, second precision.")
+    feedback: Dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "F-6, additive. Every inline judgement standing for this user, as "
+            "onet_code -> verdict, and the same map `POST /me/path-feedback` "
+            "returns. It travels with the list because it SHAPED the list: a "
+            "client that got the ranking without it would show a user a "
+            "shortlist bent by state they cannot see and cannot reset. Empty "
+            "for a user who has judged nothing, which is also the state in which "
+            "the ranking is the plain default."
+        ),
+    )
 
 
 class RecommendationsResponse(SolverahModel):
@@ -418,4 +432,59 @@ class PathFitResponse(SolverahModel):
     computed_at: str = Field(description="When the analysis ran, UTC.")
     cached: bool = Field(
         description="True when this came from storage rather than being computed now."
+    )
+
+
+# ===========================================================================
+# F-6 -- POST/DELETE /me/path-feedback, the inline card feedback loop
+# ===========================================================================
+#
+# `PathSuggestionsResponse` above is the shortlist. These two routes change what
+# it contains and hand back the new one in the same shape, plus the judgements
+# that produced it -- so a client renders one list component and reads the state
+# of its own buttons off the same response, rather than making a second call to
+# find out what it just wrote.
+#
+# Only the `adjacent` move_intent reads the judgements. They are stored for every
+# user regardless, because a user who switches to `adjacent` later should not
+# have lost what they already said.
+
+
+class PathFeedbackRequest(SolverahModel):
+    """The body of ``POST /me/path-feedback``: one judgement about one card."""
+
+    onet_code: str = Field(
+        description='O*NET-SOC, e.g. "15-1252.00", from a card in the shortlist.'
+    )
+    verdict: str = Field(
+        description=(
+            '"too_similar", "interesting", or "not_for_me". The three are not '
+            "interchangeable: the first raises a cosine radius around the user's "
+            "own occupation and the other two rotate the retrieval query toward "
+            "and away from what they named."
+        )
+    )
+
+
+class PathFeedbackResponse(SolverahModel):
+    """``200`` from ``POST`` and ``DELETE /me/path-feedback``.
+
+    `suggestions`, `career_status` and `generated_at` are
+    `PathSuggestionsResponse`'s fields with `PathSuggestionsResponse`'s meaning --
+    this re-ranked list is written into the same per-user cache `GET
+    /me/path-suggestions` serves, so the two are the same list and not two views
+    of one.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    suggestions: List[PathSuggestion] = Field(default_factory=list)
+    career_status: str
+    generated_at: str = Field(description="ISO 8601 UTC, second precision.")
+    feedback: Dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "Every judgement standing for this user, as onet_code -> verdict. "
+            "Empty after a DELETE."
+        ),
     )

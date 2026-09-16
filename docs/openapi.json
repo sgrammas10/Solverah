@@ -3367,6 +3367,64 @@
         "title": "PasswordResetVerifyResponse",
         "type": "object"
       },
+      "PathFeedbackRequest": {
+        "additionalProperties": false,
+        "description": "The body of ``POST /me/path-feedback``: one judgement about one card.",
+        "properties": {
+          "onet_code": {
+            "description": "O*NET-SOC, e.g. \"15-1252.00\", from a card in the shortlist.",
+            "title": "Onet Code",
+            "type": "string"
+          },
+          "verdict": {
+            "description": "\"too_similar\", \"interesting\", or \"not_for_me\". The three are not interchangeable: the first raises a cosine radius around the user's own occupation and the other two rotate the retrieval query toward and away from what they named.",
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "onet_code",
+          "verdict"
+        ],
+        "title": "PathFeedbackRequest",
+        "type": "object"
+      },
+      "PathFeedbackResponse": {
+        "additionalProperties": true,
+        "description": "``200`` from ``POST`` and ``DELETE /me/path-feedback``.\n\n`suggestions`, `career_status` and `generated_at` are\n`PathSuggestionsResponse`'s fields with `PathSuggestionsResponse`'s meaning --\nthis re-ranked list is written into the same per-user cache `GET\n/me/path-suggestions` serves, so the two are the same list and not two views\nof one.",
+        "properties": {
+          "career_status": {
+            "title": "Career Status",
+            "type": "string"
+          },
+          "feedback": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Every judgement standing for this user, as onet_code -> verdict. Empty after a DELETE.",
+            "title": "Feedback",
+            "type": "object"
+          },
+          "generated_at": {
+            "description": "ISO 8601 UTC, second precision.",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/PathSuggestion"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "career_status",
+          "generated_at"
+        ],
+        "title": "PathFeedbackResponse",
+        "type": "object"
+      },
       "PathFitGap": {
         "additionalProperties": false,
         "description": "One thing this role rates highly that the user's skills do not cover.",
@@ -3786,6 +3844,14 @@
           "career_status": {
             "title": "Career Status",
             "type": "string"
+          },
+          "feedback": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "F-6, additive. Every inline judgement standing for this user, as onet_code -> verdict, and the same map `POST /me/path-feedback` returns. It travels with the list because it SHAPED the list: a client that got the ranking without it would show a user a shortlist bent by state they cannot see and cannot reset. Empty for a user who has judged nothing, which is also the state in which the ranking is the plain default.",
+            "title": "Feedback",
+            "type": "object"
           },
           "generated_at": {
             "description": "ISO 8601 UTC, second precision.",
@@ -7845,6 +7911,174 @@
         "summary": "Rank companies by fit for the authenticated user",
         "tags": [
           "companies"
+        ]
+      }
+    },
+    "/api/v1/me/path-feedback": {
+      "delete": {
+        "description": "The reset. Deletes every stored judgement for the signed-in user and returns the shortlist they would have seen having tapped nothing -- which is byte-for-byte the list `POST /me/path-suggestion-jobs` produces, because zero judgements is the identity case in the scorer.\n\nIdempotent: clearing nothing is a `200` with that same list, not a `404`. The client is asking for a state, not deleting a row it named.",
+        "operationId": "delete_intelligence_delete_my_path_feedback",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathFeedbackResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Clear every path judgement and return the default shortlist",
+        "tags": [
+          "me"
+        ]
+      },
+      "post": {
+        "description": "Stores one verdict about one occupation and returns the re-ranked shortlist, which is also written into the per-user cache `GET /me/path-suggestions` serves.\n\n`verdict` is one of `too_similar`, `interesting`, `not_for_me`. They are three different signals, not three strengths of one: `too_similar` raises a cosine radius around the user's own occupation and excludes everything inside it, while the other two rotate the retrieval query toward and away from what they named. Only the `adjacent` move_intent reads them; they are stored for everyone, so switching to `adjacent` later does not start from nothing.\n\nRe-tapping the same card replaces that judgement. A card judged `too_similar` or `not_for_me` does not come back; one judged `interesting` does, ranked higher.\n\n`error` on a failure is one of `invalid_verdict`, `career_status_not_set`, `profile_incomplete` (400); `invalid_onet_code`, `unknown_occupation`, `unsupported_occupation` (404); or `corpus_unavailable` (503).",
+        "operationId": "post_intelligence_post_my_path_feedback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PathFeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathFeedbackResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Record a judgement about one suggested path and re-rank the shortlist",
+        "tags": [
+          "me"
         ]
       }
     },

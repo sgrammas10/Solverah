@@ -22,4 +22,12 @@ export interface PathSuggestionsResponse {
   suggestions: PathSuggestion[];
   career_status: CareerStatus;
   generated_at: string;
+  /**
+   * F-6. Every inline judgement standing for this user, `onet_code -> verdict`.
+   *
+   * Optional because a payload cached before F-6 shipped will not carry it, and
+   * because `POST /me/path-suggestion-jobs` results are read through this same
+   * shape. Absent reads as "no judgements", which is the correct default.
+   */
+  feedback?: Record<string, string>;
 }

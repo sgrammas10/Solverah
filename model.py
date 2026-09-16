@@ -1775,6 +1775,95 @@ class PathFit(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Path Intelligence: inline card feedback for `adjacent` -- F-6
+# ---------------------------------------------------------------------------
+# One row per judgement a user has made about one occupation on their shortlist.
+# `backend/services/path_scoring` rebuilds the retrieval query from these rows on
+# every request: a Rocchio rotation toward what they called interesting, and a
+# cosine radius raised past what they called too similar (design doc §3.2).
+#
+# JUDGEMENTS, NOT VECTORS, AND THAT IS THE WHOLE DESIGN. The obvious alternative
+# is to store the rotated query -- one 1536-float column, written once per tap.
+# It is worse in four ways that all have the same root: a stored vector is
+# derived data pretending to be a fact.
+#
+#   * It is tied to a corpus build. `flask corpus build` runs quarterly (F-8) and
+#     re-embeds every role document; a query rotated toward the old vectors is
+#     silently wrong against the new ones, and nothing would say so.
+#   * It is tied to an embedding model. Changing it would need a backfill nobody
+#     can compute, because the inputs were thrown away.
+#   * It cannot be audited. "Why am I being shown this?" is answerable from three
+#     rows of (code, verdict); it is not answerable from 1536 floats.
+#   * Reset is a DELETE here and an arithmetic inverse there.
+#
+# What it costs instead is a handful of `corpus.vector_for` lookups and two
+# vector means per request -- microseconds against a retrieval that is already a
+# 1,016 x 1536 matrix product.
+#
+# MUTABLE, one row per (user, occupation), upserted on re-tap: the user changing
+# their mind about a card is a correction, not a second opinion, and a history of
+# taps has no reader. Same shape as `PathFit` above and `SituationReportPin`.
+#
+# DESTROYED, NOT RETAINED, ON ACCOUNT DELETION (D-7b) -- see
+# `tests/test_export_delete_coverage.py`'s entry for the reasoning, which is the
+# `pulse_checkins` one rather than the `pulse_events` one: no column here is free
+# text. It is destroyed anyway because what the row records is a person's stated
+# preference about their own career, and the closed vocabulary makes the *format*
+# safe rather than the content.
+
+
+class PathFeedback(db.Model):
+    """One user's verdict on one suggested occupation (BUILD_PLAN F-6).
+
+    `verdict` is a closed vocabulary, mirrored in
+    `solverah.repositories.path_feedback_repository.VERDICTS`:
+
+    ``too_similar``
+        A radius signal. Everything at least this close to the user's own
+        occupation is excluded from their next shortlist.
+    ``interesting``
+        A direction signal. The retrieval query rotates toward it.
+    ``not_for_me``
+        The directional negative Rocchio's third term needs. Distinct from
+        ``too_similar``: "too close to what I already do" and "wrong direction
+        entirely" are different sentences and move the query different ways.
+
+    Not an enum column. The vocabulary is enforced by the repository and by the
+    API schema, and a Postgres enum would make adding a fourth verdict a
+    migration -- see `Experiment.status` for the same call made the same way.
+    """
+
+    __tablename__ = "path_feedback"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True: uq_path_feedback_user_occupation below leads with user_id,
+    # and every read here is "every judgement for this user" -- the same
+    # reasoning PathFit's user_id column gives.
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False)
+    #: O*NET-SOC, e.g. "15-1252.00". No foreign key, for PathFit's reason:
+    #: occupations live in the corpus artifact, not in this database.
+    onet_code = db.Column(db.Text, nullable=False)
+    verdict = db.Column(db.Text, nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    #: Bumped on every re-tap, so "most recent judgement" is answerable without a
+    #: second row. `created_at` stays the first time they said anything about
+    #: this card, which is the only thing an audit needs that `updated_at` loses.
+    updated_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "user_id", "onet_code", name="uq_path_feedback_user_occupation"
+        ),
+    )
+
+    user = db.relationship("User", backref="path_feedback")
+
+
+# ---------------------------------------------------------------------------
 # Phase 2a -- profile_data, decomposed (docs/ARCHITECTURE.md Part 4.3)
 # ---------------------------------------------------------------------------
 #

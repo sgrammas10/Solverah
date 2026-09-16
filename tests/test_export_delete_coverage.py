@@ -120,6 +120,26 @@ COVERED: dict[str, str] = {
         "a second source, and exporting one hands the subject a copy of something they "
         "already have in a shape they cannot use."
     ),
+    "path_feedback": (
+        "BUILD_PLAN F-6's own D-7 wiring, wired the day the table was created. deletion: "
+        "account_repository.delete_personal_rows destroys it. NOT the free-text test the "
+        "path_fits entry above turns on -- verdict is a closed vocabulary and onet_code is "
+        "a catalogue key, so by the D-7b spelling rule this row would be RETAINED "
+        "de-identified like pulse_checkins and experiments. It is destroyed anyway, and "
+        "the reason is what the row means rather than how it is spelled: a judgement is a "
+        "statement a person made about their own career ('this is too close to what I "
+        "already do'), and a de-identified opinion is still that person's opinion. The "
+        "D-16 research argument that earns pulse_checkins and experiments their retention "
+        "does not reach it either -- nothing downstream reads these rows for anything but "
+        "rebuilding one user's own retrieval query, so a retained row would be retention "
+        "with no reader, which is the shape SECURITY_AUDIT_2026-09 #7 and #18 are about. "
+        "Not exported: the only thing a judgement says is which of ten cards the user "
+        "tapped, it is visible on the page it was made on and resettable there with one "
+        "button (DELETE /me/path-feedback), and it is an input to a cache rather than a "
+        "record about the person -- the scoring_jobs/resume_parse_jobs reasoning, one step "
+        "further along. Revisit if this table ever grows a free-text 'why not' field, "
+        "which would make it pulse_events and would owe an export."
+    ),
     "profiles": (
         "export: profile_repository.load_document's profile key. deletion: "
         "account_repository.tombstone_user rewrites it to {'deleted_at': ...} via "

@@ -941,5 +941,41 @@
     "mimetype": "application/json",
     "cookies_set": [],
     "body": "{\"error\":\"corpus_unavailable\"}\n"
+  },
+  {
+    "step": "path-feedback-invalid-verdict",
+    "method": "POST",
+    "path": "/api/v1/me/path-feedback",
+    "status": 400,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"invalid_verdict\"}\n"
+  },
+  {
+    "step": "path-feedback-malformed-code",
+    "method": "POST",
+    "path": "/api/v1/me/path-feedback",
+    "status": 404,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"invalid_onet_code\"}\n"
+  },
+  {
+    "step": "path-feedback-corpus-unavailable",
+    "method": "POST",
+    "path": "/api/v1/me/path-feedback",
+    "status": 503,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"corpus_unavailable\"}\n"
+  },
+  {
+    "step": "delete-path-feedback",
+    "method": "DELETE",
+    "path": "/api/v1/me/path-feedback",
+    "status": 503,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"corpus_unavailable\"}\n"
   }
 ]

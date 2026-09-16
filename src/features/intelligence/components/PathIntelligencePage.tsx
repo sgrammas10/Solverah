@@ -20,34 +20,31 @@ import {
   type PathSuggestionJobResult,
 } from "../usePathSuggestionJob";
 import type { PathSuggestionsResponse } from "../types";
+import {
+  isProfileLevelFailure,
+  stateForFailure,
+  type FetchState,
+} from "../pathFailure";
+import {
+  useClearPathFeedback,
+  usePathFit,
+  useRecordPathFeedback,
+  type PathFeedbackMap,
+  type PathVerdict,
+} from "../usePathFeedback";
 import PathSuggestionList from "./PathSuggestionList";
 import PathPreferencesForm from "./PathPreferencesForm";
+import PathFitPanel from "./PathFitPanel";
 import SkillProficiencyModal from "./SkillProficiencyModal";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-/**
- * `loading` is the job's pending state and four others are its terminal ones;
- * `needs_preferences` is the UI override that shows the preferences form over
- * whichever of those the job lifecycle is in.
- */
-type FetchState = "loading" | "error" | "career_status_not_set" | "profile_incomplete" | "needs_preferences" | "success";
-
-/**
- * Which screen a failure puts up.
- *
- * The two named codes are recoverable by the user and get their own prompts;
- * everything else is the retryable error card. They used to reach this page as
- * the `message` of a 400 and now reach it as a failed job's `error` — the same
- * strings either way, which is what lets this mapping be shared by both paths.
- */
-function stateForFailure(message: string): FetchState {
-  if (message === "career_status_not_set") return "career_status_not_set";
-  if (message === "profile_incomplete") return "profile_incomplete";
-  return "error";
-}
+//
+// `FetchState` and `stateForFailure` moved to `../pathFailure` for F-6. They
+// were module-private here, which was right while one screen used them; the
+// feedback controls and the deep-fit panel make three call sites, and three
+// private copies is how the error vocabulary drifts apart.
 
 /**
  * The job's `result` in the shape this page renders.
@@ -138,8 +135,35 @@ export default function PathIntelligencePage() {
   const [jobId, setJobId] = useState<string | null>(null);
   const suggestionJob = usePathSuggestionJobStatus(jobId);
 
+  // ---------------------------------------------------------------------
+  // F-6: the feedback loop
+  // ---------------------------------------------------------------------
+  //
+  // The re-ranked list arrives in the POST's own response, so it is held here
+  // and rendered in place of the job's result. It is NOT merged into the job
+  // query's cache: that cache is keyed by job id and describes a scoring run,
+  // and a judgement does not make the run have produced something else. A fresh
+  // enqueue clears the override, which is the correct precedence — a new
+  // scoring is newer than the last re-rank of an older one.
+  const [rerank, setRerank] = useState<PathSuggestionsResponse | null>(null);
+  const [feedback, setFeedback] = useState<PathFeedbackMap>({});
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  // Has this session written a judgement? Until it has, the server's map is the
+  // truth; after it has, ours is. See `effectiveFeedback`.
+  const [feedbackTouched, setFeedbackTouched] = useState(false);
+
+  const recordFeedback = useRecordPathFeedback();
+  const clearFeedback = useClearPathFeedback();
+
+  // F-6: the deep fit, opened by a card click.
+  const [openCode, setOpenCode] = useState<string | null>(null);
+  const pathFit = usePathFit();
+
   const fetchSuggestions = useCallback(() => {
     setShowPreferences(false);
+    setRerank(null);
+    setFeedbackError(null);
+    setFeedbackTouched(false);
     startSuggestions.mutate(undefined, {
       // A new enqueue re-keys the poll query, so a stale job's terminal state
       // cannot shadow the fresh run.
@@ -151,10 +175,21 @@ export default function PathIntelligencePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const data: PathSuggestionsResponse | null =
+  const jobData: PathSuggestionsResponse | null =
     suggestionJob.data?.status === "succeeded" && suggestionJob.data.result
       ? asPathSuggestions(suggestionJob.data.result)
       : null;
+  const data: PathSuggestionsResponse | null = rerank ?? jobData;
+
+  // Judgements outlive a page load, and the list a returning user is handed was
+  // already shaped by them. So the controls start in the state the *server*
+  // says, not empty: without this, someone who tapped yesterday would come back
+  // to a re-ranked shortlist with no lit buttons and no reset — bent by state
+  // they could neither see nor undo. `feedback` on the payload is what carries
+  // it; `feedbackTouched` is what stops a DELETE's empty map being overwritten
+  // by the stale job result still sitting in the query cache.
+  const serverFeedback = (jobData?.feedback ?? {}) as PathFeedbackMap;
+  const effectiveFeedback = feedbackTouched ? feedback : serverFeedback;
 
   // Derived, not stored: the enqueue mutation's phase and the poll's terminal
   // state are the whole of what the old hand-rolled fetchState tracked, and
@@ -185,7 +220,108 @@ export default function PathIntelligencePage() {
     return "loading";
   })();
 
-  const fetchState: FetchState = showPreferences ? "needs_preferences" : jobState;
+  // A deep fit that fails on the *profile* is the same whole-screen condition a
+  // feedback failure is, and for the same reason: `profile_incomplete` is not a
+  // fact about the card that was clicked. Every other deep-fit code stays in the
+  // panel, where the user can close it and keep reading the other nine.
+  const fitError =
+    pathFit.isError && pathFit.error instanceof Error ? pathFit.error.message : null;
+
+  // A feedback failure that is about the *profile* (`career_status_not_set`,
+  // `profile_incomplete`) takes the whole screen, because nine good suggestions
+  // are no use to somebody who has to go and fill in their job title. Anything
+  // else stays inline next to the controls that caused it — see `feedbackError`.
+  const profileLevelFailure = [feedbackError, fitError]
+    .filter((message): message is string => typeof message === "string")
+    .find(isProfileLevelFailure);
+  const feedbackState: FetchState | null = profileLevelFailure
+    ? stateForFailure(profileLevelFailure)
+    : null;
+
+  const fetchState: FetchState = showPreferences
+    ? "needs_preferences"
+    : feedbackState ?? jobState;
+
+  const feedbackPending = recordFeedback.isPending || clearFeedback.isPending;
+
+  /**
+   * Record a verdict and swap in the list the server ranks from it.
+   *
+   * **Optimistic, and only as optimistic as it can honestly be.** The client
+   * cannot predict a Rocchio re-rank, so it does not try: what it predicts is
+   * the one part it knows for certain — a card called `too_similar` or
+   * `not_for_me` is gone, a card called `interesting` stays and its button
+   * lights up. Guessing an order and then correcting it a second later would
+   * make the list jump twice for no added responsiveness.
+   *
+   * On failure the predicted removal is reverted and the error panel appears;
+   * the previous list and the previous verdict map both come back, so a failed
+   * tap leaves no trace.
+   */
+  const handleVerdict = useCallback(
+    (onetCode: string, verdict: PathVerdict) => {
+      // `rerank`, not `data`: restoring `data` on failure would pin the job's
+      // own result into the override slot, and a later poll update would then be
+      // shadowed by a copy of itself. The revert has to put back the state that
+      // was there, not a value equal to what it rendered.
+      const previousRerank = rerank;
+      const previousFeedback = effectiveFeedback;
+      setFeedbackError(null);
+      setFeedbackTouched(true);
+      setFeedback({ ...previousFeedback, [onetCode]: verdict });
+      if (data && verdict !== "interesting") {
+        setRerank({
+          ...data,
+          suggestions: data.suggestions.filter((s) => s.onet_code !== onetCode),
+        });
+      }
+
+      recordFeedback.mutate(
+        { onet_code: onetCode, verdict },
+        {
+          onSuccess: (result) => {
+            setRerank(result as unknown as PathSuggestionsResponse);
+            setFeedback((result.feedback ?? {}) as PathFeedbackMap);
+          },
+          onError: (error) => {
+            setRerank(previousRerank);
+            setFeedback(previousFeedback);
+            setFeedbackError(error instanceof Error ? error.message : "");
+          },
+        },
+      );
+    },
+    [data, rerank, effectiveFeedback, recordFeedback],
+  );
+
+  const handleClearFeedback = useCallback(() => {
+    const previousRerank = rerank;
+    const previousFeedback = effectiveFeedback;
+    setFeedbackError(null);
+    setFeedbackTouched(true);
+    clearFeedback.mutate(undefined, {
+      onSuccess: (result) => {
+        setRerank(result as unknown as PathSuggestionsResponse);
+        setFeedback({});
+      },
+      onError: (error) => {
+        setRerank(previousRerank);
+        setFeedback(previousFeedback);
+        setFeedbackError(error instanceof Error ? error.message : "");
+      },
+    });
+  }, [rerank, effectiveFeedback, clearFeedback]);
+
+  const openFit = useCallback(
+    (onetCode: string) => {
+      setOpenCode(onetCode);
+      pathFit.mutate(onetCode);
+    },
+    [pathFit],
+  );
+
+  const openTitle =
+    data?.suggestions.find((s) => s.onet_code === openCode)?.title ?? "this path";
 
   const proceedAfterProficiency = useCallback(() => {
     if (!profile?.path_preferences) {
@@ -259,6 +395,24 @@ export default function PathIntelligencePage() {
           saving={saveProficiency.isPending}
           onSave={handleProficiencySave}
           onSkip={handleProficiencySkip}
+        />
+      )}
+
+      {/* The deep fit, opened by a card click (F-5's endpoint, F-6's wiring).
+          Closed when the failure is a profile-level one: that has already taken
+          the whole screen, and a panel over a "complete your profile" prompt
+          would be two answers to one question. */}
+      {openCode && !feedbackState && (
+        <PathFitPanel
+          title={openTitle}
+          fit={pathFit.data ?? null}
+          pending={pathFit.isPending}
+          errorCode={fitError}
+          onClose={() => {
+            setOpenCode(null);
+            pathFit.reset();
+          }}
+          onRetry={() => pathFit.mutate(openCode)}
         />
       )}
 
@@ -348,11 +502,55 @@ export default function PathIntelligencePage() {
           {/* Success */}
           {fetchState === "success" && data && (
             <>
+              {/* A feedback failure that is not about the profile stays here,
+                  beside the controls that caused it, rather than replacing the
+                  list — the suggestions on screen are still good ones and the
+                  user has not lost anything but the tap. */}
+              {feedbackError && !feedbackState && (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700"
+                >
+                  <p className="font-medium mb-1">
+                    We couldn't save that just now.
+                  </p>
+                  <p className="text-xs">Your suggestions haven't changed.</p>
+                  <button
+                    type="button"
+                    onClick={() => setFeedbackError(null)}
+                    className="mt-3 text-xs font-semibold text-red-700 underline"
+                  >
+                    Try again
+                  </button>
+                </div>
+              )}
+
               <PathSuggestionList
                 suggestions={data.suggestions}
                 currentTitle={currentTitle}
                 careerStatus={data.career_status}
+                onOpen={openFit}
+                feedback={effectiveFeedback}
+                onVerdict={handleVerdict}
+                feedbackPending={feedbackPending}
               />
+
+              {Object.keys(effectiveFeedback).length > 0 && (
+                <div className="flex items-center justify-between gap-4 rounded-xl border border-cream-muted bg-white px-5 py-3">
+                  <p className="text-xs text-ink-secondary">
+                    These paths are shaped by what you've told us.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleClearFeedback}
+                    disabled={feedbackPending}
+                    className="shrink-0 text-xs font-semibold text-forest-mid underline hover:text-forest-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    Start over
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-center justify-between pt-2">
                 <button
                   type="button"

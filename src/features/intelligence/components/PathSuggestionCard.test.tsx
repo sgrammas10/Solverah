@@ -138,3 +138,129 @@ describe("PathSuggestionCard - tooltip", () => {
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// F-6 — inline feedback controls and click-to-open
+// ---------------------------------------------------------------------------
+//
+// Controls are selected by `data-verdict` and `aria-pressed`, never by their
+// text. Julie owns the labels and revises them on the built product; a test that
+// matched "Too similar to my job" would turn a copy edit into a red suite
+// (AccountModal.test.tsx set this precedent for F-9 and gives the reasoning).
+
+function verdictButtons(): HTMLElement[] {
+  return Array.from(
+    document.querySelectorAll<HTMLElement>("[data-verdict]")
+  );
+}
+
+function verdictButton(value: string): HTMLElement {
+  const found = document.querySelector<HTMLElement>(`[data-verdict="${value}"]`);
+  if (!found) throw new Error(`no control for verdict ${value}`);
+  return found;
+}
+
+describe("PathSuggestionCard - feedback controls", () => {
+  it("renders no feedback controls when no handler is given", () => {
+    renderCard();
+    expect(verdictButtons()).toHaveLength(0);
+  });
+
+  it("offers all three verdicts, because they are three different signals", () => {
+    render(
+      <PathSuggestionCard
+        suggestion={BASE_SUGGESTION}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+        onVerdict={() => {}}
+      />
+    );
+    expect(verdictButtons().map((b) => b.dataset.verdict)).toEqual([
+      "interesting",
+      "too_similar",
+      "not_for_me",
+    ]);
+  });
+
+  it("reports the tapped verdict with the card's O*NET code", () => {
+    const onVerdict = vi.fn();
+    render(
+      <PathSuggestionCard
+        suggestion={BASE_SUGGESTION}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+        onVerdict={onVerdict}
+      />
+    );
+    fireEvent.click(verdictButton("too_similar"));
+    expect(onVerdict).toHaveBeenCalledWith("11-2021.00", "too_similar");
+  });
+
+  it("marks the standing verdict pressed and the others not", () => {
+    render(
+      <PathSuggestionCard
+        suggestion={BASE_SUGGESTION}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+        verdict="interesting"
+        onVerdict={() => {}}
+      />
+    );
+    expect(verdictButton("interesting")).toHaveAttribute("aria-pressed", "true");
+    expect(verdictButton("too_similar")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("disables every control while a tap is in flight", () => {
+    render(
+      <PathSuggestionCard
+        suggestion={BASE_SUGGESTION}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+        onVerdict={() => {}}
+        feedbackPending
+      />
+    );
+    for (const button of verdictButtons()) {
+      expect(button).toBeDisabled();
+    }
+  });
+});
+
+describe("PathSuggestionCard - opening the deep fit", () => {
+  it("is not clickable when no open handler is given", () => {
+    renderCard();
+    expect(screen.queryByRole("button", { name: /how .* fits you/i })).toBeNull();
+  });
+
+  it("opens the fit for its own occupation when the body is clicked", () => {
+    const onOpen = vi.fn();
+    render(
+      <PathSuggestionCard
+        suggestion={BASE_SUGGESTION}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+        onOpen={onOpen}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /how .* fits you/i }));
+    expect(onOpen).toHaveBeenCalledWith("11-2021.00");
+  });
+
+  it("keeps the feedback controls outside the clickable region", () => {
+    // Nesting them would give a keyboard user a control they cannot reach and a
+    // screen reader a button containing buttons -- and every tap would also open
+    // the panel.
+    const onOpen = vi.fn();
+    render(
+      <PathSuggestionCard
+        suggestion={BASE_SUGGESTION}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+        onOpen={onOpen}
+        onVerdict={() => {}}
+      />
+    );
+    fireEvent.click(verdictButton("interesting"));
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+});

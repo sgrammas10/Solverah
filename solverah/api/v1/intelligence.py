@@ -41,6 +41,8 @@ from solverah.schemas.intelligence import (
     PathPreferencesDocument,
     PathPreferencesPutRequest,
     PathPreferencesRequest,
+    PathFeedbackRequest,
+    PathFeedbackResponse,
     PathFitResponse,
     PathSuggestionJobAccepted,
     PathSuggestionJobStatus,
@@ -75,6 +77,7 @@ _SCOPE_RECOMMENDATIONS_READ = "intelligence:recommendations-read"
 _SCOPE_AGENT = "intelligence:agent"
 _SCOPE_PATH_SUGGESTION_JOBS = "intelligence:path-suggestion-jobs"
 _SCOPE_PATH_FIT = "intelligence:path-fit"
+_SCOPE_PATH_FEEDBACK = "intelligence:path-feedback"
 
 #: See ``solverah/api/v1/assessments.py`` for why a poll does not run on the
 #: global defaults, and why the day cap is restated rather than dropped.
@@ -543,4 +546,135 @@ def post_my_path_fit(onet_code: str):
 
     return _respond(
         intelligence_service.path_fit(user, onet_code, current_app.logger)
+    )
+
+
+# ---------------------------------------------------------------------------
+# F-6 -- inline card feedback, and the re-rank it triggers
+# ---------------------------------------------------------------------------
+#
+# `POST /me/path-suggestion-jobs` above stays exactly where it is: it is the COLD
+# generation, it costs an LLM completion for ten narratives, and the job/poll
+# pair exists because of that cost. These two routes are the WARM re-rank and are
+# synchronous, for F-5's reason and with F-5's shape -- the work is a matrix
+# product plus, at most, one completion for the two to six cards that are new,
+# and a job handle the client had to poll would cost the user more round trips
+# than it deferred.
+#
+# Feedback deliberately does NOT go through the job pair. A tap has to change the
+# list the user is looking at; routing it through an enqueue would mean the
+# response to "I like this one" is a job id, and the list would change some time
+# later, on a poll, with no way to tell the user's tap from a stale generation
+# finishing.
+
+
+@document(
+    "Record a judgement about one suggested path and re-rank the shortlist",
+    tags=["me"],
+    request=PathFeedbackRequest,
+    responses={
+        200: PathFeedbackResponse,
+        400: LegacyError,
+        404: LegacyError,
+        500: LegacyError,
+        503: LegacyError,
+    },
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "Stores one verdict about one occupation and returns the re-ranked "
+        "shortlist, which is also written into the per-user cache `GET "
+        "/me/path-suggestions` serves.\n\n"
+        "`verdict` is one of `too_similar`, `interesting`, `not_for_me`. They "
+        "are three different signals, not three strengths of one: `too_similar` "
+        "raises a cosine radius around the user's own occupation and excludes "
+        "everything inside it, while the other two rotate the retrieval query "
+        "toward and away from what they named. Only the `adjacent` move_intent "
+        "reads them; they are stored for everyone, so switching to `adjacent` "
+        "later does not start from nothing.\n\n"
+        "Re-tapping the same card replaces that judgement. A card judged "
+        "`too_similar` or `not_for_me` does not come back; one judged "
+        "`interesting` does, ranked higher.\n\n"
+        "`error` on a failure is one of `invalid_verdict`, "
+        "`career_status_not_set`, `profile_incomplete` (400); "
+        "`invalid_onet_code`, `unknown_occupation`, `unsupported_occupation` "
+        "(404); or `corpus_unavailable` (503)."
+    ),
+)
+@intelligence_bp.route("/me/path-feedback", methods=["POST"])
+@limiter.shared_limit("20 per minute", scope=_SCOPE_PATH_FEEDBACK)
+@jwt_required()
+def post_my_path_feedback():
+    """POST /me/path-feedback - store one judgement, return the new shortlist.
+
+    **20 per minute, not the 10 every other spending route on this blueprint
+    carries**, and the difference is the interaction rather than the spend. A
+    shortlist is ten cards; a user working through them taps ten times in well
+    under a minute, and answering their eighth tap with a 429 would be the rate
+    limiter breaking the feature it is protecting. 20 is that plus headroom,
+    while still bounding a loop.
+
+    It is a real budget rather than a formality because a tap CAN reach a
+    provider: the re-rank writes narratives for cards that were not on the list
+    before, which is one `gpt-4o-mini` completion for two to six short strings.
+    A tap that only reorders spends nothing (see
+    `intelligence_service._renarrate`), so the limit bounds the worst case and
+    the common case is free.
+
+    Shares one bucket with the DELETE below, for the reason every `shared_limit`
+    on this blueprint gives: clear-then-tap-then-clear is one user doing one
+    thing, and two separate budgets would let it cost twice as much.
+    """
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    return _respond(
+        intelligence_service.record_path_feedback(
+            user, request.get_json(silent=True) or {}, current_app.logger
+        )
+    )
+
+
+@document(
+    "Clear every path judgement and return the default shortlist",
+    tags=["me"],
+    responses={
+        200: PathFeedbackResponse,
+        400: LegacyError,
+        404: LegacyError,
+        500: LegacyError,
+        503: LegacyError,
+    },
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    request_required=False,
+    description=(
+        "The reset. Deletes every stored judgement for the signed-in user and "
+        "returns the shortlist they would have seen having tapped nothing -- "
+        "which is byte-for-byte the list `POST /me/path-suggestion-jobs` "
+        "produces, because zero judgements is the identity case in the "
+        "scorer.\n\n"
+        "Idempotent: clearing nothing is a `200` with that same list, not a "
+        "`404`. The client is asking for a state, not deleting a row it named."
+    ),
+)
+@intelligence_bp.route("/me/path-feedback", methods=["DELETE"])
+@limiter.shared_limit("20 per minute", scope=_SCOPE_PATH_FEEDBACK)
+@jwt_required()
+def delete_my_path_feedback():
+    """DELETE /me/path-feedback - clear the judgements, return the default list.
+
+    A DELETE that returns a body, and a large one. The alternative is `204` plus
+    a second round trip to fetch what the user is now looking at, which is a
+    worse experience for a button whose whole purpose is "put it back how it
+    was" -- and it would let the two responses disagree if a write landed
+    between them.
+    """
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    return _respond(
+        intelligence_service.clear_path_feedback(user, current_app.logger)
     )

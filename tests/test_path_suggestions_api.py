@@ -215,3 +215,80 @@ def test_repeat_reads_serve_one_computation(client, monkeypatch):
 
     assert mock_score.call_count == 1
     assert resp1.get_json() == resp2.get_json()
+
+
+# ---------------------------------------------------------------------------
+# F-6 -- the cold generation honours stored judgements too
+# ---------------------------------------------------------------------------
+#
+# `POST /me/path-feedback` re-ranks and writes into `path_cache`. That cache is
+# per worker and lost on deploy, so without the two behaviours below a reload
+# after one would silently rebuild the DEFAULT list while the rows recording
+# what the user asked for sat untouched in the database -- and the client would
+# have no way to know, because the payload would not say.
+
+
+def test_the_cold_generation_passes_stored_judgements_to_the_scorer(client, monkeypatch):
+    """A judgement is user state, not a property of one re-rank.
+
+    `client` is taken for its schema, not for a request: this asserts on the
+    service function because the argument the scorer receives is the claim, and a
+    double's output would be whatever the double was told to return.
+    """
+    from unittest.mock import MagicMock
+
+    import backend.services.path_narrative as pn
+    import backend.services.path_scoring as ps
+    from app import app
+    from backend.services.path_scoring import ScoredPath
+    from model import User, db
+    from solverah.repositories import path_feedback_repository, profile_repository
+    from solverah.services import intelligence_service, path_cache
+
+    with app.app_context():
+        user = User(email="coldfb@example.com", password_hash="x", name="Cold")
+        db.session.add(user)
+        db.session.commit()
+        profile_repository.update_document(
+            user.id,
+            lambda existing: {
+                **existing,
+                "career_status": "employed",
+                "skills": ["Python"],
+                "skill_levels": {"Python": "advanced"},
+            },
+        )
+        path_feedback_repository.record(user.id, "15-1252.00", "too_similar")
+        db.session.commit()
+        path_cache.invalidate(user.id)
+
+        scorer = MagicMock(
+            return_value=[
+                ScoredPath(onet_code="15-1251.00", title="Computer Programmers", score=0.8)
+            ]
+        )
+        monkeypatch.setattr(ps, "score_paths", scorer)
+        monkeypatch.setattr(
+            pn,
+            "generate_narratives",
+            MagicMock(
+                side_effect=lambda cands, _ctx: [
+                    pn.PathSuggestion(
+                        onet_code=c.onet_code,
+                        title=c.title,
+                        why_text="why",
+                        profile_dimensions=["a", "b"],
+                    )
+                    for c in cands
+                ]
+            ),
+        )
+        monkeypatch.setenv("ONET_API_KEY", "test-key")
+
+        result = intelligence_service.path_suggestions(user, app.logger)
+
+    assert result.status == 200, result.body
+    assert scorer.call_args.kwargs["feedback"] == {"15-1252.00": "too_similar"}
+    assert result.body["feedback"] == {"15-1252.00": "too_similar"}
+    # And the same map reaches the cache the GET serves, so a reload sees it.
+    assert path_cache.get(user.id)["feedback"] == {"15-1252.00": "too_similar"}

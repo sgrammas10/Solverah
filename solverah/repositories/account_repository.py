@@ -21,6 +21,7 @@ from sqlalchemy import func
 from model import (
     IntakeSubmission,
     JobRecommendation,
+    PathFeedback,
     PathFit,
     PulseCheckin,
     PulseEvent,
@@ -139,6 +140,16 @@ def delete_personal_rows(user_id: int, intakes: List[IntakeSubmission]) -> None:
     # than by cascade, for the reason the two paragraphs above give: deletion tombstones
     # the user row instead of removing it, so `fk_pathfit_user` never fires.
     PathFit.query.filter_by(user_id=user_id).delete()
+    # Inline card judgements (BUILD_PLAN F-6). Destroyed rather than retained
+    # de-identified, and this one is NOT the free-text test the two rows above turn
+    # on: `verdict` is a closed vocabulary and `onet_code` is a catalogue key, so
+    # nothing here is prose. It is destroyed because of what the row *means* rather
+    # than how it is spelled -- a judgement is a statement a person made about their
+    # own career ("this is too close to what I already do"), and a de-identified
+    # opinion is still that person's opinion. The D-16 research argument that keeps
+    # `pulse_checkins` and `experiments` does not reach it: nothing downstream reads
+    # these rows for anything but rebuilding one user's own query.
+    PathFeedback.query.filter_by(user_id=user_id).delete()
 
 
 def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_password: str) -> None:
