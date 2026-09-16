@@ -518,3 +518,29 @@ once `REDIS_URL` is set it simply stays set, which is harmless.
   try to *create* a second service rather than adopt the existing one. Reconcile
   the name before any Blueprint adoption; see `docs/RENDER_DEPLOYMENT.md` for the
   two adoption paths.
+
+---
+
+### Workstream F deploy dependency — the corpus must be in S3 BEFORE the merge (added 2026-09-16)
+
+Path Intelligence now retrieves from a precomputed O*NET corpus (`BUILD_PLAN.md` §6).
+The old candidate funnel is **tombstoned — there is no fallback.** With no artifact in S3
+or no key set, every path-suggestions job, deep-fit click and feedback tap returns a typed
+`503 corpus_unavailable` (graceful, but the feature is down for everyone).
+
+Order, on deploy day, before `git merge` to main:
+
+1. `flask corpus publish` — uploads the artifact set from `Desktop/solverah-corpus/`
+   (`.npy`, `.json`, `.zones.json`, `.clusters.json`) to the **app** bucket
+   (`S3_BUCKET_NAME`, never the backup bucket). First real run is Sebastian's trigger.
+2. Set `SOLVERAH_CORPUS_S3_KEY` (and `SOLVERAH_CORPUS_CACHE_DIR`) on `solverah-api` in the
+   Render dashboard. Both are codified as `sync: false` in `render.yaml`'s `solverah-prod`
+   group (F-8) — render.yaml governs nothing until Blueprint adoption, so the dashboard is
+   the live setting.
+3. Verify one worker loads it: the boot log shows no `occupation corpus unavailable`
+   WARNING, and `POST /api/v1/me/path-suggestion-jobs` completes for a test account.
+4. Then merge.
+
+Rollback is the ordinary revert of the merge; the corpus object is inert if unused. The
+loader is lazy per process (never in `create_app()`), so `flask db upgrade` and the crons
+do not touch S3 — a missing key fails the feature, not the deploy.
