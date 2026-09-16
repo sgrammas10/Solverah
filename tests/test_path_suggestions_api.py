@@ -292,3 +292,107 @@ def test_the_cold_generation_passes_stored_judgements_to_the_scorer(client, monk
     assert result.body["feedback"] == {"15-1252.00": "too_similar"}
     # And the same map reaches the cache the GET serves, so a reload sees it.
     assert path_cache.get(user.id)["feedback"] == {"15-1252.00": "too_similar"}
+
+
+# ---------------------------------------------------------------------------
+# F-8 box 4 -- what a thin profile gets on the wire
+# ---------------------------------------------------------------------------
+#
+# The scorer-level cases are in `tests/test_path_scoring.py::TestScorePaths`.
+# These three are here because the CODE the user's browser sees is a separate
+# claim from what `score_paths` returns, and the difference between them is the
+# ACC-4 defect: the SPA's `stateForFailure()` has always had a
+# `profile_incomplete` branch -- "Add a job title and a few skills to get
+# started" -- and it was dead for months because the backend sent 500 instead.
+
+
+def _start_job(client, csrf):
+    """POST the job and return the finished row. Celery is eager in tests."""
+    resp = client.post(
+        "/api/v1/me/path-suggestion-jobs", headers={"X-CSRF-TOKEN": csrf}
+    )
+    return resp
+
+
+def test_an_invented_job_title_is_scored_not_refused(client, monkeypatch):
+    """Box 4, case 1. Invented titles are normal, especially at startups.
+
+    The user is not at fault for being a "Growth Ninja", and the route must not
+    treat an O*NET keyword-search miss as a reason to refuse them. It reaches
+    the scorer, which resolves the title from the composed document.
+    """
+    csrf = _register_and_login(client, monkeypatch, email="ninja@example.com")
+    _set_profile("ninja@example.com", {
+        "career_status": "employed",
+        "skills": ["A/B testing", "Email marketing automation", "SQL"],
+        "skill_levels": {"SQL": "beginner"},
+        "experience": [{"position": "Growth Ninja", "company": "Acme"}],
+    })
+    mock_score, _ = _mock_scoring(monkeypatch)
+    _start_job(client, csrf)
+
+    resp = client.get("/api/v1/me/path-suggestions")
+
+    assert resp.status_code == 200, resp.get_json()
+    assert resp.get_json()["suggestions"]
+    profile_arg = mock_score.call_args.args[0]
+    assert profile_arg.current_title == "Growth Ninja"
+    assert len(profile_arg.skills) == 3
+
+
+def test_no_title_with_skills_is_scored_not_refused(client, monkeypatch):
+    """Box 4, case 2. Every `first_job` user, and most new signups.
+
+    `build_user_profile` deliberately produces no title for `first_job` even
+    when an experience row exists, so this is the shape of a real cohort rather
+    than an edge case.
+    """
+    csrf = _register_and_login(client, monkeypatch, email="firstjob@example.com")
+    _set_profile("firstjob@example.com", {
+        "career_status": "first_job",
+        "skills": ["Customer service", "Microsoft Excel"],
+        "skill_levels": {"Customer service": "intermediate"},
+    })
+    mock_score, _ = _mock_scoring(monkeypatch)
+    _start_job(client, csrf)
+
+    resp = client.get("/api/v1/me/path-suggestions")
+
+    assert resp.status_code == 200, resp.get_json()
+    profile_arg = mock_score.call_args.args[0]
+    assert profile_arg.current_title is None
+    assert [s.name for s in profile_arg.skills] == [
+        "Customer service",
+        "Microsoft Excel",
+    ]
+
+
+def test_no_title_and_no_skills_is_profile_incomplete_not_a_five_hundred(
+    client, monkeypatch
+):
+    """Box 4, case 3. The ONE path allowed to produce no results.
+
+    `InsufficientProfile` -> `400 profile_incomplete` -> a job row of
+    `{status: failed, error: profile_incomplete}`, which `stateForFailure()`
+    branches on. A 500 here tells the user to retry something no amount of
+    retrying can fix, and that is exactly what it did before F-4.
+
+    The real scorer runs -- not a double -- because the claim is about which
+    exception it raises, and a mock would be asserting on its own return value.
+    """
+    csrf = _register_and_login(client, monkeypatch, email="empty@example.com")
+    _set_profile("empty@example.com", {"career_status": "employed", "skills": []})
+    monkeypatch.setenv("ONET_API_KEY", "test-key")
+
+    resp = _start_job(client, csrf)
+
+    assert resp.status_code == 202, resp.get_json()
+    job = resp.get_json()
+    poll = client.get("/api/v1/me/path-suggestion-jobs/%s" % job["job_id"])
+    assert poll.status_code == 200, poll.get_json()
+    body = poll.get_json()
+    assert body["status"] == "failed"
+    assert body["error"] == "profile_incomplete", (
+        "a thin profile was reported as an outage rather than as something the "
+        "user can fix: %r" % body
+    )

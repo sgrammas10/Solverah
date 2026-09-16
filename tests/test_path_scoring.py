@@ -1413,6 +1413,168 @@ class TestScorePaths:
         onet.search_occupations.return_value = []
         assert score_paths(profile(current_title="Nothing At All"), onet, None) == []
 
+    def test_an_invented_title_is_answered_rather_than_searched_for(
+        self, monkeypatch, onet
+    ) -> None:
+        """F-8 box 4, case 1a. The live ACC-4 / S22 failure, closed.
+
+        Design doc §5 #6 asked what happens when a user's title resolves to no
+        O*NET code. The answer F-4 built is better than the fallback the doc
+        asked for: **the question stops being asked.** O*NET's keyword search is
+        what could not resolve "Growth Ninja"; corpus resolution embeds the
+        user's whole composed document -- title *and* skills -- and takes the
+        nearest row, so an invented title is answered by what the person
+        actually does. F-7 measured p20, whose title is exactly that, at 0.605.
+
+        The assertion that matters here is the call count: an invented title
+        must not reach `search_occupations` at all. The `onet` fixture raises on
+        every method, so a regression that reintroduced the keyword search
+        fails loudly rather than quietly returning Biofuels Managers -- which is
+        what F-4 measured it doing for "Senior Backend Engineer".
+        """
+        role = unit(1, 0, 0)
+        corpus = build_corpus(
+            [
+                ("15-1252.00", "Software Developers", role),
+                ("15-1211.00", "Computer Systems Analysts", unit(0.95, 0.31, 0)),
+                ("47-2111.00", "Electricians", unit(0, 0, 1)),
+            ],
+            {"15-1252.00": 4, "15-1211.00": 4, "47-2111.00": 3},
+        )
+        monkeypatch.setattr(ps, "get_corpus", lambda: corpus)
+
+        p = profile(
+            current_title="Chief Vibes Officer", skills=[user_skill("Python")]
+        )
+        client = FakeOpenAI(
+            {
+                _compose_skills_document(p): role,
+                _compose_profile_document(p): role,
+                _compose_title_document(p): role,
+                "Python": role,
+            }
+        )
+
+        results = score_paths(p, onet, client)
+
+        assert results, "an invented title produced nothing at all"
+        assert onet.search_occupations.call_count == 0
+        # The composed document resolved to Software Developers, which retrieval
+        # then excludes as the user's own job. What is left is its neighbourhood,
+        # not an error and not the trade on the far side of the corpus.
+        assert results[0].onet_code == "15-1211.00"
+
+    def test_a_title_that_lands_on_a_residual_bucket_still_scores(
+        self, monkeypatch, onet
+    ) -> None:
+        """F-8 box 4, case 1b. The branch that really is a fallback.
+
+        75 corpus rows are "..., All Other" residuals -- ~50-character
+        title-only documents. F-3's judgement is that such a row is a truthful
+        *identity* and a poor *query*, so `_anchor_vector` returns None for one
+        and `_build_query` composes the user's own document instead. That is the
+        one place "no usable corpus anchor" is actually reachable with an
+        embedder present, and it is a fallback branch: nothing else exercises
+        it, so nothing else would notice it breaking.
+        """
+        role = unit(1, 0, 0)
+        residual = unit(0.9, 0.44, 0)
+        corpus = build_corpus(
+            [
+                ("15-1252.00", "Software Developers", role),
+                ("15-1299.99", "Computer Occupations, All Other", residual),
+                ("47-2111.00", "Electricians", unit(0, 0, 1)),
+            ],
+            {"15-1252.00": 4, "15-1299.99": 4, "47-2111.00": 3},
+        )
+        monkeypatch.setattr(ps, "get_corpus", lambda: corpus)
+
+        p = profile(current_title="Growth Ninja", skills=[user_skill("Python")])
+        client = FakeOpenAI(
+            {
+                _compose_skills_document(p): role,
+                _compose_profile_document(p): residual,
+                _compose_title_document(p): residual,
+                "Python": role,
+            }
+        )
+
+        results = score_paths(p, onet, client)
+
+        assert results, "a residual-bucket anchor produced nothing at all"
+        assert results[0].onet_code == "15-1252.00"
+        assert "15-1299.99" not in [r.onet_code for r in results], (
+            "a residual bucket is never a suggestion, only ever an identity"
+        )
+
+    def test_a_user_with_no_title_but_skills_is_scored_not_refused(
+        self, monkeypatch, onet
+    ) -> None:
+        """F-8 box 4, case 2. Most new signups, and every `first_job` user.
+
+        F-7 measured this on p07 -- no title, two generic skills, no assessment
+        data -- and it gets the full `fresh_start` seed rather than an error.
+        """
+        role = unit(1, 0, 0)
+        corpus = build_corpus(
+            [
+                ("43-4051.00", "Customer Service Representatives", role),
+                ("47-2111.00", "Electricians", unit(0, 0, 1)),
+            ],
+            {"43-4051.00": 2, "47-2111.00": 3},
+        )
+        monkeypatch.setattr(ps, "get_corpus", lambda: corpus)
+
+        p = profile(
+            current_title=None,
+            career_status="first_job",
+            skills=[user_skill("Customer service")],
+        )
+        client = FakeOpenAI(
+            {
+                _compose_skills_document(p): role,
+                _compose_profile_document(p): role,
+                "Customer service": role,
+            }
+        )
+
+        results = score_paths(p, onet, client)
+
+        assert results
+        assert onet.search_occupations.call_count == 0, (
+            "a titleless profile has nothing to search for and must not try"
+        )
+
+    def test_the_only_empty_case_is_typed_and_never_a_five_hundred(
+        self, world, onet
+    ) -> None:
+        """F-8 box 4, case 3. The one path allowed to produce no results.
+
+        No title AND no skills AND no behavioural profile. That is not an
+        outage and must never be reported as one: `InsufficientProfile` becomes
+        `400 profile_incomplete`, which the SPA's `stateForFailure()` renders as
+        "Add a job title and a few skills to get started". A 500 there tells the
+        user to retry something no amount of retrying can fix -- which is what
+        it did before F-4, and is the ACC-4 defect.
+
+        A behavioural profile alone does NOT rescue it, deliberately: a
+        description of how somebody works with nothing tethering it to what they
+        can do is how you recommend Logging Worker.
+        """
+        with pytest.raises(ps.InsufficientProfile):
+            score_paths(profile(current_title=None, skills=[]), onet, None)
+
+        with pytest.raises(ps.InsufficientProfile):
+            score_paths(
+                profile(
+                    current_title="   ",
+                    skills=[user_skill("   ")],
+                    archetype="Deep Diver",
+                ),
+                onet,
+                None,
+            )
+
     def test_a_corpus_outage_propagates_as_its_own_typed_error(
         self, monkeypatch, onet
     ) -> None:
