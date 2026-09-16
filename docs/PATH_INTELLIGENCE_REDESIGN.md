@@ -121,8 +121,11 @@ neither is obvious from the cache code:
   `post_fork` disposing the SQLAlchemy engine). So pandas/numpy/scikit-learn load
   once per worker. **Measured:** 72.2 MB of *traced Python heap* for that import
   — true RSS is higher, since C-extension allocations sit outside Python's
-  allocator, which is why the file's own estimate says ~150 MB. At 3 workers the
-  baseline is a large fraction of the dyno **before any cache exists**.
+  allocator. `solverah/services/path_cache.py:50` estimates that real baseline at
+  ~150 MB, and a 2026-09-16 measurement of worker RSS after `import app` under
+  production config with empty caches came in at **148 MB**, confirming it. At 3
+  workers the baseline is a large fraction of the dyno **before any cache exists**.
+  _(2026-09-16: `workers` dropped 3 → 1 for this reason.)_
 
 **The redesign in §2 replaces the unbounded cache with a fixed ~6 MB matrix.**
 That is a structural removal of the leak, not a mitigation. See §4 for why the
@@ -332,13 +335,19 @@ entries — is hours, not weeks, and is independently correct.
 
 | storage | per entry | at the 10k cap |
 |---|---|---|
-| `list[float]` (current) | 48.58 KB | 474.4 MB |
-| `array.array('f')` | 6.62 KB | 64.7 MB |
-| numpy `float32` | 7.05 KB | 68.9 MB |
-| packed `bytes` | 6.18 KB | 60.4 MB |
+| `list[float]` (current) | 48.50 KB | 473.6 MB |
+| numpy `float32` | 6.18 KB | 60.4 MB |
+| `array.array('f')` | 6.15 KB | 60.1 MB |
 
-A **7.3x** reduction from storage alone, before any cap change. `float32`
+A **7.8x** reduction from storage alone, before any cap change. `float32`
 precision loss is negligible for cosine similarity.
+
+_Corrected 2026-09-16._ An earlier version of this table put numpy at 7.05 KB
+and `array.array` at 6.62 KB, implying `array.array` was the more compact
+choice. Re-measured against the real `_batch_embed` path they are **within
+0.5% of each other**, so numpy wins outright — identical bytes, and no
+per-read conversion, since every consumer already feeds numpy. The
+recommendation below was right; the numbers that justified it were not.
 
 Separately, `_OCC_CACHE` (`onet_client.py:38`) is worse than "no size cap":
 `_occ_cache_get` returns `None` on expiry but **never deletes the expired entry**,

@@ -56,7 +56,10 @@ frontend/         # React + TypeScript
 ## Testing
 
 - Backend: at least one pytest per endpoint
-- Frontend: Jest/React Testing Library for components
+- Frontend: **Vitest** + React Testing Library for components. `npm test` runs
+  `vitest` (package.json). `jest`, `ts-jest` and `@types/jest` are still in
+  devDependencies but nothing uses them — vestigial, don't write Jest config
+  or reach for Jest-only APIs. Corrected 2026-09-16; this file said "Jest"
 - Test: happy path, errors, edge cases
 - Prefer real dependencies over mocks — only mock external services (APIs, databases)
 - Every bug fix must include a regression test that fails without the fix
