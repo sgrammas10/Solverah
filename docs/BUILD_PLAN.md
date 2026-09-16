@@ -520,8 +520,8 @@ _2026-09-16: **F-1 landed** (376c8d7). Artifact at `Desktop/solverah-corpus/`: 1
 
 - [x] A labelled set of (profile → acceptable occupations) pairs
 - [x] Offline runner + metric (precision@10 / MRR) that can score any scorer
-- [ ] **Measure the CURRENT scorer first and record the number**
-  _(harness ready; the live run — ~3,200 O*NET calls — is sequenced after F-3's calls finish, so two processes never race one API key)_
+- [x] **Measure the CURRENT scorer first and record the number**
+  _(**RECORDED 2026-09-16 16:32Z**, `tests/fixtures/path_eval/runs/baseline_today.json`, `path_scoring.score_paths@HEAD`, 19 non-degenerate profiles, ran in 67 s — the 3,200-call estimate was an upper bound; `_OCC_CACHE` warmed across same-family profiles. **Macro: nDCG@10 0.318 · harmful_rate 0.031 · P@10 0.232 · MRR 0.566 · coverage 0.346 · primary_recall 0.382.** Below F-2's 0.35 "real scorer" line. **EMPTY (= a 500 in prod): p14 electrician, p15 graphic designer, p19 degenerate** — the allow-list prediction confirmed live. Five harmful suggestions across three profiles (retail mgr, warehouse, paralegal). p12 teacher-adjacent scored 0.000 on every metric with 10 results returned — ten unjudged cards. **Caveat:** p08 nursing took 26.8 s and returned 1 of 11 reachable — the shape of 429 backoff dropping candidates, not scorer judgement; F-4 must not count p08 as a win. This is the number F-4 has to beat: nDCG > 0.318 with harm == 0.)_
 
 _Design doc §6 names the absence of this as the plan's weakest point: without
 it, every weight in F-4 and F-7 is opinion and "the rewrite is better" is
