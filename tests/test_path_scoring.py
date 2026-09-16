@@ -24,6 +24,7 @@ from __future__ import annotations
 import os
 from unittest.mock import MagicMock
 
+import numpy as np
 import pytest
 
 import backend.services.onet_client as onet_module
@@ -42,7 +43,6 @@ from backend.services.path_scoring import (
     _COVERAGE_MIX,
     _COVERAGE_TOP_K,
     _EMBED_CACHE,
-    _EMBED_CACHE_MAX,
     _EMBED_THRESHOLD,
     _HOT_TECH_IMPORTANCE,
     _LLM_DEBUG_LOG,
@@ -978,28 +978,30 @@ def test_normalize_title_returns_none_on_api_error():
 # ---------------------------------------------------------------------------
 
 
-def test_batch_embed_caches_and_pre_evicts():
+def test_batch_embed_stores_vectors_as_float32() -> None:
+    """The cache holds np.float32, not the plain list the SDK returns.
+
+    The memory bound this enables is guarded in tests/test_cache_bounds.py
+    alongside the other three per-worker caches; this only pins the type at the
+    one place the conversion happens.
+    """
     import backend.services.path_scoring as ps
 
     ps._EMBED_CACHE.clear()
-    # Fill cache to max with sentinel values.
-    for i in range(ps._EMBED_CACHE_MAX):
-        ps._EMBED_CACHE[f"existing_{i}"] = [0.0]
+    try:
+        mock_openai = MagicMock()
+        mock_openai.embeddings.create.return_value = MagicMock(
+            data=[MagicMock(index=0, embedding=[0.1, 0.2, 0.3])]
+        )
 
-    mock_openai = MagicMock()
-    mock_openai.embeddings.create.return_value = MagicMock(
-        data=[
-            MagicMock(index=0, embedding=[1.0]),
-            MagicMock(index=1, embedding=[2.0]),
-        ]
-    )
+        _batch_embed(["active listening"], mock_openai)
 
-    _batch_embed(["new_text_1", "new_text_2"], mock_openai)
-
-    assert "new_text_1" in ps._EMBED_CACHE
-    assert "new_text_2" in ps._EMBED_CACHE
-    assert len(ps._EMBED_CACHE) == ps._EMBED_CACHE_MAX  # evicted 2, added 2
-    ps._EMBED_CACHE.clear()
+        entry = ps._EMBED_CACHE["active listening"]
+        assert isinstance(entry, np.ndarray)
+        assert entry.dtype == np.float32
+        assert entry.tolist() == pytest.approx([0.1, 0.2, 0.3])
+    finally:
+        ps._EMBED_CACHE.clear()
 
 
 def test_batch_embed_dedupes_and_chunks_at_api_cap():

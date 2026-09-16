@@ -54,6 +54,9 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { AuthContext, ProfileData, SessionResponse, User } from "./authContext";
 import { emitAuthEvent } from "./authEvents";
+// The `solverah.hasSession` hint that gates the boot-time refresh; see
+// sessionHint.ts for what it is and is not.
+import { hasHadSession, rememberSession } from "./sessionHint";
 import { API_BASE } from "../../shared/api/api";
 import { parseApiError } from "../../shared/api/apiError";
 
@@ -95,40 +98,6 @@ function splitLoginUser(
   return { user: rest, profile: profileData };
 }
 
-
-/**
- * Key under which this browser records that it has had a session.
- *
- * Not a credential and not a claim to be signed in — the refresh cookie is
- * HttpOnly and cross-origin, so nothing on this page can read or forge its way
- * to a session. All this decides is whether the boot path is worth spending one
- * request on: present means "try the refresh", absent means "this visitor has
- * never signed in here, do not ask".
- *
- * Forging it costs the forger one extra 401. Losing it (private window, cleared
- * site data) costs a returning user one sign-in. Both are the right failure.
- */
-const SESSION_HINT_KEY = "solverah.hasSession";
-
-function hasHadSession(): boolean {
-  try {
-    return globalThis.localStorage?.getItem(SESSION_HINT_KEY) === "1";
-  } catch {
-    // Safari in private mode, and any browser configured to block site data,
-    // throws on access rather than returning null. A visitor whose storage is
-    // unreadable simply signs in again.
-    return false;
-  }
-}
-
-function rememberSession(remembered: boolean): void {
-  try {
-    if (remembered) globalThis.localStorage?.setItem(SESSION_HINT_KEY, "1");
-    else globalThis.localStorage?.removeItem(SESSION_HINT_KEY);
-  } catch {
-    // See hasHadSession: unreadable storage is not a reason to fail a sign-in.
-  }
-}
 
 
 export function AuthProvider({ children }: { children: ReactNode }) {

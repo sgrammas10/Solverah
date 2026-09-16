@@ -262,12 +262,20 @@ def create_account(
     if user_repository.email_exists(intake.email):
         return _error(400, "User already exists")
 
-    # Note: this path issues a UUID-hex confirmation token rather than the
-    # 6-digit code /register uses, and POST /confirm-email compares against
-    # confirmation_token either way -- so the two flows are compatible, but a
-    # user arriving here gets a link-style token in an email templated for a
-    # code. Preserved as-is; unifying it changes what lands in an inbox.
-    token = uuid.uuid4().hex
+    # This path and /register now mint the same thing: a 6-digit code from
+    # generate_verification_code(). Until G9 this one minted uuid.uuid4().hex,
+    # and the comment here argued the two flows were "compatible" because
+    # POST /auth/email/verify compares against confirmation_token either way.
+    # That was true at the API layer and false everywhere a user stands.
+    # Walked live on production 2026-09-15 (docs/USER_SCENARIOS.md G9): the
+    # 32-hex value is mailed inside a template that labels it a "6-digit code"
+    # and carries no link at all, and /verify-email strips non-digits and caps
+    # input at six characters -- so the value actually sent cannot be typed
+    # into the only screen that accepts it. An account created here could not
+    # be verified except by failing a login and using the resend link, which
+    # silently replaced the token with a compatible one. Unifying the
+    # generator is what makes the email template's own words true.
+    code = auth_domain.generate_verification_code()
     hashed_pw = hash_password(password).decode("utf-8")
     full_name = ("%s %s" % (intake.first_name, intake.last_name)).strip()
     profile_data = resume_service.build_profile_from_intake(intake)
@@ -278,7 +286,7 @@ def create_account(
         name=full_name,
         role=role,
         email_confirmed=False,
-        confirmation_token=token,
+        confirmation_token=code,
         confirmation_sent_at=auth_domain.utcnow(),
     )
     db.session.add(new_user)
@@ -289,7 +297,7 @@ def create_account(
 
     intake.status = "account_created"
     entry_id = outbox.enqueue(
-        outbox.TOPIC_EMAIL_VERIFICATION, {"to": new_user.email, "code": token}
+        outbox.TOPIC_EMAIL_VERIFICATION, {"to": new_user.email, "code": code}
     )
     db.session.commit()
     outbox.publish_soon(entry_id)

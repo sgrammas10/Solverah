@@ -1,37 +1,65 @@
-"""The two per-worker caches are bounded. Regression tests for the 2026-09-08 outage.
+"""Every per-worker cache is bounded. Regression tests for two production outages.
 
-Production booted 2026-09-03 19:19 UTC and was SIGKILLed 2026-09-08 14:13, dead
-by 15:16. Three gunicorn workers, never recycled, each holding two dicts that
-nothing ever deleted from:
+**2026-09-08.** Production booted 2026-09-03 19:19 UTC and was SIGKILLed
+2026-09-08 14:13, dead by 15:16. Three gunicorn workers, never recycled, each
+holding two dicts that nothing ever deleted from:
 
   * ``path_cache._cache`` -- keyed by user_id, no eviction of any kind; and
   * ``agent_service._resume_cache`` -- a ten-minute TTL consulted **only on
     read**, so an entry whose user never returned was never evaluated again and
     therefore never expired, while holding up to 6 KB of resume text.
 
+**2026-09-15.** The web dyno sat pinned at ~90-100% of 512 MB for eight hours
+with repeated OOM restarts. Two more caches, in the O*NET scoring path, with the
+same two defects between them:
+
+  * ``path_scoring._EMBED_CACHE`` -- capped at 10,000 *entries* and not bytes,
+    holding 1536-dim embeddings as ``list[float]`` at 48.50 KB each. A full
+    cache was 473.6 MB, i.e. the cap permitted a cache nearly the size of the
+    whole instance; and
+  * ``onet_client._OCC_CACHE`` -- no size cap at all, and a 24h TTL consulted
+    only on read. The 2026-09-08 lesson, written down in ``agent_service`` and
+    never applied here.
+
 ``gunicorn.conf.py`` now recycles workers, which bounds any per-worker leak
 regardless of cause -- that is guarded by ``tests/test_gunicorn_config.py``.
 These tests guard the causes themselves. Both are needed: recycling turns an
-unbounded leak into a sawtooth, and only these make the sawtooth flat.
+unbounded leak into a sawtooth, and only these make the sawtooth flat. Recycling
+is also inert at low traffic, since it fires per 2,000 requests per worker --
+which is why 2026-09-15 was a flat plateau rather than the intended sawtooth.
 
-Every test here fails against the code as it stood on 2026-09-07.
+Every test here fails against the code as it stood before its outage.
+
+These assert the **bound**, never the pathology: a test that actually allocated
+474 MB to prove the leak would be an OOM on the CI runner. They cap or shrink a
+budget and check that eviction happens, and they measure with a deterministic
+deep ``sys.getsizeof`` rather than RSS, which is not stable enough in CI.
 """
 
 from __future__ import annotations
 
+import sys
+
+import numpy as np
 import pytest
 
+import backend.services.onet_client as onet_client
+import backend.services.path_scoring as path_scoring
 from solverah.services import agent_service, path_cache
 
 
 @pytest.fixture(autouse=True)
 def _clean_caches():
-    """Neither cache may leak state between tests -- they are module globals."""
-    path_cache.clear()
-    agent_service._resume_cache.clear()
+    """No cache may leak state between tests -- they are all module globals."""
+    def _clear() -> None:
+        path_cache.clear()
+        agent_service._resume_cache.clear()
+        path_scoring._EMBED_CACHE.clear()
+        onet_client._OCC_CACHE.clear()
+
+    _clear()
     yield
-    path_cache.clear()
-    agent_service._resume_cache.clear()
+    _clear()
 
 
 # ── path_cache ──────────────────────────────────────────────────────────────
@@ -184,3 +212,224 @@ def test_cache_still_prevents_re_extraction(fetch, monkeypatch):
     assert fetch("alice") == "text"
     assert fetch("alice") == "text"
     assert calls["n"] == 1, "a cache hit re-extracted the resume"
+
+
+# ── path_scoring embedding cache ────────────────────────────────────────────
+
+#: Real embedding width, so per-entry footprint assertions mean something.
+_EMBED_DIMS = 1536
+
+
+def _deep_bytes(key: str, vec: object) -> int:
+    """Resident cost of one cache entry, measured here rather than imported.
+
+    Deliberately a local copy of ``path_scoring._embed_entry_bytes``: importing
+    the production helper would make these fail with ``AttributeError`` against
+    a tree that predates the fix, instead of failing with the real number they
+    exist to pin down.
+
+    ``sys.getsizeof`` covers an ndarray's data buffer, but a list holds only
+    pointers -- its floats are separate 24-byte objects the cache keeps alive --
+    so they are summed.
+    """
+    total = sys.getsizeof(key) + sys.getsizeof(vec)
+    if isinstance(vec, list):
+        total += sum(sys.getsizeof(f) for f in vec)
+    return total
+
+
+@pytest.fixture()
+def embed(monkeypatch):
+    """Drive ``_batch_embed`` with the OpenAI embeddings endpoint stubbed.
+
+    OpenAI is an external service, so it is mocked; the cache, the byte
+    accounting and the eviction loop are all the real code path.
+
+    Every vector component is computed rather than ``[x] * dims``: a repeated
+    list holds *dims* references to one float object, which would make the
+    ``list[float]`` storage look ~4x cheaper than it is under ``_deep_bytes``
+    and turn the size assertions into measurement artefacts. The real SDK parses
+    distinct floats out of the response body, which is what this reproduces.
+    """
+    class _Item:
+        def __init__(self, index: int, dims: int) -> None:
+            self.index = index
+            self.embedding = [(index + 1) * 0.001 + j * 1e-7 for j in range(dims)]
+
+    class _Resp:
+        def __init__(self, data: list) -> None:
+            self.data = data
+
+    class _Embeddings:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def create(self, model: str, input: list[str]) -> "_Resp":
+            self.calls += 1
+            return _Resp([_Item(i, _embed.dims) for i in range(len(input))])
+
+    class _Client:
+        def __init__(self) -> None:
+            self.embeddings = _Embeddings()
+
+    client = _Client()
+
+    def _embed(texts: list[str], dims: int = _EMBED_DIMS) -> None:
+        _embed.dims = dims
+        path_scoring._batch_embed(texts, client)
+
+    _embed.dims = _EMBED_DIMS
+    _embed.client = client
+    return _embed
+
+
+def test_embed_cache_stores_compact_entries(embed) -> None:
+    """A cached 1536-dim vector must not cost 48 KB of boxed Python floats.
+
+    THE leak. As ``list[float]`` one entry is ~48.5 KB -- the list is only 12 KB
+    of pointers, but the cache holds the only reference to 1536 float objects at
+    24 bytes each. float32 storage is ~6.2 KB. The ceiling below sits between
+    the two, so it fails on the real number rather than on a missing name.
+    """
+    embed(["active listening"])
+
+    entry = path_scoring._EMBED_CACHE["active listening"]
+    assert _deep_bytes("active listening", entry) < 8 * 1024
+
+
+def test_embed_cache_is_bounded_by_bytes_not_entries(embed, monkeypatch) -> None:
+    """The bound is a byte budget, so vector width cannot silently defeat it.
+
+    An entry cap cannot: 10,000 entries was a perfectly small-sounding number
+    that permitted 473.6 MB. The budget is shrunk to 256 KB here so ~60
+    full-width vectors overshoot it -- filling the real 32 MB would be slow, and
+    reproducing the 474 MB failure would be an OOM on the runner.
+    """
+    budget = 256 * 1024
+    monkeypatch.setattr(path_scoring, "_EMBED_CACHE_MAX_BYTES", budget, raising=False)
+
+    texts = ["role item %d" % i for i in range(60)]
+    embed(texts)
+
+    resident = sum(_deep_bytes(k, v) for k, v in path_scoring._EMBED_CACHE.items())
+    assert resident <= budget
+    assert len(path_scoring._EMBED_CACHE) > 0, "it emptied itself instead of evicting"
+    assert texts[-1] in path_scoring._EMBED_CACHE, "the newest entry was evicted"
+    assert texts[0] not in path_scoring._EMBED_CACHE, "the oldest entry survived"
+
+
+def test_embed_cache_default_budget_fits_the_dyno() -> None:
+    """The shipped budget must leave the 512 MB Starter room to serve requests.
+
+    A booted worker with empty caches measures ~148 MB, so 364 MB is the whole
+    headroom for every cache plus request handling. 64 MB is a deliberately
+    loose ceiling -- it fails on a budget set by wishful thinking, not on a
+    considered retune.
+    """
+    assert path_scoring._EMBED_CACHE_MAX_BYTES <= 64 * 1024 * 1024
+
+
+def test_embed_cache_still_prevents_re_embedding(embed) -> None:
+    """The cache must still do its job -- a hit must not re-call the API."""
+    embed(["active listening"], dims=4)
+    assert embed.client.embeddings.calls == 1
+
+    embed(["active listening"], dims=4)
+    assert embed.client.embeddings.calls == 1, "a cache hit re-called the embeddings API"
+
+
+def test_embed_cache_reads_tolerate_the_stored_vector_type() -> None:
+    """Every read site must survive an ndarray value.
+
+    Not a leak test, and it passes before the fix as well -- the read sites were
+    already ``is None``-clean when the storage type changed. It is a guard for
+    that type change: numpy raises "truth value of an array with more than one
+    element is ambiguous" on a bare ``if emb:``, so a later refactor that swaps
+    an ``is None`` check for a truthiness test fails here rather than in prod.
+    """
+    from backend.services.path_scoring import UserSkill
+
+    for name in ("python", "programming"):
+        path_scoring._EMBED_CACHE[name] = np.asarray([1.0, 0.0], dtype=np.float32)
+
+    skills = [UserSkill(name="Python", level="advanced")]
+    role_items = [("programming", 90.0)]
+
+    score, matched = path_scoring._compute_centroid_score(skills, role_items)
+    assert score == pytest.approx(1.0)
+    assert matched == ["Python"]
+    assert path_scoring._role_coverage_score(skills, role_items) == pytest.approx(1.0)
+
+
+# ── onet_client occupation cache ────────────────────────────────────────────
+
+
+@pytest.fixture()
+def occ(monkeypatch):
+    """Build ``_OCC_CACHE`` keys against a movable clock.
+
+    The leak being guarded against is entirely about what happens as time
+    passes, so the helper exposes the clock the same way the resume-cache
+    fixture above does.
+    """
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(onet_client.time, "monotonic", lambda: clock["now"])
+
+    def _key(code: str) -> tuple:
+        return ("get_job_zone", code, ())
+
+    _key.clock = clock
+    return _key
+
+
+def test_expired_occupation_entries_do_not_survive_forever(occ) -> None:
+    """THE leak, second occurrence. An entry nobody reads again must still go.
+
+    Before the fix ``_occ_cache_get`` returned None on expiry but left the entry
+    resident, and ``_occ_cache_set`` never swept -- so an occupation that fell
+    out of the candidate pool was never read again and never reclaimed. Exactly
+    the shape ``agent_service`` names and fixes for itself above.
+    """
+    onet_client._occ_cache_set(occ("15-1252.00"), 4)
+    assert occ("15-1252.00") in onet_client._OCC_CACHE
+
+    occ.clock["now"] += onet_client._OCC_CACHE_TTL + 1
+
+    # A write for an unrelated occupation must still collect the stale one.
+    onet_client._occ_cache_set(occ("11-1021.00"), 3)
+
+    assert occ("15-1252.00") not in onet_client._OCC_CACHE, (
+        "an expired entry nobody re-read stayed resident -- this is the 2026-09-15 leak"
+    )
+    assert occ("11-1021.00") in onet_client._OCC_CACHE
+
+
+def test_expired_occupation_entry_is_dropped_on_read_too(occ) -> None:
+    """A reader that finds an expired entry removes it rather than hiding it.
+
+    Returning None while leaving it resident is what turns a TTL into decoration.
+    """
+    onet_client._occ_cache_set(occ("15-1252.00"), 4)
+    occ.clock["now"] += onet_client._OCC_CACHE_TTL + 1
+
+    assert onet_client._occ_cache_get(occ("15-1252.00")) is None
+    assert occ("15-1252.00") not in onet_client._OCC_CACHE
+
+
+def test_occupation_cache_is_bounded_even_when_nothing_has_expired(occ) -> None:
+    """The backstop: every entry live at once must still not grow without bound.
+
+    4,000 writes is ~2x the cap and, at the measured ~6 KB per real entry, would
+    be ~24 MB uncapped. Ints are stored rather than real payloads so the test
+    costs nothing to run.
+    """
+    inserted = 4_000
+    for i in range(inserted):
+        onet_client._occ_cache_set(occ("15-%04d.00" % i), 4)
+
+    # Behavioural assertion first, so a tree predating the fix fails on the
+    # number rather than on an AttributeError for the new constant.
+    assert len(onet_client._OCC_CACHE) < inserted
+    assert len(onet_client._OCC_CACHE) <= onet_client._OCC_CACHE_MAX_ENTRIES
+    assert occ("15-%04d.00" % (inserted - 1)) in onet_client._OCC_CACHE
+    assert occ("15-0000.00") not in onet_client._OCC_CACHE

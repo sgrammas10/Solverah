@@ -34,6 +34,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -142,9 +143,90 @@ _COVERAGE_TOP_K: int = 5
 _CENTROID_MIX: float = 0.5
 _COVERAGE_MIX: float = 0.5
 
-# In-process embedding cache.  OrderedDict enables O(1) LRU eviction.
-_EMBED_CACHE: OrderedDict[str, list[float]] = OrderedDict()
-_EMBED_CACHE_MAX: int = 10_000
+# In-process embedding cache, bounded by MEMORY rather than by entry count.
+#
+# THE 2026-09-15 PRODUCTION OOM.  This cache was an OrderedDict[str, list[float]]
+# capped at 10,000 *entries*.  A 1536-dim text-embedding-3-small vector held as a
+# plain list[float] costs 48.50 KB — the list itself is only 12 KB of pointers,
+# but the cache holds the only reference to 1536 separate float objects at 24
+# bytes each — so a full cache was 473.6 MB against a 512 MB dyno, i.e. the cap
+# permitted a cache almost as large as the whole instance.  (Measured 2026-09-16
+# with tracemalloc; the floats must be created inside the traced region or the
+# cost is under-reported as 12 KB, because copying a list copies pointers to
+# float objects that already exist.)
+#
+# TWO CHANGES FIX IT.  Entries are stored as np.float32 (6.18 KB/entry, a 7.8x
+# reduction — see _batch_embed), and the bound is a byte budget rather than an
+# entry count, so no future change to the vector's dimension or dtype can quietly
+# restore the leak.
+#
+# WHERE 32 MB COMES FROM (measured 2026-09-16, not guessed).
+#
+# The instance is a Render Starter: 0.5 CPU, 512 MB, and gunicorn.conf.py runs
+# `workers = 1` on it.  One worker means one copy of this module global, so the
+# budget is the whole of what is left rather than a third of it:
+#
+#   dyno                                        512 MB
+#   one booted worker, empty caches           - 148 MB
+#                                             ---------
+#   headroom for requests AND every cache       364 MB
+#
+# 148 MB is measured RSS after `import app` under production config — the
+# scientific stack alone (pandas/numpy/sklearn) is 179.6 MB RSS, of which only
+# 80.4 MB is traced Python heap; the rest is C-extension and mapped-image memory
+# tracemalloc cannot see, which is why the traced figure alone understates it.
+#
+# SIZED TO DEMAND, NOT TO AVAILABILITY.  364 MB is available; spending it would
+# be the same mistake in a smaller hat.  One cold scoring run embeds ~300–700
+# unique texts, so at 6.18 KB/entry, 32 MB holds ~5,300 entries — roughly 8–17
+# runs' working sets, well past the point where the marginal entry buys any hit
+# rate.  The ~35 generic skills and ~41 work activities are near-constant across
+# every candidate, so the shared vocabulary that carries most of the hit rate
+# stays resident permanently under eviction.
+#
+# All four per-worker caches at their caps, measured (see tests/test_cache_bounds.py):
+#
+#   _EMBED_CACHE   32.00 MB     _OCC_CACHE               11.36 MB
+#   path_cache      4.17 MB     agent_service._resume     0.76 MB
+#                                                        ---------
+#   total                                                 48.3 MB
+#
+# That is 13% of the 364 MB headroom and 9.4% of the dyno, leaving ~316 MB for
+# request handling across this worker's 8 threads — a 7.5x margin over the
+# caches rather than a budget spent to its limit.
+#
+# WORKER COUNT IS THE LOAD-BEARING INPUT, so record how to check it.  Production
+# logs cannot tell you: `celery_configured` is emitted once per worker at import,
+# but its payload carries no pid — `process` and `processName` sit in
+# _RESERVED_RECORD_ATTRS in solverah/observability/logging.py, and PROCESS_ID is
+# defined there but never stamped.  N workers therefore emit N byte-identical
+# lines differing only in milliseconds, which any log viewer collapses, so a
+# single line is not evidence of a single worker.  The check that settles it is
+# gunicorn's own `Booting worker with pid` lines, which do carry pids.  If
+# `workers` ever goes back above 1, divide this budget by the new W — or set
+# SOLVERAH_EMBED_CACHE_MAX_BYTES from the dashboard, which needs no deploy.
+#
+# THIS IS A STOPGAP.  docs/PATH_INTELLIGENCE_REDESIGN.md §2 removes this cache
+# entirely in favour of a fixed ~6 MB precomputed corpus matrix.  §4 explains why
+# this bound still ships first.
+_EMBED_CACHE: OrderedDict[str, "np.ndarray | list[float]"] = OrderedDict()
+
+#: Per-worker byte budget for _EMBED_CACHE.  Env-overridable so the dyno can be
+#: retuned without a deploy of this file.
+_EMBED_CACHE_MAX_BYTES: int = int(
+    os.environ.get("SOLVERAH_EMBED_CACHE_MAX_BYTES", 32 * 1024 * 1024)
+)
+
+#: Per-entry cost of the OrderedDict itself: the hash-table slot plus the
+#: doubly-linked-list node OrderedDict keeps for ordering.
+#:
+#: Calibrated, not assumed.  At 100 the accounting under-counted by ~62 bytes an
+#: entry, and a full 8 MB cache measured 8.07 MB by tracemalloc — a 0.9%
+#: overshoot of its own budget.  200 errs high, which is the direction that
+#: makes the bound tighter rather than leakier, and is still a rounding error
+#: against a 6 KB vector.
+_EMBED_ENTRY_OVERHEAD_BYTES: int = 200
+
 _EMBED_BATCH_MAX_INPUTS: int = 2048  # OpenAI embeddings API cap on inputs per request
 
 # Inclusion list: only SOC codes with these prefixes are kept in the candidate pool
@@ -357,10 +439,52 @@ def _build_role_profile(
 # ---------------------------------------------------------------------------
 
 
-def _cosine_similarity(a: list[float], b: list[float]) -> float:
-    va, vb = np.array(a), np.array(b)
+def _cosine_similarity(
+    a: "np.ndarray | list[float]",
+    b: "np.ndarray | list[float]",
+) -> float:
+    """Cosine similarity, accepting either a cached np.float32 vector or a list.
+
+    asarray rather than array: cache entries are already ndarrays, and this runs
+    once per (candidate, role item) pair, so copying 6 KB per call is real waste.
+    Lists still arrive here from the centroid helpers' .tolist() results and from
+    tests that plant vectors directly.
+    """
+    va, vb = np.asarray(a), np.asarray(b)
     denom = float(np.linalg.norm(va) * np.linalg.norm(vb))
     return float(np.dot(va, vb) / denom) if denom > 0 else 0.0
+
+
+def _embed_entry_bytes(key: str, vec: "np.ndarray | list[float]") -> int:
+    """Resident cost of one _EMBED_CACHE entry, in bytes.
+
+    sys.getsizeof already covers the data buffer for an ndarray, but a list holds
+    only *pointers* — its 1536 float objects are separate allocations at 24 bytes
+    each, and the cache holds the only reference to them.  Summing them is what
+    makes the real cost of the pre-2026-09-16 list[float] storage visible instead
+    of under-reporting a 48 KB entry as 12 KB.
+    """
+    total = sys.getsizeof(key) + sys.getsizeof(vec) + _EMBED_ENTRY_OVERHEAD_BYTES
+    if isinstance(vec, list):
+        total += sum(sys.getsizeof(f) for f in vec)
+    return total
+
+
+def _evict_to_budget() -> None:
+    """Evict oldest-first until _EMBED_CACHE fits _EMBED_CACHE_MAX_BYTES.
+
+    Eviction order is insertion order, not true recency — nothing calls
+    move_to_end on a cache hit, so this is FIFO wearing an LRU's name.  Left as
+    it was: changing the eviction policy is a behaviour change, and this fix is
+    about the bound.
+
+    The total is summed once and then decremented, so the O(n) walk happens once
+    per _batch_embed call rather than once per evicted entry.
+    """
+    total = sum(_embed_entry_bytes(k, v) for k, v in _EMBED_CACHE.items())
+    while total > _EMBED_CACHE_MAX_BYTES and _EMBED_CACHE:
+        key, vec = _EMBED_CACHE.popitem(last=False)
+        total -= _embed_entry_bytes(key, vec)
 
 
 def _batch_embed(texts: list[str], client) -> None:
@@ -369,6 +493,17 @@ def _batch_embed(texts: list[str], client) -> None:
     Deduplicates the missing texts and batches them into as few API calls as
     the per-request input cap allows — one call in the typical case.  Silently
     no-ops on any API failure — callers receive 0 similarity for uncached texts.
+
+    Vectors are stored as np.float32, which is the one place a plain list from
+    the OpenAI SDK is converted.  float32 costs 6.18 KB/entry against 48.50 KB
+    for list[float] (see the _EMBED_CACHE comment), and the precision loss is
+    negligible for cosine similarity: these vectors are unit-normalised and a
+    float32 mantissa carries ~7 decimal digits, far finer than the 0.70 match
+    threshold or any ranking decision made downstream.  numpy rather than
+    array.array or packed bytes because every consumer already feeds numpy
+    (_cosine_similarity, _compute_weighted_user_centroid), so this avoids a
+    per-read conversion at no memory cost — measured, the three compact options
+    are within 1% of each other.
     """
     missing = list(dict.fromkeys(t for t in texts if t not in _EMBED_CACHE))
     if not missing:
@@ -377,11 +512,14 @@ def _batch_embed(texts: list[str], client) -> None:
         for start in range(0, len(missing), _EMBED_BATCH_MAX_INPUTS):
             chunk = missing[start:start + _EMBED_BATCH_MAX_INPUTS]
             resp = client.embeddings.create(model="text-embedding-3-small", input=chunk)
-            evict_count = max(0, len(_EMBED_CACHE) + len(chunk) - _EMBED_CACHE_MAX)
-            for _ in range(evict_count):
-                _EMBED_CACHE.popitem(last=False)
             for item in resp.data:
-                _EMBED_CACHE[chunk[item.index]] = item.embedding
+                _EMBED_CACHE[chunk[item.index]] = np.asarray(
+                    item.embedding, dtype=np.float32
+                )
+            # Evict after inserting, not before: the pre-insert arithmetic this
+            # replaced could only bound an entry *count*, and a budget in bytes
+            # cannot be predicted from len(chunk) alone.
+            _evict_to_budget()
     except Exception:
         _log.warning("embedding API call failed (%d texts)", len(missing), exc_info=True)
 
@@ -583,14 +721,20 @@ def _semantic_overlap_score(
 
 def _compute_weighted_user_centroid(
     user_skills: list[UserSkill],
-) -> tuple[list[float], list[tuple[list[float], float]]] | tuple[None, None]:
+) -> (
+    tuple[list[float], list[tuple["np.ndarray | list[float]", float]]]
+    | tuple[None, None]
+):
     """Proficiency-weighted centroid of cached user skill embeddings.
 
     Returns (centroid, [(emb, weight), ...]) so callers can reuse the per-skill
-    (embedding, weight) pairs without re-fetching from the cache.
+    (embedding, weight) pairs without re-fetching from the cache.  The embeddings
+    are whatever the cache holds (np.float32 in production, plain lists in tests);
+    the centroid is a plain list, since it is a fresh value rather than a cache
+    entry and nothing is saved by keeping it compact.
     Returns (None, None) when no embeddings are cached for any user skill.
     """
-    available: list[tuple[list[float], float]] = []
+    available: list[tuple["np.ndarray | list[float]", float]] = []
     for us in user_skills:
         emb = _EMBED_CACHE.get(us.name.lower())
         if emb is None:

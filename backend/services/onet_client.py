@@ -21,6 +21,13 @@ _BASE_URL = "https://api-v2.onetcenter.org"
 
 # Module-level cache for Bright Outlook occupations — same list for every user,
 # changes only quarterly, so 24-hour TTL avoids hammering the API.
+#
+# Audited 2026-09-16 alongside the _OCC_CACHE fix below and found NOT to leak, so
+# deliberately left alone: this is one list rebuilt and rebound wholesale on
+# refresh, never appended to and never keyed, so it cannot accumulate.  Its size
+# is bounded by construction at three categories x end=100, deduplicated —
+# at most ~300 Occupation records, roughly 60 KB.  The stale-cache return on
+# OnetAPIError is a fallback path, not a growth path.
 _BRIGHT_OUTLOOK_CACHE: list["Occupation"] = []
 _BRIGHT_OUTLOOK_CACHE_TS: float = 0.0
 _BRIGHT_OUTLOOK_CACHE_TTL: float = 86400.0  # 24 hours
@@ -37,6 +44,31 @@ _RETRY_DELAY = 0.25  # seconds; multiplied by attempt number
 # relies on) — O*NET content changes only quarterly, so a 24h TTL is safe.
 _OCC_CACHE: dict[tuple, tuple[float, object]] = {}
 _OCC_CACHE_TTL: float = 86400.0  # 24 hours
+
+#: Hard ceiling on cached occupation records per worker.
+#:
+#: Added 2026-09-16 after the production OOM: before it, this cache had no size
+#: bound of any kind, and its TTL was consulted only on read, so an entry nobody
+#: asked for again was never evaluated and never removed — a leak wearing a
+#: TTL's clothing, the same shape agent_service._evict_expired_locked names and
+#: fixes for itself.  The TTL is the mechanism; this is the backstop for the case
+#: where every entry is genuinely live at once.
+#:
+#: 2,048 entries is measured, not guessed.  Entries cost ~6.0 KB on average
+#: (measured 2026-09-16: 9.38 KB for a 35-element skills profile, 10.85 KB for a
+#: 41-element work-activity list, 3.71 KB for a hot-tech name set, 0.09 KB for a
+#: job zone), so the cap is ~11.4 MB.  gunicorn.conf.py runs `workers = 1` on a
+#: 512 MB Render Starter, so that is one copy, not three — 2.2% of the dyno.
+#:
+#: Four methods cache per occupation, so 2,048 entries is ~512 fully-cached
+#: occupations, about half of O*NET.  One scoring run touches 30–80 occupations
+#: (120–320 entries), so this retains ~6–17 runs — deliberately the same
+#: retention depth as path_scoring._EMBED_CACHE's byte budget, since the two
+#: caches are filled by the same requests and a cap that evicted one but not the
+#: other would just move the miss.
+_OCC_CACHE_MAX_ENTRIES: int = int(
+    os.environ.get("SOLVERAH_OCC_CACHE_MAX_ENTRIES", 2048)
+)
 # Guards only the dict read/write, never the network call itself — holding a
 # lock across a blocking HTTP request would serialize every candidate fetch
 # and defeat the point of fetching candidates concurrently.  A cold cache can
@@ -46,8 +78,35 @@ _OCC_CACHE_TTL: float = 86400.0  # 24 hours
 _OCC_CACHE_LOCK = threading.Lock()
 
 
+def _sweep_expired_locked(now: float) -> None:
+    """Drop every entry whose TTL has passed.  Caller must hold the lock.
+
+    Sweeping on write is what makes the TTL real.  Checking it only on read --
+    the behaviour before 2026-09-16 -- means an entry nobody reads again is
+    never evaluated and so never removed.  Same reasoning, and deliberately the
+    same shape, as solverah/services/agent_service.py's _evict_expired_locked.
+    """
+    for key in [k for k, (ts, _) in _OCC_CACHE.items() if now - ts >= _OCC_CACHE_TTL]:
+        del _OCC_CACHE[key]
+
+
+def _evict_oldest_locked() -> None:
+    """Trim the cache to _OCC_CACHE_MAX_ENTRIES, oldest-inserted first.
+
+    Caller must hold the lock.  next(iter(...)) rather than dict.popitem(), which
+    pops the *newest* entry -- the wrong end.  dicts preserve insertion order, so
+    the first key is the oldest, and re-setting an existing key does not move it.
+    """
+    while len(_OCC_CACHE) > _OCC_CACHE_MAX_ENTRIES:
+        del _OCC_CACHE[next(iter(_OCC_CACHE))]
+
+
 def _occ_cache_get(key: tuple) -> object | None:
     """Return a cached value for *key* if present and unexpired, else None.
+
+    Deletes the entry when it has expired, rather than merely declining to
+    return it: leaving it resident is what turned a 24-hour TTL into unbounded
+    growth before 2026-09-16.
 
     Callers must treat the returned value as immutable — list/set results are
     shared across every caller hitting the cache, so onet_client itself makes
@@ -55,16 +114,18 @@ def _occ_cache_get(key: tuple) -> object | None:
     """
     with _OCC_CACHE_LOCK:
         entry = _OCC_CACHE.get(key)
-    if entry is None:
-        return None
-    ts, value = entry
-    if time.monotonic() - ts >= _OCC_CACHE_TTL:
-        return None
-    return value
+        if entry is None:
+            return None
+        ts, value = entry
+        if time.monotonic() - ts >= _OCC_CACHE_TTL:
+            # pop, not del: a racing thread may already have swept this key.
+            _OCC_CACHE.pop(key, None)
+            return None
+        return value
 
 
 def _occ_cache_set(key: tuple, value: object) -> None:
-    """Store *value* in the cache.
+    """Store *value* in the cache, sweeping expired entries and capping size.
 
     Stores a shallow copy of list/set values, not *value* itself — the caller
     that just fetched it also returns that same object to its own caller, and
@@ -75,8 +136,11 @@ def _occ_cache_set(key: tuple, value: object) -> None:
         value = list(value)
     elif isinstance(value, set):
         value = set(value)
+    now = time.monotonic()
     with _OCC_CACHE_LOCK:
-        _OCC_CACHE[key] = (time.monotonic(), value)
+        _sweep_expired_locked(now)
+        _OCC_CACHE[key] = (now, value)
+        _evict_oldest_locked()
 
 
 # ---------------------------------------------------------------------------

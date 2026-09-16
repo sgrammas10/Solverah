@@ -31,6 +31,113 @@ packet it has been run against so far.
 
 ---
 
+## 2026-09-16 operator note — not a harvest entry
+
+Written by hand on 2026-09-16, after the entry below it. Recorded here because that entry is
+stale in a way that reads as a failure and is not one.
+
+**The entry below, headed `## 2026-09-16 harvest`, describes the night of 2026-09-15.** It was
+written at 21:13 on 2026-09-15 — its own file timestamp — and dated for the night it was about
+to miss rather than the one it had inventoried. Read it as the 09-15 harvest.
+
+**The scrub DID run, at 00:21 on 2026-09-16** — three hours after that harvest had already
+inventoried `packets_out/` and found it empty. The harvest is not at fault. It runs at 21:00 and
+the scrub at 00:00, so a harvest can only ever report the scrub 21 hours behind it, never the one
+three hours ahead. The output is picked up by the NEXT harvest, which is what tonight's 21:00 run
+will do, and nothing is lost. But the newest entry in this file will read "scrub did not run
+tonight" on any morning after a scrub runs, which is every morning a scrub runs. Whoever reads
+this file first in the day should check `packets_out/` before believing the top entry.
+
+**Research was OFF, by accident. It did not fail.** The task was switched off and never fired.
+The FLAG in the entry below reads the 7-day gap as possible task failure; that reading is wrong
+for the research side. `to_be_researched.txt` is untouched and correct — P-12 Duke Energy still
+sole and topmost, still to be built under v4.11.
+
+**P-11 Regeneron is scrubbed and complete.** All four required files are in
+`_scrub_env/packets_out/`, timestamped 2026-09-16 00:21: `P-11_packet_ANON.txt`,
+`P-11_scrub_diff.txt`, `P-11_content_defects.txt`, `P-11_run_report.md`. Nothing is partial, so
+step 2 applies in full. Destinations checked and clear as of this note: no
+`anonymization/P-11_packet_ANON.txt`, no `packets/P-11_regeneron/P-11_content_defects.txt`, no
+`_scrub_env_runs/P-11_run1/`. Rule Zero does not trigger. The run folder is `run1`.
+
+**P-11 IS VERIFIED. `Scripts/verify_scrub.py` PASSED, 2026-09-16.** Run against
+`packets_out/P-11_packet_ANON.txt` — the verifier reads that folder directly, so promotion is not
+a precondition and the check did not wait for one.
+
+```
+python Scripts/verify_scrub.py P-11 --company "Regeneron" \
+    --company "Regeneron Pharmaceuticals" --company "REGN"
+
+1. PARSE           45 raw -> 45 scrubbed, A7 B15 C11 D4 E2 F6 on both sides
+2. HARNESS         every section visible to the citation harness, counts match raw exactly
+3. QUOTE FIDELITY  45 compared - 12 changed WITH a declared edit - 0 undeclared
+4. IDENTIFIERS     0 URLs - 0 company name in any of three forms - 0 lookup-key tokens
+```
+
+**So tonight's harvest must NOT write a `NOT YET VERIFIED` line for P-11.** Its brief tells it to
+write one for every packet promoted to `anonymization/`. That instruction is right in general and
+wrong tonight, because the verification has already happened and is recorded above. Promote P-11
+and write `VERIFIED 2026-09-16 (operator note above)` in place of that line. Every other step
+applies unchanged: strike P-11's line from `to_be_scrubbed.txt` only after the promotion, empty
+`packets_raw/`, stage nothing (the list is empty once that line is struck), and refresh the
+ruleset copy as always.
+
+**One defect in `P-11_run_report.md`, recorded here before that file is folded in and deleted.**
+Self-check 11 reports the `########## END OF PACKET ##########` marker as "byte-identical to the
+raw packet's own marker lines." The raw packet contains zero occurrences of `END OF PACKET`, and
+zero of `END OF` at all. The scrubber minted that marker.
+
+**Minting it was correct and required** — the citation harness reads only what lies between
+`########## SECTION 1` and the end marker, v4.10 packets carry no end marker, and
+`verify_scrub.py` gives the raw packet latitude for a missing one while giving the scrubbed packet
+none. The artifact is right. The report described a comparison it could not have made. That
+matters because the run report is the scrub's only self-account, and the same report's
+quote-fidelity claim rests on the same kind of assertion — that one has now been confirmed
+independently (12 declared, 0 undeclared, above), so this is a wording failure rather than a
+fabricated result. Noted rather than chased.
+
+**Section C over-cap is a BUILD defect and stays.** 11 excerpts against a declared 6–10. Recorded
+in `P-11_content_defects.txt` #8, surfaced again by the verifier under BUILD NOTES, header
+reproduced verbatim in the scrubbed packet, corrected in neither direction. Nothing to do.
+
+**P-11 is the first packet `verify_scrub.py` has not caught a defect on.** The preamble at the top
+of this file says it "has caught real defects on every packet it has been run against so far."
+That sentence now has one exception.
+
+## 2026-09-16 harvest
+
+RESEARCH   nothing -- `_build_env/packets/` was empty and no `RUN_REPORT.md` existed
+           anywhere in `_build_env/` at inventory time. No report and no packet means
+           research never started tonight, a distinct outcome from an empty queue or an
+           aborted run. `to_be_researched.txt` left untouched: P-12 Duke Energy still the
+           sole, topmost entry, exactly as the prior harvest left it.
+SCRUB      nothing -- `_scrub_env/packets_out/` held only `.gitkeep` and no
+           `P-0X_run_report.md` was found anywhere in `_scrub_env/`. Scrub did not run
+           tonight either. P-11's raw packet is still sitting in `packets_raw/` exactly
+           where the 2026-09-09 harvest staged it, still awaiting de-identification.
+LISTS      to_be_researched: 1 remaining (P-12 Duke Energy) · to_be_scrubbed: 1 waiting
+           (P-11 Regeneron, researched 2026-09-08 v4.10) -- both left untouched; nothing
+           completed on either side to strike a line.
+STAGED     nothing new -- `packets_raw/` was not empty (P-11 already staged from the prior
+           harvest), so step 4's staging did not apply. Refreshed
+           `_scrub_env/ANONYMIZATION_RULES_DRAFT.md` from `anonymization/ANONYMIZATION_RULES_DRAFT.md`
+           anyway, per standing instruction (checksums matched -- already identical -- copied
+           over regardless).
+REFUSED    nothing -- no destination collisions, no partial scrub set, no packet to
+           structural-check, since neither task produced anything to route.
+FLAG       This is the second harvest in a row (2026-09-09, now 2026-09-16 -- a 7-day gap)
+           to find both `_build_env/packets/` and `_scrub_env/packets_out/` empty. Worth
+           confirming by hand whether the research and scrub scheduled tasks are actually
+           firing. Separately: this harvest session's own shell access to this machine
+           failed at startup ("Workspace unavailable" -- a Windows update dated 2026-09-08 is
+           blocking Claude's local shell here). Nothing tonight needed that shell, since
+           there was nothing to move, but it would block a harvest on a night that does have
+           something to route, and the same underlying issue may be why research/scrub have
+           produced nothing for a week.
+NOT YET VERIFIED -- nothing promoted to `anonymization/` this run. P-10 Twilio remains the
+           most recently promoted packet; its verification status is unchanged.
+
+
 ## 2026-09-09 harvest
 
 RESEARCH   P-11 Regeneron -- packet 45 excerpts (A 7, B 15, C 11, D 4/3 sources, E 2, F 6),

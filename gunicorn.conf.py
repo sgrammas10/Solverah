@@ -37,18 +37,59 @@ timeout = 30
 # sync worker holds one in-flight request total; a second caller queues behind
 # whichever request -- ordinary or streaming -- already has the worker.
 #
-# `gthread`, 8 threads, and 3 workers match `infra/docker/Dockerfile.api`'s
-# production CMD, so the two configurations agree. The open question above is
-# now answered: the 2026-09-02 prod-readiness intake
+# The open question above is answered: the 2026-09-02 prod-readiness intake
 # (docs/audits/PROD_READINESS_2026-09_ANSWERS.md) confirmed Render runs a
 # native Python runtime with a bare `gunicorn app:app` -- no flags at all --
-# so this file IS the production geometry. Leaving `workers` unset meant prod
-# ran 1 worker x 8 threads, a third of the load-tested capacity; hence the
-# explicit pin. Connection math stays inside Render's max_connections=103:
-# 3 workers x (pool 10 + overflow 5) = 45, 90 during a rolling overlap.
+# so this file IS the production geometry.
+#
+# `workers` WAS 3, matching `infra/docker/Dockerfile.api`'s CMD. Dropped to 1
+# on 2026-09-16, during the OOM incident of 09-15.
+#
+# WHAT CHANGED: the service plan, which nobody had written down. The
+# 2026-09-02 intake did not capture it (render.yaml's header lists `plan` as
+# a known gap) and the 3-worker pin was chosen without it. Read from the
+# dashboard 2026-09-16: **Starter -- 0.5 CPU, 512 MB RAM.**
+#
+# WHY 3 WAS WRONG HERE. Two per-process costs multiply by worker count, and
+# both were measured on 2026-09-16 (docs/PATH_INTELLIGENCE_REDESIGN.md §7):
+#   * Baseline. pandas + numpy + scikit-learn load once per worker -- 72.2 MB
+#     of traced Python heap, meaningfully more in RSS. At 3 workers that is
+#     roughly 450 MB of a 512 MB box BEFORE serving anything.
+#   * Caches. `_EMBED_CACHE` and friends are module globals, so each worker
+#     holds its own copy. Three workers pay for three caches.
+# Together those are the 8-hour 90-100% plateau on the 09-15 memory graph.
+# The cache was the trigger; the worker count was why there was no room.
+#
+# AND 3 BOUGHT ALMOST NOTHING. Every slow path here is I/O-bound (OpenAI,
+# Groq, O*NET, Resend, R2) and `gthread`'s 8 threads already cover that
+# concurrency. Extra *processes* only buy CPU parallelism, and this plan has
+# half a core -- one process cannot saturate it, let alone three.
+#
+# THE LOAD TEST THAT JUSTIFIED THE PIN DOES NOT APPLY. Its "a third of the
+# load-tested capacity" argument measured request throughput, not memory,
+# and not on a 0.5 CPU / 512 MB instance. Capacity was never the binding
+# constraint on this plan; memory was.
+#
+# THE TRADEOFF, STATED HONESTLY. One worker means a process-level hang is a
+# full outage until `timeout` (30s) kills it, where 3 degraded instead. That
+# is accepted: `gthread` keeps one slow *request* from blocking the other 7
+# threads, so only a whole-process stall costs the service, and at current
+# traffic 8 concurrent requests is ample. Revisit if the plan grows -- the
+# right order is more RAM first, then more workers, never the reverse.
+#
+# `infra/docker/Dockerfile.api`'s CMD still says `--workers 3` and now
+# DISAGREES with this file. Deliberate, and harmless: that CMD never executes
+# in production (native runtime, bare command -- see the timeout note above
+# for the same trap), and compose overrides it per-environment. Do not "fix"
+# the disagreement by raising this number back to 3.
+#
+# Connection math, inside Render's max_connections=103:
+#   1 worker x (pool 10 + overflow 5) = 15, 30 during a rolling overlap.
+# Was 45/90. The freed headroom is what makes room for a Celery worker
+# service without re-running this arithmetic (docs/CELERY_WORKER_SPLIT.md §4.2).
 worker_class = "gthread"
 threads = 8
-workers = 3
+workers = 1
 
 # Worker recycling. Added 2026-09-08 after production went down.
 #

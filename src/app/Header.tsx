@@ -10,8 +10,14 @@ function Header() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    // The session must be gone BEFORE we arrive on "/": the landing page sends
+    // a signed-in visitor to the dashboard (RedirectIfAuthenticated), and
+    // logout() only clears `user` once POST /auth/logout has settled.
+    // Navigating first would bounce someone who just clicked "Logout" to the
+    // dashboard, and from there -- once the session cleared -- to /login.
+    // logout() never throws; local state is cleared in its `finally`.
+    await logout();
     navigate('/');
   };
 

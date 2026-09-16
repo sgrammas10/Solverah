@@ -14,32 +14,27 @@ error `code` rather than a description of them.
 expectation below is read out of source — which is exactly why walking it is worth
 doing.
 
-> ### ⚠ Deploy state — read before you walk
+> ### Deploy state
 >
-> **This document describes the branch, not production.**
+> **Production matches this document.** PR #153 merged to `main` on 2026-09-15
+> (`af0b351`), carrying the four fix chunks of 2026-09-14: `G1` (account settings),
+> `G21` (monthly cadence), `S14.1` (Manager Profile gate), and the failed-fetch family
+> (`G5`, `G6`, `G7`, `G13`, `G14`, `G15`). Every step below is walkable on
+> solverah.com as written.
 >
-> Production is `b5b8eec` (`origin/main`). The four fix chunks of 2026-09-14 — `G1`
-> (account settings), `G21` (monthly cadence), `S14.1` (Manager Profile gate), and the
-> failed-fetch family (`G5`, `G6`, `G7`, `G13`, `G14`, `G15`) — are on the branch and
-> **not deployed**.
+> **Hard-refresh before you start** (`Ctrl+Shift+R`). A stale bundle is now the single
+> most likely way to see a "failure" that isn't one — it makes the four fixes look
+> absent, and looks exactly like a bug.
 >
-> Ten steps therefore describe behaviour that does not exist on solverah.com yet:
+> These ten steps cover the newest code in the product and have never been run by
+> anyone:
 >
 > **S7.7 · S8.10 · S9.11 · S12.8 · S13.11 · S13.13 · S14.1 · S17.4 · S19.9 · all of S20**
 >
-> Walking prod today, every one of those fails — correctly, and uninterestingly. Two
-> honest ways to walk it:
->
-> - **Deploy first**, then walk the whole document as written. Preferred: it is the
->   only way the ten get tested at all.
-> - **Walk prod as it stands** and skip the ten. Everything else in the document is
->   accurate against `b5b8eec`.
->
-> Do not log those ten as findings against production. If you walk locally instead,
-> the branch is accurate — but a local walk cannot see the email, cron, or R2 paths
-> in S23.
+> They deserve more attention than the rest, not less. **S20 really deletes an
+> account** — use a throwaway.
 
-**Status.** Written 2026-09-14; revised the same day after the four fix chunks landed.
+**Status.** Written 2026-09-14; revised 2026-09-15 after the four fix chunks deployed.
 Never walked.
 
 ---
@@ -96,11 +91,14 @@ cannot be un-taken from the UI.
 
 **Freeing an address for reuse.** Account deletion tombstones the row and rewrites
 the email to `deleted-{id}@tombstone.invalid`, which frees the original address for
-re-registration. There is no UI for it (that is `G1`), so it is an API call, and on
-prod that means carrying the session cookie plus the `X-CSRF-TOKEN` header to
-`DELETE /api/v1/me` with body `{"confirm": "DELETE"}`. Simpler for a walkthrough:
-use distinct addresses per account. Plus-addressing (`you+acc1@…`) is untested
-against the registration validator — if it bounces, that is worth its own note, not
+re-registration. **Since 2026-09-15 there is a UI for this**: sign in as that account,
+go to `/settings` (the gear in the header), "Delete my account", type `DELETE`. That
+is S20.3, and walking it doubles as recycling the address. The API route
+(`DELETE /api/v1/me`, body `{"confirm": "DELETE"}`, session cookie plus
+`X-CSRF-TOKEN`) still works if you would rather not go through the page. Simpler
+again for a walkthrough: use distinct addresses per account. Plus-addressing
+(`you+acc1@…`) is untested against the registration validator — if it bounces, that
+is worth its own note, not
 a workaround.
 
 ### 0.5 · Things that will look broken but are not
@@ -153,7 +151,7 @@ Already understood. Do not file these; reference them.
 | **G6** | ~~Environment Report's gate failure is unhandled.~~ **CLOSED 2026-09-14.** A failed `GET /me/situation-report` renders an error card with "Try again", never the intro. See S9.11. | S9 |
 | **G7** | ~~Work Pulse's load-failure state has no retry button.~~ **CLOSED 2026-09-14.** House error panel with "Try again"; the raw error text is gone. See S8.10. | S8 |
 | **G8** | **Raw backend strings leak into the verify-email UI**: a wrong code shows `invalid code` and an expired one `code expired`, lowercase, unpunctuated. (The forgot-password twin normalises correctly to "Invalid or expired code. Please try again.") | S5 |
-| **G9** | **Intake-created accounts get a 32-char hex** (`uuid4().hex`) rendered in the letter-spaced box of an email that says "6-digit code". The source file's own comment acknowledges it. | S2 |
+| **G9** | **Worse than originally recorded — escalated 2026-09-15 after walking S3.6 live.** Accounts created via `POST /intake/claims` with `mode: "register"` (the hero-form modal's "Create account" button, exclusively — S2.8's `/register` path is unaffected, confirmed the same walk) get a 32-char hex token (`uuid.uuid4().hex`) that the source's own comment says was meant to work as a **link**, but the email template renders it in a box labelled "6-digit code" with **no link at all**. `AccountModal`'s "Continue to login" then sends the user straight to `/login`, never to a code-entry screen — and the `/verify-email` input strips every non-digit character and caps at 6, so the hex code cannot be entered correctly even by someone who finds their own way there. **A first-time user hitting this path has no way to verify the account with the code they were actually sent.** The only escape hatch: fail to sign in (which shows "email not confirmed" + a "Resend verification code" link), and that resend calls `resend_confirmation`, which generates and sends a normal, compatible 6-digit code — overwriting the broken token. Not discoverable without being told; worth a real fix (send a real link, or generate a 6-digit code from this path in the first place), not just a copy change. | S3 |
 | **G10** | **`EarlyAccessModal` on `/` is dead UI** — no button on the page ever sets `isOpen`. | S1 |
 | **G11** | **`/landing` advertises "For Recruiters"** and is generally stale relative to `/`. No recruiter role exists anywhere in routing. | S1 |
 | **G12** | **`?tab=` is unvalidated** on the profile: `?tab=bogus` selects no tab and renders an empty body under the tab strip. | S19 |
@@ -164,8 +162,9 @@ Already understood. Do not file these; reference them.
 | **G17** | **Wrong-role redirect is unexplained** — `Navigate to="/"` with no state and no copy. Low impact today, since `job-seeker` is the only role. | S6 |
 | **G18** | **`flask pulse send-prompts` is not in `render.yaml`.** It exists only in `cli.py` and as a manual dashboard step in the deploy runbook. It is the one scheduled job that puts mail in a user's inbox, and the one not codified. | S23 |
 | **G19** | **Guest dead-end on an unknown quiz key:** "Back to Assessments" points at `/intelligence`, which requires auth, so a signed-out visitor bounces to `/login`. | S4 |
-| **G20** | **`/quiz-preview/insights` holds its insight in router state only** — refresh or direct-visit loses it and shows "No insights found." | S4 |
+| **G20** | **`/quiz-preview/insights` holds its insight in router state only**, nothing else — no localStorage, sessionStorage, or fetch. A **same-tab F5 refresh will misleadingly still show it**, because Chrome/Firefox preserve `history.state` across a same-document reload; that is a browser quirk, not real persistence. A genuinely fresh navigation — **a new tab at the same URL**, a shared link, or closing and reopening the tab — shows "No insights found. Please take a quiz to generate insights." | S4 |
 | **G21** | ~~Monthly cadence is a one-way door.~~ **CLOSED 2026-09-14 (ruling).** "Monthly" is now the fourth cadence option, so the auto-dropped state renders as selected; the "slowed these down" note shows only when the drop was automatic (`auto_slowed`), never for a user who chose Monthly. Checking in still never changes cadence — by decision, not omission. Also fixed: the auto-drop no longer re-fires on a user already at monthly (it used to resend the slowdown paragraph each time). See S13.11 / S13.13. | S13 |
+| **G22** | **Found walking S4.8, 2026-09-15 — the guest-quiz replay redirect lands on a stale profile cache.** `ProfileCacheSync` seeds the profile query cache from the *login response envelope*, before `Login.tsx`'s replay block runs. The replay then writes the insight server-side (`PATCH /me/profile`, `POST /me/quiz-insights`) and navigates to `/quiz-insights?group=…` — but never invalidates the cache it just made stale, so `useProfile()` on arrival still holds the pre-replay snapshot and the page reads "No insights found yet." A single reload fixes it (a fresh mount has no cache to be stale), which is how this was confirmed rather than guessed. `ManagerMatchPage` already does the right thing after an equivalent write-then-navigate: `queryClient.invalidateQueries({ queryKey: profileKeys.document() })` right before its `navigate()`. `Login.tsx`'s replay block (`src/features/auth/components/Login.tsx`, the `pending` branch around the `/me/quiz-insights` POST) is missing that same line — likely a one-line fix. Candidate for the next fix batch; not built. | S4 |
 
 ---
 
@@ -204,8 +203,10 @@ Already understood. Do not file these; reference them.
   before the effective date is set."
 - **S1.8** — In the Privacy Policy, find the access/export and deletion clauses.
   → "Access and export. Download a copy of your data from your account settings at
-  any time." and "Deletion. Delete your account from account settings…". **Both
-  promise a screen that does not exist** — this is `G1`, and S20 is where it bites.
+  any time." and "Deletion. Delete your account from account settings…". Both are
+  **now honoured** by `/settings`, built 2026-09-15 (was `G1`). Neither clause names a
+  path, and "Account settings" is that page's title — so read them as a user would and
+  confirm they point somewhere real. S20 is where you test the page itself.
 - **S1.9** — Open `/how-matching-works`.
   → Eyebrow "Transparency", H1 "How matching works", six sections: What Work Pulse
   measures / How matches are computed / What matches are not / Who sees your answers
@@ -253,12 +254,15 @@ State persists to `sessionStorage` key **`solverah_intake`**.
 - **S2.7** — Reload mid-wizard at step 3.
   → Returns to where you were; state is in `sessionStorage`.
 - **S2.8** — Complete registration from `?from=wpll` and sign in.
+  → This path always goes through the plain `Register.tsx` component and the normal
+  `POST /auth/register` — `?from=wpll` only changes some post-registration copy, not
+  which endpoint runs. **Expect an ordinary 6-digit code**, not `G9`'s hex string;
+  that gap belongs only to S3.6's flow (below), corrected 2026-09-15 after a walk
+  produced a normal code here and the mix-up was traced in source.
   → On sign-in, `Login.tsx` reads `solverah_intake`, POSTs `/intake/claims` with
   `mode: "session"`, and clears the key. **A failure here is swallowed to the console
   and you still land on the dashboard** — so verify the claim landed by checking the
   profile, not by watching for an error.
-  → If the account was created through the intake path, the verification email
-  carries a **32-character hex string** in a box that says "6-digit code" — `G9`.
 
 ---
 
@@ -277,7 +281,8 @@ State persists to `sessionStorage` key **`solverah_intake`**.
   to the privacy notice to continue." / "Please attach your resume to continue." /
   "Please enter a valid LinkedIn URL."
 - **S3.4** — Attach a real PDF and submit.
-  → Button reads **"Submitting…"** and is disabled. Three calls in sequence:
+  → The idle button reads **"Begin setting up my account"**; clicking it flips it to
+  **"Submitting…"**, disabled. Three calls in sequence:
   `POST /intake/resume-tickets` → `PUT` to the presigned S3 URL → `POST
   /intake/submissions`.
   → Success: green strip "Thanks — your submission was received." **and** the
@@ -290,6 +295,16 @@ State persists to `sessionStorage` key **`solverah_intake`**.
 - **S3.6** — Create the account from the modal.
   → "Create account" → "Creating…" → "Account created! Your profile has been filled
   in from your resume." + "Continue to login".
+  → **This call goes through `intake_service.create_account`, not `/auth/register`,
+  and — confirmed live 2026-09-15 — it leaves the account unverifiable through the
+  UI as shipped.** The email carries a 32-character hex string in a box that says
+  "6-digit code", `AccountModal` sends you straight to `/login` with no code-entry
+  screen in between, and even a manual visit to `/verify-email` cannot accept it (the
+  input strips non-digits and caps at 6 characters). **Do not try to enter that
+  code.** Instead: attempt sign-in anyway → "Your email is not confirmed. Please
+  check your inbox." → click "Resend verification code" → a *different* function
+  fires and sends a real, compatible 6-digit code → use that one. That's `G9`,
+  escalated from a cosmetic mislabel to a real broken-journey finding.
 - **S3.7** — Look for anything that opens the "Request early access" modal
   (`EarlyAccessModal`).
   → **Nothing does.** It is mounted but no button sets `isOpen`. `G10`.
@@ -331,8 +346,11 @@ Storage: answers go to **`localStorage["pendingQuizSave"]`**; the one-quiz locko
 - **S4.5** — Click "View insights". → `/quiz-preview/insights`. Cards with "Key
   takeaways", "Combined meaning", "Next steps"; buttons "Back to quizzes", "Sign in to
   save results", "Create account".
-- **S4.6** — **Refresh that page.** → "No insights found. Please take a quiz to
-  generate insights." The insight lives in router state only — `G20`.
+- **S4.6** — **Open a new tab and paste in this exact URL** (do not just press F5 —
+  a same-tab refresh preserves `history.state` in Chrome/Firefox and will misleadingly
+  still show the insight; that is a browser quirk, not the page actually keeping it).
+  → In the new tab: "No insights found. Please take a quiz to generate insights."
+  The insight lives in router state only, with nothing else backing it — `G20`.
 - **S4.7** — Go back to `/quiz-preview`.
   → Now locked: "You've already taken a guest quiz. Create an account or sign in to
   take more and save your results." Every card's CTA is replaced by "Sign in" /
@@ -341,9 +359,14 @@ Storage: answers go to **`localStorage["pendingQuizSave"]`**; the one-quiz locko
   → On sign-in (not on registration — registration routes through `/verify-email` →
   `/login`), `getPendingQuizSave()` fires: `PATCH /me/profile` with the quiz results,
   then `POST /me/quiz-insights`, then redirect to `/quiz-insights?group=careerQuizzes`.
-  → **Verify you land on `/quiz-insights` and your answers are there.** If the replay
-  fails it logs to the console, silently falls through to the dashboard, and **does
-  not clear the pending save** — so it will retry on your next sign-in.
+  → **You should land on `/quiz-insights` — but confirmed 2026-09-15: it shows
+  "No insights found yet." on arrival, every time.** This is `G22`, below — a stale
+  cache, not a failed replay. **Reload that page once** (real F5) and the insights
+  appear; that confirms the diagnosis rather than something you did wrong.
+  → Separately: if the replay itself fails (`PATCH`/`POST` reject), it logs to the
+  console, silently falls through to the dashboard, and **does not clear the pending
+  save** — so it retries on your next sign-in. That is a different failure than `G22`
+  and would not be fixed by a reload.
 - **S4.9** — Open `/quiz-preview/career-job-search` as a guest and complete it.
   → Same shape, modal titled "Career & Job Search Insight". Note that this one saves
   under `quizGroup: "careerJobSearch"` where the signed-in branch of the same
@@ -397,6 +420,15 @@ Storage: answers go to **`localStorage["pendingQuizSave"]`**; the one-quiz locko
   swallows every non-unconfirmed failure, including the 401 "Invalid credentials",
   the 423 lockout, and network errors.
 - **S5.10** — Sign in correctly. → `/job-seeker/dashboard`.
+- **S5.10a** — Close the tab. Reopen `https://solverah.com`, then `/login`, then
+  `/register`, in the same browser (cookies intact).
+  → Each one shows at most a brief grey skeleton and then **`/job-seeker/dashboard`**.
+  The landing page, the sign-in form and the register form never appear; the
+  header never shows your name over a "Sign In" link. (Found 2026-09-15 on the walk:
+  the landing page rendered signed-out and `/login` rendered the form under a header
+  showing the name, gear and logout. Fixed by `RedirectIfAuthenticated`, the mirror
+  of `RequireAuth` on those three routes.) A **clean** browser profile still draws
+  the landing page instantly — S1.1 — with no wait on the session probe.
 - **S5.11** — Open `/confirm-email` and `/check-email`.
   → Both render nothing and redirect to `/verify-email`. Legacy aliases.
 
@@ -425,10 +457,25 @@ Storage: answers go to **`localStorage["pendingQuizSave"]`**; the one-quiz locko
   → The limit is `3 per minute`; the fourth gets a 429 whose body is problem+json,
   surfacing as the server's detail or "Too many attempts. Please wait a moment and
   try again."
-- **S6.7** — Fail the password on `/login` five times.
+- **S6.7** — Fail the password on `/login` five times, **all against the same
+  account** (ACC-5, not ACC-1 — see the trap below).
   → The sixth attempt is locked for 15 minutes. The backend says "Account locked. Try
   again later." but the UI shows "Failed to sign in. Please check your credentials."
   — i.e. **a locked-out user is told their password is wrong**. Worth a ruling.
+  → To actually prove the lock is real rather than just five ordinary wrong
+  passwords: make the sixth attempt with the **correct** password. If it still
+  fails with the same generic message, the lock is confirmed; if it succeeds, the
+  account was never locked.
+  → **Testing trap, confirmed 2026-09-15:** `/auth/login`'s `5 per minute` rate
+  limit is scoped **per IP address** (`get_remote_address`), not per account.
+  Five failed attempts on ACC-5 consume that IP's entire login budget for the
+  minute — the very next login attempt on **any other account from the same
+  connection**, including a correct one, gets a 429 in that same window. It
+  renders **identically** to a wrong password (`Login.tsx`'s catch-all folds every
+  non-"unconfirmed" failure into "Failed to sign in. Please check your
+  credentials.") so it is indistinguishable from the UI alone. Wait roughly a
+  minute between testing this and logging into a different account, or use a
+  different account first and do this step last.
 - **S6.8** — Sign in, then delete the `access_token_cookie` in devtools, then click
   around.
   → The context refreshes once, silently, and replays the request. You should notice
@@ -491,7 +538,9 @@ Storage: answers go to **`localStorage["pendingQuizSave"]`**; the one-quiz locko
   "Your Solverah profile" / "Work Pulse, FocusType and ManagerMatch" → `/intelligence`.
   Below the fold: "Search companies and roles →".
 - **S7.9** — **Resize to phone width (~390px).**
-  → The header nav does not collapse; five items plus your name overflow. `G2`.
+  → The header nav does not collapse; seven items (Feed, Dashboard, Intelligence,
+  Profile, Agent, the settings gear, logout) plus your name overflow. `G2`, and the
+  gear made it one item worse.
 - **S7.10** — Click "Feed" in the header.
   → A modal, not a navigation: "Feature coming soon" / "The feed will be available
   soon. Check back after launch." / "Got it". `G3`.
@@ -543,8 +592,15 @@ Draft storage: `sessionStorage["solverah_assessment_answers"]`.
   → **Silently redirects** to `/work-pulse` unless you completed the retired
   12-question instrument. No copy, no explanation. Judge whether that's acceptable
   for anyone who bookmarked it.
-- **S8.10** — (If you can induce a failed form fetch — e.g. block the request in
-  devtools.) → A red panel: "We couldn't load Work Pulse right now." / "Please try
+- **S8.10** — **Do this BEFORE S8.6, not after** — confirmed 2026-09-15 the hard
+  way: once `wp_v2_completed` is true, the completion card renders in the form's
+  place and the component never mounts the query that fetches `core/form` at all.
+  There is nothing left to block, and no way back short of deleting the account.
+  Block the form's request in devtools (filter the Network tab for `form`, find the
+  one hitting `api.solverah.com/.../assessments/core/form` — not the `work-pulse`
+  document request itself, that only stops the page from loading at all) **while
+  the instrument is still incomplete**, then reload `/work-pulse`.
+  → A red panel: "We couldn't load Work Pulse right now." / "Please try
   again in a moment." / **"Try again"**, which refetches. The raw error text is never
   shown. (Was `G7`; fixed 2026-09-14.)
 
@@ -682,8 +738,11 @@ strain card is a bug.
 **Account** ACC-1 · **Route** `/situation-report` — **there is no `/experiments` page.**
 The entire feature lives inside the complete Situation Report.
 
-- **S12.1** — Find a strain card whose "Change it in place" register carries an
-  experiment name. → A button: **"Try this for two weeks →"**.
+- **S12.1** — **Do S12.7 first** (below) — starting any experiment, even one you
+  later abandon, permanently removes the "never started one" empty state from this
+  account, the same trap S8.10 had. Then: find a strain card whose "Change it in
+  place" register carries an experiment name. → A button: **"Try this for two
+  weeks →"**.
 - **S12.2** — Start it.
   → The cell switches to "Running since {date}, through {date}." plus an **"Abandon"**
   button.
@@ -732,7 +791,11 @@ The entire feature lives inside the complete Situation Report.
   → The form is replaced in place: H1 **"That's your first pulse"** / "Nothing to
   compare it to yet. Check in again next week and you'll start seeing how it moves."
   Eyebrow "Logged". Exits: "See your trend →" and "Done".
-- **S13.5** — Check in a second time.
+- **S13.5** — Check in a second time. **The confirmation screen has no "check in
+  again" button** — its two exits are "See your trend →" and "Done" only. Navigate
+  back to `/pulse` directly (retype the URL, or use the dashboard's Pulse card).
+  Nothing server-side blocks a second submission right away; the missing button is
+  a UI nudge toward weekly use, not a real gate.
   → H1 **"Two points make a trend"** + a two-point sparkline + "How work's working for
   you is {up|down|about the same} from last time."
 - **S13.6** — Check in a third time. → H1 **"This week vs. last week"**.
@@ -874,8 +937,10 @@ The entire feature lives inside the complete Situation Report.
 **Account** ACC-1 · **Routes** `/intelligence`, `/solverah-profile`, `/intelligence/paths`,
 `/quiz-insights`, `/career-quizzes/*`, `/trust`
 
-- **S16.1** — (Use a fresh account, or recall S7.) Open `/intelligence` **before**
-  Work Pulse.
+- **S16.1** — Open `/intelligence` **before** Work Pulse. **Deferred to ACC-3
+  2026-09-15** — ACC-1 already has Work Pulse by the time this scenario is reached,
+  and S7 never actually visited `/intelligence`, so this was never incidentally
+  covered. See S21.1's consolidated pre-Work-Pulse checklist.
   → A hard gate, and nothing else on the page renders: "Complete Work Pulse to unlock
   your profile." / "Work Pulse takes about 8 minutes and unlocks your Solverah profile
   — the foundation everything else in the ecosystem builds on." / "Start Work Pulse".
@@ -905,15 +970,35 @@ The entire feature lives inside the complete Situation Report.
   the pill is decorative. Decide whether shipping a "Pro" badge on a free feature is
   what you want at launch.
   → Loading: three pulsing skeleton cards.
-- **S16.10** — If your career status is unset, you get: "Set your career status to get
-  started." / "Tell us where you are in your career so we can tailor your path
-  suggestions." / "Update Profile" → which deep-links to
+- **S16.10** — If your career status is unset, you eventually get: "Set your career
+  status to get started." / "Tell us where you are in your career so we can tailor
+  your path suggestions." / "Update Profile" → which deep-links to
   `/job-seeker/profile?tab=experience` with the career-status modal open. Follow it
-  into S19.4.
+  into S19.4. **Deferred to ACC-3 2026-09-15** — ACC-1's career status was set early
+  (during S9's detour, to unblock the Environment Report), so this state is gone on
+  that account. See S21.1's consolidated checklist: check this **after** ACC-3
+  completes Work Pulse but **before** setting career status.
+  → **Confirmed live 2026-09-15 — the gate is not the first thing you see.** The
+  page's mount effect runs two client-side checks *before it ever calls the
+  backend that would return `career_status_not_set`*: if you have skills (you will,
+  right after Work Pulse) and haven't confirmed proficiency, the skill-rating modal
+  opens first; then, if you have no `path_preferences`, the 3-question preferences
+  form runs. Both really save (`PUT /me/skills`, then the preferences write) — not
+  wasted, but real intake work happens before the page tells you it can't proceed
+  without a career status, rather than telling you up front. A real, confirmed
+  sequencing finding — not yet given a G-number, consistent with the other batch-2
+  findings recorded inline (see S16.11, S17.1-S17.5).
   → Note this component is marked in-source as a **placeholder** ("will be replaced by
   the full component in SOL-31").
-- **S16.11** — If your profile lacks a job title or skills: "Add a job title and a few
-  skills to get started." / "Path Intelligence needs your current (or most recent) job
+- **S16.11** — **Confirmed dead code, 2026-09-15 — do not expect this gate to
+  appear, even with zero skills.** The frontend's `profile_incomplete` state
+  matches an exact string that the backend never produces: `post_my_path_suggestion_job`
+  (`intelligence.py`) and `create_path_suggestions` (`scoring_jobs.py`) enqueue
+  unconditionally with no validation of job title or skills at all. A profile
+  missing both goes straight to real (likely low-quality) suggestions, silently.
+  Confirmed live on ACC-1 (job title present, zero skills, no gate). Documented
+  copy for reference, not a pass condition: "Add a job title and a few skills to
+  get started." / "Path Intelligence needs your current (or most recent) job
   title and at least one skill to find matching career paths." / "Complete Your
   Profile".
 - **S16.12** — Complete it and get suggestions. → A suggestion list plus "Edit skill
@@ -926,8 +1011,10 @@ The entire feature lives inside the complete Situation Report.
   not"; "How we check our own instruments"; "Your answers". Closing: "Nothing on this
   page describes something that does not exist yet. Where a thing is still being
   built, it says so — and when that changes, this page changes with it."
-  → **Check that claim against `G1`.** This page says "You can delete your account and
-  the data behind it." There is no screen for that.
+  → This page says "You can delete your account and the data behind it." That claim
+  became true on 2026-09-15 (`/settings`, was `G1`). It is the page's own standard —
+  "Nothing on this page describes something that does not exist yet" — so read the
+  whole page against it and flag anything else it promises that is not built.
   → Footer says "Last reviewed 10 September 2026" — decide whether that needs bumping
   before launch.
 - **S16.14** — Open `/career-quizzes` signed in.
@@ -953,16 +1040,41 @@ each one **says so honestly** rather than looking broken.
 - **S17.1** — Click "Search companies and roles →" on the dashboard.
   → `/search` with no query: "Search for companies and roles" / "Type a company name,
   job title, or keyword to get started." / "← Back to Feed".
-- **S17.2** — Search for something.
-  → Loading is a spinning icon with **no text**. Results show "Search results for
-  '{query}'", "Showing X–Y of N results", "Match score: N%" and pagination.
-- **S17.3** — Search for gibberish.
-  → "No results found for '{query}'" / "Try adjusting your search terms."
+  → **Found live 2026-09-15: this page has no input field to type into, anywhere.**
+  `SearchResults.tsx` is a pure read-only results view driven entirely by a `?q=`
+  URL parameter — no `<input>` in the file. Its own copy promises an interaction
+  that does not exist on this page.
+- **S17.2** — **The only real search box in the product lives on `/feed`**, which the
+  header's "Feed" link does not navigate to (`G3` — it opens a modal instead). So
+  reaching `/search` with a query requires typing `/feed` directly into the URL bar
+  and using its search box, or typing `/search?q=...` by hand. **Combined, there is
+  currently no discoverable path for a real user to ever search** — its own finding,
+  not folded into `G3` (fixing the Feed nav link alone would not fix this).
+  → **Confirmed live 2026-09-15, and this is the more important finding: no query,
+  real or gibberish, can ever return a populated result.** `SearchResults.tsx` calls
+  `useRecommendations()`, which hits `GET /me/recommendations` with **no query
+  parameter sent at all** — the typed text only gates whether the fetch fires, never
+  filters anything. That hook's own source comment: *"The list is always empty
+  today -- the ML pipeline behind it was replaced by the agent and the Groq-backed
+  successor is not wired up."* This is the same underlying limitation as CompanyLens
+  (`G4`), minus CompanyLens's honest "coming soon" framing — `/search` instead shows
+  live-looking UI (pagination, "Showing X–Y of N results", "Match score: N%") that
+  can structurally never render anything. **Do not expect populated results from any
+  query on this build.** Loading is a spinning icon with no text.
+- **S17.3** — Search for gibberish. → Identical outcome to S17.2's real query —
+  "No results found for '{query}'" / "Try adjusting your search terms." — because
+  nothing about the query text ever reaches the backend either way.
 - **S17.4** — (If you can force the fetch to fail.) → "We couldn't run that search
   right now" / "Please try again in a moment." / "Try again" — never "No results
   found". (Was `G15`; fixed 2026-09-14.)
-  → Also note `/search` is dark-slate themed, unlike the rest of the app. Decide if
-  that ships.
+  → **Corrected 2026-09-15: this is not a "different but intentional theme" — it is
+  a confirmed broken/missing background.** `SearchResults.tsx`'s wrapper sets
+  `text-slate-100` (near-white text) with **no background colour of its own** —
+  evidently authored assuming a dark parent shell that does not exist. The actual
+  rendered background is the app's normal light/cream page background, so this
+  near-white text is low-contrast wherever it isn't sitting on one of the page's own
+  explicitly-dark cards. Confirmed the identical pattern also affects `/feed`
+  (S17.5). Not a style call to make — a rendering defect to fix.
 - **S17.5** — Navigate to `/feed` **by typing the URL** (the header won't take you —
   `G3`).
   → "Welcome to your feed, {firstName}!"; a search box that does work; a "Filters"
@@ -970,6 +1082,13 @@ each one **says so honestly** rather than looking broken.
   profile and generate recommendations to start seeing personalized jobs."; stats
   hard-coded to "--"; "Company trends coming soon"; a "Start a Conversation" button
   **with no handler**.
+  → **Confirmed live via screenshot, 2026-09-15: the search bar, "Filters" button,
+  and "Messages"/"Notifications" tab labels are all rendered in near-white text
+  sitting directly on the light page background — the same missing-background bug
+  as S17.4's `/search` finding, not a separate issue.** `Feed.tsx`'s wrapper has the
+  identical `text-slate-100`-with-no-background pattern. The individual content
+  cards look fine because they carry their own explicit dark backgrounds; everything
+  outside a card is low-contrast to the point of being hard to read.
   → This page has neither a loading nor an error state. Decide whether it should be
   reachable at all at launch.
 - **S17.6** — Open `/company-lens`.
@@ -990,6 +1109,25 @@ each one **says so honestly** rather than looking broken.
 ### S18 · The agent
 
 **Account** ACC-1 · **Route** `/agent`
+
+> ### ⚠ Confirmed broken in production, 2026-09-15 — read before walking this
+>
+> **Every message sent to `/agent` currently returns a 422**: `Model
+> 'llama-3.1-8b-instant' not found on Groq.` Groq deprecated this model
+> 2026-06-17 and shut it down for free/developer-tier traffic 2026-08-16 — this
+> has likely been broken for a full month. `DEFAULT_AGENT_MODEL` in
+> `solverah/infra/llm/__init__.py:43` needs to change to Groq's recommended
+> replacement, `openai/gpt-oss-20b`. Not yet fixed as of this writing (Sebastian's
+> call — fixing later, not blocking the walk).
+>
+> **All of S18 is deferred until the model fix lands, 2026-09-15 — do not
+> partial-walk this scenario.** S18.3/S18.5/S18.6/S18.8 need a real response and
+> obviously can't be tested. S18.4 and S18.7 are enforced ahead of the Groq call
+> and should theoretically still work, but proved impractical to actually verify
+> by hand — S18.4's disabled-textarea window is too brief to catch against an
+> instant 422, and S18.7 means grinding through 31 messages that all fail
+> identically for no real signal. Walk all of S18 fresh, in one pass, once
+> `DEFAULT_AGENT_MODEL` is updated.
 
 - **S18.1** — Open `/agent`.
   → Title "Solverah AI" / "Your personal career assistant"; a permanent disclosure:
@@ -1019,7 +1157,10 @@ each one **says so honestly** rather than looking broken.
   banner appears.
 - **S18.9** — (Config check.) If the banner reads "Failed to generate response", that
   is a missing or invalid **`GROQ_API_KEY`** — the agent runs on Groq, not OpenAI.
-  §0.6, not a UI bug.
+  §0.6, not a UI bug. **Distinct from the ⚠ deprecated-model failure above** — that
+  one reads "Model 'llama-3.1-8b-instant' not found on Groq." and is what you will
+  actually see on production right now, confirmed live 2026-09-15, until the model
+  constant is updated.
 
 ---
 
@@ -1039,8 +1180,18 @@ each one **says so honestly** rather than looking broken.
   strip. `G12`.
 - **S19.4** — Edit a field without saving.
   → Amber strip: "You have unsaved changes — don't forget to click **Save Profile**."
-- **S19.5** — Try to navigate away with unsaved changes. → A native `beforeunload`
-  dialog.
+- **S19.5** — Try navigating away **two different ways**, since they behave
+  differently and the doc used to only describe one of them:
+  → **A real page exit** (refresh, close the tab, type a new URL) — a native
+  `beforeunload` dialog should appear. This is the only path the current guard
+  (`useProfileForm.ts`, a bare `window.addEventListener("beforeunload", ...)`)
+  actually covers.
+  → **An in-app link instead** (e.g. "Dashboard" in the header) — **confirmed live
+  2026-09-15: no warning at all, the change is silently discarded.** `beforeunload`
+  never fires for React Router's client-side navigation, and there is no separate
+  guard for it. This is the far more common way to leave this page in an SPA, and
+  it is the one path with zero protection, despite the amber banner implying
+  otherwise. A real, confirmed finding — not expected behavior.
 - **S19.6** — Save. → Button "Saving...", a progress bar labelled "Saving profile".
 - **S19.7** — Arrive here from S16.10 (the Path Intelligence deep link).
   → The career-status modal opens: "Where are you in your career?" / "We need this to
@@ -1116,8 +1267,19 @@ pass. **Use a throwaway account for S20.3: it really deletes.**
 The product's most opinionated refusal: it declines to assemble a report rather than
 invent one.
 
-- **S21.1** — Register ACC-3, complete Work Pulse (S8), then set career status to
-  "Looking for my first job" (S19.7).
+- **S21.1** — Register ACC-3. **Three things were deferred here from earlier
+  scenarios, 2026-09-15 — do them in this exact order, before continuing into S21
+  proper:**
+  1. **S16.1** — visit `/intelligence` right now, before touching Work Pulse at
+     all. Expect the hard gate: "Complete Work Pulse to unlock your profile."
+  2. **S8.10** — block the `assessments/core/form` request in devtools, reload
+     `/work-pulse`, confirm the red "We couldn't load Work Pulse right now." panel.
+     Remove the block afterward.
+  3. Complete Work Pulse (S8) for real, all 24 questions.
+  4. **S16.10** — visit `/intelligence/paths` now, before setting career status.
+     Expect: "Set your career status to get started." / "Update Profile".
+  5. *Now* set career status to "Looking for my first job" (S19.7), and continue
+     into S21 as written below.
 - **S21.2** — Open `/situation-report`.
   → H1 **"Your report starts when the job does"** / "This report is the distance
   between how you work and what a role actually asks of you. You have given us the
@@ -1343,6 +1505,6 @@ registered.
 
 ---
 
-*Derived from source at `b5b8eec`. When this document and the product disagree, the
+*Derived from source at `af0b351` (production, PR #153). When this document and the product disagree, the
 product is right and this document is a bug — file it the same way, against the step
 ID.*
