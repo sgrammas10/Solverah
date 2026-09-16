@@ -117,11 +117,13 @@ describe("PathFitPanel - the analysis", () => {
     expect(screen.queryByText(/NaN/)).toBeNull();
   });
 
-  it("does not hide a gap the user arguably already has", () => {
-    // `_EMBED_THRESHOLD` is too strict for O*NET's verbose names, so a user with
-    // "SQL" can be told "Structured query language SQL" is a gap. Known,
-    // pre-existing, routed to F-8. Filtering it here would hide the defect from
-    // the only people who could report it.
+  it("renders whatever gap the API sends, without second-guessing it", () => {
+    // This case exists because the backend once sent exactly this: a user with
+    // "SQL" told that "Structured query language SQL" was a gap. F-8 box 5 fixed
+    // that at the source, so the payload below no longer occurs -- but the rule
+    // it proves outlives the bug. The panel does not filter, so the next
+    // backend defect is visible to the people who could report it rather than
+    // swallowed here.
     renderPanel({
       fit: {
         ...FIT,

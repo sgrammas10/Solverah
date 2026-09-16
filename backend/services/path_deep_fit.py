@@ -55,7 +55,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Iterable
 
 import numpy as np
 
@@ -98,6 +98,7 @@ __all__ = [
     "UnknownOccupation",
     "ZoneFit",
     "deep_fit",
+    "skill_aliases",
 ]
 
 _log = logging.getLogger(__name__)
@@ -114,6 +115,12 @@ _SKILL_LEVEL_WEIGHTS: dict[str, float] = {
 }
 
 # Cosine similarity threshold for an embedding match to count.
+#
+# Deliberately UNCHANGED by F-8 box 5. It is too strict for O*NET's verbose
+# names, but there is no Tier-2 evaluation harness, so a threshold moved by
+# feel is a number nothing can falsify. What box 5 changed instead is that
+# the two list-producing functions settle IDENTITY before asking this
+# question at all -- see `skill_aliases`.
 _EMBED_THRESHOLD: float = 0.70
 
 # Hot tech tools from O*NET have no per-tool importance score.
@@ -153,6 +160,157 @@ _TOP_GAPS: int = 8
 # ---------------------------------------------------------------------------
 # Data types
 # ---------------------------------------------------------------------------
+
+
+
+# ---------------------------------------------------------------------------
+# Skill-name normalisation (BUILD_PLAN F-8 box 5)
+# ---------------------------------------------------------------------------
+#
+# THE DEFECT, AS A USER SAW IT.  Somebody who listed "SQL" was told that
+# "Structured query language SQL" was a gap -- in the deep-fit panel, in
+# production.  The cause is :data:`_EMBED_THRESHOLD`: 0.70 cosine is a
+# reasonable bar between two ordinary skill phrases and a poor one between a
+# term and O*NET's expanded spelling of the same term.
+#
+# THE FIX IS NOT TO TUNE THE THRESHOLD.  There is no Tier-2 evaluation harness
+# -- F-2's set measures Tier-1 ranking -- so a threshold moved by feel is a
+# number nothing can falsify, which is the failure mode this whole workstream
+# was built to avoid.  What CAN be settled without a harness is identity: if a
+# user's term and a role item's term are the same string once O*NET's naming
+# conventions are undone, that is a match, and no cosine needs consulting.
+#
+# THE CONVENTIONS ARE MEASURED, NOT GUESSED.  Mined 2026-09-16 from the corpus
+# build's own `documents.jsonl` -- 176 distinct hot-technology names across
+# 11,339 mentions.  Four shapes account for all of them:
+#
+#   54.0%  expansion + trailing token   Structured query language SQL
+#                                       Microsoft Excel, The MathWorks MATLAB
+#   31.2%  a single bare token          Python, Tableau, C++, R
+#   10.8%  a " software" suffix         SAP software, Microsoft Office software
+#    4.0%  plain multi-word             Adobe Illustrator, Shell script
+#
+# Two of those shapes are reversible, and the rules below reverse them.
+#
+# WHAT IS DELIBERATELY *NOT* REVERSIBLE, and why the rules are narrow.  "Take
+# the last token of a multi-word name" would turn "Critical Thinking" into
+# "Thinking", so a user who listed "Design Thinking" would be credited with
+# O*NET's "Critical Thinking".  O*NET's ~35 generic skills are title-cased
+# two-word English phrases and its technologies are title-cased two-word
+# product names, so SHAPE alone cannot separate them.  Hence two narrow rules
+# instead of one broad one:
+#
+#   A. expansion -> acronym: the last token, only when it is ALL-CAPS.
+#      Measured: fires on 26 of the 176 names, every one of them correct
+#      (SQL, AWS, CSS, HTML, XML, JSON, VBA, MATLAB, SSIS...).  "Thinking" is
+#      not all-caps, so it never fires on a generic skill.
+#   B. vendor prefix: the remainder after a leading vendor token.  The vendor
+#      set is DERIVED, not authored -- see :data:`_VENDOR_PREFIXES`.
+#
+# NOTHING HERE TOUCHES A SCORE.  The aliases are consulted by
+# :func:`_find_matched_skills` and :func:`_gap_skills`, which are the panel's
+# two lists.  :func:`_role_coverage_score` and :func:`_compute_centroid_score`
+# still use the cosine alone, deliberately: they produce the fit NUMBER, and
+# changing a number with no harness to judge it is the thing this module's
+# threshold comment refuses to do.  It is an asymmetry and it is recorded as
+# one -- a user can now be told SQL is matched while the coverage term still
+# does not count it.  Closing that is a measurement, not an edit.
+
+#: Leading tokens that begin three or more distinct O*NET technology names.
+#:
+#: Derived by recurrence from the real vocabulary rather than authored, and
+#: ``test_the_vendor_prefixes_are_what_the_corpus_says_they_are`` re-derives
+#: them from the artifact so this cannot drift into a hand list.
+#:
+#: Measured counts: Microsoft 29, Apache 9, Oracle 8, Google 7, Adobe 6,
+#: Amazon 5, IBM 4, Autodesk 3, Apple 3, Atlassian 3.
+#:
+#: **Three and not two.**  A threshold of 2 also admits "Red", which is half of
+#: "Red Hat" -- it would rewrite "Red Hat Enterprise Linux" to "Hat Enterprise
+#: Linux", an alias for nothing.  The names a 2-threshold would additionally
+#: shorten (SAP, Spring, Intuit) are all already reachable by rule A or are
+#: bare product names people say in full.
+_VENDOR_PREFIXES: frozenset[str] = frozenset(
+    {
+        "adobe",
+        "amazon",
+        "apache",
+        "apple",
+        "atlassian",
+        "autodesk",
+        "google",
+        "ibm",
+        "microsoft",
+        "oracle",
+    }
+)
+
+#: The recurrence threshold :data:`_VENDOR_PREFIXES` was cut at.  Named so the
+#: test that re-derives the set does not have to restate it.
+_VENDOR_MIN_DISTINCT_NAMES: int = 3
+
+_WHITESPACE = re.compile(r"\s+")
+_SOFTWARE_SUFFIX = re.compile(r"\s+software$", re.I)
+_PARENTHETICAL = re.compile(r"\s*\(([^()]{1,60})\)\s*")
+#: An acronym: all caps, at least two characters, starting with a letter.
+#: Digits and the punctuation O*NET actually uses (``PL/SQL``, ``ASP.NET``,
+#: ``C++``, ``C#``, ``DB2``) are allowed after the first character.
+_ACRONYM = re.compile(r"^[A-Z][A-Z0-9./#+-]+$")
+
+
+def _tidy(name: str) -> str:
+    """Collapse whitespace and drop trailing punctuation.  No case change."""
+    return _WHITESPACE.sub(" ", name).strip().strip(".,;:")
+
+
+def skill_aliases(name: str) -> frozenset[str]:
+    """Every casefolded spelling of *name* that counts as the same skill.
+
+    Always includes the name itself, so a term with no recognised convention
+    aliases to exactly one thing and can only ever match itself.  That is what
+    keeps the false-positive guard cheap: "R" produces ``{"r"}`` and "React"
+    produces ``{"react"}``, and no rule below can ever bring the two together,
+    because none of them shortens a single bare token.
+    """
+    base = _tidy(name)
+    if not base:
+        return frozenset()
+
+    forms = {base}
+    # A fixed point over the four rules: "Amazon Web Services AWS software"
+    # needs the suffix gone before the acronym rule can see the acronym.
+    for _ in range(3):
+        grown: set[str] = set()
+        for form in forms:
+            stripped = _tidy(_SOFTWARE_SUFFIX.sub("", form))
+            if stripped:
+                grown.add(stripped)
+
+            match = _PARENTHETICAL.search(form)
+            if match:
+                inner = _tidy(match.group(1))
+                outer = _tidy(_PARENTHETICAL.sub(" ", form))
+                grown.update(f for f in (inner, outer) if f)
+
+            tokens = form.split()
+            if len(tokens) >= 2:
+                if _ACRONYM.match(tokens[-1]):           # rule A
+                    grown.add(tokens[-1])
+                if tokens[0].casefold() in _VENDOR_PREFIXES:  # rule B
+                    grown.add(" ".join(tokens[1:]))
+        if grown <= forms:
+            break
+        forms |= grown
+
+    return frozenset(form.casefold() for form in forms if form)
+
+
+def _aliases_of(names: Iterable[str]) -> set[str]:
+    """The union of every alias of every name in *names*."""
+    out: set[str] = set()
+    for name in names:
+        out |= skill_aliases(name)
+    return out
 
 
 class UnknownOccupation(ValueError):
@@ -320,16 +478,26 @@ def _find_matched_skills(
     Precondition: _batch_embed has been called for all texts.
     Used for UI display only -- does not affect the centroid score.
     """
+    role_alias_set = _aliases_of(name for name, _ in role_items)
     available_role = [
         (name, _EMBED_CACHE[name])
         for name, _ in role_items
         if name in _EMBED_CACHE
     ]
-    if not available_role:
-        return []
 
     matched: list[str] = []
     for us in user_skills:
+        # F-8 box 5: identity first. If the user's term and one of the role's
+        # terms are the same string once O*NET's naming conventions are undone,
+        # that is a match and no cosine is consulted -- which is what stops a
+        # user with "SQL" being told they lack "Structured query language SQL".
+        # It also works with no embeddings at all, so an OpenAI outage degrades
+        # to exact matching rather than to silence.
+        if skill_aliases(us.name) & role_alias_set:
+            matched.append(us.name)
+            continue
+        if not available_role:
+            continue
         user_emb = _EMBED_CACHE.get(us.name.lower())
         if user_emb is None:
             continue
@@ -354,7 +522,16 @@ def _compute_centroid_score(
 
     See the module docstring for why this is a legitimate statement about one
     occupation and was not a legitimate way to rank a pool of forty.
+
+    **The two are computed independently, which F-8 box 5 had to separate.**
+    The score needs embeddings on both sides and is honestly 0.0 without them.
+    The matched list does not -- since box 5 an exact-or-alias match settles it
+    -- and returning ``[]`` alongside the 0.0 would tell a user whose provider
+    was briefly unreachable that this role uses none of their skills. That is
+    the judgement :func:`_gap_skills` already makes in the other direction.
     """
+    matched = _find_matched_skills(user_skills, role_items)
+
     user_vecs, user_weights = [], []
     for us in user_skills:
         emb = _EMBED_CACHE.get(us.name.lower())
@@ -364,7 +541,7 @@ def _compute_centroid_score(
         user_weights.append(_SKILL_LEVEL_WEIGHTS.get(us.level, _SKILL_LEVEL_WEIGHTS["beginner"]))
 
     if not user_vecs:
-        return 0.0, []
+        return 0.0, matched
 
     role_vecs, role_weights = [], []
     for name, imp in role_items:
@@ -375,13 +552,12 @@ def _compute_centroid_score(
         role_weights.append(imp / 100.0)
 
     if not role_vecs:
-        return 0.0, []
+        return 0.0, matched
 
     user_centroid = np.average(np.array(user_vecs), axis=0, weights=np.array(user_weights))
     role_centroid = np.average(np.array(role_vecs), axis=0, weights=np.array(role_weights))
 
     score = _cosine_similarity(user_centroid.tolist(), role_centroid.tolist())
-    matched = _find_matched_skills(user_skills, role_items)
     return score, matched
 
 
@@ -650,11 +826,18 @@ def _gap_skills(
         for us in user_skills
         if (emb := _EMBED_CACHE.get(us.name.lower())) is not None
     ]
-    if not user_vecs:
+    user_alias_set = _aliases_of(us.name for us in user_skills)
+    if not user_vecs and not user_alias_set:
         return []
 
     gaps: list[SkillGap] = []
     for name, importance in role_items:
+        # F-8 box 5, and this is the half a user actually complained about:
+        # naming something as missing that they have already listed. Checked
+        # before the cosine, and before the `role_emb is None` skip, so an
+        # embedding outage cannot resurrect a gap identity has ruled out.
+        if skill_aliases(name) & user_alias_set:
+            continue
         role_emb = _EMBED_CACHE.get(name)
         if role_emb is None:
             continue

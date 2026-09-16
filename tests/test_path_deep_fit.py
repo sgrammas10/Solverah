@@ -234,15 +234,29 @@ class TestDegradation:
         assert fit.tasks and fit.tech_stack
         assert fit.zone.occupation_zone == WORLD_ZONES[CODE]
 
-    def test_no_openai_client_degrades_to_zone_and_title(self, world, onet) -> None:
-        """The same promise `score_paths` makes for a missing OPENAI_API_KEY."""
+    def test_no_openai_client_degrades_to_zone_title_and_exact_matches(
+        self, world, onet
+    ) -> None:
+        """The same promise `score_paths` makes for a missing OPENAI_API_KEY.
+
+        **Improved by F-8 box 5, and this test changed with it.** It used to
+        assert `matched_skills == []`, because every match went through a
+        cosine and there were no vectors. Identity needs none: a user who
+        listed "Python" against a role that names "Python" is a match whatever
+        the embedding provider is doing. The SCORES still degrade to zero --
+        those genuinely need both centroids -- so what the panel loses in an
+        outage is the numbers, not the plain facts.
+        """
         onet.search_occupations.side_effect = None
         onet.search_occupations.return_value = []
         fit = deep_fit(fitted_profile(), CODE, onet, None)
 
         assert fit.title == "Computer Programmers"
-        assert fit.matched_skills == []
-        assert fit.gap_skills == []
+        assert fit.matched_skills == ["Python"]
+        assert fit.gap_skills == [], (
+            "without embeddings there are no MEASURABLE gaps -- reporting every "
+            "requirement as missing would read as a judgement about the person"
+        )
         assert fit.coverage_score == 0.0
 
     def test_an_occupation_with_no_data_at_all_still_returns_a_fit(
@@ -439,9 +453,23 @@ class TestTierTwoHelpers:
         assert matched == ["Python"]
 
     def test_centroid_score_is_zero_when_nothing_is_cached(self) -> None:
+        """The score needs both centroids. The matched list does not.
+
+        F-8 box 5 separated the two: returning `[]` alongside the honest 0.0
+        would tell a user whose embedding provider blinked that this role uses
+        none of their skills, which is a different and false claim.
+        """
         assert pdf._compute_centroid_score(
             [user_skill("Python")], [("Python", 90.0)]
-        ) == (0.0, [])
+        ) == (0.0, ["Python"])
+
+    def test_the_matched_list_needs_no_embeddings_at_all(self) -> None:
+        assert pdf._find_matched_skills(
+            [user_skill("SQL")], [("Structured query language SQL", 90.0)]
+        ) == ["SQL"]
+        assert pdf._find_matched_skills(
+            [user_skill("R")], [("React", 90.0)]
+        ) == []
 
     def test_role_coverage_full_and_empty(self) -> None:
         ps._EMBED_CACHE["python"] = unit(1, 0)
@@ -518,3 +546,294 @@ def test_a_malformed_code_is_refused_before_the_corpus_is_loaded(monkeypatch, on
     with pytest.raises(UnknownOccupation) as excinfo:
         deep_fit(profile(skills=[user_skill("Python")]), "not-a-code", onet, None)
     assert excinfo.value.reason == "malformed"
+
+
+# ---------------------------------------------------------------------------
+# Skill-name normalisation (BUILD_PLAN F-8 box 5)
+# ---------------------------------------------------------------------------
+
+
+class TestSkillAliases:
+    """The naming conventions O*NET actually uses, undone.
+
+    Every example here is a real name from the corpus build's own
+    `documents.jsonl` -- 176 distinct hot-technology names, mined 2026-09-16 --
+    not a string invented to make a rule look good.
+    """
+
+    @pytest.mark.parametrize(
+        "user_term,onet_name",
+        [
+            # The reported defect, verbatim.
+            ("SQL", "Structured query language SQL"),
+            # The same shape, 25 more times in the real vocabulary.
+            ("CSS", "Cascading style sheets CSS"),
+            ("XML", "Extensible markup language XML"),
+            ("VBA", "Microsoft Visual Basic for Applications VBA"),
+            ("MATLAB", "The MathWorks MATLAB"),
+            # Vendor prefixes.
+            ("Excel", "Microsoft Excel"),
+            ("Photoshop", "Adobe Photoshop"),
+            ("Kafka", "Apache Kafka"),
+            ("iOS", "Apple iOS"),
+            # The " software" suffix, and a name that needs three rules at once.
+            ("SAP", "SAP software"),
+            ("AWS", "Amazon Web Services AWS software"),
+            # Parentheticals. Zero of the 176 hot-technology names use them, but
+            # O*NET's wider vocabulary does and the rule is free.
+            ("XML", "Extensible markup language (XML)"),
+        ],
+    )
+    def test_the_same_thing_said_two_ways(self, user_term, onet_name) -> None:
+        assert pdf.skill_aliases(user_term) & pdf.skill_aliases(onet_name), (
+            "%r and %r did not alias to each other" % (user_term, onet_name)
+        )
+
+    @pytest.mark.parametrize(
+        "left,right",
+        [
+            # The false-positive guard the brief names. Nothing shortens a
+            # single bare token, so these can never meet.
+            ("R", "React"),
+            ("R", "Ruby"),
+            ("C", "C++"),
+            # A genuinely different product that merely ends the same way.
+            ("SQL", "MySQL"),
+            ("SQL", "PostgreSQL"),
+            ("SQL", "Oracle PL/SQL"),
+            # The reason rule A is restricted to ALL-CAPS tokens. O*NET's ~35
+            # generic skills are title-cased two-word English phrases, exactly
+            # like its two-word product names, so a "last token" rule would
+            # credit a user who listed "Design Thinking" with "Critical
+            # Thinking". Shape alone cannot separate those two vocabularies.
+            ("Design Thinking", "Critical Thinking"),
+            ("Systems Analysis", "Data Analysis"),
+            ("Active Listening", "Passive Listening"),
+            # And the reason the vendor threshold is 3 and not 2: at 2, "Red"
+            # is a vendor, and "Red Hat Enterprise Linux" becomes an alias for
+            # "Hat Enterprise Linux".
+            ("Linux", "Red Hat Enterprise Linux"),
+        ],
+    )
+    def test_things_that_must_not_be_confused(self, left, right) -> None:
+        assert not (pdf.skill_aliases(left) & pdf.skill_aliases(right)), (
+            "%r was aliased onto %r" % (left, right)
+        )
+
+    def test_a_name_always_aliases_to_itself(self) -> None:
+        for name in ("Python", "R", "Structured query language SQL", "Excel"):
+            assert name.casefold() in pdf.skill_aliases(name)
+
+    def test_empty_and_punctuation_only_names_alias_to_nothing(self) -> None:
+        for name in ("", "   ", "...", " , "):
+            assert pdf.skill_aliases(name) == frozenset()
+
+    def test_case_and_spacing_do_not_matter(self) -> None:
+        assert pdf.skill_aliases("  microsoft   EXCEL ") & pdf.skill_aliases("Excel")
+
+
+class TestTheGapListDoesNotNameWhatTheUserHas:
+    """F-8 box 5, at the level the user met it.
+
+    F-5 shipped this defect knowingly and the frontend renders it rather than
+    filtering it, so that the only people who could report it could see it. This
+    is the backend fix, and it is identity rather than a tuned threshold --
+    `_EMBED_THRESHOLD` is unchanged, because there is no Tier-2 harness and a
+    threshold moved by feel is a number nothing can falsify.
+    """
+
+    @staticmethod
+    def _onet_with(hot_tech, skills=()):
+        client = MagicMock(spec=OnetClient)
+        client.get_skills_profile.return_value = list(skills)
+        client.get_hot_technologies.return_value = list(hot_tech)
+        client.get_work_activities.return_value = []
+        client.get_tasks.return_value = []
+        client.search_occupations.side_effect = AssertionError("unexpected search")
+        client.get_job_zone.side_effect = AssertionError("unexpected get_job_zone")
+        return client
+
+    @staticmethod
+    def _openai(user, role_names):
+        """Every role item embeds FAR from the user's skill, deliberately.
+
+        The cosine is then incapable of matching anything, so whatever the panel
+        reports as matched is the alias rule's doing and nothing else. A double
+        that put them close would prove the embedder, not the fix.
+        """
+        client = tech_openai(user)
+        client.embeddings.table.update({name: TRADE for name in role_names})
+        for us in user.skills:
+            client.embeddings.table[us.name.lower()] = TECH
+        return client
+
+    def test_a_user_with_sql_is_not_told_sql_is_a_gap(self, world) -> None:
+        """The exact sentence from F-5's routing note, as a test."""
+        role = ["Structured query language SQL", "Snowflake"]
+        onet = self._onet_with(role)
+        user = profile(skills=[user_skill("SQL", "advanced")])
+
+        fit = deep_fit(user, CODE, onet, self._openai(user, role))
+
+        gaps = [gap.name for gap in fit.gap_skills]
+        assert "Structured query language SQL" not in gaps, (
+            "the panel still names a skill the user listed: %s" % gaps
+        )
+        assert "Snowflake" in gaps, "a real gap was swept up with the fix"
+        assert "SQL" in fit.matched_skills
+
+    def test_a_user_with_excel_is_not_told_microsoft_excel_is_a_gap(
+        self, world
+    ) -> None:
+        role = ["Microsoft Excel", "Tableau"]
+        onet = self._onet_with(role)
+        user = profile(skills=[user_skill("Excel", "intermediate")])
+
+        fit = deep_fit(user, CODE, onet, self._openai(user, role))
+
+        assert "Microsoft Excel" not in [gap.name for gap in fit.gap_skills]
+        assert "Tableau" in [gap.name for gap in fit.gap_skills]
+        assert "Excel" in fit.matched_skills
+
+    def test_r_does_not_match_react(self, world) -> None:
+        """The guard, end to end and not only on the alias sets.
+
+        A user who knows R is a statistician, not a frontend developer. If the
+        normaliser ever starts shortening single tokens, this is where it shows.
+        """
+        role = ["React", "Node.js"]
+        onet = self._onet_with(role)
+        user = profile(skills=[user_skill("R", "advanced")])
+
+        fit = deep_fit(user, CODE, onet, self._openai(user, role))
+
+        assert "React" in [gap.name for gap in fit.gap_skills]
+        assert fit.matched_skills == []
+
+    def test_identity_works_with_no_embeddings_at_all(self, world) -> None:
+        """An OpenAI outage degrades to exact matching, not to silence.
+
+        The alias check runs before the cache is consulted, so the panel still
+        knows the user has SQL when nothing can be embedded. That is strictly
+        better than the pre-F-8 behaviour, where an outage meant no matches and
+        no measurable gaps.
+
+        No title on this profile: without an embedder, anchor resolution falls
+        back to O*NET's keyword search, and the `onet` double raises on it. That
+        fallback is F-4's and is not what this test is about.
+        """
+        onet = self._onet_with(["Structured query language SQL"])
+        user = profile(current_title=None, skills=[user_skill("SQL", "advanced")])
+
+        fit = deep_fit(user, CODE, onet, None)
+
+        assert fit.matched_skills == ["SQL"]
+        assert [gap.name for gap in fit.gap_skills] == []
+
+    def test_the_fit_score_is_not_what_changed(self, world) -> None:
+        """Recorded as an asymmetry, deliberately, rather than fixed blind.
+
+        `_role_coverage_score` and `_compute_centroid_score` produce the fit
+        NUMBER and still use the cosine alone. So a user can be told SQL is
+        matched while the coverage term does not count it. Closing that gap
+        changes a score, and there is no Tier-2 harness to say whether the
+        change is an improvement -- which is the same reason the threshold was
+        not tuned. This test exists so the asymmetry is a decision on the record
+        and not a thing somebody discovers.
+        """
+        role_items = [("Structured query language SQL", 90.0)]
+        skills = [user_skill("SQL", "advanced")]
+
+        assert pdf._find_matched_skills(skills, role_items) == ["SQL"]
+        assert pdf._role_coverage_score(skills, role_items) == 0.0
+
+
+@pytest.mark.skipif(
+    not os.environ.get("SOLVERAH_CORPUS_PATH"),
+    reason="SOLVERAH_CORPUS_PATH is unset; CI has no corpus artifact",
+)
+class TestTheConventionsAreTheCorpusOwn:
+    """The patterns are derived from the real vocabulary and stay derived.
+
+    `_VENDOR_PREFIXES` is the one part of box 5 that could rot into a hand list,
+    so it is re-derived here from the artifact the builder wrote and compared.
+    """
+
+    @staticmethod
+    def _technology_names() -> set[str]:
+        import json
+        from pathlib import Path
+
+        root = Path(os.environ["SOLVERAH_CORPUS_PATH"])
+        docs = sorted(root.glob("*.documents.jsonl"))
+        if not docs:
+            pytest.skip("the artifact directory has no documents.jsonl")
+        names: set[str] = set()
+        with docs[-1].open(encoding="utf-8") as fh:
+            for line in fh:
+                names.update(
+                    str(n) for n in (json.loads(line).get("hot_technologies") or [])
+                )
+        return names
+
+    def test_the_vendor_prefixes_are_what_the_corpus_says_they_are(self) -> None:
+        from collections import defaultdict
+
+        groups: defaultdict[str, set[str]] = defaultdict(set)
+        for name in self._technology_names():
+            core = pdf._SOFTWARE_SUFFIX.sub("", name).strip()
+            tokens = core.split()
+            if len(tokens) >= 2:
+                groups[tokens[0].casefold()].add(core)
+
+        derived = {
+            token
+            for token, group in groups.items()
+            if len(group) >= pdf._VENDOR_MIN_DISTINCT_NAMES
+        }
+
+        assert derived == set(pdf._VENDOR_PREFIXES), (
+            "the vendor set no longer matches the corpus: missing %s, extra %s"
+            % (sorted(derived - set(pdf._VENDOR_PREFIXES)),
+               sorted(set(pdf._VENDOR_PREFIXES) - derived))
+        )
+
+    def test_the_acronym_rule_only_ever_fires_on_real_acronyms(self) -> None:
+        """Every name the rule shortens, checked against the whole vocabulary.
+
+        The risk is a rule that looks right on twelve examples and mangles the
+        thirteenth. Measured: it fires on 26 of 176 names, and every alias it
+        produces is a term somebody would actually type.
+        """
+        fired = {}
+        for name in self._technology_names():
+            aliases = pdf.skill_aliases(name)
+            short = {a for a in aliases if a != name.casefold() and " " not in a}
+            if short:
+                fired[name] = short
+
+        assert fired, "the rules fired on nothing at all"
+        for name, aliases in fired.items():
+            for alias in aliases:
+                assert len(alias) >= 2, "%r produced the alias %r" % (name, alias)
+                assert alias in name.casefold(), (
+                    "%r produced %r, which is not a substring of it" % (name, alias)
+                )
+
+    def test_no_two_distinct_technologies_collide(self) -> None:
+        """The false-positive guard, over the entire real vocabulary.
+
+        Two different O*NET technologies must never alias onto each other --
+        that is what would let the panel credit a user with something they do
+        not have. 176 names, every pair.
+        """
+        names = sorted(self._technology_names())
+        alias_sets = {name: pdf.skill_aliases(name) for name in names}
+        collisions = []
+        for i, left in enumerate(names):
+            for right in names[i + 1:]:
+                shared = alias_sets[left] & alias_sets[right]
+                if shared:
+                    collisions.append((left, right, sorted(shared)))
+
+        assert not collisions, "distinct technologies aliased together: %s" % collisions

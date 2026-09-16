@@ -15,14 +15,16 @@
  * page — and the panel opens before the request lands so the click has an
  * effect straight away. See `PATH_FIT_EXPECTED_MS`.
  *
- * ── A GAP LIST THAT NAMES SOMETHING YOU ALREADY HAVE ───────────────────────
+ * ── THE GAP LIST IS THE API'S, NOT THIS PANEL'S ────────────────────────────
  *
- * `_EMBED_THRESHOLD` in `path_deep_fit` is too strict for O*NET's verbose skill
- * names, so a user with "SQL" can be told "Structured query language SQL" is a
- * gap. That is a known pre-existing defect routed to F-8. This panel renders
- * what the API returns and does not hide it: a filter here would make the bug
- * invisible to exactly the people who could report it, and would have to be
- * removed again when the real fix lands.
+ * This panel renders what the API returns and filters nothing.
+ *
+ * It was written that way while a known defect was live: `_EMBED_THRESHOLD` in
+ * `path_deep_fit` is too strict for O*NET's verbose names, so a user with "SQL"
+ * could be told "Structured query language SQL" was a gap. Hiding it here would
+ * have made it invisible to exactly the people who could report it. F-8 box 5
+ * fixed it at the source -- skill-name normalisation, not a tuned threshold --
+ * and the rule survives the fix: a gap the backend sends is a gap we show.
  */
 import { useEffect } from "react";
 
