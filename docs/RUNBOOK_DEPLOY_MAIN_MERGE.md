@@ -525,8 +525,12 @@ once `REDIS_URL` is set it simply stays set, which is harmless.
 
 Path Intelligence now retrieves from a precomputed O*NET corpus (`BUILD_PLAN.md` §6).
 The old candidate funnel is **tombstoned — there is no fallback.** With no artifact in S3
-or no key set, every path-suggestions job, deep-fit click and feedback tap returns a typed
-`503 corpus_unavailable` (graceful, but the feature is down for everyone).
+or no key set: deep-fit clicks and feedback taps return a typed `503 corpus_unavailable`,
+which the SPA branches on; **the cold suggestions job does not** — on HEAD it falls through
+to the generic handler and the user sees an untyped `500 Unable to score career paths`
+retry card, indistinguishable from any other failure (the S16.11 dead-gate shape). A
+follow-up adds the typed branch to `path_suggestions`; until it lands, a missing corpus
+looks like a generic error, not a corpus error. Either way the feature is down for everyone.
 
 Order, on deploy day, before `git merge` to main:
 
