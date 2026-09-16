@@ -14,6 +14,7 @@ thing protecting an anonymous submission, so the modes that consume one must not
 let the claim body redirect where it lands.
 """
 
+import re
 import uuid
 
 import pytest
@@ -131,6 +132,116 @@ def test_register_needs_no_jwt(client):
     assert _claim(client, {
         "mode": "register", "submission_id": submission_id, "password": PASSWORD,
     }).status_code == 201
+
+
+# ── mode: register -- the verification code it issues (G9) ──────────────────
+#
+# Walked live on production 2026-09-15: this path minted `uuid.uuid4().hex`
+# while /register minted a 6-digit code, and the difference was invisible at
+# the API layer -- `/auth/email/verify` compares `confirmation_token` as text,
+# so both "worked". What did not work was the human in the middle: the email
+# template labels the value a "6-digit code" and carries no link, and
+# /verify-email strips non-digits and caps the field at six characters, so a
+# 32-hex token could not be entered at all. The format is the contract here,
+# and these tests pin it: the shape that is mailed, that the shape mailed is
+# the shape the endpoint accepts, and that it ages out on /register's clock.
+
+
+def _confirmation_token(email=SUBMITTER):
+    """The code sitting on the account, read straight from the row."""
+    from app import app
+    from model import User
+
+    with app.app_context():
+        return User.query.filter_by(email=email).first().confirmation_token
+
+
+def test_register_issues_a_six_digit_numeric_code(client) -> None:
+    """Not `uuid4().hex`: the inbox and the code-entry screen both assume six digits."""
+    submission_id = _seed_submission()
+
+    assert _claim(client, {
+        "mode": "register", "submission_id": submission_id, "password": PASSWORD,
+    }).status_code == 201
+
+    code = _confirmation_token()
+    assert re.fullmatch(r"\d{6}", code), (
+        "confirmation_token is %r; /verify-email accepts only six digits" % (code,)
+    )
+
+
+#: What `ConfirmEmail`'s input does to whatever is typed into it:
+#: `e.target.value.replace(/\D/g, '').slice(0, 6)` (ConfirmEmail.tsx:126),
+#: behind a `maxLength={6}`. Mirrored here rather than described, because the
+#: whole of G9 lives in the gap between what the endpoint accepts and what this
+#: field can deliver to it -- a round trip that posts the raw column value
+#: passes against the defect and proves nothing.
+def _as_the_verification_field_would_send_it(typed: str) -> str:
+    return re.sub(r"\D", "", typed)[:6]
+
+
+def test_register_code_verifies_through_the_email_verify_endpoint(client) -> None:
+    """The whole round trip, through the only field a user can type it into.
+
+    Not the raw column: `/auth/email/verify` compares `confirmation_token` as
+    text and accepted the 32-hex value happily, which is exactly why the defect
+    survived to production. The code is put through the SPA's own sanitiser
+    first, so this asserts the property that actually failed -- that what was
+    mailed can be entered and confirms the account.
+    """
+    submission_id = _seed_submission()
+    _claim(client, {
+        "mode": "register", "submission_id": submission_id, "password": PASSWORD,
+    })
+    code = _as_the_verification_field_would_send_it(_confirmation_token())
+
+    resp = client.post(
+        "/api/v1/auth/email/verify", json={"email": SUBMITTER, "code": code}
+    )
+
+    assert resp.status_code == 200, resp.get_json()
+
+    from app import app
+    from model import User
+
+    with app.app_context():
+        user = User.query.filter_by(email=SUBMITTER).first()
+        assert user.email_confirmed is True
+        assert user.confirmation_token is None
+
+
+def test_register_code_expires_on_the_same_clock_as_register(client) -> None:
+    """Expiry parity with /register, which is what `confirmation_sent_at` buys.
+
+    `confirm_email` reads that column through `is_code_expired` and never looks
+    at the token's format, so the two paths were already identical here -- this
+    holds that true now that they also share a generator.
+    """
+    import datetime
+
+    submission_id = _seed_submission()
+    _claim(client, {
+        "mode": "register", "submission_id": submission_id, "password": PASSWORD,
+    })
+
+    from app import app
+    from model import User, db
+    from solverah.domain import auth as auth_domain
+
+    with app.app_context():
+        user = User.query.filter_by(email=SUBMITTER).first()
+        code = user.confirmation_token
+        user.confirmation_sent_at = auth_domain.utcnow() - datetime.timedelta(
+            minutes=auth_domain.code_expiry_minutes() + 1
+        )
+        db.session.commit()
+
+    resp = client.post(
+        "/api/v1/auth/email/verify", json={"email": SUBMITTER, "code": code}
+    )
+
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "code expired"
 
 
 # ── mode: sign_in ───────────────────────────────────────────────────────────

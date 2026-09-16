@@ -197,7 +197,7 @@ export default function AccountModal({
             <div className="rounded bg-forest-pale border border-forest-pale px-4 py-3 text-sm text-forest-dark font-medium">
               {action === "signin"
                 ? "Signed in! Your profile has been updated from your intake submission."
-                : "Account created! Your profile has been filled in from your resume."}
+                : "Account created! Your profile has been filled in from your resume. We emailed you a 6-digit code to verify your address."}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-3">
               {action === "signin" ? (
@@ -211,10 +211,14 @@ export default function AccountModal({
               ) : (
                 <button
                   type="button"
-                  onClick={() => navigate("/login")}
+                  onClick={() =>
+                    navigate("/verify-email", {
+                      state: { email: submissionEmail },
+                    })
+                  }
                   className="bg-forest-dark text-white font-semibold text-sm px-6 py-2.5 rounded hover:bg-forest-mid transition-colors"
                 >
-                  Continue to login
+                  Verify my email
                 </button>
               )}
             </div>
