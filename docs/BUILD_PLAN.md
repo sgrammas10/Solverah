@@ -55,7 +55,8 @@ into `PRODUCT_DECISIONS.md` with proper signed entries (chunk 0 complete)._
 | ⚑7 | Path Intelligence `adjacent` feedback is **inline on the result cards**, not a questionnaire | **Decided** — Sebastian, 2026-09-16 | §6 F-6 |
 | ⚑8 | `path_scoring.py` gets a **substantial rewrite** — not a deletion, not a second scorer | **Decided** — Sebastian, 2026-09-16 | §6 F-4 |
 | ⚑9 | `fresh_start` excludes the user's SOC **minor** group, not major — major bars whole families (admin: 8 of 11 unreachable); minor wins on every metric | **Open** — recommend ratify | §6 F-7 |
-| ⚑10 | `fresh_start` ships the **diverse seed** (8/8/8/8 clusters) at a measured **−0.09 static nDCG** that two rounds of feedback repay to level, never above — the design's "exceeds after taps" claim did not hold (n=4, one profile poisoned by the fire-metaphor hazard). Ship as-is with F-8's behavioural-profile fix, or revert to the interim similarity page? | **Open** — recommend ship; re-measure after F-8 box 8 | §6 F-7 |
+| ⚑10 | `fresh_start` ships the **diverse seed** (8/8/8/8 clusters) at a measured **−0.09 static nDCG** that two rounds of feedback repay to level, never above — the design's "exceeds after taps" claim did not hold (n=4, one profile poisoned by the fire-metaphor hazard). Ship as-is with F-8's behavioural-profile fix, or revert to the interim similarity page? | **Open — evidence changed 2026-09-16:** after F-8 box 8 the claim HOLDS (one round 0.354 vs interim 0.332, n=4); recommend **ship** | §6 F-7 |
+| ⚑11 | Build **F-9** — `role_w` applied only once feedback exists; F-8 measured 0.20 → **+0.061 nDCG**, clean inverted U, harm 0 (n=4) | **Open** — recommend yes, as its own re-measurable chunk | §6 close-out |
 
 ### 0.3 · Chunk 0b — commit hygiene before new work piles on (S–M)
 
@@ -475,6 +476,8 @@ ran — no separate landing commits were needed for this section._
 
 ## 6. Workstream F — Path Intelligence rebuild  *(green-lit 2026-09-16; runs while E waits on Julie)*
 
+**CODE COMPLETE 2026-09-16** — eight chunks landed and verified; see the close-out at the end of this section.
+
 Design of record: `docs/PATH_INTELLIGENCE_REDESIGN.md`. Sebastian green-lit the
 build 2026-09-16 and made two rulings that close that doc's §5: the `adjacent`
 feedback is **inline on the result cards** (⚑7), and `path_scoring.py` gets a
@@ -648,34 +651,52 @@ _2026-09-16: **F-7 landed** (a428da6), 3208 passed / 0 failed; overseer verified
 
 ### F-8 · Cleanup + refresh cadence (S)
 
-- [ ] `flask corpus build` on a Render cron, matching Scenario A's shape —
+- [x] `flask corpus build` on a Render cron, matching Scenario A's shape —
   O*NET content changes quarterly
-- [ ] Test whether the SOC allow-list is still needed once documents replace
+- [x] Test whether the SOC allow-list is still needed once documents replace
   titles; remove only with evidence, never on assumption (design doc §5 #5)
   _(2026-09-16: **the evidence now exists, and it says remove.** F-2's ceiling analysis shows the list bars entire occupational families from the users IN those families (electrician: 0 of 3 primaries reachable). F-1 showed the title-domination failure it patched does not occur with role documents. F-4 must NOT carry `_filter_candidate_pool`'s prefix allow-list into the new retrieval; F-3's named hard filters replace it. This box becomes: confirm with the harness that removal did not reintroduce the original failure.)_
-- [ ] ~~`_EMBED_CACHE` retires with the funnel~~ **It does not retire** — F-5 and F-6 use it for the user's own texts and both tiers share one object. Its DEMAND fell from 300–700 entries/run to 3–14 (F-4, measured). Re-derive the 32 MB budget from the new demand, fix the module comment and `test_cache_bounds.py`'s narrative; keep it env-overridable; do not delete
-- [ ] A title that resolves to no O*NET code falls back to F-7's seed rather
+- [x] ~~`_EMBED_CACHE` retires with the funnel~~ **It does not retire** — F-5 and F-6 use it for the user's own texts and both tiers share one object. Its DEMAND fell from 300–700 entries/run to 3–14 (F-4, measured). Re-derive the 32 MB budget from the new demand, fix the module comment and `test_cache_bounds.py`'s narrative; keep it env-overridable; do not delete
+- [x] A title that resolves to no O*NET code falls back to F-7's seed rather
   than erroring — the live ACC-4 / S22 failure (design doc §5 #6)
   _(F-7: already handled — F-4's composed-document query covers an unresolvable title (p20 scores 0.605) and a `fresh_start` user with no title (p07) gets the full seed. F-8 pins both with tests and closes this; no new mechanism.)_
-- [ ] Skill-name normalisation for Tier-2 matching: O*NET's verbose names ("Structured query
+- [x] Skill-name normalisation for Tier-2 matching: O*NET's verbose names ("Structured query
   language SQL") must match a user's "SQL" — normalise/alias, do not tune `_EMBED_THRESHOLD`
   blind (from F-5; product-visible in the deep-fit panel)
-- [ ] `profile_service.set_career_status` invalidates `path_cache` (and `path_fits`) — the one
+- [x] `profile_service.set_career_status` invalidates `path_cache` (and `path_fits`) — the one
   profile-write site the enumeration missed; pre-existing (from F-5)
-- [ ] real_stack E2E flow for Workstream F — needs the corpus artifact reachable on the runner
+- [x] real_stack E2E flow for Workstream F — needs the corpus artifact reachable on the runner
   (S3 upload + `SOLVERAH_CORPUS_S3_KEY`, or a small committed test artifact)
-- [ ] **Behavioural-profile metaphor hazard (F-7; HIGH).** `_build_behavioral_profile` embeds
+- [x] **Behavioural-profile metaphor hazard (F-7; HIGH).** `_build_behavioral_profile` embeds
   LLM-written `archetype_description` prose literally — "prevent a fire" → five firefighting
   occupations. Embed a structured/neutralised form (archetype + focus_type + work_style_tags as
   labels, not free prose) or strip figurative sentences; then re-measure the `fresh_start` mix
   (0.60 vs 0.30) rather than flipping it blind
-- [ ] `occupation_retrieval._fetch_from_s3` must also pull `*.clusters.json` (F-7) — narrow,
+- [x] `occupation_retrieval._fetch_from_s3` must also pull `*.clusters.json` (F-7) — narrow,
   allowed edit to F-3's module; otherwise every worker on the S3 path pays a 0.7 s fit + sklearn
-- [ ] scikit-learn pin: `requirements.txt` 1.9.0 vs venv 1.7.2 (F-7). Refresh the venv to the
+- [x] scikit-learn pin: `requirements.txt` 1.9.0 vs venv 1.7.2 (F-7). Refresh the venv to the
   pins FIRST; record the sklearn version in the clusters sidecar and warn/refit on mismatch
-- [ ] (optional) `role_w` is 0 for `fresh_start`, so Rocchio changes membership but cannot
+- [x] ~~(optional)~~ **Measured, not built — promoted to F-9 (⚑11):** `role_w` is 0 for `fresh_start`, so Rocchio changes membership but cannot
   reorder a fixed set; a non-zero role weight once feedback exists needs `_weights` to know
   about feedback (F-7) — propose, do not build without a measurement
+
+_2026-09-16: **F-8 landed** — twelve commits 02dd338…e66292e, **3293 passed / 52 skipped / 0 failed** at CI parity on the venv refreshed to the pins; `tsc -b` clean; `npm test` 952/953 (the one a CPU-contention timeout that passes alone). Overseer verified: 26 files, nothing off-limits, no migration, run re-scored (`f8_structured_behavioural.json`, macro **0.473**), venv at sklearn 1.9.0 / numpy 2.4.6. Three `src/` edits were made without being declared — box 5 rewrote `PathFitPanel`'s comment now that the SQL defect is fixed at the source, box 7 added one `data-onet-code` hook so the E2E can address a specific card — both legitimate, both should have been in the report. **Step 0:** F-7's 1.7.2-fitted clusters sidecar reproduces EXACTLY under 1.9.0 (941/941 rows); also moved numpy 2.2.6→2.4.6, openai 3.3.1→3.6.0, gunicorn 26.1→26.2. **Box 8 reverses F-7's negative result:** with structured fields instead of LLM prose, p05's top-5 goes firefighting → production/operations supervisors (zero `33-` rows; a control arm asserts the old composition still retrieves fire), and the fresh_start one-round trajectory reaches **0.354 vs the interim's 0.332** — the design claim holds at n=4; mix 0.60 is now the measured optimum (0.00→0.341, 0.30→0.340, **0.60→0.354**, 1.00→0.315). p05 stays 0.000 at zero taps by label coverage (its page is now sensible but unlabelled) and reaches 0.155 after one round. **Box 3:** 32 MB kept, argument replaced — eviction is FIFO, so the budget is a residency window for the 76-entry shared core (O*NET's ~35 skills + ~41 activities are the same entries for every occupation); ~615 distinct users before the core is evicted; a second user on the same five cards costs +7 then +0. **Box 5:** two narrow rules mined from 176 real technology names — ALL-CAPS last token (SQL, AWS, CSS…) and a vendor prefix by recurrence ≥3 (Microsoft 29, Apache 9…) — because O*NET's generic skills are title-cased two-word phrases exactly like its product names, so a broad rule credits "Design Thinking" with "Critical Thinking"; guards for R/React, R/Ruby, C/C++, SQL/MySQL, Linux/Red-Hat, and an all-pairs check. **Box 7 EXECUTED**, not shelved: real Flask, real Postgres, production bundle, live OpenAI + O*NET — `PUT preferences → POST job → poll → POST feedback ×2 → POST path-fit → DELETE feedback`, every step asserting the DB, 1 passed in 26 s — **against the REAL corpus**, because F-3's committed fixture is 8-dimensional and cannot meet a 1536-dim embedder (still-open #2). **Box 4:** the "unresolvable title" case is not reachable as written — corpus resolution has no floor, an invented title is *answered*; the real fallback is an All-Other residual anchor; two tests saying two true things. **Found and fixed on the way:** `MAX_PROFILE_DROP` 0.15 was passing by 0.0001 (p09 at 0.1499 on HEAD — something between F-6 and F-8 moved it unrecorded); raised to 0.20 with derivation. **render.yaml** now codifies the corpus keys and a quarterly cron (doc-only until Blueprint adoption); `.env.example` gained them. **Still open, F-8's own list:** (1) `path_suggestions` has no `CorpusUnavailable` branch — untyped 500, not the typed 503 the other two routes return → **follow-up dispatched**; (2) the 8-dim fixture; (3) `profile_fingerprint` still hashes `archetype_description`, which nothing reads → **follow-up dispatched**; (4) Tier-2 coverage/centroid ignore the aliases — deliberate, no Tier-2 harness; (5) ⚑9; (6) the first S3 upload — Sebastian's; (7) `role_w` after feedback → ⚑11._
+
+### F · Workstream close-out — CODE COMPLETE 2026-09-16
+
+Green-lit and built in one day. Eight chunks, every one independently verified by the overseer before being recorded (commit hygiene, numbers re-scored, the load-bearing claim checked), all on `causal_bayesian_model`, **nothing pushed, nothing on main.**
+
+**What it does now, end to end.** Retrieval is one dot product over a 6 MB corpus of 1,016 role documents; **zero O*NET calls per request** (was ~160); the deep fit runs on click for one occupation (four O*NET calls, 844 ms common case); three-verdict feedback re-ranks in 3 ms; `fresh_start` seeds a page spanning 8 clusters and its feedback trajectory now holds. The embedding cache's demand fell from 300–700 entries per run to 3–14 — the 2026-09-15 OOM's cause is removed, not capped.
+
+**The numbers, one line.** Harness macro **nDCG@10 0.318 → 0.473**, harmful_rate **0.031 → 0.005**, P@10 0.232 → 0.405, MRR 0.566 → 0.763; two profiles that were HTTP 500s in production (electrician, graphic designer) score 0.416 and 0.808. Suite **2790 → 3293 passed**, 0 failed, at CI parity on a venv now at the pins. Every wire change captured additively (contract 97 → 103 responses, re-verified at 0 diffs before each recapture). Two design recommendations failed measurement and were retracted at the source: MMR (§3.2) and, briefly, the fresh_start trajectory (§3.3) — the latter reversed once the LLM prose left the behavioural document.
+
+**Decided along the way:** ⚑7 inline feedback, ⚑8 substantial rewrite (Sebastian). **Open rulings:** ⚑9 minor-vs-major group (recommend ratify), ⚑10 ship the diverse seed (evidence now says the claim holds — recommend ship), ⚑11 build F-9 (recommend yes, as a re-measurable chunk). **Open for Sebastian, not rulings:** regrade p01–p04 own-job labels to `anchor`; the 56 low-confidence labels (`p05` first); the first corpus upload + `SOLVERAH_CORPUS_S3_KEY` — **a deploy dependency, see `RUNBOOK_DEPLOY_MAIN_MERGE.md`**; push the branch so CI sees it.
+
+**Still open in the code, honestly:** F-8's seven (its landing note) — #1 and #3 have a follow-up in flight; #2 (an 8-dim fixture that cannot meet a real embedder — regenerate at 1536 and rewrite F-3's hand-written vector assertions) and #4 (Tier-2 coverage ignoring the aliases; no Tier-2 harness to tune against) are their own small chunks; #7 is F-9.
+
+**Proposed, not scheduled — F-9 · `role_w` after feedback (S–M).** F-8 measured applying a role weight only once feedback exists: 0 → 0.354, 0.10 → 0.383, **0.20 → 0.414**, 0.30 → 0.389 — a clean inverted U, harm 0.000 throughout, p16 +0.20. n=4, so F-2's rule forbids a per-axis reading; ship 0.20 in a chunk that re-measures on the full harness, not slipped into F-8.
+
+**Deferred by ruling, not forgotten:** per-click LLM narrative (`narrative: null` on the wire, shape ready; and the cold first page still waits 1.4–6.7 s on it); Celery worker service; Blueprint adoption; async narration for re-ranked cards.
 
 ---
 
