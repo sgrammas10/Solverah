@@ -1,7 +1,8 @@
 # Proposal — split Celery into its own Render service
 
-**Created 2026-09-16.** A proposal for Sebastian, not a plan of record. Nothing
-here is built and nothing should be provisioned until §6 is signed.
+**Created 2026-09-16, deferred the same day.** See Status below: this is the
+plan of record for a change that is **not** being made yet. Nothing here is
+built, and nothing should be provisioned without re-opening §6 #1.
 
 **Why now.** The 2026-09-15 production OOM
 (`docs/PATH_INTELLIGENCE_REDESIGN.md` §1.3) put a memory-heavy scoring job
@@ -9,9 +10,25 @@ in the same process as live HTTP traffic. That is not a tuning accident — it i
 the current topology, and it will recur with any other heavy job until the
 topology changes.
 
-**Status.** ⚑ Entirely unsigned. This needs (a) Sebastian's decision on cost,
-(b) manual provisioning in the Render dashboard, since no Blueprint manages
-production today (`render.yaml` governs nothing — see its own header).
+**Status, 2026-09-16: DEFERRED by Sebastian.** Not rejected — deferred, and the
+reason matters. Dropping `workers` 3 -> 1 the same day (`gunicorn.conf.py`)
+solved the memory problem this proposal was written to solve, for free:
+
+    baseline     ~444 MB (3 x 148)  ->  148 MB
+    cache budget       8 MB         ->  ~179 MB
+    footprint    over the ceiling   ->  ~327 MB of 512 MB
+    DB conns          45 / 90       ->  15 / 30
+
+What is left unsolved is **isolation**: a heavy scoring job still shares the
+process with live traffic, so on 0.5 CPU it can still degrade concurrent
+requests — it just no longer kills the box. A smaller problem than the one that
+prompted this, so the spend waits until traffic makes it hurt.
+
+**This document stays the plan of record for when it does.** Everything in
+§1-§5 and §7 was verified against production and remains accurate; only the
+urgency changed. Revisit when scoring latency starts showing up in live request
+times, or when the web tier needs upgrading anyway — at which point compare
+option D against simply buying more web.
 
 ---
 
@@ -145,12 +162,17 @@ Three ways out, cheapest first:
 so **15 connections per process**. `gunicorn.conf.py` already does this
 arithmetic for the web tier and states Render's ceiling:
 
-    web: 3 workers x 15 = 45   (90 during a rolling deploy overlap)
+    web: 1 worker x 15 = 15    (30 during a rolling deploy overlap)
     Render max_connections = 103
 
+(Was 45/90 at `workers = 3`. Dropping to 1 on 2026-09-16 is what left this
+much headroom — a worker service now fits without re-running the arithmetic.)
+
 A prefork Celery worker at `--concurrency=4` is **four child processes**, each
-with its own engine and pool: `4 x 15 = 60`. Added to a rolling web deploy's 90,
-that is 150 against a ceiling of 103 — **a failed deploy, not a slow one**.
+with its own engine and pool: `4 x 15 = 60`. Added to a rolling web deploy that
+is 90 against a ceiling of 103 — **a failed deploy, not a slow one** — at the
+old `workers = 3`. At 1 worker the same sum is 60 + 30 = 90: survivable, but
+with almost nothing spare, and only because the web tier shrank.
 
 `--pool=threads` (§4.1) collapses this to one pool of 15 for the whole worker,
 which is the second independent reason to prefer it. If prefork is ever used,
@@ -222,10 +244,10 @@ next scoring job. Weigh those together, not separately.
 
 | # | Decision |
 |---|---|
-| 1 | **Approve the spend at all?** One additional paid instance. The alternative is staying on eager and accepting that any heavy job can take the site down — which is what just happened. |
+| 1 | ~~**Approve the spend at all?**~~ **DEFERRED — Sebastian, 2026-09-16.** `workers = 1` removed the memory pressure for free; what remains is isolation, not survival. Dashboard prices that day: Starter (0.5 CPU / 512 MB) $7/mo, 1 CPU / 2 GB $25/mo. When revisited, the worker wants the 2 GB tier, not Starter — it is where the embedding cache would live. |
 | 2 | **One worker with `--beat`, or two services?** One is cheaper and correct *today*; the constraint in §3 must be recorded so a future second worker does not silently double-schedule. |
 | 3 | **What happens to `solverah-outbox-sweep`?** It duplicates beat's `outbox.drain` once beat runs. Retire it, or keep it as belt-and-braces. Recommend **keep initially**, retire after a week of clean worker logs — it is idempotent and it is the safety net for the exact case beat is new at. |
-| 4 | **Blueprint adoption?** `render.yaml` governs nothing today. This can be done dashboard-only (fastest, continues the drift) or as part of adopting a Blueprint (`RENDER_DEPLOYMENT.md` has the two paths and their risks). |
+| 4 | ~~**Blueprint adoption?**~~ **ADOPT, AFTER LAUNCH — Sebastian, 2026-09-16.** The drift has now caused four incidents: the 120s->30s timeout lag, the implicit `workers=1`, `CELERY_TASK_ALWAYS_EAGER` set only in the dashboard, and the instance plan never being recorded at all. `RENDER_DEPLOYMENT.md` has the two paths. Not during a stability incident. |
 
 ---
 

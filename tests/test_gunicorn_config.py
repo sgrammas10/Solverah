@@ -106,17 +106,32 @@ def test_geometry_matches_the_dockerfile(conf: dict) -> None:
         )
 
 
-def test_load_tested_geometry_is_pinned(conf: dict) -> None:
-    """Guard the values the load baseline was measured against.
+def test_geometry_is_pinned(conf: dict) -> None:
+    """Guard the process geometry, which is now bounded by RAM, not by load.
 
-    Leaving ``workers`` unset once meant prod ran 1 worker x 8 threads, a third
-    of the tested capacity. Connection math also depends on these: 3 workers x
-    (pool 10 + overflow 5) = 45, and 90 during a rolling deploy overlap, inside
-    Render's max_connections of 103.
+    ``workers`` was 3 until 2026-09-16, pinned to the load baseline. It is 1
+    now, and the reason the earlier number was wrong is that the instance plan
+    was never written down: the 2026-09-02 intake did not capture it, and the
+    dashboard says **Starter -- 0.5 CPU, 512 MB**.
+
+    Two per-process costs multiply by this number -- the ~150 MB pandas/numpy/
+    scikit-learn baseline, and every module-global cache, each worker holding
+    its own copy. Three of each is ~450 MB of a 512 MB box before serving a
+    request, which is the 2026-09-15 OOM. More processes also bought almost
+    nothing: the slow paths are I/O-bound and ``gthread``'s 8 threads already
+    cover that concurrency, while 0.5 CPU cannot saturate even one process.
+
+    Connection math, inside Render's max_connections of 103:
+    1 worker x (pool 10 + overflow 5) = 15, and 30 during a rolling deploy
+    overlap. Was 45/90.
+
+    If this assertion fails because someone raised ``workers``, the question to
+    answer first is what the instance plan is now -- not what throughput is
+    wanted. RAM before workers, never the reverse.
     """
     assert conf["worker_class"] == "gthread"
     assert conf["threads"] == 8
-    assert conf["workers"] == 3
+    assert conf["workers"] == 1
     assert conf["timeout"] == 30
 
 

@@ -4,13 +4,13 @@
 three ideas from `PRODUCT_IDEAS.md` (Situation Report, the Pulse, Manager
 Decoder) plus the small sharp moves are **in scope for launch**; the causal
 model implementation is planned here for the moment Julie's blockers clear;
-everything else is parked in §8 as future work.
+everything else is parked in §9 as future work.
 
 **How to read this file.** Workstreams are lettered; chunks are checkboxes
 sized S (≤ half a focused day), M (1–2 days), L (3–5 days). A chunk is the
 unit of work one session/subagent takes on: plan mode first, tests green
 (including the CI-parity run: `SOLVERAH_IGNORE_DOTENV=1`), contract baseline
-captured for any new endpoint, then mark the box. Build order lives in §7 —
+captured for any new endpoint, then mark the box. Build order lives in §8 —
 it is not the letter order. All work lands on `causal_bayesian_model`; main
 is deploy day only (`RUNBOOK_DEPLOY_MAIN_MERGE.md`).
 
@@ -74,7 +74,7 @@ ran — no separate landing commits were needed for this section._
   the form only on 2026-09-14. Everything in §5 behind the "priors gate"
   waits on her returned form. Async-only — see §5.1.
 - **Launch/publicity gate:** entity + attorney (`[ENTITY NAME]`
-  placeholders, dispute resolution). Real calendar lead time; §7's launch
+  placeholders, dispute resolution). Real calendar lead time; §8's launch
   tiers are all hostage to it, so it should start now, in parallel.
   _Unstarted as of 2026-09-14._
 - **Redis:** _done 2026-09-08_ — `REDIS_URL` + `CELERY_TASK_ALWAYS_EAGER`
@@ -158,7 +158,7 @@ ran — no separate landing commits were needed for this section._
   pre-existing gaps — named follow-up D-7b, see the coverage test.)_
   Both tables carry user answers; flagged by C-3 2026-09-10 — the gap is
   shared, so close it in one chunk. Any table added later joins the same
-  flows the day it is created (cross-cutting rule, §6).
+  flows the day it is created (cross-cutting rule, §7).
 
 ---
 
@@ -187,7 +187,7 @@ ran — no separate landing commits were needed for this section._
   LLM-drafted once, human-reviewed, stored as content. Each cell: why this
   grinds, the ask, the 1:1 agenda items, 2–3 literal sentences.
 - [x] Assembly is deterministic and instant (no scoring job, no provider
-  dependency, no per-sitting variance). Fast-follow chunk (parked §8):
+  dependency, no per-sitting variance). Fast-follow chunk (parked §9):
   LLM personalization pass over the assembled playbook.
 - [x] Tone + privacy guardrails in the content review: fit not fault;
   playbook is private to the user and says so on the page.
@@ -447,7 +447,7 @@ ran — no separate landing commits were needed for this section._
 - [ ] **First consumer: the Situation Report** (A-3's flat weights →
   posterior weights; payload spec unchanged, so no UI change) — the
   interim→destination swap, proven pattern
-- [ ] Second consumer: offer evaluation (§8). Third: CompanyLens, only
+- [ ] Second consumer: offer evaluation (§9). Third: CompanyLens, only
   when a company store exists that earned it
 
 ### E-6 · ⚑3 The culture-preferences question (S — a deletion, not a build)
@@ -469,7 +469,167 @@ ran — no separate landing commits were needed for this section._
 
 ---
 
-## 6. Cross-cutting engineering notes
+## 6. Workstream F — Path Intelligence rebuild  *(green-lit 2026-09-16; runs while E waits on Julie)*
+
+Design of record: `docs/PATH_INTELLIGENCE_REDESIGN.md`. Sebastian green-lit the
+build 2026-09-16 and made two rulings that close that doc's §5: the `adjacent`
+feedback is **inline on the result cards** (⚑7), and `path_scoring.py` gets a
+**substantial rewrite** — not a deletion, not a second scorer (⚑8).
+
+Why this exists: the current scorer is expensive (~160 O*NET calls per cold run,
+to rank ~40 candidates and show 10) and structurally inaccurate — most of the
+compared vocabulary is O*NET's **fixed ~35 generic skills, which every
+occupation has**, so the discriminating signal is averaged into constants before
+any weight is applied. It also caused the 2026-09-15 production OOM. §1 of the
+design doc has the measurements.
+
+**This lane has no external gate, and that is why it was chosen.** E is blocked
+on Julie's priors form; F is the largest piece of launch-relevant work that is
+not. Keep it that way — see F-2's second warning.
+
+### F-1 · Corpus builder + S3 artifact (M)
+
+- [ ] `flask corpus build` CLI: enumerate every O*NET occupation
+  (`get_job_families` + `get_job_family_occupations` — ~23 calls, ~1,000
+  occupations), fetch description + tasks each, compose the **role document**
+  (title + description + tasks + hot tech)
+- [ ] Two new `onet_client` methods for description and tasks — `Occupation` is
+  `code` + `title` only today (`onet_client.py:88`)
+- [ ] Embed in batches; write a `float32` matrix + JSON sidecar (row → O*NET code)
+- [ ] Upload to the **app** bucket (`S3_BUCKET_NAME`), versioned by filename.
+  NOT the backup bucket — `config.py` validates that pair all-or-nothing and
+  refuses overlap by design
+- [ ] Check O*NET rate limits before firing ~3,000 calls in one batch
+
+_**Embed the role document, not the bare title.** A 2-3 word title is dominated
+by one token, so title-only similarity reproduces the exact "Data Scientists →
+Political Scientists" failure that the SOC allow-list at `path_scoring.py:154`
+was hand-written to suppress — the hack would still be needed. Design doc §2.1._
+
+_~1,016 × 1536 × 4 bytes ≈ 6 MB; build cost ≈ 305k tokens of
+text-embedding-3-small, under a cent. Storage decided by Sebastian 2026-09-16:
+**`.npy` in S3**. No pgvector, no ANN index — brute-force exact cosine over 6 MB
+is sub-millisecond, and an index would trade exactness for a speedup nobody
+needs._
+
+### F-2 · Evaluation harness + today's baseline (M) — BEFORE the rewrite
+
+- [ ] A labelled set of (profile → acceptable occupations) pairs
+- [ ] Offline runner + metric (precision@10 / MRR) that can score any scorer
+- [ ] **Measure the CURRENT scorer first and record the number**
+
+_Design doc §6 names the absence of this as the plan's weakest point: without
+it, every weight in F-4 and F-7 is opinion and "the rewrite is better" is
+unfalsifiable. Build it before the thing it judges._
+
+_⚠ **Two warnings.** (1) This is a **scorer-quality** baseline, not a test-suite
+baseline — CLAUDE.md's "no baseline runs" rule is about pytest and does not
+apply here; do not let anyone collapse the two. (2) **The labelled set must not
+become a Julie dependency.** "Is this occupation a reasonable suggestion for
+this profile?" is a judgment Sebastian or a careful agent can make; it is not
+the anchors/rater work. If it turns into expert elicitation, F inherits E's
+blocker and the entire reason this lane was chosen evaporates._
+
+### F-3 · Retrieval seam (M)
+
+- [ ] Load the matrix at boot; `retrieve(query_vec, k, filters)` — one
+  `matrix @ query`, exact, no ANN
+- [ ] Hard filters at this tier, not soft weights: Job Zone feasibility, and
+  SOC exclusions where a path calls for them
+- [ ] **Fail soft when S3 is unreachable at boot**; cache the artifact locally
+  after first fetch
+
+_That last box is not optional. A boot-time S3 dependency is a brand-new outage
+mode on a service that has just had two (2026-09-08, 2026-09-15)._
+
+### F-4 · ⚑8 The substantial rewrite of `path_scoring.py` (L)
+
+- [ ] **Replace** `_gather_candidates` — the job-family + keyword funnel becomes
+  F-3's retrieval
+- [ ] **Replace** the comparison target — role documents, not a centroid
+  dominated by the fixed ~35 generic skills. *This is the accuracy fix; the
+  retrieval change alone does not deliver it*
+- [ ] **Keep** `_zone_delta_score`, `_work_style_similarity`,
+  `_role_coverage_score` and the weighting scheme — not broken, and exactly
+  what F-5 needs for a single occupation
+- [ ] Anchor `stay_in_field` on the user's own resolved occupation vector
+  (document-to-document, symmetric), not title-to-title
+- [ ] Beat F-2's recorded baseline, or say plainly why not
+
+_⚑8 Sebastian, 2026-09-16. Closes design doc §5 #1. Two scorers means two
+things to keep correct; a clean deletion would throw away per-candidate logic
+that is fine. `path_scoring.py:1166` already asks for the retrieval half of
+this ("Replace this block with `get_related_occupations` when O*NET adds that
+endpoint") — F-3 is that endpoint, self-built._
+
+### F-5 · Deep fit on click (M)
+
+- [ ] New endpoint: the full analysis for ONE occupation, run on user click
+- [ ] Stored per `(user, occupation)`, invalidated on profile write, mirroring
+  `path_cache`'s `invalidate` discipline — needs a table + migration
+- [ ] Rate limit, matching `POST /me/path-suggestion-jobs` — this is a per-click
+  provider spend
+- [ ] Synchronous: ~3-4 `_OCC_CACHE`-backed calls for one occupation, ~500ms-1s
+  warm. No job/poll pair
+
+_Sebastian's design, 2026-09-16. The budget currently spread thin across ~40
+candidates gets spent on the one the user actually cares about — so the analysis
+gets **better**, not merely rarer._
+
+### F-6 · ⚑7 `adjacent` — inline feedback on the result cards (M)
+
+- [ ] Result cards carry "too similar" / "interesting"; the list re-ranks as the
+  user taps
+- [ ] Rocchio update: `q' = α·q + β·mean(liked) − γ·mean(disliked)`
+- [ ] **Both signals, not just the radius.** "Too similar" raises the annulus
+  inner radius; "interesting" *rotates* the query — two occupations equidistant
+  from the anchor can lie in opposite directions
+- [ ] MMR for probe diversity (top-K teaches nothing, random teaches nothing)
+- [ ] Zero taps must still yield a full default result set
+
+_⚑7 Sebastian, 2026-09-16: **inline, not a questionnaire.** Closes design doc
+§5 #3. The doc originally proposed a one-screen elicitation step; that was the
+weaker idea — a separate step is friction before the user has seen any value,
+most people skip it, and the accuracy benefit never lands. Inline makes the
+feedback *be* the browsing, and is valid-half-finished by construction._
+
+### F-7 · `fresh_start` — diverse seed, same loop (M)
+
+- [ ] k-means over the corpus (k ≈ 8-10); take the nearest real occupation to
+  each centroid as the seed set
+- [ ] Transferable-skill floor: retrieve on the user's *skills*, constrained to
+  a different SOC major group
+- [ ] Job Zone feasibility as a **hard filter**, not a weight
+- [ ] Behavioral profile (`archetype` / `focus_type` / `work_style_tags`) as the
+  **primary** query, not a 0.25 side weight
+
+_Shares F-6's machinery entirely — same probe selection, same update rule, a
+different initializer. Build them as one implementation with two seeds._
+
+_⚠ This is the **existing** behavioral profile only. The core→8-dimension
+culture-preferences mapping is a different thing and stays skipped (⚑3).
+Nothing here reopens it._
+
+_⚠ **Never use distance-from-current-job as a positive signal.** "Far from
+software engineering" includes Logging Worker. The current code already fell
+into this — `_ZONE_DAMPENING_FRESH_START = 0.6` is the patch over it, and
+`path_scoring.py:1355` admits every zone+1 role scores identically "regardless
+of relevance"._
+
+### F-8 · Cleanup + refresh cadence (S)
+
+- [ ] `flask corpus build` on a Render cron, matching Scenario A's shape —
+  O*NET content changes quarterly
+- [ ] Test whether the SOC allow-list is still needed once documents replace
+  titles; remove only with evidence, never on assumption (design doc §5 #5)
+- [ ] `_EMBED_CACHE` retires with the funnel — confirm the interim bound from
+  the 2026-09-15 OOM work is genuinely dead before deleting it
+- [ ] A title that resolves to no O*NET code falls back to F-7's seed rather
+  than erroring — the live ACC-4 / S22 failure (design doc §5 #6)
+
+---
+
+## 7. Cross-cutting engineering notes
 
 - **Every new endpoint:** pytest (happy/error/edge), rate limit, OpenAPI
   regen, contract-baseline capture (additive), assessment routes get the
@@ -488,7 +648,7 @@ ran — no separate landing commits were needed for this section._
 
 ---
 
-## 7. Sequencing
+## 8. Sequencing
 
 ```
 now ──► D-0 regression fix (S)
@@ -507,6 +667,13 @@ now ──► D-0 regression fix (S)
      ├─► B-1 → B-2 → B-3 → B-4                    Pulse (thin)
      │                        └─► B-5 experiments (cut line)
      └─► D-6 dashboard reframe (after A + B)
+
+parallel, NO external gate (green-lit 2026-09-16, runs while E waits):
+  F-1 corpus ─┬─► F-3 retrieval ──► F-4 rewrite ─┬─► F-5 deep fit on click
+              │                        ▲          └─► F-6 adjacent ──► F-7 fresh_start
+              └─► F-2 eval harness ────┘                                   │
+                  (baseline BEFORE the rewrite, or F-4 is unfalsifiable)    │
+                                                          F-8 cleanup ◄─────┘
 
 parallel, gated externally:
   E-1 Julie ──► E-5 fit + serving ──► Situation Report weight swap
@@ -534,7 +701,7 @@ they all start now.
 
 ---
 
-## 8. Future ideas (parked, in priority order)
+## 9. Future ideas (parked, in priority order)
 
 1. **Offer & Interview Due Diligence** (PRODUCT_IDEAS §3.4) — probe packs,
    post-interview capture, offer-vs-current comparison. Natural Pro

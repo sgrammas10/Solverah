@@ -23,11 +23,15 @@ built. Numbers marked **measured** were produced on 2026-09-16 by the method in
 |---|---|
 | Overall direction (title/document-vector retrieval, three intent paths) | Sebastian's own proposal, 2026-09-16 — **direction agreed**, spec unbuilt |
 | Corpus artifact stored as a `.npy` in S3 | **Decided** — Sebastian, 2026-09-16 |
-| Everything in §2.3, §3, §5 | ⚑ **Proposed by agent, unsigned.** Recommendations with rationale, not settled facts |
-| Any code change | **None made.** No file in `backend/` or `solverah/` has been touched |
+| **Build it** | **GREEN-LIT** — Sebastian, 2026-09-16. Chunked as `BUILD_PLAN.md` **Workstream F**. Chosen because it is the largest launch-relevant lane with no external gate, while E waits on Julie |
+| §3.2 `adjacent` — where the feedback lives | **DECIDED inline on the result cards** (⚑7) — Sebastian, 2026-09-16. Not a questionnaire. See §5 #3 |
+| §5 #1 — replace `path_scoring.py`? | **DECIDED: substantial rewrite** (⚑8) — Sebastian, 2026-09-16. Not a deletion, not a second scorer. See §5 #1 |
+| Remaining §5 items (2, 4, 5, 6) | Agent defaults, unobjected 2026-09-16 — recorded in the §5 table and carried into Workstream F |
+| Any code change | **None yet.** No file in `backend/` or `solverah/` has been touched by this design |
 
-⚑ marks a design call that needs Sebastian before it is built, following the
-`BUILD_PLAN.md` §0.2 convention.
+⚑ marks a design call that needed Sebastian before it was built, following the
+`BUILD_PLAN.md` §0.2 convention. ⚑7 and ⚑8 are now closed; the numbering
+continues that file's sequence.
 
 ---
 
@@ -371,16 +375,22 @@ and is tracked separately.
 
 ---
 
-## 5. Open decisions ⚑
+## 5. Decisions — all closed 2026-09-16
 
-| # | Question | Notes |
+| # | Question | Resolution |
 |---|---|---|
-| 1 | Does this **replace** `path_scoring.py` or sit beside it? | Recommend replace-and-tombstone, following the Phase 3c precedent. Two scorers means two things to keep correct. |
-| 2 | Is the Tier-2 deep fit **stored** per `(user, occupation)` or recomputed? | Decides whether a new table and migration are needed. Recommend stored with invalidation on profile write, mirroring `path_cache`'s `invalidate` discipline. |
-| 3 | Where does the §3.2 elicitation **live in the flow**? | Product/UX question. First visit only, or re-runnable? Blocking or skippable? |
-| 4 | Corpus **refresh cadence** and trigger | Recommend a `flask` CLI command + Render cron, matching Scenario A. |
-| 5 | Does the shortlist still need the **SOC allow-list** once documents replace titles? | Probably not — it is a patch over title-surface matching. Should be tested, not assumed, and removed only with evidence. |
-| 6 | What happens when a user's title **resolves to no O*NET code**? | Today it falls back to broad-category search. §3.1 needs an anchor; the fallback should be the §3.3 seed, not an error. This is the live ACC-4 failure from the 2026-09-15 walk. |
+| 1 | Does this **replace** `path_scoring.py` or sit beside it? | **⚑8 SUBSTANTIAL REWRITE** — Sebastian, 2026-09-16. Not the replace-and-tombstone originally recommended here: the funnel (`_gather_candidates`) and the comparison target go, but `_zone_delta_score`, `_work_style_similarity` and `_role_coverage_score` stay — they are not broken and they are what the deep-fit tier needs for one occupation. **Workstream F-4.** |
+| 2 | Is the Tier-2 deep fit **stored** per `(user, occupation)` or recomputed? | **Stored**, invalidated on profile write, mirroring `path_cache`'s `invalidate` discipline. Needs a table + migration. Agent default, unobjected. **F-5.** |
+| 3 | Where does the §3.2 elicitation **live in the flow**? | **⚑7 INLINE ON THE RESULT CARDS** — Sebastian, 2026-09-16. §3.2 originally proposed a one-screen questionnaire; that was the weaker idea — a separate step is friction before the user has seen any value, most people skip it, and the accuracy benefit never lands. Inline makes the feedback *be* the browsing, and is valid-half-finished by construction. **F-6.** |
+| 4 | Corpus **refresh cadence** and trigger | `flask` CLI command + Render cron, matching Scenario A. Agent default, unobjected. **F-8.** |
+| 5 | Does the shortlist still need the **SOC allow-list** once documents replace titles? | Probably not — it is a patch over title-surface matching — but **test it, never assume it**, and remove only with evidence. Agent default, unobjected. **F-8.** |
+| 6 | What happens when a user's title **resolves to no O*NET code**? | Fall back to the §3.3 `fresh_start` seed, not an error. This is the live ACC-4 / S22 failure. Agent default, unobjected. **F-8.** |
+
+**A seventh, added by the green-light and not in the original table:** §6 records
+that there is **no offline evaluation harness**, so "the rewrite is better" is
+currently unfalsifiable. That is now **F-2**, and it is sequenced *before* the
+rewrite it judges. Its labelled set must not become a Julie dependency, or this
+lane inherits the blocker it was chosen to avoid.
 
 ---
 
