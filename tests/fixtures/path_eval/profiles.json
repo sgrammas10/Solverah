@@ -1,0 +1,540 @@
+{
+  "_meta": {
+    "artifact": "F-2 evaluation profile set",
+    "created": "2026-09-16",
+    "purpose": "Fixtures for the offline scorer-quality harness (backend/services/path_eval.py). These are NOT database rows and NOT a pytest baseline — they are the inputs to a SCORER-QUALITY measurement, per BUILD_PLAN F-2 warning 1.",
+    "field_contract": "Every key inside `profile` maps 1:1 onto backend.services.path_scoring.UserProfile. A key added there must be added here or path_eval.build_user_profile() will raise.",
+    "axes": [
+      "career_status: first_job | employed | between_jobs",
+      "move_intent: stay_in_field | adjacent | fresh_start | null",
+      "domain: tech | non-tech (healthcare, education, legal, trades, creative, finance, logistics, admin, retail)",
+      "skill density: rich (8+) | moderate (4-7) | sparse (1-3) | none (0)",
+      "behavioral profile: present (archetype_description/focus_type/manager_match/work_style_tags populated) | absent",
+      "title resolvability: resolvable | unresolvable | absent"
+    ]
+  },
+  "profiles": [
+    {
+      "id": "p01_backend_eng_stay",
+      "axes": {"career_status": "employed", "move_intent": "stay_in_field", "domain": "tech", "skill_density": "rich", "behavioral": "present", "title": "resolvable"},
+      "note": "The canonical happy path. If the scorer cannot do this one it cannot do any of them.",
+      "profile": {
+        "current_title": "Senior Backend Engineer",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Python", "level": "advanced"},
+          {"name": "SQL", "level": "advanced"},
+          {"name": "PostgreSQL", "level": "advanced"},
+          {"name": "Django", "level": "advanced"},
+          {"name": "REST API design", "level": "advanced"},
+          {"name": "Docker", "level": "intermediate"},
+          {"name": "Kubernetes", "level": "intermediate"},
+          {"name": "Amazon Web Services", "level": "intermediate"},
+          {"name": "Git", "level": "advanced"},
+          {"name": "Redis", "level": "intermediate"}
+        ],
+        "archetype": "Systems Builder",
+        "archetype_description": "You do your best work when you can hold a whole system in your head and improve it deliberately. You prefer depth to breadth, you are uncomfortable shipping something you do not understand end to end, and you would rather spend a morning removing a class of bug than an afternoon patching three instances of it.",
+        "move_intent": "stay_in_field",
+        "seniority_intent": "stay_lateral",
+        "priority": "interesting_work",
+        "focus_type": "Deep Diver",
+        "manager_match": "Works best with a manager who sets a clear outcome and then gets out of the way; reads frequent check-ins as distrust rather than support.",
+        "work_style_tags": [
+          "Sustained concentration on one problem for hours at a time",
+          "Prefers written asynchronous communication to live meetings"
+        ]
+      }
+    },
+    {
+      "id": "p02_frontend_dev_adjacent",
+      "axes": {"career_status": "employed", "move_intent": "adjacent", "domain": "tech", "skill_density": "rich", "behavioral": "present", "title": "resolvable"},
+      "note": "Adjacent from a tech IC role. The correct answer set is wider than p01's and should NOT be dominated by the user's own SOC family.",
+      "profile": {
+        "current_title": "Frontend Developer",
+        "career_status": "employed",
+        "skills": [
+          {"name": "JavaScript", "level": "advanced"},
+          {"name": "TypeScript", "level": "advanced"},
+          {"name": "React", "level": "advanced"},
+          {"name": "HTML", "level": "advanced"},
+          {"name": "CSS", "level": "advanced"},
+          {"name": "Figma", "level": "intermediate"},
+          {"name": "Accessibility (WCAG)", "level": "intermediate"},
+          {"name": "User interface design", "level": "intermediate"},
+          {"name": "Git", "level": "advanced"}
+        ],
+        "archetype": "Craft Finisher",
+        "archetype_description": "You care about the last ten percent that most people skip. You are energised by work that someone else will actually touch and use, and you find purely internal, invisible work draining however technically interesting it is.",
+        "move_intent": "adjacent",
+        "seniority_intent": "open",
+        "priority": "interesting_work",
+        "focus_type": "Sprint & Reset",
+        "manager_match": "Wants a manager who protects the team from churn and can say no to late scope changes on their behalf.",
+        "work_style_tags": [
+          "Works in short intense bursts with recovery time between them",
+          "Motivated by visible user-facing outcomes"
+        ]
+      }
+    },
+    {
+      "id": "p03_swe_move_up",
+      "axes": {"career_status": "employed", "move_intent": "stay_in_field", "domain": "tech", "skill_density": "rich", "behavioral": "present", "title": "resolvable", "seniority": "move_up"},
+      "note": "Same field, upward. Tests whether seniority_intent moves the ranking toward management/lead roles at all.",
+      "profile": {
+        "current_title": "Software Engineer",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Java", "level": "advanced"},
+          {"name": "Spring Boot", "level": "advanced"},
+          {"name": "SQL", "level": "intermediate"},
+          {"name": "System design", "level": "intermediate"},
+          {"name": "Code review", "level": "advanced"},
+          {"name": "Mentoring", "level": "intermediate"},
+          {"name": "Agile project planning", "level": "intermediate"},
+          {"name": "Git", "level": "advanced"}
+        ],
+        "archetype": "Connector",
+        "archetype_description": "You get more done through other people than alone. You notice when two colleagues are solving the same problem separately, and you are the person who introduces them. You lose energy when you are asked to sit alone with a task for a whole week.",
+        "move_intent": "stay_in_field",
+        "seniority_intent": "move_up",
+        "priority": "pay_title",
+        "focus_type": "Collaborative Charger",
+        "manager_match": "Thrives under a manager who delegates ownership early and coaches rather than corrects.",
+        "work_style_tags": [
+          "Draws energy from working through other people",
+          "Comfortable making decisions with incomplete information"
+        ]
+      }
+    },
+    {
+      "id": "p04_data_analyst_adjacent",
+      "axes": {"career_status": "employed", "move_intent": "adjacent", "domain": "tech/analytics", "skill_density": "moderate", "behavioral": "absent", "title": "resolvable"},
+      "note": "No assessment data at all — style_w is 0 for this one. Also the profile that the SOC allow-list at path_scoring.py:154 was hand-written for.",
+      "profile": {
+        "current_title": "Data Analyst",
+        "career_status": "employed",
+        "skills": [
+          {"name": "SQL", "level": "advanced"},
+          {"name": "Microsoft Excel", "level": "advanced"},
+          {"name": "Tableau", "level": "intermediate"},
+          {"name": "Python", "level": "beginner"},
+          {"name": "Data visualization", "level": "intermediate"},
+          {"name": "Statistics", "level": "intermediate"}
+        ],
+        "archetype": "",
+        "archetype_description": "",
+        "move_intent": "adjacent",
+        "seniority_intent": "move_up",
+        "priority": "learning_growth",
+        "focus_type": null,
+        "manager_match": null,
+        "work_style_tags": []
+      }
+    },
+    {
+      "id": "p05_devops_fresh_start",
+      "axes": {"career_status": "employed", "move_intent": "fresh_start", "domain": "tech", "skill_density": "rich", "behavioral": "present", "title": "resolvable"},
+      "note": "fresh_start from a high-zone technical role. The failure mode to catch is 'far from software engineering' scoring well on distance alone — design doc F-7 warning.",
+      "profile": {
+        "current_title": "DevOps Engineer",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Linux administration", "level": "advanced"},
+          {"name": "Terraform", "level": "advanced"},
+          {"name": "Amazon Web Services", "level": "advanced"},
+          {"name": "Bash scripting", "level": "advanced"},
+          {"name": "Incident response", "level": "advanced"},
+          {"name": "Monitoring and alerting", "level": "intermediate"},
+          {"name": "Python", "level": "intermediate"},
+          {"name": "Networking", "level": "intermediate"},
+          {"name": "Technical documentation", "level": "intermediate"}
+        ],
+        "archetype": "Steady Operator",
+        "archetype_description": "You are calm when things break and you would rather prevent a fire than be praised for putting one out. You have been on call for four years and you are tired of being the person whose phone is never off.",
+        "move_intent": "fresh_start",
+        "seniority_intent": "open",
+        "priority": "work_life_balance",
+        "focus_type": "Structured Builder",
+        "manager_match": "Needs a manager who treats predictability as a feature and does not reward heroics.",
+        "work_style_tags": [
+          "Prefers standing process to improvisation",
+          "Values predictable hours over variety"
+        ]
+      }
+    },
+    {
+      "id": "p06_first_job_cs_grad",
+      "axes": {"career_status": "first_job", "move_intent": null, "domain": "tech", "skill_density": "moderate", "behavioral": "present", "title": "absent"},
+      "note": "first_job with NO title by construction (build_user_profile never sets current_title for first_job) but a real skill list. Distinguishes 'no title' from 'no signal' — p19 is the one with neither.",
+      "profile": {
+        "current_title": null,
+        "career_status": "first_job",
+        "skills": [
+          {"name": "Python", "level": "intermediate"},
+          {"name": "Java", "level": "beginner"},
+          {"name": "SQL", "level": "beginner"},
+          {"name": "Git", "level": "beginner"},
+          {"name": "Data structures and algorithms", "level": "intermediate"},
+          {"name": "Linux", "level": "beginner"}
+        ],
+        "archetype": "Learner",
+        "archetype_description": "You are at your best when the work is slightly beyond what you already know. You would take a harder problem over a better title, and you get restless once a task becomes routine.",
+        "move_intent": null,
+        "seniority_intent": "open",
+        "priority": "learning_growth",
+        "focus_type": "Deep Diver",
+        "manager_match": "Wants a manager who explains the reasoning behind decisions rather than just assigning work.",
+        "work_style_tags": [
+          "Learns fastest by building something end to end",
+          "Uncomfortable asking for help early"
+        ]
+      }
+    },
+    {
+      "id": "p07_first_job_sparse",
+      "axes": {"career_status": "first_job", "move_intent": "fresh_start", "domain": "non-tech", "skill_density": "sparse", "behavioral": "absent", "title": "absent"},
+      "note": "The realistic worst case that is NOT degenerate: a real user with two generic skills and no assessments. Zone 1 forced. A scorer that returns nothing useful here is failing most new signups.",
+      "profile": {
+        "current_title": null,
+        "career_status": "first_job",
+        "skills": [
+          {"name": "Customer service", "level": "intermediate"},
+          {"name": "Microsoft Excel", "level": "beginner"}
+        ],
+        "archetype": "",
+        "archetype_description": "",
+        "move_intent": "fresh_start",
+        "seniority_intent": "open",
+        "priority": "pay_title",
+        "focus_type": null,
+        "manager_match": null,
+        "work_style_tags": []
+      }
+    },
+    {
+      "id": "p08_first_job_nursing_grad",
+      "axes": {"career_status": "first_job", "move_intent": "stay_in_field", "domain": "healthcare", "skill_density": "moderate", "behavioral": "absent", "title": "absent"},
+      "note": "first_job in a licensed field. The credential is the constraint, and the right answers are narrow — a good test of whether the scorer respects licensure at all.",
+      "profile": {
+        "current_title": null,
+        "career_status": "first_job",
+        "skills": [
+          {"name": "Patient care", "level": "intermediate"},
+          {"name": "Vital signs monitoring", "level": "intermediate"},
+          {"name": "Electronic health records", "level": "beginner"},
+          {"name": "Medication administration", "level": "beginner"},
+          {"name": "CPR and basic life support", "level": "intermediate"}
+        ],
+        "archetype": "Caregiver",
+        "archetype_description": "",
+        "move_intent": "stay_in_field",
+        "seniority_intent": "open",
+        "priority": "interesting_work",
+        "focus_type": null,
+        "manager_match": null,
+        "work_style_tags": []
+      }
+    },
+    {
+      "id": "p09_between_jobs_retail_mgr",
+      "axes": {"career_status": "between_jobs", "move_intent": "adjacent", "domain": "retail management", "skill_density": "moderate", "behavioral": "present", "title": "resolvable"},
+      "note": "between_jobs with transferable management experience. Tests whether 'manager of X' generalises past the industry X.",
+      "profile": {
+        "current_title": "Retail Store Manager",
+        "career_status": "between_jobs",
+        "skills": [
+          {"name": "Staff scheduling", "level": "advanced"},
+          {"name": "Inventory management", "level": "advanced"},
+          {"name": "Hiring and onboarding", "level": "intermediate"},
+          {"name": "Sales forecasting", "level": "intermediate"},
+          {"name": "Customer service", "level": "advanced"},
+          {"name": "Conflict resolution", "level": "intermediate"}
+        ],
+        "archetype": "Connector",
+        "archetype_description": "You read a room quickly and you are the person people bring problems to before they escalate. Being the only one in a quiet office would flatten you.",
+        "move_intent": "adjacent",
+        "seniority_intent": "stay_lateral",
+        "priority": "work_life_balance",
+        "focus_type": "Collaborative Charger",
+        "manager_match": "Wants a manager who is present and reachable, not a weekly-one-to-one-only manager.",
+        "work_style_tags": [
+          "Energised by face-to-face problem solving",
+          "Comfortable with interruption-heavy days"
+        ]
+      }
+    },
+    {
+      "id": "p10_between_jobs_admin_fresh",
+      "axes": {"career_status": "between_jobs", "move_intent": "fresh_start", "domain": "admin", "skill_density": "moderate", "behavioral": "absent", "title": "resolvable"},
+      "note": "fresh_start from a low-zone administrative role with real but unglamorous skills. Upward feasibility matters here; 'anything different' does not.",
+      "profile": {
+        "current_title": "Administrative Assistant",
+        "career_status": "between_jobs",
+        "skills": [
+          {"name": "Microsoft Office", "level": "advanced"},
+          {"name": "Calendar management", "level": "advanced"},
+          {"name": "Data entry", "level": "advanced"},
+          {"name": "Bookkeeping", "level": "beginner"},
+          {"name": "Written communication", "level": "intermediate"}
+        ],
+        "archetype": "",
+        "archetype_description": "",
+        "move_intent": "fresh_start",
+        "seniority_intent": "move_up",
+        "priority": "pay_title",
+        "focus_type": null,
+        "manager_match": null,
+        "work_style_tags": []
+      }
+    },
+    {
+      "id": "p11_rn_stay",
+      "axes": {"career_status": "employed", "move_intent": "stay_in_field", "domain": "healthcare", "skill_density": "rich", "behavioral": "present", "title": "resolvable"},
+      "note": "Experienced licensed clinician staying in field. The correct answers are mostly O*NET's own 29-1141.x detail codes, which is a specific structural test.",
+      "profile": {
+        "current_title": "Registered Nurse",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Patient assessment", "level": "advanced"},
+          {"name": "Medication administration", "level": "advanced"},
+          {"name": "Electronic health records", "level": "advanced"},
+          {"name": "IV therapy", "level": "advanced"},
+          {"name": "Triage", "level": "intermediate"},
+          {"name": "Patient education", "level": "advanced"},
+          {"name": "Wound care", "level": "intermediate"},
+          {"name": "Care coordination", "level": "intermediate"}
+        ],
+        "archetype": "Steady Operator",
+        "archetype_description": "You are unflappable in a crisis and you hold the standard when nobody is watching. What wears you down is not the work but the churn around it.",
+        "move_intent": "stay_in_field",
+        "seniority_intent": "move_up",
+        "priority": "learning_growth",
+        "focus_type": "Pressure Igniter",
+        "manager_match": "Needs a manager who will staff the floor honestly and back clinical judgement against administrative pressure.",
+        "work_style_tags": [
+          "Performs best under time pressure",
+          "Prefers clear escalation paths to open-ended autonomy"
+        ]
+      }
+    },
+    {
+      "id": "p12_teacher_adjacent",
+      "axes": {"career_status": "employed", "move_intent": "adjacent", "domain": "education", "skill_density": "moderate", "behavioral": "present", "title": "resolvable"},
+      "note": "The commonest real 'adjacent' request there is: a teacher who wants to stop teaching in a classroom but keep the domain. A title-similarity scorer answers this with more teaching jobs, which is exactly wrong.",
+      "profile": {
+        "current_title": "High School Teacher",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Curriculum development", "level": "advanced"},
+          {"name": "Classroom management", "level": "advanced"},
+          {"name": "Lesson planning", "level": "advanced"},
+          {"name": "Student assessment", "level": "advanced"},
+          {"name": "Public speaking", "level": "advanced"},
+          {"name": "Google Workspace", "level": "intermediate"}
+        ],
+        "archetype": "Craft Finisher",
+        "archetype_description": "You build things that work and then you make them work better next time. Explaining a hard idea until it lands is the part of the job you would keep.",
+        "move_intent": "adjacent",
+        "seniority_intent": "open",
+        "priority": "work_life_balance",
+        "focus_type": "Structured Builder",
+        "manager_match": "Wants clear expectations set once, then to be left to deliver.",
+        "work_style_tags": [
+          "Plans the whole arc before starting",
+          "Draining: sustained high-volume interpersonal demand"
+        ]
+      }
+    },
+    {
+      "id": "p13_accountant_move_up",
+      "axes": {"career_status": "employed", "move_intent": "stay_in_field", "domain": "finance", "skill_density": "moderate", "behavioral": "absent", "title": "resolvable"},
+      "note": "Non-tech professional, upward, no assessments. Zone 4, clear ladder.",
+      "profile": {
+        "current_title": "Staff Accountant",
+        "career_status": "employed",
+        "skills": [
+          {"name": "General ledger accounting", "level": "advanced"},
+          {"name": "Month-end close", "level": "advanced"},
+          {"name": "Microsoft Excel", "level": "advanced"},
+          {"name": "QuickBooks", "level": "intermediate"},
+          {"name": "Financial reporting", "level": "intermediate"},
+          {"name": "Accounts payable", "level": "advanced"},
+          {"name": "Reconciliation", "level": "advanced"}
+        ],
+        "archetype": "",
+        "archetype_description": "",
+        "move_intent": "stay_in_field",
+        "seniority_intent": "move_up",
+        "priority": "pay_title",
+        "focus_type": null,
+        "manager_match": null,
+        "work_style_tags": []
+      }
+    },
+    {
+      "id": "p14_electrician_stay",
+      "axes": {"career_status": "employed", "move_intent": "stay_in_field", "domain": "skilled trade", "skill_density": "moderate", "behavioral": "absent", "title": "resolvable"},
+      "note": "Skilled trade, Job Zone 3, no degree. Almost all of the product's assumptions are white-collar; this profile is where they show.",
+      "profile": {
+        "current_title": "Journeyman Electrician",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Electrical wiring", "level": "advanced"},
+          {"name": "Blueprint reading", "level": "advanced"},
+          {"name": "National Electrical Code", "level": "advanced"},
+          {"name": "Conduit bending", "level": "advanced"},
+          {"name": "Troubleshooting", "level": "advanced"},
+          {"name": "Hand and power tools", "level": "advanced"}
+        ],
+        "archetype": "",
+        "archetype_description": "",
+        "move_intent": "stay_in_field",
+        "seniority_intent": "move_up",
+        "priority": "pay_title",
+        "focus_type": null,
+        "manager_match": null,
+        "work_style_tags": []
+      }
+    },
+    {
+      "id": "p15_graphic_designer_adjacent",
+      "axes": {"career_status": "employed", "move_intent": "adjacent", "domain": "creative", "skill_density": "rich", "behavioral": "present", "title": "resolvable"},
+      "note": "Creative field where tool names (Figma, Illustrator) are the discriminating vocabulary — the hot-tech half of _build_role_profile should carry this one if anything does.",
+      "profile": {
+        "current_title": "Graphic Designer",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Adobe Illustrator", "level": "advanced"},
+          {"name": "Adobe Photoshop", "level": "advanced"},
+          {"name": "Adobe InDesign", "level": "advanced"},
+          {"name": "Figma", "level": "intermediate"},
+          {"name": "Typography", "level": "advanced"},
+          {"name": "Brand identity design", "level": "advanced"},
+          {"name": "Layout design", "level": "advanced"},
+          {"name": "Print production", "level": "intermediate"}
+        ],
+        "archetype": "Craft Finisher",
+        "archetype_description": "You have a high tolerance for revision and a low tolerance for work that ships half-done. You would rather own one thing fully than contribute to five.",
+        "move_intent": "adjacent",
+        "seniority_intent": "move_up",
+        "priority": "interesting_work",
+        "focus_type": "Deep Diver",
+        "manager_match": "Wants a manager who gives direction as a brief, not as a redline.",
+        "work_style_tags": [
+          "Long uninterrupted making time",
+          "Needs a single decision-maker on feedback"
+        ]
+      }
+    },
+    {
+      "id": "p16_between_jobs_warehouse_fresh",
+      "axes": {"career_status": "between_jobs", "move_intent": "fresh_start", "domain": "logistics", "skill_density": "sparse", "behavioral": "absent", "title": "resolvable"},
+      "note": "Low zone, sparse skills, wants out. The hardest honest case in the set: the feasible answer space is genuinely small and a scorer that suggests Zone 4 professions here is not being ambitious, it is being useless.",
+      "profile": {
+        "current_title": "Warehouse Associate",
+        "career_status": "between_jobs",
+        "skills": [
+          {"name": "Forklift operation", "level": "advanced"},
+          {"name": "Inventory counting", "level": "intermediate"},
+          {"name": "Order picking", "level": "advanced"}
+        ],
+        "archetype": "",
+        "archetype_description": "",
+        "move_intent": "fresh_start",
+        "seniority_intent": "move_up",
+        "priority": "pay_title",
+        "focus_type": null,
+        "manager_match": null,
+        "work_style_tags": []
+      }
+    },
+    {
+      "id": "p17_paralegal_sparse_stay",
+      "axes": {"career_status": "employed", "move_intent": "stay_in_field", "domain": "legal", "skill_density": "sparse", "behavioral": "absent", "title": "resolvable"},
+      "note": "Real title, almost no skills entered. Isolates title signal from skill signal: the title alone should carry this, and if it does not, that is a finding.",
+      "profile": {
+        "current_title": "Paralegal",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Legal research", "level": "advanced"},
+          {"name": "Document review", "level": "intermediate"}
+        ],
+        "archetype": "",
+        "archetype_description": "",
+        "move_intent": "stay_in_field",
+        "seniority_intent": "stay_lateral",
+        "priority": "work_life_balance",
+        "focus_type": null,
+        "manager_match": null,
+        "work_style_tags": []
+      }
+    },
+    {
+      "id": "p18_marketing_mgr_adjacent",
+      "axes": {"career_status": "employed", "move_intent": "adjacent", "domain": "marketing", "skill_density": "moderate", "behavioral": "absent", "title": "resolvable"},
+      "note": "Mid-career manager, adjacent, no assessments. Chosen because 'Marketing Manager' resolves cleanly in O*NET, so any bad result here is a scoring failure, not a resolution failure.",
+      "profile": {
+        "current_title": "Marketing Manager",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Campaign management", "level": "advanced"},
+          {"name": "Google Analytics", "level": "intermediate"},
+          {"name": "Content strategy", "level": "advanced"},
+          {"name": "Search engine optimization", "level": "intermediate"},
+          {"name": "Budget management", "level": "intermediate"},
+          {"name": "Copywriting", "level": "intermediate"}
+        ],
+        "archetype": "",
+        "archetype_description": "",
+        "move_intent": "adjacent",
+        "seniority_intent": "stay_lateral",
+        "priority": "interesting_work",
+        "focus_type": null,
+        "manager_match": null,
+        "work_style_tags": []
+      }
+    },
+    {
+      "id": "p19_degenerate_no_title_no_skills",
+      "axes": {"career_status": "employed", "move_intent": null, "domain": "none", "skill_density": "none", "behavioral": "absent", "title": "absent"},
+      "note": "THE ACC-4 / S22 PRODUCTION BUG. career_status is set (so intelligence_service does not 400) but there is no title and no skill, score_paths legitimately returns [], and the route turns that into a generic 500 'Unable to score career paths'. Kept in the eval set deliberately: BUILD_PLAN F-8 makes this fall back to the fresh_start seed, and this row is how that fix gets measured rather than asserted. An empty result here is CORRECT for today's scorer and is reported as `empty_result`, not silently scored 0.",
+      "expect_empty_today": true,
+      "profile": {
+        "current_title": null,
+        "career_status": "employed",
+        "skills": [],
+        "archetype": "",
+        "archetype_description": "",
+        "move_intent": null,
+        "seniority_intent": null,
+        "priority": null,
+        "focus_type": null,
+        "manager_match": null,
+        "work_style_tags": []
+      }
+    },
+    {
+      "id": "p20_unresolvable_title",
+      "axes": {"career_status": "employed", "move_intent": "stay_in_field", "domain": "ambiguous", "skill_density": "sparse", "behavioral": "absent", "title": "unresolvable"},
+      "note": "The half-degenerate sibling of p19: a title that O*NET cannot resolve, but real skills underneath it. Design doc §5 #6. Invented job titles are common in startups and the user is not at fault for having one.",
+      "profile": {
+        "current_title": "Growth Ninja",
+        "career_status": "employed",
+        "skills": [
+          {"name": "A/B testing", "level": "intermediate"},
+          {"name": "Email marketing automation", "level": "advanced"},
+          {"name": "SQL", "level": "beginner"}
+        ],
+        "archetype": "",
+        "archetype_description": "",
+        "move_intent": "stay_in_field",
+        "seniority_intent": "open",
+        "priority": "learning_growth",
+        "focus_type": null,
+        "manager_match": null,
+        "work_style_tags": []
+      }
+    }
+  ]
+}
