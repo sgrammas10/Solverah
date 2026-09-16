@@ -11,9 +11,12 @@ backbone decision itself (`PRODUCT_DECISIONS.md` §1, Sebastian 2026-09-10:
 is used), and *not* the causal Bayesian model lane (`BUILD_PLAN.md` workstream E),
 which scores person↔condition fit rather than person↔occupation retrieval.
 
-**How to read it.** §0 says what is decided and what is not. Nothing here is
-built. Numbers marked **measured** were produced on 2026-09-16 by the method in
-§7; everything else is an estimate and says so.
+**How to read it.** §0 says what is decided and what is not. **This is the design
+record, not the progress tracker** — build status lives in `BUILD_PLAN.md` §6
+(Workstream F), and as of 2026-09-16 chunks F-1 through F-6 are built and
+committed; the §1 measurements describe the scorer *as it was* before them. Numbers
+marked **measured** were produced on 2026-09-16 by the method in §7; everything
+else is an estimate and says so.
 
 ---
 
@@ -27,7 +30,7 @@ built. Numbers marked **measured** were produced on 2026-09-16 by the method in
 | §3.2 `adjacent` — where the feedback lives | **DECIDED inline on the result cards** (⚑7) — Sebastian, 2026-09-16. Not a questionnaire. See §5 #3 |
 | §5 #1 — replace `path_scoring.py`? | **DECIDED: substantial rewrite** (⚑8) — Sebastian, 2026-09-16. Not a deletion, not a second scorer. See §5 #1 |
 | Remaining §5 items (2, 4, 5, 6) | Agent defaults, unobjected 2026-09-16 — recorded in the §5 table and carried into Workstream F |
-| Any code change | **None yet.** No file in `backend/` or `solverah/` has been touched by this design |
+| Code | **BUILT** — F-1 corpus (376c8d7), F-2 eval harness (f51bef7), F-3 retrieval (88dae71), F-4 rewrite (f12dd79), F-5 deep fit (54ed44c), F-6 feedback loop (397aaac), all 2026-09-16; F-7 and F-8 in progress. Per-chunk record and measurements: `BUILD_PLAN.md` §6 |
 
 ⚑ marks a design call that needed Sebastian before it was built, following the
 `BUILD_PLAN.md` §0.2 convention. ⚑7 and ⚑8 are now closed; the numbering
