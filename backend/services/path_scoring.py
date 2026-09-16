@@ -683,18 +683,67 @@ _MAX_JOB_ZONE: int = 5
 # entry count, so no future change to the vector's dimension or dtype can quietly
 # restore the leak.
 #
-# F-4 REMOVED THE DEMAND THAT MADE IT DANGEROUS.  The cache used to hold every
-# role item of every candidate: the ~35 generic skills and ~41 work activities
-# per occupation across ~40 candidates, 300-700 unique texts per cold run.  It
-# now holds **only the user's own documents** -- the skills document, the
-# behavioural profile, and at most the title -- which is at most 3 entries per
-# distinct user scored, about 18 KB.  The budget below is left where it is
-# rather than shrunk, because `path_deep_fit` (F-5) populates this same cache
-# with Tier-2 role items again -- for ONE occupation per click, not forty per
-# request -- and F-8 retires it.  One cache, shared across both tiers: two would
-# double the budget arithmetic below without halving anything.
+# THIS CACHE DOES NOT RETIRE, AND F-8 RE-DERIVED WHY (box 3).
 #
-# WHERE 32 MB COMES FROM (measured 2026-09-16, not guessed).
+# The old note here said it was a stopgap that F-8 would delete.  That was
+# wrong on the facts: F-5's deep fit and F-6's re-rank both use it for the
+# user's own texts, and tests/test_cache_bounds.py asserts the two tiers share
+# one object.  Two caches would double the arithmetic below without halving
+# anything.  What F-8 changed is the justification, because the DEMAND changed
+# out of all recognition in F-4 and the 32 MB predates that.
+#
+# WHAT THE DEMAND ACTUALLY IS NOW.  Measured 2026-09-16 over all 20 F-2
+# evaluation profiles and five real deep-fit clicks, counting exactly the way
+# _evict_to_budget counts -- entry cost 6,553 bytes mean (a 1536-dim float32
+# vector plus its key and the OrderedDict's node):
+#
+#   Tier 1, one cold score_paths, cache cleared between users
+#       3-14 entries, 19.6-91.7 KB per distinct user
+#       (was 300-700 entries / 15-35 MB before F-4 -- the OOM demand, removed
+#       rather than capped)
+#   Tier 1, accumulating across 19 distinct users
+#       158 entries, 1.04 MB total -- so ~8.3 entries / 55 KB MARGINAL per new
+#       user, because users share skill names ("Python", "SQL", "Excel")
+#   Tier 2, one deep_fit per click, same user
+#       1st click  +97 entries   2nd +68   3rd +25   4th +15   5th +16
+#       It converges fast, and the reason is F-4's central finding: O*NET's ~35
+#       generic skills and ~41 work activities are the SAME names for every
+#       occupation.  Those ~76 names are a fixed core (~0.50 MB) shared by every
+#       occupation and every user; only the hot-technology names vary.
+#   Tier 2, a DIFFERENT user clicking the SAME five occupations
+#       +7 entries on the first, then +0, +0, +0, +0.
+#
+# WHY 32 MB SURVIVES THAT RE-DERIVATION, ON A BETTER ARGUMENT THAN BEFORE.
+#
+# The old argument was "one cold run is 15-35 MB, so 32 MB is about one run".
+# That argument is gone: one cold run is now 90 KB, and a budget 370x the thing
+# it was sized against is not conservative, it is unexamined.  The number stays
+# for a different reason, and it is the eviction policy.
+#
+# _evict_to_budget is FIFO, not LRU -- nothing calls move_to_end on a hit, and
+# that is left alone deliberately (see the function).  Under FIFO the budget is
+# not "how much can be cached", it is **a residency window**: how long the fixed
+# ~76-name Tier-2 core survives a stream of one-off user documents arriving
+# behind it.  Evicting that core is the one thing that makes this cache stop
+# paying for itself, because it is re-embedded on the next deep fit anyone asks
+# for.
+#
+#   32 MB / 6,553 bytes                  ~5,120 entries of window
+#   at ~8.3 marginal entries per user    ~615 distinct users before the core
+#                                        is pushed out
+#   the core itself                      76 entries, 1.5% of the window
+#
+# Halving the budget would halve that window and buy 16 MB of a 364 MB
+# headroom -- 4% of headroom, against doubling how often the most-shared
+# entries in the cache are re-bought from OpenAI.  So: unchanged number,
+# replaced reasoning.
+#
+# The bound still has to exist, and the worst case says why: a worker lives
+# ~2,000 requests (gunicorn.conf.py `max_requests`), and 2,000 requests from
+# 2,000 distinct users would be ~16,600 entries / 109 MB unbounded.  The budget
+# is what turns that into eviction instead of an outage.
+#
+# WHERE THE HEADROOM FIGURE COMES FROM (measured 2026-09-16, not guessed).
 #
 # The instance is a Render Starter: 0.5 CPU, 512 MB, and gunicorn.conf.py runs
 # `workers = 1` on it.  One worker means one copy of this module global, so the
@@ -731,9 +780,6 @@ _MAX_JOB_ZONE: int = 5
 # gunicorn's own `Booting worker with pid` lines, which do carry pids.  If
 # `workers` ever goes back above 1, divide this budget by the new W -- or set
 # SOLVERAH_EMBED_CACHE_MAX_BYTES from the dashboard, which needs no deploy.
-#
-# THIS IS A STOPGAP.  docs/PATH_INTELLIGENCE_REDESIGN.md §2 removes this cache
-# entirely; F-8 is the chunk that does it.
 _EMBED_CACHE: OrderedDict[str, "np.ndarray | list[float]"] = OrderedDict()
 
 #: Per-worker byte budget for _EMBED_CACHE.  Env-overridable so the dyno can be

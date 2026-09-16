@@ -34,6 +34,20 @@ These assert the **bound**, never the pathology: a test that actually allocated
 474 MB to prove the leak would be an OOM on the CI runner. They cap or shrink a
 budget and check that eviction happens, and they measure with a deterministic
 deep ``sys.getsizeof`` rather than RSS, which is not stable enough in CI.
+
+**F-8 box 3 re-derived ``_EMBED_CACHE``'s budget, and the narrative above is
+now history rather than the reason.** F-4 did not cap that demand, it removed
+it: the cache no longer holds every role item of every candidate, and a cold
+scoring run measures 3-14 entries / 19.6-91.7 KB where it used to be 300-700
+entries / 15-35 MB. The 32 MB therefore needed a new justification or a cut,
+and it has a new justification -- eviction here is FIFO, so the budget is a
+*residency window* for the ~76-name Tier-2 core that every occupation and every
+user shares. ``test_the_budget_is_a_residency_window_for_the_shared_core``
+below is that argument as an assertion, and the arithmetic is in
+``path_scoring``'s own comment. The cache also did NOT retire with the funnel,
+as F-8's brief originally had it: F-5's deep fit and F-6's re-rank both use it,
+and ``test_embed_cache_reads_tolerate_the_stored_vector_type`` pins that the two
+tiers hold one object.
 """
 
 from __future__ import annotations
@@ -327,6 +341,116 @@ def test_embed_cache_default_budget_fits_the_dyno() -> None:
     considered retune.
     """
     assert path_scoring._EMBED_CACHE_MAX_BYTES <= 64 * 1024 * 1024
+
+
+#: The Tier-2 core: O*NET's ~35 generic skills plus its ~41 work activities.
+#:
+#: The same names for EVERY occupation -- that is F-4's central finding about
+#: why the old scorer could not discriminate, and it is also why this cache
+#: earns its place now. Measured 2026-09-16 over five real deep-fit clicks: the
+#: first costs 97 entries, the fifth costs 16, and a second user clicking the
+#: same five costs 7 and then nothing at all.
+_TIER_TWO_CORE_ENTRIES = 76
+
+#: Mean resident cost of one entry, measured the way `_evict_to_budget` counts.
+_MEASURED_ENTRY_BYTES = 6_553
+
+#: Marginal entries a new distinct user adds to a warm cache. Measured across
+#: the 19 non-degenerate F-2 profiles: 158 entries for 19 users.
+_MARGINAL_ENTRIES_PER_USER = 8.3
+
+
+def test_the_budget_is_a_residency_window_for_the_shared_core() -> None:
+    """F-8 box 3. The budget re-derived against the demand that exists now.
+
+    The demand this number was originally set against is gone: before F-4 a
+    single cold run added 300-700 entries / 15-35 MB, and 32 MB was about one
+    run's worth. Measured after F-4, a cold run adds **3-14 entries / 19.6-91.7
+    KB**. A budget 370x the thing it was sized against is not conservative, it
+    is unexamined -- so it needed a reason or a cut.
+
+    The reason is the eviction policy. `_evict_to_budget` is FIFO, not LRU
+    (nothing calls `move_to_end` on a hit, deliberately), so the budget is not
+    "how much may be cached" but **how long the shared Tier-2 core survives a
+    stream of one-off user documents arriving behind it**. Evicting that core is
+    the one thing that makes this cache stop paying for itself: it is re-bought
+    from OpenAI on the next deep fit anybody asks for.
+
+    So the assertion is the property, not the constant: the window must be
+    large enough that the core is a rounding error inside it and survives a
+    realistic run of distinct users. That fails on a careless shrink and passes
+    for a considered retune in either direction -- which is what a budget with
+    an env override wants.
+    """
+    window = path_scoring._EMBED_CACHE_MAX_BYTES // _MEASURED_ENTRY_BYTES
+
+    assert window >= _TIER_TWO_CORE_ENTRIES * 20, (
+        "the budget holds only %d entries: the %d-entry Tier-2 core is %.0f%% of "
+        "the whole cache, so a handful of users evicts the most-shared entries "
+        "in it" % (window, _TIER_TWO_CORE_ENTRIES, 100 * _TIER_TWO_CORE_ENTRIES / window)
+    )
+
+    users_before_the_core_is_pushed_out = window / _MARGINAL_ENTRIES_PER_USER
+    assert users_before_the_core_is_pushed_out >= 200, (
+        "at %.1f marginal entries per distinct user the core survives only %.0f "
+        "users" % (_MARGINAL_ENTRIES_PER_USER, users_before_the_core_is_pushed_out)
+    )
+
+
+def test_one_cold_scoring_run_is_a_rounding_error_against_the_budget() -> None:
+    """The OOM demand was removed, not capped, and this is what that means.
+
+    Before F-4 one cold run could fill the entire budget by itself, so there was
+    no eviction headroom at all -- the cap was one run wide. The worst run
+    measured across the 20 F-2 profiles is now 14 entries / 91,739 bytes.
+    """
+    worst_measured_run_bytes = 91_739
+
+    assert worst_measured_run_bytes * 100 < path_scoring._EMBED_CACHE_MAX_BYTES, (
+        "the worst cold run is %.1f%% of the budget; it used to be ~100%% and "
+        "that is the shape that OOMed"
+        % (100 * worst_measured_run_bytes / path_scoring._EMBED_CACHE_MAX_BYTES)
+    )
+
+
+def test_the_budget_is_env_overridable_without_a_deploy() -> None:
+    """`workers` going back above 1 divides this budget by the new W.
+
+    The dashboard is where that would be noticed and the dashboard is where it
+    has to be fixable, because a redeploy to change a constant is exactly what
+    an incident does not have time for.
+
+    In a SUBPROCESS, not via `importlib.reload`. The constant is read at import,
+    so proving it in-process means reloading the module -- which replaces
+    `_EMBED_CACHE` with a new dict while `path_deep_fit` still holds the old
+    one, and the two tiers stop sharing an object for every test that runs
+    afterwards. Measured: it turns nine unrelated tests red. A fresh interpreter
+    is the honest way to assert something about import-time behaviour.
+    """
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parents[1]
+    probe = (
+        "from backend.services.path_scoring import _EMBED_CACHE_MAX_BYTES as b;"
+        "print(b)"
+    )
+    out = subprocess.run(
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        text=True,
+        cwd=str(repo_root),
+        env={
+            **os.environ,
+            "PYTHONPATH": str(repo_root),
+            "SOLVERAH_EMBED_CACHE_MAX_BYTES": str(7 * 1024 * 1024),
+        },
+    )
+
+    assert out.returncode == 0, out.stderr
+    assert int(out.stdout.strip()) == 7 * 1024 * 1024
 
 
 def test_embed_cache_still_prevents_re_embedding(embed) -> None:
