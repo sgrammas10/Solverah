@@ -589,38 +589,33 @@ def test_record_run_checkpoints_after_every_profile(tmp_path: Path) -> None:
     assert len(run.runs) == 3
 
 
-def test_funnel_ceiling_separates_a_ranking_miss_from_an_unreachable_answer(
+def test_funnel_ceiling_retires_itself_now_that_the_allow_list_is_gone(
     profiles: list[EvalProfile], labels: dict[str, list[Label]]
 ) -> None:
-    """Records what today's candidate funnel can even reach, before ranking.
+    """The ceiling diagnostic has nothing left to measure, and that is the win.
 
-    `_filter_candidate_pool`'s SOC allow-list admits only 11/13/15/17/23/25/41/43
-    unless a skill keyword unlocks more, so entire families are invisible to the
-    scorer regardless of how it ranks.  Without this, a profile scoring zero on
-    the baseline looks like a ranking failure when the right answer was never a
-    candidate -- and F-4 would tune weights against a problem F-3 owns.
+    It existed to answer one question about the pre-F-4 funnel: when a profile
+    scored zero, was the RANKING wrong, or was the right answer never a
+    candidate?  `_filter_candidate_pool`'s SOC allow-list admitted only
+    11/13/15/17/23/25/41/43 unless a skill keyword unlocked more, so it measured
+    entire families being invisible -- an electrician could reach none of their
+    three primary labels, a graphic designer one of three.
+
+    F-4 deleted the allow-list (`TestTombstones` in test_path_scoring.py pins
+    every removed name) and candidates now come from `occupation_retrieval`,
+    which can return any of the 1,016 rows.  `funnel_ceiling` was written to
+    degrade to an empty list rather than raise on exactly this day, calling it
+    "the success condition, not a breakage".  This test is that assertion,
+    flipped: it used to pin the allow-list's damage, and now pins its absence.
+
+    The evidence that removal did not reintroduce the failure it patched is the
+    F-4 harness run, not this function -- see BUILD_PLAN F-8's box.
     """
-    rows = path_eval.funnel_ceiling(profiles, labels)
-    by_id = {row["profile_id"]: row for row in rows}
-
-    # A tech profile's answers are all inside the default allow-list.
-    tech = by_id["p01_backend_eng_stay"]
-    assert tech["reachable_primary"] == tech["primary_labels"]
-
-    # A skilled-trade profile's are entirely outside it: 47- and 49- are not
-    # admitted and no skill keyword unlocks them.  This is a real product
-    # defect, recorded here so the baseline run confirms rather than discovers it.
-    trade = by_id["p14_electrician_stay"]
-    assert trade["primary_labels"] > 0
-    assert trade["reachable_primary"] == 0, (
-        "if this starts passing, the allow-list changed -- re-read the baseline "
-        "before comparing it to anything"
+    assert path_eval.funnel_ceiling(profiles, labels) == [], (
+        "path_scoring exposes an allow-list again -- F-4 removed it because "
+        "F-2 measured whole occupational families being unreachable by the "
+        "users inside them"
     )
-
-    # Healthcare is reachable only because the profile carries an unlocking
-    # skill keyword; that conditional path is worth pinning too.
-    nurse = by_id["p11_rn_stay"]
-    assert "29-" in nurse["allowed_soc_prefixes"]
 
 
 def test_cost_projection_is_stated_and_makes_no_calls(
@@ -697,8 +692,11 @@ def test_cost_and_review_subcommands_run_offline(
     assert path_eval.main(["review"]) == 0
     assert "flagged confidence=low" in capsys.readouterr().out
 
+    # Post-F-4 the funnel is gone, so the ceiling diagnostic reports that it has
+    # nothing to inspect rather than printing a table. It still exits 0: a
+    # retired diagnostic is not a failed one.
     assert path_eval.main(["ceiling"]) == 0
-    assert "reachable/primary" in capsys.readouterr().out
+    assert "no funnel to inspect" in capsys.readouterr().out
 
 
 def test_control_scorers_run_from_the_command_line(

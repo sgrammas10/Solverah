@@ -70,8 +70,11 @@ class PathSuggestionsResponse(SolverahModel):
     """Scored and narrated career paths, cached per user.
 
     A 400 with ``career_status_not_set`` means the profile is missing a field
-    the scorer requires, and the client should prompt for it. A 500 means O*NET
-    or the narrator failed, and the client should retry.
+    the scorer requires, and the client should prompt for it. A 400 with
+    ``profile_incomplete`` means the profile has neither a job title nor any
+    skills, so there is nothing to retrieve on -- prompt for those rather than
+    retrying. A 500 means the occupation corpus or the narrator failed, and the
+    client should retry.
     """
 
     suggestions: List[PathSuggestion] = Field(default_factory=list)
@@ -303,7 +306,10 @@ class PathSuggestionJobStatus(SolverahModel):
         description=(
             "Present only on 'failed'. `career_status_not_set` means the profile "
             "is missing a field the scorer requires -- the same condition the "
-            "synchronous GET answers 400 for."
+            "synchronous GET answers 400 for. `profile_incomplete` means it has "
+            "neither a job title nor any skills, so there is nothing to score; "
+            "both are answered by prompting for the missing data, not by "
+            "retrying."
         ),
     )
     result: Optional[PathSuggestionsResponse] = Field(

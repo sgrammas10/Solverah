@@ -20,8 +20,11 @@ Two behaviours are preserved deliberately, and one is gone.
   storing it, and storing it wrote a *guess* into a field the user is the
   authority on.  ``PATCH /me/career-status`` remains the only thing that sets it.
 * **Empty results are a 500, not a 200.**  If scoring returns nothing for a
-  complete profile, O*NET gave us nothing, and that is a transient upstream
-  failure rather than a message the user can act on.
+  complete profile, the corpus or the embedding provider gave us nothing, and
+  that is a transient upstream failure rather than a message the user can act
+  on.  **A profile with no title and no skills is the one exception** (F-4): the
+  scorer raises ``InsufficientProfile`` for it and this module answers
+  ``400 profile_incomplete``, which the client can act on.
 * **Missing OPENAI_API_KEY degrades rather than fails.**  ``score_paths`` takes
   ``None`` for the client and falls back to non-embedding scoring.
 """
@@ -259,7 +262,7 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
     """
     from backend.services.onet_client import OnetClient
     from backend.services.path_narrative import NarrativeGenerationError, generate_narratives
-    from backend.services.path_scoring import score_paths
+    from backend.services.path_scoring import InsufficientProfile, score_paths
 
     cached = path_cache.get(user.id)
     if cached is not None:
@@ -288,13 +291,29 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
             # than failing the request.
             openai_client = None
         scored = score_paths(user_profile, onet_client, openai_client)
+    except InsufficientProfile:
+        # The user has no job title and no skills, so there is nothing to score.
+        # This is the ACC-4 / S16.11 defect: it used to arrive here as an empty
+        # list and leave as `500 Unable to score career paths`, which told the
+        # user to retry something no amount of retrying could fix. The SPA's
+        # `stateForFailure()` has had a `profile_incomplete` branch the whole
+        # time -- "Add a job title and a few skills to get started" -- and it was
+        # dead only because the backend never sent the string.
+        logger.info(
+            "Insufficient profile for path scoring, user %s (title=%r, skills=%d)",
+            user.id,
+            user_profile.current_title,
+            len(user_profile.skills),
+        )
+        return _error(400, "profile_incomplete")
     except Exception:  # noqa: BLE001 -- logged with a traceback
         logger.exception("Path scoring failed for user %s", user.id)
         return _error(500, "Unable to score career paths")
 
     if not scored:
-        # Profile is complete but O*NET returned nothing -- treat as a
-        # transient service issue rather than a profile problem.
+        # The profile had signal but nothing came back: an unreachable corpus,
+        # an embedding outage, a query the retrieval seam rejected. Genuinely
+        # transient, so genuinely a 500 -- deliberately NOT the branch above.
         logger.warning(
             "Empty scored list for user %s (title=%r, skills=%d)",
             user.id,

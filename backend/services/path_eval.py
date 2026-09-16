@@ -762,19 +762,44 @@ _ONET_CALLS_PER_PROFILE: int = 160
 _LLM_CALLS_PER_PROFILE: int = 1
 _EMBED_BATCHES_PER_PROFILE: int = 1
 
+#: The same three numbers for the F-4 corpus scorer, which reaches O*NET only to
+#: resolve the user's own title (one search, plus a job-zone lookup when the
+#: corpus sidecar has no zone for that code) and makes no LLM completion calls
+#: at all.  Additive: the profile set, the labels and every metric are unchanged
+#: -- this only makes the confirmation prompt tell the truth about what a run of
+#: the new scorer costs, instead of quoting the old funnel's 160.
+_CORPUS_ONET_CALLS_PER_PROFILE: int = 2
+_CORPUS_LLM_CALLS_PER_PROFILE: int = 0
 
-def project_cost(profile_count: int) -> dict[str, int | str]:
-    """What a live baseline run would spend.  Makes no calls of its own."""
+#: Cost models the ``--scorer`` flag on ``record-live`` selects between.
+COST_MODELS: dict[str, tuple[int, int, str]] = {
+    "live": (
+        _ONET_CALLS_PER_PROFILE,
+        _LLM_CALLS_PER_PROFILE,
+        "design doc §1.2: ~160 O*NET requests per cold profile "
+        "(3-4 per candidate x ~40 candidates, plus resolution and gathering); "
+        "one LLM search-term call and one batched embedding call per profile",
+    ),
+    "corpus": (
+        _CORPUS_ONET_CALLS_PER_PROFILE,
+        _CORPUS_LLM_CALLS_PER_PROFILE,
+        "BUILD_PLAN F-4: retrieval is a local matrix product, so O*NET is "
+        "touched only for anchor resolution (<=2 calls) and no LLM completion "
+        "is made; one batched embedding call covers the user's own documents",
+    ),
+}
+
+
+def project_cost(profile_count: int, model: str = "live") -> dict[str, int | str]:
+    """What a live run of *model* would spend.  Makes no calls of its own."""
+    onet_per, llm_per, basis = COST_MODELS[model]
     return {
         "profiles": profile_count,
-        "onet_requests_estimate": profile_count * _ONET_CALLS_PER_PROFILE,
-        "llm_completion_calls": profile_count * _LLM_CALLS_PER_PROFILE,
+        "scorer": model,
+        "onet_requests_estimate": profile_count * onet_per,
+        "llm_completion_calls": profile_count * llm_per,
         "embedding_batch_calls": profile_count * _EMBED_BATCHES_PER_PROFILE,
-        "basis": (
-            "design doc §1.2: ~160 O*NET requests per cold profile "
-            "(3-4 per candidate x ~40 candidates, plus resolution and gathering); "
-            "one LLM search-term call and one batched embedding call per profile"
-        ),
+        "basis": basis,
         "caveat": (
             "O*NET's _OCC_CACHE is per-process and 24h, so profiles sharing a "
             "candidate pool make this an upper bound within a single run"
@@ -792,7 +817,7 @@ def project_cost(profile_count: int) -> dict[str, int | str]:
 
 def _cmd_cost(args: argparse.Namespace) -> int:
     profiles = load_profiles()
-    print(json.dumps(project_cost(len(profiles)), indent=2))
+    print(json.dumps(project_cost(len(profiles), getattr(args, "scorer", "live")), indent=2))
     return 0
 
 
@@ -825,7 +850,7 @@ def _cmd_record_live(args: argparse.Namespace) -> int:
         wanted = set(args.only.split(","))
         profiles = [p for p in profiles if p.id in wanted]
 
-    cost = project_cost(len(profiles))
+    cost = project_cost(len(profiles), args.scorer)
     if not args.confirm_live_calls:
         print("REFUSING TO RUN. A live baseline spends a shared O*NET budget:")
         print(json.dumps(cost, indent=2))
@@ -935,6 +960,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_cost = sub.add_parser("cost", help="project the cost of a live baseline run")
+    p_cost.add_argument("--scorer", choices=tuple(COST_MODELS), default="live")
     p_cost.set_defaults(func=_cmd_cost)
 
     p_live = sub.add_parser("record-live", help="run today's scorer and record it")
@@ -947,6 +973,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_live.add_argument("--name", default="path_scoring.score_paths@HEAD")
     p_live.add_argument("--only", default="", help="comma-separated profile ids")
     p_live.add_argument("--confirm-live-calls", action="store_true")
+    # Which cost model to quote before spending a shared budget. Both values run
+    # the same `score_paths`; "corpus" says that scorer is the F-4 rewrite, whose
+    # per-profile O*NET cost is 2 rather than the funnel's ~160.
+    p_live.add_argument("--scorer", choices=tuple(COST_MODELS), default="live")
     p_live.set_defaults(func=_cmd_record_live)
 
     p_ctrl = sub.add_parser("record-control", help="random or oracle control, no network")

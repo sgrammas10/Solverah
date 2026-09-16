@@ -3545,7 +3545,7 @@
               }
             ],
             "default": null,
-            "description": "Present only on 'failed'. `career_status_not_set` means the profile is missing a field the scorer requires -- the same condition the synchronous GET answers 400 for.",
+            "description": "Present only on 'failed'. `career_status_not_set` means the profile is missing a field the scorer requires -- the same condition the synchronous GET answers 400 for. `profile_incomplete` means it has neither a job title nor any skills, so there is nothing to score; both are answered by prompting for the missing data, not by retrying.",
             "title": "Error"
           },
           "job_id": {
@@ -3579,7 +3579,7 @@
       },
       "PathSuggestionsResponse": {
         "additionalProperties": false,
-        "description": "Scored and narrated career paths, cached per user.\n\nA 400 with ``career_status_not_set`` means the profile is missing a field\nthe scorer requires, and the client should prompt for it. A 500 means O*NET\nor the narrator failed, and the client should retry.",
+        "description": "Scored and narrated career paths, cached per user.\n\nA 400 with ``career_status_not_set`` means the profile is missing a field\nthe scorer requires, and the client should prompt for it. A 400 with\n``profile_incomplete`` means the profile has neither a job title nor any\nskills, so there is nothing to retrieve on -- prompt for those rather than\nretrying. A 500 means the occupation corpus or the narrator failed, and the\nclient should retry.",
         "properties": {
           "career_status": {
             "title": "Career Status",
@@ -7813,7 +7813,7 @@
     },
     "/api/v1/me/path-suggestion-jobs/{job_id}": {
       "get": {
-        "description": "GET /me/path-suggestion-jobs/{job_id} - poll a queued scoring.\n\n404 covers no such job, a malformed handle, and somebody else's job alike.\nDistinguishing them would confirm that a handle exists, which is the only\nthing protecting one.\n\n`error` on a failed job carries the scorer's own message -- notably\n`career_status_not_set`, the same condition the synchronous GET answers 400\nfor, which the client handles by prompting for the missing field rather than\nby retrying.",
+        "description": "GET /me/path-suggestion-jobs/{job_id} - poll a queued scoring.\n\n404 covers no such job, a malformed handle, and somebody else's job alike.\nDistinguishing them would confirm that a handle exists, which is the only\nthing protecting one.\n\n`error` on a failed job carries the scorer's own message -- notably\n`career_status_not_set`, the same condition the synchronous GET answers 400\nfor, and `profile_incomplete` when the profile carries neither a job title\nnor any skills. The client handles both by prompting for the missing data\nrather than by retrying.",
         "operationId": "get_intelligence_get_my_path_suggestion_job",
         "parameters": [
           {

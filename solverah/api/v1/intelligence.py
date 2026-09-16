@@ -457,8 +457,9 @@ def get_my_path_suggestion_job(job_id: str):
 
     `error` on a failed job carries the scorer's own message -- notably
     `career_status_not_set`, the same condition the synchronous GET answers 400
-    for, which the client handles by prompting for the missing field rather than
-    by retrying.
+    for, and `profile_incomplete` when the profile carries neither a job title
+    nor any skills. The client handles both by prompting for the missing data
+    rather than by retrying.
     """
     user = _current_user()
     if not user:

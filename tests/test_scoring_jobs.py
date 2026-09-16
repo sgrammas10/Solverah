@@ -1061,6 +1061,70 @@ def test_a_missing_career_status_fails_the_job_with_the_same_reason(
     assert body["error"] == "career_status_not_set"
 
 
+def test_an_empty_profile_fails_the_job_with_profile_incomplete(
+    client, auth, monkeypatch
+):
+    """The ACC-4 / S16.11 defect, fixed in F-4. A regression test for the wire.
+
+    Before this, a profile with no job title and no skills produced an empty
+    scored list, `intelligence_service` turned that into
+    `500 "Unable to score career paths"`, and the SPA's `stateForFailure()` --
+    which special-cases only `career_status_not_set` and `profile_incomplete` --
+    fell through to a generic "something went wrong, try again" box. Retrying
+    cannot add a job title. The frontend branch for this string already existed
+    and was dead because the backend never sent it.
+
+    `score_paths` is NOT mocked here: the typed `InsufficientProfile` it raises
+    is the thing under test, and it is raised before any corpus, O*NET or
+    OpenAI dependency is touched.
+    """
+    monkeypatch.setenv("ONET_API_KEY", "test-key")
+    monkeypatch.setattr(
+        path_narrative_mod, "generate_narratives", MagicMock(return_value=PATH_SUGGESTIONS)
+    )
+    _set_profile(EMAIL, {"career_status": "employed", "experience": [], "skills": []})
+
+    job_id = client.post(
+        "/api/v1/me/path-suggestion-jobs", headers={"X-CSRF-TOKEN": auth}
+    ).get_json()["job_id"]
+
+    body = client.get("/api/v1/me/path-suggestion-jobs/%s" % job_id).get_json()
+
+    assert body["status"] == "failed"
+    assert body["error"] == "profile_incomplete"
+    assert body["error"] != "Unable to score career paths"
+
+
+def test_a_scoring_outage_is_still_a_generic_failure_not_profile_incomplete(
+    client, auth, monkeypatch
+):
+    """The other half of the F-4 split: transient failures must stay retryable.
+
+    A profile that HAS signal but produces nothing -- an unreachable corpus, an
+    embedding outage -- is a 500 the client should retry, and must not be
+    mislabelled as the user's profile being incomplete.
+    """
+    monkeypatch.setenv("ONET_API_KEY", "test-key")
+    monkeypatch.setattr(path_scoring_mod, "score_paths", MagicMock(return_value=[]))
+    _set_profile(
+        EMAIL,
+        {
+            "career_status": "employed",
+            "experience": [{"position": "Software Engineer", "endDate": "Present"}],
+            "skills": ["Python"],
+        },
+    )
+
+    job_id = client.post(
+        "/api/v1/me/path-suggestion-jobs", headers={"X-CSRF-TOKEN": auth}
+    ).get_json()["job_id"]
+
+    body = client.get("/api/v1/me/path-suggestion-jobs/%s" % job_id).get_json()
+
+    assert body["status"] == "failed"
+    assert body["error"] != "profile_incomplete"
+
+
 def test_a_path_suggestion_handle_is_scoped_to_its_owner(client, auth, other_user):
     from app import app
     from model import ScoringJob, db
