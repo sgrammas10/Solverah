@@ -271,7 +271,7 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
     """
     from backend.services.onet_client import OnetClient
     from backend.services.path_narrative import NarrativeGenerationError, generate_narratives
-    from backend.services.path_scoring import InsufficientProfile, score_paths
+    from backend.services.path_scoring import CorpusUnavailable, InsufficientProfile, score_paths
 
     cached = path_cache.get(user.id)
     if cached is not None:
@@ -324,6 +324,16 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
             len(user_profile.skills),
         )
         return _error(400, "profile_incomplete")
+    except CorpusUnavailable:
+        # The corpus is a build artifact fetched from S3 and cached on disk;
+        # unreachable is an outage, not a bad request, and retrying works. The
+        # same branch `path_fit`, `record_path_feedback` and `_rescore` already
+        # have -- this cold generation was the one caller that fell through to
+        # the generic 500 below instead, and the job it runs under carried the
+        # untyped string where the SPA's `stateForFailure()` already had a
+        # `corpus_unavailable` branch waiting for it (F-8 follow-up).
+        logger.warning("Corpus unavailable for path scoring, user %s", user.id)
+        return _error(503, "corpus_unavailable")
     except Exception:  # noqa: BLE001 -- logged with a traceback
         logger.exception("Path scoring failed for user %s", user.id)
         return _error(500, "Unable to score career paths")

@@ -15,6 +15,7 @@ from unittest.mock import MagicMock
 
 import backend.services.path_scoring as path_scoring_mod
 import backend.services.path_narrative as path_narrative_mod
+from backend.services.occupation_retrieval import CorpusUnavailable
 from backend.services.path_scoring import ScoredPath
 from backend.services.path_narrative import PathSuggestion
 
@@ -396,3 +397,94 @@ def test_no_title_and_no_skills_is_profile_incomplete_not_a_five_hundred(
         "a thin profile was reported as an outage rather than as something the "
         "user can fix: %r" % body
     )
+
+
+# ---------------------------------------------------------------------------
+# F-8 follow-up -- the cold generation had no CorpusUnavailable branch
+# ---------------------------------------------------------------------------
+#
+# `path_fit`, `record_path_feedback` and `_rescore` each catch `CorpusUnavailable`
+# and answer `503 corpus_unavailable`, which `stateForFailure()` already branches
+# on. `path_suggestions` -- the cold generation this job runs -- had no branch
+# for it: the exception fell through to the generic `except Exception:` and the
+# job carried `500 "Unable to score career paths"`, indistinguishable from any
+# other failure. This is the missing branch, mirroring the `InsufficientProfile`
+# -> `profile_incomplete` one directly above.
+
+
+def test_a_missing_corpus_is_corpus_unavailable_not_a_five_hundred(client, monkeypatch):
+    """The untyped-500 defect this follow-up closes, exercised through the job.
+
+    `score_paths` is not mocked wholesale -- only its corpus loader is, so the
+    real function is what raises the typed exception under test.
+    """
+    csrf = _register_and_login(client, monkeypatch, email="corpus@example.com")
+    _set_profile("corpus@example.com", {
+        "career_status": "employed",
+        "skills": ["Python"],
+        "experience": [{"position": "Software Engineer", "endDate": "Present"}],
+    })
+    monkeypatch.setenv("ONET_API_KEY", "test-key")
+    monkeypatch.setattr(
+        path_scoring_mod,
+        "get_corpus",
+        MagicMock(side_effect=CorpusUnavailable("no corpus configured")),
+    )
+
+    resp = _start_job(client, csrf)
+
+    assert resp.status_code == 202, resp.get_json()
+    job = resp.get_json()
+    poll = client.get("/api/v1/me/path-suggestion-jobs/%s" % job["job_id"])
+    assert poll.status_code == 200, poll.get_json()
+    body = poll.get_json()
+    assert body["status"] == "failed"
+    assert body["error"] == "corpus_unavailable", (
+        "a missing corpus was reported as an untyped failure rather than the "
+        "retryable outage the SPA already branches on: %r" % body
+    )
+    assert body["error"] != "Unable to score career paths"
+
+
+def test_path_suggestions_answers_a_typed_503_for_a_missing_corpus(client, monkeypatch):
+    """The service-level contract the job route above rides on.
+
+    `path_fit`, `record_path_feedback` and `_rescore` all answer
+    `IntelligenceResult(status=503, body={"error": "corpus_unavailable"})` for
+    this exception; `path_suggestions` now does too. Called directly, the way
+    the F-6 cold-generation test above it in this file does, because the status
+    code the job route surfaces is folded into a job's `error` string well before
+    a client could observe it as `503`. `client` is taken for its schema, not for
+    a request -- the same reason that test takes it.
+    """
+    from app import app
+    from model import User, db
+    from solverah.repositories import profile_repository
+    from solverah.services import intelligence_service
+
+    monkeypatch.setenv("ONET_API_KEY", "test-key")
+    monkeypatch.setattr(
+        path_scoring_mod,
+        "get_corpus",
+        MagicMock(side_effect=CorpusUnavailable("no corpus configured")),
+    )
+
+    with app.app_context():
+        user = User(email="corpus-direct@example.com", password_hash="x", name="Corpus")
+        db.session.add(user)
+        db.session.commit()
+        profile_repository.update_document(
+            user.id,
+            lambda existing: {
+                **existing,
+                "career_status": "employed",
+                "skills": ["Python"],
+                "experience": [{"position": "Software Engineer", "endDate": "Present"}],
+            },
+        )
+        db.session.commit()
+
+        result = intelligence_service.path_suggestions(user, app.logger)
+
+    assert result.status == 503
+    assert result.body == {"error": "corpus_unavailable"}
