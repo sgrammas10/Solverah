@@ -31,6 +31,40 @@ packet it has been run against so far.
 
 ---
 
+## 2026-09-16 harvest
+
+RESEARCH   nothing -- `_build_env/packets/` was empty and no `RUN_REPORT.md` existed
+           anywhere in `_build_env/` at inventory time. No report and no packet means
+           research never started tonight, a distinct outcome from an empty queue or an
+           aborted run. `to_be_researched.txt` left untouched: P-12 Duke Energy still the
+           sole, topmost entry, exactly as the prior harvest left it.
+SCRUB      nothing -- `_scrub_env/packets_out/` held only `.gitkeep` and no
+           `P-0X_run_report.md` was found anywhere in `_scrub_env/`. Scrub did not run
+           tonight either. P-11's raw packet is still sitting in `packets_raw/` exactly
+           where the 2026-09-09 harvest staged it, still awaiting de-identification.
+LISTS      to_be_researched: 1 remaining (P-12 Duke Energy) · to_be_scrubbed: 1 waiting
+           (P-11 Regeneron, researched 2026-09-08 v4.10) -- both left untouched; nothing
+           completed on either side to strike a line.
+STAGED     nothing new -- `packets_raw/` was not empty (P-11 already staged from the prior
+           harvest), so step 4's staging did not apply. Refreshed
+           `_scrub_env/ANONYMIZATION_RULES_DRAFT.md` from `anonymization/ANONYMIZATION_RULES_DRAFT.md`
+           anyway, per standing instruction (checksums matched -- already identical -- copied
+           over regardless).
+REFUSED    nothing -- no destination collisions, no partial scrub set, no packet to
+           structural-check, since neither task produced anything to route.
+FLAG       This is the second harvest in a row (2026-09-09, now 2026-09-16 -- a 7-day gap)
+           to find both `_build_env/packets/` and `_scrub_env/packets_out/` empty. Worth
+           confirming by hand whether the research and scrub scheduled tasks are actually
+           firing. Separately: this harvest session's own shell access to this machine
+           failed at startup ("Workspace unavailable" -- a Windows update dated 2026-09-08 is
+           blocking Claude's local shell here). Nothing tonight needed that shell, since
+           there was nothing to move, but it would block a harvest on a night that does have
+           something to route, and the same underlying issue may be why research/scrub have
+           produced nothing for a week.
+NOT YET VERIFIED -- nothing promoted to `anonymization/` this run. P-10 Twilio remains the
+           most recently promoted packet; its verification status is unchanged.
+
+
 ## 2026-09-09 harvest
 
 RESEARCH   P-11 Regeneron -- packet 45 excerpts (A 7, B 15, C 11, D 4/3 sources, E 2, F 6),

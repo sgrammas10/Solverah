@@ -29,6 +29,13 @@
  *   render with zero wait on `GET /auth/session` — AuthProvider no longer
  *   gates the tree; see RequireAuth.tsx.
  *
+ *   Its mirror, `RedirectIfAuthenticated`, wraps the entry surface ("/",
+ *   /login, /register): a signed-in visitor is sent to the dashboard instead
+ *   of being shown a landing page or a sign-in form under a Header that
+ *   already knows their name. A first-time visitor still renders with zero
+ *   wait; only a browser that has had a session before is held behind the
+ *   skeleton while the probe is out. See RedirectIfAuthenticated.tsx.
+ *
  * Header visibility:
  *   The global Header is hidden on the "/" route because PrelaunchLandingPage
  *   renders its own navigation (LandingNav).  All other routes show the Header.
@@ -40,6 +47,7 @@ import { AuthProvider } from "../features/auth/AuthContext.tsx";
 import { ProfileCacheSync } from "../features/profile";
 import Header from "./Header";
 import { RequireAuth } from "./RequireAuth";
+import { RedirectIfAuthenticated } from "./RedirectIfAuthenticated";
 import { RouteErrorBoundary } from "./RouteErrorBoundary";
 import { createQueryClient } from "../shared/api/queryClient";
 
@@ -209,14 +217,21 @@ function App() {
       <Router>
         <AppShell>
           <Routes>
+              {/* The entry surface. One pathless layout route, the mirror of
+                  RequireAuth below: a signed-in visitor is sent to the
+                  dashboard rather than shown the landing page or a sign-in
+                  form. See RedirectIfAuthenticated.tsx. */}
+              <Route element={<RedirectIfAuthenticated />}>
+                <Route path="/" element={<PrelaunchLandingPage />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+              </Route>
+
               {/* Public routes */}
-              <Route path="/" element={<PrelaunchLandingPage />} />
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/quiz-preview" element={<GuestQuizPreview />} />
               <Route path="/quiz-preview/insights" element={<GuestQuizInsights />} />
               <Route path="/start" element={<CareerIntakePage />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
               {/* Legal + transparency (public) */}
               <Route path="/privacy" element={<LegalPage doc="privacy" />} />
               <Route path="/terms" element={<LegalPage doc="terms" />} />
