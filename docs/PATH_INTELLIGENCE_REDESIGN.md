@@ -285,6 +285,8 @@ flows follow — any elicitation must survive being abandoned:**
   ring at a fixed `r_min`). A flow that blocks results until complete will be
   abandoned and produce nothing.
 
+_**Retraction, 2026-09-16 (F-6).** The MMR recommendation above did not survive measurement: built and tested in a controlled two-round experiment on the six `adjacent` profiles, no configuration beat no-MMR (nDCG 0.607 vs 0.599 at best) and the variants that genuinely diversified cost 0.05–0.17. Dropped; the table is in `path_scoring.py`. Do not re-add without a new measurement. Two corrections to the radius as described: the cut is the **minimum** cosine among rejected cards (a maximum leaves less-similar rejections reachable), and cards the user marked *interesting* are exempt from it. A third verdict, `not_for_me`, shipped as the directional negative Rocchio's γ term needs — "too similar" cannot serve, because subtracting a card that sits next to the anchor subtracts the anchor._
+
 ### 3.3 `fresh_start` — diverse seed, same loop ⚑
 
 Sebastian had no starting point for this one. Proposed:

@@ -600,20 +600,23 @@ _2026-09-16: **F-5 landed** (54ed44c), 3085 passed / 0 failed; overseer verified
 
 ### F-6 · ⚑7 `adjacent` — inline feedback on the result cards (M)
 
-- [ ] Result cards carry "too similar" / "interesting"; the list re-ranks as the
+- [x] Result cards carry "too similar" / "interesting"; the list re-ranks as the
   user taps
-- [ ] Rocchio update: `q' = α·q + β·mean(liked) − γ·mean(disliked)`
-- [ ] **Both signals, not just the radius.** "Too similar" raises the annulus
+- [x] Rocchio update: `q' = α·q + β·mean(liked) − γ·mean(disliked)`
+- [x] **Both signals, not just the radius.** "Too similar" raises the annulus
   inner radius; "interesting" *rotates* the query — two occupations equidistant
   from the anchor can lie in opposite directions
-- [ ] MMR for probe diversity (top-K teaches nothing, random teaches nothing)
-- [ ] Zero taps must still yield a full default result set
+- [x] ~~MMR for probe diversity (top-K teaches nothing, random teaches nothing)~~ **RETIRED ON EVIDENCE, 2026-09-16** — built, measured in a controlled two-round experiment (taps held fixed across arms; the first, confounded version was caught and re-run), dropped: no configuration beat no-MMR (0.607 vs 0.599 best), and the variants that actually diversified cost 0.05–0.17 nDCG. Full table in `path_scoring.py`. Design doc §3.2 carries the retraction.
+- [x] Zero taps must still yield a full default result set
 
 _⚑7 Sebastian, 2026-09-16: **inline, not a questionnaire.** Closes design doc
 §5 #3. The doc originally proposed a one-screen elicitation step; that was the
 weaker idea — a separate step is friction before the user has seen any value,
 most people skip it, and the accuracy benefit never lands. Inline makes the
 feedback *be* the browsing, and is valid-half-finished by construction._
+
+
+_2026-09-16: **F-6 landed** (397aaac), 3158 passed / 0 failed backend, 953 vitest, `tsc -b` clean; overseer verified hygiene (27 files, nothing off-limits), a single alembic head (`20260916_path_fb`, file `path_feedback.py`), and that the **zero-tap run re-scores byte-identical to F-4** (0.491 / 0.005 / 0.437 / 0.770) — the loop changes nothing until a tap. **Endpoints:** `POST`/`DELETE /api/v1/me/path-feedback`, `{onet_code, verdict}`, 20/min on scope `intelligence:path-feedback` (10 would 429 a ten-card shortlist); both write INTO `path_cache` and invalidate nothing, so F-5's enumeration rule needed no carve-out. **Three verdicts** — `not_for_me` added because it is what makes Rocchio's negative term reachable (subtracting a too-similar card subtracts the anchor); +0.011 nDCG at matched constants, harm flat. **Constants:** α 1.0, β 0.40 (hard elbow), γ 0.15, `r_min = min(cos(anchor, rejected)) − 0.01`, `_RADIUS_MIN_SURVIVORS = 10`, `_RETRIEVE_K_ADJACENT = 50`; tuned with taps constrained to cards the profile was actually shown (the first sweep let a tap land on a card retrieval excludes and reported ~2× the gain — caught). **Simulated feedback, real corpus:** macro 0.528 → 0.551, harm 0 → 0; the two worst baselines gain most (teacher 0.194 → 0.445, data analyst 0.399 → 0.497). The radius alone reads as a loss (0.477) — the metric's limit: the nearest-to-anchor card is very often labelled *primary*, so honouring "yes, and I don't want it" deletes a labelled-good result by construction; the test gates on what the labels can answer. **Storage** `path_feedback` `UNIQUE(user_id, onet_code)`, upsert on re-tap, migration proven from empty on `solverah_f6m`; D-7 destroyed on deletion, not exported (a judgement about one's own career is the person's even de-identified). **Frontend:** `PathSuggestionCard` (three `data-verdict` buttons, `aria-pressed`, body-as-button opens the fit, controls outside the click region), `PathFitPanel`, `usePathFeedback.ts`, `pathFailure.ts` (`stateForFailure` lifted out of the page — it was module-private there, not in Login.tsx); spinner asserted at 850 ms; optimistic only where honest (dismissed vanishes, interesting stays, never guesses a Rocchio order); every error code branched, non-retryable ones get no retry; the SQL-gap defect is rendered, not hidden. **Contract** 0 diffs / 99 before recapture → 103 (three POSTs pin verdict → code → corpus ordering), openapi +234/−0, `schema.ts` +455/−5 (the F-5 catch-up). **Findings:** (1) the overseer's brief had the radius backwards — cut at the MINIMUM rejected cosine, and liked cards are exempt (the radius was deleting them; caught by the sim test). (2) Sync re-rank is **3 ms** warm; `generate_narratives` is 1.4–1.7 s per card, 6.7 s for ten — the narrator is off the tap path; existing prose carries across, new cards self-describe from `overlapping_skills` (→F-8 if LLM prose on re-ranked cards is wanted, it must be earned off the request path). (3) Cold generation ignored stored judgements — a reload after a deploy silently rebuilt the default list; fixed, `feedback` now travels with the payload. (4) An offline-only sim test could not be built honestly: a fake embedder collapses the query to the bare anchor and produced artefacts; the test uses the real embedder and **skips in CI** (no `OPENAI_API_KEY`). (5) Process trap: **`TaskStop` kills the wrapper shell, not the pytest child** — two pytest processes on one lane DB, the documented concurrent-pytest failure; kill by PID and verify._
 
 ### F-7 · `fresh_start` — diverse seed, same loop (M)
 
