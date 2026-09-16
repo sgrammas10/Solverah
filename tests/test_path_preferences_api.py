@@ -195,10 +195,17 @@ def _service_sources():
     }
 
 
-#: The six sites as they stand. Not the assertion -- `_service_sources()` is --
-#: but a floor, so a scan that silently stopped matching cannot pass by finding
-#: nothing. Raise it when a seventh write site is added.
-_KNOWN_INVALIDATION_SITES = 6
+#: The seven sites as they stand. Not the assertion -- `_service_sources()` is
+#: -- but a floor, so a scan that silently stopped matching cannot pass by
+#: finding nothing. Raise it when an eighth write site is added.
+#:
+#: Six until F-8 box 6, which found the seventh: `set_career_status` invalidated
+#: neither cache. The rule above could not catch it, because the rule is "a site
+#: that drops one must drop the other" and that site dropped neither -- the scan
+#: only looks at files that already call `path_cache.invalidate`, so a write
+#: which forgot both was invisible to it by construction. This floor is what
+#: catches the next one: a site that goes missing takes the count down with it.
+_KNOWN_INVALIDATION_SITES = 7
 
 
 def test_every_path_cache_invalidation_also_drops_the_stored_deep_fits():
@@ -272,3 +279,112 @@ def test_save_preferences_drops_the_stored_deep_fits(client, monkeypatch):
 
     with app.app_context():
         assert PathFit.query.filter_by(user_id=user_id).count() == 0
+
+
+# ---------------------------------------------------------------------------
+# F-8 box 6 -- the seventh write site
+# ---------------------------------------------------------------------------
+#
+# `career_status` is a path-scoring INPUT and not a label. It selects the
+# weight row (`path_scoring._WEIGHT_SPLITS`), it decides whether a title is
+# read off the experience list at all (`build_user_profile` skips it for
+# `first_job`), and it feeds the Job Zone floor. `set_career_status` dropped
+# neither cache, so a user who corrected "employed" to "between_jobs" kept
+# being served the answers to the question they had just changed.
+#
+# The RULE test above could not have caught this. It scans files that already
+# call `path_cache.invalidate` and checks that each such call has a matching
+# `path_fit_repository.invalidate` -- so a write site that forgot BOTH is
+# invisible to it by construction. The floor is what closes that, and these two
+# are the behaviour behind it.
+
+
+def test_setting_career_status_invalidates_the_suggestion_cache(client, monkeypatch):
+    """The regression. Fails without the fix, on the shape a user would hit."""
+    csrf = _register_and_login(client, monkeypatch, email="status@example.com")
+
+    from app import app
+    from model import User
+    from solverah.services import path_cache
+
+    with app.app_context():
+        user_id = User.query.filter_by(email="status@example.com").first().id
+        path_cache.store(
+            user_id,
+            {
+                "suggestions": [],
+                "career_status": "employed",
+                "generated_at": "2026-01-01T00:00:00Z",
+            },
+        )
+
+    assert user_id in path_cache.snapshot()
+
+    resp = client.patch(
+        "/api/v1/me/career-status",
+        json={"status": "between_jobs"},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+
+    assert resp.status_code == 200, resp.get_json()
+    assert user_id not in path_cache.snapshot(), (
+        "the suggestions still answer the career_status the user just changed"
+    )
+
+
+def test_setting_career_status_drops_the_stored_deep_fits(client, monkeypatch):
+    """Tier 2 as well, even though Tier 2 would have self-corrected.
+
+    `path_fits` carries a profile fingerprint and would have noticed on the next
+    read, so only Tier 1 actually served stale results. Both are dropped anyway:
+    "one of the two happens to be self-healing" is not a rule anybody can hold
+    in their head, and the enumeration above is built on the two moving
+    together.
+    """
+    csrf = _register_and_login(client, monkeypatch, email="statusfits@example.com")
+
+    from app import app
+    from model import PathFit, User, db
+    from solverah.repositories import path_fit_repository
+
+    with app.app_context():
+        user_id = User.query.filter_by(email="statusfits@example.com").first().id
+        path_fit_repository.store(user_id, "15-1252.00", {"fit_score": 0.5}, "f" * 64)
+        db.session.commit()
+        assert PathFit.query.filter_by(user_id=user_id).count() == 1
+
+    client.patch(
+        "/api/v1/me/career-status",
+        json={"status": "first_job"},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+
+    with app.app_context():
+        assert PathFit.query.filter_by(user_id=user_id).count() == 0
+
+
+def test_a_rejected_career_status_invalidates_nothing(client, monkeypatch):
+    """An invalid status changes no input, so it must not cost a cache.
+
+    The invalidation sits after the validation guard, and this is what keeps it
+    there: throwing away a warm cache on a request that wrote nothing is a free
+    latency regression nobody would trace back to here.
+    """
+    csrf = _register_and_login(client, monkeypatch, email="badstatus@example.com")
+
+    from app import app
+    from model import User
+    from solverah.services import path_cache
+
+    with app.app_context():
+        user_id = User.query.filter_by(email="badstatus@example.com").first().id
+        path_cache.store(user_id, {"suggestions": [], "career_status": "employed"})
+
+    resp = client.patch(
+        "/api/v1/me/career-status",
+        json={"status": "retired-to-a-vineyard"},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+
+    assert resp.status_code == 400
+    assert user_id in path_cache.snapshot()

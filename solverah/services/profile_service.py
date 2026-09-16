@@ -183,14 +183,32 @@ def save_profile(user: User, raw_profile_data: Any, clean_profile_data) -> Profi
 
 
 def set_career_status(user: User, status: Any) -> ProfileResult:
-    """Set ``career_status`` without a full profile save."""
+    """Set ``career_status`` without a full profile save.
+
+    ``career_status`` is a path-scoring INPUT, not a label: it decides the
+    ``seniority``/``priority`` weight row (``path_scoring._WEIGHT_SPLITS``),
+    whether a title is read off the experience list at all
+    (``intelligence_service.build_user_profile`` skips it for ``first_job``),
+    and the Job Zone floor. So changing it changes every suggestion -- and
+    until F-8 box 6 this was the one profile write that invalidated neither
+    cache, which meant a user who corrected "employed" to "between_jobs" kept
+    being served the answers to the question they had just changed.
+
+    A pre-existing bug, and one the F-5 enumeration missed because it was
+    looking for sites that already called ``path_cache.invalidate``. Tier 2
+    self-corrected through its profile fingerprint, so only Tier 1 actually
+    served stale results; both are dropped here anyway, because "one of the two
+    happens to be self-healing" is not a rule anybody can keep in their head.
+    """
     if status not in domain.CAREER_STATUSES:
         return _error(400, "invalid_status")
 
     profile_repository.update_document(
         user.id, lambda existing: {**existing, "career_status": status}
     )
+    path_fit_repository.invalidate(user.id)  # in-transaction, with the commit below
     db.session.commit()
+    path_cache.invalidate(user.id)  # after the commit: it caches what is now true
 
     return ProfileResult(status=200, body={"career_status": status})
 
