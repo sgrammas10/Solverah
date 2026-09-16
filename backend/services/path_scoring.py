@@ -392,45 +392,40 @@ _RETRIEVE_K_ADJACENT: int = 50
 #:   already appears, as the ``style`` term.  Measured: mix 0.00, 0.30, 0.50,
 #:   0.60, 0.75 and 1.00 all produce macro nDCG@10 0.2420 and the same four
 #:   pages, card for card.
-#: * **On the TAPPED page it is load-bearing, and the measurement prefers the
-#:   lower value.**  Macro nDCG after one round of simulated feedback: 0.3282 at
-#:   mix 0.00 and 0.30, 0.3147 at 0.60 and 1.00.  The whole difference is p05
-#:   (0.054 against 0.000) and it is one *acceptable*-graded card.
+#: * **On the TAPPED page it is load-bearing, and F-8 REVERSED WHICH VALUE THE
+#:   MEASUREMENT PREFERS.**  Macro nDCG after one round of simulated feedback:
 #:
-#: WHY THE DESIGN'S VALUE SHIPS ANYWAY, AND THE HAZARD THAT SITS UNDER IT
-#: ----------------------------------------------------------------------
-#: p05's loss has a traceable cause, and it is not the weight.  Its
-#: ``archetype_description`` -- which ``assessment_prompts`` has an LLM write per
-#: user, 2-3 sentences, not fixed product copy -- contains the sentence "you
-#: would rather **prevent a fire** than be praised for putting one out".  The
-#: embedder reads the metaphor literally.  Nearest corpus rows to that
-#: behavioural document, measured:
+#:       mix                     0.00     0.30     0.60     1.00
+#:       F-7 (prose document)   0.3282   0.3282   0.3147   0.3147
+#:       F-8 (structured)       0.3409   0.3403   0.3535   0.3147
 #:
-#:     0.384  First-Line Supervisors of Firefighting and Prevention Workers
-#:     0.369  Firefighters
-#:     0.367  Fire-Prevention and Protection Engineers
-#:     0.356  Forest Fire Inspectors and Prevention Specialists
-#:     0.355  Fire Inspectors and Investigators
+#:   F-7 shipped 0.60 as the design's value while recording that its own n=1
+#:   evidence preferred 0.30.  With the behavioural document composed from the
+#:   structured fields instead of from LLM prose (F-8 box 8, see
+#:   :func:`_build_behavioral_profile`), **0.60 is now the best measured value
+#:   and by the largest margin in the sweep** -- and it was the prose, not the
+#:   weight, that had been pulling the other way.  The whole difference is
+#:   still p05, which is still n=1; what changed is that the one profile now
+#:   agrees with the design instead of contradicting it.
 #:
-#: Delete that one sentence and every fire occupation disappears from the top
-#: eight, replaced by first-line supervisors and operations managers -- which is
-#: what the rest of the document actually says.  So the measurement above is
-#: reading a figure of speech, not a weighting error, and tuning this constant
-#: down would hide the hazard in the one place it is currently visible rather
-#: than fix it.
+#: WHAT THAT DOES TO F-7's NEGATIVE RESULT
+#: ---------------------------------------
+#: F-7 recorded that the design's trajectory claim -- feedback recovers more
+#: than the diverse seed costs -- "does not hold as stated", because one round
+#: reached 0.3147 against the interim's static 0.3322.  At the same constants
+#: with the metaphor hazard removed, one round reaches **0.3535, above the
+#: interim**.  p05 goes 0.000 -> 0.155 where it was 0.000 -> 0.000: with the
+#: fire occupations gone its first page contains a card the label set can
+#: judge, so a positive tap exists where before there was none.  The claim
+#: holds at n=4.  It is still n=4, and F-2's sample-size rule still forbids
+#: reading this as a per-axis result.
 #:
-#: **Two things follow, and they belong to F-8 rather than here.**  (1) The
-#: behavioural document is LLM prose about *how* someone works, compared against
-#: role documents that describe *what* the work is -- so its cosines sit at
-#: 0.34-0.38 where the skills document's sit at 0.52-0.60.  It is a weaker and
-#: noisier signal by construction, whatever weight it carries.  (2) Figurative
-#: language in generated assessment copy is a live production input, not a
-#: fixture artefact.  The fix is to compose the behavioural document from the
-#: structured fields (``archetype`` / ``focus_type`` / ``work_style_tags``) or to
-#: tell the assessment prompt to stay literal -- both in
-#: ``_build_behavioral_profile``'s and ``assessment_prompts``' territory.  If
-#: Sebastian would rather not carry the risk until then, 0.30 is a one-line
-#: revert and costs nothing on the zero-tap page.
+#: WHAT HAS NOT CHANGED
+#: --------------------
+#: The behavioural document is a description of *how* someone works compared
+#: against role documents describing *what* the work is, so its cosines sit at
+#: 0.34-0.42 against the skills document's 0.52-0.60.  A weaker signal by
+#: construction, whatever weight it carries and however it is composed.
 _FRESH_START_BEHAVIORAL_MIX: float = 0.60
 
 #: The transferable-skill floor: a candidate whose skills-document cosine is
@@ -1088,23 +1083,75 @@ def _compose_profile_document(profile: UserProfile) -> str | None:
 
 
 def _build_behavioral_profile(profile: UserProfile) -> str | None:
-    """Compose a single descriptive string from completed assessment results.
+    """Compose the behavioural document from the profile's STRUCTURED fields.
 
-    Prefers full description text over short label names so the embedding lands
-    in the right semantic neighbourhood relative to O*NET's task language.
     Returns None if no assessment data is present -- callers skip the style term.
+
+    WHY ``archetype_description`` IS NOT IN HERE (F-8 box 8; it used to be first)
+    ----------------------------------------------------------------------------
+    ``archetype_description`` is 2-3 sentences an LLM writes **per user**
+    (``solverah/services/assessment_prompts.py``), and the embedder reads it
+    literally.  F-7 measured the consequence on evaluation profile p05, whose
+    description contains "you would rather *prevent a fire* than be praised for
+    putting one out".  The five corpus rows nearest that document were:
+
+        0.384  First-Line Supervisors of Firefighting and Prevention Workers
+        0.369  Firefighters
+        0.367  Fire-Prevention and Protection Engineers
+        0.356  Forest Fire Inspectors and Prevention Specialists
+        0.355  Fire Inspectors and Investigators
+
+    A figure of speech about temperament, retrieved as a career in fire safety.
+    That is a **production** input, not a fixture artefact: the sentence is
+    generated for a real user from a real assessment, and nothing in the
+    pipeline constrains it to literal language.
+
+    Composed from the structured fields instead, the same profile's five
+    nearest rows are First-Line Supervisors of Production and Operating
+    Workers, Millwrights, Woodworking Machine Setters, Maintenance and Repair
+    Workers, and Team Assemblers -- operations and supervision, which is what
+    the rest of the profile actually says.  Zero ``33-`` rows.
+
+    **Dropped rather than sanitised, and the choice was between those two.**
+    Stripping "figurative sentences" from free prose means a detector with no
+    ground truth and no harness to judge it by -- the same unfalsifiable tuning
+    this workstream refuses elsewhere (see ``path_deep_fit._EMBED_THRESHOLD``),
+    and one that fails open: a metaphor it does not recognise goes straight
+    through.  The structured fields need no detector because the product
+    already controls their vocabulary.
+
+    WHAT IT COST, MEASURED ON F-2's HARNESS (real corpus, real embedder)
+    -------------------------------------------------------------------
+    Macro nDCG@10 over the 19 non-degenerate profiles: **0.472 -> 0.473**,
+    harmful_rate 0.005 -> 0.005 (the same single p17 label), every other metric
+    byte-identical.  Four profiles moved at all and only p01 by more than
+    0.003 (0.482 -> 0.501).  On the ``fresh_start`` page after one simulated
+    round of taps the macro goes **0.3147 -> 0.3535** at the shipped mix, which
+    is what re-opened :data:`_FRESH_START_BEHAVIORAL_MIX` -- see there.
+
+    THE RESIDUAL, RECORDED RATHER THAN CLAIMED FIXED
+    ------------------------------------------------
+    ``manager_match`` and ``work_style_tags`` are also LLM-written, so this
+    narrows the hazard rather than closing it.  They are kept because they are
+    the only statement of *how* the person works that survives, because they
+    describe management and working conditions rather than occupations -- the
+    domain where a metaphor turns into a job title -- and because F-7's finding
+    was about ``archetype_description`` specifically, which is the one field
+    whose brief is to be evocative.  The deeper point stands: behavioural
+    documents cosine at 0.34-0.42 against role documents where skills documents
+    reach 0.52-0.60, so this is a weak signal whatever it is composed of.
     """
     parts: list[str] = []
-    # Use the rich multi-sentence description when available; fall back to the label.
-    if profile.archetype_description:
-        parts.append(profile.archetype_description)
-    elif profile.archetype:
-        parts.append(profile.archetype)
+    if profile.archetype:
+        parts.append(f"Work archetype: {profile.archetype}.")
     if profile.focus_type:
-        parts.append(profile.focus_type)
+        parts.append(f"Focus type: {profile.focus_type}.")
+    if profile.work_style_tags:
+        tags = "; ".join(tag for tag in profile.work_style_tags if tag.strip())
+        if tags:
+            parts.append(f"Working style: {tags}.")
     if profile.manager_match:
-        parts.append(profile.manager_match)
-    parts.extend(profile.work_style_tags)
+        parts.append(f"Preferred management: {profile.manager_match}")
     return " ".join(parts) if parts else None
 
 
