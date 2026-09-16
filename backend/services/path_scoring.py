@@ -90,12 +90,15 @@ from typing import Literal, Mapping, Sequence
 
 import numpy as np
 
+from backend.services import occupation_clusters
 from backend.services.occupation_retrieval import (
     CorpusUnavailable,
     Match,
     OccupationCorpus,
     get_corpus,
     is_all_other_title,
+    soc_prefix_excluded,
+    zone_within_ceiling,
 )
 from backend.services.onet_client import (
     OnetAPIError,
@@ -290,6 +293,13 @@ _RADIUS_MIN_SURVIVORS: int = 10
 #: :data:`_RETRIEVE_K` itself is left alone.  It is shared by `stay_in_field` and
 #: `fresh_start`, which F-6 does not own and where the measurement above does not
 #: apply -- there is no radius on those paths to make the pool too narrow.
+#:
+#: *F-7: `fresh_start` now reads this too, from its first tap onward, because
+#: from that point it IS this path -- same radius, same rotation, same reason for
+#: a wider pool.  The name is kept as it is rather than generalised: the
+#: measurement above was made on the `adjacent` profiles and renaming it would
+#: quietly claim otherwise.  Before any tap `fresh_start` retrieves the whole
+#: corpus instead; see `_fresh_start_seed`.*
 _RETRIEVE_K_ADJACENT: int = 50
 
 
@@ -341,13 +351,154 @@ _RETRIEVE_K_ADJACENT: int = 50
 # one.  Until then, shipping a feature that loses on every metric available is
 # the "weights are opinion" failure F-2 exists to prevent.
 
-#: ``fresh_start`` blends the behavioural profile into the skills query.
+# ---------------------------------------------------------------------------
+# F-7 -- `fresh_start`: a diverse seed, then F-6's loop
+# ---------------------------------------------------------------------------
+#
+# Someone leaving their field wants to leave the DOMAIN, not their CAPABILITIES.
+# So the occupation anchor is dropped, everything else about the person is kept,
+# and because there is no anchor to probe around the first page is seeded with a
+# maximally diverse spanning set (`occupation_clusters`) which F-6's loop then
+# rotates toward whatever they tap.  Design doc §3.3.
+#
+# THE TRAP, STATED ONCE: DISTANCE FROM THE CURRENT JOB IS NEVER A POSITIVE
+# SIGNAL.  "Far from software engineering" includes Logging Worker.  Nothing in
+# this intent's path scores distance, ranks by it, or breaks a tie with it --
+# the only thing the user's own occupation does here is *exclude* its own minor
+# group, which removes candidates and can never promote one.
+# `TestDistanceIsNotASignal` pins that.
+
+#: How much of ``fresh_start``'s query is the behavioural profile, the rest
+#: being the skills document: ``q0 = (1-mix)*skills + mix*behavioural``.
 #:
-#: Design doc §3.3 wants the behavioural profile to be the *primary* query for
-#: this intent.  F-7 does that with a diverse k-means seed; here it is a blend,
-#: because a behavioural-only query with no transferable-skill floor is how you
-#: recommend Logging Worker.  Zero when the user has no assessment data.
-_FRESH_START_BEHAVIORAL_MIX: float = 0.30
+#: **Design doc §3.3 wants the behavioural profile DOMINANT here**, and F-4's
+#: interim 0.30 was the opposite of that -- deliberately, because a
+#: behavioural-only query with no transferable-skill floor is how you recommend
+#: Logging Worker.  F-7 adds the floor as a hard filter, which is what makes
+#: dominance safe against *that* failure: the capabilities constraint no longer
+#: has to be expressed as a weight, so the query is free to be about what the
+#: person wants.  0.60 is the near edge of "dominant" and is what ships.
+#:
+#: WHAT THE HARNESS CAN AND CANNOT SAY ABOUT IT
+#: --------------------------------------------
+#: Only ONE of the four ``fresh_start`` evaluation profiles has a behavioural
+#: profile at all (p05; p07, p10 and p16 have no assessment data), so every
+#: number below is n=1 -- the "weights are opinion" failure F-2 exists to
+#: prevent, in the one place this chunk could not avoid it.
+#:
+#: * **On the zero-tap page it is inert, and provably so.**  Seeding retrieves
+#:   *every* surviving row rather than a top-k, so ``q0`` selects nothing and the
+#:   page is ordered by the four-term score -- in which the behavioural profile
+#:   already appears, as the ``style`` term.  Measured: mix 0.00, 0.30, 0.50,
+#:   0.60, 0.75 and 1.00 all produce macro nDCG@10 0.2420 and the same four
+#:   pages, card for card.
+#: * **On the TAPPED page it is load-bearing, and the measurement prefers the
+#:   lower value.**  Macro nDCG after one round of simulated feedback: 0.3282 at
+#:   mix 0.00 and 0.30, 0.3147 at 0.60 and 1.00.  The whole difference is p05
+#:   (0.054 against 0.000) and it is one *acceptable*-graded card.
+#:
+#: WHY THE DESIGN'S VALUE SHIPS ANYWAY, AND THE HAZARD THAT SITS UNDER IT
+#: ----------------------------------------------------------------------
+#: p05's loss has a traceable cause, and it is not the weight.  Its
+#: ``archetype_description`` -- which ``assessment_prompts`` has an LLM write per
+#: user, 2-3 sentences, not fixed product copy -- contains the sentence "you
+#: would rather **prevent a fire** than be praised for putting one out".  The
+#: embedder reads the metaphor literally.  Nearest corpus rows to that
+#: behavioural document, measured:
+#:
+#:     0.384  First-Line Supervisors of Firefighting and Prevention Workers
+#:     0.369  Firefighters
+#:     0.367  Fire-Prevention and Protection Engineers
+#:     0.356  Forest Fire Inspectors and Prevention Specialists
+#:     0.355  Fire Inspectors and Investigators
+#:
+#: Delete that one sentence and every fire occupation disappears from the top
+#: eight, replaced by first-line supervisors and operations managers -- which is
+#: what the rest of the document actually says.  So the measurement above is
+#: reading a figure of speech, not a weighting error, and tuning this constant
+#: down would hide the hazard in the one place it is currently visible rather
+#: than fix it.
+#:
+#: **Two things follow, and they belong to F-8 rather than here.**  (1) The
+#: behavioural document is LLM prose about *how* someone works, compared against
+#: role documents that describe *what* the work is -- so its cosines sit at
+#: 0.34-0.38 where the skills document's sit at 0.52-0.60.  It is a weaker and
+#: noisier signal by construction, whatever weight it carries.  (2) Figurative
+#: language in generated assessment copy is a live production input, not a
+#: fixture artefact.  The fix is to compose the behavioural document from the
+#: structured fields (``archetype`` / ``focus_type`` / ``work_style_tags``) or to
+#: tell the assessment prompt to stay literal -- both in
+#: ``_build_behavioral_profile``'s and ``assessment_prompts``' territory.  If
+#: Sebastian would rather not carry the risk until then, 0.30 is a one-line
+#: revert and costs nothing on the zero-tap page.
+_FRESH_START_BEHAVIORAL_MIX: float = 0.60
+
+#: The transferable-skill floor: a candidate whose skills-document cosine is
+#: below this is dropped before ranking.
+#:
+#: "Feasible and different" must never mean "nothing in common".  The floor is
+#: the design doc's transferable-skill constraint as a hard filter -- the same
+#: move F-3 made for Job Zone, and for the same reason: expressed as a weight it
+#: is tradeable against three other terms, and a diverse seed trades it away by
+#: construction, because the whole point of the seed is to reach regions the
+#: query does not already favour.
+#:
+#: **This constant is a dial between the spread and the interim, and the metric
+#: prefers the interim, so read the second row before the first.**  Measured
+#: over the four ``fresh_start`` profiles -- macro nDCG@10 of the zero-tap page,
+#: and how many of the eight clusters that page still spans:
+#:
+#:     floor     0.00     0.25     0.30     0.40     0.45     0.50
+#:     nDCG     0.2420   0.2420   0.2404   0.2500   0.3212   0.3330
+#:     spread   8/8/8/8  8/8/8/8  8/8/8/7  7/8/8/4  5/5/5/3  5/4/3/3
+#:
+#: A floor of 0.50 scores 0.3330 -- indistinguishable from the interim scorer's
+#: 0.3322 -- and it gets there by leaving so few occupations reachable that the
+#: survivor guard hands the seed a pool it cannot spread across.  That is not
+#: the floor working, it is the floor switching the chunk off: the interim's own
+#: spread is 5/4/2/3.  0.25 is the highest value that costs neither nDCG nor a
+#: single cluster, which is the property actually wanted from a filter whose job
+#: is to remove nonsense rather than to express a preference.
+#:
+#: Below ``_COSINE_FLOOR`` on purpose for the same reason: everything
+#: interesting lands between 0.30 and 0.85, so a floor inside that band would be
+#: a weight wearing a filter's clothes.
+_FRESH_START_SKILL_FLOOR: float = 0.25
+
+#: How many candidates the floor may never take the pool below.
+#:
+#: `_RADIUS_MIN_SURVIVORS`' argument, for the other hard filter that a user's own
+#: data can drive: a short list is a real answer and an empty one is an HTTP
+#: 500.  A user with two generic skills ("Customer service", "Microsoft Excel")
+#: can sit far from every role document in the corpus, and a fixed floor would
+#: answer them with nothing.  When fewer than this many rows clear the floor it
+#: is lowered to admit exactly this many -- so the filter degrades into "the
+#: closest N" rather than into a failure.  `_TOP_N` rather than a new number:
+#: the page holds ten, so ten is the fewest that can fill it.
+_FRESH_START_FLOOR_MIN_SURVIVORS: int = _TOP_N
+
+#: How far above the user's own Job Zone ``fresh_start`` will look.
+#:
+#: Feasibility as a HARD filter, design doc §2.2 and §3.3.  A fresh start from
+#: zone 2 into a doctoral occupation is not a suggestion, and the zone term in
+#: the re-rank cannot express that -- it is one weighted term among four, so a
+#: strong coverage score buys a candidate past it.  +1 is the same "one
+#: reachable step up" the zone curve is built around; see `_zone_delta_score`
+#: for why the live scale is 2-5 and why the bottom step is the wide one.
+#:
+#: **Measured, it costs nothing, which is what a safety filter should look like
+#: when the scorer underneath it is working.**  Macro nDCG@10 over the four
+#: ``fresh_start`` profiles is 0.2420 at +1, at +2 and with no ceiling at all --
+#: byte-identical pages, because the ranking was already below the ceiling.  It
+#: is here for the profile the harness does not contain: 0 (a hard lateral) is
+#: the only setting that changes anything, and it costs the administrative
+#: assistant 0.300 -> 0.107 by barring the step up she explicitly asked for.
+#:
+#: **An unknown zone means no ceiling, never a guess.**  Filtering on missing
+#: information is how `zone_within_ceiling` describes its own worst case, and a
+#: user whose title did not resolve would otherwise be silently held to the
+#: `_UNKNOWN_ZONE_FALLBACK` of 2.
+_FRESH_START_ZONE_HEADROOM: int = 1
 
 #: How much of the user's own SOC code ``fresh_start`` excludes from its
 #: results: 3 characters is the major group ("43-"), 4 is the minor group
@@ -1302,6 +1453,166 @@ def _radius_exclusions(
     return r_min, excluded
 
 
+# ---------------------------------------------------------------------------
+# F-7 -- `fresh_start`'s hard filters and its diverse seed
+# ---------------------------------------------------------------------------
+
+
+def _fresh_start_soc_exclusions(anchor: _Anchor) -> tuple[str, ...]:
+    """The user's own SOC minor group, which ``fresh_start`` retrieval drops.
+
+    ``"15-1252.00" -> "15-1"``.  See :data:`_FRESH_START_EXCLUDE_PREFIX_LEN` for
+    why the minor group and not the major one (⚑9).  One definition, because the
+    transferable-skill floor's survivor guard has to count the same rows
+    retrieval will actually return.
+    """
+    if not anchor.code or _FRESH_START_EXCLUDE_PREFIX_LEN <= 0:
+        return ()
+    return (anchor.code[:_FRESH_START_EXCLUDE_PREFIX_LEN],)
+
+
+def _fresh_start_zone_max(
+    profile: UserProfile, anchor: _Anchor, corpus: OccupationCorpus
+) -> int | None:
+    """The Job Zone ceiling for this user, or None when there is no basis for one.
+
+    ``anchor.zone_resolved`` is the honest test, with one addition this module
+    already makes elsewhere: a ``first_job`` user has no occupation to resolve
+    and their fallback zone is nevertheless the right answer, because "entry
+    level" is a fact about them rather than a guess (``score_paths`` reads the
+    same pair for ``zone_is_reliable``).  Everyone else with an unresolved zone
+    gets no ceiling at all -- see :data:`_FRESH_START_ZONE_HEADROOM`.
+
+    A corpus with no zone sidecar also gets no ceiling, asked rather than
+    caught: ``retrieve`` raises ``CorpusUnavailable`` for ``zone_max`` without
+    zones, and turning an optional file into a 503 would make feasibility an
+    availability risk.  It is logged at WARNING because a ``fresh_start`` served
+    without a ceiling is the one that can suggest a doctorate.
+    """
+    if not corpus.zones_available:
+        _log.warning(
+            "no job-zone sidecar beside %s; fresh_start is answering without a "
+            "feasibility ceiling.  Run `flask corpus zones`",
+            corpus.matrix_path.name,
+        )
+        return None
+    if not (anchor.zone_resolved or profile.career_status == "first_job"):
+        return None
+    return min(anchor.zone + _FRESH_START_ZONE_HEADROOM, _MAX_JOB_ZONE)
+
+
+def _skill_floor_exclusions(
+    corpus: OccupationCorpus,
+    skills_vec: "np.ndarray | None",
+    zone_max: int | None = None,
+    exclude_prefixes: "Sequence[str]" = (),
+) -> list[str]:
+    """Codes below the transferable-skill floor -- as an exclusion list.
+
+    Returns ``[]`` when there is no skills document to measure against, which is
+    the only honest answer: a user who listed no skills has not told us what
+    transfers, and a floor against nothing would be a floor against everything.
+
+    Computed over the whole corpus and handed to ``retrieve(exclude_codes=...)``
+    rather than applied to what retrieval returned, for the reason
+    :func:`_radius_exclusions` gives: filtering afterwards makes how much the
+    filter removes depend on *k*, so one user's page would be short and
+    another's full for no reason either of them could see.
+
+    **The survivor guard counts rows that can actually be returned**, which is
+    why it needs the other two filters rather than just the residual one.  A
+    floor that leaves ten occupations standing corpus-wide leaves none at all if
+    a Job Zone ceiling and the user's own minor group take those ten -- measured
+    while tuning: at a floor of 0.50 two of the four evaluation profiles came
+    back with three and four cards while the corpus-wide count said the floor was
+    safe.  See :data:`_FRESH_START_FLOOR_MIN_SURVIVORS`.
+    """
+    if skills_vec is None:
+        return []
+
+    sims = corpus.matrix @ np.asarray(skills_vec, dtype=np.float32)
+    eligible = np.array(
+        [
+            not is_all_other_title(title)
+            and zone_within_ceiling(corpus.zones.get(code), zone_max)
+            and not soc_prefix_excluded(code, exclude_prefixes)
+            for code, title in zip(corpus.codes, corpus.titles)
+        ],
+        dtype=bool,
+    )
+    floor = _FRESH_START_SKILL_FLOOR
+    reachable = np.sort(sims[eligible])[::-1]
+    if len(reachable) and int((reachable >= floor).sum()) < _FRESH_START_FLOOR_MIN_SURVIVORS:
+        floor = float(reachable[min(_FRESH_START_FLOOR_MIN_SURVIVORS, len(reachable)) - 1])
+        _log.info(
+            "transferable-skill floor lowered to %.3f: fewer than %d reachable "
+            "occupations cleared %.2f",
+            floor,
+            _FRESH_START_FLOOR_MIN_SURVIVORS,
+            _FRESH_START_SKILL_FLOOR,
+        )
+    return [corpus.codes[i] for i in np.nonzero(sims < floor)[0].tolist()]
+
+
+def _fresh_start_seed(
+    profile: UserProfile,
+    anchor: _Anchor,
+    corpus: OccupationCorpus,
+    ranked: list[Match],
+    skills_vec: "np.ndarray | None",
+    behavioral_vec: "np.ndarray | None",
+    weights: tuple[float, float, float, float],
+    limit: int,
+) -> list[Match]:
+    """The first page for a ``fresh_start`` with no taps yet: one per region.
+
+    *ranked* is every row that survived the hard filters -- so every candidate
+    here is feasible, outside the user's own minor group, and above the
+    transferable-skill floor.  They are scored with **the same four terms and
+    the same weights the cards are sorted by**, and the best of each cluster is
+    taken.  Ranking on the retrieval cosine instead would let the seed pick a
+    region's representative on a signal the re-rank then disagrees with; scoring
+    first costs two matrix products over ~900 rows (sub-millisecond) and means
+    the card standing for a region is the best one there *for this user*.
+
+    Measured on the F-2 ``fresh_start`` set, macro nDCG@10 of the zero-tap page:
+    no seed at all 0.3322, this seed 0.2420, and **the same 0.2420 when the seed
+    ranks on the retrieval cosine instead** -- with eight regions this large the
+    two rankings pick the same representative.  So scoring first is not defended
+    as a gain; it is defended as one definition of "best" instead of two, which
+    is a property `test_the_seed_ranks_on_the_same_score_the_cards_are_sorted_by`
+    can hold and a number at n=4 cannot.
+
+    The 0.090 the seed costs is the WHOLE of what F-7 gives up: the behavioural
+    mix, the Job Zone ceiling and the transferable-skill floor were each measured
+    at exactly zero (rank every survivor by the full score with no cluster
+    constraint and the interim's four numbers come back to four decimal places).
+    What it buys is the page spanning 8 of 8 regions for every profile instead of
+    5, 4, 2 and 3 -- and the 2 is an administrative assistant being shown eight
+    cards of Office and Administrative Support after asking to leave it.
+
+    A corpus the clusterer cannot serve is not a failure: ``get_assignment``
+    already falls back to an in-process fit, and if even that raised, the plain
+    ranking is a real answer -- a page with less spread, not a broken one.
+    """
+    signals = _build_signals(
+        profile, anchor, corpus, ranked, skills_vec, behavioral_vec
+    )
+    order = sorted(
+        range(len(signals)), key=lambda i: _final_score(signals[i], weights), reverse=True
+    )
+    codes = [signals[i].match.code for i in order]
+    try:
+        assignment = occupation_clusters.get_assignment(
+            corpus, k=occupation_clusters.CLUSTER_COUNT
+        )
+    except Exception:  # noqa: BLE001 -- logged; the plain ranking is a real answer
+        _log.warning("cluster assignment unavailable; seeding by rank", exc_info=True)
+        return [signals[i].match for i in order[:limit]]
+    picked = occupation_clusters.diverse_seed(codes, assignment, limit)
+    return [signals[order[position]].match for position in picked]
+
+
 def _build_query(
     profile: UserProfile,
     anchor: _Anchor,
@@ -1325,12 +1636,21 @@ def _build_query(
         :data:`_ADJACENT_SKILLS_MIX`.  Interim; F-6 makes the rotation learned.
 
     ``fresh_start``
-        The skills document, blended with the behavioural profile, with the
-        user's own SOC major group excluded at retrieval (see
-        :func:`_retrieve_candidates`).  **Never** distance-from-current-job:
-        "far from software engineering" includes Logging Worker, and the
-        ``_ZONE_DAMPENING_FRESH_START`` constant this replaces was the patch
-        over exactly that mistake.
+        ``q0 = normalise(w_b*behavioural + w_s*skills)`` with the **behavioural
+        profile dominant** (:data:`_FRESH_START_BEHAVIORAL_MIX`) -- design doc
+        §3.3: with the occupation anchor dropped, what the person wants is the
+        only statement of intent left, and their skills are what makes the
+        answer feasible rather than aspirational.  No assessment data (three of
+        the four evaluation profiles, and most new users) falls back to the
+        skills document alone rather than to the anchor, because the anchor is
+        the one thing this intent has ruled out.
+
+        **Never** distance-from-current-job: "far from software engineering"
+        includes Logging Worker, and the ``_ZONE_DAMPENING_FRESH_START``
+        constant this replaces was the patch over exactly that mistake.  The
+        hard filters that go with this query are in
+        :func:`_retrieve_candidates`, and the diverse seed built on top of it is
+        in :func:`_fresh_start_seed`.
 
     The second element of the tuple is False whenever the query is not built
     from the user's occupation, so ``score_paths`` knows the retrieval cosine is
@@ -1341,8 +1661,15 @@ def _build_query(
 
     if profile.move_intent == "fresh_start":
         if skills_vec is None:
-            # No skills to transfer.  The anchor is all there is; the SOC-family
-            # exclusion still keeps the results out of the field being left.
+            # No skills document.  The behavioural profile alone is a statement
+            # of what they want with nothing tethering it to what they can do,
+            # which is how you recommend Logging Worker -- but it is still about
+            # the person rather than about the job they are leaving, so it wins
+            # over the anchor.  The anchor is the last resort, and only because
+            # the SOC-minor-group exclusion keeps its results out of the field
+            # being left; without that it would be the opposite of this intent.
+            if behavioral_vec is not None:
+                return behavioral_vec, False
             return anchor_vec, anchor_vec is not None
         return _blend(skills_vec, behavioral_vec, _FRESH_START_BEHAVIORAL_MIX), False
 
@@ -1369,8 +1696,9 @@ def _retrieve_candidates(
     query: "np.ndarray",
     extra_exclusions: "Sequence[str]" = (),
     k: int | None = None,
+    zone_max: int | None = None,
 ) -> list[Match]:
-    """One ``matrix @ query``, with the two hard filters this tier is allowed.
+    """One ``matrix @ query``, with the hard filters this tier is allowed.
 
     The user's own occupation is excluded -- they have that job -- along with
     anything resolution could not tell apart from it.  For ``fresh_start`` the
@@ -1378,6 +1706,13 @@ def _retrieve_candidates(
     field, same capabilities" constraint expressed as F-3's named filter rather
     than as an allow-list; see :data:`_FRESH_START_EXCLUDE_PREFIX_LEN` for why
     the minor group and not the major one.
+
+    *zone_max* is F-7's feasibility ceiling and is set for ``fresh_start`` only
+    (:func:`_fresh_start_zone_max`).  The other intents keep reading the zone as
+    one weighted term, which is right for them: someone staying in their field
+    has already demonstrated their own zone, so a step past it is an ambition
+    rather than an impossibility.  Someone starting over has demonstrated
+    nothing in the new field, and "you could be a surgeon" is not a suggestion.
 
     **There is no SOC allow-list here and there must never be one again.**  The
     old ``_DEFAULT_ALLOWED_SOC_PREFIXES`` listed eight families and silently
@@ -1392,20 +1727,17 @@ def _retrieve_candidates(
     not silently depend on *k* -- see :func:`_radius_exclusions`.
     """
     exclude_codes = list(anchor.excluded_codes) + list(extra_exclusions)
-    exclude_prefixes: tuple[str, ...] = ()
-    if (
-        profile.move_intent == "fresh_start"
-        and anchor.code
-        and _FRESH_START_EXCLUDE_PREFIX_LEN > 0
-    ):
-        # "15-1252.00" -> "15-1": the SOC minor group. See
-        # _FRESH_START_EXCLUDE_PREFIX_LEN for why not the major group.
-        exclude_prefixes = (anchor.code[:_FRESH_START_EXCLUDE_PREFIX_LEN],)
+    exclude_prefixes = (
+        _fresh_start_soc_exclusions(anchor)
+        if profile.move_intent == "fresh_start"
+        else ()
+    )
     return corpus.retrieve(
         query,
         k=k if k is not None else _RETRIEVE_K,
         exclude_codes=exclude_codes,
         exclude_soc_prefixes=exclude_prefixes,
+        zone_max=zone_max,
     )
 
 
@@ -1460,6 +1792,24 @@ def _build_signals(
             )
         )
     return signals
+
+
+def _final_score(
+    signals: _Signals, weights: tuple[float, float, float, float]
+) -> float:
+    """``role_w*role + coverage_w*coverage + zone_w*zone + style_w*style``.
+
+    One definition, because F-7's seed has to rank candidates on exactly the
+    number the cards are then sorted by; two copies of this expression would
+    drift and the seed would quietly start choosing on a different scorer.
+    """
+    role_w, coverage_w, zone_w, style_w = weights
+    return (
+        role_w * signals.role
+        + coverage_w * signals.coverage
+        + zone_w * signals.zone
+        + style_w * signals.style
+    )
 
 
 def _overlapping_skills(
@@ -1589,9 +1939,13 @@ def score_paths(
        :func:`_resolve_current_zone` for the two cases that make one.
     3. Build one query vector per :attr:`UserProfile.move_intent` and retrieve
        ``_RETRIEVE_K`` candidates from the corpus -- one matrix product, no
-       network.  For ``adjacent`` this is also where *feedback* is applied: the
-       query is rotated by :func:`_rocchio_query` and the "too similar" radius
-       becomes an exclusion list (:func:`_radius_exclusions`).
+       network.  For ``adjacent`` and ``fresh_start`` this is also where
+       *feedback* is applied: the query is rotated by :func:`_rocchio_query` and
+       the "too similar" radius becomes an exclusion list
+       (:func:`_radius_exclusions`).  ``fresh_start`` adds two hard filters of
+       its own -- a Job Zone ceiling and a transferable-skill floor -- and, with
+       no taps yet, replaces the top-K with a cluster-spanning seed
+       (:func:`_fresh_start_seed`).
     4. Score each candidate on four terms, all read off the corpus::
 
            role     = the retrieval cosine (document-to-document)
@@ -1613,13 +1967,13 @@ def score_paths(
                        and a zone signal; coverage, style and the per-card skill
                        list are unavailable, which is a degrade rather than a
                        failure.
-        feedback:      ``{onet_code: verdict}`` from ``path_feedback`` (F-6).
-                       Read only by the ``adjacent`` path: the other two intents
-                       are answering a question the user asked directly, and
-                       reordering them by judgements made about a different
-                       question would be the scorer overriding the request.
-                       ``None`` or empty is the zero-tap case and must produce
-                       the full default list -- design doc §3.2.
+        feedback:      ``{onet_code: verdict}`` from ``path_feedback`` (F-6,
+                       widened to ``fresh_start`` by F-7).  NOT read by
+                       ``stay_in_field``, which is answering a question the user
+                       asked directly; reordering it by judgements made about a
+                       different question would be the scorer overriding the
+                       request.  ``None`` or empty is the zero-tap case and must
+                       produce a full default list -- design doc §3.2.
 
     Raises:
         InsufficientProfile: The profile has neither a usable title nor a single
@@ -1674,14 +2028,22 @@ def score_paths(
         user_profile, anchor, corpus, skills_vec, behavioral_vec, openai_client
     )
 
-    # F-6.  Everything about the feedback loop is confined to these eight lines
-    # and to the MMR selection at the end; `is_adjacent` being false restores
-    # F-4's behaviour exactly, which is what keeps `stay_in_field` and
-    # `fresh_start` out of this chunk's blast radius.
-    is_adjacent = user_profile.move_intent == "adjacent"
+    # F-6, widened to `fresh_start` by F-7.  ONE implementation, two
+    # initialisers: `adjacent` starts from an annulus around the user's own
+    # occupation and `fresh_start` from a diverse spanning set, and from the
+    # first tap onward they are the same loop -- same Rocchio rotation, same
+    # radius, same exclusions.  That is the architectural payoff design doc §3.3
+    # names, and it is why nothing below branches on which intent it is.
+    #
+    # `stay_in_field` is still excluded, for the reason the `feedback` argument
+    # documents: it is answering a question the user asked directly, and
+    # reordering it by judgements made about a different question would be the
+    # scorer overriding the request.
+    takes_feedback = user_profile.move_intent in ("adjacent", "fresh_start")
+    is_fresh_start = user_profile.move_intent == "fresh_start"
     judgements: "Mapping[str, str]" = feedback or {}
     radius_exclusions: list[str] = []
-    if is_adjacent and judgements and query is not None:
+    if takes_feedback and judgements and query is not None:
         anchor_vec = _anchor_vector(anchor, corpus)
         # No corpus anchor (an All-Other row, an unresolvable title): fall back
         # to the UN-rotated query, which is the user's own profile document and
@@ -1728,6 +2090,24 @@ def score_paths(
         )
         return []
 
+    # F-7's two extra hard filters, both `fresh_start`-only and both expressed
+    # as F-3's named filters rather than as weights: feasibility (a ceiling on
+    # Job Zone) and transferable skill (a floor on the skills cosine).
+    zone_max = (
+        _fresh_start_zone_max(user_profile, anchor, corpus) if is_fresh_start else None
+    )
+    if is_fresh_start:
+        radius_exclusions = radius_exclusions + _skill_floor_exclusions(
+            corpus, skills_vec, zone_max, _fresh_start_soc_exclusions(anchor)
+        )
+
+    # The first page of a `fresh_start` with no taps yet is a SPANNING SET, not
+    # a top-10: there is no anchor to probe around, so the page's job is to find
+    # out which region the person is heading for.  That needs every survivor
+    # ranked, not the best thirty of them -- a cluster whose best member sits at
+    # rank 200 is still a region the user might pick.  Once a tap exists the
+    # query carries a direction and the loop is `adjacent`'s exactly.
+    seeding = is_fresh_start and not judgements
     try:
         matches = _retrieve_candidates(
             user_profile,
@@ -1735,9 +2115,14 @@ def score_paths(
             corpus,
             query,
             extra_exclusions=radius_exclusions,
-            # A wider pool for `adjacent`, because the radius can take a slice
-            # out of it.  See _RETRIEVE_K_ADJACENT.
-            k=_RETRIEVE_K_ADJACENT if is_adjacent else None,
+            # A wider pool where the radius can take a slice out of it.  See
+            # _RETRIEVE_K_ADJACENT.
+            k=(
+                corpus.count
+                if seeding
+                else _RETRIEVE_K_ADJACENT if takes_feedback else None
+            ),
+            zone_max=zone_max,
         )
     except ValueError:
         _log.warning("retrieval rejected the query vector", exc_info=True)
@@ -1750,6 +2135,18 @@ def score_paths(
         user_profile, zone_is_reliable, behavioral_vec is not None, has_role_identity
     )
 
+    if seeding:
+        matches = _fresh_start_seed(
+            user_profile,
+            anchor,
+            corpus,
+            matches,
+            skills_vec,
+            behavioral_vec,
+            (role_w, coverage_w, zone_w, style_w),
+            _TOP_N,
+        )
+
     signals = _build_signals(
         user_profile, anchor, corpus, matches, skills_vec, behavioral_vec
     )
@@ -1757,12 +2154,7 @@ def score_paths(
 
     scored: list[ScoredPath] = []
     for sig in signals:
-        raw = (
-            role_w * sig.role
-            + coverage_w * sig.coverage
-            + zone_w * sig.zone
-            + style_w * sig.style
-        )
+        raw = _final_score(sig, (role_w, coverage_w, zone_w, style_w))
         scored.append(
             ScoredPath(
                 onet_code=sig.match.code,

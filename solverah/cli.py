@@ -18,6 +18,7 @@ dashboard env vars:
     flask pulse send-prompts   # suggested: daily (BUILD_PLAN B-2)
     flask corpus build         # suggested: quarterly (BUILD_PLAN F-1)
     flask corpus zones         # 11 requests; refreshes the Job Zone sidecar
+    flask corpus clusters      # no network; refreshes the fresh_start seed
 
 ``pulse send-prompts`` is the newest of the four cron jobs and not load-bearing
 the way the first two are -- nothing breaks if a run is skipped, a due user is
@@ -517,6 +518,90 @@ def corpus_zones(corpus: str | None, rate: float | None) -> None:
                 "zones_path": str(path),
                 "occupations": len(zones),
                 "onet_requests": limiter.count,
+            }
+        )
+    )
+
+
+@corpus_cli.command("clusters")
+@click.option(
+    "--corpus",
+    default=None,
+    help="The .npy artifact, or a directory holding one "
+    "(default: $SOLVERAH_CORPUS_PATH, then $SOLVERAH_CORPUS_DIR).",
+)
+@click.option(
+    "--k",
+    default=None,
+    type=int,
+    show_default="occupation_clusters.CLUSTER_COUNT",
+    help="How many regions to cut the corpus into.",
+)
+@click.option(
+    "--show/--no-show",
+    default=True,
+    help="Print the three titles nearest each centroid.",
+)
+def corpus_clusters(corpus: str | None, k: int | None, show: bool) -> None:
+    """Write the k-means cluster sidecar beside an existing corpus artifact.
+
+    BUILD_PLAN F-7: `fresh_start` has no occupation anchor to retrieve around,
+    so its first page is one occupation per region of the corpus.  This is that
+    partition, precomputed.
+
+    **Makes no network calls and spends nothing.**  It reads the artifact,
+    fits k-means over the retrievable rows and writes
+    `<artifact>.clusters.json`; the O*NET catalog and the embedding model are
+    not involved, which is why it is safe to re-run at will.  Re-run it after
+    every `corpus build` -- the sidecar names occupations by code, and a build
+    that adds one leaves this file stale, which
+    `occupation_clusters.get_assignment` detects and works around at the cost of
+    a ~0.7 s fit in every worker.
+
+    `--show` prints the three titles nearest each centroid, because a seed is
+    only as meaningful as the partition under it and a k-means over documents
+    can cluster on length or boilerplate instead of on occupational domain.
+    Look at the output before trusting it.
+    """
+    from backend.services import occupation_clusters, occupation_retrieval
+
+    resolved = (
+        corpus
+        or os.environ.get("SOLVERAH_CORPUS_PATH")
+        or os.environ.get("SOLVERAH_CORPUS_DIR")
+    )
+    if not resolved:
+        raise click.ClickException(
+            "No corpus artifact. Pass --corpus or set SOLVERAH_CORPUS_PATH."
+        )
+
+    try:
+        matrix_path = occupation_retrieval.resolve_matrix_path(resolved)
+        loaded = occupation_retrieval.load_corpus(matrix_path)
+    except occupation_retrieval.CorpusUnavailable as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    assignment = occupation_clusters.compute_assignment(
+        loaded, k=k or occupation_clusters.CLUSTER_COUNT
+    )
+    path = occupation_clusters.write_cluster_sidecar(matrix_path, assignment)
+
+    if show:
+        for row in occupation_clusters.summarise(loaded, assignment):
+            click.echo(
+                "  cluster %-2s n=%-4s %s"
+                % (row["cluster"], row["size"], "; ".join(row["titles"])),
+                err=True,
+            )
+
+    click.echo(
+        json.dumps(
+            {
+                "event": "corpus_clusters",
+                "matrix_path": str(matrix_path),
+                "clusters_path": str(path),
+                "k": assignment.k,
+                "occupations": assignment.count,
             }
         )
     )
