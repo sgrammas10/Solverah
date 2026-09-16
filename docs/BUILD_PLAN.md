@@ -583,17 +583,20 @@ _2026-09-16: **F-4 landed** (f12dd79) and the overseer re-verified every load-be
 
 ### F-5 · Deep fit on click (M)
 
-- [ ] New endpoint: the full analysis for ONE occupation, run on user click
-- [ ] Stored per `(user, occupation)`, invalidated on profile write, mirroring
+- [x] New endpoint: the full analysis for ONE occupation, run on user click
+- [x] Stored per `(user, occupation)`, invalidated on profile write, mirroring
   `path_cache`'s `invalidate` discipline — needs a table + migration
-- [ ] Rate limit, matching `POST /me/path-suggestion-jobs` — this is a per-click
+- [x] Rate limit, matching `POST /me/path-suggestion-jobs` — this is a per-click
   provider spend
-- [ ] Synchronous: ~3-4 `_OCC_CACHE`-backed calls for one occupation, ~500ms-1s
+- [x] Synchronous: ~3-4 `_OCC_CACHE`-backed calls for one occupation, ~500ms-1s
   warm. No job/poll pair
 
 _Sebastian's design, 2026-09-16. The budget currently spread thin across ~40
 candidates gets spent on the one the user actually cares about — so the analysis
 gets **better**, not merely rarer._
+
+
+_2026-09-16: **F-5 landed** (54ed44c), 3085 passed / 0 failed; overseer verified the commit touched nothing off-limits. **`POST /api/v1/me/path-fit/<onet_code>`**, cookie + CSRF, no body, `shared_limit("10 per minute", scope="intelligence:path-fit")`. POST kept: per-click provider spend with a stored side effect, and a GET would sit outside the CSRF guard. Errors are the `{"error": code}` shape `stateForFailure()` branches on: 400 `career_status_not_set` / `profile_incomplete`; 404 `invalid_onet_code` / `unknown_occupation` / `unsupported_occupation` (All-Other); 503 `corpus_unavailable` — and the code is validated BEFORE the corpus loads, so an S3 outage cannot hide a permanent 404 behind a transient 503. **Latency, measured:** cold 2,384 ms (exactly 4 O*NET calls — tasks is a fourth endpoint; worst case 5 via `_resolve_current_zone` fallbacks), same-user warm 12 ms, **different-user-same-card 844 ms — the common case; F-6 sizes its spinner to ~850 ms, not 12.** Storage `path_fits` `UNIQUE(user_id, onet_code)` JSONB; stale = profile fingerprint mismatch (sha256 of the fields the analysis reads) OR 30-day TTL (O*NET's own content is the one input no profile write can invalidate) OR explicit invalidate at all six `path_cache.invalidate` sites, in-transaction; `test_path_preferences_api.py` now enumerates the RULE (per-file count parity, floor 6, file-set pinned). Migration `20260916_path_fits` proven from empty on alembic-only `solverah_f5m`; ORM vs migrated schema identical except the FK *name*, which is a repo-wide pre-existing convention. Six Tier-2 functions + eight constants moved to `path_deep_fit.py`, maths byte-identical; `TestTombstones` +14, plus `test_tier_two_moved_rather_than_died` and `test_tier_one_makes_no_per_occupation_item_call`; `_EMBED_CACHE` shared by both tiers and asserted to be one object. Wire: openapi +292/−0; contract baseline **re-verified 0 diffs BEFORE recapture**, then +2 steps (99 responses). Narrative deliberately deferred — `narrative: null` on the wire so the shape holds. **Fixed while measuring live:** flat hot-tech importance made the gap list tie-break alphabetically (Alteryx, EC2, Redshift…); now O*NET's own rank. **Routed onward:** (→F-6) `src/shared/api/schema.ts` not regenerated — run `npm run generate:api`, expect the known catch-up diff; feature-tour ROUTES needs nothing (no new frontend route); real_stack flow needs the corpus on the runner (→F-8). (→F-8) `_EMBED_THRESHOLD = 0.70` is too strict for O*NET's verbose names — **a user with "SQL" is told "Structured query language SQL" is a gap**, pre-existing, now product-visible in the panel; fix by normalising names, not by tuning a threshold there is no harness for. (→F-8) `PATCH /me/career-status` invalidates neither cache — pre-existing Tier-1 bug in `set_career_status`; Tier 2 self-corrects via the fingerprint. **For Sebastian, defaults taken:** per-click LLM narrative deferred (spend + latency decision; shape ready); `path_fits` joins account deletion but NOT `/me/export` (derived read-through cache; exporting is a contract change needing an A-number)._
 
 ### F-6 · ⚑7 `adjacent` — inline feedback on the result cards (M)
 
@@ -647,6 +650,13 @@ of relevance"._
   the 2026-09-15 OOM work is genuinely dead before deleting it
 - [ ] A title that resolves to no O*NET code falls back to F-7's seed rather
   than erroring — the live ACC-4 / S22 failure (design doc §5 #6)
+- [ ] Skill-name normalisation for Tier-2 matching: O*NET's verbose names ("Structured query
+  language SQL") must match a user's "SQL" — normalise/alias, do not tune `_EMBED_THRESHOLD`
+  blind (from F-5; product-visible in the deep-fit panel)
+- [ ] `profile_service.set_career_status` invalidates `path_cache` (and `path_fits`) — the one
+  profile-write site the enumeration missed; pre-existing (from F-5)
+- [ ] real_stack E2E flow for Workstream F — needs the corpus artifact reachable on the runner
+  (S3 upload + `SOLVERAH_CORPUS_S3_KEY`, or a small committed test artifact)
 
 ---
 
