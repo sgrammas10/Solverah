@@ -69,6 +69,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 
 import click
 from flask.cli import AppGroup
@@ -431,6 +432,11 @@ def corpus_build(
         raise click.ClickException(str(exc)) from exc
 
     click.echo(json.dumps(build.summary()))
+    # Returned as well as echoed so `corpus refresh` can chain the zone,
+    # cluster and publish steps onto the artifact this run actually produced,
+    # rather than re-deriving the filename from a date and hoping they agree.
+    # Click ignores a command's return value; `ctx.invoke` passes it through.
+    return build
 
 
 @corpus_cli.command("zones")
@@ -604,6 +610,250 @@ def corpus_clusters(corpus: str | None, k: int | None, show: bool) -> None:
                 "occupations": assignment.count,
             }
         )
+    )
+
+
+
+@corpus_cli.command("publish")
+@click.option(
+    "--corpus",
+    default=None,
+    help="The .npy artifact, or a directory holding one "
+    "(default: $SOLVERAH_CORPUS_PATH, then $SOLVERAH_CORPUS_DIR).",
+)
+@click.option(
+    "--prefix",
+    default=None,
+    help="Key prefix in the app bucket (default: $SOLVERAH_CORPUS_S3_PREFIX, "
+    "then the directory part of $SOLVERAH_CORPUS_S3_KEY).",
+)
+@click.option(
+    "--bucket",
+    default=None,
+    help="Override the app bucket (default: $S3_BUCKET_NAME). Never the backup bucket.",
+)
+@click.option(
+    "--dry-run/--no-dry-run",
+    default=False,
+    show_default=True,
+    help="Resolve and report without making ANY network call.",
+)
+def corpus_publish(
+    corpus: str | None, prefix: str | None, bucket: str | None, dry_run: bool
+) -> None:
+    """Upload a built corpus artifact set to the app bucket.
+
+    Four objects -- the `.npy`, its sidecar, the zone sidecar and the cluster
+    sidecar -- under `<prefix>/<filename>`, which is where
+    `occupation_retrieval._fetch_from_s3` looks. All four are required; a
+    partial upload would leave `zone_max` raising on every `adjacent` and
+    `fresh_start` request, or every worker paying a k-means fit.
+
+    **Versioned by filename and never overwriting.** A key that already exists
+    with different bytes is a refusal: workers cache the artifact and never
+    re-fetch it, so changing one in place splits the fleet across two corpora.
+    Re-publishing identical bytes is a no-op, which is what makes a refresh that
+    died halfway resumable.
+
+    Publishing does NOT put the new corpus into service. The last step is
+    setting `SOLVERAH_CORPUS_S3_KEY` to the key this command echoes, which is a
+    deliberate separate act -- and the rollback.
+
+    `--dry-run` makes no network call of any kind, not even a `head_object`.
+    """
+    from backend.services import occupation_corpus, occupation_retrieval
+
+    resolved = (
+        corpus
+        or os.environ.get("SOLVERAH_CORPUS_PATH")
+        or os.environ.get("SOLVERAH_CORPUS_DIR")
+    )
+    if not resolved:
+        raise click.ClickException(
+            "No corpus artifact. Pass --corpus or set SOLVERAH_CORPUS_PATH."
+        )
+
+    try:
+        matrix_path = occupation_retrieval.resolve_matrix_path(resolved)
+    except occupation_retrieval.CorpusUnavailable as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    try:
+        published = occupation_corpus.publish_corpus(
+            matrix_path,
+            bucket=bucket or os.environ.get("S3_BUCKET_NAME", ""),
+            key_prefix=prefix or occupation_corpus.default_key_prefix(),
+            dry_run=dry_run,
+            on_progress=lambda message: click.echo(message, err=True),
+        )
+    except occupation_corpus.CorpusBuildError as exc:
+        raise click.ClickException(str(exc)) from exc
+    except KeyError as exc:
+        # `get_s3_client` reads S3_ENDPOINT_URL / S3_ACCESS_KEY_ID /
+        # S3_SECRET_ACCESS_KEY straight out of os.environ. A missing one is an
+        # operator error, and a bare KeyError traceback does not say which.
+        raise click.ClickException(
+            f"S3 is not configured: {exc} is unset. "
+            "The app bucket's credentials are S3_ENDPOINT_URL, S3_ACCESS_KEY_ID, "
+            "S3_SECRET_ACCESS_KEY and S3_BUCKET_NAME."
+        ) from exc
+
+    click.echo(json.dumps(published.summary()))
+
+
+@corpus_cli.command("refresh")
+@click.option(
+    "--out-dir",
+    default=None,
+    help="Directory for the new artifact (default: $SOLVERAH_CORPUS_DIR). "
+    "Keep it OUTSIDE the repo.",
+)
+@click.option("--version", default=None, help="Filename version stamp (default: UTC date).")
+@click.option(
+    "--prefix",
+    default=None,
+    help="Key prefix in the app bucket (default: $SOLVERAH_CORPUS_S3_PREFIX, "
+    "then the directory part of $SOLVERAH_CORPUS_S3_KEY).",
+)
+@click.option(
+    "--rate",
+    default=None,
+    type=float,
+    show_default="4.0/s",
+    help="Aggregate O*NET requests per second. O*NET's documented threshold is 5.",
+)
+@click.option(
+    "--workers",
+    default=4,
+    show_default=True,
+    type=int,
+    help="Concurrent fetchers. Hides latency; --rate still bounds the request rate.",
+)
+@click.option(
+    "--resume/--no-resume",
+    default=True,
+    show_default=True,
+    help="Reuse role documents already in the checkpoint file.",
+)
+@click.option(
+    "--dry-run/--no-dry-run",
+    default=False,
+    show_default=True,
+    help="Report the plan and make NO network call -- no O*NET, no OpenAI, no S3.",
+)
+@click.pass_context
+def corpus_refresh(
+    ctx: click.Context,
+    out_dir: str | None,
+    version: str | None,
+    prefix: str | None,
+    rate: float | None,
+    workers: int,
+    resume: bool,
+    dry_run: bool,
+) -> None:
+    """The quarterly cadence: build, zones, clusters, publish.
+
+    O*NET's content changes quarterly and an artifact nobody refreshes is a
+    slowly rotting one, so this is the whole cycle as one command -- and as one
+    Render cron entry (`render.yaml`, `docs/RUNBOOK_SCENARIO_A_CRON.md`).
+
+    **It is the other four commands, invoked**, not a reimplementation of them.
+    `ctx.invoke` means a change to `corpus build` cannot drift from what a
+    refresh does, which a copied body would have allowed within one round.
+
+    Cost: ~3,070 O*NET requests at the shared 4/s ceiling (~13 minutes), 11 more
+    for the zones, ~$0.01 of embeddings, and no network at all for the clusters.
+    Resumable by construction rather than by bookkeeping -- the build reuses its
+    checkpoint, the zones and clusters are idempotent rewrites, and the publish
+    skips objects already in the bucket byte-for-byte. A re-run after a trip
+    costs only what had not already been done.
+
+    **Refreshing does not deploy.** The new artifact goes up under a new
+    date-stamped key and the one in service is untouched until somebody sets
+    `SOLVERAH_CORPUS_S3_KEY` to the key this echoes. That is deliberate: it is
+    the review gate, and the rollback.
+
+    `--dry-run` makes NO network call of any kind and reports what the run would
+    cost and where it would publish.
+    """
+    from backend.services import occupation_corpus, occupation_retrieval
+
+    resolved_out_dir = out_dir or os.environ.get("SOLVERAH_CORPUS_DIR")
+    if not resolved_out_dir:
+        raise click.ClickException(
+            "No output directory. Pass --out-dir or set SOLVERAH_CORPUS_DIR."
+        )
+    resolved_prefix = prefix or occupation_corpus.default_key_prefix()
+
+    if dry_run:
+        stamp = version or occupation_corpus.default_version()
+        matrix_name = f"onet_corpus_{stamp}.npy"
+        existing = (
+            os.environ.get("SOLVERAH_CORPUS_PATH")
+            or os.environ.get("SOLVERAH_CORPUS_DIR")
+            or ""
+        )
+        plan = {
+            "event": "corpus_refresh",
+            "dry_run": True,
+            "steps": ["build", "zones", "clusters", "publish"],
+            "out_dir": str(Path(resolved_out_dir)),
+            "version": stamp,
+            "matrix_filename": matrix_name,
+            "bucket": os.environ.get("S3_BUCKET_NAME", "") or None,
+            "key_prefix": resolved_prefix or None,
+            "would_publish": (
+                [f"{resolved_prefix}/onet_corpus_{stamp}{suffix}"
+                 for suffix in occupation_corpus.PUBLISHED_SUFFIXES]
+                if resolved_prefix
+                else []
+            ),
+            "corpus_s3_key_after": (
+                f"{resolved_prefix}/{matrix_name}" if resolved_prefix else None
+            ),
+            "onet_requests_estimate": 3_073 + 11,
+            "rate_limit_per_second": (
+                rate if rate is not None else occupation_corpus.DEFAULT_REQUESTS_PER_SECOND
+            ),
+            "in_service_now": existing or None,
+        }
+        problems = []
+        if not plan["bucket"]:
+            problems.append("S3_BUCKET_NAME is unset")
+        if not resolved_prefix:
+            problems.append(
+                "no key prefix: set SOLVERAH_CORPUS_S3_PREFIX or SOLVERAH_CORPUS_S3_KEY"
+            )
+        for name in ("S3_ENDPOINT_URL", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"):
+            if not os.environ.get(name):
+                problems.append(f"{name} is unset")
+        for name in ("ONET_API_KEY", "OPENAI_API_KEY"):
+            if not os.environ.get(name):
+                problems.append(f"{name} is unset")
+        plan["problems"] = problems
+        click.echo(json.dumps(plan))
+        if problems:
+            raise click.ClickException(
+                "the refresh would fail: " + "; ".join(problems)
+            )
+        return
+
+    build = ctx.invoke(
+        corpus_build,
+        out_dir=resolved_out_dir,
+        version=version,
+        limit=None,
+        rate=rate,
+        workers=workers,
+        resume=resume,
+        checkpoint=None,
+    )
+    matrix = str(build.matrix_path) if build is not None else resolved_out_dir
+    ctx.invoke(corpus_zones, corpus=matrix, rate=rate)
+    ctx.invoke(corpus_clusters, corpus=matrix, k=None, show=False)
+    ctx.invoke(
+        corpus_publish, corpus=matrix, prefix=prefix, bucket=None, dry_run=False
     )
 
 

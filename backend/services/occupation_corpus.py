@@ -31,9 +31,12 @@ Measured: 1,016 occupations x 1536 dims x 4 bytes = 6.2 MB.  L2-normalised on
 write so a consumer's cosine is exactly ``matrix @ unit_query`` with no
 per-query renormalisation, and so ``.npy`` stays the only format contract.
 
-**No S3 here.**  F-1 writes local files and stops; F-3 owns the load path and
-the upload is a later addition over ``CorpusBuild.matrix_path`` /
-``.sidecar_path``, which is why those are returned rather than swallowed.
+**The build makes no S3 call.**  F-1 wrote local files and stopped, because
+Sebastian reviews a corpus before it goes anywhere.  F-8 adds
+:func:`publish_corpus` at the bottom of this module as the separate, explicit
+act of uploading one -- over ``CorpusBuild.matrix_path`` / ``.sidecar_path``,
+which is why those are returned rather than swallowed -- plus the quarterly
+cadence around it.  ``build`` still touches nothing remote.
 
 RATE LIMITS
 -----------
@@ -102,14 +105,20 @@ from backend.services.onet_client import Occupation, OnetAPIError, OnetRateLimit
 _log = logging.getLogger(__name__)
 
 __all__ = [
+    "PUBLISHED_SUFFIXES",
     "CorpusBuild",
     "CorpusBuildError",
+    "CorpusPublish",
+    "PublishedObject",
     "RateLimiter",
     "RoleDocument",
+    "artifact_files",
     "build_corpus",
     "compose_role_document",
+    "default_key_prefix",
     "enumerate_occupations",
     "fetch_role_document",
+    "publish_corpus",
 ]
 
 #: The embedding model and its dimensionality.  Both are recorded in the sidecar
@@ -757,4 +766,312 @@ def build_corpus(
         estimated_tokens=estimated_tokens,
         resumed_documents=resumed,
         failures=failures,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Publishing (BUILD_PLAN F-8 box 1)
+# ---------------------------------------------------------------------------
+#
+# WHY THIS IS A SEPARATE STEP FROM THE BUILD, AND STAYS ONE.
+#
+# F-1 deliberately stopped at local files: "Sebastian reviews a corpus before it
+# goes anywhere".  That has not changed.  What F-8 adds is the command that does
+# the upload once he has, plus the quarterly cadence around it -- O*NET's content
+# changes quarterly, so an artifact nobody ever refreshes is a slowly rotting
+# one.  The first real upload is still his trigger.
+#
+# NEVER OVERWRITE A VERSION IN SERVICE.  A worker that has already cached
+# `onet_corpus_20260916.npy` does not re-download it; if the bytes behind that
+# key changed, half the fleet would be serving one corpus and half another, with
+# the sidecar's row->code index possibly disagreeing with the matrix it indexes.
+# So the key carries the build's date stamp, and a key that already exists with
+# different content is a refusal rather than an update.  The cutover is a
+# deliberate separate act: publish the new version, then point
+# SOLVERAH_CORPUS_S3_KEY at it.  Rolling back is pointing it back.
+#
+# Re-running the same publish is NOT an overwrite and is allowed: identical
+# bytes under an existing key are skipped, which is what makes a refresh that
+# died halfway resumable.
+
+
+#: Every file that makes up a published corpus, as suffixes on the matrix stem.
+#:
+#: All four are required here even though the LOADER treats two of them as
+#: optional.  That is not an inconsistency: the loader is being tolerant of a
+#: partially populated bucket because refusing to serve would turn a missing
+#: optional file into an outage, and the publisher is the place that stops the
+#: bucket from being partially populated in the first place.
+#:
+#: What each missing file would cost, which is why none is skipped quietly:
+#:   .npy / .json     no corpus at all -- every path route fails
+#:   .zones.json      `zone_max` raises CorpusUnavailable, so `adjacent` and
+#:                    `fresh_start` fail on every request
+#:                    (`occupation_retrieval.OccupationCorpus.retrieve`)
+#:   .clusters.json   every worker pays a 0.7 s k-means fit AND the scikit-learn
+#:                    import, on a 512 MB dyno that OOMed on 2026-09-15
+PUBLISHED_SUFFIXES: tuple[str, ...] = (
+    ".npy",
+    ".json",
+    ".zones.json",
+    ".clusters.json",
+)
+
+#: Which command writes each file, named in the error when one is missing.
+_SUFFIX_COMMANDS: dict[str, str] = {
+    ".npy": "flask corpus build",
+    ".json": "flask corpus build",
+    ".zones.json": "flask corpus zones",
+    ".clusters.json": "flask corpus clusters",
+}
+
+
+@dataclass(frozen=True)
+class PublishedObject:
+    """One file's fate in a publish."""
+
+    key: str
+    local_path: Path
+    size_bytes: int
+    #: "uploaded" | "skipped" (already there, same size) | "planned" (dry run)
+    action: str
+
+    def summary(self) -> dict[str, Any]:
+        return {
+            "key": self.key,
+            "local_path": str(self.local_path),
+            "bytes": self.size_bytes,
+            "action": self.action,
+        }
+
+
+@dataclass(frozen=True)
+class CorpusPublish:
+    """What a publish did, or would do."""
+
+    bucket: str
+    key_prefix: str
+    matrix_key: str
+    objects: list[PublishedObject]
+    dry_run: bool
+
+    def summary(self) -> dict[str, Any]:
+        return {
+            "event": "corpus_publish",
+            "bucket": self.bucket,
+            "key_prefix": self.key_prefix,
+            # The value SOLVERAH_CORPUS_S3_KEY has to take for this artifact to
+            # be the one in service.  Echoed because it is the next manual step
+            # and getting it wrong is a 503 for everybody.
+            "corpus_s3_key": self.matrix_key,
+            "dry_run": self.dry_run,
+            "uploaded": sum(1 for o in self.objects if o.action == "uploaded"),
+            "skipped": sum(1 for o in self.objects if o.action == "skipped"),
+            "bytes": sum(o.size_bytes for o in self.objects),
+            "objects": [o.summary() for o in self.objects],
+        }
+
+
+def artifact_files(matrix_path: str | os.PathLike[str]) -> list[Path]:
+    """The four files that belong to *matrix_path*, in publish order."""
+    stem = str(Path(matrix_path).with_suffix(""))
+    return [Path(stem + suffix) for suffix in PUBLISHED_SUFFIXES]
+
+
+def _missing_artifact_files(matrix_path: Path) -> list[str]:
+    """Human-readable complaints about artifact files that are not on disk."""
+    problems: list[str] = []
+    for path, suffix in zip(artifact_files(matrix_path), PUBLISHED_SUFFIXES):
+        if not path.is_file():
+            problems.append(f"{path.name} is missing (run `{_SUFFIX_COMMANDS[suffix]}`)")
+    return problems
+
+
+def _remote_size(client: Any, bucket: str, key: str) -> int | None:
+    """``ContentLength`` of *key*, or None when it is not there.
+
+    Only a genuine absence returns None.  Anything else propagates, because "I
+    could not tell whether this key exists" must never be read as "it does
+    not" -- the next line after that answer is a ``put_object`` over a corpus
+    in service.
+    """
+    try:
+        return int(client.head_object(Bucket=bucket, Key=key)["ContentLength"])
+    except Exception as exc:
+        response = getattr(exc, "response", None)
+        if isinstance(response, dict):
+            error = response.get("Error") or {}
+            status = str(error.get("Code", ""))
+            if status in ("404", "NoSuchKey", "NotFound"):
+                return None
+            raise
+        # A test double, or botocore's generated NoSuchKey, which carries no
+        # response dict.  Matched by name rather than by class so this module
+        # does not import botocore to name an exception.
+        if type(exc).__name__ in ("NoSuchKey", "NotFound", "KeyError", "FileNotFoundError"):
+            return None
+        raise
+
+
+def default_key_prefix() -> str:
+    """Where ``publish`` puts objects when no ``--prefix`` is given.
+
+    ``SOLVERAH_CORPUS_S3_PREFIX`` if set, else the directory part of
+    ``SOLVERAH_CORPUS_S3_KEY`` -- so an environment already configured to READ a
+    corpus publishes the next one beside it without being told twice, and
+    without any chance of the two disagreeing about where the corpus lives.
+    Empty when neither is set, which the caller turns into a refusal.
+    """
+    explicit = (os.environ.get("SOLVERAH_CORPUS_S3_PREFIX") or "").strip()
+    if explicit:
+        return explicit.strip("/")
+    key = (os.environ.get("SOLVERAH_CORPUS_S3_KEY") or "").strip()
+    return key.rsplit("/", 1)[0].strip("/") if "/" in key else ""
+
+
+def publish_corpus(
+    matrix_path: str | os.PathLike[str],
+    *,
+    bucket: str,
+    key_prefix: str,
+    s3_client: Any = None,
+    dry_run: bool = False,
+    on_progress: Callable[[str], None] | None = None,
+) -> CorpusPublish:
+    """Upload the artifact set to the **app** bucket under *key_prefix*.
+
+    Args:
+        matrix_path: The local ``.npy``.  Its three siblings are derived.
+        bucket: ``S3_BUCKET_NAME``.  Never the backup bucket -- see below.
+        key_prefix: The "directory" the four keys land under.  The published
+            matrix key is ``<key_prefix>/<matrix filename>``, which is exactly
+            what ``SOLVERAH_CORPUS_S3_KEY`` must then be set to, and what
+            ``occupation_retrieval._fetch_from_s3`` derives the other three
+            keys from.
+        s3_client: Injected for tests.  Defaults to
+            ``solverah.infra.storage.get_s3_client`` -- that factory carries the
+            3s connect / 10s read / 3-attempt bounds, and
+            ``tests/test_storage_client_config.py`` guards the tree against a
+            second unbounded client, so a bare ``boto3.client`` here would be a
+            regression as well as a duplication.
+        dry_run: Resolve, validate and report **without a single network call**
+            of any kind -- not even a ``head_object``.  That is a stronger
+            promise than "makes no writes", and it is the one worth having: a
+            dry run is what an operator reaches for when they are not yet sure
+            the configuration is right, and it should not be able to touch the
+            bucket at all while they find out.
+        on_progress: Called with human-readable progress lines.
+
+    Raises:
+        CorpusBuildError: A missing local file, a missing or wrong bucket, a
+            missing prefix, or -- the one that matters -- a key that already
+            exists with different content.
+
+    On the read timeout: this uses the request-path 10s rather than the backup
+    client's 60s, deliberately.  That bound is per socket read, the largest
+    object here is 6 MB, and the backup client raised it only because
+    ``upload_file`` streams a whole database dump.  If a 6 MB ``put_object``
+    starts timing out, the network is the problem and failing fast is right.
+    """
+    progress = on_progress or (lambda _message: None)
+    path = Path(matrix_path)
+    if path.suffix != ".npy":
+        raise CorpusBuildError(f"{path.name} is not a .npy artifact")
+
+    problems = _missing_artifact_files(path)
+    if problems:
+        raise CorpusBuildError(
+            "refusing to publish an incomplete artifact set: " + "; ".join(problems)
+        )
+
+    bucket = (bucket or "").strip()
+    if not bucket:
+        raise CorpusBuildError(
+            "no bucket: set S3_BUCKET_NAME (the APP bucket) or pass --bucket"
+        )
+    backup_bucket = (os.environ.get("BACKUP_S3_BUCKET_NAME") or "").strip()
+    if backup_bucket and bucket == backup_bucket:
+        # The same refusal `occupation_retrieval._fetch_from_s3` makes on the
+        # read side, for the same reason: the backup bucket's credentials are
+        # deliberately an identity the application cannot use, and the corpus is
+        # an application artifact.  `solverah/config.py` validates the pair at
+        # boot; the CLI does not run under that validator.
+        raise CorpusBuildError(
+            "bucket equals BACKUP_S3_BUCKET_NAME; the corpus is an application "
+            "artifact and is never written to the backup bucket"
+        )
+
+    prefix = (key_prefix or "").strip().strip("/")
+    if not prefix:
+        raise CorpusBuildError(
+            "no key prefix: pass --prefix, or set SOLVERAH_CORPUS_S3_PREFIX, or "
+            "set SOLVERAH_CORPUS_S3_KEY so the prefix can be taken from it"
+        )
+
+    files = artifact_files(path)
+    keys = [f"{prefix}/{f.name}" for f in files]
+    matrix_key = keys[0]
+
+    if dry_run:
+        progress(f"dry run: would publish {len(files)} objects to {bucket}/{prefix}/")
+        planned = [
+            PublishedObject(
+                key=key,
+                local_path=local,
+                size_bytes=local.stat().st_size,
+                action="planned",
+            )
+            for key, local in zip(keys, files)
+        ]
+        for obj in planned:
+            progress(f"  would put {obj.key} ({obj.size_bytes:,} bytes)")
+        progress(f"then set SOLVERAH_CORPUS_S3_KEY={matrix_key}")
+        return CorpusPublish(
+            bucket=bucket,
+            key_prefix=prefix,
+            matrix_key=matrix_key,
+            objects=planned,
+            dry_run=True,
+        )
+
+    if s3_client is None:
+        from solverah.infra import storage  # noqa: PLC0415 -- see the docstring
+
+        s3_client = storage.get_s3_client()
+
+    objects: list[PublishedObject] = []
+    for key, local in zip(keys, files):
+        size = local.stat().st_size
+        existing = _remote_size(s3_client, bucket, key)
+        if existing is not None:
+            if existing == size:
+                progress(f"  skip {key} (already published, {size:,} bytes)")
+                objects.append(
+                    PublishedObject(
+                        key=key, local_path=local, size_bytes=size, action="skipped"
+                    )
+                )
+                continue
+            raise CorpusBuildError(
+                f"{key} already exists in {bucket} with different content "
+                f"({existing:,} bytes there, {size:,} here). A published version "
+                "is immutable: workers cache it and never re-fetch, so changing "
+                "it splits the fleet across two corpora. Build a new version "
+                "instead of overwriting this one."
+            )
+        s3_client.put_object(Bucket=bucket, Key=key, Body=local.read_bytes())
+        progress(f"  put {key} ({size:,} bytes)")
+        objects.append(
+            PublishedObject(
+                key=key, local_path=local, size_bytes=size, action="uploaded"
+            )
+        )
+
+    progress(f"published {path.name}; set SOLVERAH_CORPUS_S3_KEY={matrix_key}")
+    return CorpusPublish(
+        bucket=bucket,
+        key_prefix=prefix,
+        matrix_key=matrix_key,
+        objects=objects,
+        dry_run=False,
     )

@@ -120,6 +120,49 @@ services:
           name: solverah-db
           property: connectionString
 
+  # ----------------------------------------------------- cron: corpus refresh
+  # Does NOT exist in the dashboard yet, and unlike the three above it is NOT
+  # urgent: the artifact only goes stale as fast as O*NET publishes, which is
+  # quarterly. `flask corpus refresh` is build -> zones -> clusters -> publish,
+  # ~3,084 O*NET requests at the shared 4/s ceiling (~13 minutes, 6% of the
+  # 50,000/day cap) and ~$0.01 of embeddings. `--dry-run` reports the plan and
+  # makes no network call of any kind, which is how to check this box's
+  # configuration without spending any of that.
+  #
+  # ⚠ THIS CRON DOES NOT DEPLOY A CORPUS, AND THAT IS THE DESIGN. It uploads a
+  # NEW date-stamped key and leaves the one in service untouched; production
+  # keeps serving whatever SOLVERAH_CORPUS_S3_KEY names until a human changes
+  # it. A published version is immutable — workers cache it and never re-fetch,
+  # so a refresh that silently replaced the artifact underneath them would put
+  # half the fleet on one corpus and half on another. The promotion is a
+  # separate, reviewable act, and it is also the rollback.
+  #
+  # So the operator loop is: the cron produces a candidate every quarter, and
+  # somebody looks at it (`flask corpus clusters --show` is the cheapest look)
+  # before pointing the key at it. If nobody ever does, production keeps
+  # serving a known-good corpus, which is the right failure mode.
+  #
+  # SOLVERAH_CORPUS_DIR is the cron box's own scratch space, not the web
+  # service's cache — the artifact is built there, uploaded, and thrown away
+  # with the container.
+  #
+  # 05:00 UTC on the 1st of Jan/Apr/Jul/Oct: off-peak, and clear of the daily
+  # crons above rather than sharing a minute with them.
+  - type: cron
+    name: solverah-corpus-refresh
+    runtime: python
+    branch: main
+    schedule: "0 5 1 1,4,7,10 *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: flask corpus refresh
+    envVars:
+      - fromGroup: solverah-prod
+      - key: SOLVERAH_CORPUS_DIR
+        value: /tmp/solverah-corpus-build
+      # Not DATABASE_URL: this command reads O*NET, OpenAI and S3 and touches
+      # no table. `create_app()` still runs, so the app's own config validation
+      # applies, but nothing here queries.
+
 # ------------------------------------------------------------------ database
 # Exists today, dashboard-created. Measured 2026-08-27 as PostgreSQL 18.3 —
 # uuidv7() is a native built-in the schema depends on (DEFAULT uuidv7()), so
@@ -159,6 +202,39 @@ envVarGroups:
       - key: SOLVERAH_FORM_TOKEN_SECRET
         sync: false             # no default by design (D-05); read at call time —
                                 # missing = every assessment route 500s, boot stays green
+      # ⚠ DEPLOY DEPENDENCY (Workstream F, 2026-09-16). NOT SET IN PRODUCTION
+      # TODAY, and Path Intelligence does not work without it. F-4 replaced the
+      # old O*NET job-family funnel with retrieval over a precomputed corpus and
+      # TOMBSTONED the funnel (`path_scoring.TestTombstones`), so there is no
+      # fallback path to degrade to. With no artifact in S3 and no key set:
+      #   - POST /me/path-fit            → 503 corpus_unavailable (typed)
+      #   - POST/DELETE /me/path-feedback → 503 corpus_unavailable (typed)
+      #   - the path-suggestions job      → 500 "Unable to score career paths"
+      #     (intelligence_service has no CorpusUnavailable branch on that path —
+      #     it falls into the generic handler. Recorded, not fixed, in F-8.)
+      #
+      # ORDER ON DEPLOY DAY, and it is the order that matters:
+      #   1. `flask corpus publish` — uploads the four objects (.npy, .json,
+      #      .zones.json, .clusters.json) to S3_BUCKET_NAME. The FIRST REAL
+      #      UPLOAD IS SEBASTIAN'S TRIGGER, by his own instruction: F-1 stopped
+      #      at local files so a corpus is reviewed before it goes anywhere.
+      #   2. set SOLVERAH_CORPUS_S3_KEY to the `corpus_s3_key` that command
+      #      echoes — this is what puts an artifact INTO service, and pointing
+      #      it back at the previous key is the rollback.
+      #   3. verify one worker loads it (the `occupation corpus loaded:` log
+      #      line, which reports row count, dims and whether zones came down)
+      #   4. THEN merge.
+      # A deploy in any other order serves errors on every path route until
+      # step 2, and nothing fails at boot to tell you — `get_corpus()` is lazy
+      # and per-worker by design, so the first symptom is a user's 503.
+      - key: SOLVERAH_CORPUS_S3_KEY
+        sync: false             # e.g. occupation_retrieval/onet_corpus_20260916.npy
+                                # the three sidecar keys are DERIVED from this one
+      - key: SOLVERAH_CORPUS_CACHE_DIR
+        sync: false             # where a worker caches the 6 MB artifact after its
+                                # first fetch; defaults to <tmp>/solverah-corpus-cache,
+                                # which is correct on Render's ephemeral disk. Set it
+                                # only to move the cache off /tmp.
       # ⚠ DEPLOY DEPENDENCY (S1, 2026-09-03). NOT SET IN PRODUCTION TODAY, and
       # as of S1 the app will not boot in production without it: `memory://`
       # rate-limit storage raises ConfigError instead of warning, because

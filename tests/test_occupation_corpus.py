@@ -878,3 +878,511 @@ class TestCorpusBuildCommand:
 
         assert result.exit_code != 0
         assert "ONET_API_KEY" in _text(result)
+
+
+# ---------------------------------------------------------------------------
+# Publishing (BUILD_PLAN F-8 box 1)
+# ---------------------------------------------------------------------------
+#
+# EVERY TEST BELOW RUNS AGAINST A MOCK. Nothing here reaches real S3, and the
+# first real upload is Sebastian's trigger by his own instruction -- F-1 stopped
+# at local files for exactly that reason and F-8 does not change it.
+
+
+class _NotFound(Exception):
+    """What the fake raises for an absent key.
+
+    Shaped like botocore's 404 rather than like a bare KeyError, because
+    `_remote_size` has to tell "this key is not there" apart from "I could not
+    reach the bucket" and getting that backwards means overwriting a corpus in
+    service.
+    """
+
+    def __init__(self) -> None:
+        super().__init__("Not Found")
+        self.response = {"Error": {"Code": "404", "Message": "Not Found"}}
+
+
+class FakeS3:
+    """The two-method slice of the boto3 client `publish_corpus` uses."""
+
+    def __init__(self, objects: dict[str, bytes] | None = None) -> None:
+        self.objects: dict[str, bytes] = dict(objects or {})
+        self.heads: list[str] = []
+        self.puts: list[str] = []
+        self.head_error: Exception | None = None
+
+    def head_object(self, Bucket: str, Key: str) -> dict:  # noqa: N803 -- boto3 casing
+        self.heads.append(Key)
+        if self.head_error is not None:
+            raise self.head_error
+        if Key not in self.objects:
+            raise _NotFound()
+        return {"ContentLength": len(self.objects[Key])}
+
+    def put_object(self, Bucket: str, Key: str, Body: bytes) -> dict:  # noqa: N803
+        self.puts.append(Key)
+        self.objects[Key] = Body
+        return {}
+
+
+@pytest.fixture()
+def artifact(tmp_path: Path) -> Path:
+    """A complete four-file artifact set, with recognisable contents."""
+    stem = tmp_path / "onet_corpus_20260916"
+    for suffix, payload in (
+        (".npy", b"matrix-bytes"),
+        (".json", b'{"sidecar": true}'),
+        (".zones.json", b'{"zones": {}}'),
+        (".clusters.json", b'{"clusters": {}}'),
+    ):
+        Path(str(stem) + suffix).write_bytes(payload)
+    return Path(str(stem) + ".npy")
+
+
+class TestArtifactFiles:
+    def test_the_four_files_are_derived_from_the_matrix(self, artifact: Path) -> None:
+        names = [p.name for p in corpus.artifact_files(artifact)]
+        assert names == [
+            "onet_corpus_20260916.npy",
+            "onet_corpus_20260916.json",
+            "onet_corpus_20260916.zones.json",
+            "onet_corpus_20260916.clusters.json",
+        ]
+
+    def test_the_names_match_what_the_loader_derives(self, artifact: Path) -> None:
+        """The contract this whole box rests on, asserted against the reader.
+
+        `occupation_retrieval._fetch_from_s3` derives three keys from the `.npy`
+        key by string surgery on the suffix. If publish put the zone sidecar at
+        a name that fetch does not ask for, the file would be in the bucket and
+        the corpus would still have no zones -- which is a 503 on every
+        `adjacent` and `fresh_start` request, from a bucket that looks full.
+        """
+        from backend.services import occupation_retrieval
+
+        published = corpus.artifact_files(artifact)
+        assert published[1].name == occupation_retrieval._sidecar_path(artifact).name
+        assert published[2].name == occupation_retrieval.zone_sidecar_path(artifact).name
+        assert published[3].name == occupation_retrieval.clusters_sidecar_path(artifact).name
+
+
+class TestPublishCorpus:
+    def test_uploads_all_four_objects_under_the_prefix(self, artifact: Path) -> None:
+        s3 = FakeS3()
+
+        published = corpus.publish_corpus(
+            artifact, bucket="solverah-app", key_prefix="occupation_retrieval", s3_client=s3
+        )
+
+        assert s3.puts == [
+            "occupation_retrieval/onet_corpus_20260916.npy",
+            "occupation_retrieval/onet_corpus_20260916.json",
+            "occupation_retrieval/onet_corpus_20260916.zones.json",
+            "occupation_retrieval/onet_corpus_20260916.clusters.json",
+        ]
+        assert published.matrix_key == "occupation_retrieval/onet_corpus_20260916.npy"
+        assert published.summary()["uploaded"] == 4
+        assert s3.objects[published.matrix_key] == b"matrix-bytes"
+
+    def test_a_dry_run_makes_no_call_at_all(self, artifact: Path) -> None:
+        """Not even a head_object. A dry run is what an operator reaches for
+        when they are NOT yet sure the configuration is right."""
+        s3 = FakeS3()
+
+        published = corpus.publish_corpus(
+            artifact,
+            bucket="solverah-app",
+            key_prefix="occupation_retrieval",
+            s3_client=s3,
+            dry_run=True,
+        )
+
+        assert s3.heads == [] and s3.puts == []
+        assert published.dry_run is True
+        assert [o.action for o in published.objects] == ["planned"] * 4
+
+    def test_republishing_identical_bytes_is_a_no_op(self, artifact: Path) -> None:
+        """What makes a half-finished refresh resumable rather than blocked."""
+        s3 = FakeS3()
+        corpus.publish_corpus(
+            artifact, bucket="b", key_prefix="p", s3_client=s3
+        )
+        s3.puts.clear()
+
+        again = corpus.publish_corpus(
+            artifact, bucket="b", key_prefix="p", s3_client=s3
+        )
+
+        assert s3.puts == []
+        assert again.summary()["skipped"] == 4
+        assert again.summary()["uploaded"] == 0
+
+    def test_a_key_with_different_content_is_refused_not_overwritten(
+        self, artifact: Path
+    ) -> None:
+        """The rule the whole design rests on.
+
+        A worker that has cached `onet_corpus_20260916.npy` never re-fetches it.
+        Changing the bytes behind that key puts half the fleet on one corpus and
+        half on another, with a row->code sidecar that may index the wrong
+        matrix. A new build gets a new date stamp; it does not edit an old one.
+        """
+        s3 = FakeS3({"p/onet_corpus_20260916.npy": b"a completely different corpus"})
+
+        with pytest.raises(corpus.CorpusBuildError, match="already exists"):
+            corpus.publish_corpus(artifact, bucket="b", key_prefix="p", s3_client=s3)
+
+        assert s3.puts == []
+        assert s3.objects["p/onet_corpus_20260916.npy"] == b"a completely different corpus"
+
+    def test_an_unreadable_bucket_is_not_read_as_an_absent_key(
+        self, artifact: Path
+    ) -> None:
+        """"I could not tell whether this exists" must never mean "it does not".
+
+        The next line after that answer is a put over a corpus in service, so a
+        credentials error or a network failure has to propagate rather than fall
+        through to the upload branch.
+        """
+        s3 = FakeS3()
+        s3.head_error = RuntimeError("AccessDenied")
+
+        with pytest.raises(RuntimeError, match="AccessDenied"):
+            corpus.publish_corpus(artifact, bucket="b", key_prefix="p", s3_client=s3)
+
+        assert s3.puts == []
+
+    @pytest.mark.parametrize(
+        "suffix,command",
+        [
+            (".json", "flask corpus build"),
+            (".zones.json", "flask corpus zones"),
+            (".clusters.json", "flask corpus clusters"),
+        ],
+    )
+    def test_an_incomplete_set_is_refused_and_names_the_command(
+        self, artifact: Path, suffix: str, command: str
+    ) -> None:
+        """A partial bucket is worse than no bucket, and silently so.
+
+        No zones means `zone_max` raises on every `adjacent` and `fresh_start`
+        request; no clusters means every worker pays a 0.7 s k-means fit and the
+        scikit-learn import, on the dyno that OOMed on 2026-09-15.
+        """
+        Path(str(artifact)[: -len(".npy")] + suffix).unlink()
+        s3 = FakeS3()
+
+        with pytest.raises(corpus.CorpusBuildError) as exc:
+            corpus.publish_corpus(artifact, bucket="b", key_prefix="p", s3_client=s3)
+
+        assert suffix in str(exc.value)
+        assert command in str(exc.value)
+        assert s3.puts == [], "nothing is uploaded from an incomplete set"
+
+    def test_the_backup_bucket_is_refused(
+        self, artifact: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The same refusal the read side makes, for the same reason.
+
+        The backup credentials are deliberately an identity the application
+        cannot use (`solverah/config.py` validates the pair at boot and refuses
+        any overlap). The CLI does not run under that validator, so it refuses
+        here too rather than trusting a check it never executes.
+        """
+        monkeypatch.setenv("BACKUP_S3_BUCKET_NAME", "solverah-backups")
+        s3 = FakeS3()
+
+        with pytest.raises(corpus.CorpusBuildError, match="BACKUP_S3_BUCKET_NAME"):
+            corpus.publish_corpus(
+                artifact, bucket="solverah-backups", key_prefix="p", s3_client=s3
+            )
+
+        assert s3.puts == []
+
+    def test_no_bucket_and_no_prefix_are_clean_refusals(self, artifact: Path) -> None:
+        with pytest.raises(corpus.CorpusBuildError, match="S3_BUCKET_NAME"):
+            corpus.publish_corpus(
+                artifact, bucket="", key_prefix="p", s3_client=FakeS3()
+            )
+        with pytest.raises(corpus.CorpusBuildError, match="prefix"):
+            corpus.publish_corpus(
+                artifact, bucket="b", key_prefix="", s3_client=FakeS3()
+            )
+
+    def test_something_that_is_not_an_npy_is_refused(self, tmp_path: Path) -> None:
+        stray = tmp_path / "onet_corpus_x.json"
+        stray.write_text("{}")
+        with pytest.raises(corpus.CorpusBuildError, match="not a .npy"):
+            corpus.publish_corpus(
+                stray, bucket="b", key_prefix="p", s3_client=FakeS3()
+            )
+
+
+class TestDefaultKeyPrefix:
+    def test_an_explicit_prefix_wins(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("SOLVERAH_CORPUS_S3_PREFIX", "corpora/")
+        monkeypatch.setenv("SOLVERAH_CORPUS_S3_KEY", "elsewhere/x.npy")
+        assert corpus.default_key_prefix() == "corpora"
+
+    def test_otherwise_it_comes_from_the_key_in_service(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """So an environment configured to READ a corpus publishes the next one
+        beside it, and the two cannot disagree about where the corpus lives."""
+        monkeypatch.delenv("SOLVERAH_CORPUS_S3_PREFIX", raising=False)
+        monkeypatch.setenv(
+            "SOLVERAH_CORPUS_S3_KEY", "occupation_retrieval/onet_corpus_20260916.npy"
+        )
+        assert corpus.default_key_prefix() == "occupation_retrieval"
+
+    def test_neither_set_is_empty_not_a_guess(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("SOLVERAH_CORPUS_S3_PREFIX", raising=False)
+        monkeypatch.delenv("SOLVERAH_CORPUS_S3_KEY", raising=False)
+        assert corpus.default_key_prefix() == ""
+
+
+class TestCorpusPublishCommand:
+    def test_registered_on_the_app_cli(self, ctx) -> None:
+        group = ctx.cli.get_command(None, "corpus")
+        assert "publish" in group.list_commands(None)
+
+    def test_a_dry_run_reports_the_plan_and_the_key_to_set(
+        self, ctx, artifact: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("S3_BUCKET_NAME", "solverah-app")
+        monkeypatch.setenv(
+            "SOLVERAH_CORPUS_S3_KEY", "occupation_retrieval/onet_corpus_old.npy"
+        )
+
+        result = ctx.test_cli_runner().invoke(
+            args=["corpus", "publish", "--corpus", str(artifact), "--dry-run"]
+        )
+
+        assert result.exit_code == 0, _text(result)
+        summary = json.loads(result.output.strip().splitlines()[-1])
+        assert summary["event"] == "corpus_publish"
+        assert summary["dry_run"] is True
+        assert summary["uploaded"] == 0
+        assert (
+            summary["corpus_s3_key"]
+            == "occupation_retrieval/onet_corpus_20260916.npy"
+        )
+
+    def test_it_uploads_through_the_repos_own_s3_client(
+        self, ctx, artifact: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Not `boto3.client` directly.
+
+        `storage.get_s3_client` carries the 3s connect / 10s read / 3-attempt
+        bounds, and `tests/test_storage_client_config.py` walks the tree for a
+        second unbounded construction site.
+        """
+        s3 = FakeS3()
+        monkeypatch.setenv("S3_BUCKET_NAME", "solverah-app")
+        monkeypatch.setenv("SOLVERAH_CORPUS_S3_PREFIX", "occupation_retrieval")
+        monkeypatch.setattr("solverah.infra.storage.get_s3_client", lambda: s3)
+
+        result = ctx.test_cli_runner().invoke(
+            args=["corpus", "publish", "--corpus", str(artifact)]
+        )
+
+        assert result.exit_code == 0, _text(result)
+        assert len(s3.puts) == 4
+        summary = json.loads(result.output.strip().splitlines()[-1])
+        assert summary["uploaded"] == 4
+
+    def test_a_refusal_exits_non_zero_without_a_traceback(
+        self, ctx, artifact: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        s3 = FakeS3({"p/onet_corpus_20260916.npy": b"different"})
+        monkeypatch.setenv("S3_BUCKET_NAME", "solverah-app")
+        monkeypatch.setenv("SOLVERAH_CORPUS_S3_PREFIX", "p")
+        monkeypatch.setattr("solverah.infra.storage.get_s3_client", lambda: s3)
+
+        result = ctx.test_cli_runner().invoke(
+            args=["corpus", "publish", "--corpus", str(artifact)]
+        )
+
+        assert result.exit_code != 0
+        assert "already exists" in _text(result)
+        assert "Traceback" not in _text(result)
+
+    def test_unconfigured_s3_is_a_clean_refusal(
+        self, ctx, artifact: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`get_s3_client` reads os.environ directly; a bare KeyError traceback
+        does not say which variable is missing."""
+        monkeypatch.setenv("S3_BUCKET_NAME", "solverah-app")
+        monkeypatch.setenv("SOLVERAH_CORPUS_S3_PREFIX", "p")
+        monkeypatch.delenv("S3_ENDPOINT_URL", raising=False)
+
+        result = ctx.test_cli_runner().invoke(
+            args=["corpus", "publish", "--corpus", str(artifact)]
+        )
+
+        assert result.exit_code != 0
+        assert "S3_ENDPOINT_URL" in _text(result)
+
+
+class TestCorpusRefreshCommand:
+    """The quarterly cadence. O*NET's content changes quarterly."""
+
+    def test_registered_on_the_app_cli(self, ctx) -> None:
+        group = ctx.cli.get_command(None, "corpus")
+        assert "refresh" in group.list_commands(None)
+
+    def test_a_dry_run_makes_no_network_call_and_names_every_step(
+        self, ctx, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Zero O*NET calls is the hard constraint on this whole box.
+
+        The O*NET client and the OpenAI client are both replaced with something
+        that raises, so a dry run that touched either fails here rather than
+        spending a shared rate-limit budget.
+        """
+        def explode(*a, **k):
+            raise AssertionError("a dry run made a network call")
+
+        monkeypatch.setattr("backend.services.onet_client.OnetClient", explode)
+        monkeypatch.setattr("solverah.infra.llm.get_openai_client", explode)
+        monkeypatch.setenv("S3_BUCKET_NAME", "solverah-app")
+        monkeypatch.setenv("SOLVERAH_CORPUS_S3_PREFIX", "occupation_retrieval")
+        for name in (
+            "S3_ENDPOINT_URL", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY",
+            "ONET_API_KEY", "OPENAI_API_KEY",
+        ):
+            monkeypatch.setenv(name, "set-for-the-dry-run")
+
+        result = ctx.test_cli_runner().invoke(
+            args=[
+                "corpus", "refresh",
+                "--out-dir", str(tmp_path),
+                "--version", "20261216",
+                "--dry-run",
+            ]
+        )
+
+        assert result.exit_code == 0, _text(result)
+        plan = json.loads(result.output.strip().splitlines()[-1])
+        assert plan["steps"] == ["build", "zones", "clusters", "publish"]
+        assert plan["problems"] == []
+        assert plan["would_publish"] == [
+            "occupation_retrieval/onet_corpus_20261216.npy",
+            "occupation_retrieval/onet_corpus_20261216.json",
+            "occupation_retrieval/onet_corpus_20261216.zones.json",
+            "occupation_retrieval/onet_corpus_20261216.clusters.json",
+        ]
+        assert plan["rate_limit_per_second"] == corpus.DEFAULT_REQUESTS_PER_SECOND
+
+    def test_a_dry_run_that_would_fail_says_so_and_exits_non_zero(
+        self, ctx, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The point of the flag: find out before spending 13 minutes of O*NET."""
+        for name in (
+            "S3_BUCKET_NAME", "SOLVERAH_CORPUS_S3_PREFIX", "SOLVERAH_CORPUS_S3_KEY",
+            "S3_ENDPOINT_URL", "ONET_API_KEY",
+        ):
+            monkeypatch.delenv(name, raising=False)
+
+        result = ctx.test_cli_runner().invoke(
+            args=["corpus", "refresh", "--out-dir", str(tmp_path), "--dry-run"]
+        )
+
+        assert result.exit_code != 0
+        text = _text(result)
+        assert "S3_BUCKET_NAME is unset" in text
+        assert "ONET_API_KEY is unset" in text
+
+    def test_it_runs_the_four_commands_and_publishes_what_it_built(
+        self, ctx, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, onet: FakeOnetClient
+    ) -> None:
+        """End to end on fakes: build -> zones -> clusters -> publish.
+
+        The value of this test is that the artifact the publish uploads is the
+        one the build produced. `refresh` chains on `corpus build`'s return
+        value rather than re-deriving a filename from today's date, because a
+        run that crosses midnight UTC would otherwise publish a name that does
+        not exist.
+        """
+        s3 = FakeS3()
+        zone_records = [
+            {"code": "15-1252.00", "title": "Software Developers", "zone": 4},
+            {"code": "29-1141.00", "title": "Registered Nurses", "zone": 3},
+        ]
+        monkeypatch.setattr("backend.services.onet_client.OnetClient", lambda *a, **k: onet)
+        monkeypatch.setattr(
+            "solverah.infra.llm.get_openai_client", lambda: FakeOpenAIClient()
+        )
+        monkeypatch.setattr("solverah.infra.storage.get_s3_client", lambda: s3)
+        monkeypatch.setattr(
+            "backend.services.occupation_retrieval.fetch_job_zones",
+            lambda *a, **k: {r["code"]: r["zone"] for r in zone_records},
+        )
+        monkeypatch.setenv("S3_BUCKET_NAME", "solverah-app")
+        monkeypatch.setenv("SOLVERAH_CORPUS_S3_PREFIX", "occupation_retrieval")
+        monkeypatch.setenv("ONET_API_KEY", "test-key-not-a-real-one")
+
+        result = ctx.test_cli_runner().invoke(
+            args=[
+                "corpus", "refresh",
+                "--out-dir", str(tmp_path),
+                "--version", "refreshed",
+                "--rate", "5",
+            ]
+        )
+
+        assert result.exit_code == 0, _text(result)
+        assert sorted(s3.puts) == sorted(
+            [
+                "occupation_retrieval/onet_corpus_refreshed.npy",
+                "occupation_retrieval/onet_corpus_refreshed.json",
+                "occupation_retrieval/onet_corpus_refreshed.zones.json",
+                "occupation_retrieval/onet_corpus_refreshed.clusters.json",
+            ]
+        )
+        assert (
+            s3.objects["occupation_retrieval/onet_corpus_refreshed.npy"]
+            == (tmp_path / "onet_corpus_refreshed.npy").read_bytes()
+        )
+
+    def test_a_second_refresh_over_the_same_version_uploads_nothing(
+        self, ctx, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, onet: FakeOnetClient
+    ) -> None:
+        """Resumability, proved rather than asserted in a docstring.
+
+        Nothing here bookkeeps progress: the build reuses its checkpoint, the
+        zones and clusters are idempotent rewrites, and the publish skips
+        objects already in the bucket byte-for-byte. A refresh that died halfway
+        therefore costs only what it had not already done, and a refresh that
+        did not die costs nothing to repeat.
+        """
+        s3 = FakeS3()
+        monkeypatch.setattr("backend.services.onet_client.OnetClient", lambda *a, **k: onet)
+        monkeypatch.setattr(
+            "solverah.infra.llm.get_openai_client", lambda: FakeOpenAIClient()
+        )
+        monkeypatch.setattr("solverah.infra.storage.get_s3_client", lambda: s3)
+        monkeypatch.setattr(
+            "backend.services.occupation_retrieval.fetch_job_zones",
+            lambda *a, **k: {"15-1252.00": 4, "29-1141.00": 3},
+        )
+        monkeypatch.setenv("S3_BUCKET_NAME", "solverah-app")
+        monkeypatch.setenv("SOLVERAH_CORPUS_S3_PREFIX", "occupation_retrieval")
+        monkeypatch.setenv("ONET_API_KEY", "test-key-not-a-real-one")
+
+        args = [
+            "corpus", "refresh",
+            "--out-dir", str(tmp_path),
+            "--version", "refreshed",
+            "--rate", "5",
+        ]
+        assert ctx.test_cli_runner().invoke(args=args).exit_code == 0
+        s3.puts.clear()
+
+        second = ctx.test_cli_runner().invoke(args=args)
+
+        assert second.exit_code == 0, _text(second)
+        assert s3.puts == []
