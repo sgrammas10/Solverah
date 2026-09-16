@@ -16,10 +16,11 @@ dashboard env vars:
     flask retention run        # suggested: daily
     flask backups run          # suggested: daily, 03:30 UTC
     flask pulse send-prompts   # suggested: daily (BUILD_PLAN B-2)
+    flask corpus build         # suggested: quarterly (BUILD_PLAN F-1)
 
-``pulse send-prompts`` is the newest of the four and not load-bearing the way
-the first two are -- nothing breaks if a run is skipped, a due user is simply
-prompted on the next one -- but it shares the same idempotency shape (see
+``pulse send-prompts`` is the newest of the four cron jobs and not load-bearing
+the way the first two are -- nothing breaks if a run is skipped, a due user is
+simply prompted on the next one -- but it shares the same idempotency shape (see
 ``solverah.services.pulse_cadence_service``) and the same reason for being a
 cron entry point rather than a beat task.
 
@@ -47,6 +48,16 @@ Unlike the other two, ``backups run`` shells out to ``pg_dump``, so it runs on
 the ``infra/docker/Dockerfile.backup`` image rather than Render's native Python
 runtime, which guarantees no PostgreSQL client of any version.
 
+``corpus build`` is the odd one out of the five and says so up front: it touches
+no database and no email, and it is the only command here that spends money at a
+provider.  It lives in this module for the reason
+``docs/PATH_INTELLIGENCE_REDESIGN.md`` §2.1 gives -- O*NET content changes
+quarterly, so refreshing the occupation corpus should be a scheduled job rather
+than something somebody remembers to run on a laptop.  It draws the pass/fail
+line where ``backups run`` does, not where ``outbox sweep`` does: a partial
+corpus would be loaded and trusted for a quarter, so a build that cannot fetch
+its catalog refuses to write anything and exits non-zero.
+
 Service imports happen inside the command bodies: this module is imported by the
 factory, which must stay importable without pulling in ``model`` and the email
 infrastructure.
@@ -60,12 +71,20 @@ import os
 import click
 from flask.cli import AppGroup
 
-__all__ = ["backups_cli", "outbox_cli", "pulse_cli", "register_cli", "retention_cli"]
+__all__ = [
+    "backups_cli",
+    "corpus_cli",
+    "outbox_cli",
+    "pulse_cli",
+    "register_cli",
+    "retention_cli",
+]
 
 outbox_cli = AppGroup("outbox", help="Transactional-outbox operations (cron entry points).")
 retention_cli = AppGroup("retention", help="Data-retention purges (cron entry points).")
 backups_cli = AppGroup("backups", help="Database backups (cron entry point).")
 pulse_cli = AppGroup("pulse", help="Pulse check-in cadence (cron entry point).")
+corpus_cli = AppGroup("corpus", help="O*NET occupation vector corpus (BUILD_PLAN F-1).")
 
 #: The frontend origin the Pulse deep link is built against, when neither the
 #: env var nor `--base-url` supplies one. Same value as `factory.py`'s
@@ -309,9 +328,113 @@ def pulse_send_prompts(base_url: str) -> None:
     click.echo(json.dumps({"event": "pulse_send_prompts", **summary}))
 
 
+@corpus_cli.command("build")
+@click.option(
+    "--out-dir",
+    default=None,
+    help="Directory for the .npy, sidecar and checkpoint "
+    "(default: $SOLVERAH_CORPUS_DIR). Keep it OUTSIDE the repo.",
+)
+@click.option("--version", default=None, help="Filename version stamp (default: UTC date).")
+@click.option(
+    "--limit",
+    default=None,
+    type=int,
+    help="Only build the first N occupations by code -- for smoke runs.",
+)
+@click.option(
+    "--rate",
+    default=None,
+    type=float,
+    show_default="4.0/s",
+    help="Aggregate O*NET requests per second. O*NET's documented threshold is 5.",
+)
+@click.option(
+    "--workers",
+    default=4,
+    show_default=True,
+    type=int,
+    help="Concurrent fetchers. Hides latency; --rate still bounds the request rate.",
+)
+@click.option(
+    "--resume/--no-resume",
+    default=True,
+    show_default=True,
+    help="Reuse role documents already in the checkpoint file.",
+)
+@click.option("--checkpoint", default=None, help="Override the checkpoint file path.")
+def corpus_build(
+    out_dir: str | None,
+    version: str | None,
+    limit: int | None,
+    rate: float | None,
+    workers: int,
+    resume: bool,
+    checkpoint: str | None,
+) -> None:
+    """Build the precomputed O*NET occupation vector corpus.
+
+    Enumerates the whole O*NET catalog (~1,016 occupations), fetches each one's
+    description, tasks and hot technologies, composes a role document, embeds it
+    with text-embedding-3-small and writes a float32 matrix plus a JSON sidecar
+    mapping row index to O*NET code.
+
+    ~3,070 O*NET requests and ~13 minutes at the default rate; the O*NET Terms
+    of Service put the threshold at 5 requests/second and 50,000/day.  The run
+    is resumable -- fetched documents are checkpointed as they arrive, so a
+    re-run after a trip costs only what it had not already fetched.
+
+    Writes local files only.  Uploading the artifact is F-3's, and deliberately
+    not wired here: Sebastian reviews a corpus before it goes anywhere.
+
+    Exit codes follow this module's convention.  Unlike `outbox sweep`, a
+    partial pass is NOT a success: an artifact with a hole in it would be
+    loaded and trusted for a quarter, so the builder refuses to write one and
+    exits non-zero.
+    """
+    from backend.services import occupation_corpus
+    from backend.services.onet_client import OnetClient
+    from solverah.infra.llm import get_openai_client
+
+    resolved_out_dir = out_dir or os.environ.get("SOLVERAH_CORPUS_DIR")
+    if not resolved_out_dir:
+        raise click.ClickException(
+            "No output directory. Pass --out-dir or set SOLVERAH_CORPUS_DIR. "
+            "There is deliberately no default: the artifact is ~6 MB of binary "
+            "and must not land in the repo tree."
+        )
+
+    try:
+        onet_client = OnetClient()
+        openai_client = get_openai_client()
+    except (RuntimeError, ValueError) as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    try:
+        build = occupation_corpus.build_corpus(
+            out_dir=resolved_out_dir,
+            onet_client=onet_client,
+            openai_client=openai_client,
+            version=version,
+            limit=limit,
+            requests_per_second=(
+                rate if rate is not None else occupation_corpus.DEFAULT_REQUESTS_PER_SECOND
+            ),
+            workers=workers,
+            resume=resume,
+            checkpoint_path=checkpoint,
+            on_progress=lambda message: click.echo(message, err=True),
+        )
+    except occupation_corpus.CorpusBuildError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    click.echo(json.dumps(build.summary()))
+
+
 def register_cli(app) -> None:
     """Attach the operational command groups to *app*'s CLI."""
     app.cli.add_command(outbox_cli)
     app.cli.add_command(retention_cli)
     app.cli.add_command(backups_cli)
     app.cli.add_command(pulse_cli)
+    app.cli.add_command(corpus_cli)

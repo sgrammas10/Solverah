@@ -162,6 +162,23 @@ class Skill:
     level: float       # LV scale: 0–7
 
 
+@dataclass
+class Task:
+    """One occupational task statement from /details/tasks.
+
+    ``importance`` is the IM scale (0–100) and ``category`` is O*NET's own
+    "Core"/"Supplemental" split — both are absent from the cheaper
+    /summary/tasks endpoint, which is why this client uses /details.  They cost
+    the same single request and let a caller rank and trim the task list
+    instead of taking whatever order the API returned.
+    """
+
+    task_id: str
+    title: str
+    importance: float
+    category: str
+
+
 # ---------------------------------------------------------------------------
 # Exceptions
 # ---------------------------------------------------------------------------
@@ -374,6 +391,145 @@ class OnetClient:
         _occ_cache_set(cache_key, result)
         return result
 
+    def get_occupation_description(self, onet_code: str) -> str:
+        """Return O*NET's description paragraph for *onet_code*.
+
+        Hits the occupation root, ``/online/occupations/[code]``, whose payload
+        carries ``title``, ``description`` and a table of links to every
+        sub-resource.  One request, ~2–4 sentences of concrete prose -- the
+        half of a role document that says what the job *is*, as opposed to
+        ``get_tasks`` which says what the job *does*.
+
+        Returns an empty string when the field is absent rather than raising:
+        a missing description degrades a role document, it does not invalidate
+        it, and the corpus builder must not lose an occupation over one blank
+        field.
+
+        No .00 -> .01 fallback, unlike get_skills_profile and friends.  Every
+        occupation the catalog enumerates has its own description, including
+        umbrella .00 codes whose *ratings* live in the sub-codes -- verified
+        against the live v2 API 2026-09-16.
+
+        Result is cached per onet_code for _OCC_CACHE_TTL seconds (24h), same
+        rationale as get_skills_profile.
+        """
+        cache_key = ("get_occupation_description", onet_code, ())
+        cached = _occ_cache_get(cache_key)
+        if cached is not None:
+            return str(cached)
+
+        data = self._get(f"online/occupations/{onet_code}")
+        description = str(data.get("description") or "")
+        if not description:
+            _log.warning("description empty for %s", onet_code)
+        _occ_cache_set(cache_key, description)
+        return description
+
+    def get_tasks(self, onet_code: str) -> list[Task]:
+        """Return task statements for *onet_code*, most important first.
+
+        v2 endpoint: ``/details/tasks`` -- each entry has ``id``, ``title``,
+        ``importance`` (0-100) and ``category`` ("Core"/"Supplemental").  The
+        cheaper ``/summary/tasks`` returns the same statements without those
+        last two fields, so it costs one request either way and gives the
+        caller nothing to rank by; this client takes the richer one.
+
+        Sorted by importance descending here rather than at the call site so
+        that "top N tasks" means the same thing everywhere.  O*NET already
+        returns them in that order, but that is its choice, not a contract.
+
+        Same .00 -> .01 fallback as get_skills_profile: an umbrella code with
+        no task data of its own borrows its first sub-code's.
+
+        Requests up to 100 entries in one call -- the largest task list in the
+        catalog is well under that.
+
+        Result is cached per onet_code for _OCC_CACHE_TTL seconds (24h).
+        """
+        cache_key = ("get_tasks", onet_code, ())
+        cached = _occ_cache_get(cache_key)
+        if cached is not None:
+            return list(cached)
+
+        def _fetch(code: str) -> list[dict]:
+            data = self._get(
+                f"online/occupations/{code}/details/tasks",
+                params={"end": 100},
+            )
+            return data.get("task") or []
+
+        entries = _fetch(onet_code)
+        if not entries and onet_code.endswith(".00"):
+            fallback = onet_code[:-3] + ".01"
+            _log.debug("tasks empty for %s, trying sub-code %s", onet_code, fallback)
+            try:
+                entries = _fetch(fallback)
+            except OnetAPIError:
+                # A genuinely task-less occupation has no sub-code to fall back
+                # to, and asking for one is a 404.  Measured over the whole
+                # catalog 2026-09-16: 74 of 1,016 occupations have no task data
+                # -- all 19 of the 55-0000 Military Specific family, and the
+                # "..., All Other" residual codes (11-9039.00, 43-9199.00, ...)
+                # spread across every other family.  Some of those do have a
+                # .01 with data, which is why the fallback is attempted at all;
+                # the rest 404.  An occupation with no tasks is a thinner role
+                # document, not a failed fetch, so this must not propagate.
+                _log.debug("tasks sub-code %s does not exist", fallback)
+                entries = []
+        if not entries:
+            _log.warning("tasks empty for %s (no fallback data)", onet_code)
+
+        result = [
+            Task(
+                task_id=str(t.get("id", "")),
+                title=t.get("title", ""),
+                importance=float(t.get("importance", 0.0)),
+                category=t.get("category", ""),
+            )
+            for t in entries
+        ]
+        result.sort(key=lambda t: t.importance, reverse=True)
+        _occ_cache_set(cache_key, result)
+        return result
+
+    def get_hot_technologies(self, onet_code: str) -> list[str]:
+        """Return *onet_code*'s hot technologies, most in-demand first.
+
+        v2 endpoint: ``/online/occupations/[code]/hot_technology``.
+
+        **Why not get_tech_skills(hot_only=True)**, which already returns the
+        same tools from /details/technology_skills for the same one request:
+        that method returns a ``set`` of ``.lower()``-ed names.  A set has no
+        order, so "the top N" is unanswerable, and Python's per-process string
+        hash randomisation means iterating one twice in two processes yields two
+        different orders -- which would make a corpus artifact built from it
+        irreproducible.  This endpoint returns the tools ranked by the share of
+        job postings mentioning them (measured 2026-09-16: Data Scientists leads
+        Python 66%, SQL 51%, R 34%) and preserves O*NET's own capitalisation.
+
+        Returns ``[]`` for an occupation with no hot technologies rather than
+        raising -- the endpoint answers 200 with ``total: 0``, not 404
+        (measured against the 55-0000 Military Specific family).
+
+        Result is cached per onet_code for _OCC_CACHE_TTL seconds (24h).
+        """
+        cache_key = ("get_hot_technologies", onet_code, ())
+        cached = _occ_cache_get(cache_key)
+        if cached is not None:
+            return list(cached)
+
+        data = self._get(
+            f"online/occupations/{onet_code}/hot_technology",
+            params={"end": 100},
+        )
+        names = [
+            ex["title"]
+            for ex in (data.get("example") or [])
+            if ex.get("title")
+        ]
+        _occ_cache_set(cache_key, names)
+        return names
+
     def get_bright_outlook_occupations(self) -> list[Occupation]:
         """Return all Bright Outlook occupations, deduplicated across the three categories.
 
@@ -420,26 +576,60 @@ class OnetClient:
 
         Each dict has "code" (e.g. "15-0000") and "title" keys.
         Raises OnetAPIError on failure.
+
+        **This endpoint returns a bare JSON array**, like /online/bright_outlook
+        and unlike the wrapped list endpoints -- confirmed against the live v2
+        API 2026-09-16, where the previous ``data.get("job_family")`` raised
+        ``AttributeError: 'list' object has no attribute 'get'`` on every call.
+        Both shapes are accepted here so a future re-wrap cannot break it again.
+
+        The array also carries a meta-entry with a ``title`` and an ``href`` but
+        **no ``code``** ("All Job Families"), exactly as the Bright Outlook
+        array does; it is a convenience alias for the whole set, not a family,
+        and is skipped rather than yielded as a family with an empty code.
         """
         data = self._get("online/job_families")
+        raw = data if isinstance(data, list) else (data.get("job_family") or [])
         return [
-            {"code": fam.get("code", ""), "title": fam.get("title", "")}
-            for fam in data.get("job_family", [])
+            {"code": fam["code"], "title": fam.get("title", "")}
+            for fam in raw
+            if fam.get("code")
         ]
 
-    def get_job_family_occupations(self, family_code: str) -> list[Occupation]:
-        """Return all occupations within a SOC job family.
+    def get_job_family_occupations(
+        self,
+        family_code: str,
+        start: int = 1,
+        end: int = 100,
+    ) -> list[Occupation]:
+        """Return one page of the occupations within a SOC job family.
 
-        Requests up to 100 entries to cover the full family in one call — the
-        largest O*NET family (15-0000) has ~38 occupations as of 2024.
+        Requests entries ``start``..``end`` inclusive, 1-indexed, matching the
+        API's own paging parameters.  The defaults reproduce the pre-2026-09-16
+        behaviour exactly (first 100), so no existing caller changes.
+
+        **One page is not the whole family.**  The docstring here used to claim
+        the largest family has ~38 occupations; measured against the live v2 API
+        2026-09-16, ``51-0000`` (Production) has **114**, so the default page
+        silently drops 14 of them.  The 23 families total 1,016 occupations,
+        which is the entire catalog (``/online/occupations`` reports the same
+        1,016).  A caller that needs the *whole* family -- the corpus builder
+        does; the scoring funnel deliberately does not -- must page, either on
+        the ``total`` in the response or by requesting until a short page comes
+        back.
 
         Args:
             family_code: SOC major-group code, e.g. "15-0000".
+            start: 1-indexed first entry to return.
+            end: 1-indexed last entry to return.
 
         Raises:
             OnetAPIError: On any HTTP error.
         """
-        data = self._get(f"online/job_families/{family_code}", params={"end": 100})
+        data = self._get(
+            f"online/job_families/{family_code}",
+            params={"start": start, "end": end},
+        )
         return [
             Occupation(code=occ_data.get("code", ""), title=occ_data.get("title", ""))
             for occ_data in data.get("occupation", [])
