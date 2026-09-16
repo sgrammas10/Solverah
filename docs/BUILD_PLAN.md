@@ -55,6 +55,7 @@ into `PRODUCT_DECISIONS.md` with proper signed entries (chunk 0 complete)._
 | ⚑7 | Path Intelligence `adjacent` feedback is **inline on the result cards**, not a questionnaire | **Decided** — Sebastian, 2026-09-16 | §6 F-6 |
 | ⚑8 | `path_scoring.py` gets a **substantial rewrite** — not a deletion, not a second scorer | **Decided** — Sebastian, 2026-09-16 | §6 F-4 |
 | ⚑9 | `fresh_start` excludes the user's SOC **minor** group, not major — major bars whole families (admin: 8 of 11 unreachable); minor wins on every metric | **Open** — recommend ratify | §6 F-7 |
+| ⚑10 | `fresh_start` ships the **diverse seed** (8/8/8/8 clusters) at a measured **−0.09 static nDCG** that two rounds of feedback repay to level, never above — the design's "exceeds after taps" claim did not hold (n=4, one profile poisoned by the fire-metaphor hazard). Ship as-is with F-8's behavioural-profile fix, or revert to the interim similarity page? | **Open** — recommend ship; re-measure after F-8 box 8 | §6 F-7 |
 
 ### 0.3 · Chunk 0b — commit hygiene before new work piles on (S–M)
 
@@ -539,7 +540,7 @@ the anchors/rater work. If it turns into expert elicitation, F inherits E's
 blocker and the entire reason this lane was chosen evaporates._
 
 
-_2026-09-16: **F-2 landed** (f51bef7). 20 profiles, 249 labels (66 primary / 130 acceptable / 45 harmful / 8 anchor), 56 flagged low-confidence in a `confidence` field (`python -m backend.services.path_eval review`). Every code validated live against O*NET (48 calls). **Metric correction:** precision@10 is rank-blind and MRR saturates on a 10-card shortlist, so the harness adds **nDCG@10 (tune on it)** and **harmful_rate@10 (gate on it, target 0.0)**; calibrated — random scores nDCG ≈ 0.01-0.02, oracle 1.0, so ≥0.35 is a real scorer. **Sample-size rule for F-4:** 20 profiles supports "clearly better or worse", NOT per-axis claims (n=5-6 per cell). **Production finding:** `_DEFAULT_ALLOWED_SOC_PREFIXES` structurally excludes whole families — electrician 0/3 primaries reachable (47-/49- barred), graphic designer 1/3 (27- barred), warehouse 2/4 (53-/49-/51- barred), teacher loses 21-. Three of 20 profiles will likely return empty and 500 today — the ACC-4 shape, hitting tradespeople and designers. See F-4 and F-8._
+_2026-09-16: **F-2 landed** (f51bef7). 20 profiles, 249 labels — **correction 2026-09-16: four `fresh_start` profiles (p05, p07, p10, p16), not five; verified by loading the fixture. Every fresh_start number in F-7 is n=4, below this note's own n=5 rule** (66 primary / 130 acceptable / 45 harmful / 8 anchor), 56 flagged low-confidence in a `confidence` field (`python -m backend.services.path_eval review`). Every code validated live against O*NET (48 calls). **Metric correction:** precision@10 is rank-blind and MRR saturates on a 10-card shortlist, so the harness adds **nDCG@10 (tune on it)** and **harmful_rate@10 (gate on it, target 0.0)**; calibrated — random scores nDCG ≈ 0.01-0.02, oracle 1.0, so ≥0.35 is a real scorer. **Sample-size rule for F-4:** 20 profiles supports "clearly better or worse", NOT per-axis claims (n=5-6 per cell). **Production finding:** `_DEFAULT_ALLOWED_SOC_PREFIXES` structurally excludes whole families — electrician 0/3 primaries reachable (47-/49- barred), graphic designer 1/3 (27- barred), warehouse 2/4 (53-/49-/51- barred), teacher loses 21-. Three of 20 profiles will likely return empty and 500 today — the ACC-4 shape, hitting tradespeople and designers. See F-4 and F-8._
 
 _2026-09-16, from F-4: **the `anchor` grade is applied inconsistently** — 8 profiles have one for the user's own occupation, the 8 tech/admin ones (p01 15-1252.00, p02, p03, p04 15-2051.00) grade their own job `primary`. Any scorer that correctly excludes the anchor forfeits a top primary on those four. ⚑ Regrade to `anchor`? Sebastian's call; both runs re-score identically either way, so the comparison stays honest._
 
@@ -620,13 +621,13 @@ _2026-09-16: **F-6 landed** (397aaac), 3158 passed / 0 failed backend, 953 vites
 
 ### F-7 · `fresh_start` — diverse seed, same loop (M)
 
-- [ ] k-means over the corpus (k ≈ 8-10); take the nearest real occupation to
+- [x] k-means over the corpus (k ≈ 8-10); take the nearest real occupation to
   each centroid as the seed set
-- [ ] Transferable-skill floor: retrieve on the user's *skills*, constrained to
+- [x] Transferable-skill floor: retrieve on the user's *skills*, constrained to
   a different SOC major group
   _⚑9 (2026-09-16, from F-4's interim `fresh_start`): **major group is too wide — the same defect as the allow-list.** Measured: it put 8 of 11 labelled-relevant occupations out of reach for the admin assistant (SOC 43 is ALL of Office & Administrative Support; Bookkeeping Clerk is a real job change the labels grade primary) and 4 of 11 for the warehouse worker. **Minor group** wins on every metric vs both major group and no filter (nDCG 0.466 → 0.491, harm 0.011 → 0.005). F-4 shipped minor group on evidence and flagged it. Recommend ratify; F-7 builds on whichever Sebastian rules._
-- [ ] Job Zone feasibility as a **hard filter**, not a weight
-- [ ] Behavioral profile (`archetype` / `focus_type` / `work_style_tags`) as the
+- [x] Job Zone feasibility as a **hard filter**, not a weight
+- [x] Behavioral profile (`archetype` / `focus_type` / `work_style_tags`) as the
   **primary** query, not a 0.25 side weight
 
 _Shares F-6's machinery entirely — same probe selection, same update rule, a
@@ -642,6 +643,9 @@ into this — `_ZONE_DAMPENING_FRESH_START = 0.6` is the patch over it, and
 `path_scoring.py:1355` admits every zone+1 role scores identically "regardless
 of relevance"._
 
+
+_2026-09-16: **F-7 landed** (a428da6), 3208 passed / 0 failed; overseer verified hygiene (6 files, no migration, no frontend), re-scored its run (`f7_fresh_start_seed.json`), and confirmed the headline finding structurally. **This chunk's honest result is a negative one:** the design's trajectory claim — feedback recovers more than the diverse seed costs — **does not hold as stated.** Zero-tap `fresh_start` nDCG **0.332 → 0.242** (four profiles: p05 0.100 → 0.000, p07 0.464 → 0.281, p10 0.397 → 0.300, p16 0.368 → 0.387); harm 0 → 0; every page 10 cards; **the 0.090 is entirely the seed** (mix, ceiling and floor each measured at exactly zero). One simulated round of taps recovers to 0.315, two rounds to 0.332 — level with the interim, never above it. It fails on p05 alone, whose page holds no labelled card so no positive tap exists; over the other three the trajectory holds (0.410 → 0.420 → 0.427). Overall macro 0.491 → **0.472**; the other 16 profiles are byte-identical to F-6. What the seed buys: cluster spread **5/4/2/3 → 8/8/8/8**, SOC minor groups 8/7/5/6 → 9/9/10/7. **Shipped:** q0 = normalise(0.4·skills + 0.6·behavioural) (`_FRESH_START_BEHAVIORAL_MIX` 0.30 → 0.60, the design's value — inert at zero taps, and the n=1 post-tap evidence prefers the LOWER value; see ⚑10); zone ceiling `user_zone + 1` capped at 5 (measured cost zero; a safety filter); own SOC **minor** group (⚑9 still open); transferable-skill floor raw cosine **0.25** (zero cost; above it the floor undoes the design — 0.45 collapses spread to 5/5/5/3); **arm (b)** — best q0-ranked survivor per cluster (arm (a) returns 4/4/4/6 cards, a centroid is not a candidate; (a)+fill actually scores 0.263 vs 0.242, rejected for not filling a page, not on score); **k = 8** (k=10/12 each produce a cluster that is nothing but military `55-`, which every ceiling deletes); clusters as a sidecar `*.clusters.json` via `flask corpus clusters`, 0.93 ms load, **scikit-learn never imported on the request path**; F-6's loop reused unchanged (`is_adjacent` → `takes_feedback`); `TestDistanceIsNotASignal` (4 tests, incl. one asserting `occupation_clusters` never sees `anchor`/`UserProfile`/`move_intent`/`current_title`). No wire change. **Findings:** (1) **PRODUCT HAZARD, not a fixture defect:** `archetype_description` is LLM-written per user; p05's says "you would rather *prevent a fire* than be praised for putting one out" and the embedder reads it literally — its five nearest rows are Firefighting Supervisors, Firefighters, Fire-Prevention Engineers, Forest Fire Inspectors, Fire Inspectors; delete the sentence and all five become operations managers. Behavioural cosines also sit at 0.34–0.38 vs 0.52–0.60 for skills — a weaker signal by construction. → **F-8 box 8.** (2) Only **four** `fresh_start` profiles, not five — below F-2's n=5 rule. (3) k-means DID cluster on document length: the All-Other rows formed their own 58-row cluster (38% of variance; 12% once excluded) — fixed by fitting on retrievable rows only. (4) `_fetch_from_s3` pulls the matrix and zones only — on the S3 path every worker would pay a 0.7 s fit and the sklearn import → **F-8 box 9.** (5) `requirements.txt` pins scikit-learn 1.9.0, the verification venv has 1.7.2 — every "CI-parity" run today used a different sklearn than CI will; determinism is version-bound → **F-8 step 0 + box 10.** (6) `role_w` is 0 for `fresh_start`, so Rocchio changes membership but cannot reorder — F-8 optional. (7) F-8's no-code-fallback box is already satisfied by F-4 (p20 scores 0.605) and F-7 (p07 gets the full seed) — F-8 pins it with tests and closes it._
+
 ### F-8 · Cleanup + refresh cadence (S)
 
 - [ ] `flask corpus build` on a Render cron, matching Scenario A's shape —
@@ -649,10 +653,10 @@ of relevance"._
 - [ ] Test whether the SOC allow-list is still needed once documents replace
   titles; remove only with evidence, never on assumption (design doc §5 #5)
   _(2026-09-16: **the evidence now exists, and it says remove.** F-2's ceiling analysis shows the list bars entire occupational families from the users IN those families (electrician: 0 of 3 primaries reachable). F-1 showed the title-domination failure it patched does not occur with role documents. F-4 must NOT carry `_filter_candidate_pool`'s prefix allow-list into the new retrieval; F-3's named hard filters replace it. This box becomes: confirm with the harness that removal did not reintroduce the original failure.)_
-- [ ] `_EMBED_CACHE` retires with the funnel — confirm the interim bound from
-  the 2026-09-15 OOM work is genuinely dead before deleting it
+- [ ] ~~`_EMBED_CACHE` retires with the funnel~~ **It does not retire** — F-5 and F-6 use it for the user's own texts and both tiers share one object. Its DEMAND fell from 300–700 entries/run to 3–14 (F-4, measured). Re-derive the 32 MB budget from the new demand, fix the module comment and `test_cache_bounds.py`'s narrative; keep it env-overridable; do not delete
 - [ ] A title that resolves to no O*NET code falls back to F-7's seed rather
   than erroring — the live ACC-4 / S22 failure (design doc §5 #6)
+  _(F-7: already handled — F-4's composed-document query covers an unresolvable title (p20 scores 0.605) and a `fresh_start` user with no title (p07) gets the full seed. F-8 pins both with tests and closes this; no new mechanism.)_
 - [ ] Skill-name normalisation for Tier-2 matching: O*NET's verbose names ("Structured query
   language SQL") must match a user's "SQL" — normalise/alias, do not tune `_EMBED_THRESHOLD`
   blind (from F-5; product-visible in the deep-fit panel)
@@ -660,6 +664,18 @@ of relevance"._
   profile-write site the enumeration missed; pre-existing (from F-5)
 - [ ] real_stack E2E flow for Workstream F — needs the corpus artifact reachable on the runner
   (S3 upload + `SOLVERAH_CORPUS_S3_KEY`, or a small committed test artifact)
+- [ ] **Behavioural-profile metaphor hazard (F-7; HIGH).** `_build_behavioral_profile` embeds
+  LLM-written `archetype_description` prose literally — "prevent a fire" → five firefighting
+  occupations. Embed a structured/neutralised form (archetype + focus_type + work_style_tags as
+  labels, not free prose) or strip figurative sentences; then re-measure the `fresh_start` mix
+  (0.60 vs 0.30) rather than flipping it blind
+- [ ] `occupation_retrieval._fetch_from_s3` must also pull `*.clusters.json` (F-7) — narrow,
+  allowed edit to F-3's module; otherwise every worker on the S3 path pays a 0.7 s fit + sklearn
+- [ ] scikit-learn pin: `requirements.txt` 1.9.0 vs venv 1.7.2 (F-7). Refresh the venv to the
+  pins FIRST; record the sklearn version in the clusters sidecar and warn/refit on mismatch
+- [ ] (optional) `role_w` is 0 for `fresh_start`, so Rocchio changes membership but cannot
+  reorder a fixed set; a non-zero role weight once feedback exists needs `_weights` to know
+  about feedback (F-7) — propose, do not build without a measurement
 
 ---
 
