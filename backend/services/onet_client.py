@@ -635,6 +635,59 @@ class OnetClient:
             for occ_data in data.get("occupation", [])
         ]
 
+    def get_all_occupations(self, start: int = 1, end: int = 100) -> list[dict]:
+        """Return one page of the whole O*NET catalog, **with each Job Zone**.
+
+        ``/online/occupations`` is the only bulk endpoint that carries Job Zone.
+        Every other route to a zone is ``get_job_zone``, one request per
+        occupation -- 1,016 requests for the catalog against **11 pages** here,
+        which is why this exists (BUILD_PLAN F-3).
+
+        Each dict has ``code``, ``title`` and ``zone``.  ``zone`` is the
+        integer 1-5 or ``None`` when the record carries no zone block; a caller
+        filtering on feasibility must decide what an unknown zone means rather
+        than being handed a silent default.
+
+        **Read ``zone.code``, never ``zone.title``.**  Measured against the live
+        v2 API 2026-09-16: "Actors" comes back as ``{"code": 2, "title": "Job
+        Zone 1-2: Very Little to Some Preparation Needed"}`` -- the title is
+        sometimes a *range* label while the code is always one integer.
+        Parsing the title would turn that occupation into two zones or none.
+
+        Paging works exactly as ``get_job_family_occupations``: 1-indexed,
+        inclusive, and one page is not the catalog.  The response carries
+        ``total`` (1,016, measured 2026-09-16, matching the corpus row count);
+        page until a short page comes back or ``start`` passes it.
+
+        Deliberately **not** cached in ``_OCC_CACHE``.  That cache is keyed per
+        occupation and capped at 2,048 entries; one page of 100 records would
+        evict 100 per-occupation entries to store something the corpus tooling
+        reads once and writes to a sidecar.
+
+        Args:
+            start: 1-indexed first entry to return.
+            end: 1-indexed last entry to return.
+
+        Raises:
+            OnetAPIError: On any HTTP error.
+            OnetRateLimitError: If 429s outlast the retry budget.
+        """
+        data = self._get("online/occupations", params={"start": start, "end": end})
+        page: list[dict] = []
+        for occ in data.get("occupation", []):
+            code = occ.get("code", "")
+            if not code:
+                continue
+            zone_block = occ.get("zone")
+            zone: int | None = None
+            if isinstance(zone_block, dict) and zone_block.get("code") is not None:
+                try:
+                    zone = int(zone_block["code"])
+                except (TypeError, ValueError):
+                    zone = None
+            page.append({"code": code, "title": occ.get("title", ""), "zone": zone})
+        return page
+
     def get_job_zone(self, onet_code: str) -> int:
         """Return the Job Zone (1–5) for *onet_code*.
 

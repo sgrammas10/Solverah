@@ -17,6 +17,7 @@ dashboard env vars:
     flask backups run          # suggested: daily, 03:30 UTC
     flask pulse send-prompts   # suggested: daily (BUILD_PLAN B-2)
     flask corpus build         # suggested: quarterly (BUILD_PLAN F-1)
+    flask corpus zones         # 11 requests; refreshes the Job Zone sidecar
 
 ``pulse send-prompts`` is the newest of the four cron jobs and not load-bearing
 the way the first two are -- nothing breaks if a run is skipped, a due user is
@@ -429,6 +430,96 @@ def corpus_build(
         raise click.ClickException(str(exc)) from exc
 
     click.echo(json.dumps(build.summary()))
+
+
+@corpus_cli.command("zones")
+@click.option(
+    "--corpus",
+    default=None,
+    help="The .npy artifact, or a directory holding one "
+    "(default: $SOLVERAH_CORPUS_PATH, then $SOLVERAH_CORPUS_DIR).",
+)
+@click.option(
+    "--rate",
+    default=None,
+    type=float,
+    show_default="4.0/s",
+    help="Aggregate O*NET requests per second. O*NET's documented threshold is 5.",
+)
+def corpus_zones(corpus: str | None, rate: float | None) -> None:
+    """Write the Job Zone sidecar beside an existing corpus artifact.
+
+    Job Zone is the education/training a career demands, and BUILD_PLAN F-3
+    applies it as a hard feasibility filter at retrieval.  It is not in the
+    corpus artifact: `/online/occupations` pages the whole catalog and carries
+    a zone on most records, so this is **11 O*NET requests**, against 1,016 for
+    `get_job_zone` per occupation.
+
+    Coverage is not total -- measured 2026-09-16, 923 of 1,016 rows carry one.
+    The 93 without are the "..., All Other" residuals, which retrieval filters
+    out anyway, plus 18 real occupations, 17 of them the military group.  A
+    row with no zone is excluded whenever a ceiling is asked for; see
+    `occupation_retrieval.zone_within_ceiling`.
+
+    Writes `<artifact>.zones.json` and touches neither the .npy nor its
+    sidecar -- see `occupation_retrieval.write_zone_sidecar` for why that
+    separation is deliberate rather than incidental.
+
+    Cheap enough to re-run on its own cadence; it does not need a corpus
+    rebuild and a corpus rebuild does not need it.
+    """
+    from backend.services import occupation_corpus, occupation_retrieval
+    from backend.services.onet_client import OnetAPIError, OnetClient, OnetRateLimitError
+
+    resolved = (
+        corpus
+        or os.environ.get("SOLVERAH_CORPUS_PATH")
+        or os.environ.get("SOLVERAH_CORPUS_DIR")
+    )
+    if not resolved:
+        raise click.ClickException(
+            "No corpus artifact. Pass --corpus or set SOLVERAH_CORPUS_PATH."
+        )
+
+    try:
+        matrix_path = occupation_retrieval.resolve_matrix_path(resolved)
+    except occupation_retrieval.CorpusUnavailable as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    try:
+        onet_client = OnetClient()
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    limiter = occupation_corpus.RateLimiter(
+        rate if rate is not None else occupation_corpus.DEFAULT_REQUESTS_PER_SECOND
+    )
+    try:
+        zones = occupation_retrieval.fetch_job_zones(
+            onet_client,
+            limiter=limiter,
+            on_progress=lambda message: click.echo(message, err=True),
+        )
+    except (OnetAPIError, OnetRateLimitError) as exc:
+        raise click.ClickException(f"O*NET request failed: {exc}") from exc
+
+    if not zones:
+        raise click.ClickException(
+            "O*NET returned no job zones; refusing to write an empty sidecar."
+        )
+
+    path = occupation_retrieval.write_zone_sidecar(matrix_path, zones)
+    click.echo(
+        json.dumps(
+            {
+                "event": "corpus_zones",
+                "matrix_path": str(matrix_path),
+                "zones_path": str(path),
+                "occupations": len(zones),
+                "onet_requests": limiter.count,
+            }
+        )
+    )
 
 
 def register_cli(app) -> None:
