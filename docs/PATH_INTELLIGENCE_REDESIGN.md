@@ -331,6 +331,21 @@ same probe selection, same update rule, different seed.
 
 ---
 
+_**Measured, 2026-09-16 (F-7).** Two of this section's claims met evidence.
+(1) "Their reactions Rocchio the query toward a region" — true, but the implied
+promise that feedback recovers *more* than the diverse seed costs **did not hold**:
+the seed costs 0.09 static nDCG on the four `fresh_start` profiles (0.332 → 0.242,
+harm unchanged at 0), one simulated round of taps recovers to 0.315, two rounds to
+0.332 — level with the plain similarity page, never above it. What the seed does buy
+is the spread this section asked for: 5/4/2/3 → 8/8/8/8 clusters. Whether that trade
+is right is ⚑10 in `BUILD_PLAN.md` §0.2, open. (2) "Behavioral profile as the primary
+query" has a hazard this section did not foresee: `archetype_description` is prose an
+LLM writes per user, and an embedder reads it literally — one profile's "you would
+rather *prevent a fire* than be praised for putting one out" retrieves five
+firefighting occupations. The behavioural signal is also weaker by construction
+(cosines 0.34–0.38 vs 0.52–0.60 for skills). The fix — embed the structured fields,
+not the free prose — is F-8's; the blend weight is re-measured after it, not before._
+
 ## 4. Sequencing
 
 **The interim cache fix should still ship first, before any of this.**
