@@ -49,12 +49,17 @@ corpus clusters``, exactly as the Job Zones are (``occupation_retrieval
    nothing, and the import inside :func:`compute_assignment` is deliberately
    lazy so that a process serving a sidecar never pays it.
 2. **Reproducible across workers.**  ``KMeans(random_state=0)`` is
-   deterministic for one build of scikit-learn on one machine (verified), but
-   ``requirements.txt`` pins 1.9.0 while this repo's verification venv has
-   1.7.2 -- so "deterministic" is a promise about a version, not about the
+   deterministic for one build of scikit-learn on one machine (verified), so
+   "deterministic" is a promise about a version rather than about the
    algorithm.  Two workers that disagree about cluster identity would show two
    different first pages for the same user on alternate requests.  A file
    cannot disagree with itself.
+
+   F-8 box 10 closes the version half of that: the sidecar records the
+   scikit-learn and numpy versions that fitted it, and :func:`_load_sidecar`
+   refits rather than trusting a file it cannot reproduce.  See
+   :func:`library_versions`, including the measurement that says the 1.7.2 ->
+   1.9.0 bump this repo just made did **not** move a single row.
 3. It is the pattern already established for data that is derived from the
    artifact but is not the artifact.
 
@@ -93,15 +98,32 @@ __all__ = [
     "CLUSTERS_SCHEMA_VERSION",
     "ClusterAssignment",
     "RANDOM_STATE",
+    "SKLEARN_DISTRIBUTION",
     "cluster_sidecar_path",
     "compute_assignment",
     "diverse_seed",
     "get_assignment",
+    "library_versions",
     "reset_cluster_cache",
     "write_cluster_sidecar",
 ]
 
-CLUSTERS_SCHEMA_VERSION = 1
+#: Bumped 1 -> 2 in F-8 box 10: the sidecar now records the versions of the
+#: libraries that produced it.  A v1 file cannot answer "which scikit-learn
+#: fitted this", so it is refitted rather than trusted -- which is the same
+#: answer the version check would give it anyway, reached one step earlier.
+CLUSTERS_SCHEMA_VERSION = 2
+
+#: The distribution name to read the running scikit-learn version from.
+#:
+#: Read through ``importlib.metadata`` and **never** by importing ``sklearn``.
+#: The entire reason this sidecar exists is that a worker serving one must not
+#: pay for the scientific stack's RSS; a version check that imported the
+#: library to find its version would defeat the file it is checking.
+#: ``importlib.metadata.version`` reads the installed distribution's metadata
+#: off disk and leaves ``sys.modules`` untouched -- asserted by
+#: ``test_reading_a_sidecar_does_not_import_sklearn``.
+SKLEARN_DISTRIBUTION = "scikit-learn"
 
 #: How many regions the corpus is cut into.
 #:
@@ -151,12 +173,17 @@ class ClusterAssignment:
     are ignored on load; codes it carries that the sidecar does not make the
     sidecar stale, and :func:`_load_sidecar` refits rather than serving a
     partial partition.
+
+    ``sklearn_version`` / ``numpy_version`` are what actually produced the
+    labels, not what the reader is running.  See :func:`library_versions`.
     """
 
     k: int
     labels: dict[str, int]
     source: str  # "sidecar" | "computed"
     path: Path | None = None
+    sklearn_version: str | None = None
+    numpy_version: str | None = None
 
     def cluster_of(self, code: str) -> int | None:
         """The cluster *code* sits in, or None when it was not clustered.
@@ -174,6 +201,38 @@ class ClusterAssignment:
 # ---------------------------------------------------------------------------
 # Fitting
 # ---------------------------------------------------------------------------
+
+
+def library_versions() -> tuple[str, str]:
+    """``(scikit-learn, numpy)`` as installed here, WITHOUT importing sklearn.
+
+    F-8 box 10.  ``RANDOM_STATE`` makes the fit reproducible for one build of
+    scikit-learn; it is not a promise across builds, and two workers that
+    disagreed about cluster identity would show one user two different first
+    pages on alternate requests.  The sidecar therefore records what fitted it
+    and :func:`_load_sidecar` refuses a file it cannot reproduce.
+
+    **Measured 2026-09-16, and the news is good:** the shipped
+    ``onet_corpus_20260916.clusters.json`` was fitted under scikit-learn 1.7.2,
+    and a fresh fit under the pinned 1.9.0 over the same 941 rows reproduces it
+    **exactly** -- 941/941 rows in the same partition, cluster ids included.
+    So this check is a guard against a hazard that has not yet fired, not a fix
+    for one that has.  It is still worth having: the cost of being wrong is
+    silent and per-worker, the cost of the check is one metadata read, and the
+    alternative is finding out from a user.
+
+    ``importlib.metadata`` rather than ``sklearn.__version__`` for the reason
+    :data:`SKLEARN_DISTRIBUTION` gives.  numpy is already imported by this
+    module, so it costs nothing and is recorded because the matrix arithmetic
+    and the BLAS underneath it are its, not scikit-learn's.
+    """
+    from importlib.metadata import PackageNotFoundError, version  # noqa: PLC0415
+
+    try:
+        sklearn_version = version(SKLEARN_DISTRIBUTION)
+    except PackageNotFoundError:  # pragma: no cover -- sklearn is a hard pin
+        sklearn_version = "unknown"
+    return sklearn_version, str(np.__version__)
 
 
 def _clusterable_codes(corpus: OccupationCorpus) -> list[str]:
@@ -200,11 +259,18 @@ def compute_assignment(
     """
     from sklearn.cluster import KMeans
 
+    sklearn_version, numpy_version = library_versions()
     codes = _clusterable_codes(corpus)
     rows = [corpus.index_of(code) for code in codes]
     matrix = corpus.matrix[rows]
     if not codes:
-        return ClusterAssignment(k=0, labels={}, source="computed")
+        return ClusterAssignment(
+            k=0,
+            labels={},
+            source="computed",
+            sklearn_version=sklearn_version,
+            numpy_version=numpy_version,
+        )
     if k > len(codes):
         # A corpus smaller than the seed wants regions for.  Not reachable with
         # the real 941-row artifact, and a `ValueError` out of scikit-learn is
@@ -224,6 +290,8 @@ def compute_assignment(
         k=k,
         labels={code: int(label) for code, label in zip(codes, labels.tolist())},
         source="computed",
+        sklearn_version=sklearn_version,
+        numpy_version=numpy_version,
     )
 
 
@@ -335,11 +403,18 @@ def write_cluster_sidecar(
     one, never half of either.
     """
     path = cluster_sidecar_path(matrix_path)
+    sklearn_version, numpy_version = library_versions()
     payload = {
         "schema_version": CLUSTERS_SCHEMA_VERSION,
         "matrix_filename": Path(matrix_path).name,
         "algorithm": f"sklearn.cluster.KMeans(n_clusters={assignment.k}, "
         f"random_state={RANDOM_STATE}, n_init={N_INIT})",
+        # What produced these labels, so a reader can tell whether it could
+        # reproduce them.  Taken from the assignment when it carries them --
+        # the fit's own answer -- and only falling back to this process's
+        # versions for an assignment built some other way.
+        "sklearn_version": assignment.sklearn_version or sklearn_version,
+        "numpy_version": assignment.numpy_version or numpy_version,
         "built_at": _utc_now_iso(),
         "k": assignment.k,
         "count": assignment.count,
@@ -359,10 +434,13 @@ def _load_sidecar(path: Path, corpus: OccupationCorpus) -> ClusterAssignment | N
     ``fresh_start`` seed costs one in-process fit.  Refusing to serve would turn
     a missing optional file into an outage.
 
-    Stale means *the corpus has retrievable rows the sidecar does not name*.
-    That is the condition under which a seed would silently stop spanning part
-    of the space, and it is what a corpus rebuild produces.  The reverse -- the
-    sidecar naming codes the corpus has dropped -- is harmless and tolerated:
+    Stale means *the corpus has retrievable rows the sidecar does not name*,
+    **or** the labels were produced by a different build of the libraries that
+    produce labels (F-8 box 10).  The first is what a corpus rebuild produces;
+    the second is what a dependency bump produces, and it is the quieter of the
+    two because every row is still labelled -- just possibly not the way this
+    process would label it.  The reverse of the first -- the sidecar naming
+    codes the corpus has dropped -- is harmless and tolerated:
     :meth:`ClusterAssignment.cluster_of` is only ever asked about rows that came
     back from retrieval.
     """
@@ -382,6 +460,7 @@ def _load_sidecar(path: Path, corpus: OccupationCorpus) -> ClusterAssignment | N
             if label is not None
         }
         k = int(raw.get("k") or 0)
+        built_with = (raw.get("sklearn_version"), raw.get("numpy_version"))
     except (OSError, ValueError, TypeError, AttributeError) as exc:
         _log.warning(
             "occupation clusters: ignoring unusable sidecar %s (%s); "
@@ -392,6 +471,22 @@ def _load_sidecar(path: Path, corpus: OccupationCorpus) -> ClusterAssignment | N
         return None
 
     if not labels or k < 1:
+        return None
+
+    running = library_versions()
+    if built_with != running:
+        _log.warning(
+            "occupation clusters: sidecar %s was fitted with scikit-learn %s / "
+            "numpy %s, this process runs %s / %s; `random_state` is a promise "
+            "about one build and not across builds, so the labels are refitted "
+            "rather than trusted.  Re-run `flask corpus clusters` and publish "
+            "the sidecar to stop paying for this",
+            path,
+            built_with[0],
+            built_with[1],
+            running[0],
+            running[1],
+        )
         return None
 
     missing = [code for code in _clusterable_codes(corpus) if code not in labels]
@@ -406,7 +501,14 @@ def _load_sidecar(path: Path, corpus: OccupationCorpus) -> ClusterAssignment | N
             missing[0],
         )
         return None
-    return ClusterAssignment(k=k, labels=labels, source="sidecar", path=path)
+    return ClusterAssignment(
+        k=k,
+        labels=labels,
+        source="sidecar",
+        path=path,
+        sklearn_version=built_with[0],
+        numpy_version=built_with[1],
+    )
 
 
 # ---------------------------------------------------------------------------

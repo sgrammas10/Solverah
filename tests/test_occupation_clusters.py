@@ -108,7 +108,19 @@ class TestComputeAssignment:
         assert len({assignment.cluster_of(left) for left, _ in pairs}) == 3
 
     def test_the_same_corpus_fits_the_same_way_twice(self, corpus) -> None:
-        """`random_state` is fixed so two workers cannot disagree."""
+        """`random_state` is fixed so two workers cannot disagree.
+
+        **Within one build of scikit-learn, which is the whole claim.** This
+        test runs two fits in one process, so it can only ever measure that --
+        and F-8 box 10 is the part that notices when the build changes under a
+        sidecar. Asserting determinism across versions is not something a test
+        in this process can do; the sidecar's version stamp is what does it.
+
+        Re-run under the 1.7.2 -> 1.9.0 bump the verification venv just took
+        (F-8 step 0): green, and the real 941-row artifact's labels are
+        identical across the two -- so the bump cost nothing and the guard is
+        still worth its one metadata read.
+        """
         first = oc.compute_assignment(corpus, k=3)
         second = oc.compute_assignment(corpus, k=3)
         assert first.labels == second.labels
@@ -171,6 +183,29 @@ class TestDiverseSeed:
         assert len(oc.diverse_seed(["a"], self.ASSIGNMENT, 10)) == 1
 
 
+def _write_raw_sidecar(corpus, payload: dict) -> Path:
+    """Write a hand-built sidecar that is valid apart from what the test breaks.
+
+    The schema version and the library stamps are filled in here so that a test
+    about staleness is not silently a test about the version check (F-8 box 10
+    added one, and two of the tests below predate it).
+    """
+    sklearn_version, numpy_version = oc.library_versions()
+    path = oc.cluster_sidecar_path(corpus.matrix_path)
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": oc.CLUSTERS_SCHEMA_VERSION,
+                "sklearn_version": sklearn_version,
+                "numpy_version": numpy_version,
+                **payload,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 class TestSidecar:
     def test_round_trip(self, tmp_path) -> None:
         corpus = build_corpus(ROWS, path=tmp_path / "onet_corpus_x.npy")
@@ -227,14 +262,11 @@ class TestSidecar:
         full = oc.compute_assignment(corpus, k=3)
         partial = dict(full.labels)
         partial.pop("47-2111.00")
-        oc.cluster_sidecar_path(corpus.matrix_path).write_text(
-            json.dumps(
-                {"schema_version": oc.CLUSTERS_SCHEMA_VERSION, "k": 3, "clusters": partial}
-            )
-        )
+        _write_raw_sidecar(corpus, {"k": 3, "clusters": partial})
         with caplog.at_level("WARNING"):
             assignment = oc.get_assignment(corpus, k=3)
         assert assignment.source == "computed"
+        assert "predates this corpus" in caplog.text
         assert "flask corpus" in caplog.text
 
     def test_a_sidecar_naming_retired_codes_is_still_usable(self, tmp_path) -> None:
@@ -242,11 +274,7 @@ class TestSidecar:
         corpus = build_corpus(ROWS, path=tmp_path / "onet_corpus_x.npy")
         labels = dict(oc.compute_assignment(corpus, k=3).labels)
         labels["99-9999.00"] = 2
-        oc.cluster_sidecar_path(corpus.matrix_path).write_text(
-            json.dumps(
-                {"schema_version": oc.CLUSTERS_SCHEMA_VERSION, "k": 3, "clusters": labels}
-            )
-        )
+        _write_raw_sidecar(corpus, {"k": 3, "clusters": labels})
         assert oc.get_assignment(corpus, k=3).source == "sidecar"
 
     def test_a_sidecar_built_for_another_k_is_refitted(self, tmp_path) -> None:
@@ -280,6 +308,124 @@ class TestMemo:
     def test_a_different_k_is_not_served_the_old_labels(self, corpus) -> None:
         assert oc.get_assignment(corpus, k=3).k == 3
         assert oc.get_assignment(corpus, k=2).k == 2
+
+
+class TestTheLibraryVersionIsPartOfTheArtifact:
+    """F-8 box 10. `random_state` is a promise about one build, not an algorithm.
+
+    Two workers that disagreed about cluster identity would show one user two
+    different first pages on alternate requests, and nothing would log. So the
+    sidecar records what fitted it and the loader refuses a file it could not
+    reproduce.
+
+    Measured before this was built: the shipped `onet_corpus_20260916` sidecar
+    was fitted under scikit-learn 1.7.2, and a fresh fit under the pinned 1.9.0
+    reproduces it exactly -- 941/941 rows, cluster ids included. This is a guard
+    against a hazard that has not fired, kept because the cost of being wrong is
+    silent and per-worker and the cost of the check is one metadata read.
+    """
+
+    def test_a_fit_records_what_produced_it(self, corpus) -> None:
+        assignment = oc.compute_assignment(corpus, k=3)
+        sklearn_version, numpy_version = oc.library_versions()
+        assert assignment.sklearn_version == sklearn_version
+        assert assignment.numpy_version == numpy_version
+
+    def test_the_versions_reach_the_file(self, tmp_path) -> None:
+        corpus = build_corpus(ROWS, path=tmp_path / "onet_corpus_x.npy")
+        path = oc.write_cluster_sidecar(
+            corpus.matrix_path, oc.compute_assignment(corpus, k=3)
+        )
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        assert raw["sklearn_version"] == oc.library_versions()[0]
+        assert raw["numpy_version"] == oc.library_versions()[1]
+
+    def test_a_matching_version_is_served_from_the_sidecar(self, tmp_path) -> None:
+        """Branch one of two: same libraries, no refit."""
+        corpus = build_corpus(ROWS, path=tmp_path / "onet_corpus_x.npy")
+        oc.write_cluster_sidecar(corpus.matrix_path, oc.compute_assignment(corpus, k=3))
+        loaded = oc.get_assignment(corpus, k=3)
+        assert loaded.source == "sidecar"
+        assert loaded.sklearn_version == oc.library_versions()[0]
+
+    def test_a_different_sklearn_refits_loudly(self, tmp_path, caplog) -> None:
+        """Branch two of two: different libraries, refit and say so."""
+        corpus = build_corpus(ROWS, path=tmp_path / "onet_corpus_x.npy")
+        labels = oc.compute_assignment(corpus, k=3).labels
+        _write_raw_sidecar(corpus, {"k": 3, "clusters": dict(labels)})
+        path = oc.cluster_sidecar_path(corpus.matrix_path)
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        raw["sklearn_version"] = "0.0.1-from-another-era"
+        path.write_text(json.dumps(raw), encoding="utf-8")
+
+        with caplog.at_level("WARNING"):
+            assignment = oc.get_assignment(corpus, k=3)
+
+        assert assignment.source == "computed"
+        assert "0.0.1-from-another-era" in caplog.text
+        assert "flask corpus clusters" in caplog.text
+
+    def test_a_different_numpy_refits_too(self, tmp_path) -> None:
+        corpus = build_corpus(ROWS, path=tmp_path / "onet_corpus_x.npy")
+        labels = oc.compute_assignment(corpus, k=3).labels
+        _write_raw_sidecar(corpus, {"k": 3, "clusters": dict(labels)})
+        path = oc.cluster_sidecar_path(corpus.matrix_path)
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        raw["numpy_version"] = "0.0.1"
+        path.write_text(json.dumps(raw), encoding="utf-8")
+
+        assert oc.get_assignment(corpus, k=3).source == "computed"
+
+    def test_a_sidecar_that_names_no_version_is_refitted(self, tmp_path) -> None:
+        """A v1 file cannot answer the question, so it does not get the benefit.
+
+        The schema bump catches this first; the version check would catch it
+        too. Both are asserted because a future schema bump would otherwise
+        leave this case resting on nothing.
+        """
+        corpus = build_corpus(ROWS, path=tmp_path / "onet_corpus_x.npy")
+        labels = oc.compute_assignment(corpus, k=3).labels
+        oc.cluster_sidecar_path(corpus.matrix_path).write_text(
+            json.dumps(
+                {
+                    "schema_version": oc.CLUSTERS_SCHEMA_VERSION,
+                    "k": 3,
+                    "clusters": dict(labels),
+                }
+            ),
+            encoding="utf-8",
+        )
+        assert oc.get_assignment(corpus, k=3).source == "computed"
+
+    def test_reading_a_sidecar_does_not_import_sklearn(self) -> None:
+        """The check must not defeat the file it is checking.
+
+        `library_versions` reads the installed distribution's metadata off disk.
+        Asking `sklearn.__version__` instead would import the scientific stack
+        on exactly the path that exists so a worker never has to.
+        """
+        import os
+        import subprocess
+        import sys
+
+        repo_root = Path(__file__).resolve().parents[1]
+        probe = (
+            "import sys;"
+            "from backend.services.occupation_clusters import library_versions;"
+            "v = library_versions();"
+            "print(v[0], 'sklearn' in sys.modules)"
+        )
+        out = subprocess.run(
+            [sys.executable, "-c", probe],
+            capture_output=True,
+            text=True,
+            cwd=str(repo_root),
+            env={**os.environ, "PYTHONPATH": str(repo_root)},
+        )
+        assert out.returncode == 0, out.stderr
+        version, imported = out.stdout.split()
+        assert version and version != "unknown"
+        assert imported == "False", "library_versions imported scikit-learn"
 
 
 def test_sklearn_is_not_imported_merely_by_importing_this_module() -> None:
