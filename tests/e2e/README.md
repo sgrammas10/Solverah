@@ -91,6 +91,59 @@ The spec also asserts `api.unhandled` is empty. Any `/api/v1` endpoint the SPA
 calls that the stubs do not model fails the run, so new or moved call sites
 surface here instead of being silently answered with `{}`.
 
+## `path_intelligence.spec.ts` — Workstream F's real-stack flow
+
+BUILD_PLAN §7 asks for one full `real_stack` flow per workstream. This is F's:
+path preferences → suggestion job → shortlist → a verdict on a card → re-ranked
+list → deep fit on click → start over. Like `real_stack.spec.ts` it uses no API
+stubs at all, and it additionally needs three things on the Flask process:
+
+| Variable | Why |
+|---|---|
+| `SOLVERAH_CORPUS_PATH` | a **1,536-dimension** artifact — see below |
+| `OPENAI_API_KEY` | one batched embedding request per scoring run |
+| `ONET_API_KEY` | the deep-fit step makes four live O*NET calls |
+
+Run it the way `real_stack.spec.ts` is run, with the API up:
+
+```
+E2E_PGDATABASE=solverah_e2e npx playwright test tests/e2e/path_intelligence.spec.ts
+```
+
+### The committed corpus fixture cannot carry this flow
+
+F-8 box 7 asked for it to run against F-3's 26-row fixture in
+`tests/fixtures/corpus`, so no runner would need the real artifact. It cannot,
+and the reason is worth knowing before anyone tries again: **the fixture's
+vectors are 8-dimensional** — deliberately, so every cosine in
+`test_occupation_retrieval.py` is checkable by hand — while every real embedding
+is 1,536. The `adjacent` path blends the corpus anchor with the user's skills
+document in one expression (`path_scoring._blend`), and numpy will not broadcast
+the two. It surfaces as `500 Unable to score career paths`.
+
+The fixture is usable with a *fake* embedder, which is exactly how the Python
+suite uses it. Making it usable here means regenerating it at 1,536 dimensions
+(26 × 1536 × 4 = 160 KB, small enough to commit) and rewriting the hand-written
+vector assertions that depend on its readable planes. That is its own piece of
+work; until it happens, point the API at the real artifact and leave
+`E2E_CORPUS_IS_FIXTURE` unset. Set it to `1` afterwards and the spec starts
+asserting that every suggestion is one of the fixture's 26 codes — which is what
+proves the API is pointed there rather than a README line claiming it.
+
+### What it proves, and what it does not
+
+The plumbing, across every layer at once: the job is accepted and polled, a real
+scorer runs against a real corpus file, the shortlist is stored and served, a
+verdict POST re-ranks in place, a card opens a fit the API computed, and "start
+over" clears the rows. Nothing about ranking **quality** — that is F-2's offline
+harness's job, against the real artifact and a labelled set. A browser is the
+wrong instrument for it.
+
+Two behaviours the spec had to learn the hard way, both F-6 working as designed:
+an "interesting" tap leaves the card in place, and a "too similar" tap removes
+it *and changes which occupations are retrieved at all* — so the page must be
+read again between taps rather than assumed.
+
 ## Not a CI gate
 
 Deliberately, and it is not an oversight. Browser downloads (~115 MB) and E2E

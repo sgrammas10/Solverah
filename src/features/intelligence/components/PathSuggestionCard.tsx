@@ -113,7 +113,16 @@ export default function PathSuggestionCard({
   );
 
   return (
-    <div className="rounded-xl border border-cream-muted bg-white px-5 py-5 space-y-4">
+    // `data-onet-code` is a test hook, and the only one on this card. The
+    // real_stack flow (tests/e2e/path_intelligence.spec.ts) has to name a
+    // specific card to tap a verdict on it and then assert that card is gone
+    // after the re-rank; addressing it by its rendered TITLE would make the
+    // E2E a copy test, and by its position would make it meaningless the
+    // moment the list re-orders -- which is the thing being tested.
+    <div
+      data-onet-code={suggestion.onet_code}
+      className="rounded-xl border border-cream-muted bg-white px-5 py-5 space-y-4"
+    >
       {onOpen ? (
         <button
           type="button"
