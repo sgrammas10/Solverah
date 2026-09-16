@@ -52,6 +52,9 @@ into `PRODUCT_DECISIONS.md` with proper signed entries (chunk 0 complete)._
 | ⚑4 | One **shared manager profile** store feeds both the Decoder and the Situation Report's manager section — built once, in Workstream C, consumed by A | Engineering call | §2.1 |
 | ⚑5 | Situation Report pins to a **named person-side snapshot** (first completed sitting; explicit logged "recalibrate" action to re-pin), so core retakes are not a watchable gradient — the D-15 mechanism. Unblocks A-4/A-5. | **Decided** — Sebastian, 2026-09-08 | §3.4 |
 | ⚑6 | Employer name on the environment report is **optional and unused at launch** (stored for the future aggregation lane, displayed nowhere) | Engineering call | §3.2 |
+| ⚑7 | Path Intelligence `adjacent` feedback is **inline on the result cards**, not a questionnaire | **Decided** — Sebastian, 2026-09-16 | §6 F-6 |
+| ⚑8 | `path_scoring.py` gets a **substantial rewrite** — not a deletion, not a second scorer | **Decided** — Sebastian, 2026-09-16 | §6 F-4 |
+| ⚑9 | `fresh_start` excludes the user's SOC **minor** group, not major — major bars whole families (admin: 8 of 11 unreachable); minor wins on every metric | **Open** — recommend ratify | §6 F-7 |
 
 ### 0.3 · Chunk 0b — commit hygiene before new work piles on (S–M)
 
@@ -538,6 +541,8 @@ blocker and the entire reason this lane was chosen evaporates._
 
 _2026-09-16: **F-2 landed** (f51bef7). 20 profiles, 249 labels (66 primary / 130 acceptable / 45 harmful / 8 anchor), 56 flagged low-confidence in a `confidence` field (`python -m backend.services.path_eval review`). Every code validated live against O*NET (48 calls). **Metric correction:** precision@10 is rank-blind and MRR saturates on a 10-card shortlist, so the harness adds **nDCG@10 (tune on it)** and **harmful_rate@10 (gate on it, target 0.0)**; calibrated — random scores nDCG ≈ 0.01-0.02, oracle 1.0, so ≥0.35 is a real scorer. **Sample-size rule for F-4:** 20 profiles supports "clearly better or worse", NOT per-axis claims (n=5-6 per cell). **Production finding:** `_DEFAULT_ALLOWED_SOC_PREFIXES` structurally excludes whole families — electrician 0/3 primaries reachable (47-/49- barred), graphic designer 1/3 (27- barred), warehouse 2/4 (53-/49-/51- barred), teacher loses 21-. Three of 20 profiles will likely return empty and 500 today — the ACC-4 shape, hitting tradespeople and designers. See F-4 and F-8._
 
+_2026-09-16, from F-4: **the `anchor` grade is applied inconsistently** — 8 profiles have one for the user's own occupation, the 8 tech/admin ones (p01 15-1252.00, p02, p03, p04 15-2051.00) grade their own job `primary`. Any scorer that correctly excludes the anchor forfeits a top primary on those four. ⚑ Regrade to `anchor`? Sebastian's call; both runs re-score identically either way, so the comparison stays honest._
+
 ### F-3 · Retrieval seam (M)
 
 - [x] Load the matrix at boot; `retrieve(query_vec, k, filters)` — one
@@ -555,23 +560,26 @@ _2026-09-16: **F-3 landed** (88dae71). `backend/services/occupation_retrieval.py
 
 ### F-4 · ⚑8 The substantial rewrite of `path_scoring.py` (L)
 
-- [ ] **Replace** `_gather_candidates` — the job-family + keyword funnel becomes
+- [x] **Replace** `_gather_candidates` — the job-family + keyword funnel becomes
   F-3's retrieval
-- [ ] **Replace** the comparison target — role documents, not a centroid
+- [x] **Replace** the comparison target — role documents, not a centroid
   dominated by the fixed ~35 generic skills. *This is the accuracy fix; the
   retrieval change alone does not deliver it*
-- [ ] **Keep** `_zone_delta_score`, `_work_style_similarity`,
+- [x] **Keep** `_zone_delta_score`, `_work_style_similarity`,
   `_role_coverage_score` and the weighting scheme — not broken, and exactly
   what F-5 needs for a single occupation
-- [ ] Anchor `stay_in_field` on the user's own resolved occupation vector
+- [x] Anchor `stay_in_field` on the user's own resolved occupation vector
   (document-to-document, symmetric), not title-to-title
-- [ ] Beat F-2's recorded baseline, or say plainly why not
+- [x] Beat F-2's recorded baseline, or say plainly why not
 
 _⚑8 Sebastian, 2026-09-16. Closes design doc §5 #1. Two scorers means two
 things to keep correct; a clean deletion would throw away per-candidate logic
 that is fine. `path_scoring.py:1166` already asks for the retrieval half of
 this ("Replace this block with `get_related_occupations` when O*NET adds that
 endpoint") — F-3 is that endpoint, self-built._
+
+
+_2026-09-16: **F-4 landed** (f12dd79) and the overseer re-verified every load-bearing claim: label fixtures byte-identical, `path_eval.py` change purely additive (`--scorer` cost model), both runs re-scored with the current harness. **nDCG@10 0.318 → 0.491 · harm 0.031 → 0.005 · P@10 0.232 → 0.437 · MRR 0.566 → 0.770 · coverage 0.346 → 0.442 · primary_recall 0.382 → 0.557.** Verdict holds with p08 discounted (0.320 → 0.481). The four structural profiles: electrician **500 → nDCG 0.416**, graphic designer **500 → 0.808**, warehouse harm **0.2 → 0** (was shown Software Developers + Accountants), teacher-adjacent **0.000 → 0.194**. **Per-request O*NET calls: ~160 → 0** (two fallback sites remain inside `_resolve_current_zone`; `score_paths`' call graph is entirely corpus + embeddings; `ThreadPoolExecutor` gone). LLM completions 1-3 → 0. `_EMBED_CACHE` 300-700 entries/15-35 MB per run → **3-14 entries/19-90 KB** — the OOM demand is removed, not capped. Wire: `InsufficientProfile` → `_error(400, "profile_incomplete")` → job row `{status: failed, error: profile_incomplete}`, which `stateForFailure()` already branches on; openapi regenerated, contract 0 diffs / 97 responses. Tombstoned 30 names (`TestTombstones`). Parked for F-5, uncalled: `_build_role_profile`, `_compute_centroid_score`, `_find_matched_skills`, `_compute_weighted_user_centroid`, `_role_coverage_score`, `_work_style_similarity`. Zone: unresolved fallback 1 → 2 (a floor of 1 inflated every delta), missing candidate zone = delta 0, curve reshaped from climbing bonus to feasibility signal. **Four findings:** (1) O*NET keyword search was corrupting anchors in prod — "Senior Backend Engineer" → Biofuels Managers, "DevOps Engineer" → Nuclear Engineers; corpus resolution fixes it at zero calls, worth ~+0.05 nDCG. (2) ⚑9 below. (3) **Label-set defect:** 8 profiles carry an `anchor` grade for the user's own job, the 8 tech/admin ones grade it `primary` (p01-p04); excluding the anchor therefore forfeits a top primary and explains 3 of the 6 regressions. Not edited — Sebastian's call, see F-2. (4) `overlapping_skills` used the wrong threshold so **no card ever named a skill**, silently degrading `path_narrative`'s prompt; fixed with a raw floor of 0.30. Also retired: `llm_debug.txt`, which the funnel wrote on **every production request**._
 
 ### F-5 · Deep fit on click (M)
 
@@ -610,6 +618,7 @@ feedback *be* the browsing, and is valid-half-finished by construction._
   each centroid as the seed set
 - [ ] Transferable-skill floor: retrieve on the user's *skills*, constrained to
   a different SOC major group
+  _⚑9 (2026-09-16, from F-4's interim `fresh_start`): **major group is too wide — the same defect as the allow-list.** Measured: it put 8 of 11 labelled-relevant occupations out of reach for the admin assistant (SOC 43 is ALL of Office & Administrative Support; Bookkeeping Clerk is a real job change the labels grade primary) and 4 of 11 for the warehouse worker. **Minor group** wins on every metric vs both major group and no filter (nDCG 0.466 → 0.491, harm 0.011 → 0.005). F-4 shipped minor group on evidence and flagged it. Recommend ratify; F-7 builds on whichever Sebastian rules._
 - [ ] Job Zone feasibility as a **hard filter**, not a weight
 - [ ] Behavioral profile (`archetype` / `focus_type` / `work_style_tags`) as the
   **primary** query, not a 0.25 side weight
