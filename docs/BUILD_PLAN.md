@@ -76,8 +76,8 @@ ran — no separate landing commits were needed for this section._
 - **Julie:** priors form sent 2026-09-06; she answered the anchors_v3 memo
   from the same email instead (rulings in
   `Solverah_IP/ANCHORS_V3_JULIE_RESPONSE_2026-09-14.md`) and was re-asked for
-  the form only on 2026-09-14. Everything in §5 behind the "priors gate"
-  waits on her returned form. Async-only — see §5.1.
+  the form only on 2026-09-14. **Form RETURNED 2026-09-17** — converted
+  clean, not yet swapped in (see E-1). Async-only — see §5.1.
 - **Launch/publicity gate:** entity + attorney (`[ENTITY NAME]`
   placeholders, dispute resolution). Real calendar lead time; §8's launch
   tiers are all hostage to it, so it should start now, in parallel.
@@ -409,6 +409,22 @@ ran — no separate landing commits were needed for this section._
 - [ ] On return: internal appendix maps answers → real `priors.yaml`
   values ({mean, sd} per weight); commit the swap — structure code
   unchanged by design
+  _(RETURNED 2026-09-17, all twelve answered, all "confident". Converter
+  ran clean, no positive-mag warnings. Pace is her costliest mismatch
+  (mag −2.52), autonomy the mildest (−0.67); feedback and decision are
+  strongly one-sided (wanting MORE than the role offers is survivable).
+  The consistency re-ask is VOID, an instrument defect not a finding: its
+  reworded person "doesn't mind the target moving" (a tolerance) where the
+  original is "at their best when priorities move quickly" (a need), so her
+  3/10 and 8/10 answer two different people — and agree with her own note
+  that a preference's cost depends on how much it matters to the person.
+  Consequence: there is NO noise-floor read under these numbers; the
+  converter's printed "noise floor" line is wrong for this form version.
+  Swap not done yet — it is not a file copy: `tests/test_match_scoring.py`
+  pins the placeholder (perfect match == exactly 0.5; her intercept makes it
+  0.8). Her free-text notes raise four structure questions the model has no
+  term for — per-person importance weighting, "doing well" vs "satisfied"
+  as the outcome, career-stage × comp, and the manager as a moderator.)_
 
 ### E-2 · Anchors / ground-truth calibration (partially external)
 

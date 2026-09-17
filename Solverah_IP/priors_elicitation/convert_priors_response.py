@@ -379,11 +379,17 @@ def print_report(res: dict) -> None:
         p("  %s/%s asked twice: %.0f/10 then %.0f/10 -- %.0f apart."
           % (rc["dimension"], rc["scenario"], rc["first"] * 10, rc["second"] * 10,
              rc["delta_out_of_10"]))
+        # priors_elicitation_v1's re-ask is NOT an equivalent rewording: the original
+        # person is "at their best when priorities move quickly" (a need), the re-ask
+        # person "doesn't mind the target moving" (a tolerance). A gap between the two
+        # is an answer to a different question, so it is reported and never read as
+        # noise. See README, "Known defect: the re-ask".
         if rc["delta_out_of_10"] >= 2:
-            p("  That gap is the noise floor under every other number here. Weigh")
-            p("  differences between dimensions smaller than it as nothing.")
+            p("  NOT a noise read on this form version: the re-ask vignette softens the")
+            p("  person's preference from a need to a tolerance, so the two answers")
+            p("  describe different people. No noise floor is available from v1.")
         else:
-            p("  Tight. Her answers are stable at least on this one.")
+            p("  Close, though v1's re-ask is not an exact repeat (see README).")
 
     if res["warnings"]:
         p("")
