@@ -1,0 +1,209 @@
+PACKET P-11   ·   DE-IDENTIFIED   ·   RATER-FACING
+  scrubbed from : P-11_packet.txt (build v4.10, model claude-opus-5, built 2026-09-08)
+  ruleset       : ANONYMIZATION_RULES_DRAFT.md
+  scrubbed      : 2026-09-16
+  status        : DRAFT
+
+  DO NOT SEARCH FOR ANY PHRASE IN THIS PACKET. If you recognise the company, that is
+  expected and is not a failure — record it on the recognition flag and keep scoring
+  from the evidence in front of you, not from what you know.
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE DECLARATION. The employee reviews in this packet come overwhelmingly from New York State
+manufacturing, quality-control and site-support staff — production specialists, QC analysts and
+technicians, interns, contractors and security officers — together with a small number of
+director-level and corporate IT voices, and several reviewers who gave no job title. Other parts of
+this company — its research and preclinical science organisation, its global clinical development
+organisation, its commercial field-sales force, and its operations outside the United States — are
+almost entirely unrepresented in them. Company-authored sources describe the whole organisation.
+
+NOTE TO RATER (evidence completeness). Seven of the fifteen employee reviews below were cut off by
+the review site itself at an expansion control that does not open on retrieval; the cut is marked
+[...] where it occurs. The reviews that survive intact are systematically the shorter ones, so the
+longer and more detailed accounts are the ones you are reading only the opening of.
+
+
+--- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
+
+   • "A better workplace enables our colleagues to produce better science, which leads to a better world."  — [company careers site, culture page] — corporate voice — accessed 2026-09-08
+
+   • "Our culture is the formula for our success. These core values aren’t just a series of slogans but behaviors woven into the day-to-day experience of our unique community."  — [company careers site, culture page] — corporate voice — accessed 2026-09-08
+
+   • "Science drives our business, and passion drives our science. Whether you're doing science, supporting it, or delivering it, leading with science is what we do."  — [company careers site, stated core value] — corporate voice — accessed 2026-09-08 — [named core value stripped from source tag in brackets; clause otherwise verbatim]
+
+   • "We take the long view and tackle the big ideas, the unsolvable problems and the bottlenecks that get in the way. We pursue ideas with passion and courage to make a real difference."  — [company careers site, stated core value] — corporate voice — accessed 2026-09-08 — [named core value stripped from source tag in brackets; clause otherwise verbatim]
+
+   • "It may not always be easy, but we figure it out and get it done. We have little appetite for unnecessary bureaucracy that can get in the way of innovation or quality."  — [company careers site, stated core value] — corporate voice — accessed 2026-09-08 — [named core value stripped from source tag in brackets; clause otherwise verbatim]
+
+   • "While others talk about teamwork, we actually do it. When you work with smart, fun people, you bring out the best in each other and can do the extraordinary."  — [company careers site, stated core value] — corporate voice — accessed 2026-09-08 — [named core value stripped from source tag in brackets; clause otherwise verbatim]
+
+   • "We are a team of original thinkers who work together to create life-transforming medicines for people with serious diseases. Whether it's in the laboratory or at lunch, our company is built on breakthrough ideas, diverse personal strengths and a culture of connection."  — [company careers site, home page] — corporate voice — accessed 2026-09-08
+
+
+--- B. EMPLOYEE REVIEWS (12–15, most recent first) ---
+
+   • "As any company has its struggles at the end of the day [the company] tries to make sure that each person feels respected and welcome no matter how you present yourself. Best company i have ever worked for and its not even close. [...]"  — [employee review] — Lead Process Technician III, [Site A] — rev-01 — 2026-07-25 — [company name substituted and location tokenised in brackets; quote otherwise verbatim]
+
+   • "[The company] has been a good first job coming out of college. The people I work with are incredible, and really make the job. Many departments are spread extremely thin at the lower levels while upper management gets richer."  — [employee review] — Biotech Production Specialist, [Site B] — rev-02 — 2026-06-15 — [company name substituted and location tokenised in brackets; quote otherwise verbatim]
+
+   • "Worked in Corporate IT. Leadership clearly not well-trained, culturally dependent in promotions and prime positions. Benefits were great, high pay but not worth the stress."  — [employee review] — Product Manager, [Site C] — rev-03 — 2026-06-01 — [location tokenised in brackets]
+
+   • "The opportunities are immense, pay is great, Management is Awesome. Great team to work with and colleagues you can trust.Everyday is a new learning experience."  — [employee review] — title: not stated, location not stated — rev-04 — 2026-05-11
+
+   • "What is the best part of working at the company? Its really nice taking part in a process that gets medication to those who need it. What is the most stressful part about working at the company? Constant changes. Since [the company] is growing so fast there are many changes being implemented constantly. [...]"  — [employee review] — Associate QC Analyst, [Site A] — rev-05 — 2026-05-03 — [company name substituted and location tokenised in brackets; quote otherwise verbatim]
+
+   • "Great atmosphere and learning environment as an intern. Most of the people I worked with were nice and supportive. Pay could be better, but they do offer stipend."  — [employee review] — Intern, [Site B] — rev-06 — 2026-03-26 — [location tokenised in brackets]
+
+   • "If you are lucky to have a good manager then you may survive long term. A lot of bullying and blame culture. Take initiative to learn things yourself."  — [employee review] — Scientist, location not stated — rev-07 — 2026-03-24
+
+   • "[The company] is a great place to work if you love science. Management really care about the people we help who live with disease. You can work from home one day a week. Benefits are pretty good but it is an expensive area to live."  — [employee review] — Director, [Site D] — rev-08 — 2026-03-22 — [company name substituted and location tokenised in brackets; quote otherwise verbatim]
+
+   • "Racist place to work at and they will target you if you don't kiss their rear end. They will make contact with you as if their your friend but will throw you under the bus to cover themselves. also, if you're a contract worker they will treat you very low and ignore you if you say hello to them. they [...]"  — [employee review] — Contract Security Officer, [Site E] (non-standard location string tokenised) — rev-09 — 2026-01-30 — [location tokenised in brackets]
+
+   • "Some managers can be supportive some aren't. Different sites have different cultures. IT is behind compared to other big pharma. Training is very minimum after SOP."  — [employee review] — title: not stated, location not stated — rev-10 — 2026-01-21
+
+   • "As a contractor I was treated like an outsider, even though technically I was. It was very apparently and felt from most employees, including managers. It did not feel welcoming at all, people in group were very close knit. The only good thing was the frequent parties, free breafast once a week, and [...]"  — [employee review] — Quality Control Technician, [Site B] — rev-11 — 2026-01-12 — [location tokenised in brackets]
+
+   • "I worked offsite so I can’t vouch much for their main site, but my department is a great team to be on. Pay is good, we are encouraged to go to trainings and seminars, the people are lovely there [...]"  — [employee review] — Design Assurance and Engineering Quality Engineer Technician II, [Site B] — rev-12 — 2026-01-05 — [location tokenised in brackets]
+
+   • "They have skeleton crews working jobs that require many more people on the teams. People quit due to burn out or better opportunities, they don’t replace them and just spread the work out more. The upper management has no idea what they are doing most of the time. So don’t expect and support, answers, [...]"  — [employee review] — title: not stated, [Site A] — rev-13 — 2025-12-21 — [location tokenised in brackets]
+
+   • "Everyone I have worked with has been helpful and kind. The culture is great for promoting growth. However, it seems the workload has been increasing across the board because positions are not being backfilled."  — [employee review] — Biotech Production Specialist, location not stated — rev-14 — 2025-11-07
+
+   • "Daily communication issues between departments which cause issues in manufacturing and scheduling. If any issues arise, management and HR will lie and throw you under the bus immediately to protect themselves and the company- back-stabbing culture. Constant staffing issues and not enough employees to [...]"  — [employee review] — Biotech Production Specialist, [Site B] — rev-15 — 2025-11-05 — [location tokenised in brackets]
+
+
+--- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+
+   • "Please be advised that at [the company], we believe we do our best work when we are together. For that reason, many roles are required to be performed on-site."  — [job posting — appears on all postings checked; quoted here from the Industrial Operations & Product Supply posting] — employer voice — confirmed open 2026-09-08 — [company name substituted in brackets; clause otherwise verbatim]
+
+   • "In this role, you will build, develop, and optimize systems for our sophisticated biopharmaceutical manufacturing processes. You will collaborate closely with multiple teams to include Manufacturing, Quality Control, and Facilities. This position offers the opportunity to contribute to a fast-growing, science-driven organization making a meaningful difference to patients worldwide."  — [job posting — Industrial Operations & Product Supply] — employer voice — confirmed open 2026-09-08
+
+   • "Champion continuous improvement as an everyday outlook, not just a metric."  — [job posting — Industrial Operations & Product Supply] — employer voice — confirmed open 2026-09-08
+
+   • "Identify, investigate, and resolve manufacturing deviations tied to automated control systems."  — [job posting — Industrial Operations & Product Supply] — employer voice — confirmed open 2026-09-08
+
+   • "Independently executes a broad array of work supporting department priorities in routine Pharmacometrics deliverables on study design, analysis, and reporting."  — [job posting — Research & Preclinical Development] — employer voice — confirmed open 2026-09-08
+
+   • "Conducts compliance-related activities (SOPs, etc.); ensures regulatory-submission conformance, data integrity, and GxP compliance; adheres to controlled SOPs; and meets mandatory-training and data-confidentiality requirements."  — [job posting — Research & Preclinical Development] — employer voice — confirmed open 2026-09-08
+
+   • "This role is based in our [location removed] office and will be onsite four days per week."  — [job posting — Research & Preclinical Development; office location elided, wording otherwise verbatim] — employer voice — confirmed open 2026-09-08
+
+   • "Work in alignment with the brand plan, develop and implement a local account plan based on key data sources and local market insights."  — [job posting — Commercial] — employer voice — confirmed open 2026-09-08 — [named internal program de-branded in brackets; clause otherwise verbatim]
+
+   • "You can operate optimally in a “start-up” model as this is a completely new team."  — [job posting — Commercial] — employer voice — confirmed open 2026-09-08
+
+   • "Develop innovative approaches to delivering on core activities that integrate in new technologies,"  — [job posting — Global Development; trailing comma and wording reproduced exactly as published] — employer voice — confirmed open 2026-09-08
+
+   • "Analyze aggregate safety data to identify emerging safety issues and patterns, in partnership with [an internal safety strategy team]"  — [job posting — Global Development] — employer voice — confirmed open 2026-09-08 — [named internal team de-branded in brackets; clause otherwise verbatim; NOT in Section 4 pre-flag block]
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 4 passages from 3 sources · ladder fully attempted) ---
+
+NOTE TO RATER (whose voice this is). The three passages below are one corporate-voice account of the
+company's research process and two named individual accounts — one from a marketing
+director, one from a senior vice president. All three are published by the company on its own sites.
+
+   • "[The company]’s diverse teams of scientists get to work validating potential targets: our library science team reviews scientific literature for existing research on potential targets to inform our validation strategies, while multiple teams of research scientists recreate certain biological conditions in the lab to learn more about them."  — [company-published article on how research is done] — corporate voice — 2026-06-09 — [company name substituted in brackets; clause otherwise verbatim]
+
+   • "From decoding DNA to testing molecules in disease models, [the company]’s scientific journey is a continuous cycle of discovery, validation and refinement. Each stage informs the next, creating a feedback loop that helps science move faster and more precisely toward potential treatments for patients. Our journey is powered by data and technology, alongside human expertise and ingenuity."  — [company-published article on how research is done] — corporate voice — 2026-06-09 — [company name substituted in brackets; clause otherwise verbatim]
+
+   • "We had an entirely new marketing team, with the longest-tenured member having six years of experience. We found ourselves faced with an FDA approval after 3.5 months of review. It was the most challenging task I have ever encountered. We were building the plane while it was flying — while sourcing parts and reading the blueprints on how to put it together. Yet we were able to successfully launch with incredible results that exceeded all expectations."  — [named employee testimonial on company careers site] — a Director of Marketing, Commercial — accessed 2026-09-08, no publication date shown on page — [named individual replaced with role in brackets]
+
+   • "We have an optimistic and highly collaborative approach to solving problems. When we experience failures — and there are a lot of them! — we don’t get down. We say, "Let’s go back and think about what we can change." And we have multiple approaches going simultaneously, which is very [the company]. We don’t limit ourselves to one way of doing things."  — [named executive testimonial on company careers site] — a Senior Vice President — accessed 2026-09-08, no publication date shown on page — [named individual replaced with role in brackets; company name substituted in brackets; clause otherwise verbatim]
+
+
+--- E. RECENT NEWS (yield: 2 · searches logged) ---
+
+   • "[The company]’s [chief executive] used the stage during the first day at the 44th annual J.P. Morgan Healthcare Conference to underscore the company’s scientific-driven strategy, placing an emphasis on its broad pipeline which spans six major therapeutic areas along with a commitment to near-term data readouts which are expected to drive continued growth."  — [trade press reporting] — trade press — 2026-01-13 — [company name and named executive replaced with role in brackets; journalist byline reduced to publication class; clause otherwise verbatim]
+
+   • "New York is set to gain a four-figure number of new biotech jobs as [the company] plans a large, multi-billion-dollar expansion in [Site F], marking one of the state’s biggest life sciences investments in years." and, in the same report, "The project will double [the company]’s production capacity in the state and includes room for further growth."  — [local news reporting] — local news — 2025-11-14 — [company name substituted and location tokenised in brackets; dollar figure and jobs figure replaced with magnitude language; clause otherwise verbatim]
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 6 · public/private: PUBLIC) ---
+
+   • "Our strategy is rooted in the understanding that a better workplace drives better science and that better science drives a better world."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — company-authored — filed 2026-02-04, for fiscal year ended 2025-12-31
+
+   • "We believe that by fostering an inclusive culture and bringing different voices and perspectives to the discourse, we improve our ability to fulfill our mission to repeatedly bring important medicines to patients with serious diseases."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — company-authored — filed 2026-02-04, for fiscal year ended 2025-12-31
+
+   • "Our employee-led cross-functional resource groups, open to all, help colleagues to connect around common interests and support our culture of inclusion and collaboration."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — company-authored — filed 2026-02-04, for fiscal year ended 2025-12-31
+
+   • "In addition, we continue to invest in our current and future leaders through a number of leadership development courses and programs and feedback and coaching opportunities."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — company-authored — filed 2026-02-04, for fiscal year ended 2025-12-31
+
+   • "We communicate frequently and transparently with our employees through a variety of communication methods, including video and written communications, company forums and town halls, annual engagement surveys, and pulse surveys."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — company-authored — filed 2026-02-04, for fiscal year ended 2025-12-31
+
+   • "The primary underpinning of our pay philosophy is to award stock-based pay to all eligible employees to ensure that when we deliver for patients and for shareholders, everyone shares in the upside growth."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — company-authored — filed 2026-02-04, for fiscal year ended 2025-12-31
+
+########## END OF PACKET ##########
+
+SCRUB LOG — P-11
+
+Counts per rule applied in Section 1:
+  R1  (attribution: strip company name + URL, keep source class + date) — applied to all 45
+      excerpt attributions (7 A, 15 B, 11 C, 4 D, 2 E, 6 F).
+  R1  (review URLs → stable local id)                                   — 15 of 15 B excerpts,
+      assigned rev-01 (2026-07-25, most recent) through rev-15 (2025-11-05, oldest).
+  R2  (company name inside quote body → [the company] / [The company])  — 9 instances, across
+      2 B excerpts, 1 C excerpt, 2 D excerpts, 2 E-excerpt occurrences (E2 has two), 1 D excerpt
+      (D4), 1 E excerpt (E1). Exact line list: B rev-01, B rev-02, B rev-05(dated 2026-05-03),
+      B rev-08(dated 2026-03-22), C1, D1, D2, D4, E1, E2 (x2 in E2).
+  R3  (named human → role only)                                          — 4 instances: D3 (John
+      Bae → a Director of Marketing, Commercial), D4 (Lynn Macdonald → a Senior Vice President),
+      E1 (Len Schleifer → [the company]'s [chief executive]), E1 (Nicholas Jacobus, byline →
+      publication class "trade press").
+  R4/A5 (branded/internal proper noun → generic, clause kept)            — 6 instances: A3–A6
+      (four internal core-value names stripped from the source tag, not from a quote body — the
+      values are named only in each excerpt's bracketed tag, not inside the quoted sentence
+      itself), C8 ("the Brand Plan" → "the brand plan"), C11 ("Safety Sciences Strategy" → "an
+      internal safety strategy team"; NOT in the Section 4 pre-flag block — caught by sweep, see
+      content-defects file).
+  R5/A6 (place name → [Site X], inside attribution or quote body)        — 6 distinct sites
+      tokenised: [Site A]=East Greenbush,NY (x3 attributions), [Site B]=Rensselaer,NY (x5),
+      [Site C]=Sleepy Hollow,NY (x1), [Site D]=Tarrytown,NY (x1), [Site E]=the non-standard
+      street-level string in the 2026-01-30 review's location field (minted, no pre-flag token
+      existed), [Site F]=the city named in E2's manufacturing-expansion quote (minted, no
+      pre-flag token existed). The mapping from token to original string is recorded in
+      P-11_scrub_diff.txt, per A6(a) — never here.
+  R6/A1 (identifying figure → magnitude language)                        — 1 excerpt (E2): a
+      specific dollar figure and a specific jobs-count figure, both replaced with magnitude
+      language.
+
+Judgment calls made, and why:
+  1. E1's "six major therapeutic areas" and D3's "3.5 months of review" / "six years of
+     experience" were left untouched. None is a headcount, dollar figure, or percentage — the
+     three categories R6/A1 names — and each carries dimension signal (breadth, pace) rather
+     than functioning as a re-identifying metric on its own. Flagging rather than extending R6
+     to a category it does not name.
+  2. "New York" (the state) is kept literal throughout, including in the SCOPE DECLARATION and
+     in E2. The SCOPE DECLARATION already tells the rater the review population is New York
+     State-based; state-level geography is dispersion/population context, not a site-level
+     identifier, and R5's worked examples all operate at city/site granularity. City-level and
+     street-level strings (East Greenbush, Rensselaer, Sleepy Hollow, Tarrytown, the two minted
+     sites) are the ones tokenised.
+  3. The J.P. Morgan Healthcare Conference name (E1) and the ATS/industry vocabulary in C
+     (SOPs, GxP) are kept — third-party/industry-standard terms, not company fingerprints, per
+     the industry-not-scrubbed finding and the precedent for keeping recognisable third-party
+     platform/vendor names.
+  4. C11's "Safety Sciences Strategy" was scrubbed under R4/A5 even though Section 4's pre-flag
+     block never names it. This is an application of an already-decided rule to a term the block
+     missed, not an extension of the rule to a new case — recorded as a pre-flag miss in the
+     content-defects file, per the brief's instruction to report where sweep and block disagree.
+
+Left alone deliberately:
+  - Source typos (R7): "It was very apparently and felt", "free breafast", "as if their your
+    friend", "So don't expect and support, answers,", "trust.Everyday" (missing space),
+    "supporting our Canada in a hybrid work mode" [not present verbatim in this packet's C
+    excerpts — see content-defects], "integrate in new technologies," (trailing comma). All
+    verbatim, all misspelled/non-standard exactly as printed in the raw packet.
+  - Review headlines: none are present in this packet's B excerpts (Indeed does not surface a
+    headline field the build quoted), so A7's rule has nothing to apply to here.
+  - "Remote": does not appear anywhere in this packet's Section 1, so R5's "Remote stays
+    literal" clause has nothing to apply to.
+  - JC-1 distinctive self-descriptions (e.g. A1/F1's paired "better workplace...better science...
+    better world" phrasing) kept verbatim per the standing decision — signal, not identifier.
+  - A3(recurrence, A↔F double counting): no claim in this packet's Section 1 appears in both A
+    and F in reworded form the way P-06's did; A1 and F1 are near-twins of the SAME governing-
+    principle example already discussed in the ruleset, but neither restates a claim already
+    quoted elsewhere in this specific packet under a different wording that would trigger a
+    recurrence note. Left as-is.

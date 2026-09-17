@@ -31,6 +31,41 @@ packet it has been run against so far.
 
 ---
 
+## 2026-09-17 harvest
+
+RESEARCH   nothing -- `_build_env/packets/` was empty and no `RUN_REPORT.md` existed
+           anywhere in `_build_env/` at inventory time. No report and no packet means
+           research never started tonight. `to_be_researched.txt` left untouched: P-12
+           Duke Energy still the sole, topmost entry.
+SCRUB      P-11 Regeneron -- promoted to anonymization/, run record at
+           _scrub_env_runs/P-11_run1/. Complete four-file set found in packets_out/
+           (packet_ANON, scrub_diff, content_defects, run_report), scrubbed 2026-09-16,
+           45/45 excerpts preserved (A7 B15 C11 D4 E2 F6) with 12 quote-body edits, all
+           declared; company name/short forms, `http`, and all 13 self-checks passed per
+           the scrub's own report. One BUILD-side defect confirmed uncorrected: Section C
+           carries 11 excerpts against its declared 6-10 header (content-defects #8),
+           header reproduced verbatim per instruction. `P-11_content_defects.txt` also
+           records 8 pre-flag-block accuracy problems (7 OVER-FLAG, 1 MISS -- "Safety
+           Sciences Strategy," de-branded under R4/A5 though never pre-flagged) -- none
+           corrected in the packet, all recorded for the rater. Diff file copied to the
+           run record only, per instruction that it never reach anonymization/ or
+           packets/.
+LISTS      to_be_researched: 1 remaining (P-12 Duke Energy) - to_be_scrubbed: 0 waiting --
+           P-11's line struck now that promotion is complete.
+STAGED     nothing -- `to_be_scrubbed.txt` is empty once P-11's line was struck, so
+           `packets_raw/` stays empty for tonight's scrub. Refreshed
+           `_scrub_env/ANONYMIZATION_RULES_DRAFT.md` from
+           `anonymization/ANONYMIZATION_RULES_DRAFT.md` anyway, per standing instruction
+           (already identical byte-for-byte; copied over regardless).
+REFUSED    nothing -- no destination collisions (Rule Zero clear on `anonymization/`,
+           `packets/P-11_regeneron/`, and `_scrub_env_runs/P-11_run1/`), no partial scrub
+           set, no research packet to structural-check since none was produced.
+VERIFIED   2026-09-16 (operator note above) -- P-11 was already run through
+           `Scripts/verify_scrub.py` before this harvest, per the 2026-09-16 operator
+           note: 45/45 parsed both sides, harness counts match, 12/12 declared quote
+           edits with 0 undeclared, 0 identifiers found. No `NOT YET VERIFIED` line
+           written for P-11, per that note's instruction.
+
 ## 2026-09-16 operator note — not a harvest entry
 
 Written by hand on 2026-09-16, after the entry below it. Recorded here because that entry is
