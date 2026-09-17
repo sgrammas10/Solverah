@@ -57,6 +57,10 @@ into `PRODUCT_DECISIONS.md` with proper signed entries (chunk 0 complete)._
 | ⚑9 | `fresh_start` excludes the user's SOC **minor** group, not major — major bars whole families (admin: 8 of 11 unreachable); minor wins on every metric | **Open** — recommend ratify | §6 F-7 |
 | ⚑10 | `fresh_start` ships the **diverse seed** (8/8/8/8 clusters) at a measured **−0.09 static nDCG** that two rounds of feedback repay to level, never above — the design's "exceeds after taps" claim did not hold (n=4, one profile poisoned by the fire-metaphor hazard). Ship as-is with F-8's behavioural-profile fix, or revert to the interim similarity page? | **Open — evidence changed 2026-09-16:** after F-8 box 8 the claim HOLDS (one round 0.354 vs interim 0.332, n=4); recommend **ship** | §6 F-7 |
 | ⚑11 | Build **F-9** — `role_w` applied only once feedback exists; F-8 measured 0.20 → **+0.061 nDCG**, clean inverted U, harm 0 (n=4) | **Open** — recommend yes, as its own re-measurable chunk | §6 close-out |
+| ⚑12 | Path Intelligence shows **no percentage** — not on the cards, not in the fit panel. Ranking and wire fields stay; the panel stays **as words** | **Decided** — Sebastian, 2026-09-17 (panel-as-words is the agent default, put to him twice, unobjected) | §6a W-1 |
+| ⚑13 | Path Intelligence gains a **wants layer**: diagnose what should change in the user's *current* job — its own O*NET **tasks first**, a few **conditions second** — and steer all three paths with it. **Separate from the company model** (own instrument, storage, scorer); does not reopen ⚑3 | **Direction approved** — Sebastian, 2026-09-17. Build past W-1 **gated on W-3's measurement** | §6a |
+
+_2026-09-17: **⚑10 and ⚑11 are overtaken by ⚑13** — both become measured arms inside W-3 (seed vs no seed with wants present; `role_w` after feedback) rather than rulings or a standalone F-9. **⚑9 stands either way**; still recommend ratify._
 
 ### 0.3 · Chunk 0b — commit hygiene before new work piles on (S–M)
 
@@ -77,7 +81,9 @@ ran — no separate landing commits were needed for this section._
   from the same email instead (rulings in
   `Solverah_IP/ANCHORS_V3_JULIE_RESPONSE_2026-09-14.md`) and was re-asked for
   the form only on 2026-09-14. **Form RETURNED 2026-09-17** — converted
-  clean, not yet swapped in (see E-1). Async-only — see §5.1.
+  clean and swapped into `priors.yaml` the same day (see E-1). The priors
+  gate is OPEN: E-5 no longer waits on Julie, only on E-2 and the two
+  blockers E-4 named. Async-only — see §5.1.
 - **Launch/publicity gate:** entity + attorney (`[ENTITY NAME]`
   placeholders, dispute resolution). Real calendar lead time; §8's launch
   tiers are all hostage to it, so it should start now, in parallel.
@@ -406,9 +412,20 @@ ran — no separate landing commits were needed for this section._
   self-report anchors sanity check (A-1 items vs her rubric reading),
   (b) the 6-dim → O*NET Work Context crosswalk question (IN — the O*NET
   decision went to "backbone", Sebastian 2026-09-10)
-- [ ] On return: internal appendix maps answers → real `priors.yaml`
+- [x] On return: internal appendix maps answers → real `priors.yaml`
   values ({mean, sd} per weight); commit the swap — structure code
   unchanged by design
+  _(SWAPPED 2026-09-17: `priors.yaml` now carries the converter's output,
+  unedited; the placeholder is kept beside it as `priors_placeholder.yaml`
+  — the record of her contribution AND the neutral fixture
+  `tests/test_match_scoring.py` uses for its analytic anchors. All twelve
+  of her answers reproduce through the real `match_core.point_p_fit` on
+  the live file to within 6e-07. Suite 3298 passed / 52 skipped, CI-style.
+  No production effect: nothing calls `match_scoring` but its test, and
+  the Situation Report still runs A-3's flat weights until E-5. Research
+  scripts (`recovery_multiseed.py`, `build_model.recovery_curve`) read the
+  LIVE file — their recorded results were made under the placeholder, so
+  pass `pri_path=priors_placeholder.yaml` to reproduce them.)_
   _(RETURNED 2026-09-17, all twelve answered, all "confident". Converter
   ran clean, no positive-mag warnings. Pace is her costliest mismatch
   (mag −2.52), autonomy the mildest (−0.67); feedback and decision are
@@ -420,9 +437,7 @@ ran — no separate landing commits were needed for this section._
   that a preference's cost depends on how much it matters to the person.
   Consequence: there is NO noise-floor read under these numbers; the
   converter's printed "noise floor" line is wrong for this form version.
-  Swap not done yet — it is not a file copy: `tests/test_match_scoring.py`
-  pins the placeholder (perfect match == exactly 0.5; her intercept makes it
-  0.8). Her free-text notes raise four structure questions the model has no
+  Her free-text notes raise four structure questions the model has no
   term for — per-person importance weighting, "doing well" vs "satisfied"
   as the outcome, career-stage × comp, and the manager as a moderator.)_
 
@@ -716,6 +731,156 @@ Green-lit and built in one day. Eight chunks, every one independently verified b
 
 ---
 
+## 6a. Workstream W — Path Intelligence: what should change (the wants layer)  *(direction approved 2026-09-17; W-1 ungated, everything after it gated on W-3)*
+
+Design of record: `docs/PATH_INTELLIGENCE_REDESIGN.md` **§8**. Sebastian ran
+Workstream F locally on 2026-09-17 and redirected it: **no percentage** (⚑12),
+and find out **what is going wrong in the user's current job, work-wise** —
+people-facing or not, likes coding or not, likes selling or not — then steer all
+three paths with it, **kept separate from the company model** (⚑13).
+
+What two scratch looks showed (§8.2; looks, not measurements): marking *more /
+less* on the user's **own job's O*NET tasks** — already in the corpus documents —
+rotates the query the way F-6's taps do and steered a developer persona well
+(Data Scientists 1st → gone, Sales Engineers 4th → 1st). Measured work
+**conditions** (O*NET work context, fetched for all 939 retrievable jobs) are a
+clear win for a nurse persona and too blunt to rank on alone.
+
+**The order is the point.** W-1 ships regardless. W-2 and W-3 put the idea in the
+harness **before any form, table or card work exists. If W-3's number does not
+hold, the workstream stops there.** Two confident design claims in Workstream F
+failed measurement; this is a hypothesis.
+
+_Letter W, not G: `G1`…`G22` are scenario-gap ids in `USER_SCENARIOS.md`._
+
+### W-1 · Remove the percentage (S) — frontend only, no gate
+
+- [ ] `PathSuggestionCard.tsx`: drop "Match score NN%" and its bar. Card order
+  is unchanged — the ranking stays, only its display goes
+- [ ] `PathFitPanel.tsx`: drop the four percent bars (`fit_score`,
+  `skills_score`, `coverage_score`, `work_style_score`) and the number on each
+  skill gap. Keep the panel **as words**: what carries over, what would be new;
+  gaps stay ordered by importance, unnumbered
+- [ ] Wire untouched: `match_score` and the four fit scores stay on the response
+  and in `types.ts` — **no OpenAPI change, no contract recapture**
+- [ ] Tests beside each component: assert no `%` and no score bar renders;
+  `npm test`, `npm run type-check`
+
+_Copy is a best guess; Julie revises on the built product._
+
+### W-2 · Eval profiles that state wants (M) — BEFORE any scorer
+
+- [ ] Extend the fixture schema **additively**: an optional `wants` block per
+  profile — `tasks_more` / `tasks_less` (the anchor occupation's real task
+  statements from `*.documents.jsonl`, by exact text) and `conditions`
+  (`people` / `public` / `leading` / `desk` → more | less)
+- [ ] **15 new profiles, five per intent**, so every intent clears the n = 5
+  rule. Varied domains and Job Zones; at least three whose wants pull *against*
+  their skills (the developer who is done with coding)
+- [ ] Labels by F-2's protocol: drafted by an agent that **has seen no scorer and
+  none of §8.2's prototype output**, graded *with the stated wants in mind*,
+  `confidence` flagged, low-confidence rows reviewed by Sebastian. Codes
+  validated against the corpus sidecar, not live O*NET
+- [ ] `EvalProfile` gains the optional field; every existing scorer still runs
+- [ ] **Record the number to beat:** today's wants-blind `score_paths` on the 15
+  new profiles. The existing 20 profiles and their 249 labels are **frozen** —
+  they become the no-wants regression guard
+
+_⚠ Same two warnings as F-2: this is a scorer-quality baseline, not a pytest
+baseline; and the labelled set must not become a Julie dependency._
+
+### W-3 · Sidecars + the scorer, measured offline (M–L) — THE GATE
+
+- [ ] **Conditions sidecar** `*.experience.json` beside the corpus:
+  `flask corpus experience` builds it (three `details/` reports per job, 4 req/s,
+  resumable; accepts the already-fetched
+  `Desktop/solverah-experience-proto/onet_experience_raw.jsonl` so nothing is
+  re-fetched). Two new `onet_client` methods. Axes are **percentile ranks across
+  the corpus**; an axis averages the elements *present* — a missing element is
+  never a zero
+- [ ] **Tasks sidecar** `*.tasks.json`: per job, up to ~8 task statements chosen
+  for spread, each with a plain-words display label written **once, offline**.
+  The **original** statement is what gets embedded — display prose never reaches
+  the embedder (F-7's metaphor hazard)
+- [ ] Task vectors are embedded **per request for the tapped tasks only**, in the
+  one batched call `score_paths` already makes, cached in `_EMBED_CACHE`. _Not_
+  precomputed: every task of every job is ~120 MB at float32 and the instance is
+  512 MB
+- [ ] Scorer, in the harness first: query rotation
+  `q' = q + beta*mean(more) - gamma*mean(less)` on each intent's existing query;
+  conditions as a **one-sided** term blended into the rank; F-7's hard filters
+  unchanged
+- [ ] **Measured arms, one table:** tasks only · conditions only · both; beta and
+  gamma (watch gamma subtracting the anchor — F-6's finding); conditions weight;
+  **diverse seed vs none with wants present (this settles ⚑10)**; `role_w` after
+  feedback (**this settles ⚑11**; no standalone F-9)
+- [ ] **Gates:** with no wants, all 20 existing profiles **byte-identical** to
+  `f8_structured_behavioural.json`; harmful rate does not rise anywhere; tune on
+  nDCG@10; no per-axis claim under n = 5
+- [ ] **STOP RULE.** If the wants-aware scorer does not clearly beat W-2's
+  wants-blind number on the new profiles, stop, write the negative result here
+  and in design doc §8, and do not start W-4
+- [ ] Request path stays clean: no O*NET call, no scikit-learn, no corpus load in
+  `create_app()`; `_fetch_from_s3` pulls both new sidecars; both join the deploy
+  dependency in `RUNBOOK_DEPLOY_MAIN_MERGE.md`. **No real S3** — the upload is
+  Sebastian's trigger
+
+### W-4 · Storage + API (M) — only after W-3 passes
+
+- [ ] `path_wants` table: `(user_id, anchor_onet_code, kind task|condition,
+  item_key, verdict more|less)`, unique per user + anchor + item. **One alembic
+  head.** A change of current job leaves the old rows inert, not deleted
+- [ ] `GET /me/path-wants` — the panel's content for the user's resolved
+  occupation plus their current answers; a typed `no_anchor` when there is no
+  current job. `PUT /me/path-wants` — idempotent, partial answers valid. Rate
+  limited like `path-feedback`
+- [ ] A wants write invalidates `path_cache` and `path_fits` (the enumeration
+  test's floor rises by one)
+- [ ] `score_paths` reads stored wants for **all three** intents;
+  `stay_in_field` still ignores *card* feedback, as F-6 decided
+- [ ] Cards gain an additive `reasons: string[]` — what is **distinctive about
+  this card**, never a line that reads the same on every card (§8.2)
+- [ ] Export + delete coverage for the new table (D-7's rule,
+  `test_export_delete_coverage.py`); the D-01 guard reads docstrings — name no
+  person-side table in prose
+- [ ] pytest per endpoint (happy / error / edge), OpenAPI regen, contract
+  **re-verified at zero diffs, then** captured additively, `schema.ts` regen
+
+### W-5 · Frontend: the panel + card reasons (M–L)
+
+- [ ] A "what should change" panel above the results: own-job tasks in plain
+  words plus the conditions, each *more · fine · less*. **Never blocks the first
+  result** — the page loads ranked as today and re-ranks on answer (⚑7's lesson).
+  One screen, skippable, valid half-finished
+- [ ] No current job → no panel; taps only
+- [ ] Reason line on each card, where the percentage used to be
+- [ ] Props typed, test beside each component, Vitest; verify in the browser
+  against the API on **5055** (a stale Flask holds :5000)
+
+### W-6 · Taps teach the wants (M) — measured, optional
+
+- [ ] A run of *interesting* cards is evidence about a condition the user never
+  answered: infer a nudge from the liked cards' measured axes
+- [ ] Measure in F-6's simulated-feedback harness against taps alone; **ship only
+  if it wins**, harm 0. Otherwise record the number and close the box unbuilt
+
+### W-7 · Close-out (S)
+
+- [ ] real_stack E2E: wants → re-ranked page → tap → fit panel, asserting the DB
+- [ ] `feature_tour` ROUTES, runbook (two new sidecars in the corpus dependency),
+  `render.yaml` / `.env.example` if a key is added
+- [ ] Fold in F's two stale docstrings (`score_paths` says 500;
+  `get_my_path_suggestion_job` omits `corpus_unavailable`)
+- [ ] **One** full CI-parity suite run, backgrounded:
+  `SOLVERAH_IGNORE_DOTENV=1`, `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`, the venv at
+  `Desktop/solverah-venv311`; `npm test`; `tsc`
+
+_Still open from Workstream F and **not** absorbed here: regrade the own-job
+labels on p01–p04 to `anchor`; review the 56 low-confidence labels (p05 first);
+the first corpus upload to S3 before any main merge; ⚑9._
+
+---
+
 ## 7. Cross-cutting engineering notes
 
 - **Every new endpoint:** pytest (happy/error/edge), rate limit, OpenAPI
@@ -761,6 +926,11 @@ parallel, NO external gate (green-lit 2026-09-16, runs while E waits):
               └─► F-2 eval harness ────┘                                   │
                   (baseline BEFORE the rewrite, or F-4 is unfalsifiable)    │
                                                           F-8 cleanup ◄─────┘
+
+after F (direction approved 2026-09-17), gated on its OWN measurement:
+  W-1 no percentage (ships regardless)
+  W-2 wants profiles + labels ──► W-3 sidecars + scorer, offline ──┬─ holds ──► W-4 API ──► W-5 panel ──► W-6 ──► W-7
+      (labelled BEFORE the scorer exists)                          └─ does not hold ──► STOP, record it
 
 parallel, gated externally:
   E-1 Julie ──► E-5 fit + serving ──► Situation Report weight swap

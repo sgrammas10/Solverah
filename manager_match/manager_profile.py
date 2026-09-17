@@ -17,7 +17,7 @@ Item design rules (see MANAGER_PROFILE_ITEMS_BIAS_REVIEW.md):
 
 Scoring anchors are uniform (0.80 / 0.25) on purpose: no item is treated as a
 stronger indicator than any other, matching the flat-weight stance the interim
-gap engine takes while `priors.yaml` is still placeholder.
+gap engine takes until the model's weights are served (BUILD_PLAN E-5).
 """
 from __future__ import annotations
 
