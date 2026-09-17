@@ -1,10 +1,31 @@
 name: Run Tests
 
+# ── NARROWED 2026-09-17 (Actions minutes: 1801 of 2000 used, resets Oct 1) ────
+# Was `push: ["**"]` + `pull_request: ["**"]`: three jobs on every push to every
+# branch, and all three AGAIN for any branch with an open PR. Now the suite runs
+# only where it gates something — a PR into main, which is the deploy — plus
+# manual dispatch for an on-demand run of any branch (Actions tab → Run
+# workflow, or `gh workflow run tests.yml --ref <branch>`).
+#
+# `push: main` is deliberately absent: by the time that fires the merge has
+# happened and Render/Vercel are already deploying, so it would re-spend the
+# minutes the PR run just spent on the same tree and gate nothing.
+#
+# The cost: a push to causal_bayesian_model is no longer checked by anything
+# but `make test-pg` and the local frontend gates, until a PR to main is open.
+# To restore per-push CI after the reset, re-add:
+#   push:
+#     branches: ["**"]
 on:
-  push:
-    branches: ["**"]
   pull_request:
-    branches: ["**"]
+    branches: [main]
+  workflow_dispatch:
+
+# A second push to an open PR supersedes the first; without this both run to
+# completion and both bill. Keyed per ref, so PRs never cancel each other.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   frontend-tests:
