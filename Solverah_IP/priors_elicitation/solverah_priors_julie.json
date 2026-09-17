@@ -1,0 +1,102 @@
+{
+  "instrument": "priors_elicitation_v1",
+  "model_config": "solverah_model_config.yaml (6 active dimensions)",
+  "saved_at": "2026-09-17T11:19:05.628Z",
+  "scale": "count out of 10 still doing well after one year",
+  "baseline": {
+    "out_of_10": 8
+  },
+  "dimensions": {
+    "pace": {
+      "above": {
+        "out_of_10": 3
+      },
+      "below": {
+        "out_of_10": 4
+      },
+      "confidence": "confident",
+      "note": "There are several other important factors that would determine if someone is doing well a year later. As I am answering the questions, I believe we may need to look at some type of weighting system to how important each dimension is to the individual. For example, someone who prefers a faster pace may be ok with a slower pace IF they are enjoying their work, learning, etc. Not sure if this makes sense, let's discuss. "
+    },
+    "feedback": {
+      "above": {
+        "out_of_10": 7
+      },
+      "below": {
+        "out_of_10": 3
+      },
+      "confidence": "confident",
+      "note": "This is another example where "
+    },
+    "decision": {
+      "above": {
+        "out_of_10": 8
+      },
+      "below": {
+        "out_of_10": 5
+      },
+      "confidence": "confident",
+      "note": ""
+    },
+    "innovation": {
+      "above": {
+        "out_of_10": 5
+      },
+      "below": {
+        "out_of_10": 5
+      },
+      "confidence": "confident",
+      "note": ""
+    },
+    "autonomy": {
+      "above": {
+        "out_of_10": 7
+      },
+      "below": {
+        "out_of_10": 7
+      },
+      "confidence": "confident",
+      "note": ""
+    },
+    "collaboration": {
+      "above": {
+        "out_of_10": 7
+      },
+      "below": {
+        "out_of_10": 6
+      },
+      "confidence": "confident",
+      "note": ""
+    }
+  },
+  "recheck": {
+    "dimension": "pace",
+    "scenario": "above",
+    "answer": {
+      "out_of_10": 8
+    }
+  },
+  "confounders": {
+    "stage_size": {
+      "large": {
+        "out_of_10": 7
+      },
+      "small": {
+        "out_of_10": 7
+      }
+    },
+    "comp": {
+      "above_market": {
+        "out_of_10": 9
+      },
+      "below_market": {
+        "out_of_10": 5
+      }
+    },
+    "industry_matters": "yes"
+  },
+  "notes": {
+    "baseline": "",
+    "industry": "This is a loaded question! What I can confidently say that moving across industries often has a steeper learning curve, etc. I am going to spend some time on this so I can provide more context, etc. \n\n",
+    "free": "I would think about rewording the \"how many are still doing well a year later\" to how many are satisfied with their job (or something like this) \n\nThe reason I raise this is doing well is vague, some people will be doing well but they are not thriving, growing, etc. \n\nWe also need to consider where people are at when they come to Solverah. For someone new in their career, being under paid is somewhat normal because they don't have the experience to command higher pay. Someone looking to advance, being under paid would be a negative for them. \n\nA caveat to this is people change as they mature in their career. For example, I have someone on my team that does not like to have difficult conversations or give feedback. If he were answering this question at his one year anniversary, I don't think he would still be here. I spent time coaching and developing him and he has gained more confidence. While he still doesn't love doing this, he has discovered the importance and sees the necessity of this skill. SO basically, if the person works for the right leader, they would be performing well and more likely to stay.\n\nThere are a lot of scenarios I will need to provide you as these would and should be factored in to the model. "
+  }
+}
