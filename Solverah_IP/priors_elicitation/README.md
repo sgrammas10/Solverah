@@ -30,6 +30,14 @@ question were.
 deliberate copy. Keep the placeholder file when you do — the difference between the two
 *is* the expert contribution, and you will want to be able to show it.
 
+**Adopted 2026-09-17.** Julie's returned form was converted and its output copied over
+`causal_graph/v1_model/priors.yaml`. The placeholder lives on beside it as
+`priors_placeholder.yaml` — the record of what she changed, and the neutral fixture
+`tests/test_match_scoring.py` uses for its analytic anchors (a perfect match is exactly
+0.5 only under neutral priors; under hers it is her baseline, 0.8). Her twelve answers
+were driven back through the real `match_core.point_p_fit` on the live file and
+reproduced to within 6e-07.
+
 ## How twelve questions become twelve parameters
 
 The model's predictor is `z = intercept + Σ(mag·|g| + dir·g) + Σ(w·conf)`, and a

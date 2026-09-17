@@ -30,6 +30,7 @@ else is an estimate and says so.
 | §3.2 `adjacent` — where the feedback lives | **DECIDED inline on the result cards** (⚑7) — Sebastian, 2026-09-16. Not a questionnaire. See §5 #3 |
 | §5 #1 — replace `path_scoring.py`? | **DECIDED: substantial rewrite** (⚑8) — Sebastian, 2026-09-16. Not a deletion, not a second scorer. See §5 #1 |
 | Remaining §5 items (2, 4, 5, 6) | Agent defaults, unobjected 2026-09-16 — recorded in the §5 table and carried into Workstream F |
+| **Next iteration — the wants layer** (no percentage; diagnose what should change in the current job; tasks first, conditions second) | **Direction approved** — Sebastian, 2026-09-17. **§8**; `BUILD_PLAN.md` Workstream W. Unbuilt; everything past the percentage removal is gated on W-3's measurement |
 | Code | **BUILT** — F-1 corpus (376c8d7), F-2 eval harness (f51bef7), F-3 retrieval (88dae71), F-4 rewrite (f12dd79), F-5 deep fit (54ed44c), F-6 feedback loop (397aaac), all 2026-09-16; F-7 and F-8 in progress. Per-chunk record and measurements: `BUILD_PLAN.md` §6 |
 
 ⚑ marks a design call that needed Sebastian before it was built, following the
@@ -450,6 +451,172 @@ therefore a **floor**, not a ceiling.
 Not measured, and worth measuring before the interim fix is called done: actual
 dyno RSS under load, and the real per-run unique-text count against live O*NET
 (§1.3's 300–700 is an estimate from the taxonomy's shape).
+
+---
+
+## 8. Addendum, 2026-09-17 — "what should change": the wants layer
+
+*Sebastian ran the rebuilt Path Intelligence locally for the first time on
+2026-09-17 and redirected it. Direction approved the same day ("go ahead"); the
+build is `BUILD_PLAN.md` **Workstream W**, and everything past W-1 is gated on
+W-3's measurement. Nothing in this section is built.*
+
+### 8.1 The direction, in his words
+
+> we want to help users find new positions to help them grow as a person, in
+> their career, and find what type of work they are trying to do. […] the biggest
+> thing is that we need to identify what is going wrong in their current position
+> work wise (do they like being people facing or not, do they like coding, or
+> selling tech products etc) […] they need to be somewhat unrelated to the
+> company search model bc these are different things we are trying to solve.
+
+Three design features he named: **no percentage** on a suggestion ("a user that
+is looking for a new position is not going to be a perfect fit off the bat");
+the **three verdicts** per position; and the embedding should let the backend
+**learn what they are looking for**.
+
+The second and third already exist (F-6, F-7). What §3 cannot do is the first
+sentence: a tap says *which* card, never *why*. "Interesting" on Sales Engineers
+could be the people, the technology or the selling, and Rocchio moves the query
+toward all three at once. The wants layer supplies the why.
+
+### 8.2 What was looked at — looks, not measurements
+
+Two scratch prototypes, outside the repo at `Desktop/solverah-experience-proto/`
+(`prototype_page.py`, `prototype_tasks.py`), real corpus, real embedder, F-7's
+real hard filters. **n = 3 personas and n = 1; nothing here is a harness number.**
+
+**Conditions** (O*NET `details/work_context`, fetched for all 939 retrievable
+occupations, 0 API errors, 911 with data; `work_styles` 891, `interests` 923).
+Seven axes, each a small bundle of elements, scored with the company model's
+formula. What the look showed:
+
+- **The nurse is the clear win.** Asked for less time pressure, less public, more
+  desk: today's page is Healthcare Social Workers, Nursing Instructors, Midwives
+  — the same day in a different job. The prototype's is Health Informatics
+  Specialists, Clinical Research Coordinators, Instructional Coordinators.
+- **The conditions score alone cannot rank.** For a developer it returns
+  Mechanical Engineers, Library Technicians, Medical Records Specialists. A
+  skills *floor* is not enough; skills have to be in the rank (blended, Sales
+  Engineers moves from rank 242 to 13).
+- **O*NET's raw 0–100 values are compressed** (contact with others: developers
+  72, nurses 97). Axes are **percentile ranks across the corpus**, not value/100.
+- **"More than my current job" is nearly empty when the current job is an
+  extreme.** A developer sits at percentile 0.07 for people and 1.00 for desk, so
+  almost every job qualifies, and a reason line phrased against the current job
+  reads identically on every card. Card reasons must say what is *distinctive*.
+- **One card forced per cluster surfaces junk** (Rotary Drill Operators for a
+  developer) — the cost F-7 measured, seen again.
+- `pace` from the single *Time Pressure* element is weak: Air Traffic
+  Controllers rate as less pressured than nurses. It measures deadlines, not stress.
+
+**Tasks.** His examples — *likes coding, likes selling tech* — are tasks, not
+conditions; no work-context element can say "tired of coding". Every role
+document in the corpus already carries the occupation's O*NET task list
+(`*.documents.jsonl`), so the second look needed no new data: show the user
+**their own job's tasks**, let them mark *more of this / less of this*, and
+rotate the query with the task embeddings —
+
+    q' = skills + 0.8 * mean(more) - 0.4 * mean(less)
+
+For a developer marking more of "consult with customers / train users / analyze
+user needs" and less of "modify existing software / design and develop software
+/ manipulate data": Data Scientists goes from 1st to out of the top ten, Sales
+Engineers from 4th to 1st, and Project Management Specialists and Training and
+Development Specialists enter. Adding the conditions on top pushed Sales
+Engineers to 10th — **for this persona tasks steer better than conditions.**
+It is the same Rocchio update as §3.2 with the user's own statements as the
+liked and disliked sets, which is why it is cheap: a handful of embeddings per
+user, cached like their skills.
+
+### 8.3 The design
+
+1. **Diagnose.** One panel, built from the user's *own* occupation: about eight
+   of its tasks in plain words, plus three or four conditions (time with people,
+   the public, leading, desk versus on your feet). Each item: *more · fine ·
+   less*. **It never stands between the user and a result** — the page loads
+   ranked as it is today and the panel re-ranks it, which is ⚑7's lesson (a step
+   before any value is friction, and most people skip it) applied again. Valid
+   half-finished; zero answers is today's page. **No current job → no panel**;
+   taps alone, as now.
+2. **Rank.** Tasks steer the query (the rotation above); skills stay in the rank;
+   conditions are a lighter, **one-sided** term — overshooting a "more" costs
+   nothing. F-7's hard filters stay (Job Zone ceiling, own minor group, skill
+   floor).
+3. **All three paths.** `fresh_start` rotates the skills query; `adjacent` and
+   `stay_in_field` rotate the anchor-based query they already use, then re-rank.
+   `stay_in_field` ignores *card* feedback by design (§3, F-6) and still does:
+   the wants are the user's own statement about their own job, not a judgement
+   about a different question.
+4. **Taps keep working and also teach the wants** — a liked card carries measured
+   conditions, so a run of likes is evidence about an axis the user never
+   answered. Built last and only if it beats taps alone (W-6).
+5. **Cards.** The percentage goes (§8.5). In its place, a reason line naming what
+   is distinctive about *this* card.
+
+### 8.4 Where this departs from the proposal Sebastian first heard
+
+- **The company model's formula is not reused.** `1 - |company - user|` needs an
+  ideal *point*; *more* and *less* are *directions*. One-sided scoring fits. This
+  also honours his separation: own instrument, own storage, own scorer — nothing
+  shared with `packages/ml/culture/` and **nothing here reopens ⚑3** (this asks
+  directly; ⚑3's mapping inferred).
+- **Conditions are the second signal, not the first.** Tasks carry his examples.
+- **"Best experience-scorer per cluster" is not adopted on faith.** Whether the
+  first `fresh_start` page is seeded at all is W-3's to measure, which is what
+  becomes of ⚑10.
+
+### 8.5 The percentage
+
+Renders in two places: `PathSuggestionCard.tsx` ("Match score NN%" and a bar,
+from `match_score`) and `PathFitPanel.tsx` (four percent bars — `fit_score`,
+`skills_score`, `coverage_score`, `work_style_score` — and a number on each skill
+gap). **All numbers and bars go; the order stays; the wire fields stay, so the
+contract does not change.** The panel stays as words — what carries over, what
+would be new. *(Removal: Sebastian, 2026-09-17. Panel-as-words: agent default,
+put to him twice, unobjected.)* This is W-1 and depends on nothing else.
+
+### 8.6 How it is proven — before any form or card work
+
+The F-2 harness cannot see this: no profile states a want, and only four are
+`fresh_start`. So, in order: **(W-2)** new profiles that state wants against
+their own job's real task list, labelled by an agent that has seen no scorer,
+uncertain labels flagged for Sebastian — F-2's protocol; **(W-3)** the data
+sidecars and the scorer, offline, in the harness. The existing 20 profiles are
+the regression guard: with no wants the output must be byte-identical. Tune on
+nDCG@10; harmful rate may not rise; no per-axis claim under n = 5.
+**If a wants-aware scorer does not clearly beat the wants-blind one on the new
+profiles, the workstream stops at W-3** and only W-1 ships. Two confident claims
+in this document already failed measurement (MMR; the seed trajectory, briefly).
+This is a hypothesis with two encouraging looks behind it.
+
+### 8.7 Limits, recorded so they are not assumed away
+
+- **People state preferences badly.** Asking about *tasks they actually do* is
+  more concrete than asking for an ideal, which is part of why tasks lead — but
+  it is still self-report.
+- **O*NET ratings and task lists are national averages per occupation.** A
+  developer at a four-person startup does not have the average developer's day.
+  The panel shows the occupation's tasks, not theirs; "fine" is the honest
+  answer to a task they never do.
+- **Subtracting tasks can subtract the anchor** — F-6's finding about "too
+  similar". The look used gamma 0.4 without trouble at n = 1; W-3 measures it.
+- **Task statements are formal prose.** Plain-words labels are generated once,
+  offline, for display only; the *original* task text is what gets embedded, so
+  F-7's metaphor hazard (LLM prose read literally by an embedder) cannot recur.
+- **Request-path discipline is unchanged:** no O*NET call, no scikit-learn, no
+  corpus load in `create_app()`. New per-job data ships as sidecars beside the
+  corpus and joins the S3 deploy dependency in `RUNBOOK_DEPLOY_MAIN_MERGE.md`.
+
+### 8.8 What happens to ⚑9, ⚑10, ⚑11
+
+- **⚑9 stands either way** (own SOC *minor* group, not major). Both looks used
+  it. Still recommend ratify.
+- **⚑10 is overtaken:** ship-or-revert the diverse seed becomes a W-3 arm,
+  measured with wants present.
+- **⚑11 is overtaken:** F-9 (`role_w` after feedback) is not built as its own
+  chunk; its +0.061 is re-measured inside W-3, where the scoring it adjusts is
+  being changed anyway.
 
 ---
 
