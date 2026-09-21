@@ -31,6 +31,115 @@ packet it has been run against so far.
 
 ---
 
+## 2026-09-21 harvest
+
+**Gap note:** last harvest logged was 2026-09-18. No harvest ran the nights of 2026-09-19 or
+2026-09-20 (this session was not fired). Nothing was lost -- Rule Zero and the inventory
+below found exactly the state three idle nights would produce, no more -- but flagging the
+gap itself since three missed nights in a row is worth a human noticing.
+
+RESEARCH   nothing -- `_build_env/packets/` held only `RUN_REPORT.md`, no company folder.
+           **Research failed to run tonight** in the narrow sense the report itself gives:
+           status ABORTED, reason quoted verbatim -- "to_be_researched.txt contains no
+           company lines (queue empty)" (run started 2026-09-18 12:16 UTC). The report's
+           own note calls this the correct outcome for an empty queue, not a build defect --
+           BUILD_BRIEF.md Step 1 instructs exactly this stop-and-say-so behavior, and no
+           company was ever selected. `to_be_researched.txt` and `to_be_scrubbed.txt` left
+           untouched, per instruction: nothing was consumed, so nothing was updated. Folded
+           in full above/here; the report also flagged (as a STRUCTURAL gap, its own words)
+           that BUILD_BRIEF.md defines no report-status value for an empty-queue run and no
+           instruction to file a report at all in that case -- recorded here for Sebastian,
+           not acted on.
+SCRUB      P-12 Duke Energy -- promoted to anonymization/, run record at
+           _scrub_env_runs/P-12_run1/. Complete four-file set found in packets_out/
+           (packet_ANON, scrub_diff, content_defects, run_report). 52/52 excerpts preserved
+           (A8 B15 C11 D8 E4 F6), 8 declared quote-body edits, all 13 self-checks passed
+           per the scrub's own report (company name/short forms and `http`: zero
+           occurrences; diff verified programmatically, not by reading). Two BUILD-side
+           defects confirmed uncorrected, both recorded in `P-12_content_defects.txt` and
+           left as-is per instruction: (1) section C holds 11 excerpts against its own
+           header's stated 6-10 range/cap of 10; (2) five pre-flag-vs-sweep disagreements
+           in section 4 -- four over-flags (company name in section A/scope, seven
+           regulatory identifiers, Aron Wallace attributed to one extra D excerpt, Lisa Sorg
+           listed without qualifying that she never appears in section 1) and one genuine
+           miss (section E's "North and South Carolina" place-name, handled per R5/A6
+           despite the miss). Scrub's own report also flags a residual re-identification
+           risk in section E (utility-sector specificity) and a recognition flag (scrubber
+           recognized the company from surviving evidence, not by searching for
+           identifiers) -- both recorded per the brief's instructions, neither actioned.
+           Diff file copied to the run record only, per instruction that it never reach
+           anonymization/ or packets/.
+LISTS      to_be_researched: 0 remaining (unchanged; queue is genuinely empty, awaiting a
+           line from Sebastian) · to_be_scrubbed: 0 waiting -- P-12's line struck now that
+           promotion is complete.
+STAGED     nothing -- `to_be_scrubbed.txt` is empty once P-12's line was struck, so
+           `packets_raw/` stays empty for tonight's scrub. Refreshed
+           `_scrub_env/ANONYMIZATION_RULES_DRAFT.md` from
+           `anonymization/ANONYMIZATION_RULES_DRAFT.md` per standing instruction (already
+           identical byte-for-byte; copied over regardless).
+REFUSED    nothing structural -- no destination collisions (Rule Zero clear on
+           `anonymization/P-12_packet_ANON.txt`, `packets/P-12_duke_energy/
+           P-12_content_defects.txt`, and `_scrub_env_runs/P-12_run1/`), no partial scrub
+           set, no research packet to structural-check since none was produced, no IN
+           PROGRESS run to defer. One housekeeping deviation, same shape as prior harvests
+           under this constraint: this session's delete-permission request went
+           unanswered (unattended run, no one to grant it), so the consolidated
+           `RUN_REPORT.md`, the scrub's own `P-12_run_report.md`, `P-12_scrub_diff.txt`
+           (already copied into the run record), and the emptied `packets_raw/
+           P-12_packet.txt` scratch copy could not be deleted outright -- moved instead to
+           `_to_delete/` (`EMPTY_QUEUE_RUN_REPORT_consolidated_2026-09-21.md`,
+           `P-12_scrub_run_report_consolidated_2026-09-21.md`,
+           `P-12_scrub_diff_consolidated_2026-09-21.txt`,
+           `P-12_packet_raw_scratch_2026-09-21.txt`). None carry anything a future isolated
+           research/scrub session can read from within its own connected folder; only
+           cleanup by a human remains.
+NOT YET VERIFIED -- run: python Scripts/verify_scrub.py P-12 --company "Duke Energy" \
+           --company "Duke Energy Corporation"
+
+
+## 2026-09-18 harvest
+
+RESEARCH   P-12 Duke Energy -- packet 52 excerpts (A8 B15 C11 D8 E4 F6), collector v4.11 --
+           moved to packets/. RUN_REPORT status COMPLETE; all four structural checks passed
+           (SECTION 1 marker, prompt version v4.11, sections A-F present, END OF PACKET
+           marker present -- required and found, since v4.11 owes it). Report self-flags 4
+           STRUCTURAL / 4 COSMETIC build defects, none corrected in the packet, none of
+           which the harvest's checks call for -- recorded here for the rater/scorer, not
+           acted on. B recency 15/15 inside the 24-month gate. Could-not-retrieve: Glassdoor
+           cross-check unreachable (robots.txt + bot wall, not absence), Code of Business
+           Ethics found but not quotably retrievable (PDF, no text), public code repos a
+           genuine absence (GitHub org affirmatively states none), Section A vintage
+           entirely unknown (all 8 excerpts accessed-dated, no publication dates exist).
+           Source-pooling flag: the review site pools an unrelated same-named health-system
+           employer into this profile; no clinical review entered Section 1 so no exclusion
+           was required, but the stated population count is overstated by an undetermined
+           amount -- flagged to the rater in de-identifiable form inside Section 1.
+SCRUB      nothing -- `_scrub_env/packets_out/` held only `.gitkeep` at inventory time. No
+           scrub ran overnight: `packets_raw/` had nothing staged for it after the
+           2026-09-17 harvest emptied `to_be_scrubbed.txt`, and P-12 was not queued until
+           today. No four-file set to route, no partial set to quarantine, nothing to
+           promote or strike.
+LISTS      to_be_researched: 0 remaining -- list is empty; the next research run will
+           correctly stop and say so until Sebastian adds a line. to_be_scrubbed: 1 waiting
+           (P-12 Duke Energy, researched 2026-09-17 v4.11) -- line left untouched, per
+           instruction: not done until its scrub output is promoted.
+STAGED     P-12 copied (not moved) to `_scrub_env/packets_raw/` for tonight -- the topmost,
+           and only, line on `to_be_scrubbed.txt`. Refreshed
+           `_scrub_env/ANONYMIZATION_RULES_DRAFT.md` from
+           `anonymization/ANONYMIZATION_RULES_DRAFT.md` per standing instruction (already
+           identical byte-for-byte; copied over regardless).
+REFUSED    nothing structural -- no destination collision (Rule Zero clear on
+           `packets/P-12_duke_energy`), no partial scrub set found, no IN PROGRESS or
+           ABORTED research run to defer or fold in. One housekeeping deviation: this
+           session's delete-permission request for `_build_env/` was not granted (no one
+           to answer it unattended), so `RUN_REPORT.md` was folded into this entry as
+           instructed but could not be deleted outright -- moved instead to
+           `_to_delete/P-12_RUN_REPORT_consolidated_2026-09-18.md`, matching how prior
+           harvests under the same constraint handled it. It carries nothing a future
+           isolated research/scrub session can read; only cleanup by a human remains.
+NOT YET VERIFIED -- nothing promoted to `anonymization/` this run, so no new verification is
+           owed. P-12's own verification comes due only after it is scrubbed and promoted.
+
 ## 2026-09-17 harvest
 
 RESEARCH   nothing -- `_build_env/packets/` was empty and no `RUN_REPORT.md` existed
@@ -171,7 +280,6 @@ FLAG       This is the second harvest in a row (2026-09-09, now 2026-09-16 -- a 
            produced nothing for a week.
 NOT YET VERIFIED -- nothing promoted to `anonymization/` this run. P-10 Twilio remains the
            most recently promoted packet; its verification status is unchanged.
-
 
 ## 2026-09-09 harvest
 

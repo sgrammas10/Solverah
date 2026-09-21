@@ -52,6 +52,11 @@ frontend/         # React + TypeScript
 - If stuck: stop, re-plan, reach out early
 - User-facing wording: make a best guess and ship it. Julie owns final copy and revises
   on the built product; never block a chunk on a copy read from Sebastian
+- A session has a lane; stay in it. When Sebastian asks "what else can we work on"
+  mid-task, the answer comes from the SAME lane the session is already in (on
+  2026-09-17 a model-lane session was offered a frontend signup bug and told "we are
+  only working on the model here"). Other lanes have their own chats. Name
+  cross-lane items only if they BLOCK the lane in hand
 - When a built-in check fires, test the check before the data. On 2026-09-17 the
   priors form's "repeated question" came back 3/10 vs 8/10 and the report led with
   "her numbers are too noisy to adopt" — but the two vignettes were not the same

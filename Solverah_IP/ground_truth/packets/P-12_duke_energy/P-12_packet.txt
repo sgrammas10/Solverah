@@ -1,0 +1,607 @@
+BUILD RECORD
+  prompt version : v4.11
+  model          : claude-opus-5
+  built          : 2026-09-17
+  environment    : clean session, one company, no prior packet context
+  assisted       : NO
+
+SCOPE DECLARATION (read this first)
+  The employee reviews in this packet come from customer-service and customer-care roles, field
+  and plant technician roles, work-management and IT roles at a large regulated electric and gas
+  utility, plus a majority of reviewers who posted no job title at all. Other parts of this company
+  - nuclear generation operations, engineering, software and technology, finance, accounting and
+  legal - are present on the source site only in single-digit or low-double-digit review counts and
+  are effectively not represented in them. Two of the fifteen reviews come from a separately
+  branded wholly-owned subsidiary of the same company. Company-authored sources describe the whole
+  organisation.
+
+########## SECTION 1 - EVIDENCE PACKET (the only part the raters see) ##########
+
+--- A. CAREERS / VALUES PAGE (5-8 excerpts) ---
+
+   • "We prioritize physical and psychological safety, encourage innovation and nurture an environment where everyone feels they belong."  — [careers page] — Duke Energy, company-authored — https://www.duke-energy.com/our-company/careers — accessed 2026-09-17
+
+   • "We aim to meet customer needs with a workforce that reflects our communities, fosters inclusion, and achieves excellence through data‑driven decisions."  — [careers page] — Duke Energy, company-authored — https://www.duke-energy.com/our-company/careers — accessed 2026-09-17
+
+   • "To maintain their confidence, we are committed to a culture of transparency, high performance and pride among employees."  — [corporate ethics page] — Duke Energy, company-authored — https://www.duke-energy.com/our-company/about-us/ethics — accessed 2026-09-17
+
+   • "Behaviors, as well as results, matter in our company."  — [corporate ethics page] — Duke Energy, company-authored — https://www.duke-energy.com/our-company/about-us/ethics — accessed 2026-09-17
+
+   • "Employees and contingent workers are encouraged to report suspected wrongdoing and may do so anonymously without fear of reprisal through an independent third party, which provides a 24-hour telephone line and an online reporting option."  — [corporate ethics page] — Duke Energy, company-authored — https://www.duke-energy.com/our-company/about-us/ethics — accessed 2026-09-17
+
+   • "We are safety-focused professionals committed to powering communities, supporting one another and delivering reliable energy every day."  — [careers page, lineworker role family, stated as "Our Vision - Who We Are"] — Duke Energy, company-authored — https://www.duke-energy.com/our-company/careers/line-workers — accessed 2026-09-17
+
+   • "We build and maintain a resilient energy grid by working as a team, following rigorous safety standards and taking pride in the work we do for our customers and communities."  — [careers page, lineworker role family, stated as "Our Mission - What We Do"] — Duke Energy, company-authored — https://www.duke-energy.com/our-company/careers/line-workers — accessed 2026-09-17
+
+   • "Our hiring process is designed to help candidates understand the role and demonstrate readiness for field-based work."  — [careers page, lineworker role family] — Duke Energy, company-authored — https://www.duke-energy.com/our-company/careers/line-workers — accessed 2026-09-17
+
+--- B. EMPLOYEE REVIEWS (12-15, most recent first) ---
+
+NOTE TO RATER: Six of the fifteen reviews below (40%) are cut off at the source site and are
+therefore read here as opening fragments only. Three end at an explicit "Show more" control; three
+more stop part-way through the review with no marker of any kind. Long, detailed reviews are the
+ones that get cut, so the reviews you can read in full are systematically the shorter and less
+detailed ones. The cut point is marked [...] in each affected excerpt.
+
+NOTE TO RATER: The review profile used for this section is shared on the source site with an
+unrelated employer of the same name operating in a different industry, whose employees' reviews are
+pooled into the same profile. Reviews describing that other employer were checked for and none of
+them entered this section. The site-reported review total for this profile therefore overstates the
+number that describe this company.
+
+NOTE TO RATER: Two of the fifteen reviews are from a separately branded, wholly-owned subsidiary of
+the same company and are labelled [subsidiary] below.
+
+   • "I worked at this company for a period of time and had a generally positive experience overall. The work environment was professional, and most coworkers were helpful and respectful. Management communicated expectations clearly, and the daily tasks were usually straightforward once training was completed. [...]"  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-08-05
+
+   • "They have Mico [sic] managers, there is no trust in team members or their work, and low pay scale. Not a lot of room for advancement and growth. Do not recommend [...]"  — [employee review] — Work Management Specialist, Columbus, IN — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-07-04
+
+   • "Not recommended for young professionals who aren’t obsessed with climbing the corporate ladder. It seems frowned upon that someone dare just want to do their job well and then leave their job. There is diversity regarding race, gender, etc but it is very old when it comes to leadership and further retention [...]"  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-05-11
+
+   • "What is the most stressful part about working at the company? Being on call and responding to stressful storm situations [...]"  — [employee review, site's question-and-answer review format] — Associate Customer Care Specialist, Concord, NC — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-05-10
+
+   • "Your co-workers will lie about to to [sic] get ahead themselves. Managers and team leads start to think they are gods and their egos get inflated. They think they own the people they supervise. Anyone ca ena [sic] manager so long so there are dumb people acting like they are gods."  — [employee review] — Customer Service, Lake Mary, FL — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-05-07
+
+   • "What is the most stressful part about working at the company? The on call sucked working such a wide area. Never know when you would be home. [...]"  — [employee review, subsidiary, site's question-and-answer review format] — Gas fitter, Salisbury, NC — https://www.indeed.com/cmp/Piedmont-Natural-Gas/reviews?fcountry=ALL&sort=date — 2026-04-30
+
+   • "What is the most stressful part about working at the company? Having to be on call at any moment along with no work life balance. [...]"  — [employee review, site's question-and-answer review format] — Business Service Representative, location not stated — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-04-28
+
+   • "Heavy workload, difficult to maintain work life balance. Leadership is disconnected and bureaucratic. Colleagues are collaborative. Large organization with opportunities to change roles."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-04-21
+
+   • "Duke is a powerhouse — if you want prestige, opportunity, and a network that opens doors, it delivers. But it’s not for coasting or “figuring things out slowly.” It’s for people ready to perform at a high level and keep up."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-04-16
+
+   • "Great company to work for. Good people with good values. Lots of opportunities to grow and be mentored. Flexible management with reasonable expectations."  — [employee review, subsidiary] — reviewer posted as "Anonymous"; job title not stated; location not stated — https://www.indeed.com/cmp/Piedmont-Natural-Gas/reviews?fcountry=ALL&sort=date — 2026-03-17
+
+   • "Daily performance based jobs that varies per household. Average day can last 8 to 10 hours and a lot of upgrading on their systems. Be prepared to work."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-03-16
+
+   • "Good place to work. Learn a lot about a lot of different types of equipment. Learn a lot about analog components. First line management does their best to help where they can."  — [employee review] — Instrumentation Technician, location not stated — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-03-08
+
+   • "Allt [sic] of stuff to learn but worth it. Customers are difficult but if you have empathy you can do a great job. Mangerwas [sic] cool and the days went by fast."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-03-02
+
+   • "Good place to work. Depending on job function you have options to move to different regions. Most positions require 3 days in an office. Most leaders are flexible with work/life balance."  — [employee review] — Lead IT Security Analyst, Charlotte, NC — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-02-19
+
+   • "Enjoyed my time at Duke Energy. The management was supportive of the team and the benefits were great. I would recommend this company to other people."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; Raleigh, NC — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-02-07
+
+--- C. JOB POSTINGS (6-10 excerpts from 3+ open postings, different functions) ---
+
+   • "The job responsibility of the Associate Distribution Dispatcher is to complete The Dispatcher Qualification Program which typically takes between eighteen to twenty-four months."  — [job posting, distribution dispatch / grid operations function; confirmed open, closes 2026-09-27] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/St-Petersburg-FL/Associate-Distribution-Dispatcher_R41581 — accessed 2026-09-17
+
+   • "The goal of the program is to develop proficiency in all Distribution Dispatcher functions through the use of various training methods including the classroom, on-the-job training, and field experience."  — [job posting, distribution dispatch / grid operations function; confirmed open, closes 2026-09-27] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/St-Petersburg-FL/Associate-Distribution-Dispatcher_R41581 — accessed 2026-09-17
+
+   • "The Distribution Dispatcher functions include operating the electrical distribution system in a safe and reliable manner; monitoring multiple computer applications for system alarms and outages; coordinating and directing switching activities for normal maintenance and power restoration; forming contingency plans to mitigate consequences and implementing contingency plans should an event occur; and dispatching service level work orders to field resources."  — [job posting, distribution dispatch / grid operations function; confirmed open, closes 2026-09-27] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/St-Petersburg-FL/Associate-Distribution-Dispatcher_R41581 — accessed 2026-09-17
+
+   • "Must be able to work in a high paced, rapidly changing environment"  — [job posting, distribution dispatch / grid operations function; confirmed open, closes 2026-09-27] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/St-Petersburg-FL/Associate-Distribution-Dispatcher_R41581 — accessed 2026-09-17
+
+   • "Employees at this level solve problems, in single areas of specialization, with general supervision. Incumbents are expected to develop skills, and the ability to work with greater independence, as well as strive to become subject matter experts."  — [job posting, regulatory compliance function; confirmed open, closes 2026-09-27] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/Belews-Creek-NC/Compliance-Analyst---Senior-Compliance-Analyst_R41399 — accessed 2026-09-17
+
+   • "Guide and support business units in the development of self-reports, cause analyses, corrective plans, and mitigation plan porting."  — [job posting, regulatory compliance function; confirmed open, closes 2026-09-27; source's own wording preserved, "porting" appears to be a typographical error in the posting] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/Belews-Creek-NC/Compliance-Analyst---Senior-Compliance-Analyst_R41399 — accessed 2026-09-17
+
+   • "Perform or assist in business area trending analysis and reporting."  — [job posting, regulatory compliance function; confirmed open, closes 2026-09-27] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/Belews-Creek-NC/Compliance-Analyst---Senior-Compliance-Analyst_R41399 — accessed 2026-09-17
+
+   • "Employees at this level manage work with minimal supervision. Incumbents are expected to develop advanced skills and to have the ability to work independently, with guidance limited to unusual or complex projects or issues."  — [job posting, strategic sourcing / supply chain function; confirmed open, closes 2026-10-01] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/Charlotte-NC/Strategic-Sourcing-Specialist-OR-Strategic-Senior-Sourcing-Specialist_R41579 — accessed 2026-09-17
+
+   • "Perform market analysis and research best practices successfully adopted by other industries and companies."  — [job posting, strategic sourcing / supply chain function; confirmed open, closes 2026-10-01] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/Charlotte-NC/Strategic-Sourcing-Specialist-OR-Strategic-Senior-Sourcing-Specialist_R41579 — accessed 2026-09-17
+
+   • "Serve as lead negotiator and primary decision maker in resolving customer issues, ensuring timely and effective solutions."  — [job posting, commercial account management function; confirmed open, closes 2026-09-23] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/Raleigh-NC/Account-Executive_R41561 — accessed 2026-09-17
+
+   • "Own and manage the entire customer relationship, coordinating with internal departments, including senior leadership, to ensure alignment."  — [job posting, commercial account management function; confirmed open, closes 2026-09-23] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/Raleigh-NC/Account-Executive_R41561 — accessed 2026-09-17
+
+--- D. FIRST-PERSON ACCOUNT (yield: 8 passages from 3 sources · ladder fully attempted) ---
+
+   • "What excites me most is helping employees across Duke Energy do their jobs better, whether that means making their work safer or improving the quality of inspections,"  — [company publication, feature article; direct quotation, quotation marks present on the rendered source page] — Aron Wallace, drone pilot and drone-program team member (non-executive), quoted by Lee Freedman, illumination Contributor — https://illumination.duke-energy.com/articles/drones-at-work-how-aron-wallace-and-his-team-are-changing-field-operations — 2025-09-19
+
+   • "Not only does this save time and money, it means fewer workers need to cross hazardous environments,"  — [company publication, feature article; direct quotation, quotation marks present on the rendered source page] — Aron Wallace, drone pilot and drone-program team member (non-executive) — https://illumination.duke-energy.com/articles/drones-at-work-how-aron-wallace-and-his-team-are-changing-field-operations — 2025-09-19
+
+   • "After each flight, data analysts review the footage to identify potential issues and share their findings with field supervisors, helping crews work smarter and safer."  — [company publication, feature article; the writer's own sentence, NOT a quotation from any employee - no quotation marks on the source page] — Lee Freedman, illumination Contributor — https://illumination.duke-energy.com/articles/drones-at-work-how-aron-wallace-and-his-team-are-changing-field-operations — 2025-09-19
+
+   • "At first, it was working with my hands, being outside and doing something different every day. Now, in a supervisory role, I’m still close to the work but also involved in planning, logistics, training and leading a team. It’s challenging, but I’m still very connected to what first drew me into this job."  — [company publication, published question-and-answer interview; this is the interviewee's answer text as printed, which the page sets without quotation marks] — Clynt Walter, operations supervisor, lineworker crews (non-executive) — https://illumination.duke-energy.com/articles/beyond-storm-response-lineworkers-making-the-system-upgrades-customers-depend-on — accessed 2026-09-17 (source publishes no date)
+
+   • "Absolutely. We’re always thinking about how the work impacts customers. Sometimes we cut power to work safely, so we focus on minimizing disruption."  — [company publication, published question-and-answer interview; interviewee's answer text as printed, set without quotation marks] — Clynt Walter, operations supervisor, lineworker crews (non-executive) — https://illumination.duke-energy.com/articles/beyond-storm-response-lineworkers-making-the-system-upgrades-customers-depend-on — accessed 2026-09-17 (source publishes no date)
+
+   • "There are a lot of poles out there, and the only way to tackle that kind of work is one at a time. We focus on doing each one safely and correctly before moving on to the next."  — [company publication, published question-and-answer interview; interviewee's answer text as printed, set without quotation marks] — Clynt Walter, operations supervisor, lineworker crews (non-executive) — https://illumination.duke-energy.com/articles/beyond-storm-response-lineworkers-making-the-system-upgrades-customers-depend-on — accessed 2026-09-17 (source publishes no date)
+
+   • "Yes, it definitely does. We’re doing much more proactive work now. More lines are being reconducted, and we’re using newer technologies that just weren’t available when I started in the industry."  — [company publication, published question-and-answer interview; interviewee's answer text as printed, set without quotation marks] — Clynt Walter, operations supervisor, lineworker crews (non-executive) — https://illumination.duke-energy.com/articles/beyond-storm-response-lineworkers-making-the-system-upgrades-customers-depend-on — accessed 2026-09-17 (source publishes no date)
+
+   • "He handled the daily challenges of running a power plant with a commonsense approach: Stay level-headed. Look for the simple solution. Tackle the problem."  — [company publication, long-form leadership profile; the writer's own sentence, NOT a quotation from the executive - no quotation marks on the source page] — Caroline Portillo, illumination, writing about Harry Sideris (executive) — https://illumination.duke-energy.com/articles/building-the-future-harry-sideris-leads-duke-energy-into-a-new-era — 2025-04-01
+
+--- E. RECENT NEWS (yield: 4 · searches logged) ---
+
+   • "Providing the reliable power our customers expect requires us to add every available megawatt to the grid and increase speed to power as we build for economic growth,"  — [trade press, independent reporting; direct quotation, quotation marks present on the rendered source page] — Harry Sideris, President and CEO, quoted by Emma Penrod, Utility Dive — https://www.utilitydive.com/news/103-billion-duke-claims-largest-spending-plan-of-any-regulated-us-utility/812047/ — 2026-02-12
+
+   • "The company is already spending more than a billion dollars per month in order to keep up with demand and it expects the rate of growth to accelerate in 2027 and 2028, when many new data centers are expected to connect to the grid, Duke Energy President and CEO Harry Sideris said."  — [trade press, independent reporting; the reporter's own sentence reporting the executive in indirect speech - no quotation marks on the source page] — Emma Penrod, Utility Dive — https://www.utilitydive.com/news/103-billion-duke-claims-largest-spending-plan-of-any-regulated-us-utility/812047/ — 2026-02-12
+
+   • "Duke Energy’s proposal to combine its two subsidiaries in North and South Carolina was approved by the North Carolina Utilities Commission last week, the company said Tuesday."  — [local television news, independent reporting] — Matthew Sockol, WNCN / CBS17 — https://www.cbs17.com/news/north-carolina-news/nc-utilities-commission-approves-merger-of-2-duke-energy-companies/ — 2026-05-05
+
+   • "Duke Energy is seeking to combine the two subsidiaries by Jan. 1, 2027."  — [local television news, independent reporting] — Matthew Sockol, WNCN / CBS17 — https://www.cbs17.com/news/north-carolina-news/nc-utilities-commission-approves-merger-of-2-duke-energy-companies/ — 2026-05-05
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 6 · public/private: PUBLIC) ---
+
+   • "Our Human Resources organization is responsible for our human capital management strategy, which includes recruiting and hiring, onboarding and training, inclusion, workforce planning, talent and succession planning, performance management and employee development."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — Duke Energy Corporation — https://www.sec.gov/Archives/edgar/data/17797/000132616026000014/duk-20251231.htm — filed 2026-02-26 (fiscal year ended 2025-12-31)
+
+   • "Key areas of focus include fostering a high-performance and inclusive culture built on strong leadership and highly engaged employees, building a pipeline of skilled workers and ensuring knowledge transfer as employees retire."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — Duke Energy Corporation — https://www.sec.gov/Archives/edgar/data/17797/000132616026000014/duk-20251231.htm — filed 2026-02-26
+
+   • "Our compensation program is market driven and designed to link pay to individual and company performance and encourage long-term commitment to our business."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — Duke Energy Corporation — https://www.sec.gov/Archives/edgar/data/17797/000132616026000014/duk-20251231.htm — filed 2026-02-26
+
+   • "Employee-led councils open to all employees are also embedded in departments across the Company and focus on driving engagement and inclusion deeper into the employee experience."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — Duke Energy Corporation — https://www.sec.gov/Archives/edgar/data/17797/000132616026000014/duk-20251231.htm — filed 2026-02-26
+
+   • "The foundation for our growth and success is our continued focus on operational excellence, the leading indicator of which is safety."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — Duke Energy Corporation — https://www.sec.gov/Archives/edgar/data/17797/000132616026000014/duk-20251231.htm — filed 2026-02-26
+
+   • "As an indication of our commitment to safety, we include safety metrics in both the short-term and long-term incentive plans based on the TICR for employees."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — Duke Energy Corporation — https://www.sec.gov/Archives/edgar/data/17797/000132616026000014/duk-20251231.htm — filed 2026-02-26
+
+########## SECTION 2 - RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+2a. YIELD AUDIT
+
+    REQUIRED TO YIELD:
+       A excerpts: 8/5 (cap 8, at cap)   B reviews: 15/12   C excerpts: 11/6
+       C postings: 4/3                   C outside engineering: 4/1
+       B reviews within 24 months: 15/15
+
+    C EXEMPTION CLAIMED (company not hiring)?  NO
+       Company's live Workday board returned 102 open requisitions on 2026-09-17. Board verified as
+       the company's live one: the board URL dukeenergy.wd1.myworkdayjobs.com/search is the target of
+       the "Search for Jobs" / "Search Now" links on the company's own careers page.
+
+    REQUIRED TO ATTEMPT:
+       D passages: 8 (from 3 sources)    ladder rungs logged: 7/7
+       D voice composition: 1 executive-subject passage / 7 non-executive passages.
+                            All-executive? NO - extra rung not required under D0.
+                            Stale non-executive material found and rejected on age: none.
+       E excerpts: 4    searches logged: 3
+       F excerpts: 6    public? YES     10-K filing date: 2026-02-26 (FY ended 2025-12-31)
+
+2b. EVIDENCE COVERAGE
+
+       autonomy: COVERED   pace: COVERED         collaboration: COVERED
+       feedback: THIN      innovation: COVERED   decision: COVERED
+
+       THIN/NONE reasons:
+         feedback: needed description of how feedback is actually delivered - review-cycle
+           frequency or cadence, blunt-versus-supportive delivery norms, debate or critique norms,
+           any "direct communication" / "candor" language in values material ; searched all of
+           A (careers, ethics, role-family pages), all 15 reviews in B, all 4 postings in C, all 3
+           sources in D, and the full Item 1 Human Capital section in F ; optional source checked?
+           ATTEMPTED BUT NOT RETRIEVABLE - the optional review site was bot-walled to the renderer
+           and robots-disallowed to plain fetch, so it could not be inspected for this material and
+           no claim is made about what is on it ; found only adjacent material that does not
+           describe delivery: "performance management" named in a list of HR responsibilities (F),
+           pay "linked to individual and company performance" (F), an anonymous wrongdoing-reporting
+           channel (A), and one employee describing colleague feedback about his team's usefulness
+           (D). Nothing on how a manager gives an employee feedback, or how often.
+
+2c. LADDER CHECKLIST
+
+       D1 handbook          attempted Y  URL: https://www.duke-energy.com/pdfs/11-1155_CoBE_booklet.pdf
+                            (redirects to /-/media/pdfs/our-company/cobe-booklet.pdf)
+                            outcome: FOUND BUT NOT QUOTABLY RETRIEVABLE. Code of Business Ethics
+                            exists and is a PDF. The renderer loaded it and exposed no text at all
+                            (empty document body). Per v4.11 no passage was promoted from it and
+                            nothing from it is quoted anywhere in this packet.
+       D2 eng/product blog  attempted Y  URL: https://illumination.duke-energy.com/
+                            newest post date: 2025-09-19 is the newest DATED article on the index;
+                            several newer-positioned articles carry no date at all.
+                            outcome: NO engineering or product blog exists. The company runs a
+                            corporate storytelling publication instead. Current, in-date, and it
+                            does yield working-practice material - counted here and used for D.
+       D3 culture microsite attempted Y  URL: https://www.duke-energy.com/our-company/careers ;
+                            https://www.duke-energy.com/our-company/about-us/ethics
+                            outcome: narrative culture text exists but is the same material already
+                            quoted in section A. Per the double-counting rule it does NOT count
+                            toward D. Continued down the ladder.
+       D4 leader interview  attempted Y  URL: https://illumination.duke-energy.com/articles/building-the-future-harry-sideris-leads-duke-energy-into-a-new-era
+                            date: 2025-04-01   outcome: YIELDED 1 passage. Inside the 18-month gate
+                            by about two weeks. Mostly third-party praise of the CEO rather than
+                            description of working practice; one passage used.
+       D5 public repos      attempted Y  URL: https://github.com/duke-energy?tab=repositories
+                            outcome: GENUINE ABSENCE, affirmatively stated. The organisation exists
+                            and is the company's (confirmed by GitHub user search returning
+                            duke-energy, Duke-Energy-CICD, Duke-Energy-NGBU) and the page states
+                            "This organization has no public repositories." and "This organization
+                            has no public members." This is an affirmative zero, not an empty fetch.
+       D6 press profile     attempted Y  URL: https://www.utilitydive.com/news/103-billion-duke-claims-largest-spending-plan-of-any-regulated-us-utility/812047/
+                            date: 2026-02-12  outcome: current independent coverage exists and was
+                            used in section E, but it is earnings/strategy reporting and carries no
+                            first-person account of working practice. Yields nothing for D.
+       D7 conference talk   attempted Y  URL: search of utility-sector conference programmes
+                            (DISTRIBUTECH, IEEE PES T&D 2026 stage presentations)
+                            date: 2026  outcome: company personnel do appear as named speakers at
+                            sector conferences, but no talk transcript, recording text or abstract
+                            with substantive first-person working-practice content was retrievable.
+                            D target was already met at rungs 2 and 4.
+
+       Rungs rejected as stale (>18 months): NONE. No rung's newest material was older than the
+                            gate. D1 was withheld for non-retrievability, not age.
+
+       C fallbacks tried: reviews-site job view: not needed (ATS reached directly)
+                          ATS param found: YES - the company careers page links to
+                            dukeenergy.wd1.myworkdayjobs.com, naming Workday and the slug "dukeenergy"
+                          greenhouse: N/A (ATS positively identified as Workday, not guessed)
+                          lever: N/A    workday: YES - primary and successful route
+                          ashby: N/A    aggregator: not needed
+
+       E news searches run: 3
+         q1: Duke Energy reorganization OR layoffs OR "return to office" OR restructuring 2026
+         q2: "Duke Energy" news September 2026 data centers capital plan workforce hiring
+         q3: Duke Energy Carolinas Progress utility merger approval 2026 combine
+
+2d. SOURCE ACCESS LOG
+
+    FIRST-PARTY (renderer tried first, per the prior - correct on every one)
+    https://www.duke-energy.com/our-company/careers                       renderer OK, needed JS: Y
+       plain fetch: returned a PROCESSED rendition - prose reflowed and every hyperlink href
+       dropped, so the navigation survey was impossible from it. Renderer used for all wording.
+    https://www.duke-energy.com/our-company/about-us/ethics               renderer OK, needed JS: Y
+    https://www.duke-energy.com/our-company/careers/line-workers          renderer OK, needed JS: Y
+    https://www.duke-energy.com/pdfs/11-1155_CoBE_booklet.pdf             renderer returned EMPTY
+       document body (PDF - no text exposed). Nothing quoted. needed JS: n/a
+    https://illumination.duke-energy.com/                                 renderer OK, needed JS: Y
+    https://illumination.duke-energy.com/articles/drones-at-work-...      renderer OK, needed JS: Y
+    https://illumination.duke-energy.com/articles/beyond-storm-response-. renderer OK, needed JS: Y
+       No publication date on the page, in any <meta>, in JSON-LD, or in any <time> element.
+    https://illumination.duke-energy.com/articles/building-the-future-... renderer OK, needed JS: Y
+    https://illumination.duke-energy.com/categories/our-people            404 (guessed URL - a wrong
+       guess, not an absence; the real index is /articles)
+
+    ATS (Workday)
+    https://dukeenergy.wd1.myworkdayjobs.com/search                       renderer OK, needed JS: Y
+       102 open requisitions returned via the board's own same-origin search endpoint.
+    4 job detail pages (dispatch, compliance, sourcing, account management)
+                                                                          renderer OK, needed JS: Y
+       Every sentence quoted in section C was verified present character-for-character in the
+       rendered page's own text, not only in the board's JSON payload. Each page also displayed a
+       live "End Date ... (N days left to apply)" counter, which is the open/closed confirmation.
+
+    REVIEW AGGREGATORS (plain fetch tried first, per the prior - the prior was WRONG here)
+    https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date
+       renderer: OK - full review page returned INCLUDING the literal "...Show more" truncation
+         markers. needed JS: Y. This was the confirming route for every section B excerpt.
+       plain fetch: first attempt HTTP 429 rate-limited; second attempt OK. Returned the same 20
+         dates in the same order and the same total, BUT silently DELETED the truncation markers -
+         it returned the first review's body ending in a full stop with no "...Show more", i.e. it
+         presented a truncated review as a complete one. See 2e and the defect list.
+    https://www.indeed.com/cmp/Duke-Energy/job-titles                     renderer OK, needed JS: Y
+    https://www.indeed.com/cmp/Duke-Energy/reviews?fjobtitle=Midwife      renderer OK, needed JS: Y
+    https://www.indeed.com/cmp/Piedmont-Natural-Gas/reviews?fcountry=ALL&sort=date
+                                                                          renderer OK, needed JS: Y
+    https://www.glassdoor.com/Reviews/Duke-Energy-Reviews-E211.htm?sort.sortType=RD
+       plain fetch: ROBOTS_DISALLOWED. renderer: bot-walled - redirected to a page titled
+       "Security | Glassdoor". BOTH methods exhausted. Recorded as EXISTED BUT COULD NOT BE
+       REACHED, not as absent. No Glassdoor content appears anywhere in this packet.
+    https://www.glassdoor.com/Reviews/Duke-Energy-Reviews-E1250.htm       404 (wrong employer id
+       guessed before the correct id E211 was resolved by search)
+
+    SEC
+    https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001326160&type=10-K
+       renderer OK, needed JS: N (but reached via the renderer). NOTE: the defect register records
+       browse-edgar as a dead route returning an empty document. That is true of plain fetch. In the
+       renderer it loaded normally and was the fastest route to the filing index.
+    https://www.sec.gov/Archives/edgar/data/1326160/000132616026000014/0001326160-26-000014-index.htm
+                                                                          renderer OK, needed JS: N
+    https://www.sec.gov/Archives/edgar/data/17797/000132616026000014/duk-20251231.htm
+       Retrieved in full (16.1 MB of HTML) and parsed to text in the browser's own page context, so
+       the Item 1 Human Capital wording is the document's own bytes, not a processed rendition.
+       needed JS: Y
+
+    NEWS
+    https://www.utilitydive.com/news/103-billion-duke-...-utility/812047/  renderer OK, needed JS: Y
+    https://www.cbs17.com/news/north-carolina-news/nc-utilities-commission-approves-merger-of-2-duke-energy-companies/
+                                                                          renderer OK, needed JS: Y
+    https://ncnewsline.com/briefs/duke-energy-lays-off-employees-as-part-of-reorganization/
+                                                                          renderer OK, needed JS: Y
+       Dated 2024-01-26 - OUTSIDE section E's 12-month window. Not quoted in E. Recorded as a
+       structural event in 2f.
+    https://github.com/search?q=duke-energy&type=users                     renderer OK, needed JS: Y
+    https://api.github.com/orgs/duke-energy                                plain fetch HTTP 403
+
+2e. FIDELITY NOTE
+
+    [PARAPHRASE] used anywhere in this packet: NONE. No passage was promoted from a plain-fetch-only
+    retrieval into a quoted excerpt.
+
+    RENDERER CONFIRMATION (v4.11 rule 2). Every excerpt in section 1 was confirmed on a rendered
+    copy of its source page, including the presence and position of quotation marks. Where a source
+    sentence is REPORTED SPEECH rather than a direct quotation, the excerpt line says so explicitly
+    and does not attribute it to the person as their words - this applies to the two illumination
+    passages written by the publication's own writers and to the Utility Dive sentence reporting the
+    CEO in indirect speech. The one Utility Dive passage that IS wrapped in quotation marks on the
+    rendered page is attributed to the named executive; the quotation marks were checked on the page.
+
+    PLAIN FETCH DELETED TRUNCATION EVIDENCE. Asked for the first review's body verbatim, plain fetch
+    returned it ending "...once training was completed." with a closing full stop and no truncation
+    marker. The rendered page carries "...Show more" at exactly that point. Plain fetch also agreed
+    with the renderer on all 20 dates and on the review total, so nothing about its output signals
+    that it had dropped anything. Had section B been built on it, truncation would have been
+    measured at 0% instead of 40% and the required NOTE TO RATER would not have been written.
+
+    POSTING OPEN/CLOSED STATUS. All 4 postings quoted in section C were confirmed open on the
+    company's own ATS on 2026-09-17, both by the board's canApply flag and by a live "days left to
+    apply" counter rendered on each posting page. No posting's status is unconfirmed.
+
+    PRESERVED SOURCE TYPOS (these are unique-string identifiers - see section 4):
+      "Mico managers" (for "micro managers"), review 2026-07-04
+      "lie about to to get ahead themselves" and "Anyone ca ena manager so long so", review 2026-05-07
+      "Allt of stuff" and "Mangerwas cool", review 2026-03-02
+      "mitigation plan porting" (for "reporting"), compliance job posting
+    Each is marked [sic] at its excerpt. None were silently corrected.
+
+    NON-BREAKING HYPHENS preserved verbatim in the careers-page excerpts ("data-driven" is set with
+    U+2011 on the source page, not an ordinary hyphen). Preserved rather than normalised.
+
+    ENTITY CHECK RESULT - and a CONFIRMED POOLED HOMONYM.
+    Entities found on the required review site:
+      1. Duke Energy - https://www.indeed.com/cmp/Duke-Energy/reviews - 1,937 reviews, 3.8 overall,
+         claimed status not displayed on the pages retrieved.
+      2. Piedmont Natural Gas - https://www.indeed.com/cmp/Piedmont-Natural-Gas/reviews - 117
+         reviews, claimed status not displayed. A wholly-owned, separately branded subsidiary of the
+         subject company. Merged into the newest-first sample per B0; contributed 2 of the 15.
+      No separate profile exists for Duke Energy Progress, Duke Energy Florida, Duke Energy
+      Carolinas, Duke Energy Indiana or Duke Energy Corporation.
+
+    The Duke Energy profile POOLS REVIEWS FROM AN UNRELATED SAME-NAMED EMPLOYER (defect D23 shape).
+    The profile's own job-title index lists clinical job titles that an electric and gas utility does
+    not employ: Midwife, Physician, Research Nurse, Nursing Assistant, CT Technologist, Patient
+    Transporter, Nurse Tech II, Monitor Technician, Patient Access Specialist, Insurance Verification
+    Specialist, and a Therapy category. EXTERNAL CONFIRMATION, not suspicion: the Midwife-filtered
+    page returns one review, job title "Nurse Midwife", location Durham, NC, reading "Coming from an
+    outside health system the culture was a shock. Not very supportive of midwifery care and lots of
+    false promises." The subject company's own 10-K Item 1 describes an electric and gas utility
+    holding company operating in six states and discloses no healthcare operations of any kind. The
+    reviews therefore describe a different employer that shares the "Duke" name - a large academic
+    health system in the same state.
+    EFFECT ON THIS PACKET: none of the 15 reviews in section 1 is a clinical review, so NO EXCLUSION
+    from section 1 was required. The contamination affects the POPULATION COUNT only. A conservative
+    count of unambiguously clinical titles on the index is at least 10 reviews, and the index
+    truncates several categories behind "Show more" controls, so the true figure is higher and cannot
+    be determined from the index. The corrected population count is therefore NOT DETERMINABLE; what
+    is determinable is that 1,937 overstates it. Flagged to the rater in section 1.
+
+    IMPLAUSIBLE REVIEW COUNTS: the 1,937 total is low-but-not-implausible for a company disclosing
+    26,441 employees, and is not flagged as implausible on that basis.
+
+2f. VINTAGE BLOCK
+
+    Review entities found: 2 - listed with URL, count and rating in 2e above.
+
+    Review counts BY SITE, each with the ELEMENT it came from:
+      Indeed / Duke Energy:
+        1,937 - page <title>: "Working at Duke Energy: 1,937 Reviews | Indeed.com"
+        1,937 - rating block body text: "Based on 1,937 reviews"
+        1,937 - review-list filter heading: "1,937 reviews"
+        1,937 - footer link text: "all Duke Energy reviews worldwide (1,937 reviews)"
+        1,839 - footer link text: "all Duke Energy reviews in United States (1,839 reviews)"
+                (explicitly country-scoped; not a contradiction)
+        1,874 - SEARCH-ENGINE RESULT TITLE only, 2026-09-17, NOT confirmed on any page opened
+        1,932 - SEARCH-ENGINE RESULT TITLE only, 2026-09-17, NOT confirmed on any page opened
+      Indeed / Piedmont Natural Gas:
+        117 - page <title>; 117 - "Based on 117 reviews"; 117 - filter heading
+        115 - SEARCH-ENGINE RESULT TITLE only, NOT confirmed on any page opened
+      Glassdoor:
+        2,077 - SEARCH-ENGINE RESULT TITLE only. The page itself could not be reached by either
+                method, so this number is UNVERIFIED and is recorded only as an unconfirmed figure.
+
+    Conflicting counts observed on a single page: NO on both Indeed profiles - every element on a
+      given page agreed once country scope is accounted for. The conflicts here are ACROSS RETRIEVAL
+      ROUTES (search-result titles 1,874 / 1,932 / 115 against on-page 1,937 / 117), which is a
+      different shape from the D4 within-page contradiction and is recorded as such.
+
+    Headline ratings BY SITE (EVALUATIVE - recorded here as source metadata only, per hard rule 8;
+      none of these figures appears anywhere in section 1):
+      Indeed / Duke Energy, "Updated August 5, 2026": overall 3.8; Work-life balance 3.6;
+        Pay and benefits 3.9; Job security and advancement 3.4; Management 3.4; Culture 3.5.
+      Glassdoor: NOT RETRIEVABLE - no ratings recorded. Cross-site rating divergence therefore
+        CANNOT BE COMPUTED for this company. Not reconciled, not estimated.
+
+    Job titles sampled, each with review count and the element the count came from:
+      NOT APPLICABLE AS A SAMPLING FRAME - the frame is recency (B2). Title is per-review metadata.
+      The title index at /job-titles was still collected. Largest buckets, each count taken from the
+      title-index card body text: Customer Service Representative 271 · Customer Care Specialist 38 ·
+      Project Manager 33 · Lineperson 32 · Works Manager 27 · Contractor 26 · Engineer 25 ·
+      Technician 20 · Operator 19 · Call Center Representative 18 · Administrative Assistant 18.
+      Against those: Software Engineer 5 · Developer 6 · Senior Developer 6 · Data Analyst 3 ·
+      Data Scientist 2 · Nuclear Engineer 8 · Nuclear Power Reactor Operator 7 · Accountant 3 ·
+      Senior Financial Analyst 2.
+
+    Per-title subratings: NOT COLLECTED - removed in v4.5.
+
+    Achievability gate run on every percentage recorded anywhere in the packet: Y
+    Percentages struck for failing the gate: NONE - no percentage entered section 1 at all.
+      Figures encountered and their disposition:
+        10-K workforce composition percentages (2 of them): STRIPPED at collection per section F's
+          figure-stripping rule before any gate question arose. For the record they would have
+          passed - at n = 26,441 the step is 0.004 points.
+        Utility Dive capital-plan and sales-growth percentages: not recorded in section 1; these are
+          financial growth rates with no stated sample size, so the gate is INAPPLICABLE rather than
+          passed. Flagged here because the audit line forces a Y/N on a question that is often N/A.
+
+    Titles present but NOT sampled, with counts: all of them - see the title-index counts above.
+      The recency frame does not sample by title.
+
+    Interview write-ups excluded from review lists: 0 - none appeared in the 20 reviews rendered.
+
+    Newest review date BY SITE: Indeed / Duke Energy 2026-08-05 · Indeed / Piedmont Natural Gas
+      2026-04-30 · Glassdoor NOT RETRIEVABLE.
+      RECENCY CROSS-CHECK: CANNOT BE PERFORMED - the optional site was unreachable by both methods.
+      B1a-REMEDY could not fire in any case: its condition (b) requires fewer than half of section
+      B's minimum to fall inside the 24-month gate, and 15 of 15 fall inside it. The remedy's
+      outcome is therefore determined regardless of the missing cross-check.
+
+    Oldest review used: 2026-02-07
+    Median age of reviews used: 4.9 months (median date 2026-04-21, measured at 2026-09-17)
+    Reviews truncated at source: 6/15 = 40%   ** exceeds 33% - NOTE TO RATER written, see section B **
+      3 of the 6 end at an explicit "Show more" control (2026-08-05, 2026-07-04, 2026-05-11).
+      3 of the 6 are cut mid-review with NO marker of any kind (2026-05-10, 2026-04-30, 2026-04-28) -
+      all three are the site's question-and-answer review format, cut part-way through the third
+      answer. Counting markers alone would have given 4/15 = 27% and no note. See the defect list.
+      Measured twice, independently: pass 1 from the page's visible text, pass 2 from a structural
+      walk of the review cards. Both passes returned the same 20 reviews, the same 20 dates in the
+      same order, and the same 3 explicit markers.
+
+    Source-site duplicates retained: 0 - no two entries carried identical text and date.
+    Newest careers-page modification date: NOT PUBLISHED. No date appears on the careers, ethics or
+      role-family pages by any retrieval method. All 8 section A excerpts are access-dated. That
+      means section A's vintage is entirely unknown, which is itself the finding.
+
+    Structural events found and their dates:
+      2024-01-26  Layoffs confirmed as part of a "reorganization" (independent reporting;
+                  outside section E's window, so recorded here rather than quoted)
+      2025-04-01  CEO transition - Harry Sideris succeeded Lynn Good (10-K Item 1; company publication)
+      2026-02-12  Five-year capital plan raised to $103B, reported as the largest on file at any
+                  regulated U.S. utility
+      Q1 2026     Sale of the subsidiary's Tennessee gas distribution business to a third party,
+                  expected to close
+      2026-05-05  State regulators in both Carolinas approved combining the two Carolinas utility
+                  subsidiaries; target completion 2027-01-01
+
+    Does any structural event postdate the newest review?  NO - every event above OCCURRED before
+      2026-08-05. One caveat the rater should have: the approved combination of the two Carolinas
+      utility subsidiaries is scheduled to TAKE EFFECT on 2027-01-01, which is after every piece of
+      evidence in this packet. The approval is in the evidence; the reorganised company is not.
+
+2g. SCOPE BLOCK
+
+       A careers / values     population: company-wide, plus one role-family page written for
+                              field lineworker roles specifically
+       B employee reviews     population: customer service and customer care (4 of 15), field and
+                              plant technical roles (3 of 15), work management (1), IT security (1),
+                              and 8 of 15 with NO job title stated at all. Geographically spread
+                              across the company's Carolinas, Florida, Indiana and Ohio territories.
+                              2 of 15 come from a separately branded wholly-owned subsidiary.
+       C job postings         population: distribution dispatch / grid operations, regulatory
+                              compliance, strategic sourcing / supply chain, commercial account
+                              management. No engineering posting was quoted.
+       D first-person         population: the drone / field-technology programme and front-line
+                              lineworker operations, plus one profile of the chief executive.
+       E news                 population: company-wide (corporate strategy and regulatory)
+       F human capital        population: company-wide
+
+       Working environments known to exist in this company but ABSENT from the review population:
+         Nuclear generation operations - the company operates a nuclear fleet, yet the entire
+         nuclear population on the review site is Nuclear Engineer 8, Nuclear Power Reactor Operator
+         7, Nuclear Technician 6. Software and technology - Software Engineer 5, Developer 6, Data
+         Scientist 2, Data Analyst 3. Finance, accounting and legal are similar single digits.
+         None of these appear in the recency sample at all. This is not correctable by sampling: the
+         reviews do not exist.
+         Separately: 8 of the 15 reviews sampled CANNOT BE ASSIGNED TO ANY FUNCTION because the
+         reviewer posted no job title (B2a). That is the majority of the section.
+
+       Does the company-authored evidence (A, F) describe a wider population than the
+       experiential evidence (B)?  YES. A and F describe the whole organisation including every
+       function absent above; B describes customer-service, field-technical and untitled reviewers.
+
+       One-line scope declaration for the head of the packet: written, see top of file.
+
+########## SECTION 3 - ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+
+- Headcount: 26,441 full-time, part-time and temporary employees as of 2025-12-31. COMPANY-SOURCED,
+  from the 10-K Item 1 Human Capital section filed 2026-02-26. High confidence - this is a
+  company-stated figure in a legal filing, not a third-party estimate. For trend context, an
+  independent 2024 report cited a third-party figure of 27,859 for 2022 and 30,083 for 2018; those
+  are third-party and lower confidence, and are recorded only as direction of travel.
+- Of that total, 5,027 employees are represented by labor unions under collective bargaining
+  agreements covering "wages, benefits, working practices, and other terms and conditions of
+  employment" (10-K Item 1). Roughly one in five of the workforce. This is materially relevant to
+  autonomy and to how work is directed, and it is recorded here rather than in section 1 because the
+  figure is a confounder-block fact.
+- Stage/size: PUBLIC. NYSE-listed. Regulated electric and gas utility holding company; investor-owned
+  and rate-regulated in six states, serving 8.7 million electric customers. Not venture-funded; no
+  founder ownership. Five-year capital plan of $103B as of 2026-02-12, reported as the largest on
+  file at any regulated U.S. utility. Undergoing a regulator-approved combination of two utility
+  subsidiaries effective 2027-01-01.
+- Pay-posture EVIDENCE (no band assigned): the 10-K states compensation is "market driven", describes
+  "market competitive pay programs" with short-term and long-term incentive components, and states
+  the company "regularly conducts internal pay reviews and benchmarking against peer companies".
+  Employee reviews repeatedly name pay as the strongest feature of the job while naming benefits as
+  declining ("Pay is the best thing, benefits have consistently been cut over the years"). CORRECT
+  REFERENCE CLASS: large regulated investor-owned utilities, NOT technology employers - the job
+  families, the union coverage and the rate-regulated cost recovery model all differ.
+- Industry: OTHER (regulated energy / utilities). Not tech, finance, healthcare or retail. Note for
+  whoever uses this field: the review-site profile is contaminated with an academic health system's
+  reviews, so any automated industry inference drawn from the review text will be pulled toward
+  healthcare and would be wrong.
+
+########## SECTION 4 - ANONYMIZATION PRE-FLAGS ##########
+
+COMPANY NAME occurrences in section 1: "Duke Energy" appears in the scope declaration and in
+  A excerpts 2 and 6-8 (inside quoted text), B excerpt 2026-02-07 ("Enjoyed my time at Duke Energy"),
+  B excerpt 2026-04-16 ("Duke is a powerhouse" - SHORT FORM, will not match a "Duke Energy" filter),
+  C excerpts (attribution lines), D excerpt 1 ("employees across Duke Energy"), E excerpts 2-4,
+  and every URL. NOTE the short form "Duke" - it must be caught separately.
+
+SUBSIDIARY AND LEGAL-ENTITY NAMES: Piedmont Natural Gas (subsidiary, in 2 B-excerpt URLs and the
+  scope declaration); Duke Energy Progress; Duke Energy Carolinas; Duke Energy Florida; Duke Energy
+  Indiana; Duke Energy Ohio; Progress Energy; Carolina Power & Light.
+
+NAMED PEOPLE (all living, all identifiable):
+  Harry K. Sideris - President and CEO - named in D excerpt 8 attribution and E excerpts 1-2
+  Lynn Good - former CEO - section 2f only
+  Aron Wallace - drone pilot - named in D excerpts 1-3 attributions
+  Clynt Walter - operations supervisor - named in D excerpts 4-7 attributions
+  Lee Freedman, Caroline Portillo - company publication writers - D attributions
+  Emma Penrod (Utility Dive), Matthew Sockol (WNCN/CBS17), Lisa Sorg (NC Newsline) - journalists
+  Brian Savoy, Lloyd Yates, Charlie Gates, Jeff Flanagan, Jessica Bednarcik, Shawna Berger -
+    section 2 / source text only, not in section 1
+
+OFFICE AND SITE LOCATIONS in section 1 (review attributions - per B6 these are NOT to be deleted,
+  but replaced with generic site tokens that preserve the distinction):
+  Columbus IN · Concord NC · Lake Mary FL · Salisbury NC · Charlotte NC · Raleigh NC
+  Also in C attribution lines and posting URLs: St. Petersburg FL · Belews Creek NC · Charlotte NC ·
+  Raleigh NC. Belews Creek in particular is a single named generating site and is highly identifying.
+
+NAMED INTERNAL PROGRAMS, SYSTEMS AND TOOLS appearing inside quoted text:
+  "The Dispatcher Qualification Program" (C) · "TICR" / total incident case rate (F) ·
+  "Employee Resource Groups" (source text, not quoted) · "System Operator Power Dispatch test
+  (SO/PD)" (source text, not quoted) · SCADA and OMS (source text, not quoted).
+  Per D15, REWRITE THE PROPER NOUN AND KEEP THE CLAUSE on the F and C excerpts - dropping them
+  removes the best autonomy and decision-basis evidence in those sections.
+
+REGULATORY AND INDUSTRY IDENTIFIERS inside quoted text: FERC, NERC, NIST, Sarbanes Oxley, OSHA,
+  IT502, IT503 (the last two are internal control identifiers and are close to a fingerprint);
+  "North Carolina Utilities Commission"; "Jan. 1, 2027". The combination of a six-state utility,
+  a $103B capital plan and a 2027-01-01 subsidiary combination re-identifies the company instantly
+  even with every name removed - E excerpts 2-4 should be treated as high-risk.
+
+DISTINCTIVE VERBATIM SELF-DESCRIPTIONS (searchable even after the name is removed - flagged
+  separately per the instruction):
+  "Be part of something powerful." (careers page tagline, not quoted but on the same page)
+  "We prioritize physical and psychological safety, encourage innovation and nurture an environment
+    where everyone feels they belong."
+  "Behaviors, as well as results, matter in our company."
+  "The foundation for our growth and success is our continued focus on operational excellence, the
+    leading indicator of which is safety."
+  Each of these is an exact-match string against the live site.
+
+PRESERVED SOURCE TYPOS - UNIQUE-STRING IDENTIFIERS, flagged per the instruction. Each of the
+  following is very likely a globally unique string and will locate the exact source review or
+  posting in one search: "Mico managers" · "lie about to to get ahead themselves" · "Anyone ca ena
+  manager so long so" · "Allt of stuff to learn but worth it" · "Mangerwas cool" · "mitigation plan
+  porting". They are required verbatim by rule 2 and are simultaneously the strongest re-identifiers
+  in the packet. Whoever scrubs this must decide that trade-off deliberately.
+
+NON-BREAKING HYPHEN (U+2011) in the A excerpt "data-driven". An unusual character is itself a weak
+  fingerprint against the source page; noted so it is not mistaken for a scrubbing artifact.
+
+URLS: every excerpt line carries a live URL naming the company, the subsidiary, the ATS tenant
+  ("dukeenergy"), the SEC CIK and accession number, and in the C URLs the site location and
+  requisition ID. All require replacement.
+
+########## END OF PACKET ##########
