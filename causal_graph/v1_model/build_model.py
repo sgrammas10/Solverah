@@ -251,9 +251,13 @@ def build_model(person, env, conf, cfg, pri, outcome=None, head: str = "appeal",
                   default and reproduces the pre-2026-09-17 model exactly.
                   "experienced" never dichotomizes -- that is D-20.
     conf_missing: optional dict {confounder_key: bool array, length N} marking
-                  legitimately-absent confounder values (a "not sure" comp). A
-                  masked CONTINUOUS confounder's term is excluded from z for
-                  that row -- see match_core.preprocess_conf.
+                  legitimately-absent confounder values (a "not sure" comp, an
+                  `industry` the instrument never asked). A masked confounder's
+                  term is excluded from z for that row, continuous or
+                  categorical -- see match_core.preprocess_conf. A masked
+                  categorical additionally yields a `conf_{key}__present`
+                  pm.Data; with nothing masked the pm.Data names and free RVs
+                  are exactly what they were before conf_missing existed.
 
     `p_fit` is a pm.Deterministic on BOTH heads and means the same thing on
     both: P(this goes well). On the ordinal head that is P(rating >=

@@ -142,12 +142,35 @@ def fit_gap(person_score, env_score, snap_person=True):
 # Without a mask, a NaN RAISES. Before this it standardized into NaN and
 # propagated silently through the whole linear predictor into p_fit.
 #
-# A masked CATEGORICAL still raises on the None it carries: there is no neutral
-# level index the way 0.0 is a neutral standardized value, so "exclude the
-# term" has no meaning for one weight out of a per-level vector. That is still
-# a config decision (add an `unknown` level, or drop the confounder) and it is
-# what keeps the environment source's unasked `industry` from feeding a fit --
-# see ASSEMBLE_TRAINING_DATA_NOTES.md.
+# MISSING CATEGORICAL VALUES (ruled 2026-09-21)
+# ---------------------------------------------
+# Same ruling, EXCLUDE THE TERM, now for a masked categorical -- which is what
+# unblocks the environment source, whose instrument never asks `industry` so
+# every row of it is masked (ASSEMBLE_TRAINING_DATA_NOTES.md).
+#
+# A categorical has no neutral level index the way 0.0 is a neutral
+# standardized value, so the exclusion is carried by a second array rather than
+# by the value: a masked row indexes level 0 as a PLACEHOLDER and preprocess_conf
+# additionally returns `{key}__present`, 1.0 where present and 0.0 where masked.
+# outcome_logit then adds `w[level] * present`, so a masked row contributes
+# exactly nothing -- the placeholder weight included.
+#
+# Two rejected alternatives, so they are not re-proposed:
+#   * an `unknown` LEVEL. When every row off a source shares it, it is
+#     perfectly collinear with the intercept -- unidentified, pure prior, and
+#     it would bleed into the intercept that currently means "8 in 10 doing
+#     well" (the elicited baseline the cutpoint pin exists to preserve).
+#   * DEACTIVATING industry in the config. That removes it from the
+#     company-side path too and changes the flat weight set, which
+#     tests/test_match_scoring.py pins at 20 rows.
+# The mask is self-reversing: when a source starts supplying industry, those
+# rows stop being masked and the term returns with no code change.
+#
+# With no mask (or an all-False one) this path is EXACTLY what it was: the same
+# int64 index array and no extra key, because serving (point_p_fit /
+# score_pairs) runs it on every request. An unmasked None or unknown level
+# still raises -- now naming the confounder, the values and the rows instead of
+# list.index's bare "None is not in list".
 # ---------------------------------------------------------------------------
 def preprocess_conf(conf, cfg, conf_missing=None):
     out = {}
@@ -158,7 +181,35 @@ def preprocess_conf(conf, cfg, conf_missing=None):
         raw = conf[k]
         if c.get("kind") == "categorical":
             levels = c["levels"]
-            out[k] = np.array([levels.index(v) for v in raw], dtype="int64")
+            mask = None if conf_missing is None else conf_missing.get(k)
+            if mask is not None:
+                mask = np.atleast_1d(np.asarray(mask, dtype=bool))
+                if not mask.any():
+                    # No masked row -> the default path exactly, no extra key.
+                    mask = None
+            values = list(raw)
+            idx = np.zeros(len(values), dtype="int64")
+            bad = []
+            for i, v in enumerate(values):
+                if mask is not None and mask[i]:
+                    continue               # placeholder 0; __present zeroes the term
+                try:
+                    idx[i] = levels.index(v)
+                except ValueError:
+                    bad.append((i, v))
+            if bad:
+                raise ValueError(
+                    f"confounder '{k}' carries value(s) "
+                    f"{[v for _, v in bad]!r} at row(s) {[i for i, _ in bad]} that are "
+                    f"not among its configured levels {levels}, with no conf_missing "
+                    f"mask marking those rows missing -- a categorical confounder "
+                    f"indexes a per-level weight vector, so there is no weight to use. "
+                    f"Pass conf_missing (EnvironmentAssembleResult.conf_missing) to "
+                    f"exclude the term for those rows, or supply a level."
+                )
+            out[k] = idx
+            if mask is not None:
+                out[k + "__present"] = np.where(mask, 0.0, 1.0)
         else:
             scale = c["scale"]
             value = (np.asarray(raw, dtype=float) - scale["mean"]) / scale["sd"]
@@ -211,7 +262,14 @@ def outcome_logit(person, env, conf, cfg, weights, snap_person=True):
         k = c["key"]
         w = weights["confounders"][k]
         if c.get("kind") == "categorical":
-            z += w[conf[k]]                     # one weight per level
+            term = w[conf[k]]                   # one weight per level
+            present = conf.get(k + "__present")
+            # The `present is None` branch is the literal pre-2026-09-21
+            # expression, kept because serving runs it on every request and must
+            # stay bit-identical when nothing is masked -- multiplying by 1.0
+            # everywhere would not be. `term * present` works on numpy arrays AND
+            # on pytensor tensors (build_model passes pm.Data); np.where does not.
+            z += term if present is None else term * present
         else:
             z += w * conf.get(k, 0.0)
 
@@ -421,15 +479,22 @@ def _validate_inputs(person, env, conf_raw, cfg):
         raise ValueError(f"inputs disagree on N: lengths {sorted(lengths)}")
 
 
-def point_p_fit(person, env, conf_raw, cfg, weights):
-    """Deterministic P(fit) at the weight means. `weights` has {mean, sd} leaves."""
+def point_p_fit(person, env, conf_raw, cfg, weights, conf_missing=None):
+    """Deterministic P(fit) at the weight means. `weights` has {mean, sd} leaves.
+
+    conf_missing: optional {confounder_key: bool array length N} marking
+    legitimately-absent confounder values, forwarded to preprocess_conf -- a masked
+    row's term is excluded from z. Last and defaulting to None, so the serving path
+    that never passes it is the unchanged path.
+    """
     _validate_inputs(person, env, conf_raw, cfg)
-    conf = preprocess_conf(conf_raw, cfg)
+    conf = preprocess_conf(conf_raw, cfg, conf_missing=conf_missing)
     z = outcome_logit(person, env, conf, cfg, point_weights(weights), snap_person=True)
     return _sigmoid(z)
 
 
-def score_pairs(person, env, conf_raw, cfg, weights, draws=2000, seed=0, interval=0.90):
+def score_pairs(person, env, conf_raw, cfg, weights, draws=2000, seed=0, interval=0.90,
+                conf_missing=None):
     """P(fit) with an uncertainty band, for N (person, company) pairs.
 
     person, env : dict {dim_key: array-like length N} of dimension scores
@@ -447,9 +512,14 @@ def score_pairs(person, env, conf_raw, cfg, weights, draws=2000, seed=0, interva
     Each draw calls the SAME outcome_logit used for fitting -- slower than a
     hand-vectorized copy, but there is exactly one implementation of the linear
     predictor and this keeps it that way. Deterministic for a given seed.
+
+    conf_missing : optional {confounder_key: bool array length N} marking
+                  legitimately-absent confounder values, forwarded to
+                  preprocess_conf. Last, and defaulting to None, so every existing
+                  call is untouched.
     """
     _validate_inputs(person, env, conf_raw, cfg)
-    conf = preprocess_conf(conf_raw, cfg)
+    conf = preprocess_conf(conf_raw, cfg, conf_missing=conf_missing)
     rng = np.random.default_rng(seed)
 
     p = np.empty((draws, len(np.atleast_1d(next(iter(person.values()))))))
