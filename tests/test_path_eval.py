@@ -17,6 +17,13 @@ anchors excluded entirely, harm reported separately from relevance, degenerate
 profiles never averaged in -- are each asserted, because each one is a judgement
 call that a future reader would otherwise have to take on faith.
 
+**Guard the wants layer (W-2).**  The last section adds the third job: the
+fifteen profiles that state what the user wants to CHANGE about their current
+job.  A wants task has to be a verbatim task statement of that user's own
+occupation -- a paraphrase would quietly turn the fixture into a different
+instrument -- and the twenty F-2 profiles and their 249 labels are frozen by a
+content hash so the no-wants regression guard cannot drift under anyone.
+
 No network.  Nothing here calls O*NET or OpenAI, and nothing here runs
 `score_paths`.
 """
@@ -24,8 +31,10 @@ No network.  Nothing here calls O*NET or OpenAI, and nothing here runs
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -42,7 +51,9 @@ from backend.services.path_eval import (
     load_labels,
     load_occupation_titles,
     load_profiles,
+    load_wants_tasks,
     low_confidence_labels,
+    profiles_with_wants,
     make_oracle_scorer,
     make_random_scorer,
     project_cost,
@@ -735,3 +746,284 @@ def test_the_harness_does_not_import_the_scorer_to_evaluate(
     report = evaluate(load_run(path), profiles, labels)
     assert report.headline["profiles_scored"] == 1.0
     assert report.headline["mrr"] == 1.0
+
+
+# ---------------------------------------------------------------------------
+# W-2: the wants layer
+# ---------------------------------------------------------------------------
+
+#: The twenty F-2 profiles, in file order.  W-2 froze them: they are the
+#: no-wants regression guard, so the wants scorer's effect on a profile that
+#: states no wants can be read as a defect rather than as drift in the fixture.
+FROZEN_PROFILE_COUNT = 20
+
+#: sha256 over the canonical JSON of those twenty profile entries and their
+#: label rows, as landed by F-2 (f51bef7) and unchanged since.
+FROZEN_DIGEST = "240e387873322d4d60b9d53ade7a2f95180b6acb3a24913235ef8c0cfeec14a0"
+
+#: The only condition axes the schema admits, and the only two directions.
+WANTS_CONDITIONS = frozenset({"people", "public", "leading", "desk"})
+WANTS_DIRECTIONS = frozenset({"more", "less"})
+
+
+@pytest.fixture(scope="module")
+def wants_tasks() -> dict[str, dict[str, Any]]:
+    return load_wants_tasks()
+
+
+@pytest.fixture(scope="module")
+def raw_fixtures() -> tuple[dict[str, Any], dict[str, Any]]:
+    """The two fixture files as written, not as parsed into dataclasses."""
+    with path_eval.PROFILES_PATH.open(encoding="utf-8") as fh:
+        profiles_doc = json.load(fh)
+    with path_eval.LABELS_PATH.open(encoding="utf-8") as fh:
+        labels_doc = json.load(fh)
+    return profiles_doc, labels_doc
+
+
+def test_the_f2_profiles_and_labels_are_frozen(
+    raw_fixtures: tuple[dict[str, Any], dict[str, Any]],
+) -> None:
+    """p01-p20 and their 249 labels must never change again.
+
+    They are the control arm.  W-3 measures a wants-aware scorer against a
+    wants-blind one, and that comparison is only honest if the profiles which
+    state no wants are byte-for-byte the set F-2 recorded its baseline on.  An
+    edit here -- even a typo fix -- silently invalidates every number in F-2,
+    F-4, F-6 and F-7, so it fails the suite instead.
+
+    If a change to one of them is ever genuinely wanted, that is a decision
+    with a cost: re-record the baselines, then update this digest in the same
+    commit.
+    """
+    profiles_doc, labels_doc = raw_fixtures
+    frozen_profiles = profiles_doc["profiles"][:FROZEN_PROFILE_COUNT]
+    frozen_ids = [entry["id"] for entry in frozen_profiles]
+    frozen = {
+        "profiles": frozen_profiles,
+        "labels": {pid: labels_doc["labels"][pid] for pid in frozen_ids},
+    }
+    blob = json.dumps(frozen, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    digest = hashlib.sha256(blob.encode("utf-8")).hexdigest()
+    assert digest == FROZEN_DIGEST, (
+        "the F-2 profiles or their labels changed; they are the no-wants "
+        "regression guard and every recorded baseline was measured on them"
+    )
+    assert sum(len(labels_doc["labels"][pid]) for pid in frozen_ids) == 249
+
+
+def test_the_frozen_twenty_carry_no_wants_block(
+    raw_fixtures: tuple[dict[str, Any], dict[str, Any]],
+) -> None:
+    """The control arm states no wants, which is what makes it a control."""
+    profiles_doc, _ = raw_fixtures
+    for entry in profiles_doc["profiles"][:FROZEN_PROFILE_COUNT]:
+        assert "wants" not in entry, entry["id"]
+
+
+def test_fifteen_wants_profiles_five_per_intent(profiles: list[EvalProfile]) -> None:
+    """W-2's sample-size rule: five per intent, or no per-intent claim is legal.
+
+    F-2 landed four `fresh_start` profiles and every fresh_start number in F-7
+    was therefore n=4, below F-2's own rule.  This asserts the wants set does
+    not repeat that.
+    """
+    wants = profiles_with_wants(profiles)
+    assert len(wants) == 15
+
+    counts: dict[str | None, int] = {}
+    for profile in wants:
+        intent = profile.raw_profile.get("move_intent")
+        counts[intent] = counts.get(intent, 0) + 1
+    assert counts == {"stay_in_field": 5, "adjacent": 5, "fresh_start": 5}
+
+
+def test_wants_blocks_use_the_declared_schema(profiles: list[EvalProfile]) -> None:
+    for profile in profiles_with_wants(profiles):
+        wants = profile.wants or {}
+        assert set(wants) <= {"anchor_code", "tasks_more", "tasks_less", "conditions"}, profile.id
+        assert wants.get("anchor_code"), f"{profile.id} has no anchor_code"
+
+        more = wants.get("tasks_more", [])
+        less = wants.get("tasks_less", [])
+        assert more or less, f"{profile.id} states no task wants at all"
+        assert 2 <= len(more) + len(less) <= 8, profile.id
+        assert not (set(more) & set(less)), f"{profile.id} wants a task both ways"
+
+        conditions = wants.get("conditions", {})
+        assert len(conditions) <= 3, f"{profile.id} states more conditions than the form takes"
+        for axis, direction in conditions.items():
+            assert axis in WANTS_CONDITIONS, f"{profile.id}: {axis}"
+            assert direction in WANTS_DIRECTIONS, f"{profile.id}: {direction}"
+
+
+def test_every_wants_task_is_a_real_task_of_the_users_own_occupation(
+    profiles: list[EvalProfile], wants_tasks: dict[str, dict[str, Any]]
+) -> None:
+    """The load-bearing one.
+
+    The whole hypothesis in W-2 is that marking up the user's OWN O*NET task
+    statements steers retrieval.  A paraphrased or invented task would still
+    embed to something, so nothing would look broken -- the fixture would just
+    stop being the instrument the design describes.  Each profile names its own
+    `anchor_code`, so this check needs no title resolution and no network.
+    """
+    for profile in profiles_with_wants(profiles):
+        wants = profile.wants or {}
+        code = wants["anchor_code"]
+        assert code in wants_tasks, f"{profile.id}: {code} is not in the snapshot"
+        real = set(wants_tasks[code]["tasks"])
+        for key in ("tasks_more", "tasks_less"):
+            for task in wants.get(key, []):
+                assert task in real, (
+                    f"{profile.id}/{key}: {task!r} is not a task statement of "
+                    f"{code} ({wants_tasks[code]['title']})"
+                )
+
+
+def test_the_wants_snapshot_agrees_with_the_onet_snapshot(
+    wants_tasks: dict[str, dict[str, Any]], occupations: dict[str, str]
+) -> None:
+    """Two fixtures, one truth: the titles must not disagree."""
+    for code, row in wants_tasks.items():
+        assert code in occupations, code
+        assert row["title"] == occupations[code], code
+        assert row["tasks"], f"{code} has no tasks"
+
+
+def test_the_snapshot_holds_only_the_occupations_that_are_used(
+    profiles: list[EvalProfile], wants_tasks: dict[str, dict[str, Any]]
+) -> None:
+    """A small committed snapshot, not a second corpus."""
+    used = {(p.wants or {})["anchor_code"] for p in profiles_with_wants(profiles)}
+    assert set(wants_tasks) == used
+    assert len(wants_tasks) <= 20
+
+
+def test_each_wants_profile_labels_its_own_occupation_as_the_anchor(
+    profiles: list[EvalProfile], labels: dict[str, list[Label]]
+) -> None:
+    for profile in profiles_with_wants(profiles):
+        anchors = [
+            row.onet_code for row in labels[profile.id] if row.grade == "anchor"
+        ]
+        assert anchors == [(profile.wants or {})["anchor_code"]], profile.id
+
+
+def test_wants_profiles_are_labelled_to_the_f2_protocol(
+    profiles: list[EvalProfile], labels: dict[str, list[Label]]
+) -> None:
+    """Same grades, same density, same negative list as F-2 asked for."""
+    for profile in profiles_with_wants(profiles):
+        rows = labels[profile.id]
+        assert 10 <= len(rows) <= 16, f"{profile.id} has {len(rows)} labels"
+        grades = [row.grade for row in rows]
+        assert grades.count("anchor") == 1, profile.id
+        assert "primary" in grades, profile.id
+        assert "harmful" in grades, profile.id
+
+
+def test_wants_labels_avoid_all_other_occupations(
+    profiles: list[EvalProfile], labels: dict[str, list[Label]]
+) -> None:
+    """`..., All Other` rows are filtered at retrieval, so labelling one is dead.
+
+    F-3 removes all 75 of them from the candidate pool by title suffix.  A label
+    on one could never be hit, which would quietly depress primary_recall for a
+    reason that has nothing to do with the scorer.
+    """
+    offenders = [
+        (profile.id, row.onet_code, row.title)
+        for profile in profiles_with_wants(profiles)
+        for row in labels[profile.id]
+        if row.title.endswith(", All Other")
+    ]
+    assert not offenders, offenders
+
+
+def test_at_least_three_wants_sets_pull_against_their_own_skills(
+    profiles: list[EvalProfile],
+) -> None:
+    """The case the whole layer exists for.
+
+    A scorer that reads only the skill list cannot tell a developer who wants
+    more code from one who is finished with it.  W-2 asks for at least three
+    profiles where the two signals disagree; they are marked in the axes so a
+    per-cell reading of W-3's number is possible.
+    """
+    opposed = [
+        profile
+        for profile in profiles_with_wants(profiles)
+        if profile.axes.get("wants_vs_skills") == "opposed"
+    ]
+    assert len(opposed) >= 3
+    for profile in opposed:
+        assert (profile.wants or {}).get("tasks_less"), (
+            f"{profile.id} is marked opposed but asks for nothing less"
+        )
+
+
+def test_the_wants_block_never_reaches_the_scorer(profiles: list[EvalProfile]) -> None:
+    """Additive means additive: every existing scorer still runs.
+
+    `UserProfile` has no `wants` field and must not grow one here.  If
+    `build_user_profile` ever forwarded the block, every scorer written before
+    W-2 -- including the one that recorded the baselines this workstream is
+    measured against -- would raise on the fifteen new profiles.
+    """
+    from backend.services.path_scoring import UserProfile
+
+    known = {f.name for f in dataclasses.fields(UserProfile)}
+    assert "wants" not in known
+
+    for profile in profiles_with_wants(profiles):
+        assert "wants" not in profile.raw_profile, profile.id
+        built = path_eval.build_user_profile(profile)
+        assert isinstance(built, UserProfile)
+        assert not hasattr(built, "wants")
+
+
+def test_the_control_scorers_still_run_over_the_whole_extended_set(
+    profiles: list[EvalProfile],
+    labels: dict[str, list[Label]],
+    occupations: dict[str, str],
+) -> None:
+    """35 profiles, one degenerate, and the ruler still reads 1.0 and ~0."""
+    assert len(profiles) == 35
+    oracle = evaluate(
+        record_run(make_oracle_scorer(labels), profiles, "oracle"), profiles, labels
+    )
+    chance = evaluate(
+        record_run(make_random_scorer(occupations, seed=11), profiles, "random"),
+        profiles,
+        labels,
+    )
+    assert oracle.headline["profiles_scored"] == 34.0
+    assert oracle.headline["ndcg_at_k"] == pytest.approx(1.0)
+    assert oracle.headline["harmful_rate_at_k"] == 0.0
+    assert chance.headline["ndcg_at_k"] < 0.05
+
+
+def test_record_live_only_accepts_the_new_profile_ids(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """W-3's baseline is recorded over the fifteen new ids alone.
+
+    `--only` filters by id and needed no change, but "it already works" is the
+    kind of claim that is cheap to assert and expensive to discover is false
+    halfway through a run that spends a shared rate limit.  The refusal path
+    still makes no calls.
+    """
+    new_ids = ",".join(p.id for p in profiles_with_wants())
+    rc = path_eval.main(["record-live", "--only", new_ids, "--out", "unused.json"])
+    assert rc == 2
+    out = capsys.readouterr().out
+    assert '"profiles": 15' in out
+    assert "REFUSING TO RUN" in out
+    assert not Path("unused.json").exists()
+
+    rc = path_eval.main(
+        ["record-live", "--only", "p21_pharmacy_tech_stay", "--out", "unused.json"]
+    )
+    assert rc == 2
+    assert '"profiles": 1' in capsys.readouterr().out

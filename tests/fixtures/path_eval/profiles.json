@@ -11,7 +11,10 @@
       "skill density: rich (8+) | moderate (4-7) | sparse (1-3) | none (0)",
       "behavioral profile: present (archetype_description/focus_type/manager_match/work_style_tags populated) | absent",
       "title resolvability: resolvable | unresolvable | absent"
-    ]
+    ],
+    "w2_extension": "2026-09-17, BUILD_PLAN W-2. p21-p35 were added for the wants layer: 15 profiles, five per move_intent, so every intent clears F-2's n=5 rule (the set now holds 35 profiles). p01-p20 and their 249 labels are FROZEN and carry no wants block; tests/test_path_eval.py pins them with a content hash.",
+    "wants_schema": "Optional, one per profile, a SIBLING of `profile` and never part of it -- path_eval.build_user_profile() must not pass it to UserProfile. Keys: `anchor_code` (the profile's own occupation, so no title resolution is needed to check it), `tasks_more` / `tasks_less` (verbatim O*NET task statements of THAT occupation, copied from the corpus documents and snapshotted in wants_tasks_snapshot.json) and `conditions` (people | public | leading | desk -> more | less).",
+    "wants_axes": "job_zone: the anchor occupation's O*NET Job Zone (2-4 across the new rows). wants_vs_skills: `opposed` marks the six profiles whose stated wants pull AGAINST their own skill list -- the developer finished with coding, the EMT leaving the truck, the photographer done selling, the agent done selling, the help-desk specialist leaving the screen, the complaints-line representative leaving the phone."
   },
   "profiles": [
     {
@@ -531,6 +534,646 @@
         "move_intent": "stay_in_field",
         "seniority_intent": "open",
         "priority": "learning_growth",
+        "focus_type": null,
+        "manager_match": null,
+        "work_style_tags": []
+      }
+    },
+    {
+      "id": "p21_pharmacy_tech_stay",
+      "axes": {"career_status": "employed", "move_intent": "stay_in_field", "domain": "healthcare", "skill_density": "moderate", "behavioral": "present", "title": "resolvable", "job_zone": 3, "wants": "tasks+conditions"},
+      "note": "A retail pharmacy technician who wants to stay in pharmacy but move to the hospital side: more sterile compounding, none of the insurance claims and none of the register.",
+      "wants": {
+        "anchor_code": "29-2052.00",
+        "tasks_more": [
+          "Transfer medication from vials to the appropriate number of sterile, disposable syringes, using aseptic techniques.",
+          "Restock intravenous (IV) supplies and add measured drugs or nutrients to IV solutions under sterile conditions to prepare IV packs for various uses, such as chemotherapy medication.",
+          "Deliver medications or pharmaceutical supplies to patients, nursing stations, or surgery."
+        ],
+        "tasks_less": [
+          "Prepare and process medical insurance claim forms and records.",
+          "Operate cash registers to accept payment from customers.",
+          "Maintain and merchandise home healthcare products or services."
+        ],
+        "conditions": {"public": "less"}
+      },
+      "profile": {
+        "current_title": "Pharmacy Technician",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Sterile compounding", "level": "advanced"},
+          {"name": "Aseptic technique", "level": "advanced"},
+          {"name": "Prescription dispensing", "level": "advanced"},
+          {"name": "Pharmacy inventory control", "level": "intermediate"},
+          {"name": "Insurance claims processing", "level": "intermediate"},
+          {"name": "Electronic health records", "level": "intermediate"}
+        ],
+        "archetype": "Steady Operator",
+        "archetype_description": "You work carefully and you check your own work before anyone asks. You are at your best on precise technical tasks with a clear right answer, and you lose energy when the day is mostly interruptions from the counter.",
+        "move_intent": "stay_in_field",
+        "seniority_intent": "stay_lateral",
+        "priority": "interesting_work",
+        "focus_type": "Deep Diver",
+        "manager_match": "Wants a manager who protects technical time and does not treat the pharmacy as a retail floor.",
+        "work_style_tags": [
+          "Prefers precise procedural work with a checkable result",
+          "Draining: repeated interruption by walk-in questions"
+        ]
+      }
+    },
+    {
+      "id": "p22_hvac_tech_stay",
+      "axes": {"career_status": "employed", "move_intent": "stay_in_field", "domain": "skilled trade", "skill_density": "moderate", "behavioral": "present", "title": "resolvable", "job_zone": 3, "wants": "tasks+conditions"},
+      "note": "An HVAC service technician whose knees are done with attics and crawlspaces: he wants to stay in HVAC but move to estimating, plan review and running a crew.",
+      "wants": {
+        "anchor_code": "49-9021.00",
+        "tasks_more": [
+          "Estimate, order, pick up, deliver, and install materials and supplies needed to maintain equipment in good working condition.",
+          "Study blueprints, design specifications, or manufacturers' recommendations to ascertain the configuration of heating or cooling equipment components and to ensure the proper installation of components.",
+          "Supervise and instruct assistants.",
+          "Inspect and test systems to verify system compliance with plans and specifications or to detect and locate malfunctions."
+        ],
+        "tasks_less": [
+          "Braze or solder parts to repair defective joints and leaks.",
+          "Cut or drill holes in floors, walls, or roof to install equipment, using power saws or drills.",
+          "Lift and align components into position, using hoist or block and tackle."
+        ],
+        "conditions": {"leading": "more"}
+      },
+      "profile": {
+        "current_title": "HVAC Technician",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Refrigerant handling (EPA 608)", "level": "advanced"},
+          {"name": "Electrical troubleshooting", "level": "advanced"},
+          {"name": "Brazing and soldering", "level": "advanced"},
+          {"name": "Load calculation", "level": "intermediate"},
+          {"name": "Blueprint reading", "level": "advanced"},
+          {"name": "Preventive maintenance planning", "level": "intermediate"},
+          {"name": "Customer communication", "level": "intermediate"}
+        ],
+        "archetype": "Systems Builder",
+        "archetype_description": "You like knowing why a system behaves the way it does, not just which part to swap. After twelve years you would rather plan an installation correctly than be the person crawling through the roof space to fix it later.",
+        "move_intent": "stay_in_field",
+        "seniority_intent": "move_up",
+        "priority": "pay_title",
+        "focus_type": "Structured Builder",
+        "manager_match": "Wants a manager who gives the scope and the budget up front and does not renegotiate the job on site.",
+        "work_style_tags": [
+          "Plans the whole job before starting",
+          "Draining: sustained physical work in confined spaces"
+        ]
+      }
+    },
+    {
+      "id": "p23_head_chef_stay",
+      "axes": {"career_status": "employed", "move_intent": "stay_in_field", "domain": "food service", "skill_density": "rich", "behavioral": "present", "title": "resolvable", "job_zone": 3, "wants": "tasks+conditions"},
+      "note": "A head chef who wants to keep the food and lose the nightly service: more menu costing, purchasing and teaching, less cooking on the line and less hiring churn.",
+      "wants": {
+        "anchor_code": "35-1011.00",
+        "tasks_more": [
+          "Analyze recipes to assign prices to menu items, based on food, labor, and overhead costs.",
+          "Coordinate planning, budgeting, or purchasing for all the food operations within establishments such as clubs, hotels, or restaurant chains.",
+          "Collaborate with other personnel to plan and develop recipes or menus, taking into account such factors as seasonal availability of ingredients or the likely number of customers.",
+          "Demonstrate new cooking techniques or equipment to staff."
+        ],
+        "tasks_less": [
+          "Prepare and cook foods of all types, either on a regular basis or for special guests or functions.",
+          "Recruit and hire staff, such as cooks and other kitchen workers.",
+          "Determine production schedules and staff requirements necessary to ensure timely delivery of services."
+        ],
+        "conditions": {"leading": "less", "desk": "more"}
+      },
+      "profile": {
+        "current_title": "Head Chef",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Menu development", "level": "advanced"},
+          {"name": "Food cost control", "level": "advanced"},
+          {"name": "Recipe standardization", "level": "advanced"},
+          {"name": "Inventory and purchasing", "level": "advanced"},
+          {"name": "Food safety (ServSafe)", "level": "advanced"},
+          {"name": "Kitchen staff supervision", "level": "advanced"},
+          {"name": "Line cooking", "level": "advanced"},
+          {"name": "Supplier negotiation", "level": "intermediate"}
+        ],
+        "archetype": "Craft Finisher",
+        "archetype_description": "You care about the detail nobody else notices and you would rather get one dish exactly right than add three more. Fifteen years of dinner service have left you wanting the planning part of the work and not the six hours of pressure that follow it.",
+        "move_intent": "stay_in_field",
+        "seniority_intent": "stay_lateral",
+        "priority": "work_life_balance",
+        "focus_type": "Structured Builder",
+        "manager_match": "Wants an owner who decides the concept once and then trusts the costing and the menu to the kitchen.",
+        "work_style_tags": [
+          "Plans and costs the whole menu before service",
+          "Draining: sustained evening and weekend hours"
+        ]
+      }
+    },
+    {
+      "id": "p24_elementary_teacher_stay",
+      "axes": {"career_status": "employed", "move_intent": "stay_in_field", "domain": "education", "skill_density": "moderate", "behavioral": "present", "title": "resolvable", "job_zone": 4, "wants": "tasks+conditions"},
+      "note": "An elementary teacher who wants to stay in schools but spend the day on curriculum and coaching colleagues instead of grading, records and cafeteria duty.",
+      "wants": {
+        "anchor_code": "25-2021.00",
+        "tasks_more": [
+          "Prepare objectives and outlines for courses of study, following curriculum guidelines or requirements of states and schools.",
+          "Collaborate with other teachers and administrators in the development, evaluation, and revision of elementary school programs.",
+          "Supervise, evaluate, and plan assignments for teacher assistants and volunteers."
+        ],
+        "tasks_less": [
+          "Assign and grade class work and homework.",
+          "Perform administrative duties, such as school library assistance, hall and cafeteria monitoring, and bus loading and unloading.",
+          "Establish and enforce rules for behavior and procedures for maintaining order among the students.",
+          "Maintain accurate and complete student records as required by laws, district policies, and administrative regulations."
+        ],
+        "conditions": {"leading": "more"}
+      },
+      "profile": {
+        "current_title": "Elementary School Teacher",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Curriculum design", "level": "advanced"},
+          {"name": "Lesson planning", "level": "advanced"},
+          {"name": "Differentiated instruction", "level": "advanced"},
+          {"name": "Student assessment", "level": "advanced"},
+          {"name": "Parent communication", "level": "advanced"},
+          {"name": "Classroom management", "level": "advanced"},
+          {"name": "Google Workspace", "level": "intermediate"}
+        ],
+        "archetype": "Connector",
+        "archetype_description": "You are the person other teachers come to for a unit plan, and you enjoy that more than you enjoy your own class list. You want the work that shapes what a whole grade does, and less of the paperwork that only proves you did it.",
+        "move_intent": "stay_in_field",
+        "seniority_intent": "move_up",
+        "priority": "interesting_work",
+        "focus_type": "Collaborative Charger",
+        "manager_match": "Wants a principal who delegates real curriculum authority rather than more committee membership.",
+        "work_style_tags": [
+          "Draws energy from building something other people will use",
+          "Draining: repetitive administrative recordkeeping"
+        ]
+      }
+    },
+    {
+      "id": "p25_sysadmin_stay",
+      "axes": {"career_status": "employed", "move_intent": "stay_in_field", "domain": "tech", "skill_density": "rich", "behavioral": "absent", "title": "resolvable", "job_zone": 3, "wants": "tasks+conditions"},
+      "note": "A systems administrator who wants to stay in infrastructure but stop being the person users walk up to: more security and design work, no helpdesk and no user training.",
+      "wants": {
+        "anchor_code": "15-1244.00",
+        "tasks_more": [
+          "Plan, coordinate, and implement network security measures to protect data, software, and hardware.",
+          "Design, configure, and test computer hardware, networking software and operating system software.",
+          "Research new technologies by attending seminars, reading trade articles, or taking classes, and implement or recommend the implementation of new technologies."
+        ],
+        "tasks_less": [
+          "Confer with network users about solutions to existing system problems.",
+          "Train people in computer system use.",
+          "Load computer tapes and disks, and install software and printer paper or forms."
+        ],
+        "conditions": {"people": "less"}
+      },
+      "profile": {
+        "current_title": "Systems Administrator",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Windows Server", "level": "advanced"},
+          {"name": "Active Directory", "level": "advanced"},
+          {"name": "PowerShell", "level": "advanced"},
+          {"name": "VMware vSphere", "level": "advanced"},
+          {"name": "Backup and disaster recovery", "level": "advanced"},
+          {"name": "Firewall administration", "level": "intermediate"},
+          {"name": "Network troubleshooting", "level": "advanced"},
+          {"name": "Linux administration", "level": "intermediate"}
+        ],
+        "archetype": "",
+        "archetype_description": "",
+        "move_intent": "stay_in_field",
+        "seniority_intent": "move_up",
+        "priority": "learning_growth",
+        "focus_type": null,
+        "manager_match": null,
+        "work_style_tags": []
+      }
+    },
+    {
+      "id": "p26_developer_done_with_code_adjacent",
+      "axes": {"career_status": "employed", "move_intent": "adjacent", "domain": "tech", "skill_density": "rich", "behavioral": "present", "title": "resolvable", "job_zone": 4, "wants": "tasks+conditions", "wants_vs_skills": "opposed"},
+      "note": "Eight years of shipping code and finished with writing it: this developer wants the customer half of the job - requirements, demos, explaining the system to the people paying for it. The wants pull directly against the skill list.",
+      "wants": {
+        "anchor_code": "15-1252.00",
+        "tasks_more": [
+          "Consult with customers or other departments on project status, proposals, or technical issues, such as software system design or maintenance.",
+          "Analyze user needs and software requirements to determine feasibility of design within time and cost constraints.",
+          "Train users to use new or modified equipment.",
+          "Prepare reports or correspondence concerning project specifications, activities, or status."
+        ],
+        "tasks_less": [
+          "Design, develop and modify software systems, using scientific analysis and mathematical models to predict and measure outcomes and consequences of design.",
+          "Modify existing software to correct errors, adapt it to new hardware, or upgrade interfaces and improve performance.",
+          "Develop or direct software system testing or validation procedures, programming, or documentation."
+        ],
+        "conditions": {"people": "more", "public": "more"}
+      },
+      "profile": {
+        "current_title": "Software Developer",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Python", "level": "advanced"},
+          {"name": "JavaScript", "level": "advanced"},
+          {"name": "React", "level": "advanced"},
+          {"name": "REST API design", "level": "advanced"},
+          {"name": "SQL", "level": "advanced"},
+          {"name": "Cloud architecture", "level": "intermediate"},
+          {"name": "Technical presentations", "level": "intermediate"},
+          {"name": "Requirements gathering", "level": "intermediate"}
+        ],
+        "archetype": "Connector",
+        "archetype_description": "You do your best work in a room with the people who will use the thing. You are good at code and you no longer want to spend the day in it; explaining a system to a customer and finding out what they actually need is the part you would keep.",
+        "move_intent": "adjacent",
+        "seniority_intent": "open",
+        "priority": "interesting_work",
+        "focus_type": "Collaborative Charger",
+        "manager_match": "Wants a manager who measures outcomes with customers rather than tickets closed.",
+        "work_style_tags": [
+          "Draws energy from live conversation with users",
+          "Draining: long uninterrupted solo implementation work"
+        ]
+      }
+    },
+    {
+      "id": "p27_emt_adjacent",
+      "axes": {"career_status": "employed", "move_intent": "adjacent", "domain": "healthcare", "skill_density": "moderate", "behavioral": "present", "title": "resolvable", "job_zone": 3, "wants": "tasks+conditions", "wants_vs_skills": "opposed"},
+      "note": "An EMT whose back and sleep cannot take another year on the truck: he wants to stay in patient care but on a schedule, assessing and teaching rather than lifting and driving. The wants pull against the emergency-response skill list.",
+      "wants": {
+        "anchor_code": "29-2042.00",
+        "tasks_more": [
+          "Comfort and reassure patients.",
+          "Attend training classes to maintain certification licensure, keep abreast of new developments in the field, or maintain existing knowledge.",
+          "Observe, record, and report to physician the patient's condition or injury, the treatment provided, and reactions to drugs or treatment."
+        ],
+        "tasks_less": [
+          "Drive mobile intensive care unit to specified location, following instructions from emergency medical dispatcher.",
+          "Immobilize patient for placement on stretcher and ambulance transport, using backboard or other spinal immobilization device.",
+          "Decontaminate ambulance interior following treatment of patient with infectious disease, and report case to proper authorities.",
+          "Perform emergency diagnostic and treatment procedures, such as stomach suction, airway management, or heart monitoring, during ambulance ride."
+        ],
+        "conditions": {"people": "more"}
+      },
+      "profile": {
+        "current_title": "Emergency Medical Technician",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Patient assessment", "level": "advanced"},
+          {"name": "Basic life support", "level": "advanced"},
+          {"name": "Trauma care", "level": "advanced"},
+          {"name": "Triage", "level": "advanced"},
+          {"name": "Medical documentation", "level": "intermediate"},
+          {"name": "Radio communication", "level": "intermediate"}
+        ],
+        "archetype": "Steady Operator",
+        "archetype_description": "You are calm with frightened people and you are the one who explains what is happening while everyone else moves. Seven years of night shifts and lifting have made the schedule and the physical load the reason you are looking, not the patients.",
+        "move_intent": "adjacent",
+        "seniority_intent": "open",
+        "priority": "work_life_balance",
+        "focus_type": "Pressure Igniter",
+        "manager_match": "Wants a manager who staffs honestly and does not solve shortages with mandatory overtime.",
+        "work_style_tags": [
+          "Comfortable with frightened or hostile people",
+          "Draining: unpredictable shift patterns and heavy lifting"
+        ]
+      }
+    },
+    {
+      "id": "p28_photographer_adjacent",
+      "axes": {"career_status": "between_jobs", "move_intent": "adjacent", "domain": "creative", "skill_density": "moderate", "behavioral": "present", "title": "resolvable", "job_zone": 3, "wants": "tasks+conditions", "wants_vs_skills": "opposed"},
+      "note": "A freelance portrait photographer who is good at shooting and done running a one-person business: she wants salaried post-production work and none of the client-hunting, the books or the exhibitions. The wants pull against the shooting skills.",
+      "wants": {
+        "anchor_code": "27-4021.00",
+        "tasks_more": [
+          "Manipulate and enhance scanned or digital images to create desired effects, using computers and specialized software.",
+          "Review sets of photographs to select the best work.",
+          "Transfer photographs to computers for editing, archiving, and electronic transmission.",
+          "Enhance, retouch, and resize photographs and negatives, using airbrushing and other techniques."
+        ],
+        "tasks_less": [
+          "Perform general office duties, such as scheduling appointments, keeping books, and ordering supplies.",
+          "License the use of photographs through stock photo agencies.",
+          "Set up photographic exhibitions for the purpose of displaying and selling work.",
+          "Take pictures of individuals, families, and small groups, either in studio or on location."
+        ],
+        "conditions": {"public": "less", "desk": "more"}
+      },
+      "profile": {
+        "current_title": "Photographer",
+        "career_status": "between_jobs",
+        "skills": [
+          {"name": "Studio lighting", "level": "advanced"},
+          {"name": "Adobe Lightroom", "level": "advanced"},
+          {"name": "Adobe Photoshop", "level": "advanced"},
+          {"name": "Photo retouching", "level": "advanced"},
+          {"name": "Colour grading", "level": "intermediate"},
+          {"name": "Digital asset management", "level": "intermediate"}
+        ],
+        "archetype": "Craft Finisher",
+        "archetype_description": "You will spend an hour on an image nobody else would have reopened. Six years of freelancing taught you that you like the editing and the selection and you do not like finding the next client.",
+        "move_intent": "adjacent",
+        "seniority_intent": "open",
+        "priority": "work_life_balance",
+        "focus_type": "Deep Diver",
+        "manager_match": "Wants a manager who supplies a steady queue of work and one clear reviewer.",
+        "work_style_tags": [
+          "Long uninterrupted editing time",
+          "Draining: selling and self-promotion"
+        ]
+      }
+    },
+    {
+      "id": "p29_hotel_desk_adjacent",
+      "axes": {"career_status": "employed", "move_intent": "adjacent", "domain": "hospitality", "skill_density": "moderate", "behavioral": "present", "title": "resolvable", "job_zone": 2, "wants": "tasks+conditions"},
+      "note": "A hotel front-desk lead who likes the ledger and the rota and not the lobby: she wants the back-office operations half of the hotel and no more guest-facing counter time.",
+      "wants": {
+        "anchor_code": "43-4081.00",
+        "tasks_more": [
+          "Plan, schedule or supervise the work of other employees.",
+          "Perform bookkeeping activities, such as balancing accounts and conducting nightly audits.",
+          "Keep records of room availability and guests' accounts, manually or using computers."
+        ],
+        "tasks_less": [
+          "Greet, register, and assign rooms to guests of hotels or motels.",
+          "Record guest comments or complaints, referring customers to managers as necessary.",
+          "Answer inquiries pertaining to hotel services, guest registration, and travel directions, or make recommendations regarding shopping, dining, or entertainment.",
+          "Clean and maintain lobby and common areas, such as restocking supplies and watering plants."
+        ],
+        "conditions": {"public": "less", "leading": "more"}
+      },
+      "profile": {
+        "current_title": "Hotel Front Desk Supervisor",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Property management systems (Opera)", "level": "advanced"},
+          {"name": "Night audit and account balancing", "level": "advanced"},
+          {"name": "Staff scheduling", "level": "intermediate"},
+          {"name": "Guest complaint resolution", "level": "advanced"},
+          {"name": "Cash handling", "level": "advanced"},
+          {"name": "Microsoft Excel", "level": "intermediate"}
+        ],
+        "archetype": "Steady Operator",
+        "archetype_description": "You are the person who finds the twelve-dollar discrepancy at two in the morning and cannot leave it alone. You are competent with guests and you would rather run the numbers and the rota than stand at the counter for eight hours.",
+        "move_intent": "adjacent",
+        "seniority_intent": "move_up",
+        "priority": "pay_title",
+        "focus_type": "Structured Builder",
+        "manager_match": "Wants a manager who hands over a system to own rather than a shift to cover.",
+        "work_style_tags": [
+          "Prefers standing process to improvisation",
+          "Draining: continuous face-to-face service with strangers"
+        ]
+      }
+    },
+    {
+      "id": "p30_insurance_agent_adjacent",
+      "axes": {"career_status": "employed", "move_intent": "adjacent", "domain": "insurance", "skill_density": "moderate", "behavioral": "absent", "title": "resolvable", "job_zone": 4, "wants": "tasks+conditions", "wants_vs_skills": "opposed"},
+      "note": "An insurance agent who is done with quotas and prospecting and wants the analytical half of insurance - pricing risk and settling claims - instead of selling it. The wants pull against a sales skill list.",
+      "wants": {
+        "anchor_code": "41-3021.00",
+        "tasks_more": [
+          "Monitor insurance claims to ensure they are settled equitably for both the client and the insurer.",
+          "Inspect property, examining its general condition, type of construction, age, and other characteristics, to decide if it is a good insurance risk.",
+          "Confer with clients to obtain and provide information when claims are made on a policy.",
+          "Calculate premiums and establish payment method."
+        ],
+        "tasks_less": [
+          "Seek out new clients and develop clientele by networking to find new customers and generate lists of prospective clients.",
+          "Sell various types of insurance policies to businesses and individuals on behalf of insurance companies, including automobile, fire, life, property, medical and dental insurance, or specialized policies, such as marine, farm/crop, and medical malpractice.",
+          "Develop marketing strategies to compete with other individuals or companies who sell insurance."
+        ],
+        "conditions": {"public": "less"}
+      },
+      "profile": {
+        "current_title": "Insurance Sales Agent",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Property and casualty licensing", "level": "advanced"},
+          {"name": "Risk assessment", "level": "advanced"},
+          {"name": "Policy analysis", "level": "advanced"},
+          {"name": "Premium calculation", "level": "intermediate"},
+          {"name": "Salesforce CRM", "level": "advanced"},
+          {"name": "Cold calling and prospecting", "level": "advanced"},
+          {"name": "Claims coordination", "level": "intermediate"}
+        ],
+        "archetype": "",
+        "archetype_description": "",
+        "move_intent": "adjacent",
+        "seniority_intent": "stay_lateral",
+        "priority": "work_life_balance",
+        "focus_type": null,
+        "manager_match": null,
+        "work_style_tags": []
+      }
+    },
+    {
+      "id": "p31_truck_driver_fresh",
+      "axes": {"career_status": "employed", "move_intent": "fresh_start", "domain": "transport", "skill_density": "moderate", "behavioral": "present", "title": "resolvable", "job_zone": 2, "wants": "tasks+conditions"},
+      "note": "A long-haul driver who is tired of being alone and away four nights a week: he wants to be off the road, home nightly, and around people, using the freight knowledge he already has.",
+      "wants": {
+        "anchor_code": "53-3032.00",
+        "tasks_more": [
+          "Give directions to laborers who are packing goods and moving them onto trailers.",
+          "Inventory and inspect goods to be moved to determine quantities and conditions.",
+          "Obtain receipts or signatures for delivered goods and collect payment for services when required."
+        ],
+        "tasks_less": [
+          "Drive trucks with capacities greater than 13 tons, including tractor-trailer combinations, to transport and deliver products, livestock, or other materials.",
+          "Maintain logs of working hours or of vehicle service or repair status, following applicable state and federal regulations.",
+          "Read and interpret maps to determine vehicle routes."
+        ],
+        "conditions": {"people": "more"}
+      },
+      "profile": {
+        "current_title": "Truck Driver",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Commercial driver licence (Class A)", "level": "advanced"},
+          {"name": "Load securement", "level": "advanced"},
+          {"name": "DOT hours-of-service compliance", "level": "advanced"},
+          {"name": "Route planning", "level": "advanced"},
+          {"name": "Vehicle inspection", "level": "advanced"},
+          {"name": "Freight documentation", "level": "intermediate"}
+        ],
+        "archetype": "Steady Operator",
+        "archetype_description": "You are reliable and you finish what you start without being chased. Nine years of long-haul have made the isolation the problem; you want a day with other people in it and a bed at home.",
+        "move_intent": "fresh_start",
+        "seniority_intent": "open",
+        "priority": "work_life_balance",
+        "focus_type": "Collaborative Charger",
+        "manager_match": "Wants a manager who is reachable in person rather than a dispatch screen.",
+        "work_style_tags": [
+          "Energised by working alongside other people",
+          "Draining: long solitary stretches with no conversation"
+        ]
+      }
+    },
+    {
+      "id": "p32_childcare_worker_fresh",
+      "axes": {"career_status": "between_jobs", "move_intent": "fresh_start", "domain": "childcare", "skill_density": "sparse", "behavioral": "absent", "title": "resolvable", "job_zone": 2, "wants": "tasks+conditions"},
+      "note": "Nine years in a daycare room and out: she wants to leave the physical care and the behaviour management behind but keep working with families, from a desk.",
+      "wants": {
+        "anchor_code": "39-9011.00",
+        "tasks_more": [
+          "Keep records on individual children, including daily observations and information about activities, meals served, and medications administered.",
+          "Communicate with children's parents or guardians about daily activities, behaviors, and related issues.",
+          "Perform general administrative tasks, such as taking attendance, editing internal paperwork, and making phone calls.",
+          "Perform general personnel functions, such as supervision, training, and scheduling."
+        ],
+        "tasks_less": [
+          "Dress children and change diapers.",
+          "Perform housekeeping duties, such as laundry, cleaning, dish washing, and changing of linens.",
+          "Sanitize toys and play equipment.",
+          "Discipline children and recommend or initiate other measures to control behavior, such as caring for own clothing and picking up toys and books."
+        ],
+        "conditions": {"desk": "more", "people": "more"}
+      },
+      "profile": {
+        "current_title": "Childcare Worker",
+        "career_status": "between_jobs",
+        "skills": [
+          {"name": "Child development observation", "level": "advanced"},
+          {"name": "Parent communication", "level": "advanced"},
+          {"name": "Attendance and licensing records", "level": "intermediate"}
+        ],
+        "archetype": "",
+        "archetype_description": "",
+        "move_intent": "fresh_start",
+        "seniority_intent": "move_up",
+        "priority": "pay_title",
+        "focus_type": null,
+        "manager_match": null,
+        "work_style_tags": []
+      }
+    },
+    {
+      "id": "p33_helpdesk_fresh",
+      "axes": {"career_status": "employed", "move_intent": "fresh_start", "domain": "tech", "skill_density": "moderate", "behavioral": "present", "title": "resolvable", "job_zone": 3, "wants": "tasks+conditions", "wants_vs_skills": "opposed"},
+      "note": "A help-desk specialist who wants out of the ticket queue and off the screen entirely: hands-on installation and repair work where the job is visibly finished. The wants pull against the support half of his own skill list.",
+      "wants": {
+        "anchor_code": "15-1232.00",
+        "tasks_more": [
+          "Install and perform minor repairs to hardware, software, or peripheral equipment, following design or installation specifications.",
+          "Set up equipment for employee use, performing or ensuring proper installation of cables, operating systems, or appropriate software.",
+          "Inspect equipment and read order sheets to prepare for delivery to users."
+        ],
+        "tasks_less": [
+          "Answer user inquiries regarding computer software or hardware operation to resolve problems.",
+          "Maintain records of daily data communication transactions, problems and remedial actions taken, or installation activities.",
+          "Oversee the daily performance of computer systems.",
+          "Read technical manuals, confer with users, or conduct computer diagnostics to investigate and resolve problems or to provide technical assistance and support."
+        ],
+        "conditions": {"desk": "less", "people": "less"}
+      },
+      "profile": {
+        "current_title": "IT Support Specialist",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Windows troubleshooting", "level": "advanced"},
+          {"name": "Hardware repair", "level": "advanced"},
+          {"name": "Network cabling", "level": "intermediate"},
+          {"name": "Active Directory", "level": "intermediate"},
+          {"name": "Ticketing systems", "level": "advanced"},
+          {"name": "Imaging and deployment", "level": "advanced"}
+        ],
+        "archetype": "Systems Builder",
+        "archetype_description": "You like a problem you can put your hands on and a result you can point at. Five years of a ticket queue have made the screen and the queue the problem, not the technology.",
+        "move_intent": "fresh_start",
+        "seniority_intent": "open",
+        "priority": "interesting_work",
+        "focus_type": "Deep Diver",
+        "manager_match": "Wants a manager who assigns a job with a finish line rather than a rotating queue.",
+        "work_style_tags": [
+          "Prefers physical, visible work over screen work",
+          "Draining: an open queue that never empties"
+        ]
+      }
+    },
+    {
+      "id": "p34_nursing_assistant_fresh",
+      "axes": {"career_status": "employed", "move_intent": "fresh_start", "domain": "healthcare", "skill_density": "moderate", "behavioral": "present", "title": "resolvable", "job_zone": 3, "wants": "tasks+conditions"},
+      "note": "Eleven years as a CNA and a back that will not take another eleven: she wants to stay in the hospital and keep the patient contact, but leave the lifting and personal care behind.",
+      "wants": {
+        "anchor_code": "31-1131.00",
+        "tasks_more": [
+          "Document or otherwise report observations of patient behavior, complaints, or physical symptoms to nurses.",
+          "Communicate with patients to ascertain feelings or need for assistance or social and emotional support.",
+          "Provide information, such as directions, visiting hours, or patient status information to visitors or callers.",
+          "Gather information from caregivers, nurses, or physicians about patient condition, treatment plans, or appropriate activities."
+        ],
+        "tasks_less": [
+          "Lift or assist others to lift patients to move them on or off beds, examination tables, surgical tables, or stretchers.",
+          "Turn or reposition bedridden patients.",
+          "Undress, wash, and dress patients who are unable to do so for themselves.",
+          "Supply, collect, or empty bedpans."
+        ],
+        "conditions": {"desk": "more"}
+      },
+      "profile": {
+        "current_title": "Certified Nursing Assistant",
+        "career_status": "employed",
+        "skills": [
+          {"name": "Patient observation and reporting", "level": "advanced"},
+          {"name": "Vital signs monitoring", "level": "advanced"},
+          {"name": "Electronic health records", "level": "intermediate"},
+          {"name": "Infection control", "level": "advanced"},
+          {"name": "Patient communication", "level": "advanced"},
+          {"name": "Medical terminology", "level": "intermediate"}
+        ],
+        "archetype": "Caregiver",
+        "archetype_description": "Patients tell you things they do not tell anyone else on the floor, and you write them down accurately. The work you want to keep is the noticing and the reporting; the part your body cannot keep doing is the lifting.",
+        "move_intent": "fresh_start",
+        "seniority_intent": "move_up",
+        "priority": "work_life_balance",
+        "focus_type": "Structured Builder",
+        "manager_match": "Wants a manager who takes a documented concern seriously the first time it is raised.",
+        "work_style_tags": [
+          "Careful and consistent with written records",
+          "Draining: sustained heavy physical handling"
+        ]
+      }
+    },
+    {
+      "id": "p35_customer_service_rep_fresh",
+      "axes": {"career_status": "between_jobs", "move_intent": "fresh_start", "domain": "office", "skill_density": "moderate", "behavioral": "absent", "title": "resolvable", "job_zone": 2, "wants": "tasks+conditions", "wants_vs_skills": "opposed"},
+      "note": "Six years on a utility complaints line: she wants work that is not talking to angry strangers - examining a case, finding the cause and writing it up. The wants pull against the customer-handling skill list.",
+      "wants": {
+        "anchor_code": "43-4051.00",
+        "tasks_more": [
+          "Obtain and examine all relevant information to assess validity of complaints and to determine possible causes, such as extreme weather conditions that could increase utility bills.",
+          "Keep records of customer interactions or transactions, recording details of inquiries, complaints, or comments, as well as actions taken.",
+          "Recommend improvements in products, packaging, shipping, service, or billing methods and procedures to prevent future problems.",
+          "Review insurance policy terms to determine whether a particular loss is covered by insurance."
+        ],
+        "tasks_less": [
+          "Confer with customers by telephone or in person to provide information about products or services, take or enter orders, cancel accounts, or obtain details of complaints.",
+          "Resolve customers' service or billing complaints by performing activities such as exchanging merchandise, refunding money, or adjusting bills.",
+          "Solicit sales of new or additional services or products.",
+          "Contact customers to respond to inquiries or to notify them of claim investigation results or any planned adjustments."
+        ],
+        "conditions": {"public": "less", "people": "less", "desk": "more"}
+      },
+      "profile": {
+        "current_title": "Customer Service Representative",
+        "career_status": "between_jobs",
+        "skills": [
+          {"name": "Complaint investigation", "level": "advanced"},
+          {"name": "Billing systems", "level": "advanced"},
+          {"name": "Salesforce CRM", "level": "advanced"},
+          {"name": "Microsoft Excel", "level": "intermediate"},
+          {"name": "Written communication", "level": "advanced"},
+          {"name": "Data entry", "level": "advanced"}
+        ],
+        "archetype": "",
+        "archetype_description": "",
+        "move_intent": "fresh_start",
+        "seniority_intent": "stay_lateral",
+        "priority": "work_life_balance",
         "focus_type": null,
         "manager_match": null,
         "work_style_tags": []

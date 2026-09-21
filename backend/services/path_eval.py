@@ -46,6 +46,16 @@ budget, and two agents spending it at once is how both fail.  Run
 ``python -m backend.services.path_eval cost`` for the current estimate without
 making a single call.
 
+THE `wants` BLOCK (W-2)
+-----------------------
+A fixture profile may carry an optional ``wants`` block: the O*NET task
+statements of the user's OWN occupation that they want more or less of, plus a
+few coarse work conditions.  It is a sibling of ``profile`` and is deliberately
+NOT part of it -- :func:`build_user_profile` never passes it to
+``path_scoring.UserProfile``, so every scorer written before W-2 runs against
+these profiles unchanged and ignores the block entirely.  A wants-aware scorer
+reads :attr:`EvalProfile.wants`.
+
 READING THE NUMBERS
 -------------------
 See :func:`evaluate` and the ``_meta`` block in
@@ -87,6 +97,12 @@ PROFILES_PATH: Path = FIXTURE_DIR / "profiles.json"
 LABELS_PATH: Path = FIXTURE_DIR / "labels.json"
 OCCUPATIONS_PATH: Path = FIXTURE_DIR / "onet_occupations.json"
 
+#: W-2.  The task statements of the occupations the `wants` blocks anchor on,
+#: copied verbatim from the F-1 corpus documents.  Small and committed on
+#: purpose: the corpus artifact is not in the repository, so without this the
+#: suite could not check that a wants task is a real task of a real occupation.
+WANTS_SNAPSHOT_PATH: Path = FIXTURE_DIR / "wants_tasks_snapshot.json"
+
 #: The scorer shows ten results (`path_scoring._TOP_N`), so ten is what gets
 #: measured.  Kept as a parameter everywhere so a different serving depth can
 #: be evaluated without editing the harness.
@@ -122,10 +138,18 @@ class EvalProfile:
     #: returns nothing.  Such profiles are reported separately and never folded
     #: into the aggregate, so a known-empty result cannot look like a zero.
     expect_empty_today: bool = False
+    #: W-2's optional wants block, or None for the twenty frozen F-2 profiles.
+    #: Keys: `anchor_code`, `tasks_more`, `tasks_less`, `conditions`.  Never
+    #: reaches `UserProfile` -- see :func:`build_user_profile`.
+    wants: dict[str, Any] | None = None
 
     @property
     def is_degenerate(self) -> bool:
         return self.expect_empty_today
+
+    @property
+    def has_wants(self) -> bool:
+        return bool(self.wants)
 
 
 @dataclass(frozen=True)
@@ -229,6 +253,7 @@ def load_profiles(path: Path = PROFILES_PATH) -> list[EvalProfile]:
             note=entry.get("note", ""),
             raw_profile=entry["profile"],
             expect_empty_today=bool(entry.get("expect_empty_today", False)),
+            wants=entry.get("wants"),
         )
         for entry in data["profiles"]
     ]
@@ -255,6 +280,25 @@ def load_labels(path: Path = LABELS_PATH) -> dict[str, list[Label]]:
 def load_occupation_titles(path: Path = OCCUPATIONS_PATH) -> dict[str, str]:
     """The O*NET code -> title snapshot used to validate labels."""
     return dict(_read_json(path)["occupations"])
+
+
+def load_wants_tasks(path: Path = WANTS_SNAPSHOT_PATH) -> dict[str, dict[str, Any]]:
+    """The W-2 snapshot: O*NET code -> {"title", "tasks"} for the anchors.
+
+    Only the occupations the `wants` blocks anchor on are in here.  It exists so
+    the suite can prove a wants task is a verbatim task of the user's own
+    occupation without reading the 6 MB corpus artifact, which is not in the
+    repository.
+    """
+    return dict(_read_json(path)["occupations"])
+
+
+def profiles_with_wants(
+    profiles: Sequence[EvalProfile] | None = None,
+) -> list[EvalProfile]:
+    """The subset carrying a `wants` block -- W-2's fifteen, today."""
+    profiles = list(profiles if profiles is not None else load_profiles())
+    return [profile for profile in profiles if profile.has_wants]
 
 
 def low_confidence_labels(
@@ -285,6 +329,12 @@ def build_user_profile(eval_profile: EvalProfile) -> Any:
     Imported lazily so that :func:`evaluate` and the whole reporting half of
     this module stay importable without numpy, an OpenAI key, or an O*NET key.
     A metric change should never need the scorer's dependency tree.
+
+    Only ``raw_profile`` is used.  W-2's ``wants`` block is a sibling of it in
+    the fixture and is deliberately not forwarded: `UserProfile` has no such
+    field, so passing it would break every scorer, and the whole point of the
+    additive schema is that the twenty pre-W-2 profiles and the wants-blind
+    scorer keep working untouched.
     """
     from backend.services.path_scoring import UserProfile, UserSkill
 
