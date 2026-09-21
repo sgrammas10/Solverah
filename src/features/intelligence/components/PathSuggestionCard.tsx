@@ -66,6 +66,10 @@ export default function PathSuggestionCard({
   const [showTooltip, setShowTooltip] = useState(false);
 
   const progressionLine = buildProgressionLine(careerStatus, currentTitle, suggestion.title);
+  // Optional on the wire: a payload cached before W-4 shipped carries no
+  // `reasons`, and a user who has stated no wants gets an empty list. Both mean
+  // the same thing and render the same way -- nothing.
+  const reasons = suggestion.reasons ?? [];
 
   // The opening affordance is a button around the card's *body*, not an onClick
   // on the card itself. The feedback controls and the disabled CTA are
@@ -82,6 +86,27 @@ export default function PathSuggestionCard({
       </div>
 
       <p className="text-sm text-ink-primary leading-relaxed">{suggestion.why_text}</p>
+
+      {/* W-5: the reason line, where the percentage used to be (§8.5, ⚑12).
+          At most two short phrases saying what is distinctive about THIS card
+          against the user's own job, built only when they have said what should
+          change. Absent or empty is the common case and renders nothing at all
+          -- no heading, no placeholder, no "no reasons yet" -- because a card
+          with nothing distinctive to say about it still has its why-text.
+
+          Words only, and never a graded one: W-1's correction was that "Strong
+          overlap" is a percentage in a costume. These phrases are absolute or
+          comparative statements about the work ("Among the most people-facing
+          jobs"), never a verdict on the user. */}
+      {reasons.length > 0 && (
+        <ul data-reasons className="space-y-1">
+          {reasons.map((reason) => (
+            <li key={reason} className="text-xs text-ink-secondary leading-relaxed">
+              {reason}
+            </li>
+          ))}
+        </ul>
+      )}
 
       {suggestion.profile_dimensions.length > 0 && (
         <div className="flex flex-wrap gap-2">

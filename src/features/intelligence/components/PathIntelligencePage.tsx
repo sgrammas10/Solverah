@@ -35,6 +35,7 @@ import {
 import PathSuggestionList from "./PathSuggestionList";
 import PathPreferencesForm from "./PathPreferencesForm";
 import PathFitPanel from "./PathFitPanel";
+import PathWantsPanel from "./PathWantsPanel";
 import SkillProficiencyModal from "./SkillProficiencyModal";
 
 // ---------------------------------------------------------------------------
@@ -457,6 +458,21 @@ export default function PathIntelligencePage() {
           {/* Preferences intake */}
           {fetchState === "needs_preferences" && (
             <PathPreferencesForm onComplete={() => fetchSuggestions()} />
+          )}
+
+          {/* W-5: what should change about the job they have now.
+              Above the results and never in front of them: it renders while the
+              job is still scoring as well as after it lands, so pressing
+              "Update my suggestions" does not make the control that is working
+              disappear behind its own skeletons. It renders nothing at all for
+              a user with no current job, and nothing while its own request is
+              in flight or if that request fails — the page below is unaffected
+              either way (design doc §8.3, ⚑7). */}
+          {(fetchState === "loading" || fetchState === "success") && (
+            <PathWantsPanel
+              onSaved={fetchSuggestions}
+              rescoring={fetchState === "loading"}
+            />
           )}
 
           {/* Loading */}

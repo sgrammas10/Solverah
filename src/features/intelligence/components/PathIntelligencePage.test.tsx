@@ -592,6 +592,111 @@ describe("PathIntelligencePage - the deep fit on click", () => {
   });
 });
 
+// ─── W-5: the wants panel, which must never stand in front of the results ──
+//
+// `PathWantsPanel` is NOT mocked, for the reason the feedback hooks are not:
+// the claim being made here is that the panel cannot delay, block or break the
+// list, and a stub of the panel cannot make that claim about the real one.
+
+const WANTS_PANEL = {
+  status: "ok",
+  anchor: { onet_code: "15-1252.00", title: "Software Developers" },
+  tasks: [{ key: "t_a1b2c3d4e5f6", label: "Write and test code", verdict: null }],
+  conditions: [{ axis: "people", label: "Time with other people", verdict: null }],
+};
+
+/** GET the panel, accept any PUT, and hand everything else back an empty body. */
+function serveWants(panel: unknown = WANTS_PANEL) {
+  mocks.fetchWithAuth.mockImplementation((path: string, init?: RequestInit) => {
+    if (path !== "/me/path-wants") return Promise.resolve({});
+    if ((init?.method ?? "GET") === "GET") {
+      return panel instanceof Error ? Promise.reject(panel) : Promise.resolve(panel);
+    }
+    return Promise.resolve(panel);
+  });
+}
+
+function wantsToggle(): HTMLElement | null {
+  return screen.queryByRole("button", { name: /what should change about your job/i });
+}
+
+describe("PathIntelligencePage - the wants panel never blocks the results", () => {
+  it("shows the suggestions while the panel's own request is still in flight", async () => {
+    suggestionsSucceedWith([CARD_A, CARD_B]);
+    mocks.fetchWithAuth.mockImplementation(() => new Promise(() => {}));
+
+    renderPage();
+
+    expect(cardTitles()).toEqual(["Marketing Managers", "Software Developers"]);
+    expect(wantsToggle()).toBeNull();
+  });
+
+  it("shows the suggestions when the panel's request fails outright", async () => {
+    suggestionsSucceedWith([CARD_A, CARD_B]);
+    serveWants(new Error("corpus_unavailable"));
+
+    renderPage();
+
+    await waitFor(() =>
+      expect(mocks.fetchWithAuth).toHaveBeenCalledWith(
+        "/me/path-wants",
+        expect.objectContaining({ method: "GET" })
+      )
+    );
+    expect(cardTitles()).toEqual(["Marketing Managers", "Software Developers"]);
+    // Silent: no alert, no empty panel, no retry link for something the user
+    // never asked for.
+    expect(wantsToggle()).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("renders the panel above the suggestion list once it lands", async () => {
+    suggestionsSucceedWith([CARD_A, CARD_B]);
+    serveWants();
+
+    renderPage();
+
+    const control = await screen.findByRole("button", {
+      name: /what should change about your job/i,
+    });
+    const firstCard = document.querySelector("[data-onet-code]")!;
+    expect(
+      control.compareDocumentPosition(firstCard) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(cardTitles()).toEqual(["Marketing Managers", "Software Developers"]);
+  });
+
+  it("re-scores through the page's existing job flow after a save", async () => {
+    suggestionsSucceedWith([CARD_A, CARD_B]);
+    serveWants();
+
+    renderPage();
+    const control = await screen.findByRole("button", {
+      name: /what should change about your job/i,
+    });
+    // One enqueue so far: the mount.
+    expect(mocks.startSuggestionsMutate).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(control);
+    fireEvent.click(
+      document.querySelector<HTMLInputElement>(
+        'input[name="want-condition-people"][value="more"]'
+      )!
+    );
+    fireEvent.click(document.querySelector<HTMLElement>("[data-wants-save]")!);
+
+    await waitFor(() =>
+      expect(mocks.fetchWithAuth).toHaveBeenCalledWith(
+        "/me/path-wants",
+        expect.objectContaining({ method: "PUT" })
+      )
+    );
+    // The same enqueue-and-poll the page runs for a cache miss -- not a second
+    // job flow living in the panel.
+    await waitFor(() => expect(mocks.startSuggestionsMutate).toHaveBeenCalledTimes(2));
+  });
+});
+
 describe("PathIntelligencePage - judgements that outlive a page load", () => {
   it("lights up the verdicts the server says are standing", () => {
     // A returning user's list was already shaped by these. Showing it with no

@@ -75,6 +75,72 @@ describe("PathSuggestionCard - field rendering", () => {
 });
 
 // ---------------------------------------------------------------------------
+// W-5 — the reason line, where the percentage used to be
+// ---------------------------------------------------------------------------
+
+describe("PathSuggestionCard - reasons", () => {
+  function renderWithReasons(reasons: string[] | undefined) {
+    return render(
+      <PathSuggestionCard
+        suggestion={{ ...BASE_SUGGESTION, reasons }}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+      />
+    );
+  }
+
+  it("renders both reasons when the card carries two", () => {
+    renderWithReasons([
+      "Among the most people-facing jobs",
+      "Less time at a desk than your current job",
+    ]);
+    expect(screen.getByText("Among the most people-facing jobs")).toBeInTheDocument();
+    expect(
+      screen.getByText("Less time at a desk than your current job")
+    ).toBeInTheDocument();
+    expect(document.querySelectorAll("[data-reasons] li")).toHaveLength(2);
+  });
+
+  it("renders one reason when the card carries one", () => {
+    renderWithReasons(["Very little dealing with the public"]);
+    expect(document.querySelectorAll("[data-reasons] li")).toHaveLength(1);
+  });
+
+  it("renders nothing at all for an empty list", () => {
+    // No heading, no placeholder, no "nothing distinctive here". A card with
+    // nothing to say about it still has its why-text.
+    renderWithReasons([]);
+    expect(document.querySelector("[data-reasons]")).toBeNull();
+  });
+
+  it("renders nothing at all when the field is absent", () => {
+    // A payload cached before W-4 shipped, and a user who has stated no wants.
+    renderWithReasons(undefined);
+    expect(document.querySelector("[data-reasons]")).toBeNull();
+  });
+
+  it("still shows no percentage, number or bar with reasons present", () => {
+    // W-1's rule survives the new line: these are phrases about the work, never
+    // a grade on the user.
+    const { container } = renderWithReasons([
+      "Among the most people-facing jobs",
+      "More leading than your current job",
+    ]);
+    expect(screen.queryByText(/%/)).toBeNull();
+    expect(container.querySelector('[style*="width"]')).toBeNull();
+    expect(container.textContent).not.toMatch(/\d+\s*%/);
+  });
+
+  it("keeps the why-text and the dimension tags alongside the reasons", () => {
+    renderWithReasons(["Among the most people-facing jobs"]);
+    expect(
+      screen.getByText("Your skills align well with marketing leadership roles.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Matches your Creative Drive archetype")).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Progression line variants
 // ---------------------------------------------------------------------------
 

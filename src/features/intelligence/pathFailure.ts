@@ -9,7 +9,12 @@
  * Lifted out of `PathIntelligencePage` for F-6. It was a module-private function
  * there, which was right while one screen used it; three call sites is where a
  * private copy starts drifting.
+ *
+ * W-5 adds the wants panel's vocabulary at the bottom. It is the deep fit's
+ * shape, not the page's: a panel that must never take the screen (design doc
+ * §8.3) needs copy and a retryable flag, not a `FetchState`.
  */
+import { ApiError } from "../../shared/api/apiError";
 
 /**
  * `loading` is the job's pending state and four others are its terminal ones;
@@ -86,4 +91,58 @@ export function pathFitMessage(message: string): { text: string; retryable: bool
         retryable: true,
       };
   }
+}
+
+/**
+ * True when a wants save was refused because the panel on screen is about a job
+ * this user no longer holds — `422`, `errors[].code === "not_offered"`, and
+ * **nothing was written**.
+ *
+ * Branched on by code, never by the prose in `error.message`: the server sends
+ * a paragraph of `detail` there and the wording is not a contract.
+ * `isFirstJobRefusal` in `useSituationReport` is the precedent.
+ *
+ * The realistic way to reach it is two tabs — the panel was built from the job
+ * the user held when the page loaded, and they changed their job somewhere
+ * else since. It is not something the user did wrong on this screen, so the
+ * answer is to reload the panel, not to correct them.
+ */
+export function isStalePanel(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.fieldErrors.some((fieldError) => fieldError.code === "not_offered")
+  );
+}
+
+/**
+ * Copy for a refused wants save, and whether pressing the button again could
+ * ever work.
+ *
+ * Julie owns the wording; best guesses, revised on the built product. What is
+ * not a wording question: a stale panel is `retryable: false` because the body
+ * that was refused would be refused identically a second time, and the 429 says
+ * "in a minute" because the GET and the PUT share one 20/min bucket.
+ */
+export function pathWantsMessage(error: unknown): { text: string; retryable: boolean } {
+  if (isStalePanel(error)) {
+    return {
+      text: "Your job details changed, so we've reloaded this. Have another look and press the button again.",
+      retryable: false,
+    };
+  }
+  const status = error instanceof ApiError ? error.status : 0;
+  const message = error instanceof Error ? error.message : "";
+  if (status === 429) {
+    return {
+      text: "That's a lot of changes at once. Give it a minute and try again.",
+      retryable: true,
+    };
+  }
+  if (message === "corpus_unavailable" || status === 503) {
+    return {
+      text: "We couldn't reach the occupation data just now. Give it a moment and try again.",
+      retryable: true,
+    };
+  }
+  return { text: "We couldn't save that just now. Try again in a moment.", retryable: true };
 }

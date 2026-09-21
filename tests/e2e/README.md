@@ -144,6 +144,42 @@ an "interesting" tap leaves the card in place, and a "too similar" tap removes
 it *and changes which occupations are retrieved at all* — so the page must be
 read again between taps rather than assumed.
 
+## `path_wants.spec.ts` — Workstream W's real-stack flow
+
+W's own flow, beside F's rather than inside it: panel → save → re-ranked page →
+tap → deep fit → reload → clear, **asserting the database at every step**. It
+needs everything `path_intelligence.spec.ts` needs, plus the W-4 migration
+(`flask db upgrade`, revision `20260921_path_wants`) and the two W-3 sidecars
+(`*.tasks.json`, `*.experience.json`) beside the corpus — a corpus directory
+without them makes the panel's task half `unavailable` and the flow untestable.
+
+```
+E2E_PGDATABASE=solverah_w7 E2E_CORPUS_DIR=<corpus dir> \
+  npx playwright test tests/e2e/path_wants.spec.ts
+```
+
+Two things it does that the other files do not, both worth copying:
+
+- **It cross-checks the panel against the artifact.** The panel's task labels
+  and the `item_text` the `PUT` stores are compared with the tasks sidecar the
+  API itself reads, so "the row keeps the original O*NET statement, never the
+  plain-words label" (design doc §8.7) is checked against the file rather than
+  against the response that was just written.
+- **It waits on `aria-busy`, not on prose and not on the cards.** A click
+  returns before React re-renders, so every "has it finished?" assertion passes
+  instantly against the pre-click DOM and the step then reads a database the
+  save has not reached yet. That cost this file a run; the save button's
+  `aria-busy` is the honest gate, and it is the same one for "Clear my answers".
+
+It **skips** when `psql`, the lane database, the `path_wants` table or the tasks
+sidecar are absent. A Flask that is down is deliberately not part of that check,
+for the reason `real_stack.spec.ts` gives.
+
+`reasons` is asserted on the **wire** unconditionally (present, an array, on
+every card) and on the **screen** only when the payload carries one: W-4 drops
+any phrase true of ≥70% of a page's cards from all of them, so a page with no
+reason line is correct behaviour, not a regression. The run logs which happened.
+
 ## Not a CI gate
 
 Deliberately, and it is not an oversight. Browser downloads (~115 MB) and E2E
