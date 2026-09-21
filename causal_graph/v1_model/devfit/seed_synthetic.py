@@ -67,6 +67,16 @@ import numpy as np
 
 SYNTHETIC_EMAIL_DOMAIN = "@synthetic.solverah.invalid"
 
+#: What every synthetic user is written with: a VALID bcrypt hash of 32 random bytes
+#: that were discarded the moment this string was made, so no password matches it.
+#: It has to be valid bcrypt, not a readable placeholder -- the real login route
+#: hands the stored hash to bcrypt, and a malformed one raises "Invalid salt" and
+#: answers 500 instead of refusing (found by oversight, 2026-09-21). One shared
+#: constant rather than a fresh hash per user: 1200 bcrypt rounds is minutes of
+#: seeding for rows that must not be able to sign in anyway. `make_loginable`
+#: replaces it for the one user someone wants to look at in the app.
+UNUSABLE_PASSWORD_HASH = "$2b$12$WPLW98iV9vaUINY/J2STn.aq5BeFoK0KI/rpe5jioVzP7J6wcREga"
+
 DIMS = ("autonomy", "pace", "collaboration", "feedback", "innovation", "decision")
 
 #: Planted deviations from the live priors' means. Everything else is the
@@ -480,7 +490,7 @@ class SyntheticCohort:
         import environment_report_store
         from model import User
 
-        user = User(email=email, password_hash="not-a-real-hash")
+        user = User(email=email, password_hash=UNUSABLE_PASSWORD_HASH)
         db.session.add(user)
         db.session.flush()
 

@@ -21,7 +21,10 @@ Two concrete hazards, both of which have bitten this repo before:
 
 THE THREE CONDITIONS, all of which must hold:
 
-  * host is `localhost` or `127.0.0.1` -- a socket that cannot leave this machine
+  * host is `localhost` or `127.0.0.1` -- a socket that cannot leave this machine.
+    An EMPTY host is refused (libpq would read PGHOST), and so is any query
+    parameter outside SAFE_QUERY_KEYS (the driver lets `?host=` / `?dbname=` /
+    `?hostaddr=` / `?service=` override what the URL visibly says)
   * database name starts with `solverah_modeldev` -- a name nothing else uses, so
     a right-host-wrong-database mistake still refuses
   * `APP_ENV` is not `production`
@@ -33,10 +36,24 @@ feature. There is no override, because an override is what gets typed at 2am.
 from __future__ import annotations
 
 import os
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 #: The only hostnames that cannot reach another machine.
-LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", ""})
+LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+# NOT the empty host. `postgresql:///db` makes libpq take its host from the PGHOST
+# environment variable (or a service file), so an empty host is "wherever the
+# environment points", which is exactly what this guard exists to not trust.
+
+#: The ONLY query parameters a guarded URL may carry. An allowlist, because the
+#: dangerous ones are open-ended: SQLAlchemy merges the query string into the
+#: driver's connect arguments AFTER the URL's own host and database, so
+#: `?host=prod.example.com`, `?hostaddr=10.0.0.9`, `?dbname=solverah_postgres` and
+#: `?service=prod` each redirect a URL whose visible host and path look perfectly
+#: local (verified 2026-09-21 against PGDialect_psycopg2.create_connect_args). None
+#: of these can change WHERE the connection goes.
+SAFE_QUERY_KEYS = frozenset(
+    {"sslmode", "application_name", "connect_timeout", "client_encoding"}
+)
 
 #: Every database this harness may touch starts with this. `solverah_modeldev`
 #: itself is the pipeline database; the prefix leaves room for
@@ -85,6 +102,18 @@ def assert_local_dev_database(url: str, *, app_env: str | None = None) -> str:
         raise UnsafeDatabaseError(
             "APP_ENV=production -- refusing to run a dev harness in a production "
             "environment regardless of which database the URL names"
+        )
+
+    redirecting = sorted(
+        key for key, _ in parse_qsl(urlsplit(url).query, keep_blank_values=True)
+        if key.lower() not in SAFE_QUERY_KEYS
+    )
+    if redirecting:
+        raise UnsafeDatabaseError(
+            "database URL carries query parameter(s) %s -- the driver merges the "
+            "query string over the URL's own host and database, so these can send "
+            "the connection somewhere the visible host and path do not name. Only "
+            "%s are allowed here." % (redirecting, sorted(SAFE_QUERY_KEYS))
         )
 
     host = _host(url)

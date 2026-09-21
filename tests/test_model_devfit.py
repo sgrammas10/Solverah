@@ -126,6 +126,48 @@ def test_credentials_that_look_like_a_local_host_do_not_fool_it():
         )
 
 
+@pytest.mark.parametrize("url", [
+    "postgresql://solverah:x@localhost:5433/solverah_modeldev?host=prod.example.com",
+    "postgresql://solverah:x@localhost:5433/solverah_modeldev?hostaddr=10.0.0.9",
+    "postgresql://solverah:x@localhost:5433/solverah_modeldev?dbname=solverah_postgres",
+    "postgresql://solverah:x@localhost:5433/solverah_modeldev?service=prod",
+    "postgresql://solverah:x@localhost:5433/solverah_modeldev?HOST=prod.example.com",
+    "postgresql://solverah:x@localhost:5433/solverah_modeldev?sslmode=disable&host=prod.example.com",
+    "postgresql://solverah:x@/solverah_modeldev?host=prod.example.com",
+])
+def test_a_query_string_cannot_redirect_a_local_looking_url(url):
+    """Oversight regression, 2026-09-21: every one of these was ACCEPTED. The
+    driver merges the query string over the URL's own host and database, so the
+    visible host and path said `localhost/solverah_modeldev` while the connection
+    went wherever the query named."""
+    with pytest.raises(guard.UnsafeDatabaseError):
+        guard.assert_local_dev_database(url, app_env="testing")
+
+
+def test_the_guard_agrees_with_what_the_driver_would_actually_dial():
+    """The property the cases above are instances of, checked against SQLAlchemy
+    itself rather than against this file's idea of it: for a URL the guard ACCEPTS,
+    the driver's connect arguments name a local host and a model-dev database, and
+    carry nothing else that routes a connection."""
+    from sqlalchemy.dialects.postgresql.psycopg2 import PGDialect_psycopg2
+    from sqlalchemy.engine import make_url
+
+    for url in (LOCAL_OK, "postgresql://u:p@127.0.0.1/solverah_modeldev_b?sslmode=disable"):
+        guard.assert_local_dev_database(url, app_env="testing")
+        _, opts = PGDialect_psycopg2().create_connect_args(make_url(url))
+        assert str(opts["host"]).lower() in ("localhost", "127.0.0.1")
+        assert str(opts.get("dbname", opts.get("database"))).startswith("solverah_modeldev")
+        assert not {"hostaddr", "service"} & set(opts)
+
+
+def test_an_empty_host_is_refused():
+    """`postgresql:///db` hands the host to libpq, which reads PGHOST -- so an
+    empty host means 'wherever the environment points', not 'this machine'."""
+    with pytest.raises(guard.UnsafeDatabaseError) as exc:
+        guard.assert_local_dev_database("postgresql:///solverah_modeldev", app_env="testing")
+    assert "not local" in str(exc.value)
+
+
 def test_an_empty_or_missing_url_is_refused_rather_than_defaulted(monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
     with pytest.raises(guard.UnsafeDatabaseError) as exc:
@@ -573,3 +615,58 @@ def test_the_converted_weights_actually_rank(client):
     assert sorted(order) == sorted(DIMS)
     # Equal gaps, so the order is the weights' own -- not DIMENSIONS order.
     assert order != list(situation.DIMENSIONS)
+
+
+# ---------------------------------------------------------------------------
+# make_loginable -- one synthetic row becomes an account, and only that
+# ---------------------------------------------------------------------------
+
+def test_make_loginable_refuses_a_real_looking_email():
+    from causal_graph.v1_model.devfit import make_loginable as ml
+
+    for email in ("person@example.com", "", "x@synthetic.solverah.invalid.evil.com"):
+        with pytest.raises(ml.NotSyntheticError):
+            ml.assert_synthetic_email(email)
+
+
+def test_a_synthetic_user_can_sign_in_only_after_make_loginable(client):
+    """Through the real login route, not a mocked hasher: before, the seeded
+    placeholder hash and unconfirmed email keep the row from being an account;
+    after, the same credentials sign in."""
+    from app import app
+    from causal_graph.v1_model.devfit import make_loginable as ml
+    from model import User, db
+    from solverah.extensions import bcrypt
+
+    email = "synth-99999" + seed_synthetic.SYNTHETIC_EMAIL_DOMAIN
+    with app.app_context():
+        db.session.add(User(email=email, password_hash=seed_synthetic.UNUSABLE_PASSWORD_HASH))
+        db.session.commit()
+
+    before = client.post("/api/v1/auth/login", json={"email": email, "password": "Devpass1!"})
+    # 401, not 500: the seeded hash is valid bcrypt that nothing matches. A readable
+    # placeholder here made the real route raise "Invalid salt" instead of refusing.
+    assert before.status_code == 401, before.get_json()
+
+    with app.app_context():
+        user = User.query.filter(User.email == email).first()
+        ml.make_loginable(db, user, "Devpass1!", bcrypt.generate_password_hash)
+        db.session.commit()
+
+    after = client.post("/api/v1/auth/login", json={"email": email, "password": "Devpass1!"})
+    assert after.status_code == 200, after.get_json()
+
+
+def test_make_loginable_will_not_touch_a_non_synthetic_row(client, seed_user):
+    from app import app
+    from causal_graph.v1_model.devfit import make_loginable as ml
+    from model import User, db
+    from solverah.extensions import bcrypt
+
+    seed_user(1)
+    with app.app_context():
+        user = User.query.first()
+        original = user.password_hash
+        with pytest.raises(ml.NotSyntheticError):
+            ml.make_loginable(db, user, "Devpass1!", bcrypt.generate_password_hash)
+        assert user.password_hash == original
