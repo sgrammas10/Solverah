@@ -218,6 +218,28 @@ one is a deploy defect and must surface as one.
 magnitude of any kind reaches the wire — D-15 holds exactly as written above.
 Order and the existing `rank` field are the entire change.
 
+### The Situation Report's weight source is a setting, defaulting to priors
+Sebastian, 2026-09-21.
+
+`SOLVERAH_MODEL_WEIGHTS_SOURCE` chooses where the ranking weights above come
+from: `priors` (the default, and what unset also means) reads
+`causal_graph/v1_model/priors.yaml` exactly as described in the entry above,
+unchanged. `run` reads the latest `model_run` / `weight_posterior` row instead,
+through `match_scoring.load_run_weights`.
+
+**The default stays `priors` because production is unseeded.** Nothing writes
+a `model_run` row in production today, so leaving the default as-is means this
+change carries no new deploy dependency — prod's behavior does not move. `run`
+mode exists so a developer with a local fitted run can see it rank the report
+without a code change, ahead of the real fit that will eventually make `run`
+the production default.
+
+**No fallback.** Set to `run` with no `model_run` present, or one whose weight
+rows do not match the active config, this raises rather than silently serving
+the priors file — the same D-07 rule the entry above already applies to a
+missing priors file. A typo in the value is treated as an error too, never as
+`priors`.
+
 ### Manager Decoder is green-lit, and its playbook is template-first
 Sebastian, 2026-09-08; signed 2026-09-10, as drafted.
 
