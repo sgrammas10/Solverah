@@ -87,10 +87,12 @@ describe("PathFitPanel - the analysis", () => {
     expect(screen.getByText("SQL")).toBeInTheDocument();
   });
 
-  it("names each gap with its importance", () => {
+  it("names each gap, unnumbered, in the order the API sent them", () => {
     renderPanel({ fit: FIT });
     expect(screen.getByText("Market research")).toBeInTheDocument();
-    expect(screen.getByText("82")).toBeInTheDocument();
+    expect(screen.getByText("Budgeting")).toBeInTheDocument();
+    expect(screen.queryByText("82")).toBeNull();
+    expect(screen.queryByText("61")).toBeNull();
   });
 
   it("renders the tasks and the tech stack", () => {
@@ -99,9 +101,18 @@ describe("PathFitPanel - the analysis", () => {
     expect(screen.getByText("Salesforce")).toBeInTheDocument();
   });
 
-  it("renders the fit score as a rounded percentage", () => {
+  it("renders no score at all for the four fit dimensions -- not a number, not a bar, not a word standing in for one (§8.5, W-1)", () => {
     renderPanel({ fit: FIT });
-    expect(screen.getByText("71%")).toBeInTheDocument();
+    // No "Overall fit" section, no percentage anywhere, no bar, and none of
+    // the four score rows or the band words a percentage could hide behind.
+    expect(screen.queryByText("Overall fit")).toBeNull();
+    expect(screen.queryByText("Overall")).toBeNull();
+    expect(screen.queryByText("What the role covers")).toBeNull();
+    expect(screen.queryByText("How you like to work")).toBeNull();
+    expect(screen.queryByText(/overlap/i)).toBeNull();
+    expect(screen.queryByText(/strong|good|some|little/i)).toBeNull();
+    expect(screen.queryByText(/%/)).toBeNull();
+    expect(document.body.querySelector('[style*="width"]')).toBeNull();
   });
 
   it("renders a zone with no occupation value without crashing", () => {

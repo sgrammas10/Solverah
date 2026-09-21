@@ -66,7 +66,6 @@ export default function PathSuggestionCard({
   const [showTooltip, setShowTooltip] = useState(false);
 
   const progressionLine = buildProgressionLine(careerStatus, currentTitle, suggestion.title);
-  const scorePercent = Math.round(suggestion.match_score * 100);
 
   // The opening affordance is a button around the card's *body*, not an onClick
   // on the card itself. The feedback controls and the disabled CTA are
@@ -96,19 +95,6 @@ export default function PathSuggestionCard({
           ))}
         </div>
       )}
-
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs text-ink-tertiary">Match score</span>
-          <span className="text-xs font-semibold text-forest-mid">{scorePercent}%</span>
-        </div>
-        <div className="w-full h-1.5 bg-cream-muted rounded-full overflow-hidden">
-          <div
-            className="h-full bg-forest-light rounded-full"
-            style={{ width: `${scorePercent}%` }}
-          />
-        </div>
-      </div>
     </>
   );
 

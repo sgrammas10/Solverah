@@ -2,9 +2,18 @@
  * PathFitPanel — the Tier-2 deep fit for one occupation, opened by a card click.
  *
  * F-5 built `POST /me/path-fit/{onet_code}` and deliberately left it unwired;
- * this is the wiring (BUILD_PLAN F-6). Everything rendered here is a number or a
- * list the API returns directly — nothing is LLM-written, and `narrative` is
+ * this is the wiring (BUILD_PLAN F-6). Everything rendered here comes straight
+ * from what the API returns — nothing is LLM-written, and `narrative` is
  * always null for now, so there is no placeholder for it.
+ *
+ * ── NO SCORE, NOT EVEN IN WORDS (§8.5, W-1) ─────────────────────────────────
+ *
+ * `fit_score`, `skills_score`, `coverage_score` and `work_style_score` stay on
+ * the wire — the contract does not change — but none of the four is rendered,
+ * as a number, a bar, or a word standing in for one ("Strong overlap" is still
+ * a grade put on the user). The panel's content is the sections that need no
+ * score to make sense: Training, Skills you already have, Worth picking up,
+ * What you'd be doing, Tools people use.
  *
  * ── THE SPINNER IS SIZED TO 850 ms, NOT TO 12 ms ───────────────────────────
  *
@@ -41,24 +50,6 @@ export interface PathFitPanelProps {
   errorCode: string | null;
   onClose: () => void;
   onRetry: () => void;
-}
-
-function Score({ label, value }: { label: string; value: number }) {
-  const percent = Math.round(value * 100);
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-ink-tertiary">{label}</span>
-        <span className="text-xs font-semibold text-forest-mid">{percent}%</span>
-      </div>
-      <div className="w-full h-1.5 bg-cream-muted rounded-full overflow-hidden">
-        <div
-          className="h-full bg-forest-light rounded-full"
-          style={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
-        />
-      </div>
-    </div>
-  );
 }
 
 function Section({ heading, children }: { heading: string; children: React.ReactNode }) {
@@ -200,15 +191,6 @@ export default function PathFitPanel({
             // schema gives them a default rather than requiring them. Defaulting
             // once here keeps four `?? []` out of the markup below.
             <>
-              <Section heading="Overall fit">
-                <div className="space-y-3">
-                  <Score label="Overall" value={fit.fit_score} />
-                  <Score label="Skills you already have" value={fit.skills_score} />
-                  <Score label="What the role covers" value={fit.coverage_score} />
-                  <Score label="How you like to work" value={fit.work_style_score} />
-                </div>
-              </Section>
-
               <Section heading="Training">
                 <p className="text-sm text-ink-primary leading-relaxed">{zoneLine(fit)}</p>
               </Section>
@@ -221,16 +203,13 @@ export default function PathFitPanel({
 
               {(fit.gap_skills ?? []).length > 0 && (
                 <Section heading="Worth picking up">
+                  {/* Sorted by importance already, per the backend contract (F-5)
+                     -- this list renders that order without a number attached
+                     to it (§8.5, W-1). */}
                   <ul className="space-y-1.5">
                     {(fit.gap_skills ?? []).map((gap) => (
-                      <li
-                        key={gap.name}
-                        className="flex items-center justify-between gap-4 text-sm text-ink-primary"
-                      >
-                        <span>{gap.name}</span>
-                        <span className="shrink-0 text-xs text-ink-tertiary">
-                          {Math.round(gap.importance)}
-                        </span>
+                      <li key={gap.name} className="text-sm text-ink-primary">
+                        {gap.name}
                       </li>
                     ))}
                   </ul>

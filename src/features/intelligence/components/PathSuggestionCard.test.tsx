@@ -60,9 +60,17 @@ describe("PathSuggestionCard - field rendering", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the match score as a rounded percentage", () => {
-    renderCard();
-    expect(screen.getByText("82%")).toBeInTheDocument();
+  it("renders no percentage, score number, or score bar (§8.5, W-1)", () => {
+    const { container } = render(
+      <PathSuggestionCard
+        suggestion={BASE_SUGGESTION}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+      />
+    );
+    expect(screen.queryByText(/%/)).toBeNull();
+    expect(screen.queryByText("Match score")).toBeNull();
+    expect(container.querySelector('[style*="width"]')).toBeNull();
   });
 });
 
