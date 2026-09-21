@@ -1,0 +1,9 @@
+# Fit reports are run artifacts: one per model_run, describing a posterior that
+# exists only in someone's local solverah_modeldev database. Committing them
+# would put numbers in the repo that nothing else can reproduce or check.
+#
+# Kept as a .gitignore INSIDE the directory rather than a line in the repo root's,
+# so this package stays self-contained and nobody has to remember the rule lives
+# somewhere else.
+*
+!.gitignore

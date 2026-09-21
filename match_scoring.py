@@ -60,6 +60,7 @@ __all__ = [
     "load",
     "load_run_weights",
     "point_p_fit",
+    "record_fitted_run",
     "score_pairs",
     "score_with_current_run",
     "seed_priors_model_run",
@@ -120,6 +121,66 @@ def seed_priors_model_run(db, cfg=None, pri=None, notes=None):
     db.session.flush()
 
     for name, mean, sd in flatten_weights(cfg, weights_from_priors(cfg, pri)):
+        db.session.add(
+            WeightPosterior(model_run_id=run.id, weight_name=name, mean=mean, sd=sd)
+        )
+    return run
+
+
+#: The model_version every fitted run off the environment source carries.
+#: Distinct from PRIORS_MODEL_VERSION so `current_run()`'s answer says, in the
+#: column itself, whether the served band is prior-predictive or a posterior.
+FITTED_MODEL_VERSION = "v1-fit-experienced"
+
+
+def record_fitted_run(db, cfg, weights, *, n_rows, notes=None):
+    """Insert a model_run for a completed fit, plus its weight_posterior rows.
+
+    `weights` is the nested {mean, sd} shape `weights_from_priors` returns, with
+    every leaf filled from a POSTERIOR rather than a prior -- plain floats and
+    numpy arrays. The PyMC-to-floats conversion happens in the caller
+    (causal_graph/v1_model/devfit/run_fit.py); this module never imports pymc, and
+    that is the whole reason the boundary is here.
+
+    Does NOT commit -- caller owns the transaction, same convention as
+    `seed_priors_model_run` above and `assessment_store.persist_submission`.
+
+    DELIBERATELY NOT IDEMPOTENT, which is the one way it differs from
+    `seed_priors_model_run`. Re-seeding identical priors is a no-op because the
+    priors ARE the run; re-running a fit is not -- a second fit on more rows, a
+    different seed, or a widened prior sd is a genuinely different posterior that
+    must not be merged into or silently returned in place of the first. Every call
+    makes a new row, and `current_run()` serves the newest.
+
+    WHAT IS NOT WRITTEN HERE: the ordinal head's three cutpoint SPACINGS. They are
+    not weights -- `unflatten_weights` is strict in both directions (D-07) and
+    tests/test_match_scoring.py pins the flat set at exactly 20 rows, so a 21st row
+    would make every load of this run raise. Nothing is lost by leaving them out:
+    the rating-3/4 cutpoint is PINNED at 0, which is what makes sigmoid(z) exactly
+    P(rating >= 4) = "doing well", so serving P(doing well) needs the 20 weights
+    and nothing else. The spacings belong in `notes` (the caller puts them there as
+    one JSON line) and in the fit report, where they are a diagnostic rather than
+    an input.
+
+    A fully-masked confounder's weights come back AT THEIR PRIOR -- `industry` is
+    never supplied by the environment instrument, so its five level weights are
+    exported exactly as they went in. They are written unchanged rather than
+    dropped: the row set is a contract, and a reader needs `notes` (not a missing
+    row) to learn that the data said nothing about them.
+    """
+    from model import ModelRun, WeightPosterior
+
+    run = ModelRun(
+        model_version=FITTED_MODEL_VERSION,
+        dimension_set_version=_dimension_set_version(cfg),
+        priors_version=_priors_version(),
+        n_rows=int(n_rows),
+        notes=notes,
+    )
+    db.session.add(run)
+    db.session.flush()
+
+    for name, mean, sd in flatten_weights(cfg, weights):
         db.session.add(
             WeightPosterior(model_run_id=run.id, weight_name=name, mean=mean, sd=sd)
         )
