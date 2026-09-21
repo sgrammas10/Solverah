@@ -3734,6 +3734,14 @@
             "description": "Which parts of the profile drove the match.",
             "title": "Profile Dimensions"
           },
+          "reasons": {
+            "description": "W-4, additive. At most two plain-words phrases saying what is DISTINCTIVE about this card against the user's own job -- the line that replaces the percentage W-1 removed. Built from the measured work-conditions sidecar and nothing else: no LLM, no extra embedding. Empty is normal and carries no error: a phrase that would read the same on most of the page says nothing about any card and is dropped from all of them (design doc 8.2), and a user who has stated no wants gets no reason line at all.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
           "title": {
             "anyOf": [
               {
@@ -3871,6 +3879,193 @@
           "generated_at"
         ],
         "title": "PathSuggestionsResponse",
+        "type": "object"
+      },
+      "PathWantAnchor": {
+        "additionalProperties": false,
+        "description": "The occupation the panel is asking about.",
+        "properties": {
+          "onet_code": {
+            "description": "O*NET-SOC, e.g. \"15-1252.00\".",
+            "title": "Onet Code",
+            "type": "string"
+          },
+          "title": {
+            "description": "The occupation's O*NET title, not the user's own.",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "onet_code",
+          "title"
+        ],
+        "title": "PathWantAnchor",
+        "type": "object"
+      },
+      "PathWantAnswer": {
+        "additionalProperties": false,
+        "description": "One answer in a ``PUT /me/path-wants`` body.",
+        "properties": {
+          "key": {
+            "description": "The `key` of a task row or the `axis` of a condition row, from a GET for the user's CURRENT anchor. A key this anchor does not offer is a 422 and nothing is written.",
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "description": "\"task\" or \"condition\".",
+            "title": "Kind",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "\"more\", \"less\", or null. Null clears the answer.",
+            "title": "Verdict"
+          }
+        },
+        "required": [
+          "kind",
+          "key"
+        ],
+        "title": "PathWantAnswer",
+        "type": "object"
+      },
+      "PathWantCondition": {
+        "additionalProperties": false,
+        "description": "One measured work-condition row of the panel.",
+        "properties": {
+          "axis": {
+            "description": "One of \"people\", \"public\", \"leading\", \"desk\". Also the PUT key.",
+            "title": "Axis",
+            "type": "string"
+          },
+          "label": {
+            "description": "Plain words. What the user reads.",
+            "title": "Label",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "\"more\", \"less\", or null.",
+            "title": "Verdict"
+          }
+        },
+        "required": [
+          "axis",
+          "label"
+        ],
+        "title": "PathWantCondition",
+        "type": "object"
+      },
+      "PathWantTask": {
+        "additionalProperties": false,
+        "description": "One task row of the panel.",
+        "properties": {
+          "key": {
+            "description": "Opaque, stable, and what a PUT sends back. Derived from the original O*NET statement, so an answer survives a quarterly sidecar rebuild and a relabel -- not a position and not the label.",
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "description": "Plain words, written offline. What the user reads.",
+            "title": "Label",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "\"more\", \"less\", or null. Null is \"fine\", and is stored as no row.",
+            "title": "Verdict"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "PathWantTask",
+        "type": "object"
+      },
+      "PathWantsPutRequest": {
+        "additionalProperties": false,
+        "description": "The body of ``PUT /me/path-wants``.\n\nPARTIAL IS VALID AND IS THE EXPECTED CASE. The panel is skippable and must be\nvalid half-finished (design doc 8.3), so a body naming three of twelve rows\nchanges those three and leaves the rest exactly as they were. This is a PUT\nover *the answers it names*, not over the panel: a client that wanted to\nclear a row sends it with a null verdict rather than omitting it.",
+        "properties": {
+          "answers": {
+            "description": "May be empty: writing nothing is a valid, idempotent no-op.",
+            "items": {
+              "$ref": "#/components/schemas/PathWantAnswer"
+            },
+            "title": "Answers",
+            "type": "array"
+          }
+        },
+        "title": "PathWantsPutRequest",
+        "type": "object"
+      },
+      "PathWantsResponse": {
+        "additionalProperties": false,
+        "description": "``200`` from ``GET`` and ``PUT /me/path-wants`` -- the same shape from both.\n\nOne shape rather than two, for the reason `PathFeedbackResponse` gives: a\nclient renders one panel component and reads the state of its own controls\noff the response it just wrote, instead of making a second call to find out\nwhat it stored.",
+        "properties": {
+          "anchor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PathWantAnchor"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Null exactly when status is \"no_anchor\"."
+          },
+          "conditions": {
+            "description": "The four condition rows, in a fixed order. Offered whenever there is an anchor: the axes are names in code, so nothing on this half depends on a sidecar being present.",
+            "items": {
+              "$ref": "#/components/schemas/PathWantCondition"
+            },
+            "title": "Conditions",
+            "type": "array"
+          },
+          "status": {
+            "description": "\"ok\" when the panel can be shown; \"no_anchor\" when the user has no current job, or it resolves to nothing usable, in which case there is no panel and taps alone steer the page; \"unavailable\" when the task sidecar could not be loaded, which leaves the conditions half answerable and the task half empty.",
+            "title": "Status",
+            "type": "string"
+          },
+          "tasks": {
+            "description": "The offered task rows, in sidecar order, at most eight. Empty for an occupation O*NET publishes no statements for, and empty when status is \"no_anchor\" or \"unavailable\".",
+            "items": {
+              "$ref": "#/components/schemas/PathWantTask"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "PathWantsResponse",
         "type": "object"
       },
       "ProblemDetailError": {
@@ -8339,7 +8534,7 @@
     },
     "/api/v1/me/path-suggestion-jobs/{job_id}": {
       "get": {
-        "description": "GET /me/path-suggestion-jobs/{job_id} - poll a queued scoring.\n\n404 covers no such job, a malformed handle, and somebody else's job alike.\nDistinguishing them would confirm that a handle exists, which is the only\nthing protecting one.\n\n`error` on a failed job carries the scorer's own message -- notably\n`career_status_not_set`, the same condition the synchronous GET answers 400\nfor, and `profile_incomplete` when the profile carries neither a job title\nnor any skills. The client handles both by prompting for the missing data\nrather than by retrying.",
+        "description": "GET /me/path-suggestion-jobs/{job_id} - poll a queued scoring.\n\n404 covers no such job, a malformed handle, and somebody else's job alike.\nDistinguishing them would confirm that a handle exists, which is the only\nthing protecting one.\n\n`error` on a failed job carries the scorer's own message -- notably\n`career_status_not_set`, the same condition the synchronous GET answers 400\nfor, `profile_incomplete` when the profile carries neither a job title nor\nany skills, and `corpus_unavailable` when the occupation corpus could not be\nloaded. The client handles the first two by prompting for the missing data\nand the third by offering the user a retry.",
         "operationId": "get_intelligence_get_my_path_suggestion_job",
         "parameters": [
           {
@@ -8436,6 +8631,141 @@
           }
         ],
         "summary": "Read the cached career path suggestions",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/path-wants": {
+      "get": {
+        "description": "The panel is built from the user's OWN occupation: about eight of its O*NET tasks in plain words, plus four measured work conditions, each carrying whatever the user has already answered.\n\n`status` is `ok`, `no_anchor` (no current job, or a title that resolves to nothing usable -- show no panel and let card taps steer the page), or `unavailable` (the task sidecar could not be loaded, so the task half is empty and only the conditions can be answered).\n\nCosts no O*NET request and no LLM call. The anchor is resolved out of the corpus, on the one profile-document embedding `score_paths` caches anyway.\n\n`error` on a failure is `corpus_unavailable` (503), which is retried.",
+        "operationId": "get_intelligence_get_my_path_wants",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathWantsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Read the \"what should change\" panel for the user's own job",
+        "tags": [
+          "me"
+        ]
+      },
+      "put": {
+        "description": "Stores the answers named in the body and returns the whole panel, in `GET /me/path-wants`' shape -- so a client renders one component and reads the state of its own controls off the response it just wrote.\n\nPARTIAL IS VALID and is the expected case: the body names the rows it is changing and leaves the rest alone, because the panel is skippable and must be valid half-finished. `verdict: null` clears a row, and clearing something already clear is a `200`, not a `404`.\n\nIdempotent: sending the same body twice writes the same state.\n\nEvery key is checked against what a `GET` would offer for the user's CURRENT occupation. A key from a different one -- which is what a client holding a panel across a job change sends -- is a `422` and NOTHING is written, not even the acceptable half of the body.\n\nA write drops the cached shortlist, so the next `POST /me/path-suggestion-jobs` re-ranks with the new answers. This route deliberately does not re-rank itself: the panel must never stand between the user and a result.",
+        "operationId": "put_intelligence_put_my_path_wants",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PathWantsPutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathWantsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Record what should change about the user's own job",
         "tags": [
           "me"
         ]

@@ -105,6 +105,7 @@ from backend.services.onet_client import Occupation, OnetAPIError, OnetRateLimit
 _log = logging.getLogger(__name__)
 
 __all__ = [
+    "OPTIONAL_PUBLISHED_SUFFIXES",
     "PUBLISHED_SUFFIXES",
     "CorpusBuild",
     "CorpusBuildError",
@@ -817,12 +818,41 @@ PUBLISHED_SUFFIXES: tuple[str, ...] = (
     ".clusters.json",
 )
 
+#: W-3's two sidecars, published **when they are on disk** and passed over when
+#: they are not.  A second tier rather than two more required suffixes, because
+#: the two halves of the rule above pull in opposite directions here:
+#:
+#: * ``corpus refresh`` is build -> zones -> clusters -> publish and builds
+#:   neither of these (one needs ~2,800 O*NET requests, the other an LLM pass),
+#:   so requiring them would make the quarterly cadence refuse to publish at
+#:   all; while
+#: * a corpus rebuilt without them and published anyway would silently strip
+#:   the wants layer of its data, which is the F-8 box 9 failure again.
+#:
+#: The compromise is: never block a publish on them, always carry them when
+#: they exist, and leave the check to the OBJECT COUNT -- the summary lists
+#: every key, so "four, not six" is visible to whoever ran the command.
+#: RUNBOOK_DEPLOY_MAIN_MERGE.md is where "should there be six" is answered for
+#: a deploy, and the answer there is yes.
+#:
+#: What each missing file would cost:
+#:   .experience.json  the wants scorer drops its conditions term and logs one
+#:                     warning (`occupation_conditions.get_conditions`)
+#:   .tasks.json       W-4's panel has no task half -- and tasks are the wants
+#:                     layer's FIRST signal (design doc §8.2)
+OPTIONAL_PUBLISHED_SUFFIXES: tuple[str, ...] = (
+    ".experience.json",
+    ".tasks.json",
+)
+
 #: Which command writes each file, named in the error when one is missing.
 _SUFFIX_COMMANDS: dict[str, str] = {
     ".npy": "flask corpus build",
     ".json": "flask corpus build",
     ".zones.json": "flask corpus zones",
     ".clusters.json": "flask corpus clusters",
+    ".experience.json": "flask corpus experience",
+    ".tasks.json": "flask corpus tasks",
 }
 
 
@@ -873,15 +903,29 @@ class CorpusPublish:
 
 
 def artifact_files(matrix_path: str | os.PathLike[str]) -> list[Path]:
-    """The four files that belong to *matrix_path*, in publish order."""
+    """The files that belong to *matrix_path*, in publish order.
+
+    The four required ones always; each of
+    :data:`OPTIONAL_PUBLISHED_SUFFIXES` only when it is on disk, so a corpus
+    built without the W-3 sidecars publishes exactly as it did before they
+    existed and one built with them carries them up.
+    """
     stem = str(Path(matrix_path).with_suffix(""))
-    return [Path(stem + suffix) for suffix in PUBLISHED_SUFFIXES]
+    files = [Path(stem + suffix) for suffix in PUBLISHED_SUFFIXES]
+    files += [
+        path
+        for suffix in OPTIONAL_PUBLISHED_SUFFIXES
+        if (path := Path(stem + suffix)).is_file()
+    ]
+    return files
 
 
 def _missing_artifact_files(matrix_path: Path) -> list[str]:
-    """Human-readable complaints about artifact files that are not on disk."""
+    """Human-readable complaints about REQUIRED artifact files not on disk."""
+    stem = str(Path(matrix_path).with_suffix(""))
     problems: list[str] = []
-    for path, suffix in zip(artifact_files(matrix_path), PUBLISHED_SUFFIXES):
+    for suffix in PUBLISHED_SUFFIXES:
+        path = Path(stem + suffix)
         if not path.is_file():
             problems.append(f"{path.name} is missing (run `{_SUFFIX_COMMANDS[suffix]}`)")
     return problems

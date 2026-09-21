@@ -1864,6 +1864,111 @@ class PathFeedback(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Path Intelligence: what should change about the user's OWN job -- W-4
+# ---------------------------------------------------------------------------
+# One row per thing the user has said should change about the occupation they
+# hold today: a task of that occupation they want more or less of, or one of the
+# measured work conditions. `backend/services/path_scoring` reads them back as a
+# `Wants` and rotates its query with them (design doc §8.3), the same way it
+# rebuilds the Rocchio query from `PathFeedback` above.
+#
+# "FINE" IS THE ABSENCE OF A ROW, and that is the whole storage design rather
+# than a saving. Three of the panel's answers are *more*, *fine* and *less*, and
+# the middle one is what most rows would be: the panel shows the occupation's
+# national task list, so "I never do that" and "that part is fine" are both
+# honestly answered by saying nothing (design doc §8.7). Storing a third verdict
+# would mean a `fine` row and a missing row had to mean the same thing at every
+# read, which is two representations of one state and a bug waiting for the read
+# that forgets. Clearing an answer therefore DELETES the row.
+#
+# KEYED TO THE ANCHOR OCCUPATION, AND OLD ROWS GO INERT RATHER THAN BEING
+# DELETED. `anchor_onet_code` is the occupation the question was asked about. A
+# user who changes job resolves to a different anchor, and every row under the
+# old one stops being read -- it is not a stale answer, it is a true answer to a
+# question about a job they no longer hold. They are kept because going back is
+# a real thing that happens (a contract ends, a secondment finishes) and because
+# a delete on a job change would need a job-change hook that does not exist and
+# could not be trusted to fire.
+#
+# `item_key` SURVIVES A SIDECAR REFRESH. For a task it is a short digest of the
+# ORIGINAL O*NET statement (`path_wants_repository.item_key_for_task`), not its
+# position in the panel and not its display label: the tasks sidecar is rebuilt
+# quarterly with the corpus and the labels are rewritten by an offline LLM pass,
+# so a positional key would silently re-point an answer at a different task and a
+# label key would lose every answer on a relabel. For a condition it is the axis
+# name, which is code rather than data.
+#
+# `item_text` IS THE ORIGINAL STATEMENT, NEVER THE DISPLAY LABEL. It is what
+# reaches the embedder (design doc §8.7, F-7's measured metaphor hazard), and
+# storing it means a tapped task still scores after the sidecar drops it.
+#
+# DESTROYED, NOT RETAINED, ON ACCOUNT DELETION (D-7b) -- `PathFeedback`'s
+# reasoning exactly, and see `tests/test_export_delete_coverage.py` for why the
+# spelling rule and the meaning rule point different ways here too.
+
+
+class PathWant(db.Model):
+    """One thing this user says should change about their own occupation (W-4).
+
+    ``kind`` is a closed vocabulary of two, mirrored in
+    ``solverah.repositories.path_wants_repository.KINDS``:
+
+    ``task``
+        ``item_key`` is a digest of ``item_text``, and ``item_text`` is one of
+        the anchor occupation's O*NET task statements, byte-exact.
+    ``condition``
+        ``item_key`` is an axis of ``occupation_conditions.AXES`` and
+        ``item_text`` is empty -- an axis is a name in code, so there is no
+        original text to preserve.
+
+    ``verdict`` is ``more`` or ``less``. There is no ``fine``: see the section
+    comment above for why the absence of a row is the third answer rather than a
+    third value.
+
+    Not enum columns, for the reason `PathFeedback` and `Experiment` give: the
+    panel's vocabulary is a product question that is still moving, and a Postgres
+    enum would make a fifth axis a migration.
+    """
+
+    __tablename__ = "path_wants"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True: uq_path_wants_user_anchor_item below leads with user_id and
+    # then anchor_onet_code, which is exactly the "every answer this user has
+    # about this job" read -- the same reasoning PathFit's user_id column gives.
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False)
+    #: The occupation the question was about. O*NET-SOC, e.g. "15-1252.00". No
+    #: foreign key, for PathFit's reason: occupations live in the corpus
+    #: artifact, not in this database.
+    anchor_onet_code = db.Column(db.Text, nullable=False)
+    kind = db.Column(db.Text, nullable=False)
+    item_key = db.Column(db.Text, nullable=False)
+    #: The original O*NET statement for a task; empty for a condition.
+    item_text = db.Column(db.Text, nullable=False, default="")
+    verdict = db.Column(db.Text, nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    #: Bumped when the user changes their mind about this item. `created_at`
+    #: stays the first time they answered it, for PathFeedback's reason.
+    updated_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "user_id",
+            "anchor_onet_code",
+            "kind",
+            "item_key",
+            name="uq_path_wants_user_anchor_item",
+        ),
+    )
+
+    user = db.relationship("User", backref="path_wants")
+
+
+# ---------------------------------------------------------------------------
 # Phase 2a -- profile_data, decomposed (docs/ARCHITECTURE.md Part 4.3)
 # ---------------------------------------------------------------------------
 #

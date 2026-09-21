@@ -26,6 +26,12 @@ __all__ = [
     "PathSuggestionJobAccepted",
     "PathSuggestionJobStatus",
     "PathSuggestionsResponse",
+    "PathWantAnswer",
+    "PathWantAnchor",
+    "PathWantCondition",
+    "PathWantTask",
+    "PathWantsPutRequest",
+    "PathWantsResponse",
     "QuizInsight",
     "QuizInsightsGuestResponse",
     "QuizInsightsRequest",
@@ -69,6 +75,19 @@ class PathSuggestion(SolverahModel):
         default=None, description="Which parts of the profile drove the match."
     )
     match_score: Optional[float] = None
+    reasons: List[str] = Field(
+        default_factory=list,
+        description=(
+            "W-4, additive. At most two plain-words phrases saying what is "
+            "DISTINCTIVE about this card against the user's own job -- the line "
+            "that replaces the percentage W-1 removed. Built from the measured "
+            "work-conditions sidecar and nothing else: no LLM, no extra "
+            "embedding. Empty is normal and carries no error: a phrase that "
+            "would read the same on most of the page says nothing about any "
+            "card and is dropped from all of them (design doc 8.2), and a user "
+            "who has stated no wants gets no reason line at all."
+        ),
+    )
 
 
 class PathSuggestionsResponse(SolverahModel):
@@ -487,4 +506,132 @@ class PathFeedbackResponse(SolverahModel):
             "Every judgement standing for this user, as onet_code -> verdict. "
             "Empty after a DELETE."
         ),
+    )
+
+
+# ===========================================================================
+# W-4 -- GET/PUT /me/path-wants, "what should change" about the user's own job
+# ===========================================================================
+#
+# `PathFeedbackRequest` above is a judgement about a card the scorer chose. This
+# is the other direction and a different kind of statement: the user's own
+# answer about the job they already hold, which every move_intent reads because
+# it is not an opinion about a suggestion (design doc 8.3).
+#
+# The panel is built server-side rather than being a static form, and that is the
+# design: the questions ARE the user's own occupation's O*NET task statements, so
+# only the server -- which resolves the anchor and holds the sidecar -- knows what
+# they are. A client renders what it is given.
+#
+# `item_text` never reaches the wire. The original statement is what gets
+# embedded and the label is what gets read (design doc 8.7, F-7's measured
+# metaphor hazard); a client has no use for the first and shipping it would
+# invite one to send it back as the key.
+
+
+class PathWantAnchor(SolverahModel):
+    """The occupation the panel is asking about."""
+
+    onet_code: str = Field(description='O*NET-SOC, e.g. "15-1252.00".')
+    title: str = Field(description="The occupation's O*NET title, not the user's own.")
+
+
+class PathWantTask(SolverahModel):
+    """One task row of the panel."""
+
+    key: str = Field(
+        description=(
+            "Opaque, stable, and what a PUT sends back. Derived from the "
+            "original O*NET statement, so an answer survives a quarterly "
+            "sidecar rebuild and a relabel -- not a position and not the label."
+        )
+    )
+    label: str = Field(description="Plain words, written offline. What the user reads.")
+    verdict: Optional[str] = Field(
+        default=None,
+        description='"more", "less", or null. Null is "fine", and is stored as no row.',
+    )
+
+
+class PathWantCondition(SolverahModel):
+    """One measured work-condition row of the panel."""
+
+    axis: str = Field(
+        description='One of "people", "public", "leading", "desk". Also the PUT key.'
+    )
+    label: str = Field(description="Plain words. What the user reads.")
+    verdict: Optional[str] = Field(
+        default=None, description='"more", "less", or null.'
+    )
+
+
+class PathWantsResponse(SolverahModel):
+    """``200`` from ``GET`` and ``PUT /me/path-wants`` -- the same shape from both.
+
+    One shape rather than two, for the reason `PathFeedbackResponse` gives: a
+    client renders one panel component and reads the state of its own controls
+    off the response it just wrote, instead of making a second call to find out
+    what it stored.
+    """
+
+    status: str = Field(
+        description=(
+            '"ok" when the panel can be shown; "no_anchor" when the user has no '
+            "current job, or it resolves to nothing usable, in which case there "
+            "is no panel and taps alone steer the page; \"unavailable\" when the "
+            "task sidecar could not be loaded, which leaves the conditions half "
+            "answerable and the task half empty."
+        )
+    )
+    anchor: Optional[PathWantAnchor] = Field(
+        default=None, description="Null exactly when status is \"no_anchor\"."
+    )
+    tasks: List[PathWantTask] = Field(
+        default_factory=list,
+        description=(
+            "The offered task rows, in sidecar order, at most eight. Empty for "
+            "an occupation O*NET publishes no statements for, and empty when "
+            "status is \"no_anchor\" or \"unavailable\"."
+        ),
+    )
+    conditions: List[PathWantCondition] = Field(
+        default_factory=list,
+        description=(
+            "The four condition rows, in a fixed order. Offered whenever there "
+            "is an anchor: the axes are names in code, so nothing on this half "
+            "depends on a sidecar being present."
+        ),
+    )
+
+
+class PathWantAnswer(SolverahModel):
+    """One answer in a ``PUT /me/path-wants`` body."""
+
+    kind: str = Field(description='"task" or "condition".')
+    key: str = Field(
+        description=(
+            "The `key` of a task row or the `axis` of a condition row, from a "
+            "GET for the user's CURRENT anchor. A key this anchor does not offer "
+            "is a 422 and nothing is written."
+        )
+    )
+    verdict: Optional[str] = Field(
+        default=None,
+        description='"more", "less", or null. Null clears the answer.',
+    )
+
+
+class PathWantsPutRequest(SolverahModel):
+    """The body of ``PUT /me/path-wants``.
+
+    PARTIAL IS VALID AND IS THE EXPECTED CASE. The panel is skippable and must be
+    valid half-finished (design doc 8.3), so a body naming three of twelve rows
+    changes those three and leaves the rest exactly as they were. This is a PUT
+    over *the answers it names*, not over the panel: a client that wanted to
+    clear a row sends it with a null verdict rather than omitting it.
+    """
+
+    answers: List[PathWantAnswer] = Field(
+        default_factory=list,
+        description="May be empty: writing nothing is a valid, idempotent no-op.",
     )

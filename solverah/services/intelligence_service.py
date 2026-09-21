@@ -273,6 +273,12 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
     from backend.services.path_narrative import NarrativeGenerationError, generate_narratives
     from backend.services.path_scoring import CorpusUnavailable, InsufficientProfile, score_paths
 
+    # Imported here, not at module scope: `path_wants_service` builds its panel
+    # out of this module's `build_user_profile`, so the two import each other and
+    # only one of them can win at import time. The deferral goes on this side
+    # because it already defers every other heavy import in the function.
+    from solverah.services import path_wants_service
+
     cached = path_cache.get(user.id)
     if cached is not None:
         return IntelligenceResult(status=200, body=cached)
@@ -306,8 +312,17 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
         # judgements are user state, not a property of one re-rank, so every
         # generation reads them.
         judgements = path_feedback_repository.verdicts_for_user(user.id)
+        # W-4: the cold generation honours the stored wants for the same reason
+        # it honours the judgements -- `path_cache` is per worker and lost on a
+        # deploy, so without this a reload would rebuild the ranking as though
+        # the user had never answered the panel. Read by ALL THREE intents,
+        # unlike the judgements: a want is the user's own statement about their
+        # own day, not an opinion about a card the scorer chose (design doc §8.3).
+        wants = path_wants_service.wants_for_scoring(
+            user, user_profile, onet_client, openai_client
+        )
         scored = score_paths(
-            user_profile, onet_client, openai_client, feedback=judgements
+            user_profile, onet_client, openai_client, feedback=judgements, wants=wants
         )
     except InsufficientProfile:
         # The user has no job title and no skills, so there is nothing to score.
@@ -359,6 +374,10 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
         return _error(500, "Unable to generate path narratives")
 
     score_map = {path.onet_code: path.score for path in scored}
+    # W-4, additive and keyed the same way `score_map` is: the narrator returns
+    # its own objects, so the scorer's per-card fields are joined back on by
+    # code rather than by position.
+    reasons_map = {path.onet_code: path.reasons for path in scored}
     payload = {
         "suggestions": [
             {
@@ -367,6 +386,7 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
                 "why_text": s.why_text,
                 "profile_dimensions": s.profile_dimensions,
                 "match_score": score_map.get(s.onet_code, 0.0),
+                "reasons": reasons_map.get(s.onet_code, []),
             }
             for s in suggestions
         ],
@@ -672,6 +692,9 @@ def _rescore(
     from backend.services.onet_client import OnetClient
     from backend.services.path_scoring import InsufficientProfile, score_paths
 
+    # See `path_suggestions` for why this import is deferred.
+    from solverah.services import path_wants_service
+
     judgements = path_feedback_repository.verdicts_for_user(user.id)
 
     try:
@@ -679,8 +702,20 @@ def _rescore(
             openai_client = llm.get_openai_client()
         except RuntimeError:
             openai_client = None
+        onet_client = OnetClient()
+        # W-4, the second of the two sites that score for a signed-in user. A tap
+        # must not quietly drop the wants: the re-rank writes its result into
+        # `path_cache`, so a list built without them would become the list `GET
+        # /me/path-suggestions` serves until the next profile write.
+        wants = path_wants_service.wants_for_scoring(
+            user, user_profile, onet_client, openai_client
+        )
         scored = score_paths(
-            user_profile, OnetClient(), openai_client, feedback=judgements
+            user_profile,
+            onet_client,
+            openai_client,
+            feedback=judgements,
+            wants=wants,
         )
     except InsufficientProfile:
         logger.info("Insufficient profile for path feedback rescore, user %s", user.id)
@@ -799,6 +834,14 @@ def _describe(user: User, scored) -> List[Dict[str, Any]]:
                     prior.get("profile_dimensions") or [] if prior else []
                 ),
                 "match_score": path.score,
+                # W-4. NOT carried across from the cached card the way `why_text`
+                # is, and the difference is what the two are about: a `why_text`
+                # is a function of (occupation, profile) and a tap moves neither,
+                # while a reason is a function of the PAGE -- the distinctiveness
+                # rule counts a phrase across the cards actually shown, so a
+                # re-rank that changed which ten they are has changed which
+                # phrases are worth printing.
+                "reasons": path.reasons,
             }
         )
     return out

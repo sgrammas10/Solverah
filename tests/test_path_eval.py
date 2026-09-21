@@ -33,6 +33,7 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -1027,3 +1028,180 @@ def test_record_live_only_accepts_the_new_profile_ids(
     )
     assert rc == 2
     assert '"profiles": 1' in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# W-3 -- the wants-aware scorer in the harness
+# ---------------------------------------------------------------------------
+
+
+def test_build_wants_converts_the_fixture_block(profiles: list[EvalProfile]) -> None:
+    from backend.services.path_scoring import Wants
+
+    profile = next(p for p in profiles_with_wants(profiles) if p.id == "p21_pharmacy_tech_stay")
+
+    wants = path_eval.build_wants(profile)
+
+    assert isinstance(wants, Wants)
+    assert wants.tasks_more == tuple(profile.wants["tasks_more"])
+    assert wants.tasks_less == tuple(profile.wants["tasks_less"])
+    assert wants.conditions == profile.wants["conditions"]
+
+
+def test_build_wants_is_none_for_the_frozen_twenty(profiles: list[EvalProfile]) -> None:
+    """So the wants-aware scorer and the wants-blind one are the same scorer on
+    the regression set -- which is what makes the byte-identity gate meaningful."""
+    for profile in profiles:
+        if not profile.has_wants:
+            assert path_eval.build_wants(profile) is None
+
+
+def test_build_wants_hands_the_scorer_no_anchor(profiles: list[EvalProfile]) -> None:
+    """`anchor_code` says which occupation the task statements were copied from.
+
+    The scorer resolves the user's occupation from their title, exactly as it
+    does in production, so the fixture must not be able to hand it an anchor a
+    real request would not have.
+    """
+    from backend.services.path_scoring import Wants
+
+    known = {f.name for f in dataclasses.fields(Wants)}
+    assert "anchor_code" not in known
+
+
+def test_the_wants_aware_scorer_passes_the_block_through(
+    monkeypatch: pytest.MonkeyPatch, profiles: list[EvalProfile]
+) -> None:
+    """The same wiring test the live scorer gets, for the one keyword between them."""
+    from backend.services import path_scoring
+
+    seen: list[object] = []
+
+    def _fake_score_paths(user_profile, onet_client, openai_client, wants=None):  # type: ignore[no-untyped-def]
+        seen.append(wants)
+        assert isinstance(user_profile, path_scoring.UserProfile)
+        return [
+            path_scoring.ScoredPath(
+                onet_code="29-2061.00", title="Licensed Practical Nurses", score=0.7
+            )
+        ]
+
+    monkeypatch.setattr(path_scoring, "score_paths", _fake_score_paths)
+    profile = next(p for p in profiles if p.id == "p21_pharmacy_tech_stay")
+
+    results = path_eval.make_wants_aware_scorer("ONET", "OPENAI")(profile)
+
+    assert len(seen) == 1
+    assert seen[0].conditions == {"public": "less"}
+    assert results == [
+        RankedResult(onet_code="29-2061.00", title="Licensed Practical Nurses", score=0.7)
+    ]
+
+
+def test_the_wants_aware_scorer_sends_nothing_for_a_frozen_profile(
+    monkeypatch: pytest.MonkeyPatch, profiles: list[EvalProfile]
+) -> None:
+    from backend.services import path_scoring
+
+    seen: list[object] = []
+
+    def _fake_score_paths(user_profile, onet_client, openai_client, wants=None):  # type: ignore[no-untyped-def]
+        seen.append(wants)
+        return []
+
+    monkeypatch.setattr(path_scoring, "score_paths", _fake_score_paths)
+
+    path_eval.make_wants_aware_scorer("ONET", "OPENAI")(profiles[0])
+
+    assert seen == [None]
+
+
+def test_record_live_is_wants_blind_unless_asked(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The default has to stay the baseline's scorer: one flag between the
+    number W-2 recorded and the number W-3 has to beat."""
+    rc = path_eval.main(["record-live", "--wants", "--out", "unused.json"])
+
+    assert rc == 2
+    assert "REFUSING TO RUN" in capsys.readouterr().out
+    assert not Path("unused.json").exists()
+
+
+@pytest.mark.parametrize(
+    ("flag", "expected"),
+    [(False, "live"), (True, "wants-aware")],
+)
+def test_record_live_selects_the_scorer_the_flag_asks_for(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, flag: bool, expected: str
+) -> None:
+    """The branch itself, with both clients and both scorers stubbed.
+
+    Everything the command does either side of the choice is real -- profiles
+    are loaded, the run is recorded and written, the report is printed -- and
+    only the two things that would spend money are not.
+    """
+    import types
+
+    def _named(name: str):
+        return lambda o, a: (
+            lambda p: [RankedResult(onet_code="15-1252.00", title=name, score=1.0)]
+        )
+
+    monkeypatch.setattr(path_eval, "make_live_scorer", _named("live"))
+    monkeypatch.setattr(path_eval, "make_wants_aware_scorer", _named("wants-aware"))
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.services.onet_client",
+        types.SimpleNamespace(OnetClient=lambda: "ONET"),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "solverah.infra.llm",
+        types.SimpleNamespace(get_openai_client=lambda: "OPENAI"),
+    )
+    monkeypatch.setenv("SOLVERAH_IGNORE_DOTENV", "1")
+    out = tmp_path / "run.json"
+
+    rc = path_eval.main(
+        [
+            "record-live",
+            "--confirm-live-calls",
+            "--only", "p21_pharmacy_tech_stay",
+            "--out", str(out),
+        ]
+        + (["--wants"] if flag else [])
+    )
+
+    assert rc == 0
+    recorded = json.loads(out.read_text(encoding="utf-8"))
+    assert [row["title"] for row in recorded["runs"][0]["results"]] == [expected]
+
+
+def test_the_recorded_w3_run_covers_the_fifteen_and_beats_the_baseline(
+    profiles: list[EvalProfile], labels: dict[str, list[Label]]
+) -> None:
+    """W-3's gate, frozen as a comparison between two recorded runs.
+
+    Offline: both files are on disk, `evaluate` is pure, and no scorer is
+    imported.  It asserts the DIRECTION and not a pinned number -- the constants
+    are allowed to move on a new measurement, the claim that the wants layer
+    beats the wants-blind scorer without raising harm is not.
+    """
+    wants_profiles = profiles_with_wants(profiles)
+    runs_dir = Path(path_eval.FIXTURE_DIR) / "runs"
+
+    blind = evaluate(
+        path_eval.load_run(runs_dir / "w2_wants_blind_baseline.json"),
+        wants_profiles,
+        labels,
+    )
+    aware = evaluate(
+        path_eval.load_run(runs_dir / "w3_wants_aware.json"), wants_profiles, labels
+    )
+
+    assert aware.headline["profiles_scored"] == 15.0
+    assert aware.headline["ndcg_at_k"] > blind.headline["ndcg_at_k"]
+    assert aware.headline["harmful_rate_at_k"] <= blind.headline["harmful_rate_at_k"]
+    assert not aware.empty_result_profiles
+    assert not aware.errored_profiles

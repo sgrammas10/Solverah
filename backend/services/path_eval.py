@@ -56,6 +56,12 @@ NOT part of it -- :func:`build_user_profile` never passes it to
 these profiles unchanged and ignores the block entirely.  A wants-aware scorer
 reads :attr:`EvalProfile.wants`.
 
+W-3 adds that scorer: :func:`make_wants_aware_scorer`, selected by
+``record-live --wants``.  **The default stays wants-blind**, so the number W-2
+recorded and the number W-3 has to beat come out of the same command with one
+flag between them, and the twenty frozen profiles -- which carry no block --
+run byte-identically under either.
+
 READING THE NUMBERS
 -------------------
 See :func:`evaluate` and the ``_meta`` block in
@@ -361,6 +367,54 @@ def make_live_scorer(onet_client: Any, openai_client: Any) -> Scorer:
     def _scorer(eval_profile: EvalProfile) -> list[RankedResult]:
         scored = score_paths(
             build_user_profile(eval_profile), onet_client, openai_client
+        )
+        return [
+            RankedResult(onet_code=path.onet_code, title=path.title, score=path.score)
+            for path in scored
+        ]
+
+    return _scorer
+
+
+def build_wants(eval_profile: EvalProfile) -> Any:
+    """Turn a fixture `wants` block into `path_scoring.Wants`, or None.
+
+    The fixture and the scorer keep separate vocabularies on purpose.  The
+    block also carries `anchor_code` -- which occupation the task statements
+    were copied from -- and the scorer takes **no** anchor from it: it resolves
+    the user's occupation from their title exactly as it does in production, so
+    a fixture cannot hand it an anchor a real request would not have.  Whether
+    the two agree is worth knowing and is reported by `record-live --wants`,
+    not silently corrected here.
+    """
+    from backend.services.path_scoring import Wants
+
+    block = eval_profile.wants
+    if not block:
+        return None
+    return Wants(
+        tasks_more=tuple(block.get("tasks_more") or ()),
+        tasks_less=tuple(block.get("tasks_less") or ()),
+        conditions=dict(block.get("conditions") or {}),
+    )
+
+
+def make_wants_aware_scorer(onet_client: Any, openai_client: Any) -> Scorer:
+    """W-3's scorer: today's `score_paths` with the profile's stated wants.
+
+    The only difference from :func:`make_live_scorer` is the `wants` keyword,
+    which is exactly the claim W-3 has to defend -- so the two scorers share
+    everything else, and a profile with no `wants` block runs identically under
+    both (`wants=None` is `score_paths`' additive-keyword guarantee).
+    """
+    from backend.services.path_scoring import score_paths
+
+    def _scorer(eval_profile: EvalProfile) -> list[RankedResult]:
+        scored = score_paths(
+            build_user_profile(eval_profile),
+            onet_client,
+            openai_client,
+            wants=build_wants(eval_profile),
         )
         return [
             RankedResult(onet_code=path.onet_code, title=path.title, score=path.score)
@@ -952,8 +1006,17 @@ def _cmd_record_live(args: argparse.Namespace) -> int:
             out_path,
         )
 
+    # `--wants` is the W-3 arm and the default stays wants-blind, so the
+    # number W-2 recorded and the number W-3 has to beat are produced by the
+    # same command with one flag between them.
+    scorer = (
+        make_wants_aware_scorer(onet_client, openai_client)
+        if getattr(args, "wants", False)
+        else make_live_scorer(onet_client, openai_client)
+    )
+
     run = record_run(
-        make_live_scorer(onet_client, openai_client),
+        scorer,
         profiles,
         scorer_name=args.name,
         notes=notes,
@@ -1023,6 +1086,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_live.add_argument("--name", default="path_scoring.score_paths@HEAD")
     p_live.add_argument("--only", default="", help="comma-separated profile ids")
     p_live.add_argument("--confirm-live-calls", action="store_true")
+    p_live.add_argument(
+        "--wants",
+        action="store_true",
+        help="pass each profile's stated wants to the scorer (W-3). "
+        "Off by default: the recorded baseline is wants-blind.",
+    )
     # Which cost model to quote before spending a shared budget. Both values run
     # the same `score_paths`; "corpus" says that scorer is the F-4 rewrite, whose
     # per-profile O*NET cost is 2 rather than the funnel's ~160.

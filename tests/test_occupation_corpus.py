@@ -966,6 +966,75 @@ class TestArtifactFiles:
         assert published[2].name == occupation_retrieval.zone_sidecar_path(artifact).name
         assert published[3].name == occupation_retrieval.clusters_sidecar_path(artifact).name
 
+    def test_the_w3_sidecars_are_carried_when_they_are_on_disk(
+        self, artifact: Path
+    ) -> None:
+        """W-3b. Optional rather than required, and this is the half that
+        matters: a corpus built WITH the wants sidecars must not publish
+        without them, or the feature is live in code and dead in the bucket."""
+        from backend.services import occupation_retrieval
+
+        stem = str(artifact.with_suffix(""))
+        Path(stem + ".experience.json").write_bytes(b'{"percentiles": {}}')
+        Path(stem + ".tasks.json").write_bytes(b'{"tasks": {}}')
+
+        published = corpus.artifact_files(artifact)
+
+        assert [p.name for p in published[4:]] == [
+            occupation_retrieval.conditions_sidecar_path(artifact).name,
+            occupation_retrieval.tasks_sidecar_path(artifact).name,
+        ]
+
+    def test_an_absent_w3_sidecar_is_passed_over_not_demanded(
+        self, artifact: Path
+    ) -> None:
+        """The other half. `corpus refresh` builds neither -- one needs ~2,800
+        O*NET requests and the other an LLM pass -- so requiring them would
+        make the quarterly cadence unable to publish anything."""
+        s3 = FakeS3()
+
+        published = corpus.publish_corpus(
+            artifact, bucket="b", key_prefix="p", s3_client=s3
+        )
+
+        assert len(published.objects) == 4
+        assert not any(".tasks.json" in key for key in s3.puts)
+
+    def test_a_publish_with_the_w3_sidecars_uploads_six_objects(
+        self, artifact: Path
+    ) -> None:
+        stem = str(artifact.with_suffix(""))
+        Path(stem + ".experience.json").write_bytes(b'{"percentiles": {}}')
+        Path(stem + ".tasks.json").write_bytes(b'{"tasks": {}}')
+        s3 = FakeS3()
+
+        published = corpus.publish_corpus(
+            artifact, bucket="b", key_prefix="p", s3_client=s3
+        )
+
+        assert published.summary()["uploaded"] == 6
+        assert s3.puts[-2:] == [
+            "p/onet_corpus_20260916.experience.json",
+            "p/onet_corpus_20260916.tasks.json",
+        ]
+
+    def test_the_optional_names_match_what_the_fetch_asks_for(
+        self, artifact: Path
+    ) -> None:
+        """`_fetch_from_s3` derives every key from the `.npy` key by string
+        surgery. A name published here that the fetch does not ask for is a
+        file in the bucket and a feature that still does nothing."""
+        from backend.services import occupation_conditions, occupation_tasks
+
+        stem = artifact.with_suffix("")
+        assert corpus.OPTIONAL_PUBLISHED_SUFFIXES == (".experience.json", ".tasks.json")
+        assert occupation_conditions.conditions_sidecar_path(artifact).name == (
+            stem.name + ".experience.json"
+        )
+        assert occupation_tasks.tasks_sidecar_path(artifact).name == (
+            stem.name + ".tasks.json"
+        )
+
 
 class TestPublishCorpus:
     def test_uploads_all_four_objects_under_the_prefix(self, artifact: Path) -> None:

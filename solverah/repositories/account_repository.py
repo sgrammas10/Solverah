@@ -23,6 +23,7 @@ from model import (
     JobRecommendation,
     PathFeedback,
     PathFit,
+    PathWant,
     PulseCheckin,
     PulseEvent,
     ResumeParseCorrection,
@@ -150,6 +151,18 @@ def delete_personal_rows(user_id: int, intakes: List[IntakeSubmission]) -> None:
     # `pulse_checkins` and `experiments` does not reach it: nothing downstream reads
     # these rows for anything but rebuilding one user's own query.
     PathFeedback.query.filter_by(user_id=user_id).delete()
+    # Stated wants (BUILD_PLAN W-4). Destroyed on `path_feedback`'s reasoning
+    # exactly, and it is worth saying why the two reach the same answer from
+    # different sides. Nothing on this row is prose either -- `verdict` and
+    # `kind` are closed vocabularies, `anchor_onet_code` is a catalogue key,
+    # `item_key` is a digest and `item_text` is O*NET's own published sentence,
+    # not a word the user typed -- so the D-7b *spelling* rule would retain it.
+    # It is destroyed because of what the row MEANS: "I want less of this part of
+    # my job" is a statement a person made about their own working life, and a
+    # de-identified statement is still theirs. Nothing downstream reads these
+    # rows for anything but rotating one user's own retrieval query, so a
+    # retained row would be retention with no reader.
+    PathWant.query.filter_by(user_id=user_id).delete()
 
 
 def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_password: str) -> None:

@@ -391,6 +391,76 @@ class OnetClient:
         _occ_cache_set(cache_key, result)
         return result
 
+    def _rating_report(
+        self, onet_code: str, report: str, value_field: str
+    ) -> dict[str, float]:
+        """One ``details/<report>`` rating table as ``{element name: 0-100}``.
+
+        The three reports the conditions sidecar is built from share a shape --
+        ``{"element": [{"name": ..., "<value_field>": 0-100}, ...]}`` -- and
+        differ only in which key carries the number, so they share an
+        implementation and each gets its own named method below.
+
+        **Deliberately NOT cached in ``_OCC_CACHE``**, unlike every other method
+        on this client.  These three are build-time only: ``flask corpus
+        experience`` calls each of them once per occupation and the result goes
+        into a sidecar, so caching would put 2,733 entries through a cache the
+        request path shares (``tests/test_cache_bounds.py`` owns that budget)
+        to serve a second read that never comes.
+
+        An element with no value is dropped rather than stored as zero -- see
+        ``occupation_conditions._bundle_mean`` for why the distinction between
+        "not measured" and "measured as none" is load-bearing all the way down.
+        """
+        data = self._get(
+            f"online/occupations/{onet_code}/details/{report}", params={"end": 100}
+        )
+        out: dict[str, float] = {}
+        for element in data.get("element") or []:
+            name = str(element.get("name") or "")
+            value = element.get(value_field)
+            if not name or value is None:
+                continue
+            try:
+                out[name] = float(value)
+            except (TypeError, ValueError):
+                continue
+        if not out:
+            _log.warning("%s empty for %s", report, onet_code)
+        return out
+
+    def get_work_context(self, onet_code: str) -> dict[str, float]:
+        """Work-context ratings for *onet_code*: ``{element name: 0-100}``.
+
+        The physical and social conditions of the job -- contact with others,
+        time sitting, outdoors, time pressure.  This is the report every axis in
+        ``occupation_conditions.AXES`` is built from; the values carry the
+        ``context`` field.
+        """
+        return self._rating_report(onet_code, "work_context", "context")
+
+    def get_work_styles(self, onet_code: str) -> dict[str, float]:
+        """Work-style ratings for *onet_code*: ``{element name: 0-100}``.
+
+        Personal characteristics the work rewards (Attention to Detail, Stress
+        Tolerance), carried in the ``importance`` field.  Fetched by the
+        conditions build and not yet read by any axis -- see
+        ``occupation_conditions.REPORT_VALUE_FIELDS``.
+        """
+        return self._rating_report(onet_code, "work_styles", "importance")
+
+    def get_occupational_interests(self, onet_code: str) -> dict[str, float]:
+        """RIASEC interest ratings for *onet_code*: ``{element name: 0-100}``.
+
+        Realistic / Investigative / Artistic / Social / Enterprising /
+        Conventional, in the ``occupational_interest`` field.  Fetched by the
+        conditions build, not yet read by any axis.
+
+        ``details/work_values`` is the obvious sibling and is **not** offered:
+        it 404s on the v2 API (verified 2026-09-17 across the whole catalog).
+        """
+        return self._rating_report(onet_code, "interests", "occupational_interest")
+
     def get_occupation_description(self, onet_code: str) -> str:
         """Return O*NET's description paragraph for *onet_code*.
 

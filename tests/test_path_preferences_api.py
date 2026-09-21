@@ -205,7 +205,15 @@ def _service_sources():
 #: only looks at files that already call `path_cache.invalidate`, so a write
 #: which forgot both was invisible to it by construction. This floor is what
 #: catches the next one: a site that goes missing takes the count down with it.
-_KNOWN_INVALIDATION_SITES = 7
+#:
+#: Seven until W-4, which added the eighth: `path_wants_service.save_path_wants`.
+#: A stated want changes the ranking every later request computes, so the cached
+#: shortlist is wrong the moment one lands -- unlike F-6's card judgements, which
+#: invalidate neither because the re-rank writes its own result straight into the
+#: cache. The stored deep fits go with it on the rule rather than on a claim that
+#: a fit's numbers moved: wants are not in `path_fit_repository.fingerprint`, and
+#: dropping them costs a recomputation and never a wrong answer.
+_KNOWN_INVALIDATION_SITES = 8
 
 
 def test_every_path_cache_invalidation_also_drops_the_stored_deep_fits():
@@ -236,15 +244,19 @@ def test_every_path_cache_invalidation_also_drops_the_stored_deep_fits():
     )
 
 
-def test_the_three_services_that_invalidate_are_the_ones_expected():
+def test_the_services_that_invalidate_are_the_ones_expected():
     """A new module invalidating path state is a review moment, not a silent fact.
 
     The rule above is enforced per file, so a *new* file gets it for free -- but
-    only if somebody noticed the file exists. This is where they notice.
+    only if somebody noticed the file exists. This is where they notice, and W-4
+    is the first time it has fired: `path_wants_service` is the fourth module,
+    and it is here because a stated want changes the ranking rather than because
+    it changes the profile.
     """
     assert set(_service_sources()) == {
         "solverah/services/assessment_service.py",
         "solverah/services/intelligence_service.py",
+        "solverah/services/path_wants_service.py",
         "solverah/services/profile_service.py",
     }
 

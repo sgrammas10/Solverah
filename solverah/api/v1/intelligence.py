@@ -49,6 +49,8 @@ from solverah.schemas.intelligence import (
     RecommendationsPage,
     PathPreferencesResponse,
     PathSuggestionsResponse,
+    PathWantsPutRequest,
+    PathWantsResponse,
     QuizInsightsGuestResponse,
     QuizInsightsRequest,
     QuizInsightsResponse,
@@ -58,6 +60,7 @@ from solverah.services import (
     agent_service,
     insight_service,
     intelligence_service,
+    path_wants_service,
     scoring_jobs,
 )
 
@@ -78,6 +81,7 @@ _SCOPE_AGENT = "intelligence:agent"
 _SCOPE_PATH_SUGGESTION_JOBS = "intelligence:path-suggestion-jobs"
 _SCOPE_PATH_FIT = "intelligence:path-fit"
 _SCOPE_PATH_FEEDBACK = "intelligence:path-feedback"
+_SCOPE_PATH_WANTS = "intelligence:path-wants"
 
 #: See ``solverah/api/v1/assessments.py`` for why a poll does not run on the
 #: global defaults, and why the day cap is restated rather than dropped.
@@ -462,9 +466,10 @@ def get_my_path_suggestion_job(job_id: str):
 
     `error` on a failed job carries the scorer's own message -- notably
     `career_status_not_set`, the same condition the synchronous GET answers 400
-    for, and `profile_incomplete` when the profile carries neither a job title
-    nor any skills. The client handles both by prompting for the missing data
-    rather than by retrying.
+    for, `profile_incomplete` when the profile carries neither a job title nor
+    any skills, and `corpus_unavailable` when the occupation corpus could not be
+    loaded. The client handles the first two by prompting for the missing data
+    and the third by offering the user a retry.
     """
     user = _current_user()
     if not user:
@@ -677,4 +682,129 @@ def delete_my_path_feedback():
 
     return _respond(
         intelligence_service.clear_path_feedback(user, current_app.logger)
+    )
+
+
+# ---------------------------------------------------------------------------
+# W-4 -- "what should change" about the user's own job
+# ---------------------------------------------------------------------------
+#
+# `POST /me/path-feedback` above is a judgement about a card the scorer chose.
+# These two are the other direction and a different kind of statement: the user's
+# own answer about the job they already hold. That is why all three move intents
+# read them while only `adjacent` and `fresh_start` read the judgements -- design
+# doc §8.3, and `score_paths`' `wants` argument says the same thing one layer
+# down.
+#
+# NEITHER ROUTE RE-RANKS, and that is the ⚑7 lesson the panel exists under. A tap
+# has to change the list the user is looking at, so `POST /me/path-feedback`
+# returns the new shortlist; the panel must NEVER stand between the user and a
+# result, so the page loads ranked as it is today and the client re-ranks by
+# queueing the ordinary suggestion job after it writes. A PUT that returned a
+# shortlist would be a panel the first result waits for.
+#
+# The write therefore invalidates instead: the cached list was computed without
+# this answer, so it is wrong the moment the answer lands. See
+# `path_wants_service`'s module docstring for why the stored deep fits go with
+# it.
+
+
+@document(
+    "Read the \"what should change\" panel for the user's own job",
+    tags=["me"],
+    responses={200: PathWantsResponse, 404: LegacyError, 503: LegacyError},
+    security=_AUTHENTICATED,
+    enforce=True,
+    description=(
+        "The panel is built from the user's OWN occupation: about eight of its "
+        "O*NET tasks in plain words, plus four measured work conditions, each "
+        "carrying whatever the user has already answered.\n\n"
+        "`status` is `ok`, `no_anchor` (no current job, or a title that resolves "
+        "to nothing usable -- show no panel and let card taps steer the page), or "
+        "`unavailable` (the task sidecar could not be loaded, so the task half is "
+        "empty and only the conditions can be answered).\n\n"
+        "Costs no O*NET request and no LLM call. The anchor is resolved out of "
+        "the corpus, on the one profile-document embedding `score_paths` caches "
+        "anyway.\n\n"
+        "`error` on a failure is `corpus_unavailable` (503), which is retried."
+    ),
+)
+@intelligence_bp.route("/me/path-wants", methods=["GET"])
+@limiter.shared_limit("20 per minute", scope=_SCOPE_PATH_WANTS)
+@jwt_required()
+def get_my_path_wants():
+    """GET /me/path-wants - the panel, and the user's answers on it.
+
+    Rate limited although it is a read, which `GET /me/path-suggestions` is not,
+    and the difference is what the two do. That one is a dict lookup in a
+    per-worker cache. This one resolves the anchor, which on a cold
+    `_EMBED_CACHE` is an embedding request -- a provider spend, so A9's principle
+    puts a budget on it.
+
+    Shares one bucket with the PUT below, for the reason every `shared_limit` on
+    this blueprint gives: read-answer-read is one user doing one thing, and two
+    separate budgets would let it cost twice as much.
+    """
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    return _respond(path_wants_service.read_path_wants(user, current_app.logger))
+
+
+@document(
+    "Record what should change about the user's own job",
+    tags=["me"],
+    request=PathWantsPutRequest,
+    responses={
+        200: PathWantsResponse,
+        404: LegacyError,
+        422: LegacyError,
+        503: LegacyError,
+    },
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "Stores the answers named in the body and returns the whole panel, in "
+        "`GET /me/path-wants`' shape -- so a client renders one component and "
+        "reads the state of its own controls off the response it just wrote.\n\n"
+        "PARTIAL IS VALID and is the expected case: the body names the rows it "
+        "is changing and leaves the rest alone, because the panel is skippable "
+        "and must be valid half-finished. `verdict: null` clears a row, and "
+        "clearing something already clear is a `200`, not a `404`.\n\n"
+        "Idempotent: sending the same body twice writes the same state.\n\n"
+        "Every key is checked against what a `GET` would offer for the user's "
+        "CURRENT occupation. A key from a different one -- which is what a "
+        "client holding a panel across a job change sends -- is a `422` and "
+        "NOTHING is written, not even the acceptable half of the body.\n\n"
+        "A write drops the cached shortlist, so the next `POST "
+        "/me/path-suggestion-jobs` re-ranks with the new answers. This route "
+        "deliberately does not re-rank itself: the panel must never stand "
+        "between the user and a result."
+    ),
+)
+@intelligence_bp.route("/me/path-wants", methods=["PUT"])
+@limiter.shared_limit("20 per minute", scope=_SCOPE_PATH_WANTS)
+@jwt_required()
+def put_my_path_wants():
+    """PUT /me/path-wants - store the named answers, return the panel.
+
+    20 per minute, matching `POST /me/path-feedback` rather than the 10 the
+    spending routes carry, and for that route's reason: the panel is twelve
+    controls and a user working down it answers a dozen times in well under a
+    minute. A client that batches its answers sends one request; one that writes
+    per control sends twelve, and refusing the ninth would be the rate limiter
+    breaking the feature it is protecting.
+
+    PUT rather than POST because the body replaces the answers it names rather
+    than appending to them, which is `PUT /me/path-preferences`' reasoning.
+    """
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    return _respond(
+        path_wants_service.save_path_wants(
+            user, request.get_json(silent=True) or {}, current_app.logger
+        )
     )

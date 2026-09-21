@@ -1,4 +1,4 @@
-"""Every per-worker cache is bounded. Regression tests for two production outages.
+"""Every per-worker cache and memo is bounded. Regression tests for two outages.
 
 **2026-09-08.** Production booted 2026-09-03 19:19 UTC and was SIGKILLed
 2026-09-08 14:13, dead by 15:16. Three gunicorn workers, never recycled, each
@@ -48,10 +48,27 @@ below is that argument as an assertion, and the arithmetic is in
 as F-8's brief originally had it: F-5's deep fit and F-6's re-rank both use it,
 and ``test_embed_cache_reads_tolerate_the_stored_vector_type`` pins that the two
 tiers hold one object.
+
+**W-3 added two per-worker SIDECAR MEMOS, and they are a different shape.**
+``occupation_conditions._TABLE`` and ``occupation_tasks._TABLE`` are not caches
+-- nothing accumulates in them and nothing is ever evicted. Each holds exactly
+one table, for exactly one corpus version, read once from a file that is fixed
+at build time. So the bound is not a policy, it is an *upper bound on a known
+artifact*, and the two tests for each are: the measured size of that artifact,
+recorded here so a build that doubles it fails a test rather than a dyno; and
+that a second corpus version REPLACES the memo instead of joining it, which is
+the only way either could grow.
+
+**W-3 also roughly doubled the ``_EMBED_CACHE`` demand of one user**, and the
+residency-window arithmetic below is corrected for it: a wants request embeds
+the user's tapped task statements on top of their profile documents, measured at
+~8.3 marginal entries per distinct user before wants and ~16.6 after. The
+window is unchanged in bytes and halves in users.
 """
 
 from __future__ import annotations
 
+import os
 import sys
 
 import numpy as np
@@ -355,9 +372,17 @@ _TIER_TWO_CORE_ENTRIES = 76
 #: Mean resident cost of one entry, measured the way `_evict_to_budget` counts.
 _MEASURED_ENTRY_BYTES = 6_553
 
-#: Marginal entries a new distinct user adds to a warm cache. Measured across
-#: the 19 non-degenerate F-2 profiles: 158 entries for 19 users.
-_MARGINAL_ENTRIES_PER_USER = 8.3
+#: Marginal entries a new distinct user adds to a warm cache.
+#:
+#: 8.3 before the wants layer -- measured across the 19 non-degenerate F-2
+#: profiles, 158 entries for 19 users. **W-3 roughly doubles it**: a user who
+#: has stated wants also has their tapped task statements embedded, in the same
+#: batched call, and a full panel is eight tasks. Measured over the fifteen W-2
+#: wants profiles, a wants request costs about twice what the same user's
+#: wants-blind request costs, so the figure this file reasons with is the
+#: doubled one -- a budget defended on the cheaper of two request shapes is not
+#: defended.
+_MARGINAL_ENTRIES_PER_USER = 16.6
 
 
 def test_the_budget_is_a_residency_window_for_the_shared_core() -> None:
@@ -381,6 +406,12 @@ def test_the_budget_is_a_residency_window_for_the_shared_core() -> None:
     realistic run of distinct users. That fails on a careless shrink and passes
     for a considered retune in either direction -- which is what a budget with
     an env override wants.
+
+    **W-3 halved the window in users without touching a byte of it**: a wants
+    request embeds the user's tapped task statements too, so the marginal cost
+    of a distinct user went from ~8.3 entries to ~16.6 and the window from
+    ~617 users to ~308. Still an order of magnitude above the floor asserted
+    here; recorded because the next doubling would not be.
     """
     window = path_scoring._EMBED_CACHE_MAX_BYTES // _MEASURED_ENTRY_BYTES
 
@@ -567,3 +598,225 @@ def test_occupation_cache_is_bounded_even_when_nothing_has_expired(occ) -> None:
     assert len(onet_client._OCC_CACHE) <= onet_client._OCC_CACHE_MAX_ENTRIES
     assert occ("15-%04d.00" % (inserted - 1)) in onet_client._OCC_CACHE
     assert occ("15-0000.00") not in onet_client._OCC_CACHE
+
+
+# ── W-3's two sidecar memos ─────────────────────────────────────────────────
+#
+# Not caches. Each holds ONE table for ONE corpus version, read once from a file
+# whose contents are fixed at build time, and nothing is ever evicted because
+# nothing ever accumulates. So there are exactly two ways either becomes a
+# memory problem, and each has a test:
+#
+#   1. the artifact itself grows -- a rebuild with more axes, or a panel size
+#      raised from eight to twenty. The recorded measurements below are what
+#      fails first; and
+#   2. a second corpus version is loaded and the memo keeps both. It does not,
+#      and `test_..._memo_holds_one_table_not_one_per_version` is why.
+#
+# Both live here rather than beside their own module's tests because this file
+# is the single home for per-worker memory claims -- `solverah-cache-bounds`
+# exists so that nobody has to find four files to answer "what does a worker
+# hold". The 512 MB Starter runs ONE worker (the 2026-09-16 OOM fix), so these
+# numbers are the whole cost, not a per-worker multiple.
+
+#: Deep `sys.getsizeof` of the loaded conditions table on the real 2026-09-16
+#: artifact (911 occupations x 7 axes as percentiles, plus the raw bundle
+#: means), measured 2026-09-21. The file on disk is 334 KB; Python's dicts and
+#: boxed floats cost about 2.8x that.
+#:
+#: W-3a's landing note estimated "a fifth ~0.3 MB entry" from the file size.
+#: The resident number is three times that, which is the reason this constant
+#: is a measurement and not a guess.
+_MEASURED_CONDITIONS_MEMO_BYTES = 947_278
+
+#: The same, for the tasks table: 941 occupations, 7,373 rows, each row two
+#: strings (the O*NET statement and its display label). Measured 2026-09-21 on
+#: the built `onet_corpus_20260916.tasks.json` (1.24 MB on disk).
+#:
+#: **This is the one that scales with a product decision.** It is ~370 bytes
+#: per row and `MAX_TASKS_PER_OCCUPATION` is 8, so a panel raised to 20 rows is
+#: ~6.5 MB rather than 2.6 -- still affordable, and still a number somebody
+#: should have to look at before raising it.
+_MEASURED_TASKS_MEMO_BYTES = 2_713_513
+
+#: Everything above, added up, as a share of the instance. A booted worker with
+#: empty caches measures ~148 MB against 512 MB, so 364 MB is the headroom for
+#: every cache plus request handling -- and `_EMBED_CACHE_MAX_BYTES` (32 MB)
+#: already claims a tenth of it. 64 MB is a deliberately loose ceiling on the
+#: whole set: it fails on a new memo nobody sized, not on a considered retune.
+_TOTAL_MEMORY_CEILING_BYTES = 64 * 1024 * 1024
+
+
+@pytest.fixture()
+def sidecar_corpus(tmp_path):
+    """A real `OccupationCorpus` over the committed test fixture artifact."""
+    from pathlib import Path
+
+    from backend.services.occupation_retrieval import load_corpus
+
+    source = Path(__file__).parent / "fixtures" / "corpus"
+    target = tmp_path / "onet_corpus_testfix.npy"
+    target.write_bytes((source / "onet_corpus_testfix.npy").read_bytes())
+    for name in ("onet_corpus_testfix.json", "onet_corpus_testfix.zones.json"):
+        (tmp_path / name).write_text(
+            (source / name).read_text(encoding="utf-8"), encoding="utf-8"
+        )
+    return load_corpus(target)
+
+
+def _deep_sizeof(obj, seen=None) -> int:
+    """Resident cost of a nested structure of dicts, tuples and dataclasses.
+
+    A local copy for the reason `_deep_bytes` above is one: it must measure a
+    tree the production code does not expose a helper for, and importing one
+    would tie this file's numbers to a helper that could change under them.
+    """
+    seen = set() if seen is None else seen
+    if id(obj) in seen:
+        return 0
+    seen.add(id(obj))
+    total = sys.getsizeof(obj)
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            total += _deep_sizeof(key, seen) + _deep_sizeof(value, seen)
+    elif isinstance(obj, (list, tuple, set, frozenset)):
+        for value in obj:
+            total += _deep_sizeof(value, seen)
+    elif hasattr(obj, "__dict__"):
+        total += _deep_sizeof(vars(obj), seen)
+    return total
+
+
+@pytest.fixture(autouse=True)
+def _clean_sidecar_memos():
+    from backend.services import occupation_conditions, occupation_tasks
+
+    occupation_conditions.reset_conditions_cache()
+    occupation_tasks.reset_tasks_cache()
+    yield
+    occupation_conditions.reset_conditions_cache()
+    occupation_tasks.reset_tasks_cache()
+
+
+def test_the_two_memos_and_every_cache_fit_the_one_worker_budget() -> None:
+    """The arithmetic the 2026-09-16 OOM fix left behind, with W-3 added.
+
+    `workers` went 3 -> 1 on a 512 MB Starter, so this is not a per-worker
+    share of anything: it is what the process holds. The memos are fixed costs
+    a cap cannot help with, which is exactly why they need a recorded number --
+    the response to this failing is to shrink the artifact, not the budget.
+    """
+    total = (
+        path_scoring._EMBED_CACHE_MAX_BYTES
+        + _MEASURED_CONDITIONS_MEMO_BYTES
+        + _MEASURED_TASKS_MEMO_BYTES
+    )
+
+    assert total <= _TOTAL_MEMORY_CEILING_BYTES, (
+        "the bounded caches plus the W-3 memos claim %.1f MB of a 512 MB "
+        "instance that boots at ~148 MB" % (total / 1024 / 1024)
+    )
+
+
+def test_the_conditions_memo_holds_one_table_not_one_per_version(
+    sidecar_corpus, tmp_path
+) -> None:
+    """The only way a memo grows: a second corpus, both kept.
+
+    Two corpus versions in one process is not hypothetical -- it is every
+    deploy that changes `SOLVERAH_CORPUS_S3_KEY` while a worker is up.
+    """
+    import dataclasses
+
+    from backend.services import occupation_conditions
+
+    occupation_conditions.write_conditions_sidecar(
+        sidecar_corpus.matrix_path,
+        occupation_conditions.ConditionsTable(percentiles={"29-1141.00": {"people": 1.0}}),
+    )
+    first = occupation_conditions.get_conditions(sidecar_corpus)
+    assert first is not None
+
+    later = dataclasses.replace(sidecar_corpus, version="testfix-2")
+    occupation_conditions.write_conditions_sidecar(
+        later.matrix_path,
+        occupation_conditions.ConditionsTable(percentiles={"15-1252.00": {"desk": 1.0}}),
+    )
+    second = occupation_conditions.get_conditions(later)
+
+    assert second is not first
+    assert occupation_conditions._TABLE is second, "the old table stayed resident"
+
+
+def test_the_tasks_memo_holds_one_table_not_one_per_version(
+    sidecar_corpus, tmp_path
+) -> None:
+    """Same property, and it matters more here: the tasks table is the bigger
+    of the two, so two of them resident is ~5.5 MB nobody accounted for."""
+    import dataclasses
+
+    from backend.services import occupation_tasks
+
+    def _write(corpus, code: str) -> None:
+        occupation_tasks.write_tasks_sidecar(
+            corpus.matrix_path,
+            occupation_tasks.TasksTable(
+                tasks={code: (occupation_tasks.OccupationTask("Do the work.", "Working"),)}
+            ),
+        )
+
+    _write(sidecar_corpus, "29-1141.00")
+    first = occupation_tasks.get_tasks(sidecar_corpus)
+    assert first is not None
+
+    later = dataclasses.replace(sidecar_corpus, version="testfix-2")
+    _write(later, "15-1252.00")
+    second = occupation_tasks.get_tasks(later)
+
+    assert second is not first
+    assert occupation_tasks._TABLE is second, "the old table stayed resident"
+
+
+@pytest.mark.skipif(
+    not os.environ.get("SOLVERAH_CORPUS_PATH"),
+    reason="SOLVERAH_CORPUS_PATH is unset; CI has no corpus artifact",
+)
+class TestTheMemosAgainstTheRealArtifacts:
+    """The recorded numbers, re-measured against the files they came from.
+
+    Skipped in CI, which has no artifact -- so these are a local gate on a
+    corpus rebuild rather than a build gate, which is the right place for them:
+    a rebuild is where the size changes, and a rebuild happens on this machine.
+    """
+
+    def test_the_conditions_memo_is_the_size_it_is_recorded_as(self) -> None:
+        from backend.services import occupation_conditions
+        from backend.services.occupation_retrieval import get_corpus
+
+        table = occupation_conditions.get_conditions(get_corpus())
+        if table is None:
+            pytest.skip("no conditions sidecar beside the artifact")
+
+        resident = _deep_sizeof(table.percentiles) + _deep_sizeof(table.raw)
+
+        assert resident <= _MEASURED_CONDITIONS_MEMO_BYTES * 1.5, (
+            "the conditions memo is %.2f MB against a recorded %.2f MB; a "
+            "rebuild grew it and the budget above has not been re-derived"
+            % (resident / 1024 / 1024, _MEASURED_CONDITIONS_MEMO_BYTES / 1024 / 1024)
+        )
+
+    def test_the_tasks_memo_is_the_size_it_is_recorded_as(self) -> None:
+        from backend.services import occupation_tasks
+        from backend.services.occupation_retrieval import get_corpus
+
+        table = occupation_tasks.get_tasks(get_corpus())
+        if table is None:
+            pytest.skip("no tasks sidecar beside the artifact")
+
+        resident = _deep_sizeof(table.tasks)
+
+        assert resident <= _MEASURED_TASKS_MEMO_BYTES * 1.5, (
+            "the tasks memo is %.2f MB against a recorded %.2f MB; raising "
+            "MAX_TASKS_PER_OCCUPATION is the usual cause"
+            % (resident / 1024 / 1024, _MEASURED_TASKS_MEMO_BYTES / 1024 / 1024)
+        )

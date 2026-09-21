@@ -27,7 +27,11 @@ import pytest
 
 import backend.services.occupation_clusters as oc
 import backend.services.path_scoring as ps
-from backend.services.occupation_retrieval import CorpusUnavailable, OccupationCorpus
+from backend.services.occupation_retrieval import (
+    CorpusUnavailable,
+    Match,
+    OccupationCorpus,
+)
 from backend.services.onet_client import OnetAPIError, OnetClient
 from backend.services.path_scoring import (
     InsufficientProfile,
@@ -1090,6 +1094,113 @@ class TestFreshStartSeed:
         ]
         assert len({code[:5] for code in after}) < 4
 
+    def test_a_stated_want_ends_the_seed_the_way_a_tap_does(
+        self, monkeypatch, onet
+    ) -> None:
+        """⚑10, decided by Sebastian 2026-09-21 on W-3a's measurement.
+
+        A spanning set is a QUESTION -- "which of these regions are you heading
+        for" -- and it is shown only while the question is unanswered.  A tap
+        answered it before; a stated want answers it more precisely and earlier,
+        so it ends the seed on the same line.  Measured: on the five
+        `fresh_start` wants profiles the seed costs 0.101 nDCG@10 with wants
+        present (0.2833 seeded against 0.3886 plain) against 0.060 without
+        them, at identical harm -- it costs MORE once the ordering is good.
+        """
+        corpus = self.spread_corpus()
+        monkeypatch.setattr(ps, "get_corpus", lambda: corpus)
+        monkeypatch.setattr(ps, "_FRESH_START_SKILL_FLOOR", 0.0)
+        monkeypatch.setattr(oc, "CLUSTER_COUNT", 5)
+        monkeypatch.setattr(ps, "_TOP_N", 4)
+        monkeypatch.setattr(ps, "_RETRIEVE_K_ADJACENT", 4)
+
+        p = fresh(current_title="Nurse")
+        client = wants_openai(p, unit(0, 1, 0, 0, 0), tasks={CUSTOMER_TASK: TRADE})
+        after = [
+            r.onet_code
+            for r in score_paths(
+                p, onet, client, wants=ps.Wants(tasks_more=(CUSTOMER_TASK,))
+            )
+        ]
+
+        assert len({code[:5] for code in after}) < 4, (
+            "the page is %s -- a user who said what they want is still being "
+            "shown one card per region" % after
+        )
+
+    def test_a_conditions_only_want_ends_it_too(self, monkeypatch, onet) -> None:
+        """The ruling is about *stating something*, not about which kind.
+
+        Conditions do not rotate the query (they are a one-sided term in the
+        rank), so a scorer that keyed the seed off `has_tasks` would keep
+        spreading a page for a user who has already named the day they want.
+        """
+        corpus = self.spread_corpus()
+        monkeypatch.setattr(ps, "get_corpus", lambda: corpus)
+        monkeypatch.setattr(ps, "_FRESH_START_SKILL_FLOOR", 0.0)
+        monkeypatch.setattr(oc, "CLUSTER_COUNT", 5)
+        monkeypatch.setattr(ps, "_TOP_N", 4)
+        monkeypatch.setattr(ps, "_RETRIEVE_K_ADJACENT", 4)
+
+        p = fresh(current_title="Nurse")
+        after = [
+            r.onet_code
+            for r in score_paths(
+                p,
+                onet,
+                wants_openai(p, unit(0, 1, 0, 0, 0)),
+                wants=ps.Wants(conditions={"desk": "more"}),
+            )
+        ]
+
+        assert len({code[:5] for code in after}) < 4
+
+    def test_an_empty_wants_object_is_the_same_as_none(
+        self, monkeypatch, onet
+    ) -> None:
+        """"Valid half-finished" includes "not started".
+
+        W-4 will hand `score_paths` a `Wants` built from whatever rows the user
+        has, and a user who opened the panel and answered nothing must get the
+        page a user who never opened it gets -- which is the seeded one.
+        """
+        corpus = self.spread_corpus()
+        monkeypatch.setattr(ps, "get_corpus", lambda: corpus)
+        monkeypatch.setattr(ps, "_FRESH_START_SKILL_FLOOR", 0.0)
+        monkeypatch.setattr(oc, "CLUSTER_COUNT", 5)
+        monkeypatch.setattr(ps, "_TOP_N", 4)
+
+        p = fresh(current_title="Nurse")
+        client = tech_openai(p, unit(0, 1, 0, 0, 0))
+        none_codes = [r.onet_code for r in score_paths(p, onet, client)]
+        empty_codes = [
+            r.onet_code for r in score_paths(p, onet, client, wants=ps.Wants())
+        ]
+
+        assert len({code[:5] for code in none_codes}) == 4, "the seed was not used"
+        assert empty_codes == none_codes
+
+    def test_the_other_two_intents_never_seeded_and_still_do_not(
+        self, monkeypatch, onet
+    ) -> None:
+        """The seed is a `fresh_start` construct; the ruling changes only it.
+
+        Guards the obvious misreading of "drop the seed once wants are stated"
+        as a statement about `score_paths` rather than about one intent.
+        """
+        corpus = self.spread_corpus()
+        monkeypatch.setattr(ps, "get_corpus", lambda: corpus)
+
+        def _boom(*args, **kwargs):  # pragma: no cover -- must not be called
+            raise AssertionError("a non-fresh_start intent reached the seed")
+
+        monkeypatch.setattr(ps, "_fresh_start_seed", _boom)
+
+        for intent in ("stay_in_field", "adjacent"):
+            p = profile(move_intent=intent, current_title="Nurse",
+                        skills=[user_skill("Python")])
+            score_paths(p, onet, tech_openai(p, unit(0, 1, 0, 0, 0)))
+
     def test_a_clusterer_that_fails_degrades_to_the_plain_ranking(
         self, monkeypatch, onet
     ) -> None:
@@ -1977,6 +2088,648 @@ class TestFeedbackThroughScorePaths:
 
 
 # ---------------------------------------------------------------------------
+# W-3 -- the wants layer
+# ---------------------------------------------------------------------------
+
+
+CODING_TASK = "Modify existing software to correct errors."
+CUSTOMER_TASK = "Consult with customers about software system design."
+
+
+def wants_openai(
+    profile_obj: UserProfile,
+    vec: np.ndarray = TECH,
+    tasks: dict[str, np.ndarray] | None = None,
+) -> FakeOpenAI:
+    """`tech_openai` plus a vector for each tapped task statement."""
+    client = tech_openai(profile_obj, vec)
+    client.embeddings.table.update(tasks or {})
+    return client
+
+
+def conditions_table(rows: dict[str, dict[str, float]]):
+    """A real `ConditionsTable` over hand-written percentiles.
+
+    The dataclass rather than a stub: `_conditions_shortfall` reads it through
+    the same `percentile()` a loaded sidecar is read through, so a change to
+    "not measured" handling shows up here.
+    """
+    from backend.services.occupation_conditions import ConditionsTable
+
+    return ConditionsTable(percentiles=rows, raw={})
+
+
+@pytest.fixture()
+def no_conditions(monkeypatch):
+    """No sidecar anywhere -- the degrade every corpus without one gets."""
+    monkeypatch.setattr(
+        ps.occupation_conditions, "get_conditions", lambda corpus: None
+    )
+
+
+@pytest.fixture()
+def desk_conditions(monkeypatch):
+    """A world where the user's own job is mid-desk and the others are not.
+
+    15-1252.00 is the anchor at 0.50; Computer Programmers sit high, Web
+    Developers and Electricians low.
+    """
+    table = conditions_table(
+        {
+            "15-1252.00": {"desk": 0.50, "people": 0.50},
+            "15-1251.00": {"desk": 1.00, "people": 0.10},
+            "15-1254.00": {"desk": 0.00, "people": 0.50},
+            "47-2111.00": {"desk": 0.00, "people": 0.90},
+        }
+    )
+    monkeypatch.setattr(
+        ps.occupation_conditions, "get_conditions", lambda corpus: table
+    )
+    return table
+
+
+class TestWantsDataclass:
+    def test_empty_is_empty_whichever_field_is_missing(self) -> None:
+        assert ps.Wants().is_empty
+        assert not ps.Wants(tasks_more=("a",)).is_empty
+        assert not ps.Wants(tasks_less=("a",)).is_empty
+        assert not ps.Wants(conditions={"desk": "more"}).is_empty
+
+    def test_task_texts_are_deduplicated_stripped_and_ordered(self) -> None:
+        wants = ps.Wants(
+            tasks_more=(" first ", "second", ""), tasks_less=("second", "third")
+        )
+
+        assert wants.task_texts() == ["first", "second", "third"]
+
+    def test_conditions_only_wants_carry_no_tasks(self) -> None:
+        assert not ps.Wants(conditions={"desk": "more"}).has_tasks
+
+
+class TestWantsIsAdditive:
+    """`wants=None` must be the scorer that existed before W-3.
+
+    Not "close enough": the same codes AND the same scores, on every intent.
+    The fifteen-profile measurement is worth nothing if it was bought by
+    changing the page of every user who has stated nothing.
+    """
+
+    @pytest.mark.parametrize(
+        "intent", ["stay_in_field", "adjacent", "fresh_start", None]
+    )
+    def test_none_and_empty_match_the_no_argument_call(
+        self, world, onet, intent
+    ) -> None:
+        prof = profile(move_intent=intent, skills=[user_skill("Python")])
+        client = wants_openai(prof)
+
+        without = score_paths(prof, onet, client)
+        none = score_paths(prof, onet, client, wants=None)
+        empty = score_paths(prof, onet, client, wants=ps.Wants())
+
+        expected = [(p.onet_code, p.score) for p in without]
+        assert [(p.onet_code, p.score) for p in none] == expected
+        assert [(p.onet_code, p.score) for p in empty] == expected
+
+    def test_empty_wants_ask_for_no_extra_embedding(self, world, onet) -> None:
+        prof = profile(move_intent="adjacent", skills=[user_skill("Python")])
+        client = wants_openai(prof)
+
+        score_paths(prof, onet, client, wants=ps.Wants())
+
+        assert client.calls == 1
+
+    def test_a_sidecar_is_never_read_when_nothing_was_stated(
+        self, world, onet, monkeypatch
+    ) -> None:
+        """No stated conditions, no conditions lookup -- so a user who answered
+        nothing cannot be affected by a missing or broken sidecar."""
+        monkeypatch.setattr(
+            ps.occupation_conditions,
+            "get_conditions",
+            lambda corpus: pytest.fail("the conditions sidecar was read"),
+        )
+        prof = profile(move_intent="adjacent", skills=[user_skill("Python")])
+
+        assert score_paths(prof, onet, wants_openai(prof))
+
+
+class TestTaskRotation:
+    """`q' = normalise(q + beta*mean(more) - gamma*mean(less))`."""
+
+    def _profile(self, intent: str = "adjacent") -> UserProfile:
+        return profile(move_intent=intent, skills=[user_skill("Python")])
+
+    def test_a_more_task_pulls_the_query_toward_it(self, world, onet) -> None:
+        prof = self._profile()
+        client = wants_openai(prof, tasks={CUSTOMER_TASK: TRADE})
+
+        before = {p.onet_code: p.score for p in score_paths(prof, onet, client)}
+        after = {
+            p.onet_code: p.score
+            for p in score_paths(
+                prof, onet, client, wants=ps.Wants(tasks_more=(CUSTOMER_TASK,))
+            )
+        }
+
+        assert after["47-2111.00"] > before["47-2111.00"]
+
+    def test_a_less_task_pushes_the_query_away_from_it(self, world, onet) -> None:
+        prof = self._profile()
+        client = wants_openai(prof, tasks={CODING_TASK: TECH_FAR})
+
+        before = {p.onet_code: p.score for p in score_paths(prof, onet, client)}
+        after = {
+            p.onet_code: p.score
+            for p in score_paths(
+                prof, onet, client, wants=ps.Wants(tasks_less=(CODING_TASK,))
+            )
+        }
+
+        assert after["15-1254.00"] < before["15-1254.00"]
+
+    @pytest.mark.parametrize(
+        "intent", ["stay_in_field", "adjacent", "fresh_start", None]
+    )
+    def test_every_intent_rotates(self, world, onet, intent) -> None:
+        """Unlike card feedback, which `stay_in_field` ignores by design.
+
+        The wants are the user's own statement about their own job -- the
+        question they arrived with -- not a judgement about a card the scorer
+        chose to show them (design doc §8.3).
+        """
+        prof = self._profile(intent)
+        client = wants_openai(prof, tasks={CUSTOMER_TASK: TRADE})
+
+        before = {p.onet_code: p.score for p in score_paths(prof, onet, client)}
+        after = {
+            p.onet_code: p.score
+            for p in score_paths(
+                prof, onet, client, wants=ps.Wants(tasks_more=(CUSTOMER_TASK,))
+            )
+        }
+
+        assert after["47-2111.00"] != before["47-2111.00"]
+
+    def test_the_task_statements_ride_in_the_one_batched_request(
+        self, world, onet
+    ) -> None:
+        """Not a second call, and not precomputed per occupation: a handful of
+        the user's own sentences alongside their skills."""
+        prof = self._profile()
+        client = wants_openai(prof, tasks={CUSTOMER_TASK: TRADE, CODING_TASK: TECH})
+
+        score_paths(
+            prof,
+            onet,
+            client,
+            wants=ps.Wants(tasks_more=(CUSTOMER_TASK,), tasks_less=(CODING_TASK,)),
+        )
+
+        assert client.calls == 1
+        assert CUSTOMER_TASK in client.texts
+        assert CODING_TASK in client.texts
+
+    def test_a_second_request_re_reads_the_cache_rather_than_the_api(
+        self, world, onet
+    ) -> None:
+        prof = self._profile()
+        client = wants_openai(prof, tasks={CUSTOMER_TASK: TRADE})
+        wants = ps.Wants(tasks_more=(CUSTOMER_TASK,))
+
+        score_paths(prof, onet, client, wants=wants)
+        score_paths(prof, onet, client, wants=wants)
+
+        assert client.calls == 1
+
+    def test_no_embedder_degrades_to_the_unrotated_page(self, world) -> None:
+        """No OpenAI client is a documented degrade for this module (the
+        `search_occupations` fallback resolves the anchor), and stated wants
+        must not turn that degrade into a failure or an empty page."""
+        prof = profile(move_intent="stay_in_field", skills=[user_skill("Python")])
+        searching = MagicMock(spec=OnetClient)
+        searching.search_occupations.return_value = [MagicMock(code="15-1252.00")]
+
+        plain = score_paths(prof, searching, None)
+        stated = score_paths(
+            prof, searching, None, wants=ps.Wants(tasks_more=(CUSTOMER_TASK,))
+        )
+
+        assert plain
+        assert [p.onet_code for p in stated] == [p.onet_code for p in plain]
+
+    def test_a_cancelling_rotation_falls_back_to_the_base_query(
+        self, world, monkeypatch, caplog
+    ) -> None:
+        """Vanishingly unlikely with real embeddings; a worse answer rather than
+        a wrong one if it ever happens -- `_rocchio_query`'s judgement."""
+        base = TECH
+        monkeypatch.setattr(ps, "_WANTS_TASK_BETA", 1.0)
+        monkeypatch.setattr(ps, "_WANTS_TASK_GAMMA", 0.0)
+        client = FakeOpenAI({CUSTOMER_TASK: -np.asarray(base, dtype=np.float32)})
+
+        with caplog.at_level("WARNING"):
+            rotated = ps._wants_rotated_query(
+                base, ps.Wants(tasks_more=(CUSTOMER_TASK,)), client
+            )
+
+        assert np.allclose(rotated, base)
+        assert "degenerate query" in caplog.text
+
+    def test_a_wants_with_no_tasks_is_the_identity(self, world) -> None:
+        assert ps._wants_rotated_query(TECH, ps.Wants(), None) is TECH
+        assert ps._wants_rotated_query(TECH, None, None) is TECH
+
+
+class TestConditionsShortfall:
+    """The one-sided term, on its own.
+
+    Design doc §8.4: *more* and *less* are directions, not points, so the
+    company model's ``1 - |a - b|`` does not fit -- overshooting what was asked
+    for must cost nothing.
+    """
+
+    def _targets(self, targets):
+        return ps._ConditionTargets(
+            table=conditions_table(
+                {
+                    "high": {"desk": 0.90},
+                    "low": {"desk": 0.10},
+                    "exact": {"desk": 0.50},
+                    "other-axis": {"people": 0.90},
+                    "unrated": {},
+                }
+            ),
+            targets=targets,
+        )
+
+    def test_overshooting_a_more_costs_nothing(self) -> None:
+        targets = self._targets({"desk": (0.50, "more")})
+
+        assert ps._conditions_shortfall("high", targets) == 0.0
+        assert ps._conditions_shortfall("exact", targets) == 0.0
+
+    def test_falling_short_of_a_more_is_the_distance(self) -> None:
+        targets = self._targets({"desk": (0.50, "more")})
+
+        assert ps._conditions_shortfall("low", targets) == pytest.approx(0.40)
+
+    def test_a_less_is_the_same_rule_pointed_the_other_way(self) -> None:
+        targets = self._targets({"desk": (0.50, "less")})
+
+        assert ps._conditions_shortfall("low", targets) == 0.0
+        assert ps._conditions_shortfall("high", targets) == pytest.approx(0.40)
+
+    def test_an_axis_the_job_has_no_rating_for_is_skipped(self) -> None:
+        """Not scored zero: a gap in O*NET's coverage is not a fact about the
+        job, and a shortfall of 1.0 would demote it for being unmeasured."""
+        targets = self._targets({"desk": (0.50, "more"), "people": (0.50, "more")})
+
+        assert ps._conditions_shortfall("other-axis", targets) == 0.0
+
+    def test_a_job_with_no_ratings_at_all_is_not_penalised(self) -> None:
+        targets = self._targets({"desk": (0.90, "more")})
+
+        assert ps._conditions_shortfall("unrated", targets) == 0.0
+        assert ps._conditions_shortfall("not-in-the-table", targets) == 0.0
+
+    def test_several_axes_average(self) -> None:
+        table = conditions_table({"job": {"desk": 0.10, "people": 0.50}})
+        targets = ps._ConditionTargets(
+            table=table, targets={"desk": (0.50, "more"), "people": (0.50, "more")}
+        )
+
+        assert ps._conditions_shortfall("job", targets) == pytest.approx(0.20)
+
+    def test_no_targets_is_no_shortfall(self) -> None:
+        assert ps._conditions_shortfall("anything", None) == 0.0
+
+
+class TestConditionTargets:
+    """Where the bar is set: the anchor's own percentile, shifted."""
+
+    def _anchor(self, code: str | None = "15-1252.00"):
+        return ps._Anchor(
+            zone=4, code=code, zone_resolved=True, title_used="Software Engineer"
+        )
+
+    def test_the_target_is_the_anchors_own_value_shifted(
+        self, world, desk_conditions
+    ) -> None:
+        targets = ps._condition_targets(
+            ps.Wants(conditions={"desk": "more"}), self._anchor(), world
+        )
+
+        assert targets is not None
+        target, direction = targets.targets["desk"]
+        assert direction == "more"
+        assert target == pytest.approx(0.50 + ps._WANTS_CONDITION_SHIFT)
+
+    def test_a_less_shifts_downward(self, world, desk_conditions) -> None:
+        targets = ps._condition_targets(
+            ps.Wants(conditions={"desk": "less"}), self._anchor(), world
+        )
+
+        assert targets.targets["desk"][0] == pytest.approx(
+            0.50 - ps._WANTS_CONDITION_SHIFT
+        )
+
+    def test_an_anchor_at_an_extreme_still_gets_a_reachable_target(
+        self, world, monkeypatch
+    ) -> None:
+        """Design doc §8.2's "nearly empty when the current job is an extreme"."""
+        monkeypatch.setattr(
+            ps.occupation_conditions,
+            "get_conditions",
+            lambda corpus: conditions_table({"15-1252.00": {"desk": 1.00}}),
+        )
+
+        targets = ps._condition_targets(
+            ps.Wants(conditions={"desk": "more"}), self._anchor(), world
+        )
+
+        assert targets.targets["desk"][0] == pytest.approx(0.98)
+
+    def test_an_axis_this_build_does_not_know_is_ignored(
+        self, world, desk_conditions
+    ) -> None:
+        targets = ps._condition_targets(
+            ps.Wants(conditions={"desk": "more", "vibes": "less"}),
+            self._anchor(),
+            world,
+        )
+
+        assert set(targets.targets) == {"desk"}
+
+    def test_a_direction_that_is_neither_more_nor_less_is_ignored(
+        self, world, desk_conditions
+    ) -> None:
+        assert (
+            ps._condition_targets(
+                ps.Wants(conditions={"desk": "fine"}), self._anchor(), world
+            )
+            is None
+        )
+
+    def test_no_anchor_switches_the_term_off(self, world, desk_conditions) -> None:
+        """"More than what?" has no answer, and inventing a corpus median would
+        answer a question the user did not ask."""
+        assert (
+            ps._condition_targets(
+                ps.Wants(conditions={"desk": "more"}), self._anchor(None), world
+            )
+            is None
+        )
+
+    def test_an_anchor_with_no_measured_row_switches_the_term_off(
+        self, world, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(
+            ps.occupation_conditions,
+            "get_conditions",
+            lambda corpus: conditions_table({"47-2111.00": {"desk": 0.5}}),
+        )
+
+        assert (
+            ps._condition_targets(
+                ps.Wants(conditions={"desk": "more"}), self._anchor(), world
+            )
+            is None
+        )
+
+    def test_no_sidecar_switches_the_term_off(self, world, no_conditions) -> None:
+        assert (
+            ps._condition_targets(
+                ps.Wants(conditions={"desk": "more"}), self._anchor(), world
+            )
+            is None
+        )
+
+
+class TestConditionsThroughScorePaths:
+    def _profile(self, intent: str = "adjacent") -> UserProfile:
+        return profile(move_intent=intent, skills=[user_skill("Python")])
+
+    def test_a_job_that_meets_the_want_gains_on_one_that_does_not(
+        self, world, onet, desk_conditions
+    ) -> None:
+        prof = self._profile()
+        client = wants_openai(prof)
+
+        before = {p.onet_code: p.score for p in score_paths(prof, onet, client)}
+        after = {
+            p.onet_code: p.score
+            for p in score_paths(
+                prof, onet, client, wants=ps.Wants(conditions={"desk": "more"})
+            )
+        }
+
+        assert (after["15-1251.00"] - before["15-1251.00"]) > (
+            after["15-1254.00"] - before["15-1254.00"]
+        )
+
+    @pytest.mark.parametrize(
+        "intent", ["stay_in_field", "adjacent", "fresh_start", None]
+    )
+    def test_the_term_applies_to_every_intent(
+        self, world, onet, desk_conditions, intent
+    ) -> None:
+        prof = self._profile(intent)
+        client = wants_openai(prof)
+
+        before = [p.score for p in score_paths(prof, onet, client)]
+        after = [
+            p.score
+            for p in score_paths(
+                prof, onet, client, wants=ps.Wants(conditions={"desk": "less"})
+            )
+        ]
+
+        assert before != after
+
+    def test_a_missing_sidecar_is_a_degrade_and_not_a_failure(
+        self, world, onet, no_conditions
+    ) -> None:
+        prof = self._profile()
+        client = wants_openai(prof)
+
+        plain = [(p.onet_code, p.score) for p in score_paths(prof, onet, client)]
+        stated = [
+            (p.onet_code, p.score)
+            for p in score_paths(
+                prof, onet, client, wants=ps.Wants(conditions={"desk": "more"})
+            )
+        ]
+
+        assert stated == plain
+
+    def test_an_unmeasured_candidate_keeps_its_place(
+        self, world, onet, monkeypatch
+    ) -> None:
+        """Web Developers carry no conditions row here; the term must neither
+        promote nor demote them for that."""
+        monkeypatch.setattr(
+            ps.occupation_conditions,
+            "get_conditions",
+            lambda corpus: conditions_table(
+                {"15-1252.00": {"desk": 0.50}, "15-1251.00": {"desk": 0.00}}
+            ),
+        )
+        prof = self._profile()
+        client = wants_openai(prof)
+
+        before = {p.onet_code: p.score for p in score_paths(prof, onet, client)}
+        after = {
+            p.onet_code: p.score
+            for p in score_paths(
+                prof, onet, client, wants=ps.Wants(conditions={"desk": "more"})
+            )
+        }
+        unmeasured = after["15-1254.00"] / before["15-1254.00"]
+        shortfalling = after["15-1251.00"] / before["15-1251.00"]
+
+        assert unmeasured > shortfalling
+
+    def test_the_score_stays_inside_zero_and_one(
+        self, world, onet, desk_conditions
+    ) -> None:
+        """The blend's whole reason: a subtraction would push weak candidates
+        under `score_paths`' clamp, where they would tie at 0.0 and come back in
+        retrieval order instead of in the order the user asked for."""
+        prof = self._profile()
+        client = wants_openai(prof)
+
+        before = {p.onet_code: p.score for p in score_paths(prof, onet, client)}
+        after = {
+            p.onet_code: p.score
+            for p in score_paths(
+                prof,
+                onet,
+                client,
+                wants=ps.Wants(conditions={"desk": "more", "people": "less"}),
+            )
+        }
+
+        assert after
+        assert all(0.0 <= score <= 1.0 for score in after.values())
+        assert all(after[code] > 0.0 for code, score in before.items() if score > 0.0)
+
+    def test_no_onet_call_is_made_on_the_wants_path(
+        self, world, onet, desk_conditions
+    ) -> None:
+        prof = self._profile()
+        assert score_paths(
+            prof,
+            onet,
+            wants_openai(prof, tasks={CUSTOMER_TASK: TRADE}),
+            wants=ps.Wants(tasks_more=(CUSTOMER_TASK,), conditions={"desk": "more"}),
+        )
+
+
+class TestWantsFreshStartRoleWeight:
+    """F-7 finding (6), fixed: a rotated query that cannot reorder anything.
+
+    ``fresh_start`` reserves ``role_w = 0``, so before W-3 the retrieval cosine
+    -- the only term the rotation touches -- was multiplied by zero and stated
+    tasks could change which rows came back but not their order.
+    """
+
+    def test_the_override_reaches_the_weights(self) -> None:
+        prof = profile(move_intent="fresh_start")
+
+        without = ps._weights(prof, True, False, False)
+        with_tasks = ps._weights(prof, True, False, False, ps._WANTS_FRESH_START_ROLE_W)
+
+        assert without[0] == 0.0
+        assert with_tasks[0] == ps._WANTS_FRESH_START_ROLE_W
+        assert sum(with_tasks) == pytest.approx(1.0)
+
+    @staticmethod
+    def _recording_weights(monkeypatch) -> list:
+        """Capture every `_weights` call's arguments, still running the real one."""
+        seen: list = []
+        real = ps._weights
+
+        def _spy(*args):
+            seen.append(args)
+            return real(*args)
+
+        monkeypatch.setattr(ps, "_weights", _spy)
+        return seen
+
+    def test_without_the_override_the_rotation_cannot_reorder_anything(self) -> None:
+        """F-7's finding, stated as arithmetic.
+
+        Two candidates that differ ONLY in the retrieval cosine -- which is the
+        one term a rotated query moves -- score identically while ``role_w`` is
+        zero, and differently once it is not.  That is the whole of what the
+        override buys and it is invisible from a page's membership.
+        """
+        prof = profile(move_intent="fresh_start")
+        near = ps._Signals(
+            match=Match(code="a", title="A", score=0.8, row=0),
+            role=0.9, coverage=0.5, style=0.0, zone=1.0, zone_raw=3,
+        )
+        far = ps._Signals(
+            match=Match(code="b", title="B", score=0.4, row=1),
+            role=0.1, coverage=0.5, style=0.0, zone=1.0, zone_raw=3,
+        )
+
+        blind = ps._weights(prof, True, False, False)
+        rotated = ps._weights(prof, True, False, False, ps._WANTS_FRESH_START_ROLE_W)
+
+        assert ps._final_score(near, blind) == ps._final_score(far, blind)
+        assert ps._final_score(near, rotated) > ps._final_score(far, rotated)
+
+    def test_conditions_alone_do_not_reach_for_it(
+        self, world, onet, desk_conditions, monkeypatch
+    ) -> None:
+        """The override exists because the QUERY changed.  A conditions-only
+        want does not rotate the query, so `fresh_start`'s zero still holds and
+        the retrieval cosine would only double-count coverage."""
+        prof = profile(move_intent="fresh_start", skills=[user_skill("Python")])
+        seen = self._recording_weights(monkeypatch)
+
+        score_paths(
+            prof, onet, wants_openai(prof), wants=ps.Wants(conditions={"desk": "more"})
+        )
+
+        assert seen and seen[-1][-1] is None
+
+    def test_a_tapped_task_does_reach_for_it(
+        self, world, onet, monkeypatch
+    ) -> None:
+        prof = profile(move_intent="fresh_start", skills=[user_skill("Python")])
+        seen = self._recording_weights(monkeypatch)
+
+        score_paths(
+            prof,
+            onet,
+            wants_openai(prof, tasks={CUSTOMER_TASK: TRADE}),
+            wants=ps.Wants(tasks_more=(CUSTOMER_TASK,)),
+        )
+
+        assert seen and seen[-1][-1] == ps._WANTS_FRESH_START_ROLE_W
+
+    @pytest.mark.parametrize("intent", ["stay_in_field", "adjacent", None])
+    def test_the_other_intents_keep_their_own_role_weight(
+        self, world, onet, monkeypatch, intent
+    ) -> None:
+        """They already reserve one, and it already carries the rotation."""
+        prof = profile(move_intent=intent, skills=[user_skill("Python")])
+        seen = self._recording_weights(monkeypatch)
+
+        score_paths(
+            prof,
+            onet,
+            wants_openai(prof, tasks={CUSTOMER_TASK: TRADE}),
+            wants=ps.Wants(tasks_more=(CUSTOMER_TASK,)),
+        )
+
+        assert seen and seen[-1][-1] is None
+
+
+# ---------------------------------------------------------------------------
 # Against the real 1,016-row artifact
 # ---------------------------------------------------------------------------
 
@@ -2779,3 +3532,544 @@ class TestSimulatedFeedbackAgainstTheRealCorpus:
         changed = [r.onet_code for r in self._score(eval_profile, openai, feedback)]
         assert changed != baseline, "the simulated taps changed nothing"
         assert [r.onet_code for r in self._score(eval_profile, openai, {})] == baseline
+
+
+# ---------------------------------------------------------------------------
+# Card reasons -- what is DISTINCTIVE about this card (W-4)
+# ---------------------------------------------------------------------------
+
+
+def _reason_page(*codes: str) -> list[ScoredPath]:
+    return [
+        ScoredPath(onet_code=code, title="Role %s" % code, score=0.9 - i / 100)
+        for i, code in enumerate(codes)
+    ]
+
+
+class TestCardReasons:
+    """The line that replaces the percentage W-1 removed.
+
+    The arithmetic is trivial -- two percentiles and a subtraction -- so
+    everything worth a test here is about what is *printed*: which phrase wins
+    when several qualify, and which phrase is worth nothing because it describes
+    the whole page.  Design doc 8.2 measured the case that matters: a Software
+    Developer sits at 0.07 for `people` and 1.00 for `desk`, so a reason line
+    phrased against their current job reads identically on nearly every card.
+    """
+
+    #: A developer's page.  The anchor is that measured extreme; Web Developers
+    #: and Electricians sit further from it on `people` than the 0.25 margin, and
+    #: Computer Programmers do not -- a real job correctly described by silence.
+    TABLE = {
+        "15-1252.00": {"people": 0.07, "public": 0.10, "leading": 0.30, "desk": 1.00},
+        "15-1251.00": {"people": 0.10, "public": 0.12, "leading": 0.28, "desk": 0.98},
+        "15-1254.00": {"people": 0.85, "public": 0.20, "leading": 0.25, "desk": 0.95},
+        "47-2111.00": {"people": 0.90, "public": 0.95, "leading": 0.80, "desk": 0.05},
+    }
+
+    #: The same anchor with every card in the MIDDLE of the corpus, so no stated
+    #: axis can reach the strong tier.  The comparative rules are tested against
+    #: this one: on `TABLE` the strong tier fires first and takes the phrase the
+    #: ubiquity assertions are about, which would leave them passing for a reason
+    #: that has nothing to do with what they are named after.
+    MID_TABLE = {
+        "15-1252.00": {"people": 0.07, "public": 0.10, "leading": 0.30, "desk": 1.00},
+        "15-1251.00": {"people": 0.10, "public": 0.12, "leading": 0.28, "desk": 0.98},
+        "15-1254.00": {"people": 0.50, "public": 0.20, "leading": 0.25, "desk": 0.95},
+        "47-2111.00": {"people": 0.55, "public": 0.60, "leading": 0.40, "desk": 0.70},
+    }
+
+    def _anchor(self, code: str = "15-1252.00") -> "ps._Anchor":
+        return ps._Anchor(zone=4, code=code, zone_resolved=True, title_used="Dev")
+
+    def _attach(
+        self,
+        monkeypatch,
+        world,
+        page: list[ScoredPath],
+        wants: "ps.Wants",
+        table: dict | None = None,
+        anchor_code: str = "15-1252.00",
+    ) -> list[ScoredPath]:
+        built = conditions_table(table if table is not None else self.TABLE)
+        monkeypatch.setattr(
+            ps.occupation_conditions, "get_conditions", lambda corpus: built
+        )
+        ps._attach_reasons(page, self._anchor(anchor_code), world, wants)
+        return page
+
+    # -- the distinctiveness rule ------------------------------------------
+
+    def test_a_phrase_true_of_the_whole_page_is_dropped_from_every_card(
+        self, monkeypatch, world
+    ) -> None:
+        """Design doc 8.2's measured case, as a page.
+
+        Both rows sit well above the developer on `people`, so "more time with
+        people" describes 2 of 2 cards and says nothing about either.  It goes
+        from BOTH -- which of two identical lines survives is arbitrary, and an
+        arbitrary survivor is a line the user cannot interpret.
+        """
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("15-1254.00", "47-2111.00"),
+            ps.Wants(conditions={"people": "more"}),
+            table=self.MID_TABLE,
+        )
+        assert all(
+            "More time with people" not in phrase
+            for card in page
+            for phrase in card.reasons
+        )
+
+    def test_the_same_phrase_survives_when_it_is_not_the_whole_page(
+        self, monkeypatch, world
+    ) -> None:
+        """The pair to the test above, and the reason it is a pair: a rule that
+        dropped a phrase because it appeared at all would be indistinguishable
+        from this one on a page where it appeared everywhere."""
+        page = self._attach(
+            monkeypatch,
+            world,
+            # Three cards, one of which is not far from the anchor on `people`.
+            _reason_page("15-1254.00", "47-2111.00", "15-1251.00"),
+            ps.Wants(conditions={"people": "more"}),
+            table=self.MID_TABLE,
+        )
+        said = [phrase for card in page for phrase in card.reasons]
+        assert any("More time with people" in phrase for phrase in said)
+
+    # -- ordering ----------------------------------------------------------
+
+    def test_a_stated_axis_is_answered_before_anything_else(
+        self, monkeypatch, world
+    ) -> None:
+        """A user who asked about the public is owed an answer to that question
+        before they are told something they never asked about.
+
+        On `MID_TABLE`, so this is the COMPARATIVE stated phrase leading a card
+        that also has two larger unstated differences on it -- the strong tier's
+        own ordering is
+        `test_a_strong_phrase_sorts_ahead_of_every_comparative_one`.
+        """
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00", "15-1251.00", "15-1254.00"),
+            ps.Wants(conditions={"public": "more"}),
+            table=self.MID_TABLE,
+        )
+        assert page[0].reasons[0] == "More dealing with the public"
+
+    def test_with_no_axis_stated_the_biggest_difference_leads(
+        self, monkeypatch, world
+    ) -> None:
+        """Only tasks were stated, so no axis is privileged and the ordering
+        falls back to how different this job actually is.  47-2111.00 against the
+        anchor: desk -0.95, public +0.85, people +0.83, leading +0.50."""
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00", "15-1251.00", "15-1254.00"),
+            ps.Wants(tasks_more=("Consult with customers.",)),
+        )
+        assert page[0].reasons[0] == "More on your feet, less desk time"
+
+    def test_at_most_two_phrases_reach_a_card(self, monkeypatch, world) -> None:
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00", "15-1251.00", "15-1254.00"),
+            ps.Wants(conditions={"public": "more"}),
+        )
+        assert all(len(card.reasons) <= 2 for card in page)
+        assert len(page[0].reasons) == 2
+
+    def test_a_difference_under_the_margin_says_nothing(
+        self, monkeypatch, world
+    ) -> None:
+        """Computer Programmers are within 0.03 of the anchor on every axis."""
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("15-1251.00"),
+            ps.Wants(conditions={"people": "more"}),
+        )
+        assert page[0].reasons == []
+
+    # -- the strong tier, for stated axes only -----------------------------
+
+    def test_the_stated_axis_can_still_speak_when_the_relative_phrase_dies(
+        self, monkeypatch, world
+    ) -> None:
+        """The defect the strong tier was added for, as a regression test.
+
+        Three of the four cards are moderately above the developer on `people`,
+        so the comparative phrase is on 3 of 4 and is correctly dropped -- and
+        before the strong tier that left the fourth card, the most people-facing
+        job on the page and exactly what the user asked for, saying nothing at
+        all.
+        """
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00", "15-1251.00", "15-1254.00", "15-1299.99"),
+            ps.Wants(conditions={"people": "more"}),
+            table={
+                "15-1252.00": {"people": 0.07},
+                "47-2111.00": {"people": 0.90},
+                "15-1251.00": {"people": 0.50},
+                "15-1254.00": {"people": 0.55},
+                "15-1299.99": {"people": 0.60},
+            },
+        )
+        assert page[0].reasons == ["Among the most people-facing jobs"]
+        assert [card.reasons for card in page[1:]] == [[], [], []]
+
+    def test_it_fires_only_on_an_axis_the_user_stated(
+        self, monkeypatch, world
+    ) -> None:
+        """An absolute claim about something they never raised is a fact about the
+        job, not a reason they are being shown it."""
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00"),
+            ps.Wants(conditions={"leading": "more"}),
+        )
+        # 47-2111.00 is 0.90 on `people` and 0.95 on `public` -- both past the
+        # strong threshold, neither stated.
+        assert "Among the most people-facing jobs" not in page[0].reasons
+        assert "Constantly dealing with the public" not in page[0].reasons
+
+    def test_it_respects_the_direction(self, monkeypatch, world) -> None:
+        """A job at 0.90 for `people` is not an answer to someone who asked for
+        LESS of it, and saying "among the most people-facing jobs" there would
+        read as the page arguing with them."""
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00", "15-1254.00"),
+            ps.Wants(conditions={"people": "less"}),
+        )
+        assert all(
+            "Among the most people-facing" not in phrase
+            for card in page
+            for phrase in card.reasons
+        )
+
+    def test_a_less_at_the_bottom_of_the_corpus_fires(
+        self, monkeypatch, world
+    ) -> None:
+        """The other half of the direction rule."""
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00", "15-1254.00"),
+            ps.Wants(conditions={"desk": "less"}),
+            table={
+                "15-1252.00": {"desk": 1.00},
+                "47-2111.00": {"desk": 0.05},
+                "15-1254.00": {"desk": 0.60},
+            },
+        )
+        assert page[0].reasons == ["Mostly on your feet"]
+        assert page[1].reasons == ["More on your feet, less desk time"]
+
+    def test_the_strong_phrase_goes_through_the_ubiquity_rule_too(
+        self, monkeypatch, world
+    ) -> None:
+        """It is a different string, so it is counted on its own frequency -- a
+        page that really is all extremes loses it as well."""
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00", "15-1254.00", "15-1251.00"),
+            ps.Wants(conditions={"public": "more"}),
+            table={
+                "15-1252.00": {"public": 0.05},
+                "47-2111.00": {"public": 0.95},
+                "15-1254.00": {"public": 0.90},
+                "15-1251.00": {"public": 0.85},
+            },
+        )
+        assert all(
+            "Constantly dealing with the public" not in phrase
+            for card in page
+            for phrase in card.reasons
+        )
+
+    def test_the_strong_phrase_replaces_the_comparative_one_not_joins_it(
+        self, monkeypatch, world
+    ) -> None:
+        """Two ways of saying the same thing; a card carrying both has spent its
+        whole two-phrase budget on one axis."""
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00", "15-1251.00"),
+            ps.Wants(conditions={"public": "more"}),
+        )
+        assert "Constantly dealing with the public" in page[0].reasons
+        assert "More dealing with the public" not in page[0].reasons
+
+    def test_a_strong_phrase_sorts_ahead_of_every_comparative_one(
+        self, monkeypatch, world
+    ) -> None:
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00", "15-1251.00", "15-1254.00"),
+            ps.Wants(conditions={"leading": "more"}),
+            table={
+                "15-1252.00": {"leading": 0.10, "desk": 1.00, "people": 0.50},
+                # Leading is strong AND the desk gap is far larger.
+                "47-2111.00": {"leading": 0.85, "desk": 0.05, "people": 0.52},
+                "15-1251.00": {"leading": 0.12, "desk": 0.98, "people": 0.51},
+                "15-1254.00": {"leading": 0.15, "desk": 0.95, "people": 0.50},
+            },
+        )
+        assert page[0].reasons[0] == "A lot of leading other people"
+
+    def test_the_strong_tier_does_not_lift_the_two_phrase_cap(
+        self, monkeypatch, world
+    ) -> None:
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00", "15-1251.00", "15-1254.00"),
+            ps.Wants(conditions={"people": "more", "public": "more"}),
+        )
+        assert all(len(card.reasons) <= 2 for card in page)
+
+    def test_a_strong_phrase_needs_no_comparative_margin(
+        self, monkeypatch, world
+    ) -> None:
+        """An absolute claim is not about the anchor, so gating it on a difference
+        measured FROM the anchor would hand it back the weakness it exists to
+        fix: a user already at 0.95 who asks for more would be told nothing about
+        a card at 0.97, which is the honest answer to their question."""
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00"),
+            ps.Wants(conditions={"people": "more"}),
+            table={
+                "15-1252.00": {"people": 0.95},
+                "47-2111.00": {"people": 0.97},
+            },
+        )
+        assert page[0].reasons == ["Among the most people-facing jobs"]
+
+    def test_only_the_four_panel_axes_can_go_strong(self, monkeypatch, world) -> None:
+        """`outdoors` and `autonomy` earn a comparative line but can never be
+        stated, so a strong phrase for them would be unreachable code."""
+        assert set(ps._REASON_STRONG_PHRASES) == {
+            "people",
+            "public",
+            "leading",
+            "desk",
+        }
+        from solverah.services import path_wants_service
+
+        assert set(ps._REASON_STRONG_PHRASES) == set(
+            path_wants_service.CONDITION_AXES
+        )
+
+    def test_a_single_card_page_keeps_its_reasons(self, monkeypatch, world) -> None:
+        """A phrase on ONE card is not repeating itself.
+
+        Without the floor in `_attach_reasons` the ubiquity rule reads 1 of 1 as
+        100% of the page and empties it -- and a one-card page is reachable:
+        `fresh_start`'s Job Zone ceiling and skill floor are hard filters.
+        """
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00"),
+            ps.Wants(conditions={"people": "more"}),
+        )
+        assert page[0].reasons
+
+    def test_two_identical_pages_produce_identical_reasons(
+        self, monkeypatch, world
+    ) -> None:
+        """Determinism.  A page that reworded itself on refresh is a page nobody
+        can screenshot, and dict iteration order is not a specification."""
+        wants = ps.Wants(conditions={"public": "more", "people": "less"})
+        first = self._attach(
+            monkeypatch, world, _reason_page("47-2111.00", "15-1254.00"), wants
+        )
+        snapshot = [list(card.reasons) for card in first]
+        second = self._attach(
+            monkeypatch, world, _reason_page("47-2111.00", "15-1254.00"), wants
+        )
+        assert [list(card.reasons) for card in second] == snapshot
+
+    # -- the degrades ------------------------------------------------------
+
+    def test_nothing_stated_reads_no_sidecar_and_prints_nothing(
+        self, monkeypatch, world
+    ) -> None:
+        """The reason line explains a page the user's answers shaped, and
+        `TestWantsIsAdditive` pins that a user who stated nothing cannot be
+        affected by a missing or broken sidecar."""
+        monkeypatch.setattr(
+            ps.occupation_conditions,
+            "get_conditions",
+            lambda corpus: pytest.fail("the conditions sidecar was read"),
+        )
+        page = _reason_page("47-2111.00")
+        ps._attach_reasons(page, self._anchor(), world, None)
+        ps._attach_reasons(page, self._anchor(), world, ps.Wants())
+        assert page[0].reasons == []
+
+    def test_no_anchor_prints_nothing(self, monkeypatch, world) -> None:
+        """Every phrase ends "than your current job"; with no anchor there is
+        nothing to be more or less than."""
+        built = conditions_table(self.TABLE)
+        monkeypatch.setattr(
+            ps.occupation_conditions, "get_conditions", lambda corpus: built
+        )
+        page = _reason_page("47-2111.00")
+        ps._attach_reasons(
+            page,
+            ps._Anchor(zone=2, code=None, zone_resolved=False, title_used=None),
+            world,
+            ps.Wants(conditions={"people": "more"}),
+        )
+        assert page[0].reasons == []
+
+    def test_no_sidecar_prints_nothing(self, monkeypatch, world) -> None:
+        monkeypatch.setattr(
+            ps.occupation_conditions, "get_conditions", lambda corpus: None
+        )
+        page = _reason_page("47-2111.00")
+        ps._attach_reasons(
+            page, self._anchor(), world, ps.Wants(conditions={"people": "more"})
+        )
+        assert page[0].reasons == []
+
+    def test_an_anchor_with_no_measured_row_prints_nothing(
+        self, monkeypatch, world
+    ) -> None:
+        """28 of the 939 retrievable rows have no work-context report, so this
+        is a real case rather than a defensive branch."""
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00"),
+            ps.Wants(conditions={"people": "more"}),
+            anchor_code="15-1299.99",
+        )
+        assert page[0].reasons == []
+
+    def test_a_job_with_no_ratings_empties_that_card_alone(
+        self, monkeypatch, world
+    ) -> None:
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00", "15-1299.99"),
+            ps.Wants(conditions={"public": "more"}),
+        )
+        assert page[0].reasons and page[1].reasons == []
+
+    def test_pace_is_never_printed(self, monkeypatch, world) -> None:
+        """Built and measured weak (W-3a: Air Traffic Controllers rate as less
+        time-pressured than nurses).  A term in a sum can carry a weak signal; a
+        sentence shown to a person cannot."""
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00"),
+            ps.Wants(conditions={"pace": "less"}),
+            table={
+                "15-1252.00": {"pace": 0.10},
+                "47-2111.00": {"pace": 0.95},
+            },
+        )
+        assert page[0].reasons == []
+
+    # -- through the scorer -------------------------------------------------
+
+    def test_score_paths_fills_them_in(self, world, onet, monkeypatch) -> None:
+        built = conditions_table(self.TABLE)
+        monkeypatch.setattr(
+            ps.occupation_conditions, "get_conditions", lambda corpus: built
+        )
+        prof = profile(move_intent="adjacent", skills=[user_skill("Python")])
+
+        results = score_paths(
+            prof,
+            onet,
+            wants_openai(prof),
+            wants=ps.Wants(conditions={"public": "more"}),
+        )
+
+        assert any(path.reasons for path in results)
+
+    def test_score_paths_leaves_them_empty_with_no_wants(self, world, onet) -> None:
+        prof = profile(move_intent="adjacent", skills=[user_skill("Python")])
+        results = score_paths(prof, onet, wants_openai(prof))
+        assert all(path.reasons == [] for path in results)
+
+
+class TestResolveAnchorCode:
+    """The public name W-4's panel resolves its questions through.
+
+    It has to agree with the scorer -- a panel that resolved the anchor
+    differently would ask about one job and steer another -- and it has to answer
+    the no-occupation case WITHOUT the corpus, because "I have no current job" is
+    a permanent fact and a 503 would send a first-job user retrying forever.
+    """
+
+    def _profile(self, **kwargs) -> UserProfile:
+        return profile(skills=[user_skill("Python")], **kwargs)
+
+    def test_it_gives_the_same_code_the_scorer_anchors_on(self, world, onet) -> None:
+        prof = self._profile(move_intent="adjacent")
+        client = tech_openai(prof)
+
+        expected = ps._resolve_current_zone(prof, onet, client, world).code
+
+        assert ps.resolve_anchor_code(prof, onet, client) == expected
+        assert expected is not None, "the fixture stopped resolving; fix the fixture"
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"career_status": "first_job"},
+            {"current_title": None},
+            {"current_title": ""},
+        ],
+    )
+    def test_no_prior_occupation_costs_no_corpus_load(
+        self, monkeypatch, onet, kwargs
+    ) -> None:
+        monkeypatch.setattr(
+            ps, "get_corpus", lambda: pytest.fail("the corpus was loaded")
+        )
+        prof = self._profile(**kwargs)
+        assert ps.resolve_anchor_code(prof, onet, tech_openai(prof)) is None
+
+    def test_the_short_circuit_matches_the_scorers_own_branch(
+        self, world, onet
+    ) -> None:
+        """The condition is written twice; this is what stops the copies drifting."""
+        for kwargs in ({"career_status": "first_job"}, {"current_title": None}):
+            prof = self._profile(**kwargs)
+            assert (
+                ps._resolve_current_zone(prof, onet, tech_openai(prof), world).code
+                is None
+            )
+
+    def test_an_unreachable_corpus_reaches_the_caller(self, monkeypatch, onet) -> None:
+        def _boom():
+            raise CorpusUnavailable("no corpus source")
+
+        monkeypatch.setattr(ps, "get_corpus", _boom)
+        prof = self._profile(move_intent="adjacent")
+        with pytest.raises(CorpusUnavailable):
+            ps.resolve_anchor_code(prof, onet, tech_openai(prof))

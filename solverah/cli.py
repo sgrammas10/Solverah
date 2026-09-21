@@ -19,6 +19,10 @@ dashboard env vars:
     flask corpus build         # suggested: quarterly (BUILD_PLAN F-1)
     flask corpus zones         # 11 requests; refreshes the Job Zone sidecar
     flask corpus clusters      # no network; refreshes the fresh_start seed
+    flask corpus experience    # ~2,800 requests, resumable; the wants layer's
+                               # working-conditions sidecar (BUILD_PLAN W-3)
+    flask corpus tasks         # no O*NET; the wants panel's eight tasks per job
+                               # with plain-words labels (BUILD_PLAN W-3)
 
 ``pulse send-prompts`` is the newest of the four cron jobs and not load-bearing
 the way the first two are -- nothing breaks if a run is skipped, a due user is
@@ -614,6 +618,401 @@ def corpus_clusters(corpus: str | None, k: int | None, show: bool) -> None:
 
 
 
+@corpus_cli.command("experience")
+@click.option(
+    "--corpus",
+    default=None,
+    help="The .npy artifact, or a directory holding one "
+    "(default: $SOLVERAH_CORPUS_PATH, then $SOLVERAH_CORPUS_DIR).",
+)
+@click.option(
+    "--from-raw",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False),
+    help="Build from an already-fetched JSONL of O*NET reports instead of "
+    "calling O*NET.  One {code, title, reports} record per line.",
+)
+@click.option(
+    "--checkpoint",
+    default=None,
+    type=click.Path(),
+    help="Where the fetch appends each occupation's reports as it goes "
+    "(default: <artifact>.experience.raw.jsonl).  Re-running resumes from it.",
+)
+@click.option(
+    "--rate",
+    default=None,
+    type=float,
+    show_default="4.0/s",
+    help="Aggregate O*NET requests per second. O*NET's documented threshold is 5.",
+)
+def corpus_experience(
+    corpus: str | None,
+    from_raw: str | None,
+    checkpoint: str | None,
+    rate: float | None,
+) -> None:
+    """Write the working-conditions sidecar beside an existing corpus artifact.
+
+    BUILD_PLAN W-3: a user can say what should change about their day -- more
+    people, less public, more desk -- and this is what the scorer measures a
+    candidate occupation against.  The axes are small bundles of O*NET
+    work-context elements stored as percentile ranks across the corpus; see
+    `backend.services.occupation_conditions` for why bundles and why
+    percentiles.
+
+    **Three O*NET requests per occupation, so ~2,800 for the catalog** -- an
+    order of magnitude more than `corpus zones` and the reason this one
+    checkpoints: every occupation is appended to the raw JSONL as it completes
+    and a re-run skips what is already there, so a run that dies at request
+    2,000 costs the remaining 800 and not all 2,800.
+
+    `--from-raw` skips the network entirely and builds from a JSONL somebody
+    already fetched, which is how the first build was made (the W-3 prototype's
+    939-occupation pull, 0 API errors).  Prefer it: this data changes when O*NET
+    re-rates an occupation, which is quarterly at most.
+
+    Writes `<artifact>.experience.json` and touches neither the .npy nor any
+    other sidecar.
+    """
+    from backend.services import occupation_conditions, occupation_retrieval
+
+    resolved = (
+        corpus
+        or os.environ.get("SOLVERAH_CORPUS_PATH")
+        or os.environ.get("SOLVERAH_CORPUS_DIR")
+    )
+    if not resolved:
+        raise click.ClickException(
+            "No corpus artifact. Pass --corpus or set SOLVERAH_CORPUS_PATH."
+        )
+
+    try:
+        matrix_path = occupation_retrieval.resolve_matrix_path(resolved)
+        loaded = occupation_retrieval.load_corpus(matrix_path)
+    except occupation_retrieval.CorpusUnavailable as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    onet_requests = 0
+    if from_raw:
+        rows: list = list(occupation_conditions.iter_raw_rows(from_raw))
+        source = Path(from_raw).name
+    else:
+        raw_path = Path(checkpoint) if checkpoint else matrix_path.with_name(
+            matrix_path.stem + ".experience.raw.jsonl"
+        )
+        rows, onet_requests = _fetch_experience_reports(loaded, raw_path, rate)
+        source = raw_path.name
+
+    table = occupation_conditions.build_table(rows, source=source)
+    if not table.count:
+        raise click.ClickException(
+            "no occupation carried a work-context rating; refusing to write an "
+            "empty sidecar."
+        )
+
+    path = occupation_conditions.write_conditions_sidecar(matrix_path, table)
+    click.echo(
+        json.dumps(
+            {
+                "event": "corpus_experience",
+                "matrix_path": str(matrix_path),
+                "experience_path": str(path),
+                "occupations": table.count,
+                "coverage": {
+                    axis: table.coverage(axis)
+                    for axis in occupation_conditions.AXIS_NAMES
+                },
+                "onet_requests": onet_requests,
+            }
+        )
+    )
+
+
+def _fetch_experience_reports(
+    loaded, raw_path: Path, rate: float | None
+) -> tuple[list, int]:
+    """Fetch every occupation's reports, appending to *raw_path* as it goes.
+
+    Split out of the command body so the command stays the shape its siblings
+    have -- resolve, call a service, write, echo JSON -- with the resumability
+    bookkeeping (what is already on disk, what to append) in one place.
+    """
+    from backend.services import occupation_conditions, occupation_corpus
+    from backend.services.onet_client import OnetAPIError, OnetClient, OnetRateLimitError
+    from backend.services.occupation_retrieval import is_all_other_title
+
+    try:
+        onet_client = OnetClient()
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    done: list[str] = []
+    rows: list = []
+    if raw_path.exists():
+        rows = list(occupation_conditions.iter_raw_rows(raw_path))
+        done = [str(row.get("code")) for row in rows]
+        click.echo(f"resuming: {len(done)} occupations already fetched", err=True)
+
+    # "..., All Other" rows are skipped: retrieval never returns one, so three
+    # requests each would buy nothing but rate limit.
+    wanted = [
+        (code, title)
+        for code, title in zip(loaded.codes, loaded.titles)
+        if not is_all_other_title(title)
+    ]
+    limiter = occupation_corpus.RateLimiter(
+        rate if rate is not None else occupation_corpus.DEFAULT_REQUESTS_PER_SECOND
+    )
+
+    raw_path.parent.mkdir(parents=True, exist_ok=True)
+    with raw_path.open("a", encoding="utf-8") as handle:
+
+        def _append(record: dict) -> None:
+            handle.write(json.dumps(record, ensure_ascii=True) + "\n")
+            handle.flush()
+
+        try:
+            fetched = occupation_conditions.fetch_condition_reports(
+                onet_client,
+                wanted,
+                limiter=limiter,
+                already_done=done,
+                on_record=_append,
+                on_progress=lambda message: click.echo(message, err=True),
+            )
+        except OnetRateLimitError as exc:
+            raise click.ClickException(
+                f"O*NET rate limit hit: {exc}.  {raw_path} holds what was "
+                "fetched; re-run to resume."
+            ) from exc
+        except OnetAPIError as exc:
+            raise click.ClickException(f"O*NET request failed: {exc}") from exc
+
+    return rows + fetched, limiter.count
+
+
+@corpus_cli.command("tasks")
+@click.option(
+    "--corpus",
+    default=None,
+    help="The .npy artifact, or a directory holding one "
+    "(default: $SOLVERAH_CORPUS_PATH, then $SOLVERAH_CORPUS_DIR).",
+)
+@click.option(
+    "--documents",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False),
+    help="The corpus documents JSONL (default: <artifact>.documents.jsonl).",
+)
+@click.option(
+    "--labels/--no-labels",
+    default=True,
+    show_default=True,
+    help="Write plain-words display labels with one offline LLM pass. "
+    "--no-labels writes each O*NET statement as its own label and costs nothing.",
+)
+@click.option(
+    "--limit",
+    default=None,
+    type=int,
+    help="Only the first N occupations. For pricing a full run from a sample.",
+)
+@click.option(
+    "--checkpoint",
+    default=None,
+    type=click.Path(),
+    help="Where each occupation's labels are appended as they are written "
+    "(default: a scratch file under the system temp directory). "
+    "Re-running resumes from it and does not re-pay for finished occupations.",
+)
+def corpus_tasks(
+    corpus: str | None,
+    documents: str | None,
+    labels: bool,
+    limit: int | None,
+    checkpoint: str | None,
+) -> None:
+    """Write the panel-tasks sidecar beside an existing corpus artifact.
+
+    BUILD_PLAN W-3: W-4's panel shows the user their own job's tasks and asks
+    *more / less* about each.  O*NET gives an occupation 5 to 41 statements, so
+    this picks up to eight **chosen for spread** -- eight paraphrases of the same
+    duty collect one bit of information eight times -- and writes a plain-words
+    display label beside each.  See `backend.services.occupation_tasks` for why
+    spread and why the original statement is kept byte-exact.
+
+    **No O*NET requests at all**: the task lists are already in the corpus
+    documents file `corpus build` wrote.  The two costs are embeddings for the
+    selection (~$0.01 for the catalog) and, with `--labels`, one `gpt-4o-mini`
+    completion per occupation.
+
+    **Price it before you pay it.**  `--limit 25 --labels` labels 25
+    occupations, measures their real token usage and projects the full run in
+    the `cost` block it echoes.  The labels are checkpointed per occupation, so
+    the sample is not wasted: the full run resumes over it.
+
+    Writes `<artifact>.tasks.json` and touches neither the .npy nor any other
+    sidecar.
+    """
+    from backend.services import occupation_retrieval, occupation_tasks
+
+    resolved = (
+        corpus
+        or os.environ.get("SOLVERAH_CORPUS_PATH")
+        or os.environ.get("SOLVERAH_CORPUS_DIR")
+    )
+    if not resolved:
+        raise click.ClickException(
+            "No corpus artifact. Pass --corpus or set SOLVERAH_CORPUS_PATH."
+        )
+
+    try:
+        matrix_path = occupation_retrieval.resolve_matrix_path(resolved)
+    except occupation_retrieval.CorpusUnavailable as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    docs_path = (
+        Path(documents)
+        if documents
+        else occupation_tasks.documents_path_for(matrix_path)
+    )
+    if not docs_path.is_file():
+        raise click.ClickException(
+            f"no corpus documents at {docs_path}. Pass --documents, or re-run "
+            "`flask corpus build` (it writes the JSONL beside the artifact)."
+        )
+
+    rows = list(occupation_tasks.iter_documents(docs_path))
+    retrievable = sum(
+        1
+        for row in rows
+        if not occupation_retrieval.is_all_other_title(str(row.get("title") or ""))
+    )
+    if limit is not None:
+        rows = rows[:limit]
+
+    # One client, two jobs: the embeddings that choose the eight, and (with
+    # --labels) the completions that describe them.  Required either way --
+    # selection without an embedder would be "O*NET's first eight", which is
+    # the crowded list this command exists to avoid.
+    from solverah.infra.llm import get_openai_client
+
+    try:
+        openai_client = get_openai_client()
+    except RuntimeError as exc:
+        raise click.ClickException(
+            f"{exc}. Selection needs the embeddings API even with --no-labels."
+        ) from exc
+
+    usage: dict[str, int] = {}
+    labels_for = None
+    close_checkpoint = lambda: None  # noqa: E731 -- a no-op, not a branch
+    if labels:
+        labels_for, close_checkpoint = _checkpointed_labeller(
+            occupation_tasks, openai_client, matrix_path, checkpoint, usage
+        )
+
+    try:
+        table = occupation_tasks.build_table(
+            rows,
+            openai_client,
+            source=docs_path.name,
+            with_labels=labels,
+            labels_for=labels_for,
+            usage=usage,
+            on_progress=lambda message: click.echo(message, err=True),
+        )
+    finally:
+        close_checkpoint()
+
+    if not table.count:
+        raise click.ClickException(
+            "no retrievable occupation carried a task list; refusing to write "
+            "an empty sidecar."
+        )
+
+    path = occupation_tasks.write_tasks_sidecar(matrix_path, table)
+    click.echo(
+        json.dumps(
+            {
+                "event": "corpus_tasks",
+                "matrix_path": str(matrix_path),
+                "tasks_path": str(path),
+                "documents": str(docs_path),
+                "occupations": table.count,
+                "tasks_chosen": table.task_count,
+                "labelled": labels,
+                "label_fallbacks": table.label_fallbacks,
+                "cost": occupation_tasks.project_label_cost(
+                    usage, table.count, retrievable
+                )
+                if labels
+                else None,
+            }
+        )
+    )
+
+
+def _checkpointed_labeller(occupation_tasks, openai_client, matrix_path, checkpoint, usage):
+    """A `labels_for` that reads a checkpoint first and appends what it buys.
+
+    Split out of the command body for the reason `_fetch_experience_reports` is:
+    the command keeps the shape its siblings have -- resolve, call a service,
+    write, echo JSON -- and the resumability bookkeeping lives in one place.
+
+    The checkpoint defaults **outside the corpus directory**, unlike
+    `corpus experience`'s raw file.  That directory is a published artifact set
+    that a dev server and `corpus publish` both enumerate; a half-finished label
+    log is scratch, and scratch does not belong in it.
+    """
+    import tempfile
+
+    path = (
+        Path(checkpoint)
+        if checkpoint
+        else Path(tempfile.gettempdir()) / "solverah" / f"{matrix_path.stem}.tasks.labels.jsonl"
+    )
+    done: dict[str, tuple[list[str], int]] = {}
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            record = json.loads(line)
+            done[str(record["code"])] = (
+                [str(text) for text in record["labels"]],
+                int(record.get("fallbacks") or 0),
+            )
+        click.echo(f"resuming: {len(done)} occupations already labelled", err=True)
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = path.open("a", encoding="utf-8")
+
+    def labels_for(code: str, title: str, statements):
+        # A checkpointed row is only reusable if it still lines up with the
+        # statements being asked about: a rebuilt corpus can change which eight
+        # were chosen, and reusing labels by position would silently put one
+        # task's words beside another's text.
+        cached = done.get(code)
+        if cached is not None and len(cached[0]) == len(statements):
+            return list(cached[0]), cached[1]
+        result = occupation_tasks.label_occupation(
+            openai_client, title, statements, usage=usage
+        )
+        handle.write(
+            json.dumps(
+                {"code": code, "labels": result[0], "fallbacks": result[1]},
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+        handle.flush()
+        return result
+
+    return labels_for, handle.close
+
+
 @corpus_cli.command("publish")
 @click.option(
     "--corpus",
@@ -643,11 +1042,20 @@ def corpus_publish(
 ) -> None:
     """Upload a built corpus artifact set to the app bucket.
 
-    Four objects -- the `.npy`, its sidecar, the zone sidecar and the cluster
-    sidecar -- under `<prefix>/<filename>`, which is where
+    Four required objects -- the `.npy`, its sidecar, the zone sidecar and the
+    cluster sidecar -- under `<prefix>/<filename>`, which is where
     `occupation_retrieval._fetch_from_s3` looks. All four are required; a
     partial upload would leave `zone_max` raising on every `adjacent` and
     `fresh_start` request, or every worker paying a k-means fit.
+
+    **Plus W-3's two, when they are beside the artifact**: `*.experience.json`
+    and `*.tasks.json` (`occupation_corpus.OPTIONAL_PUBLISHED_SUFFIXES`). They
+    are carried rather than required because neither `corpus build` nor
+    `corpus refresh` produces them, so demanding them would make the quarterly
+    cadence unable to publish at all -- but a corpus published without them
+    silently strips the wants layer of its data, which is what the corpus
+    deploy dependency in `docs/RUNBOOK_DEPLOY_MAIN_MERGE.md` exists to catch.
+    Count the objects in the echoed summary.
 
     **Versioned by filename and never overwriting.** A key that already exists
     with different bytes is a refusal: workers cache the artifact and never
@@ -803,6 +1211,11 @@ def corpus_refresh(
             "matrix_filename": matrix_name,
             "bucket": os.environ.get("S3_BUCKET_NAME", "") or None,
             "key_prefix": resolved_prefix or None,
+            # The four this refresh will BUILD.  W-3's two sidecars are
+            # published when they exist beside the artifact, but a refresh
+            # builds a new artifact and does not build them for it, so a plan
+            # that listed them would be promising something this command does
+            # not do.  See `corpus_publish`'s docstring and the runbook.
             "would_publish": (
                 [f"{resolved_prefix}/onet_corpus_{stamp}{suffix}"
                  for suffix in occupation_corpus.PUBLISHED_SUFFIXES]

@@ -76,6 +76,34 @@ FIXTURE_CLUSTERS_BYTES = json.dumps(
     }
 ).encode("utf-8")
 
+#: W-3's two sidecars, here for the same reason the cluster one is: this module
+#: only has to put them on disk at the right name, and their contents are
+#: asserted by `test_occupation_conditions.py` and `test_occupation_tasks.py`.
+FIXTURE_CONDITIONS_NAME = f"onet_corpus_{FIXTURE_VERSION}.experience.json"
+FIXTURE_CONDITIONS_BYTES = json.dumps(
+    {
+        "schema_version": 1,
+        "matrix_filename": f"onet_corpus_{FIXTURE_VERSION}.npy",
+        "count": 2,
+        "percentiles": {"11-1021.00": {"people": 0.9}, "29-1141.00": {"people": 1.0}},
+        "raw": {},
+    }
+).encode("utf-8")
+
+FIXTURE_TASKS_NAME = f"onet_corpus_{FIXTURE_VERSION}.tasks.json"
+FIXTURE_TASKS_BYTES = json.dumps(
+    {
+        "schema_version": 1,
+        "matrix_filename": f"onet_corpus_{FIXTURE_VERSION}.npy",
+        "count": 1,
+        "tasks": {
+            "29-1141.00": [
+                {"task": "Record patients' vital signs.", "label": "Taking vital signs"}
+            ]
+        },
+    }
+).encode("utf-8")
+
 FIXTURE_DIMS = 8
 
 #: (code, title, job zone, unnormalised vector).  Sorted by code on write, the
@@ -202,8 +230,20 @@ def _clean_process_state(monkeypatch: pytest.MonkeyPatch):
     ):
         monkeypatch.delenv(name, raising=False)
     retrieval.reset_corpus_cache()
+    _reset_sidecar_memos()
     yield
     retrieval.reset_corpus_cache()
+    _reset_sidecar_memos()
+
+
+def _reset_sidecar_memos() -> None:
+    """The two W-3 sidecar readers memoise per corpus VERSION, and every corpus
+    in this file is version "testfix" -- so a table loaded by one test would be
+    served to the next one, whose cache directory does not hold the file."""
+    from backend.services import occupation_conditions, occupation_tasks
+
+    occupation_conditions.reset_conditions_cache()
+    occupation_tasks.reset_tasks_cache()
 
 
 @pytest.fixture
@@ -922,6 +962,8 @@ def s3_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> _FakeS3:
             f"corpus/{FIXTURE_SIDECAR.name}": FIXTURE_SIDECAR.read_bytes(),
             f"corpus/{FIXTURE_ZONES.name}": FIXTURE_ZONES.read_bytes(),
             f"corpus/{FIXTURE_CLUSTERS_NAME}": FIXTURE_CLUSTERS_BYTES,
+            f"corpus/{FIXTURE_CONDITIONS_NAME}": FIXTURE_CONDITIONS_BYTES,
+            f"corpus/{FIXTURE_TASKS_NAME}": FIXTURE_TASKS_BYTES,
         }
     )
     monkeypatch.setattr("solverah.infra.storage.get_s3_client", lambda: fake)
@@ -939,6 +981,8 @@ class TestS3Source:
             f"corpus/{FIXTURE_SIDECAR.name}",
             f"corpus/{FIXTURE_ZONES.name}",
             f"corpus/{FIXTURE_CLUSTERS_NAME}",
+            f"corpus/{FIXTURE_CONDITIONS_NAME}",
+            f"corpus/{FIXTURE_TASKS_NAME}",
         ]
 
 
@@ -981,6 +1025,57 @@ class TestTheClusterSidecarComesDownToo:
         assert occupation_clusters.cluster_sidecar_path(
             corpus.matrix_path
         ) == retrieval.clusters_sidecar_path(corpus.matrix_path)
+
+    def test_the_conditions_sidecar_comes_down_with_the_rest(
+        self, s3_env: _FakeS3
+    ) -> None:
+        """W-3b flipped this. It used to assert the file was NOT fetched.
+
+        Recorded as a test rather than only as a comment because the failure it
+        guards is silent: a production worker with no conditions file quietly
+        serves pages that ignore what the user stated, which looks exactly like
+        the feature not working rather than like a missing object. The second
+        assertion is the one that earns the duplicated path helper -- the name
+        the fetch writes must be the name `occupation_conditions` reads.
+        """
+        from backend.services import occupation_conditions
+
+        corpus = retrieval.get_corpus()
+        path = retrieval.conditions_sidecar_path(corpus.matrix_path)
+
+        assert path == occupation_conditions.conditions_sidecar_path(corpus.matrix_path)
+        assert path.name.endswith(".experience.json")
+        assert path.is_file(), "the conditions sidecar was not cached"
+        assert occupation_conditions.get_conditions(corpus) is not None
+
+    def test_the_tasks_sidecar_comes_down_too(self, s3_env: _FakeS3) -> None:
+        """W-3b's second sidecar, same fetch, same reason.
+
+        Without it W-4's panel has no task half -- and tasks are the wants
+        layer's FIRST signal (design doc §8.2: "for this persona tasks steer
+        better than conditions"), so a worker missing this file is missing most
+        of the feature.
+        """
+        from backend.services import occupation_tasks
+
+        corpus = retrieval.get_corpus()
+        path = retrieval.tasks_sidecar_path(corpus.matrix_path)
+
+        assert path == occupation_tasks.tasks_sidecar_path(corpus.matrix_path)
+        assert path.name.endswith(".tasks.json")
+        assert path.is_file(), "the tasks sidecar was not cached"
+        assert occupation_tasks.get_tasks(corpus) is not None
+
+    @pytest.mark.parametrize("name", ["experience", "tasks"])
+    def test_a_missing_wants_sidecar_is_not_fatal(self, s3_env: _FakeS3, name) -> None:
+        """The upload is Sebastian's trigger and the two files are published
+        separately from the matrix, so "not there yet" is a normal state and
+        must serve a page rather than a 503."""
+        del s3_env.objects[f"corpus/onet_corpus_{FIXTURE_VERSION}.{name}.json"]
+
+        corpus = retrieval.get_corpus()
+
+        assert corpus.count == len(FIXTURE_ROWS)
 
     def test_a_missing_cluster_object_is_not_fatal(self, s3_env: _FakeS3) -> None:
         """The fallback fit stays: a corpus with no sidecar is a working corpus."""

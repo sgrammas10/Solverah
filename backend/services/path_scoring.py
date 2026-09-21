@@ -90,7 +90,7 @@ from typing import Literal, Mapping, Sequence
 
 import numpy as np
 
-from backend.services import occupation_clusters
+from backend.services import occupation_clusters, occupation_conditions
 from backend.services.occupation_retrieval import (
     CorpusUnavailable,
     Match,
@@ -525,6 +525,255 @@ _FRESH_START_ZONE_HEADROOM: int = 1
 #: reversing the design.
 _FRESH_START_EXCLUDE_PREFIX_LEN: int = 4
 
+# ---------------------------------------------------------------------------
+# W-3 -- the wants layer: what the user says should change about their own job
+# ---------------------------------------------------------------------------
+#
+# THE MEASUREMENT THIS CHUNK WAS A GATE ON, BEFORE ANY OF THE CONSTANTS.
+#
+# Fifteen evaluation profiles that state wants (W-2, five per intent, labelled
+# by an agent that had seen no scorer), real corpus, real embedder, zero O*NET
+# calls.  The number to beat is the wants-blind scorer on the same fifteen:
+# **macro nDCG@10 0.300, harmful_rate@10 0.100**
+# (`tests/fixtures/path_eval/runs/w2_wants_blind_baseline.json`).
+#
+#   arm                                     nDCG@10   harm@10
+#   -------------------------------------   -------   -------
+#   wants-blind (the number to beat)         0.2997    0.1000
+#   tasks only                               0.3299    0.1000
+#   conditions only                          0.3647    0.0933
+#   both  <- SHIPPED                         0.4089    0.0800
+#
+# Neither signal is the whole effect and they are not redundant: conditions
+# alone beat tasks alone, and together they beat the better of the two by
+# +0.044.  Harm falls rather than rises, which is the gate this chunk could
+# have failed on.
+#
+# THE COARSE GRID, WHOLE, because reporting only the winner of 27 cells fitted
+# to 15 profiles is how a peak gets mistaken for a result.  beta x gamma x the
+# conditions weight, nDCG@10 (harm@10 in the second block):
+#
+#             cond_w 0.0   0.2   0.4        harm  0.0     0.2     0.4
+#   b0.0 g0.0        0.300 0.365 0.355            0.100   0.093   0.067
+#   b0.0 g0.2        0.310 0.358 0.352            0.107   0.087   0.067
+#   b0.0 g0.4        0.319 0.334 0.352            0.100   0.087   0.053
+#   b0.4 g0.0        0.310 0.383 0.368            0.107   0.093   0.067
+#   b0.4 g0.2        0.315 0.391 0.369            0.100   0.087   0.060
+#   b0.4 g0.4        0.334 0.387 0.360            0.100   0.087   0.060
+#   b0.8 g0.0        0.324 0.394 0.374            0.107   0.087   0.060
+#   b0.8 g0.2        0.323 0.404 0.381            0.107   0.087   0.060
+#   b0.8 g0.4        0.330 0.409 0.381            0.100   0.080   0.060
+#
+# **Read the region, not the cell.**  Every cell with a conditions weight beats
+# every cell without one; the nine cells at cond_w 0.2 with any beta above zero
+# sit between 0.383 and 0.409, a 0.026 spread that n=15 cannot resolve.  The
+# shipped corner is the top of that plateau AND the value the §8.2 prototype
+# used before any of this was measured, which is the weakest kind of agreement
+# but not nothing.  cond_w 0.4 is uniformly worse than 0.2 and buys lower harm:
+# a heavier conditions term keeps demoting feasible-but-unasked-for roles until
+# it starts demoting the good ones too.
+#
+# LEAVE-ONE-INTENT-OUT.  Constants chosen on 10 profiles, scored on the 5 held
+# out.  The same cell (0.8, 0.4, 0.2) wins all three training splits, and every
+# held-out five beats its own wants-blind number:
+#
+#   held out          chosen        train    held-out   wants-blind
+#   stay_in_field     0.8/0.4/0.2   0.3997    0.4274      0.2791
+#   adjacent          0.8/0.4/0.2   0.3554    0.5161      0.3832
+#   fresh_start       0.8/0.4/0.2   0.4718    0.2833      0.2368
+#
+# PER INTENT at the shipped constants -- "clearly better or worse" only, n=5
+# each, no per-axis claim (F-2's rule):
+#
+#   intent            blind    wants    harm blind -> wants
+#   stay_in_field     0.279    0.427    0.14 -> 0.12
+#   adjacent          0.383    0.516    0.12 -> 0.08
+#   fresh_start       0.237    0.283    0.04 -> 0.04
+#
+# All three better; none worse.  **12 of the 15 profiles improve, 3 worsen**
+# (p23 head chef 0.047 -> 0.000, p31 truck driver 0.510 -> 0.429, p33 helpdesk
+# 0.332 -> 0.318), 0 unchanged.  p23 is the one to look at first if this is
+# revisited: it is the lowest-scoring profile in both arms and its page is
+# mostly unlabelled either way.
+#
+# THE REGRESSION GATE.  With ``wants=None`` all twenty F-2 profiles are
+# **byte-identical** to `f8_structured_behavioural.json`, profile by profile
+# (macro 0.4728, harm 0.0053, unchanged).  Nothing in this section can reach a
+# user who has stated nothing.
+#
+# ⚑10, THE DIVERSE SEED, MEASURED AGAIN WITH WANTS PRESENT -- AND IT STILL
+# COSTS.  BUILD_PLAN made this a W-3 arm because the seed's defence was that
+# feedback would recover what it costs, and a stated want is a stronger signal
+# than a tap.  It does not recover it.  Five `fresh_start` profiles, macro
+# nDCG@10 of the zero-tap page, harm 0.040 in every cell:
+#
+#                       no wants   wants
+#   diverse seed          0.2368   0.2833
+#   no seed (plain N)     0.2971   0.3845
+#
+# The wants layer pays either way (+0.047 seeded, +0.087 unseeded), and the
+# seed costs 0.060 without wants and **0.101 with them** -- it costs more, not
+# less, because the better the page's ordering gets the more a one-card-per-
+# region rule has to throw away to spread it.  Over all fifteen profiles,
+# dropping the seed would move the headline 0.4089 -> 0.4427 at identical harm.
+#
+# **⚑10 IS NOW DECIDED (Sebastian, 2026-09-21, on the table above): keep the
+# seed for a `fresh_start` user who has stated nothing; drop it the moment they
+# state a want.**  Both halves of the ruling are in one line of `score_paths`
+# (`seeding = is_fresh_start and not judgements and (wants is None or
+# wants.is_empty)`), because both halves are the same rule: a spanning set is a
+# QUESTION, and it is shown only while the question is unanswered.  A tap
+# answered it before; a want answers it now, and more precisely.
+#
+# Measured on this code, W-3b re-recording the fifteen wants profiles live
+# (`runs/w3b_wants_no_seed.json` against W-3a's `runs/w3_wants_aware.json`):
+#
+#   arm                                     nDCG@10   harm@10   P@10
+#   -------------------------------------   -------   -------   ------
+#   wants-blind (W-2's number to beat)       0.2997    0.1000    0.2800
+#   wants-aware, seed kept (W-3a)            0.4089    0.0800    0.3067
+#   wants-aware, seed dropped  <- SHIPPED    0.4440    0.0800    0.3600
+#
+# Per intent, only `fresh_start` can move (the seed is a `fresh_start`-only
+# construct) and it does: **0.2833 -> 0.3886**, harm 0.040 in both.
+# `stay_in_field` 0.4274 and `adjacent` 0.5161 are byte-identical to W-3a's,
+# ten of the fifteen ranked lists unchanged and the five that changed are
+# exactly the five `fresh_start` ones.  W-3a's arm predicted 0.3845 for this
+# page; the shipped 0.3886 is 0.004 better because dropping the seed also
+# returns retrieval to `_RETRIEVE_K_ADJACENT` rather than the whole corpus,
+# and the narrower pool happens to help one profile (p34).  Within noise at
+# n=5, recorded because the two numbers are not the same number.
+#
+# The no-wants page is untouched: the twenty F-2 profiles state nothing, so
+# they still get the seed and are still identical to
+# `f8_structured_behavioural.json` (20/20 ranked lists, re-recorded here).  The
+# product argument F-7 shipped the seed on -- a page spanning 8 of 8 regions
+# instead of 2 -- is preserved exactly where it applies: the user who has told
+# us nothing, and for whom spread IS the information.
+#
+# A tap on a card says WHICH card, never WHY (design doc §8.1).  The wants layer
+# is the user answering the why directly, about their own job, in two kinds:
+#
+#   tasks       more / less on the real O*NET task statements of their own
+#               occupation.  A DIRECTION, and the same Rocchio arithmetic F-6
+#               applies to liked and disliked cards -- the user's own sentences
+#               standing in for the cards.
+#   conditions  more / less on a few measured axes of the working day
+#               (`occupation_conditions`).  A ONE-SIDED term in the rank, not a
+#               filter and not a target: "more time with people" is satisfied by
+#               any job at or above where they are, so overshooting costs
+#               nothing.
+#
+# Both apply to all three intents.  `stay_in_field` still ignores *card*
+# feedback exactly as F-6 decided -- that is a judgement about a question the
+# scorer asked -- but the wants are the user's own statement about their own
+# job, which is the question they came with.
+
+#: Rocchio, again: ``q' = normalise(q + beta*mean(more) - gamma*mean(less))``
+#: over the embeddings of the tapped task statements.
+#:
+#: Separate constants from :data:`_ROCCHIO_BETA` / :data:`_ROCCHIO_GAMMA`
+#: although they play the same role, because what is being averaged is a
+#: different kind of thing: a card is a whole occupation's 300-token document
+#: and a task is one sentence, so the two do not share a scale and tuning one to
+#: the other's measurement would be borrowing a number, not reusing it.
+#:
+#: **Gamma is the hazard, and it is F-6's hazard in a new place** (design doc
+#: §8.7): a task the user wants less of is still a task of *their* occupation,
+#: so subtracting it subtracts part of the anchor -- and for `stay_in_field`,
+#: whose whole query IS the anchor, there is nothing else holding the query in
+#: place.  **It is real, it is visible, and 0.40 is below it.**  Probed past the
+#: grid at beta 0.80 and the shipped conditions weight, macro nDCG by intent:
+#:
+#:     gamma           0.0     0.2     0.4     0.8     1.2
+#:     stay_in_field  0.431   0.424   0.427   0.384   0.368
+#:     adjacent       0.484   0.508   0.516   0.518   0.532
+#:     fresh_start    0.266   0.280   0.283   0.290   0.284
+#:
+#: `adjacent` keeps improving as the negative term grows -- its query is already
+#: rotated off the anchor, so subtracting more of the old job is the intent
+#: working -- while `stay_in_field` turns over somewhere between 0.4 and 0.8 and
+#: loses 0.06 by 1.2.  That is the anchor being subtracted, caught at the one
+#: intent that cannot absorb it, and it is why gamma is a shared constant set
+#: low rather than a per-intent one set high: a user who asked to stay in their
+#: field must not be walked out of it by a list of things they dislike about
+#: Tuesdays.
+_WANTS_TASK_BETA: float = 0.80
+_WANTS_TASK_GAMMA: float = 0.40
+
+#: How much of the final score the conditions term carries:
+#: ``final = (1 - w)*base + w*(1 - shortfall)``.
+#:
+#: A blend rather than a subtraction so the result stays inside [0, 1] and never
+#: meets `score_paths`' clamp, which would turn "a long way from what they asked
+#: for" into a tie at zero.  Ranking-wise the two are the same affine map; only
+#: the clamp behaviour differs.
+#:
+#: **This is the single largest term the wants layer adds** -- see the grid
+#: above: at every beta and gamma, 0.2 beats 0.0 by 0.05-0.08 and beats 0.4.
+#: 0.4 is not a disaster, it is a different trade (harm 0.060 against 0.080),
+#: and if harm ever becomes the binding constraint this is the dial.  Held at a
+#: fifth of the score because design doc §8.2 measured what happens when
+#: conditions rank on their own: a developer who wants more people-contact is
+#: shown Mechanical Engineers and Library Technicians, all of which satisfy the
+#: axes and none of which is a career for them.  Skills have to stay in the
+#: rank; conditions choose among what skills already allow.
+_WANTS_CONDITIONS_W: float = 0.20
+
+#: How far a stated "more" or "less" moves the target, in percentile units.
+#:
+#: The target is the ANCHOR's own percentile shifted toward the want, not an
+#: absolute ideal -- "more time with people" means more than *their* day, which
+#: is the only reading a user can be asked to hold in their head.  0.40 is the
+#: prototype's value (design doc §8.2) and is a quarter of the corpus away, so a
+#: single stated want moves the bar by a real amount without demanding an
+#: extreme.  Clamped inside [0.02, 0.98] so a user already at an extreme still
+#: has a reachable target -- the "nearly empty when the current job is an
+#: extreme" case §8.2 records.
+_WANTS_CONDITION_SHIFT: float = 0.40
+
+#: The role weight `fresh_start` gets **once the user has stated task wants**,
+#: in place of :data:`_ROLE_WEIGHT_BY_INTENT`'s 0.0.
+#:
+#: F-7 finding (6): ``role_w`` is 0 for `fresh_start`, so a rotated query can
+#: change which rows are retrieved and cannot reorder them -- the retrieval
+#: cosine, which is the only term that carries the rotation, is multiplied by
+#: zero.  The zero was right when the query was the skills document (the
+#: `coverage` term already measures that, so a role weight double-counted it).
+#: It stops being right once the query is skills PLUS a direction the user
+#: stated, because that direction then appears nowhere in the rank.
+#:
+#: Measured over the fifteen wants profiles (macro over all fifteen, and over
+#: the five `fresh_start` ones alone, which are the only ones it can touch):
+#:
+#:     role_w        off     0.10    0.20    0.30    0.45
+#:     macro 15     0.4014  0.4077  0.4089  0.4097  0.4067
+#:     fresh_start  0.2608  0.2796  0.2833  0.2855  0.2764
+#:
+#: **Measured with the diverse seed still in place**, which W-3b then dropped
+#: for a user with wants (⚑10, above).  Not re-swept afterwards: the two
+#: interact only through which rows reach the re-rank, the interior here is
+#: flat from 0.10 to 0.30, and re-picking a constant on the same fifteen
+#: profiles the seed decision was taken on would be fitting twice to one set.
+#: If `fresh_start` is ever tuned again this is the first sweep to redo.
+#:
+#: A flat interior between 0.10 and 0.30 with both ends falling away, worth
+#: about +0.022 on the intent it applies to.  0.20 rather than the sample
+#: maximum at 0.30, because 0.0022 of macro at n=5 is not a preference -- and
+#: because **0.20 is also what F-8 measured for ⚑11**, the related question of a
+#: role weight once *card feedback* exists (0 -> 0.354, 0.10 -> 0.383, 0.20 ->
+#: 0.414, 0.30 -> 0.389, n=4, no wants involved).  Two independent measurements
+#: landing on the same flat region is the strongest argument available here.
+#:
+#: ⚑11 itself, re-measured inside this chunk as the plan asks: on the ten
+#: wants profiles that take feedback, one simulated round of taps ON TOP of the
+#: wants scorer gives off 0.4743, 0.10 0.4998, **0.20 0.5148**, 0.30 0.5270
+#: against 0.3997 at zero taps, harm 0.060 -> 0.020.  The two mechanisms stack;
+#: neither needs its own chunk, and no standalone F-9 is required.
+#:
+#: ``None`` disables the arm.
+_WANTS_FRESH_START_ROLE_W: float | None = 0.20
+
 #: Cosine values are rescaled onto [0, 1] by a fixed affine map before the
 #: weights are applied.
 #:
@@ -851,12 +1100,67 @@ class UserProfile:
     work_style_tags: list[str] = field(default_factory=list)  # WPL signal descriptions
 
 
+@dataclass(frozen=True)
+class Wants:
+    """What the user says should change about their own job (W-3).
+
+    ``tasks_more`` / ``tasks_less`` are the **original** O*NET task statements
+    of the user's own occupation, verbatim -- never a plain-words rewrite of
+    one.  The display label and the embedded text are different strings on
+    purpose: F-7 measured what happens when LLM prose reaches an embedder
+    ("prevent a fire" -> five firefighting occupations), and design doc §8.7
+    keeps the original text on the scoring side for exactly that reason.
+
+    ``conditions`` maps an axis of :data:`occupation_conditions.AXES` to
+    ``"more"`` or ``"less"``.  An axis this build does not know is ignored
+    rather than rejected: the panel and the sidecar are versioned separately and
+    a stored answer to a retired question must not fail a request.
+
+    Empty is the same as absent -- see :attr:`is_empty` -- because "valid
+    half-finished" (design doc §8.3) means zero answers has to be today's page,
+    not a degraded one.
+    """
+
+    tasks_more: tuple[str, ...] = ()
+    tasks_less: tuple[str, ...] = ()
+    conditions: Mapping[str, str] = field(default_factory=dict)
+
+    @property
+    def is_empty(self) -> bool:
+        return not (self.tasks_more or self.tasks_less or self.conditions)
+
+    @property
+    def has_tasks(self) -> bool:
+        return bool(self.tasks_more or self.tasks_less)
+
+    def task_texts(self) -> list[str]:
+        """Every tapped statement, deduplicated, in a stable order.
+
+        What the one batched embedding request has to carry.  Stable because
+        two identical requests must build the same query: floating-point
+        addition is not associative, so an unstable order is a page that
+        reshuffles itself on refresh (:func:`_judged_codes`' argument).
+        """
+        return list(
+            dict.fromkeys(
+                text.strip()
+                for text in (*self.tasks_more, *self.tasks_less)
+                if text and text.strip()
+            )
+        )
+
+
 @dataclass
 class ScoredPath:
     onet_code: str
     title: str
     score: float  # 0.0-1.0, higher is a better match
     overlapping_skills: list[str] = field(default_factory=list)
+    #: W-4.  At most two plain-words phrases saying what is DISTINCTIVE about
+    #: this card against the user's own job.  Empty is normal and is the default
+    #: -- see :func:`_attach_reasons` for the three ways it stays empty and for
+    #: why a line that would read the same on every card is worth nothing.
+    reasons: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -892,7 +1196,14 @@ class _Anchor:
 
 @dataclass
 class _Signals:
-    """The four per-candidate terms, already rescaled onto [0, 1]."""
+    """The four per-candidate terms, already rescaled onto [0, 1].
+
+    ``conditions_shortfall`` is W-3's fifth, and it is a *shortfall* rather than
+    a score so that its neutral value is 0.0: a candidate with no measured
+    conditions, a user who stated none, and a job that already meets everything
+    asked for are all "nothing to subtract", and none of them should look like a
+    zero score.
+    """
 
     match: Match
     role: float
@@ -900,6 +1211,7 @@ class _Signals:
     style: float
     zone: float
     zone_raw: int | None
+    conditions_shortfall: float = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -1482,6 +1794,470 @@ def _rocchio_query(
     return rotated / norm
 
 
+# ---------------------------------------------------------------------------
+# W-3 -- the wants layer
+# ---------------------------------------------------------------------------
+
+
+def _mean_unit_vector(
+    texts: "Sequence[str]", openai_client
+) -> "np.ndarray | None":
+    """The mean of the embeddings of *texts*, or None if none can be had.
+
+    Every text is already in ``_EMBED_CACHE`` on the normal path -- `score_paths`
+    batches the tapped statements with the user's other documents -- so this is
+    a cache read and a mean.  A text the batch failed to fetch is skipped rather
+    than counted as a zero vector, which would rotate the query toward nothing
+    in particular.
+    """
+    vectors = [vec for vec in (_embed_one(text, openai_client) for text in texts) if vec is not None]
+    if not vectors:
+        return None
+    return np.mean(np.asarray(vectors, dtype=np.float32), axis=0)
+
+
+def _wants_rotated_query(
+    base: "np.ndarray",
+    wants: "Wants | None",
+    openai_client,
+) -> "np.ndarray":
+    """``q' = normalise(q + beta*mean(more) - gamma*mean(less))``.
+
+    The same shape as :func:`_rocchio_query`, over the user's own task
+    statements instead of over cards they judged, and applied to whichever query
+    the intent already built -- the anchor for `stay_in_field`, the
+    anchor/skills blend for `adjacent`, the skills/behavioural blend for
+    `fresh_start`.  Design doc §8.3 asks for exactly that: the wants *rotate*
+    each path's query rather than replacing it, so what the user can already do
+    keeps deciding what is reachable.
+
+    Identity when there is nothing to rotate with, which is the "valid
+    half-finished" requirement: a user who marked no tasks must get the page
+    they would have got with no wants layer at all.
+    """
+    if wants is None or not wants.has_tasks:
+        return base
+
+    more = _mean_unit_vector(wants.tasks_more, openai_client)
+    less = _mean_unit_vector(wants.tasks_less, openai_client)
+    if more is None and less is None:
+        return base
+
+    rotated = np.asarray(base, dtype=np.float32).copy()
+    if more is not None:
+        rotated = rotated + _WANTS_TASK_BETA * more
+    if less is not None:
+        rotated = rotated - _WANTS_TASK_GAMMA * less
+
+    norm = float(np.linalg.norm(rotated))
+    if norm <= 0.0 or not np.all(np.isfinite(rotated)):
+        # See _rocchio_query: cancelling terms are vanishingly unlikely with
+        # real embeddings, and the un-rotated query is a worse answer rather
+        # than a wrong one.
+        _log.warning("wants rotation produced a degenerate query; using the base")
+        return base
+    return rotated / norm
+
+
+@dataclass(frozen=True)
+class _ConditionTargets:
+    """Where each stated axis has to get to, and which way.
+
+    ``targets[axis]`` is a percentile in [0, 1] -- the **anchor's own** value
+    shifted by :data:`_WANTS_CONDITION_SHIFT` toward the want.  Empty means
+    there is nothing to score: no anchor, no sidecar, or no axis this build both
+    knows and has a measurement of for the user's own occupation.
+    """
+
+    table: "occupation_conditions.ConditionsTable"
+    targets: Mapping[str, tuple[float, str]]
+
+    @property
+    def is_empty(self) -> bool:
+        return not self.targets
+
+
+def _condition_targets(
+    wants: "Wants | None",
+    anchor: _Anchor,
+    corpus: OccupationCorpus,
+) -> "_ConditionTargets | None":
+    """Resolve the stated conditions against the user's own measured day.
+
+    Returns None -- the term is switched off entirely -- when any of the three
+    things it needs is missing:
+
+    * **no stated conditions**, the zero-answer case;
+    * **no conditions sidecar** (``get_conditions`` logs it once and degrades);
+    * **no anchor, or an anchor with no measured row.**  A "more" with nothing
+      to be more *than* is not a target, and inventing one -- the corpus median,
+      say -- would silently answer a question the user did not ask.  28 of the
+      939 retrievable rows have no work-context report, so this is a real case
+      rather than a defensive branch.
+
+    An axis the sidecar does not carry for the anchor is dropped and the rest
+    are kept: a user who asked about four things and can be measured on three
+    gets the three, which is the same "valid half-finished" rule one level down.
+    """
+    if wants is None or not wants.conditions or anchor.code is None:
+        return None
+    table = occupation_conditions.get_conditions(corpus)
+    if table is None:
+        return None
+
+    targets: dict[str, tuple[float, str]] = {}
+    for axis, direction in wants.conditions.items():
+        if direction not in ("more", "less"):
+            continue
+        current = table.percentile(anchor.code, axis)
+        if current is None:
+            continue
+        shift = _WANTS_CONDITION_SHIFT if direction == "more" else -_WANTS_CONDITION_SHIFT
+        targets[axis] = (min(0.98, max(0.02, current + shift)), direction)
+
+    if not targets:
+        return None
+    return _ConditionTargets(table=table, targets=targets)
+
+
+def _conditions_shortfall(code: str, targets: "_ConditionTargets | None") -> float:
+    """How far *code* falls short of the stated conditions, in [0, 1].
+
+    **One-sided, which is design doc §8.4's whole argument for not reusing the
+    company model's formula.**  ``1 - |company - user|`` needs an ideal *point*;
+    "more" and "less" are *directions*, so a job at or past the target loses
+    nothing and only the wrong side of it is measured::
+
+        more   shortfall = max(0, target - job)
+        less   shortfall = max(0, job - target)
+
+    Averaged over the axes that can be measured for this job.  An axis the job
+    has no rating for is **skipped, not scored zero** -- the distinction
+    ``occupation_conditions._bundle_mean`` makes about elements, held one level
+    up -- and a job with no measurable axis at all returns 0.0, i.e. the term
+    stays out of its score rather than penalising it for a gap in O*NET's
+    coverage.
+    """
+    if targets is None or targets.is_empty:
+        return 0.0
+    gaps: list[float] = []
+    for axis, (target, direction) in targets.targets.items():
+        value = targets.table.percentile(code, axis)
+        if value is None:
+            continue
+        gaps.append(max(0.0, target - value) if direction == "more" else max(0.0, value - target))
+    if not gaps:
+        return 0.0
+    return sum(gaps) / len(gaps)
+
+
+# ---------------------------------------------------------------------------
+# Card reasons -- what is DISTINCTIVE about this card (W-4, design doc §8.2)
+# ---------------------------------------------------------------------------
+#
+# The percentage came off the card in W-1 (⚑12).  This is what goes where it was:
+# at most two short phrases saying how this job's measured day differs from the
+# day the user has now.  It is built from the conditions sidecar and nothing
+# else -- no LLM, no extra embedding, no O*NET call, two dict lookups per axis
+# per card against a table the request has already loaded.
+#
+# THE DISTINCTIVENESS RULE IS THE POINT, and it comes from a measurement rather
+# than from taste.  Design doc §8.2: a Software Developer sits at percentile 0.07
+# for `people` and 1.00 for `desk`, so "more time with people" and "less desk
+# time" are true of very nearly every job on their page.  A phrase that appears
+# on nine cards out of ten has told the reader nothing about any of them, and
+# worse, it makes the page look like it is repeating itself.  So a phrase that
+# would appear on `_REASON_UBIQUITY` of the cards is dropped from EVERY card,
+# not from the cards after the first -- which of ten identical lines survives is
+# arbitrary, and an arbitrary survivor is a line the user cannot interpret.
+#
+# THE STRONG TIER EXISTS BECAUSE THAT RULE, ALONE, SILENCED THE QUESTION.
+# Measured on the real sidecar for the developer above, who stated `people:
+# more`.  Their ten cards produced, before any dropping:
+#
+#       8/10  More time with people than your current job   <- dropped (ceiling 7)
+#       8/10  More dealing with the public                  <- dropped
+#       3/10  More freedom to set your own priorities
+#       2/10  Less responsibility for other people's work
+#
+# Both relative phrases are correctly killed -- and the card that went silent was
+# Sales Engineers, the most people-facing job on the page and exactly what the
+# user asked for.  The axis they ASKED ABOUT could never speak, on any card.
+#
+# The fix is a second phrase for the same axis that makes an ABSOLUTE claim
+# instead of a comparative one: "Among the most people-facing jobs" is true of
+# the far end of the corpus and is therefore NOT true of most of a page.  It is a
+# different string, so it is counted and dropped by the same ubiquity rule on its
+# own frequency -- a page that really is all extremes loses it too.  Stated axes
+# only: an absolute claim about something the user never raised is a fact about
+# the job, not a reason they are being shown it.
+
+#: Percentiles at which a STATED axis earns the absolute phrasing.  The top and
+#: bottom fifth of the corpus: far enough out that "among the most" is a fair
+#: description, wide enough that a real page of ten has one or two.  Best guess
+#: (BUILD_PLAN W-4) on the same footing as `_REASON_MIN_DELTA` -- there is no
+#: labelled set for reason copy.
+_REASON_STRONG_HIGH: float = 0.80
+_REASON_STRONG_LOW: float = 0.20
+
+#: How far apart two percentiles have to be before the difference is worth a
+#: sentence.  A quarter of the corpus, which on the seven axes is a visible
+#: change of day rather than measurement noise.  A starting point (BUILD_PLAN
+#: W-4), not a tuned value: there is no labelled set for reason *copy*, so this
+#: is calibrated on the arithmetic and revisited on real usage.
+_REASON_MIN_DELTA: float = 0.25
+
+#: Share of the page a phrase may appear on before it is dropped from all of it.
+#: 0.70 rather than something tighter because a page of ten cards is a small
+#: sample: at 0.5 a phrase true of six genuinely different jobs disappears, and
+#: the reader loses a real signal to protect them from a repetitive one.
+_REASON_UBIQUITY: float = 0.70
+
+#: Two.  The line sits where one number used to and has to be readable at a
+#: glance; a third clause turns a reason into a description.
+_REASON_MAX_PER_CARD: int = 2
+
+#: Axis -> (phrase when the job is HIGHER than the user's own job, phrase when it
+#: is lower).  Each is a complete sentence fragment relative to the job they hold
+#: now, because that is the only frame the numbers support: the values are
+#: percentile ranks across the corpus, so "0.71 for people" means nothing to a
+#: reader and "more time with people than your current job" is exactly what it
+#: measures.
+#:
+#: Copy is a best guess and Julie revises it on the built product; what is NOT a
+#: wording question is the framing, which is why these live here next to the
+#: arithmetic rather than in the frontend.
+#:
+#: `pace` is deliberately absent although the sidecar carries it: W-3a measured
+#: it as weak (Air Traffic Controllers rate as less time-pressured than nurses --
+#: the single Time Pressure element measures deadlines, not stress), and a reason
+#: line is a claim to a reader rather than a term in a sum.
+_REASON_PHRASES: dict[str, tuple[str, str]] = {
+    "people": (
+        "More time with people than your current job",
+        "Less time with people than your current job",
+    ),
+    "public": (
+        "More dealing with the public",
+        "Less dealing with the public",
+    ),
+    "leading": (
+        "More leading other people",
+        "Less responsibility for other people's work",
+    ),
+    "desk": (
+        "More desk time, less on your feet",
+        "More on your feet, less desk time",
+    ),
+    "outdoors": (
+        "More of the day outdoors",
+        "More of the day indoors",
+    ),
+    "autonomy": (
+        "More freedom to set your own priorities",
+        "Less freedom to set your own priorities",
+    ),
+}
+
+#: Axis -> (phrase at the TOP of the corpus, phrase at the bottom).  Read only for
+#: an axis the user stated, and only past :data:`_REASON_STRONG_HIGH` /
+#: :data:`_REASON_STRONG_LOW`.
+#:
+#: Absolute, not comparative, which is the whole reason it exists: the comparative
+#: phrase is measured against an anchor that may itself be an extreme, and then it
+#: describes the whole page.  This one describes the job.
+#:
+#: Only the four axes the panel actually asks about
+#: (``path_wants_service.CONDITION_AXES``).  ``outdoors`` and ``autonomy`` earn a
+#: comparative line but can never be *stated*, so a strong phrase for them would
+#: be unreachable code pretending to be copy.
+_REASON_STRONG_PHRASES: dict[str, tuple[str, str]] = {
+    "people": (
+        "Among the most people-facing jobs",
+        "Among the most heads-down jobs",
+    ),
+    "public": (
+        "Constantly dealing with the public",
+        "Very little dealing with the public",
+    ),
+    "leading": (
+        "A lot of leading other people",
+        "Almost no responsibility for other people's work",
+    ),
+    "desk": (
+        "Mostly desk work",
+        "Mostly on your feet",
+    ),
+}
+
+
+def _strong_phrase(axis: str, direction: "str | None", value: float) -> str | None:
+    """The absolute phrase for a stated axis at the far end of the corpus, or None.
+
+    DIRECTION IS CHECKED, not just the extreme, and that is the half worth
+    naming: a job at the 95th percentile for ``people`` is not an answer to a
+    user who asked for *less* of it.  Telling them "among the most people-facing
+    jobs" on a card the scorer surfaced for some other reason would read as the
+    page arguing with them.  The comparative phrase still covers that case, the
+    right way round.
+    """
+    if direction is None:
+        return None
+    phrases = _REASON_STRONG_PHRASES.get(axis)
+    if phrases is None:
+        return None
+    if direction == "more" and value >= _REASON_STRONG_HIGH:
+        return phrases[0]
+    if direction == "less" and value <= _REASON_STRONG_LOW:
+        return phrases[1]
+    return None
+
+
+def _candidate_reasons(
+    code: str,
+    anchor_percentiles: "Mapping[str, float]",
+    table: "occupation_conditions.ConditionsTable",
+    stated: "Mapping[str, str]",
+) -> list[tuple[int, float, str, str]]:
+    """Sort keys and phrases for one card, best first.
+
+    Each entry is ``(tier, secondary, axis, phrase)``, so a plain sort orders the
+    whole card.  Three tiers:
+
+    ``0``  a STATED axis where this job is at the far end of the corpus, phrased
+           absolutely (:func:`_strong_phrase`).  Ordered by how extreme it is.
+    ``1``  a stated axis, phrased against the user's own job.  Ordered by the size
+           of the difference.
+    ``2``  an axis the user never mentioned, same phrasing, same ordering.
+
+    The axis name is the last element and is therefore the tie-break, which is
+    what makes two identical pages produce identical reasons: dict iteration order
+    is not a specification.
+
+    Stated before unstated is the product rule -- a user who said "less time with
+    people" is owed an answer to that question before they are told something they
+    never asked.  Strong before comparative is the same rule one step further: it
+    is the phrasing that survives an anchor sitting at an extreme.
+
+    **The strong tier does not require the comparative margin**, deliberately.  An
+    absolute claim is not about the anchor at all, so gating it on a difference
+    measured *from* the anchor would hand it back the weakness it exists to fix --
+    a user at percentile 0.95 for ``people`` who asks for more of it would be told
+    nothing about a card at 0.97, which is nevertheless the honest answer to their
+    question.  Ubiquity still applies, so a page where every card is that extreme
+    drops it.
+
+    An axis the job has no rating for is skipped rather than scored zero --
+    :func:`_conditions_shortfall`'s distinction, held one level up.  An axis with
+    no *anchor* rating can still go strong: the absolute phrase needs only the
+    job's own number.
+    """
+    out: list[tuple[int, float, str, str]] = []
+    for axis, (higher, lower) in _REASON_PHRASES.items():
+        value = table.percentile(code, axis)
+        if value is None:
+            continue
+        direction = stated.get(axis)
+
+        strong = _strong_phrase(axis, direction, value)
+        if strong is not None:
+            # Instead of the comparative phrase for this axis, not as well as it:
+            # they are two ways of saying the same thing and a card carrying both
+            # has spent its whole two-phrase budget on one axis.
+            out.append((0, -abs(value - 0.5), axis, strong))
+            continue
+
+        anchor_value = anchor_percentiles.get(axis)
+        if anchor_value is None:
+            continue
+        delta = value - anchor_value
+        if abs(delta) < _REASON_MIN_DELTA:
+            continue
+        out.append(
+            (
+                1 if direction is not None else 2,
+                -abs(delta),
+                axis,
+                higher if delta > 0 else lower,
+            )
+        )
+    out.sort()
+    return out
+
+
+def _attach_reasons(
+    scored: list[ScoredPath],
+    anchor: _Anchor,
+    corpus: OccupationCorpus,
+    wants: "Wants | None",
+) -> None:
+    """Fill in :attr:`ScoredPath.reasons` for a whole page, in place.
+
+    A PAGE-LEVEL PASS, not a per-card one, because the distinctiveness rule
+    cannot be evaluated one card at a time: whether "more time with people" says
+    anything depends on how many of the other nine cards it also describes.
+
+    Three ways every card keeps its empty list, and all three are normal rather
+    than failures:
+
+    * **the user has stated nothing.**  The sidecar is not even read then -- the
+      reason line explains a page their answers shaped, and `TestWantsIsAdditive`
+      pins that a user who stated nothing cannot be affected by a missing or
+      broken sidecar;
+    * **no anchor, or an anchor with no measured row.**  Most phrases end "than
+      your current job", and there is nothing to be more or less than.  28 of the
+      939 retrievable rows have no work-context report, so this is a real case.
+      The strong tier would survive a missing anchor row on its own arithmetic,
+      and is refused with the rest anyway: a page that cannot say how any of these
+      jobs compares to the user's own is not a page to start making absolute
+      claims on;
+    * **no ratings for a given job**, which empties that card alone.
+    """
+    if wants is None or wants.is_empty or anchor.code is None:
+        return
+    table = occupation_conditions.get_conditions(corpus)
+    if table is None:
+        return
+    anchor_percentiles = table.percentiles.get(anchor.code)
+    if not anchor_percentiles:
+        return
+
+    #: ``{axis: "more"|"less"}``, not a set of names: the strong tier has to know
+    #: which way the user asked before it can tell an answer from a contradiction.
+    stated = {
+        axis: direction
+        for axis, direction in wants.conditions.items()
+        if direction in ("more", "less")
+    }
+    per_card = {
+        path.onet_code: _candidate_reasons(
+            path.onet_code, anchor_percentiles, table, stated
+        )
+        for path in scored
+    }
+
+    # The ubiquity sweep.  Counted over the page as it will be shown, so a phrase
+    # is judged against the cards the reader actually sees.
+    counts: dict[str, int] = {}
+    for candidates in per_card.values():
+        for _, _, _, phrase in candidates:
+            counts[phrase] = counts.get(phrase, 0) + 1
+    # `max(2, ...)`: a phrase on ONE card is by definition not repeating itself,
+    # and without the floor a single-card page -- which `fresh_start`'s hard
+    # filters can produce -- would silently drop every reason it had.  For any
+    # page of three or more the ceiling is the binding term and the floor does
+    # nothing.
+    ceiling = max(2.0, _REASON_UBIQUITY * len(scored))
+    ubiquitous = {phrase for phrase, n in counts.items() if n >= ceiling}
+
+    for path in scored:
+        path.reasons = [
+            phrase
+            for _, _, _, phrase in per_card.get(path.onet_code, ())
+            if phrase not in ubiquitous
+        ][:_REASON_MAX_PER_CARD]
+
+
 def _radius_exclusions(
     corpus: OccupationCorpus,
     anchor_vec: "np.ndarray | None",
@@ -1656,8 +2432,17 @@ def _fresh_start_seed(
     behavioral_vec: "np.ndarray | None",
     weights: tuple[float, float, float, float],
     limit: int,
+    conditions: "_ConditionTargets | None" = None,
+    conditions_w: float = 0.0,
 ) -> list[Match]:
-    """The first page for a ``fresh_start`` with no taps yet: one per region.
+    """The first page for a ``fresh_start`` who has said nothing: one per region.
+
+    **Reached only when the user has stated nothing at all** -- no tap and no
+    want (⚑10, decided 2026-09-21; the condition is one line in `score_paths`).
+    The trade below is the price of spread for a user we know nothing about,
+    which is the only user it is worth paying for: with wants stated the same
+    seed costs 0.101 rather than 0.060, because the better the ordering gets the
+    more one-card-per-region has to throw away.
 
     *ranked* is every row that survived the hard filters -- so every candidate
     here is feasible, outside the user's own minor group, and above the
@@ -1689,10 +2474,12 @@ def _fresh_start_seed(
     ranking is a real answer -- a page with less spread, not a broken one.
     """
     signals = _build_signals(
-        profile, anchor, corpus, ranked, skills_vec, behavioral_vec
+        profile, anchor, corpus, ranked, skills_vec, behavioral_vec, conditions
     )
     order = sorted(
-        range(len(signals)), key=lambda i: _final_score(signals[i], weights), reverse=True
+        range(len(signals)),
+        key=lambda i: _final_score(signals[i], weights, conditions_w),
+        reverse=True,
     )
     codes = [signals[i].match.code for i in order]
     try:
@@ -1857,6 +2644,7 @@ def _build_signals(
     matches: list[Match],
     skills_vec: "np.ndarray | None",
     behavioral_vec: "np.ndarray | None",
+    conditions: "_ConditionTargets | None" = None,
 ) -> list[_Signals]:
     """Score every retrieved candidate on all four terms, in two matrix products.
 
@@ -1864,6 +2652,9 @@ def _build_signals(
     user's skills document and behavioural profile against the same role
     document.  ``zone`` reads the corpus sidecar.  No candidate is fetched, and
     nothing here can raise on a candidate the corpus already returned.
+
+    *conditions* is W-3's fifth term and is None whenever the user stated none,
+    which is every request made before the wants layer existed.
     """
     rows = [m.row for m in matches]
     coverage_raw = _dot_rows(corpus, rows, skills_vec)
@@ -1882,27 +2673,43 @@ def _build_signals(
                     anchor.zone, candidate_zone, profile.seniority_intent
                 ),
                 zone_raw=candidate_zone,
+                conditions_shortfall=_conditions_shortfall(match.code, conditions),
             )
         )
     return signals
 
 
 def _final_score(
-    signals: _Signals, weights: tuple[float, float, float, float]
+    signals: _Signals,
+    weights: tuple[float, float, float, float],
+    conditions_w: float = 0.0,
 ) -> float:
     """``role_w*role + coverage_w*coverage + zone_w*zone + style_w*style``.
 
     One definition, because F-7's seed has to rank candidates on exactly the
     number the cards are then sorted by; two copies of this expression would
     drift and the seed would quietly start choosing on a different scorer.
+
+    W-3's conditions term is **blended over** that, not added to it::
+
+        final = (1 - w)*base + w*(1 - shortfall)
+
+    so the result stays in the same range whatever the weight, and a candidate
+    a long way from what the user asked for is demoted rather than pushed under
+    `score_paths`' clamp at zero, where it would tie with every other demoted
+    candidate.  ``conditions_w`` is 0.0 for every request that states no
+    conditions, and then this is byte-identical to the four-term form.
     """
     role_w, coverage_w, zone_w, style_w = weights
-    return (
+    base = (
         role_w * signals.role
         + coverage_w * signals.coverage
         + zone_w * signals.zone
         + style_w * signals.style
     )
+    if conditions_w <= 0.0:
+        return base
+    return (1.0 - conditions_w) * base + conditions_w * (1.0 - signals.conditions_shortfall)
 
 
 def _overlapping_skills(
@@ -1972,6 +2779,7 @@ def _weights(
     zone_is_reliable: bool,
     has_behavioral: bool,
     has_role_identity: bool,
+    role_w_override: float | None = None,
 ) -> tuple[float, float, float, float]:
     """Return ``(role_w, coverage_w, zone_w, style_w)``, summing to 1.0.
 
@@ -1987,6 +2795,18 @@ def _weights(
     remaining term, so every zone+1 role floated to the top together.  That is
     no longer true -- ``fresh_start``'s coverage term is a real similarity
     against a real query -- so the patch is deleted rather than ported.
+
+    *role_w_override* is W-3's: ``fresh_start``'s 0.0 is right for a query that
+    is the skills document and wrong for one the user has rotated with stated
+    tasks, because then the rotation is the only thing ``role`` carries that
+    ``coverage`` does not, and a zero weight deletes it.  See
+    :data:`_WANTS_FRESH_START_ROLE_W`.
+
+    It overrides the ``has_role_identity`` gate as well as the per-intent
+    lookup, and that is the point rather than an oversight: the gate exists to
+    stop a skills-document query being counted twice (once as ``role``, once as
+    ``coverage``), and a query the user has rotated is no longer only the skills
+    document.  ``score_paths`` passes it only when there are stated tasks.
     """
     growth_focused = profile.priority in ("learning_growth", "pay_title")
     if zone_is_reliable and has_behavioral:
@@ -1999,11 +2819,14 @@ def _weights(
         split = _WEIGHTS_NO_ZONE
     coverage_w, zone_w, style_w = split
 
-    role_w = (
-        _ROLE_WEIGHT_BY_INTENT.get(profile.move_intent, _ROLE_WEIGHT_DEFAULT)
-        if has_role_identity
-        else 0.0
-    )
+    if role_w_override is not None:
+        role_w = role_w_override
+    else:
+        role_w = (
+            _ROLE_WEIGHT_BY_INTENT.get(profile.move_intent, _ROLE_WEIGHT_DEFAULT)
+            if has_role_identity
+            else 0.0
+        )
     rest = 1.0 - role_w
     return role_w, coverage_w * rest, zone_w * rest, style_w * rest
 
@@ -2018,6 +2841,7 @@ def score_paths(
     onet_client: OnetClient,
     openai_client=None,
     feedback: "Mapping[str, str] | None" = None,
+    wants: "Wants | None" = None,
 ) -> list[ScoredPath]:
     """Score candidate career paths against *user_profile* and return the top 10.
 
@@ -2030,15 +2854,17 @@ def score_paths(
     2. Resolve the user's own occupation to an O*NET code and Job Zone.  The
        corpus answers both, so this normally makes **no** O*NET call; see
        :func:`_resolve_current_zone` for the two cases that make one.
-    3. Build one query vector per :attr:`UserProfile.move_intent` and retrieve
+    3. Build one query vector per :attr:`UserProfile.move_intent`, rotate it by
+       any stated task *wants* (``q' = q + beta*mean(more) - gamma*mean(less)``,
+       W-3), and retrieve
        ``_RETRIEVE_K`` candidates from the corpus -- one matrix product, no
        network.  For ``adjacent`` and ``fresh_start`` this is also where
        *feedback* is applied: the query is rotated by :func:`_rocchio_query` and
        the "too similar" radius becomes an exclusion list
        (:func:`_radius_exclusions`).  ``fresh_start`` adds two hard filters of
-       its own -- a Job Zone ceiling and a transferable-skill floor -- and, with
-       no taps yet, replaces the top-K with a cluster-spanning seed
-       (:func:`_fresh_start_seed`).
+       its own -- a Job Zone ceiling and a transferable-skill floor -- and, for
+       a user who has stated **nothing at all** (no tap, no want), replaces the
+       top-K with a cluster-spanning seed (:func:`_fresh_start_seed`).  ⚑10.
     4. Score each candidate on four terms, all read off the corpus::
 
            role     = the retrieval cosine (document-to-document)
@@ -2048,6 +2874,10 @@ def score_paths(
 
            final    = role_w*role + coverage_w*coverage
                       + zone_w*zone + style_w*style
+
+       and, when the user stated work *conditions*, blend the one-sided
+       conditions term over that: ``(1-w)*final + w*(1 - shortfall)``
+       (:func:`_conditions_shortfall`).
 
     5. Return up to ``_TOP_N`` results sorted by score descending.
 
@@ -2067,12 +2897,23 @@ def score_paths(
                        different question would be the scorer overriding the
                        request.  ``None`` or empty is the zero-tap case and must
                        produce a full default list -- design doc §3.2.
+        wants:         W-3's :class:`Wants` -- what the user said should change
+                       about their own job.  Read by **all three** intents,
+                       unlike *feedback*: this is their own statement about
+                       their own day, not a judgement about a card the scorer
+                       chose.  ``None`` or empty must produce exactly the list
+                       this function returned before the wants layer existed,
+                       which `TestWantsIsAdditive` pins.
 
     Raises:
         InsufficientProfile: The profile has neither a usable title nor a single
             skill.  The caller turns this into ``profile_incomplete``.
         CorpusUnavailable: The occupation corpus could not be loaded.  A genuine
-            service outage; the caller answers 500 and the client retries.
+            service outage; every caller turns it into a typed ``503
+            corpus_unavailable`` and the client retries.  (This line said
+            "answers 500" until W-7: true of ``path_suggestions`` only, and only
+            until afa0973 gave it the typed 503 branch its two siblings already
+            had.)
     """
     if not _has_any_signal(user_profile):
         raise InsufficientProfile(
@@ -2094,6 +2935,12 @@ def score_paths(
     # user, against the 300-700 the per-candidate role-item embedding used to
     # add on every cold run -- which is the demand behind the 2026-09-15 OOM,
     # removed rather than capped.
+    # W-3: the tapped task statements ride in this same request -- a handful of
+    # sentences, the user's own text, cached exactly like their skill names.
+    # They are NOT precomputed per occupation: every task of every corpus row is
+    # ~120 MB at float32 against a 512 MB instance (BUILD_PLAN W-3).
+    stated_tasks = wants.task_texts() if wants is not None else []
+
     if openai_client is not None:
         _batch_embed(
             [
@@ -2106,7 +2953,8 @@ def score_paths(
                 )
                 if text
             ]
-            + [s.name.strip() for s in user_profile.skills if s.name.strip()],
+            + [s.name.strip() for s in user_profile.skills if s.name.strip()]
+            + stated_tasks,
             openai_client,
         )
 
@@ -2120,6 +2968,16 @@ def score_paths(
     query, has_role_identity = _build_query(
         user_profile, anchor, corpus, skills_vec, behavioral_vec, openai_client
     )
+
+    # W-3, and it happens BEFORE the card feedback for a reason: the wants are a
+    # standing statement about the user's own job, so they belong to the query
+    # every intent starts from, and a tap is a reaction to what that query
+    # returned.  Rotating in the other order would make the same two inputs
+    # produce a different vector depending on which arrived first.
+    stated_conditions = _condition_targets(wants, anchor, corpus)
+    conditions_w = _WANTS_CONDITIONS_W if stated_conditions is not None else 0.0
+    if query is not None and wants is not None and wants.has_tasks:
+        query = _wants_rotated_query(query, wants, openai_client)
 
     # F-6, widened to `fresh_start` by F-7.  ONE implementation, two
     # initialisers: `adjacent` starts from an annulus around the user's own
@@ -2194,13 +3052,20 @@ def score_paths(
             corpus, skills_vec, zone_max, _fresh_start_soc_exclusions(anchor)
         )
 
-    # The first page of a `fresh_start` with no taps yet is a SPANNING SET, not
-    # a top-10: there is no anchor to probe around, so the page's job is to find
-    # out which region the person is heading for.  That needs every survivor
-    # ranked, not the best thirty of them -- a cluster whose best member sits at
-    # rank 200 is still a region the user might pick.  Once a tap exists the
-    # query carries a direction and the loop is `adjacent`'s exactly.
-    seeding = is_fresh_start and not judgements
+    # The first page of a `fresh_start` who has stated NOTHING is a SPANNING
+    # SET, not a top-10: there is no anchor to probe around, so the page's job
+    # is to find out which region the person is heading for.  That needs every
+    # survivor ranked, not the best thirty of them -- a cluster whose best
+    # member sits at rank 200 is still a region the user might pick.
+    #
+    # Two things end it, and they are the same thing said twice: a tap, and a
+    # stated want.  Both are the user answering the question the spanning set
+    # asked, and once it is answered showing another spanning set is ignoring
+    # the answer.  ⚑10, decided by Sebastian on W-3a's measurement -- the seed
+    # costs 0.101 nDCG on the five `fresh_start` profiles WITH wants against
+    # 0.060 without, so the better the ordering gets the more one-card-per-
+    # region throws away.  See the ⚑10 block above for the whole table.
+    seeding = is_fresh_start and not judgements and (wants is None or wants.is_empty)
     try:
         matches = _retrieve_candidates(
             user_profile,
@@ -2224,8 +3089,20 @@ def score_paths(
     zone_is_reliable = (
         anchor.zone_resolved or user_profile.career_status == "first_job"
     )
+    # W-3's rotation-in-the-rank arm.  `fresh_start` reserves no role weight, so
+    # without this a rotated query changes WHICH rows come back and cannot
+    # reorder them -- F-7 finding (6).  See _WANTS_FRESH_START_ROLE_W.
+    role_w_override = (
+        _WANTS_FRESH_START_ROLE_W
+        if (is_fresh_start and wants is not None and wants.has_tasks)
+        else None
+    )
     role_w, coverage_w, zone_w, style_w = _weights(
-        user_profile, zone_is_reliable, behavioral_vec is not None, has_role_identity
+        user_profile,
+        zone_is_reliable,
+        behavioral_vec is not None,
+        has_role_identity,
+        role_w_override,
     )
 
     if seeding:
@@ -2238,16 +3115,19 @@ def score_paths(
             behavioral_vec,
             (role_w, coverage_w, zone_w, style_w),
             _TOP_N,
+            stated_conditions,
+            conditions_w,
         )
 
     signals = _build_signals(
-        user_profile, anchor, corpus, matches, skills_vec, behavioral_vec
+        user_profile, anchor, corpus, matches, skills_vec, behavioral_vec,
+        stated_conditions,
     )
     overlaps = _overlapping_skills(user_profile, corpus, matches, openai_client)
 
     scored: list[ScoredPath] = []
     for sig in signals:
-        raw = _final_score(sig, (role_w, coverage_w, zone_w, style_w))
+        raw = _final_score(sig, (role_w, coverage_w, zone_w, style_w), conditions_w)
         scored.append(
             ScoredPath(
                 onet_code=sig.match.code,
@@ -2270,7 +3150,55 @@ def score_paths(
             scored,
         )
 
-    return scored[:_TOP_N]
+    # W-4, and it runs on the SLICE rather than on everything scored: the
+    # distinctiveness rule is a statement about the page the user sees, so
+    # counting a phrase across candidates that never render would drop lines
+    # from the ten cards on the strength of the thirty that were cut.
+    page = scored[:_TOP_N]
+    _attach_reasons(page, anchor, corpus, wants)
+    return page
+
+
+def resolve_anchor_code(
+    user_profile: UserProfile,
+    onet_client: OnetClient,
+    openai_client=None,
+) -> str | None:
+    """The user's own occupation as an O*NET code, or None (W-4).
+
+    The one piece of :func:`score_paths`' work the wants panel needs on its own:
+    the panel asks about the user's *current* job, so it has to resolve the same
+    anchor the scorer does or it would offer one job's tasks and steer another
+    job's ranking.
+
+    A thin public name over :func:`_resolve_current_zone` rather than a second
+    implementation, and rather than a caller reaching for the underscore --
+    duplicating resolution is exactly how a panel and a ranking drift apart, and
+    the private name is private because ``_Anchor`` is this module's business,
+    not because the answer is.
+
+    Costs what the scorer's own resolution costs and no more: the corpus answers
+    the code (**zero** O*NET calls on the normal path) and the profile-document
+    embedding it needs goes through ``_embed_one``, so a request that also scores
+    pays for that vector once whichever of the two asks first.
+
+    A USER WITH NO PRIOR OCCUPATION IS ANSWERED WITHOUT LOADING THE CORPUS, and
+    that is a correctness point rather than a saving: "I have no current job" is
+    a permanent fact about the profile, and answering it with the 503 an S3
+    outage produces would send a first-job user retrying something that will
+    never work.  The condition mirrors :func:`_resolve_current_zone`'s own first
+    branch, and ``TestResolveAnchorCode`` pins the two together.
+
+    Raises:
+        CorpusUnavailable: the occupation corpus could not be loaded.  The caller
+            answers the typed 503 its sibling routes answer.
+    """
+    if user_profile.career_status == "first_job" or not user_profile.current_title:
+        return None
+    corpus = get_corpus()
+    return _resolve_current_zone(
+        user_profile, onet_client, openai_client, corpus
+    ).code
 
 
 # ---------------------------------------------------------------------------
@@ -2324,7 +3252,8 @@ def _print_scoring_debug(
         lines.append(
             f"      role={sig.role:.3f} (cos {sig.match.score:.3f})  "
             f"coverage={sig.coverage:.3f}  style={sig.style:.3f}  "
-            f"zone={sig.zone:.3f} (z{sig.zone_raw} vs z{anchor.zone})"
+            f"zone={sig.zone:.3f} (z{sig.zone_raw} vs z{anchor.zone})  "
+            f"cond_shortfall={sig.conditions_shortfall:.3f}"
         )
         lines.append(f"      skills: {path.overlapping_skills}")
     with open(out_path, "w", encoding="utf-8") as fh:

@@ -143,6 +143,7 @@ __all__ = [
     "OccupationCorpus",
     "ZONES_SCHEMA_VERSION",
     "clusters_sidecar_path",
+    "conditions_sidecar_path",
     "fetch_job_zones",
     "get_corpus",
     "is_all_other_title",
@@ -151,6 +152,7 @@ __all__ = [
     "resolve_matrix_path",
     "retrieve",
     "soc_prefix_excluded",
+    "tasks_sidecar_path",
     "vector_for",
     "write_zone_sidecar",
     "zone_sidecar_path",
@@ -499,6 +501,42 @@ def clusters_sidecar_path(matrix_path: str | os.PathLike[str]) -> Path:
     return path.with_name(path.stem + ".clusters.json")
 
 
+def conditions_sidecar_path(matrix_path: str | os.PathLike[str]) -> Path:
+    """The ``*.experience.json`` that belongs beside *matrix_path*.
+
+    A deliberate duplicate of ``occupation_conditions.conditions_sidecar_path``
+    for the reason :func:`clusters_sidecar_path` gives at length: that module
+    imports from this one, so importing back would be a cycle, and
+    ``test_the_two_conditions_sidecar_path_helpers_agree`` fails if the two
+    spellings drift.
+
+    This module needs the name so the S3 fetch can pull the file alongside the
+    matrix, the zones and the clusters, **which W-3b made it do** -- see
+    :func:`_fetch_from_s3`'s ``optional`` list and the corpus deploy dependency
+    in ``RUNBOOK_DEPLOY_MAIN_MERGE.md``.  A missing object is still a degrade
+    exactly as ``occupation_conditions.get_conditions`` documents -- one
+    warning, no conditions term, every other signal unchanged -- but it is now
+    a degrade that only happens when the file was never uploaded, rather than
+    one every production worker suffered by construction.
+    """
+    path = Path(matrix_path)
+    return path.with_name(path.stem + ".experience.json")
+
+
+def tasks_sidecar_path(matrix_path: str | os.PathLike[str]) -> Path:
+    """The ``*.tasks.json`` that belongs beside *matrix_path*.
+
+    A deliberate duplicate of ``occupation_tasks.tasks_sidecar_path``, for the
+    reason :func:`clusters_sidecar_path` gives at length: that module imports
+    from this one, so importing back would be a cycle, and
+    ``test_the_two_sidecar_path_helpers_agree`` fails if the two spellings
+    drift.  Without the file W-4's wants panel has no task half; the conditions
+    half still works, so it degrades rather than fails.
+    """
+    path = Path(matrix_path)
+    return path.with_name(path.stem + ".tasks.json")
+
+
 def zone_sidecar_path(matrix_path: str | os.PathLike[str]) -> Path:
     """The ``*.zones.json`` that belongs beside *matrix_path*."""
     path = Path(matrix_path)
@@ -705,9 +743,16 @@ def _fetch_from_s3() -> Path:
     #: best-effort and separately from the artifact, because each is written on
     #: its own cadence by its own CLI command and any of them can land after a
     #: worker has already cached the matrix.
+    #:
+    #: The last two are W-3's, added in W-3b.  Without them a production worker
+    #: served the wants layer with no data behind it and said nothing about it,
+    #: which is the silent failure F-8 box 9 had already been caught by once
+    #: with the cluster sidecar: the feature looks built and does nothing.
     optional = [
         ("zone", stem_key + ".zones.json", zone_sidecar_path(matrix_path)),
         ("cluster", stem_key + ".clusters.json", clusters_sidecar_path(matrix_path)),
+        ("conditions", stem_key + ".experience.json", conditions_sidecar_path(matrix_path)),
+        ("tasks", stem_key + ".tasks.json", tasks_sidecar_path(matrix_path)),
     ]
 
     from solverah.infra import storage  # noqa: PLC0415 -- see docstring

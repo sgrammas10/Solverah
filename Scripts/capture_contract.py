@@ -164,6 +164,44 @@ that ordering silently reversed, which no unit test phrases as a wire fact.
 be 500s on both sides of the diff -- identical bytes proving nothing. No request
 is made with it; both steps refuse before the client is used.
 
+**Extended for BUILD_PLAN W-4 (2026-09-21): the "what should change" panel.** A
+new surface, not a change to any existing one -- every record above keeps its
+position, exactly as the F-6 block appended after the F-5 one. Verified before
+the recapture, on the standing baseline: **0 differences across 103 responses.**
+
+Eight steps, and this is the first block in the file that runs in **two**
+environments. Everything above it is captured with no corpus artifact at all --
+`SOLVERAH_CORPUS_PATH` is unset here exactly as it is on the CI runner -- so the
+first two steps pin the degrade: `GET` and `PUT` must BOTH answer `503
+corpus_unavailable`, because the panel's questions are the user's own
+occupation's tasks and neither method can decide what this user was asked
+without resolving that occupation. A diff where the PUT started answering 200 or
+422 while the GET still answered 503 would mean a write had found some other way
+to decide what to store, which is the one failure this table's keying discipline
+exists to prevent.
+
+`_install_panel_corpus` then copies the committed 26-row test fixture into a
+scratch directory, writes the two sidecars beside it, and stubs the embedder --
+so the remaining steps pin the panel itself. What is captured there is mostly
+what is ABSENT: `tasks` carries plain-words labels and never the O*NET statements
+they were written from, because the statement is what the scorer embeds (design
+doc 8.7) and a client that could read one might send it back as a key. The 422
+is the business-rule one (a key this occupation does not offer, which is what a
+client holding a panel across a job change sends) and the clear that follows it
+is what makes "nothing was written" visible on the wire: it puts back a panel
+with one answer on it rather than two.
+
+The last two steps are a third account with no profile, on its own client. Its
+registration and login are deliberately NOT captured -- those three responses are
+already pinned for EMAIL at the top of this scenario.
+
+**Not captured, and the reason is the environment rather than the chunk:**
+`reasons` on a suggestion card. It is on `PathSuggestion` in `docs/openapi.json`,
+but reaching a non-empty `suggestions` payload here needs a scoring run and the
+narrator on top of the corpus, and `GET /me/path-suggestions` is captured on a
+cache miss by design. It is pinned in `tests/test_path_wants_api.py` and
+`tests/test_path_scoring.py` instead.
+
 **The LLM is stubbed, and the prompt builders with it.** Three instruments call a
 provider; a fixture that depended on one could not produce stable bytes, and the
 narrative text is the whole payload for two of them. `_chat_json` is replaced by a
@@ -194,6 +232,10 @@ UNCONFIRMED_EMAIL = "contract-unconfirmed@example.test"
 #: anti-enumeration endpoints can be asked about a stranger and about a real
 #: user in the same run, and the answers compared.
 ABSENT_EMAIL = "contract-absent@example.test"
+#: A third account with no profile at all, so the wants panel has a subject with
+#: no current job.  Registered at the very end of the scenario and on its own
+#: client, so EMAIL's cookie jar and every record above are untouched.
+NO_JOB_EMAIL = "contract-nojob@example.test"
 PASSWORD = "Strongpass1!"
 
 #: Same literal every person-side test uses. `respondent_id_for_user` has no
@@ -436,6 +478,150 @@ CONTRACT_COMPANY = {
     "overview": {"name": "Contract Industries", "industry": "Testing"},
     "culture": {"pace": "steady"},
 }
+
+
+#: Where the W-4 panel block borrows a corpus from.  The committed test fixture,
+#: not a new file: 26 rows of eight-dimensional synthetic vectors that
+#: `tests/test_occupation_tasks.py` already loads through the real loader.
+PANEL_CORPUS_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "corpus"
+PANEL_CORPUS_FILES = (
+    "onet_corpus_testfix.npy",
+    "onet_corpus_testfix.json",
+    "onet_corpus_testfix.zones.json",
+)
+PANEL_ANCHOR_CODE = "15-1243.00"
+
+#: The task rows the panel offers for that code.  Written here rather than read
+#: from anywhere, because the real sidecar is built by an offline LLM pass over
+#: an artifact this environment does not have.  The pairing is what matters and
+#: it is the real one: `task` is the formal statement the scorer would embed,
+#: `label` is the plain-words prose the panel shows, and only the second reaches
+#: the wire.
+PANEL_TASKS = (
+    (
+        "Develop and document data standards, policies, and procedures.",
+        "Write down how the data is meant to work",
+    ),
+    (
+        "Set up and maintain databases to support business applications.",
+        "Set up and look after the databases",
+    ),
+)
+
+
+def _panel_task_key(index: int) -> str:
+    """The wire key of one offered task row.
+
+    Derived here the way the server derives it rather than copied as a literal:
+    the key is a digest of the statement, and a literal would go stale silently
+    the day the digest changed -- recording a 422 where the baseline says 200 and
+    blaming the route.
+    """
+    from solverah.repositories import path_wants_repository
+
+    return path_wants_repository.item_key_for_task(PANEL_TASKS[index][0])
+
+
+class _FixedEmbedder:
+    """An OpenAI double whose every text embeds to one corpus row.
+
+    Anchor resolution is a dot product against the corpus, so a stub that
+    returns a real row's own vector resolves to that row every time.  The
+    alternative -- leaving the embedder absent -- falls back to
+    `OnetClient.search_occupations`, which in this environment is a live HTTP
+    request answered 403 by a placeholder key, after which the panel would record
+    `no_anchor` for a reason that has nothing to do with the contract.
+
+    Stubbed for `_stub_llm`'s reason and at the same layer as its prompt
+    builders: what the provider returns is not on the wire, and a capture that
+    depended on one could not produce stable bytes.
+    """
+
+    def __init__(self, vector: list) -> None:
+        self.vector = vector
+        self.embeddings = self
+
+    def create(self, *, model: str, input: list):  # noqa: A002 -- the SDK's name
+        from unittest.mock import MagicMock
+
+        return MagicMock(
+            data=[
+                MagicMock(index=i, embedding=list(self.vector))
+                for i, _ in enumerate(input)
+            ]
+        )
+
+
+def _install_panel_corpus() -> None:
+    """Give the W-4 block a corpus, both sidecars, and a fixed embedder.
+
+    Called BETWEEN the two halves of that block, which is the whole shape of it:
+    every step above this line was captured with no corpus at all -- the state
+    the CI runner and this script are otherwise always in -- so the degrade
+    answers are pinned first and the working panel second.  Nothing captured
+    earlier can be affected, because nothing runs after.
+
+    The artifact and its two sidecars are written into a scratch directory rather
+    than beside the committed fixture: this script must not leave files in the
+    repository, and a sidecar left behind would change what
+    `tests/test_occupation_tasks.py` loads.
+    """
+    import tempfile
+
+    from backend.services import (
+        occupation_conditions,
+        occupation_retrieval,
+        occupation_tasks,
+    )
+    from backend.services.occupation_conditions import ConditionsTable
+    from backend.services.occupation_tasks import OccupationTask, TasksTable
+    from solverah.infra import llm
+
+    scratch = Path(tempfile.mkdtemp(prefix="solverah-contract-corpus-"))
+    for name in PANEL_CORPUS_FILES:
+        (scratch / name).write_bytes((PANEL_CORPUS_FIXTURE / name).read_bytes())
+    matrix_path = scratch / PANEL_CORPUS_FILES[0]
+
+    occupation_tasks.write_tasks_sidecar(
+        matrix_path,
+        TasksTable(
+            tasks={
+                PANEL_ANCHOR_CODE: tuple(
+                    OccupationTask(task=task, label=label)
+                    for task, label in PANEL_TASKS
+                )
+            },
+            source="contract-fixture",
+            built_at="2026-09-21T00:00:00+00:00",
+            label_model="contract-fixture",
+        ),
+    )
+    occupation_conditions.write_conditions_sidecar(
+        matrix_path,
+        ConditionsTable(
+            percentiles={
+                PANEL_ANCHOR_CODE: {
+                    "people": 0.07,
+                    "public": 0.10,
+                    "leading": 0.30,
+                    "desk": 1.00,
+                }
+            },
+            source="contract-fixture",
+            built_at="2026-09-21T00:00:00+00:00",
+        ),
+    )
+
+    os.environ["SOLVERAH_CORPUS_PATH"] = str(matrix_path)
+    occupation_retrieval.reset_corpus_cache()
+    occupation_tasks.reset_tasks_cache()
+    occupation_conditions.reset_conditions_cache()
+
+    corpus = occupation_retrieval.get_corpus()
+    row = corpus.index_of(PANEL_ANCHOR_CODE)
+    llm.get_openai_client = lambda: _FixedEmbedder(
+        [float(value) for value in corpus.matrix[row]]
+    )
 
 
 def _seed_company(db) -> None:
@@ -1281,6 +1467,118 @@ def run_scenario() -> List[Dict[str, Any]]:
         "DELETE",
         "/api/v1/me/path-feedback",
         headers=mp_csrf,
+    )
+
+    # -- "what should change": the wants panel (W-4) -------------------------
+    #
+    # Appended after the F-6 block, so every record above keeps its position.
+    # This block is the first in the file to run in TWO environments, and the
+    # order is the point: the degrade answers are captured with no corpus, which
+    # is the state every step above was captured in and the state the CI runner
+    # is in, and only then is a scratch corpus installed for the working panel.
+    #
+    # BOTH METHODS MUST FAIL THE SAME WAY WITHOUT A CORPUS. The panel resolves
+    # the user's own occupation out of the corpus, so a PUT cannot validate a key
+    # without one either -- and a diff where the PUT started answering 200, or
+    # 422, while the GET still answered 503 would mean a write had found some
+    # other way to decide what this user was asked, which is the one bug this
+    # table's whole keying discipline exists to prevent.
+    panel_body = {
+        "answers": [{"kind": "condition", "key": "people", "verdict": "more"}]
+    }
+    call("path-wants-corpus-unavailable", "GET", "/api/v1/me/path-wants")
+    call(
+        "path-wants-put-corpus-unavailable",
+        "PUT",
+        "/api/v1/me/path-wants",
+        json=panel_body,
+        headers=mp_csrf,
+    )
+
+    _install_panel_corpus()
+
+    # The panel itself. `tasks` carries the plain-words labels and NOT the O*NET
+    # statements they were written from: the statement is what the scorer embeds
+    # (design doc 8.7) and a client that could read one might send it back as a
+    # key. That absence is contract, which is why it is captured rather than only
+    # unit-tested.
+    call("path-wants", "GET", "/api/v1/me/path-wants")
+    call(
+        "path-wants-put",
+        "PUT",
+        "/api/v1/me/path-wants",
+        json={
+            "answers": [
+                {"kind": "task", "key": _panel_task_key(0), "verdict": "less"},
+                {"kind": "condition", "key": "people", "verdict": "more"},
+            ]
+        },
+        headers=mp_csrf,
+    )
+    # A key the user's CURRENT occupation does not offer -- what a client holding
+    # a panel across a job change sends. 422, and nothing is written, which the
+    # clear below makes visible: it puts back a panel with ONE answer on it, not
+    # two.
+    call(
+        "path-wants-put-unknown-key",
+        "PUT",
+        "/api/v1/me/path-wants",
+        json={"answers": [{"kind": "task", "key": "t_000000000000", "verdict": "more"}]},
+        headers=mp_csrf,
+    )
+    call(
+        "path-wants-put-clear",
+        "PUT",
+        "/api/v1/me/path-wants",
+        json={"answers": [{"kind": "task", "key": _panel_task_key(0), "verdict": None}]},
+        headers=mp_csrf,
+    )
+
+    # -- and the user with no current job ------------------------------------
+    #
+    # A third account, on its own client so EMAIL's cookie jar is untouched, and
+    # with no profile at all. `no_anchor` is a 200 rather than an error because
+    # having no current job is not a failure -- design doc 8.3: no panel, and
+    # card taps alone steer the page. The PUT answers the same way and writes
+    # nothing, which is the pair worth capturing: a client that had a panel
+    # cached from a previous job must not be able to store an answer against a
+    # user who now has none.
+    no_job = app.test_client()
+    no_job.post(
+        "/api/v1/auth/register",
+        json={
+            "email": NO_JOB_EMAIL,
+            "password": PASSWORD,
+            "name": "No Job User",
+            "role": "job-seeker",
+            "terms_accepted": True,
+        },
+    )
+    with app.app_context():
+        no_job_user = User.query.filter_by(email=NO_JOB_EMAIL).first()
+        no_job_user.email_confirmed = True
+        no_job_user.confirmation_token = None
+        db.session.commit()
+    no_job_csrf = {
+        "X-CSRF-TOKEN": no_job.post(
+            "/api/v1/auth/login",
+            json={"email": NO_JOB_EMAIL, "password": PASSWORD},
+        ).get_json()["csrfToken"]
+    }
+    # Registered and logged in WITHOUT capturing any of it: those three responses
+    # are already pinned for EMAIL at the top of this scenario, and recording
+    # them again would be three more records saying nothing new.
+    record(
+        "path-wants-no-anchor",
+        no_job.get("/api/v1/me/path-wants"),
+        "GET",
+        "/api/v1/me/path-wants",
+    )
+    record(
+        "path-wants-put-no-anchor",
+        no_job.put("/api/v1/me/path-wants", json=panel_body, headers=no_job_csrf),
+        "PUT",
+        "/api/v1/me/path-wants",
     )
 
     return records

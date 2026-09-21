@@ -16,6 +16,19 @@ export interface PathSuggestion {
   why_text: string;
   profile_dimensions: string[];
   match_score: number;
+  /**
+   * W-4. At most two plain-words phrases saying what is distinctive about this
+   * card against the user's own job -- the line that goes where the percentage
+   * was until W-1.
+   *
+   * Optional for `feedback`'s reason and one more: a payload cached before W-4
+   * shipped will not carry it, and an empty list is the normal answer rather
+   * than an error. A phrase that would read the same on most of the page says
+   * nothing about any card and is dropped from all of them, and a user who has
+   * stated no wants gets no reason line at all -- so a card renders with none
+   * far more often than it renders with two.
+   */
+  reasons?: string[];
 }
 
 export interface PathSuggestionsResponse {
