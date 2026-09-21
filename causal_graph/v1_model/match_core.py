@@ -125,8 +125,31 @@ def fit_gap(person_score, env_score, snap_person=True):
 #                  weight vector)
 # Called from build_model(), the synthetic-data generator in sanity_check(),
 # and score_pairs() below, so the three can never apply different preprocessing.
+#
+# MISSING CONTINUOUS VALUES (`conf_missing`, ruled 2026-09-17)
+# ------------------------------------------------------------
+# `comp` is nullable by a signed ruling ("not sure", PRODUCT_DECISIONS.md section 2),
+# so `assemble_environment_training_data` hands back NaN plus an explicit
+# boolean mask per confounder (EnvironmentAssembleResult.conf_missing) rather
+# than imputing. The ruling for the model is EXCLUDE THE TERM: where the mask
+# is True the standardized value becomes exactly 0.0, and since a continuous
+# confounder enters the logit as `w * value`, a 0.0 drops that row's term out
+# of z entirely. Deliberately NOT a missingness-indicator weight: that would be
+# a 21st weight, and the flat weight naming (flatten_weights) is pinned at 20
+# by tests/test_match_scoring.py -- modelling the missingness is a config
+# change with its own sign-off, not a side effect of handling a NULL.
+#
+# Without a mask, a NaN RAISES. Before this it standardized into NaN and
+# propagated silently through the whole linear predictor into p_fit.
+#
+# A masked CATEGORICAL still raises on the None it carries: there is no neutral
+# level index the way 0.0 is a neutral standardized value, so "exclude the
+# term" has no meaning for one weight out of a per-level vector. That is still
+# a config decision (add an `unknown` level, or drop the confounder) and it is
+# what keeps the environment source's unasked `industry` from feeding a fit --
+# see ASSEMBLE_TRAINING_DATA_NOTES.md.
 # ---------------------------------------------------------------------------
-def preprocess_conf(conf, cfg):
+def preprocess_conf(conf, cfg, conf_missing=None):
     out = {}
     for c in active(cfg["confounders"]):
         if not c.get("measurable"):
@@ -138,7 +161,23 @@ def preprocess_conf(conf, cfg):
             out[k] = np.array([levels.index(v) for v in raw], dtype="int64")
         else:
             scale = c["scale"]
-            out[k] = (np.asarray(raw, dtype=float) - scale["mean"]) / scale["sd"]
+            value = (np.asarray(raw, dtype=float) - scale["mean"]) / scale["sd"]
+            mask = None if conf_missing is None else conf_missing.get(k)
+            if mask is not None:
+                # np.where, not in-place: a False mask leaves every value
+                # bit-identical to the unmasked path above.
+                value = np.where(np.asarray(mask, dtype=bool), 0.0, value)
+            unmasked_nan = np.isnan(value)
+            if unmasked_nan.any():
+                raise ValueError(
+                    f"confounder '{k}' carries NaN at row(s) "
+                    f"{np.flatnonzero(np.atleast_1d(unmasked_nan)).tolist()} with no "
+                    f"conf_missing mask marking them missing -- a NaN standardizes into "
+                    f"the linear predictor and silently NaNs out p_fit. Pass "
+                    f"conf_missing (EnvironmentAssembleResult.conf_missing) to exclude "
+                    f"the term for those rows, or supply a value."
+                )
+            out[k] = value
     return out
 
 
@@ -177,6 +216,45 @@ def outcome_logit(person, env, conf, cfg, weights, snap_person=True):
             z += w * conf.get(k, 0.0)
 
     return z
+
+
+# ---------------------------------------------------------------------------
+# The ORDINAL head, in numpy. Same linear predictor z, a different likelihood
+# on top of it: the outcome is a 1..K rating rather than a 0/1 event.
+#
+# This is the exact formula pymc's OrderedLogistic.compute_p uses --
+# `sigmoid(cutpoints - eta)` as the cumulative P(Y <= k), differenced -- kept
+# here so serving never needs PyMC and so the mapping below can be tested in
+# the main suite, which has no pymc.
+#
+# THE MAPPING (ruled 2026-09-17). priors.yaml's weights were elicited on a
+# BINARY scale: sigmoid(z) = P(still doing well after a year), where "doing
+# well" is a rating of 4 or 5. build_model PINS the cutpoint just below that
+# rating at exactly 0, which makes
+#
+#     P(Y >= 4) = 1 - sigmoid(0 - z) = sigmoid(z)
+#
+# an identity rather than an approximation -- so the elicited numbers keep
+# their meaning on the ordinal head with no rescaling, and the serving path
+# (point_p_fit / score_pairs) keeps meaning exactly what it meant before.
+# ---------------------------------------------------------------------------
+def ordinal_probs(z, cutpoints):
+    """Per-level probabilities for an ordered-logistic outcome.
+
+    z         : array-like, shape (...) -- the linear predictor (eta)
+    cutpoints : array-like, shape (K-1,) -- ASCENDING category boundaries
+
+    Returns an array of shape (..., K) summing to 1 along the last axis, where
+    column j is P(rating == j + 1).
+    """
+    z = np.asarray(z, dtype=float)
+    cutpoints = np.asarray(cutpoints, dtype=float)
+    cumulative = _sigmoid(cutpoints - z[..., None])      # P(Y <= k), k = 1..K-1
+    pad = z.shape + (1,)
+    padded = np.concatenate(
+        [np.zeros(pad), cumulative, np.ones(pad)], axis=-1
+    )
+    return np.diff(padded, axis=-1)
 
 
 # ---------------------------------------------------------------------------

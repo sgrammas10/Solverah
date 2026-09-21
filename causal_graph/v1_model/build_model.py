@@ -27,8 +27,11 @@ import os
 # unset environments keep the original no-compiler-required behavior.
 os.environ.setdefault("PYTENSOR_FLAGS", "cxx=")
 
+from typing import Any, Mapping, Optional, Sequence
+
 import numpy as np
 import pymc as pm
+import pytensor.tensor as pt
 import arviz as az
 
 # The deterministic core -- lattices, gap correction, confounder preprocessing, and THE
@@ -99,15 +102,166 @@ def sample_weights_from_priors(cfg, pri):
     return weights
 
 
-def build_model(person, env, conf, cfg, pri, outcome=None):
+# ---------------------------------------------------------------------------
+# THE ORDINAL HEAD  (D-20, mapping ruled 2026-09-17)
+#
+# `experienced` -- "overall, how well is this role working for you", 1..5 -- is
+# the only outcome the environment-report source produces, and it is never
+# dichotomized into the Bernoulli path. It trains through OrderedLogistic over
+# the SAME linear predictor z.
+#
+# priors.yaml's weights were elicited on a BINARY scale: sigmoid(z) = P(still
+# doing well after a year), "doing well" being a rating of 4 or 5. The three
+# functions below make that exact rather than approximate, so those numbers
+# need no rescaling to serve the ordinal head:
+#
+#   pymc:   P(Y <= k) = sigmoid(c_k - eta)      (OrderedLogistic.compute_p;
+#                                                verified in pymc 5.25.1, whose
+#                                                source reads `pa = sigmoid(
+#                                                cutpoints - shape_padright(eta))`)
+#   here:   eta = z, the FULL linear predictor, intercept included
+#           c_3 = 0, PINNED -- a constant, not a random variable
+#   =>      P(Y >= 4) = 1 - sigmoid(0 - z) = sigmoid(z),  identically
+#
+# The pin is not a nicety. An intercept and a free cutpoint vector are jointly
+# unidentified: shift every cutpoint by d and the intercept by d and the
+# likelihood is unchanged. Nothing fails -- the sampler runs, and the intercept
+# quietly stops meaning "8 in 10 still doing well". Pinning the cutpoint below
+# `doing_well_at` is what ties the intercept back to the expert's answer.
+#
+# Dropping the intercept from eta instead would also identify the model, and is
+# the wrong fix: sigmoid(z) in the SERVING path (match_core.point_p_fit /
+# score_pairs, which the web layer calls) would stop being P(doing well).
+# ---------------------------------------------------------------------------
+def head_config(cfg: Mapping[str, Any], head: str) -> dict:
+    """The `settings.heads` block for `head`, as a plain dict.
+
+    `settings.outcome` is kept as the legacy alias of `heads.appeal` (see the
+    config's own comment) -- this reads `heads`, and falls back to `outcome`
+    for `appeal` so a config predating the `heads` block still builds the
+    binary model.
+    """
+    heads = cfg["settings"].get("heads") or {}
+    if head in heads:
+        return dict(heads[head])
+    if head == "appeal":
+        return dict(cfg["settings"]["outcome"])
+    raise ValueError(
+        "unknown outcome head %r -- solverah_model_config.yaml defines %s"
+        % (head, sorted(heads) or ["appeal (via the legacy settings.outcome block)"])
+    )
+
+
+def pinned_cutpoint_index(head_cfg: Mapping[str, Any]) -> int:
+    """Index, into the length-(levels-1) cutpoint vector, of the cutpoint pinned at 0.
+
+    DERIVED from `doing_well_at` rather than hardcoded to rating 4's position,
+    so a config that moves the "doing well" threshold moves the pin with it and
+    sigmoid(z) goes on meaning P(rating >= doing_well_at). Cutpoint j (0-based)
+    separates rating j+1 from rating j+2, so the boundary just below rating D
+    is index D - 2.
+    """
+    levels = int(head_cfg["levels"])
+    doing_well_at = int(head_cfg["doing_well_at"])
+    if levels < 3:
+        raise ValueError(
+            "ordinal head needs at least 3 levels, config says %d -- a 2-level "
+            "ordinal is the Bernoulli head" % levels
+        )
+    if not 2 <= doing_well_at <= levels:
+        raise ValueError(
+            "doing_well_at=%d is out of range for a %d-level head: it must name a "
+            "rating with at least one rating below it (2..%d), because the cutpoint "
+            "below it is what gets pinned" % (doing_well_at, levels, levels)
+        )
+    return doing_well_at - 2
+
+
+def ordinal_cutpoints(head_cfg: Mapping[str, Any],
+                      pri: Mapping[str, Any],
+                      name: str = "cut_spacing"):
+    """Ascending cutpoint vector with the `doing_well_at` boundary pinned at 0.
+
+    Built from POSITIVE spacings rather than from ordered random variables:
+    ordering then holds by construction, and there is no `ordered` transform to
+    fight the one element that must stay constant. The spacings are a single
+    LogNormal vector RV, `cut_spacing`, read low cutpoint to high:
+
+        cut_spacing[i < pin]   -- gaps below the pin, nearest-the-pin LAST
+        cut_spacing[i >= pin]  -- gaps above the pin, nearest-the-pin FIRST
+
+    At 5 levels / doing_well_at 4 that is [d_low1, d_low2, d_high], giving
+    cutpoints [-(d_low1 + d_low2), -d_low2, 0, d_high].
+    """
+    levels = int(head_cfg["levels"])
+    pin = pinned_cutpoint_index(head_cfg)
+    n_below = pin
+    n_above = (levels - 1) - pin - 1
+
+    spacing = pri["cutpoints"]["spacing"]
+    gaps = pm.LogNormal(
+        name,
+        mu=float(spacing["mu_log"]),
+        sigma=float(spacing["sigma_log"]),
+        shape=(n_below + n_above,),
+    )
+
+    # reversed cumulative sum: the gap nearest the pin contributes to every
+    # cutpoint below it, the next one down to all but the nearest, and so on.
+    below = -pt.cumsum(gaps[:n_below][::-1])[::-1]
+    above = pt.cumsum(gaps[n_below:])
+    return pt.concatenate([below, pt.zeros(1), above])
+
+
+def ordinal_observed(outcome: Sequence[Any], levels: int) -> np.ndarray:
+    """1..levels ratings -> 0-based category indices for OrderedLogistic.
+
+    Refuses anything that is not already an integer rating in range. Never
+    clips and never rounds: a 3.5 means the caller thinks the scale is
+    continuous and a 0 or a 6 means the row was assembled under a different
+    instrument -- either one silently coerced is a wrong likelihood.
+    """
+    values = np.asarray(outcome, dtype=float)
+    finite = np.isfinite(values)
+    bad = ~finite
+    bad = bad | (values != np.floor(np.where(finite, values, 0.0)))
+    bad = bad | (np.where(finite, values, 1.0) < 1) | (np.where(finite, values, 1.0) > levels)
+    if np.any(bad):
+        flat_vals, flat_bad = np.atleast_1d(values), np.atleast_1d(bad)
+        offenders = sorted({float(v) for v in flat_vals[flat_bad]})
+        raise ValueError(
+            "ordinal outcome must be an integer rating in 1..%d; got %s at row(s) %s"
+            % (levels, offenders, np.flatnonzero(flat_bad).tolist())
+        )
+    return values.astype(int) - 1
+
+
+def build_model(person, env, conf, cfg, pri, outcome=None, head: str = "appeal",
+                conf_missing: Optional[Mapping[str, Any]] = None):
     """
     person, env : dict {dim_key: array-like, length N}
     conf        : dict {confounder_key: array-like, length N} -- RAW values
                   (preprocess_conf() is called internally)
-    outcome     : optional array-like of 0/1, length N. If given, attaches a
-                  Bernoulli likelihood so pm.sample() updates the priors into
-                  a posterior; if omitted the model is prior-only.
+    outcome     : optional observed outcomes, length N. If given, attaches the
+                  head's likelihood so pm.sample() updates the priors into a
+                  posterior; if omitted the model is prior-only.
+                    head="appeal"      -> 0/1, Bernoulli
+                    head="experienced" -> integer 1..levels, OrderedLogistic
+    head        : which `settings.heads` block to attach. "appeal" is the
+                  default and reproduces the pre-2026-09-17 model exactly.
+                  "experienced" never dichotomizes -- that is D-20.
+    conf_missing: optional dict {confounder_key: bool array, length N} marking
+                  legitimately-absent confounder values (a "not sure" comp). A
+                  masked CONTINUOUS confounder's term is excluded from z for
+                  that row -- see match_core.preprocess_conf.
+
+    `p_fit` is a pm.Deterministic on BOTH heads and means the same thing on
+    both: P(this goes well). On the ordinal head that is P(rating >=
+    doing_well_at), which the pinned cutpoint makes exactly sigmoid(z).
     """
+    head_cfg = head_config(cfg, head)
+    is_ordinal = head_cfg.get("type") == "ordinal"
+
     with pm.Model() as model:
         weights = sample_weights_from_priors(cfg, pri)
 
@@ -128,30 +282,62 @@ def build_model(person, env, conf, cfg, pri, outcome=None):
             for d in active(cfg["dimensions"])
         }
         conf_data = {
-            k: pm.Data(f"conf_{k}", v) for k, v in preprocess_conf(conf, cfg).items()
+            k: pm.Data(f"conf_{k}", v)
+            for k, v in preprocess_conf(conf, cfg, conf_missing=conf_missing).items()
         }
 
         z = outcome_logit(person_data, env_data, conf_data, cfg, weights, snap_person=False)
         pm.Deterministic("p_fit", pm.math.sigmoid(z))
 
+        if not is_ordinal:
+            if outcome is not None:
+                pm.Bernoulli(head_cfg["name"], logit_p=z, observed=np.asarray(outcome))
+            return model
+
+        levels = int(head_cfg["levels"])
+        cutpoints = ordinal_cutpoints(head_cfg, pri)
+        # The same function pymc's own likelihood uses, so p_rating cannot drift
+        # from what OrderedLogistic scores. compute_p=False below then avoids a
+        # second, identically-valued `<name>_probs` deterministic.
+        pm.Deterministic("p_rating", pm.OrderedLogistic.compute_p(z, cutpoints))
+
         if outcome is not None:
-            outcome_name = cfg["settings"]["outcome"]["name"]
-            pm.Bernoulli(outcome_name, logit_p=z, observed=np.asarray(outcome))
+            pm.OrderedLogistic(
+                head_cfg["name"],
+                eta=z,
+                cutpoints=cutpoints,
+                observed=ordinal_observed(outcome, levels),
+                compute_p=False,
+            )
 
     return model
 
 
-def prior_predictive(person, env, conf, cfg, pri, draws=2000, random_seed=None):
-    """P(fit) under the expert priors alone -- no observed outcomes yet."""
-    model = build_model(person, env, conf, cfg, pri)
+def prior_predictive(person, env, conf, cfg, pri, draws=2000, random_seed=None,
+                     head: str = "appeal",
+                     conf_missing: Optional[Mapping[str, Any]] = None):
+    """P(fit) under the expert priors alone -- no observed outcomes yet.
+
+    `head` and `conf_missing` are passed through to build_model() and default to
+    the pre-2026-09-17 behavior. They go LAST because recovery_multiseed.py and
+    the analysis scripts call this positionally.
+    """
+    model = build_model(person, env, conf, cfg, pri, head=head, conf_missing=conf_missing)
     with model:
         idata = pm.sample_prior_predictive(draws=draws, random_seed=random_seed)
     return idata.prior["p_fit"]
 
 
-def fit_posterior(person, env, conf, outcome, cfg, pri, **sample_kwargs):
-    """Update the priors on observed (person, env, conf) -> outcome data."""
-    model = build_model(person, env, conf, cfg, pri, outcome=outcome)
+def fit_posterior(person, env, conf, outcome, cfg, pri, head: str = "appeal",
+                  conf_missing: Optional[Mapping[str, Any]] = None, **sample_kwargs):
+    """Update the priors on observed (person, env, conf) -> outcome data.
+
+    head="experienced" fits the 1..5 ordinal through OrderedLogistic; see
+    build_model(). `outcome` is passed to the head unchanged -- nothing here
+    ever dichotomizes an experienced rating (D-20).
+    """
+    model = build_model(person, env, conf, cfg, pri, outcome=outcome, head=head,
+                        conf_missing=conf_missing)
     with model:
         idata = pm.sample(**sample_kwargs)
     return idata

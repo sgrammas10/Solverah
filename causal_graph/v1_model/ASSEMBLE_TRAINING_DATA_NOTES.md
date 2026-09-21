@@ -146,6 +146,66 @@ the one thing standing between these rows and a fit run. `solverah_model_config.
 `settings.outcome` block still describes only the binary head (`type: binary`). E-5 cannot
 start on this source until an `OrderedLogistic` branch exists.
 
+#### Both blockers cleared, 2026-09-17
+
+The `OrderedLogistic` branch exists. `build_model.build_model(..., head="experienced")`
+attaches it; `head="appeal"` is the default and is the unchanged binary model. The two
+heads are declared side by side in `solverah_model_config.yaml`'s new `settings.heads`
+block, and `settings.outcome` stays as the legacy alias of `heads.appeal` so every
+existing reader (`recovery_multiseed.py`) keeps working. Nothing dichotomizes an
+`experienced` rating anywhere on the path -- that is D-20, and a rating that is not an
+integer in 1..5 now raises rather than being rounded or clipped into one.
+
+**The mapping, which is the part worth knowing.** `priors.yaml`'s weights were elicited
+on a BINARY scale: `sigmoid(z) = P(still doing well after a year)`, "doing well" being a
+rating of 4 or 5. PyMC parameterizes `OrderedLogistic` as `P(Y <= k) = sigmoid(c_k -
+eta)` (verified against pymc 5.25.1's `OrderedLogistic.compute_p`). So with
+
+* `eta = z`, the FULL linear predictor, intercept included, and
+* `c_3` -- the boundary between ratings 3 and 4 -- PINNED at 0, a constant,
+
+`P(Y >= 4) = 1 - sigmoid(0 - z) = sigmoid(z)` *identically*. The expert's numbers keep
+their meaning on the ordinal head with no rescaling, and `sigmoid(z)` in the serving path
+(`match_core.point_p_fit` / `score_pairs`) goes on meaning exactly what it meant.
+
+The pin is load-bearing, and its absence would be silent. An intercept and a free
+cutpoint vector are jointly unidentified: shift every cutpoint by d and the intercept by
+d and the likelihood is unchanged. Leave `c_3` free and the sampler still runs and
+nothing fails -- the intercept just quietly stops meaning "8 in 10 still doing well". The
+remaining three cutpoints are free, built from positive `LogNormal` spacings
+(`cut_spacing`) so ordering holds by construction; their priors live in `priors.yaml` (and
+identically in `priors_placeholder.yaml`) under `cutpoints:`, flagged as NOT
+expert-elicited. The pin's position is derived from `heads.experienced.doing_well_at`,
+not hardcoded, so moving the threshold moves the pin with it.
+
+**NULL `comp`: the term is excluded.** `match_core.preprocess_conf` takes an optional
+`conf_missing` mask -- exactly the one `EnvironmentAssembleResult.conf_missing` carries.
+Where the mask is True a continuous confounder's standardized value becomes exactly
+`0.0`, and since it enters the logit as `w * value`, that row's term drops out of `z`.
+Deliberately NOT a missingness-indicator weight: that would be a 21st weight, and the
+flat weight naming is a database interface pinned at 20 rows. Modelling the missingness
+stays available as a later config change with its own sign-off. Without a mask, a NaN now
+RAISES and names the confounder -- before this it standardized into a NaN and propagated
+through the whole linear predictor into `p_fit`, unflagged.
+
+**What still stands between these rows and a fit.** Three things, none of them this
+file's two:
+
+1. **`industry` is still unfeedable from this source.** The instrument does not ask it,
+   so every row carries `None` for it, and a categorical confounder goes through
+   `levels.index(v)`, which raises. The continuous ruling does not transfer: `0.0` is a
+   neutral standardized value, but there is no neutral level index to stand in for one
+   weight out of a per-level vector. That is a config decision -- add an `unknown` level,
+   or deactivate the confounder for runs off this source -- and it is unmade.
+2. **There is no volume yet.** `assemble_environment_training_data` is verified against
+   sqlite and against `build_model`'s real contract, not against a populated production
+   database.
+3. **The head is verified on data it generated itself.** `ordinal_recovery.py` +
+   `results/ordinal_recovery.md` show the head recovering known weights and known
+   cutpoints at the resolution the real instruments emit. That is an inference check, not
+   evidence that the expert's weights describe real placements. Only outcome data can say
+   that, which is why BUILD_PLAN's "First real-priors fit" box stays unchecked.
+
 ### Pointer: condition experiments (BUILD_PLAN B-5)
 
 The `experiments` table (`model.Experiment`) holds one row per user per two-week

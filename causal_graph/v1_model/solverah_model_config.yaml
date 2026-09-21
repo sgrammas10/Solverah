@@ -10,10 +10,31 @@
 settings:
   fit_layer: deterministic        # Fit node = f(person, env). Computed, not learned.
   gap: signed                     # gap = person_score - env_score, range -1..1
+  # LEGACY ALIAS of heads.appeal below. Kept -- not replaced -- because
+  # recovery_multiseed.py and build_model.build_model(head="appeal") read
+  # settings.outcome.name directly. New code should read `heads`.
   outcome:
     name: fit_yes
     type: binary
     link: logistic
+  # Two outcome heads over ONE shared linear predictor z (D-20):
+  #   appeal      -> "did this recommendation look like a fit"  (0/1)
+  #   experienced -> "overall, how well is this role working for you" (1-5)
+  # `experienced` is the only outcome the environment-report source produces
+  # (assemble_training_data.ENVIRONMENT_OUTCOME_TYPE) and is NEVER
+  # dichotomized into the binary head -- that is what D-20 locks.
+  #
+  # doing_well_at: the lowest rating that counts as "still doing well a year
+  # later", which is the event priors.yaml's intercept was elicited against
+  # ("out of ten people like this, how many are still doing well"). The
+  # cutpoint just below it is PINNED at 0 -- index doing_well_at - 2 in the
+  # length-(levels-1) cutpoint vector -- which makes sigmoid(z) EXACTLY
+  # P(rating >= doing_well_at), so the elicited weights keep their meaning on
+  # the ordinal head with no rescaling. See build_model.ordinal_cutpoints().
+  heads:
+    appeal:      { name: fit_yes,       type: binary,  link: logistic }
+    experienced: { name: working_scale, type: ordinal, levels: 5,
+                   link: ordered_logistic, doing_well_at: 4 }
   # How each dimension's signed gap enters the outcome linear predictor.
   #   mag -> |gap|  : any mismatch lowers fit (symmetric baseline)
   #   dir -> gap    : directional asymmetry (over vs under offered)

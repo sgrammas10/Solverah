@@ -56,3 +56,9 @@ confounders:
   # keeps the mean neutral and the sd wide, leaving the per-level story to data.
   industry:    { mean: 0.000000, sd: 1.000000 }
   # prestige added here when toggled active
+
+# Ordinal-head cutpoint spacings. NOT expert-elicited -- placeholder priors.
+# The cutpoint between ratings 3 and 4 is PINNED at 0 so that sigmoid(z)
+# is exactly P(rating >= 4) = "doing well"; see build_model.py.
+cutpoints:
+  spacing: { mu_log: 0.405465, sigma_log: 0.5 }   # LogNormal; exp(mu) = 1.5
