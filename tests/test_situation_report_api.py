@@ -135,6 +135,33 @@ def _submit_env(client, csrf, pole="mixed", stage_size=3, comp=3, experienced=3,
     )
 
 
+def _env_answers_by_dimension(poles: dict[str, str], default: str = "mixed") -> dict:
+    """A valid {item_id: option_key} where each dimension lands on its own pole
+    from *poles*, and every other dimension on *default* -- so a fixture can put
+    the widest divergence on whichever dimension it wants, which `_env_answers`
+    (one pole for all six) structurally cannot.
+    """
+    answers = {}
+    for item in situation_items.ENVIRONMENT_ITEMS:
+        pole = poles.get(item["dimension"], default)
+        option = next(o for o in item["options"] if o["pole"] == pole)
+        answers[item["item_id"]] = option["key"]
+    return answers
+
+
+def _submit_env_by_dimension(client, csrf, poles: dict[str, str]):
+    return client.post(
+        "/api/v1/me/environment-report",
+        json={
+            "answers": _env_answers_by_dimension(poles),
+            "stage_size": 3,
+            "comp": 3,
+            "experienced": 3,
+        },
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+
+
 def _get_report(client):
     return client.get("/api/v1/me/situation-report")
 
@@ -272,6 +299,78 @@ def test_both_complete_state_has_ranked_dimensions_and_guidance(client, monkeypa
             assert entry["direction"] in ("under", "over")
             assert "diagnosis" in entry and "text" in entry["diagnosis"]
             assert "registers" in entry
+
+
+# ── Rank order, and the elicited weights behind it ───────────────────────────
+
+
+def test_dimensions_reach_the_client_in_rank_order(client, monkeypatch):
+    """The ranking has to survive the trip to the browser.
+
+    `build_situation_report` computes a `rank` and then returns rows in fixed
+    `DIMENSIONS` order; both frontends render the list in the order they
+    receive it and neither sorts. So unless the service emits them ranked,
+    every user sees autonomy first forever, whatever their answers say.
+
+    The fixture deliberately puts the widest divergence on `decision`, the
+    LAST dimension in `DIMENSIONS` -- a fixture whose rank order happens to
+    match document order passes this vacuously.
+    """
+    email = "a5_rankorder@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)  # uniform pattern -> 0.5 on all six
+    resp = _submit_env_by_dimension(
+        client,
+        csrf,
+        # env 0.9 vs person 0.5 -> |gap| 0.40, straining
+        # env 0.7 vs person 0.5 -> |gap| 0.20, notable
+        {"decision": "high", "innovation": "leaning_high"},
+    )
+    assert resp.status_code == 200, resp.get_json()
+
+    body = _get_report(client).get_json()
+    assert body["state"] == "complete"
+
+    order = [d["dimension"] for d in body["dimensions"]]
+    ranks = [d["rank"] for d in body["dimensions"]]
+
+    assert order[0] == "decision", (
+        "the widest divergence did not lead the list; got %r" % (order,)
+    )
+    assert order[1] == "innovation", order
+    assert all(a < b for a, b in zip(ranks, ranks[1:])), (
+        "ranks are not strictly increasing down the payload: %r" % (ranks,)
+    )
+
+
+def test_service_ranks_on_the_live_elicited_weights() -> None:
+    """The service must rank on what `causal_graph/v1_model/priors.yaml`
+    actually says today, so a re-elicitation reaches the report by editing
+    that file and nothing else.
+
+    Compares against an independent read of the YAML rather than against the
+    same loader the service uses -- otherwise both sides could drift together
+    and the test would still pass. Means only: the `sd` records how sure the
+    expert was and has no say in which mismatch is listed first.
+    """
+    import yaml
+
+    from solverah.services.situation_report_service import _dimension_weights
+    from work_pulse.situation import DIMENSIONS
+
+    with open("causal_graph/v1_model/priors.yaml", encoding="ascii") as handle:
+        priors = yaml.safe_load(handle)["dimensions"]
+
+    weights = _dimension_weights()
+
+    assert set(weights) == set(DIMENSIONS)
+    for dim in DIMENSIONS:
+        assert weights[dim]["mag"] == pytest.approx(priors[dim]["mag"]["mean"]), dim
+        assert weights[dim]["dir"] == pytest.approx(priors[dim]["dir"]["mean"]), dim
+        # The invariant `work_pulse.situation.dimension_cost` refuses to break:
+        # a cheap direction can cancel the penalty but never outrun it.
+        assert abs(weights[dim]["dir"]) <= abs(weights[dim]["mag"]), dim
 
 
 # ── D-15 structural payload discipline ───────────────────────────────────────

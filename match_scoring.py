@@ -57,11 +57,13 @@ __all__ = [
     "MatchModelError",
     "PRIORS_MODEL_VERSION",
     "current_run",
+    "load",
     "load_run_weights",
     "point_p_fit",
     "score_pairs",
     "score_with_current_run",
     "seed_priors_model_run",
+    "weights_from_priors",
 ]
 
 PRIORS_MODEL_VERSION = "v1-priors-only"

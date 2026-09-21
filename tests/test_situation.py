@@ -8,18 +8,43 @@ from work_pulse.situation import (
     ALIGNED,
     ALIGNED_THRESHOLDS,
     DIMENSIONS,
+    FLAT_DIR,
+    FLAT_MAG,
     NOTABLE,
     OVER,
     STRAINING,
     STRAINING_THRESHOLDS,
     UNDER,
+    DimensionWeight,
     build_situation_report,
     classify_gap,
+    dimension_cost,
     gap_direction,
     rank_dimensions,
     score_environment,
     signed_gaps,
 )
+
+
+def _flat_dimension_weights() -> dict[str, DimensionWeight]:
+    """The module's own neutral default, spelled out -- `cost` collapses to
+    `abs(gap)`, so ranking within a tier is by raw gap width."""
+    return {dim: {"mag": FLAT_MAG, "dir": FLAT_DIR} for dim in DIMENSIONS}
+
+
+def _live_dimension_weights() -> dict[str, DimensionWeight]:
+    """The real elicited weights, read from the repo's own priors.yaml rather
+    than transcribed -- so a later re-elicitation moves these tests instead of
+    leaving them asserting numbers nothing uses any more. Means only; the sd
+    describes the expert's confidence and does not order anything.
+    """
+    from match_scoring import load, weights_from_priors
+
+    cfg, pri = load()
+    return {
+        dim: {"mag": float(w["mag"]["mean"]), "dir": float(w["dir"]["mean"])}
+        for dim, w in weights_from_priors(cfg, pri)["dimensions"].items()
+    }
 
 # ---------------------------------------------------------------------------
 # FIXTURE DISCLAIMER: this is a SYNTHETIC item spec, invented purely for
@@ -429,22 +454,30 @@ def test_default_weights_are_flat() -> None:
 
 
 def test_non_flat_weights_reorder_the_ranking() -> None:
-    """The seam E-5 swaps posterior weights into later: a dimension with a
-    smaller raw gap but a much larger weight must be able to outrank one
-    with a bigger raw gap and a small weight.
+    """The seam E-5 swaps elicited weights into: a dimension with a smaller
+    raw gap but a much larger weight must be able to outrank one with a
+    bigger raw gap and a small weight.
+
+    Both gaps sit in the SAME bucket on purpose. Weights only order rows
+    within a severity tier -- `test_tier_outranks_weight` pins the outer
+    rule -- so a cross-tier fixture here would be testing the tier, not the
+    weights.
     """
     gaps = {
-        "autonomy": 0.10,   # small gap, big weight below
-        "pace": 0.50,       # big gap, tiny weight below
+        "autonomy": 0.16,   # notable, small gap, big weight below
+        "pace": 0.24,       # notable, bigger gap, tiny weight below
         "collaboration": 0.0,
         "feedback": 0.0,
         "innovation": 0.0,
         "decision": 0.0,
     }
+    assert classify_gap("autonomy", gaps["autonomy"]) == classify_gap("pace", gaps["pace"])
+
     flat_order = rank_dimensions(gaps)
     assert flat_order[0] == "pace"
 
-    weights = {**{d: 1.0 for d in DIMENSIONS}, "autonomy": 10.0, "pace": 0.01}
+    weights = {**_flat_dimension_weights(), "autonomy": {"mag": -10.0, "dir": 0.0},
+               "pace": {"mag": -0.01, "dir": 0.0}}
     weighted_order = rank_dimensions(gaps, weights=weights)
 
     assert weighted_order[0] == "autonomy"
@@ -453,10 +486,146 @@ def test_non_flat_weights_reorder_the_ranking() -> None:
 
 def test_weights_missing_a_dimension_raises() -> None:
     gaps = {dim: 0.0 for dim in DIMENSIONS}
-    partial_weights = {d: 1.0 for d in DIMENSIONS if d != "innovation"}
+    partial_weights = {d: w for d, w in _flat_dimension_weights().items() if d != "innovation"}
 
     with pytest.raises(ValueError, match="innovation"):
         rank_dimensions(gaps, weights=partial_weights)
+
+
+# ---------------------------------------------------------------------------
+# rank_dimensions: the severity tier, and E-5's elicited directional weights
+# ---------------------------------------------------------------------------
+
+
+def test_tier_outranks_weight() -> None:
+    """D-15 leaves the bucket WORD as the only magnitude a reader sees, so a
+    green `aligned` row must never be listed above an amber `straining` one --
+    however heavily the expert weighted the aligned dimension. `pace` carries
+    the heaviest `mag` in the live priors (-2.52) and `autonomy` the lightest
+    (-0.67), which is exactly the pair that would invert under raw cost.
+    """
+    gaps = {
+        "autonomy": 0.30,   # straining, feather-light weight
+        "pace": 0.14,       # aligned, heaviest weight in the file
+        "collaboration": 0.0, "feedback": 0.0, "innovation": 0.0, "decision": 0.0,
+    }
+    assert classify_gap("autonomy", gaps["autonomy"]) == STRAINING
+    assert classify_gap("pace", gaps["pace"]) == ALIGNED
+
+    weights = _live_dimension_weights()
+
+    # Raw cost alone would put the aligned pace row on top; the tier forbids it.
+    assert dimension_cost("pace", gaps["pace"], weights["pace"]) > dimension_cost(
+        "autonomy", gaps["autonomy"], weights["autonomy"]
+    )
+
+    order = rank_dimensions(gaps, weights=weights)
+    assert order[0] == "autonomy"
+    assert order.index("autonomy") < order.index("pace")
+
+
+def test_feedback_costs_more_over_than_under_at_equal_magnitude() -> None:
+    """Julie's elicited asymmetry, end to end. She put "wants blunt feedback,
+    role gives little" at 7/10 a year on and "wants gentle feedback, role is
+    blunt" at 3/10. The costly case is the one where the role supplies MORE
+    than the person wants -- `gap = env - person > 0`, i.e. `over`.
+
+    `feedback` has mag -1.732868, dir +1.059122, so at equal |gap| the two
+    directions cost (mag + dir) and (mag - dir) respectively. If this comes
+    out reversed, the sign convention was flipped somewhere -- the test is
+    not the thing to change.
+    """
+    weights = _live_dimension_weights()
+    magnitude = 0.30
+
+    over = dimension_cost("feedback", +magnitude, weights["feedback"])
+    under = dimension_cost("feedback", -magnitude, weights["feedback"])
+
+    assert over == pytest.approx((1.732868 + 1.059122) * magnitude)
+    assert under == pytest.approx((1.732868 - 1.059122) * magnitude)
+    assert over > under
+
+    # ... and the ranking agrees, with both rows in one tier.
+    gaps = {
+        "autonomy": 0.0, "pace": 0.0, "collaboration": 0.0,
+        "feedback": +magnitude, "innovation": -magnitude, "decision": 0.0,
+    }
+    weights_innovation_as_feedback = {**weights, "innovation": weights["feedback"]}
+    order = rank_dimensions(gaps, weights=weights_innovation_as_feedback)
+    assert order.index("feedback") < order.index("innovation")
+
+
+def test_decision_under_costs_nothing_and_sinks_within_its_tier() -> None:
+    """`decision` came back mag -0.866434, dir +0.866434 -- her "person-high,
+    role-low" answer equalled her own 8-in-10 baseline, so that direction
+    carries no cost at all. Exactly 0.0, not nearly: the cheap direction
+    cancels the symmetric penalty term by IEEE-exact negation. A real
+    elicited answer, not a defect, so it ranks last among its equals rather
+    than being floored away.
+    """
+    weights = _live_dimension_weights()
+
+    assert dimension_cost("decision", -0.30, weights["decision"]) == 0.0
+    assert dimension_cost("decision", +0.30, weights["decision"]) > 0.0
+
+    gaps = {dim: -0.30 for dim in DIMENSIONS}  # every dimension straining, under
+    order = rank_dimensions(gaps, weights=weights)
+
+    assert order[-1] == "decision"
+
+
+def test_pace_outranks_autonomy_at_equal_gap_in_one_tier() -> None:
+    """The headline consequence of adopting the elicited numbers: pace is the
+    dimension she judged most punishing (mag -2.52), autonomy the least
+    (-0.67). Under flat weights an identical gap on each ties and falls back
+    to DIMENSIONS order, which puts autonomy first.
+    """
+    gaps = {
+        "autonomy": -0.30, "pace": -0.30, "collaboration": 0.0,
+        "feedback": 0.0, "innovation": 0.0, "decision": 0.0,
+    }
+    assert rank_dimensions(gaps)[0] == "autonomy"  # flat: tie -> DIMENSIONS order
+
+    order = rank_dimensions(gaps, weights=_live_dimension_weights())
+
+    assert order[0] == "pace"
+    assert order.index("pace") < order.index("autonomy")
+
+
+def test_default_weights_reproduce_flat_within_tier_ordering() -> None:
+    """`weights=None` must be behaviourally identical to an explicit flat
+    `{mag: -1.0, dir: 0.0}`, and both must order a single tier by plain
+    |gap| regardless of sign.
+    """
+    gaps = {
+        "autonomy": 0.30, "pace": -0.50, "collaboration": 0.40,
+        "feedback": -0.26, "innovation": 0.45, "decision": -0.35,
+    }
+    for dim in DIMENSIONS:
+        assert classify_gap(dim, gaps[dim]) == STRAINING
+
+    assert rank_dimensions(gaps) == rank_dimensions(gaps, weights=_flat_dimension_weights())
+    assert rank_dimensions(gaps) == ["pace", "innovation", "collaboration",
+                                     "decision", "autonomy", "feedback"]
+
+
+def test_a_weight_that_would_make_a_mismatch_free_money_raises() -> None:
+    """`abs(dir) <= abs(mag)` is the invariant that keeps cost non-negative.
+    Break it and one direction of mismatch would read as a benefit; that is
+    raised, never clamped to zero, so a bad weight cannot masquerade as a
+    plausible ranking.
+    """
+    with pytest.raises(ValueError, match="negative cost"):
+        dimension_cost("autonomy", 0.30, {"mag": -1.0, "dir": -2.0})
+
+    bad = {**_flat_dimension_weights(), "autonomy": {"mag": -1.0, "dir": -2.0}}
+    with pytest.raises(ValueError, match="negative cost"):
+        rank_dimensions({dim: 0.30 for dim in DIMENSIONS}, weights=bad)
+
+
+def test_zero_gap_costs_nothing_under_any_weight() -> None:
+    for dim, weight in _live_dimension_weights().items():
+        assert dimension_cost(dim, 0.0, weight) == 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -528,9 +697,13 @@ def test_report_direction_matches_gap_direction() -> None:
 
 
 def test_report_honors_a_custom_weight_seam() -> None:
-    env = {**_flat_scores(0.5), "autonomy": 0.6, "pace": 0.99}
+    # Both movers land in the same bucket (|gap| 0.30 and 0.29, straining), so
+    # the weights are what decides between them rather than the severity tier.
+    env = {**_flat_scores(0.5), "autonomy": 0.80, "pace": 0.79}
     person = _flat_scores(0.5)
-    weights = {**{d: 1.0 for d in DIMENSIONS}, "autonomy": 100.0, "pace": 0.001}
+    weights = {**{d: {"mag": -1.0, "dir": 0.0} for d in DIMENSIONS},
+               "autonomy": {"mag": -100.0, "dir": 0.0},
+               "pace": {"mag": -0.001, "dir": 0.0}}
 
     report = build_situation_report(env, person, weights=weights)
 

@@ -25,6 +25,7 @@ byte-identical: nothing this function reads changes when a new sitting merely ex
 from __future__ import annotations
 
 import datetime
+import functools
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -242,6 +243,32 @@ def _events_since_report(user_id: int, submitted_at: Optional[str]) -> List[Dict
     ]
 
 
+@functools.lru_cache(maxsize=1)
+def _dimension_weights() -> Dict[str, Dict[str, float]]:
+    """E-5's elicited per-dimension weights, for `work_pulse.situation`'s ranking.
+
+    Read from `causal_graph/v1_model/priors.yaml` through `match_scoring` -- the
+    web layer's only doorway to the match model -- and NOT from the `model_run` /
+    `weight_posterior` tables: nothing seeds a run in production, and
+    `match_scoring.current_run` raises on an unseeded database by design (D-07).
+    Means only; the `sd` describes the expert's confidence and has no bearing on
+    which of two mismatches is listed first.
+
+    No fallback to flat weights if this fails. D-07 forbids degrading to a
+    default, the file is in the repo, and the image copies the whole tree -- so a
+    missing file is a deploy defect and must surface as one. Cached because the
+    file is read once per worker and never changes under a running process.
+    """
+    from match_scoring import load, weights_from_priors
+
+    cfg, pri = load()
+    weights = weights_from_priors(cfg, pri)
+    return {
+        dim: {"mag": float(w["mag"]["mean"]), "dir": float(w["dir"]["mean"])}
+        for dim, w in weights["dimensions"].items()
+    }
+
+
 def get_situation_report(user: User) -> SituationReportResult:
     """The three states, per BUILD_PLAN §3.5. D-15 (structural, every state): no
     person-side score, no numeric gap, no per-dimension magnitude, anywhere.
@@ -284,7 +311,15 @@ def get_situation_report(user: User) -> SituationReportResult:
     person_scores = assessment_store.dimension_scores_for_submission(submission_id)
 
     env_scores = env["dimension_scores"]
-    report_rows = situation.build_situation_report(env_scores, person_scores)
+    report_rows = situation.build_situation_report(
+        env_scores, person_scores, weights=_dimension_weights()
+    )
+    # `build_situation_report` is order-stable by contract and returns fixed
+    # DIMENSIONS order; `rank` is the ranking. Both frontends render the list in
+    # the order they receive it and neither sorts -- D-15 leaves them no
+    # magnitude to sort on -- so the ranking only reaches a reader if the
+    # payload is ordered here.
+    report_rows = sorted(report_rows, key=lambda row: row["rank"])
 
     career_status_snapshot = env["career_status"]
     past_tense = situation_items.is_past_tense(career_status_snapshot)

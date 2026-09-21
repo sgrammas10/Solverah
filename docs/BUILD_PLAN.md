@@ -422,7 +422,11 @@ ran — no separate landing commits were needed for this section._
   of her answers reproduce through the real `match_core.point_p_fit` on
   the live file to within 6e-07. Suite 3298 passed / 52 skipped, CI-style.
   No production effect: nothing calls `match_scoring` but its test, and
-  the Situation Report still runs A-3's flat weights until E-5. Research
+  the Situation Report still runs A-3's flat weights until E-5.
+  **Superseded later the same day** — the Situation Report now ranks on
+  these weights (E-5's first-consumer note below), so `match_scoring` has
+  a production caller and an edit to this file reaches the report.
+  Research
   scripts (`recovery_multiseed.py`, `build_model.recovery_curve`) read the
   LIVE file — their recorded results were made under the placeholder, so
   pass `pri_path=priors_placeholder.yaml` to reproduce them.)_
@@ -472,17 +476,49 @@ ran — no separate landing commits were needed for this section._
   data. Two E-5 blockers named in ASSEMBLE_TRAINING_DATA_NOTES.md: the
   Bernoulli outcome likelihood vs 1–5 `experienced`, and preprocess_conf's
   NULL handling.)_
+  _(**Both blockers CLEARED 2026-09-17.** `build_model(..., head="experienced")`
+  attaches an OrderedLogistic over the same linear predictor, with the
+  rating-3/4 cutpoint PINNED at 0 so `sigmoid(z)` is exactly P(rating >= 4) =
+  "doing well" — the event Julie's weights were elicited against, so they carry
+  over with no rescaling and the serving path's meaning is unchanged. `appeal`
+  stays the default and is untouched; `settings.outcome` survives as the legacy
+  alias of the new `settings.heads.appeal`. A NULL `comp` now excludes that row's
+  term from z via a `conf_missing` mask (no 21st weight); an unmasked NaN raises
+  instead of silently NaN-ing p_fit. Recovery on simulated data:
+  `causal_graph/v1_model/results/ordinal_recovery.md`. Still unfeedable from this
+  source: `industry`, which the instrument never asks and which has no neutral
+  level index — a config decision, still unmade.)_
 
 ### E-5 · Fit run + serving (M–L, after E-1 + E-2)
 
 - [ ] First real-priors fit; posterior snapshot into `weight_posterior`
   (scorer-run storage from chunk 0b)
+  _(2026-09-17: the OUTCOME HEAD this needs now exists — E-4's two named
+  blockers are cleared (see the E-4 note above), so `experienced` rows can
+  reach a likelihood for the first time. **The box stays UNCHECKED: no real fit
+  has run.** What has run is `ordinal_recovery.py`, which simulates from known
+  weights and known cutpoints and checks the posterior finds them — an
+  inference check on data the model generated itself, not evidence about real
+  placements. This box is done when a fit on real outcome rows lands a posterior
+  in `weight_posterior`, not before.)_
 - [ ] Serving seam: `score_fit(person_scores, env_scores, confounders) →
   P(fit), per-dim contributions, uncertainty` — pure function over the
   posterior, no PyMC at request time
 - [ ] **First consumer: the Situation Report** (A-3's flat weights →
   posterior weights; payload spec unchanged, so no UI change) — the
   interim→destination swap, proven pattern
+  _(PRIORS-ONLY HALF LANDED 2026-09-17. The Situation Report no longer runs
+  flat weights: it ranks on `priors.yaml`'s elicited `mag`/`dir` means, read
+  through `match_scoring`, ordered severity tier first and weighted
+  directional cost second. Payload shape unchanged, no UI change — which is
+  the swap this box describes, executed against a file rather than a
+  posterior. Same trip fixed the ranking never reaching the client at all:
+  the service emitted fixed `DIMENSIONS` order and both frontends render
+  what they are handed. **The box stays unchecked.** The weights are one
+  expert's judgement with no outcome data behind them, they come from the
+  file and not from `weight_posterior`, and there is still no `score_fit`
+  serving seam — E-5 is done when a real fit serves this, not before.
+  See PRODUCT_DECISIONS §2, "The Situation Report orders by severity tier".)_
 - [ ] Second consumer: offer evaluation (§9). Third: CompanyLens, only
   when a company store exists that earned it
 

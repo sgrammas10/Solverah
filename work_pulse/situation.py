@@ -295,18 +295,93 @@ def gap_direction(dimension: str, gap: float) -> str | None:
     return OVER if gap > 0 else UNDER
 
 
-def _flat_weights() -> dict[str, float]:
-    return {dim: 1.0 for dim in DIMENSIONS}
+class DimensionWeight(TypedDict):
+    """One dimension's pair of E-5 weights, on the match model's logit scale
+    and in the match model's sign convention (`g = person - env`), exactly as
+    `causal_graph/v1_model/priors.yaml` writes them.
+
+    `mag` (< 0) is the symmetric penalty every mismatch pays; `dir` is the
+    directional asymmetry -- `dir > 0` means wanting MORE than the role offers
+    is the cheaper way to be wrong on this dimension, `dir < 0` the reverse.
+    `abs(dir) <= abs(mag)` must hold or one direction would score as a benefit
+    rather than a cost; `tests/test_match_scoring.py` guards that on the live
+    priors file, and `dimension_cost` refuses a negative cost here.
+    """
+
+    mag: float
+    dir: float
+
+
+#: Severity order, worst first once negated. The bucket WORD is the only
+#: magnitude a reader ever sees (D-15), so it -- not the weighted cost -- has
+#: to be the outer sort key: a green `aligned` row sitting above an amber
+#: `straining` one reads as a contradiction no weight can justify. Tiering
+#: confines the weights to ordering same-severity rows against each other.
+BUCKET_SEVERITY: dict[str, int] = {ALIGNED: 0, NOTABLE: 1, STRAINING: 2}
+
+#: Neutral default: symmetric unit penalty, no directional asymmetry, so
+#: `dimension_cost` collapses to plain `abs(gap)` and an un-weighted caller
+#: keeps the flat within-tier ordering this module shipped with.
+FLAT_MAG = -1.0
+FLAT_DIR = 0.0
+
+
+def _flat_weights() -> dict[str, DimensionWeight]:
+    return {dim: {"mag": FLAT_MAG, "dir": FLAT_DIR} for dim in DIMENSIONS}
+
+
+def dimension_cost(dimension: str, gap: float, weight: DimensionWeight) -> float:
+    """How much this mismatch costs, on the match model's logit scale -- the
+    negated logit contribution of `weight`, re-expressed in THIS module's sign
+    convention. Never leaves the module: D-15 lets no magnitude out the door.
+
+    **The two conventions are opposite, and this is where they meet.** Here
+    `gap = env_score - person_score`, so a positive gap means the role offers
+    MORE than the person wants. The match model uses `g = person - env` and
+    contributes `mag*|g| + dir*g` to its linear predictor. Substituting
+    `g = -gap` and negating (a lower logit is a higher cost) gives::
+
+        cost = abs(mag) * abs(gap) + dir * gap
+
+    -- so under `dir > 0` ("wanting more is the cheaper mistake") it is the
+    OVER direction, `gap > 0`, that costs more. That is the intended reading,
+    not a sign slip.
+
+    Takes the same rounded `gap` `classify_gap` reads, and deliberately does
+    NOT apply `match_core.fit_gap`'s `closest_achievable` snap to the sealed
+    person-side value: bucket, direction and rank must all describe one gap,
+    and ranking a payload on a second, differently-defined gap would be a
+    worse inconsistency than the small pole effect the snap removes.
+
+    Cost cannot go negative while `abs(dir) <= abs(mag)`; where the two are
+    equal the cheap direction cancels to exactly 0.0 (IEEE negation is exact,
+    so no float dust creeps in). A negative cost means a weight violated that
+    invariant, and is raised rather than clamped -- silently flooring it would
+    turn a broken weight into a plausible-looking ranking.
+    """
+    cost = abs(weight["mag"]) * abs(gap) + weight["dir"] * gap
+    if cost < 0:
+        raise ValueError(
+            f"dimension {dimension!r} has a negative cost ({cost}): |dir| must not "
+            f"exceed |mag| (mag={weight['mag']}, dir={weight['dir']})"
+        )
+    return cost
 
 
 def rank_dimensions(
-    gaps: Mapping[str, float], weights: Mapping[str, float] | None = None
+    gaps: Mapping[str, float], weights: Mapping[str, DimensionWeight] | None = None
 ) -> list[str]:
-    """Dimensions ordered by weighted |gap|, widest first.
+    """Dimensions ordered worst first: severity bucket, then weighted
+    directional cost within a bucket, then `DIMENSIONS` order.
 
-    `weights` defaults to flat (every dimension equal) and is an explicit
-    parameter rather than a module constant, so E-5 can swap in posterior
-    weights through exactly this seam later with no restructure -- the same
+    The bucket comes from `classify_gap` on these same gaps -- derived here,
+    never a parameter, so a caller cannot rank one payload against a
+    bucketing that payload does not carry.
+
+    `weights` defaults to a flat `{mag: -1.0, dir: 0.0}` per dimension, which
+    reduces the within-tier key to plain `abs(gap)`. It stays an explicit
+    parameter rather than a module constant so E-5 can swap in elicited (and
+    later fitted) weights through exactly this seam -- the same
     interim-to-destination pattern already used for culture_fit_score. Ties
     break by `DIMENSIONS` order, never dict iteration
     (manager_match.decoder.build_playbook's `priority` precedent).
@@ -318,22 +393,30 @@ def rank_dimensions(
     if missing:
         raise ValueError(f"weights missing dimension(s): {', '.join(missing)}")
 
-    return sorted(
-        DIMENSIONS,
-        key=lambda dim: (-abs(gaps[dim]) * weights[dim], DIMENSIONS.index(dim)),
-    )
+    def sort_key(dim: str) -> tuple[int, float, int]:
+        bucket = classify_gap(dim, gaps[dim])
+        cost = dimension_cost(dim, gaps[dim], weights[dim])
+        return (-BUCKET_SEVERITY[bucket], -cost, DIMENSIONS.index(dim))
+
+    return sorted(DIMENSIONS, key=sort_key)
 
 
 def build_situation_report(
     env_scores: Mapping[str, float],
     person_scores: Mapping[str, float],
-    weights: Mapping[str, float] | None = None,
+    weights: Mapping[str, DimensionWeight] | None = None,
 ) -> list[SituationDimensionReport]:
     """Env scores + sealed person scores -> the D-15-conforming per-dimension
     list, in `DIMENSIONS` order. Per entry: `env_score` (an echo of the
     user's own answer), `bucket`, `direction` (`None` on `aligned`), and
-    `rank` (0 = widest gap). No `person_score` or `gap` field anywhere in the
-    return value.
+    `rank` (0 = worst, by `rank_dimensions`' severity-then-cost order). No
+    `person_score` or `gap` field anywhere in the return value.
+
+    Rows come back in `DIMENSIONS` order, NOT rank order -- this module is
+    order-stable by contract, and presentation order is the caller's to
+    choose. `solverah.services.situation_report_service` sorts by `rank`
+    before the payload leaves the API, because both frontends render the
+    order they are handed.
     """
     _validate_scores(env_scores, "environment")
     gaps = signed_gaps(env_scores, person_scores)
