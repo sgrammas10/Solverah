@@ -55,8 +55,8 @@ into `PRODUCT_DECISIONS.md` with proper signed entries (chunk 0 complete)._
 | ⚑7 | Path Intelligence `adjacent` feedback is **inline on the result cards**, not a questionnaire | **Decided** — Sebastian, 2026-09-16 | §6 F-6 |
 | ⚑8 | `path_scoring.py` gets a **substantial rewrite** — not a deletion, not a second scorer | **Decided** — Sebastian, 2026-09-16 | §6 F-4 |
 | ⚑9 | `fresh_start` excludes the user's SOC **minor** group, not major — major bars whole families (admin: 8 of 11 unreachable); minor wins on every metric | **Open** — recommend ratify | §6 F-7 |
-| ⚑10 | `fresh_start` ships the **diverse seed** (8/8/8/8 clusters) at a measured **−0.09 static nDCG** that two rounds of feedback repay to level, never above — the design's "exceeds after taps" claim did not hold (n=4, one profile poisoned by the fire-metaphor hazard). Ship as-is with F-8's behavioural-profile fix, or revert to the interim similarity page? | **Open — evidence changed 2026-09-16:** after F-8 box 8 the claim HOLDS (one round 0.354 vs interim 0.332, n=4); recommend **ship** | §6 F-7 |
-| ⚑11 | Build **F-9** — `role_w` applied only once feedback exists; F-8 measured 0.20 → **+0.061 nDCG**, clean inverted U, harm 0 (n=4) | **Open** — recommend yes, as its own re-measurable chunk | §6 close-out |
+| ⚑10 | `fresh_start` ships the **diverse seed** (8/8/8/8 clusters) at a measured **−0.09 static nDCG** that two rounds of feedback repay to level, never above — the design's "exceeds after taps" claim did not hold (n=4, one profile poisoned by the fire-metaphor hazard). Ship as-is with F-8's behavioural-profile fix, or revert to the interim similarity page? | **Decided** — Sebastian, 2026-09-21, on W-3a's measurement: **keep the seed for a `fresh_start` user who has stated nothing; drop it once wants are stated** (with wants the seed costs 0.10 on the five `fresh_start` profiles — 0.283 vs 0.385 — harm unchanged; headline 0.409 → 0.443). Built in W-3b | §6 F-7, §6a W-3 |
+| ⚑11 | Build **F-9** — `role_w` applied only once feedback exists; F-8 measured 0.20 → **+0.061 nDCG**, clean inverted U, harm 0 (n=4) | **Closed by measurement** 2026-09-21 — no standalone F-9: W-3a re-measured it on top of the wants scorer (`role_w` 0.20 after one round of taps: 0.474 → 0.515, harm 0.060 → 0.020) and shipped 0.20 there | §6a W-3 |
 | ⚑12 | Path Intelligence shows **no percentage** — not on the cards, not in the fit panel. Ranking and wire fields stay; the panel stays **as words** | **Decided** — Sebastian, 2026-09-17 (panel-as-words is the agent default, put to him twice, unobjected) | §6a W-1 |
 | ⚑13 | Path Intelligence gains a **wants layer**: diagnose what should change in the user's *current* job — its own O*NET **tasks first**, a few **conditions second** — and steer all three paths with it. **Separate from the company model** (own instrument, storage, scorer); does not reopen ⚑3 | **Direction approved** — Sebastian, 2026-09-17. Build past W-1 **gated on W-3's measurement** | §6a |
 
@@ -488,6 +488,20 @@ ran — no separate landing commits were needed for this section._
   `causal_graph/v1_model/results/ordinal_recovery.md`. Still unfeedable from this
   source: `industry`, which the instrument never asks and which has no neutral
   level index — a config decision, still unmade.)_
+  _(**Third blocker CLOSED 2026-09-21.** The `industry` decision is made, and it is
+  the same ruling as for `comp`: EXCLUDE THE TERM. A masked categorical row takes
+  level 0 as a placeholder and `preprocess_conf` returns a companion
+  `{key}__present` array (1.0 present / 0.0 masked) that `outcome_logit` multiplies
+  the per-level weight by, so the row contributes nothing and the placeholder weight
+  is never read. Rejected: an `unknown` LEVEL (shared by every row off a source it is
+  collinear with the intercept, and would bleed into the "8 in 10 doing well"
+  baseline) and DEACTIVATING the confounder (strips it from the company-side path too
+  and moves the 20-row flat weight set). Self-reversing: a source that starts
+  supplying `industry` gets the term back with no code change. **Nothing in code now
+  stands between the environment rows and a fit** — only data volume. Proven
+  end-to-end in `tests/test_ordinal_head.py` §7–8 and, on the PyMC side, by a short
+  NUTS fit that leaves `w_industry` on its prior. Details and the parked
+  "switching industries" note: ASSEMBLE_TRAINING_DATA_NOTES.md, 2026-09-21.)_
 
 ### E-5 · Fit run + serving (M–L, after E-1 + E-2)
 
@@ -501,6 +515,20 @@ ran — no separate landing commits were needed for this section._
   inference check on data the model generated itself, not evidence about real
   placements. This box is done when a fit on real outcome rows lands a posterior
   in `weight_posterior`, not before.)_
+  _(2026-09-21: **the PIPELINE now exists end to end** —
+  `causal_graph/v1_model/devfit/` (see its README). Seed synthetic people through
+  the real store functions into a local `solverah_modeldev`, assemble them, fit
+  the ordinal head, save a `model_run` + its 20 `weight_posterior` rows, and read
+  one user's gaps, costs, rank and P(doing well) back out. A guard refuses any
+  database that is not local and named `solverah_modeldev*`, because `.env`
+  carries a production URL and `explain_user` prints exactly the magnitudes D-15
+  keeps off every payload. A diagnostic gate refuses to save a run with a
+  divergence, r_hat ≥ 1.05, or — the case that bit — no r_hat at all.
+  **The box STILL stays UNCHECKED, and the distance left is the whole distance.**
+  Everything fitted so far is SYNTHETIC: rows generated from the model's own
+  predictor with a planted truth, which tests the machinery and says nothing
+  about real placements. This box wants real outcome rows, and there are none.
+  What it does mean: when they arrive, nothing has to be built first.)_
 - [ ] Serving seam: `score_fit(person_scores, env_scores, confounders) →
   P(fit), per-dim contributions, uncertainty` — pure function over the
   posterior, no PyMC at request time
@@ -518,7 +546,11 @@ ran — no separate landing commits were needed for this section._
   expert's judgement with no outcome data behind them, they come from the
   file and not from `weight_posterior`, and there is still no `score_fit`
   serving seam — E-5 is done when a real fit serves this, not before.
-  See PRODUCT_DECISIONS §2, "The Situation Report orders by severity tier".)_
+  See PRODUCT_DECISIONS §2, "The Situation Report orders by severity tier".
+  A run-backed source now exists behind it: `SOLVERAH_MODEL_WEIGHTS_SOURCE=run`
+  reads the latest `model_run` / `weight_posterior` row instead of the file
+  (PRODUCT_DECISIONS §2, 2026-09-21). Production's default is still `priors`
+  and this box stays unchecked until a real fit serves it there.)_
 - [ ] Second consumer: offer evaluation (§9). Third: CompanyLens, only
   when a company store exists that earned it
 
@@ -791,125 +823,166 @@ _Letter W, not G: `G1`…`G22` are scenario-gap ids in `USER_SCENARIOS.md`._
 
 ### W-1 · Remove the percentage (S) — frontend only, no gate
 
-- [ ] `PathSuggestionCard.tsx`: drop "Match score NN%" and its bar. Card order
+- [x] `PathSuggestionCard.tsx`: drop "Match score NN%" and its bar. Card order
   is unchanged — the ranking stays, only its display goes
-- [ ] `PathFitPanel.tsx`: drop the four percent bars (`fit_score`,
+- [x] `PathFitPanel.tsx`: drop the four percent bars (`fit_score`,
   `skills_score`, `coverage_score`, `work_style_score`) and the number on each
   skill gap. Keep the panel **as words**: what carries over, what would be new;
   gaps stay ordered by importance, unnumbered
-- [ ] Wire untouched: `match_score` and the four fit scores stay on the response
+- [x] Wire untouched: `match_score` and the four fit scores stay on the response
   and in `types.ts` — **no OpenAPI change, no contract recapture**
-- [ ] Tests beside each component: assert no `%` and no score bar renders;
+- [x] Tests beside each component: assert no `%` and no score bar renders;
   `npm test`, `npm run type-check`
 
 _Copy is a best guess; Julie revises on the built product._
 
+_**W-1 landed** (built 2026-09-17, committed 2026-09-21 as 8d35fb2). Four files, all under `src/features/intelligence/components/`; wire, `types.ts`, OpenAPI and contract untouched; Vitest 953/953, `tsc -b` clean. **One overseer correction on the way:** the agent first replaced the four percent bars with graded words — "Strong / Good / Some / Little overlap". That is a percentage in words ("Overall: Little overlap" is exactly the verdict ⚑12 removes), so the whole "Overall fit" section went instead; the panel opens on the training line, then skills you already have, worth picking up (unnumbered, API order), what you'd be doing, tools people use. The tests assert no `%`, no bar and none of the band words. **Found, not touched:** `src/features/matching/components/Feed.tsx` and `SearchResults.tsx` also render "Match score: NN%" — a different feature (job matching), put to Sebastian._
+
 ### W-2 · Eval profiles that state wants (M) — BEFORE any scorer
 
-- [ ] Extend the fixture schema **additively**: an optional `wants` block per
+- [x] Extend the fixture schema **additively**: an optional `wants` block per
   profile — `tasks_more` / `tasks_less` (the anchor occupation's real task
   statements from `*.documents.jsonl`, by exact text) and `conditions`
   (`people` / `public` / `leading` / `desk` → more | less)
-- [ ] **15 new profiles, five per intent**, so every intent clears the n = 5
+- [x] **15 new profiles, five per intent**, so every intent clears the n = 5
   rule. Varied domains and Job Zones; at least three whose wants pull *against*
   their skills (the developer who is done with coding)
-- [ ] Labels by F-2's protocol: drafted by an agent that **has seen no scorer and
+- [x] Labels by F-2's protocol: drafted by an agent that **has seen no scorer and
   none of §8.2's prototype output**, graded *with the stated wants in mind*,
   `confidence` flagged, low-confidence rows reviewed by Sebastian. Codes
   validated against the corpus sidecar, not live O*NET
-- [ ] `EvalProfile` gains the optional field; every existing scorer still runs
-- [ ] **Record the number to beat:** today's wants-blind `score_paths` on the 15
+- [x] `EvalProfile` gains the optional field; every existing scorer still runs
+- [x] **Record the number to beat:** today's wants-blind `score_paths` on the 15
   new profiles. The existing 20 profiles and their 249 labels are **frozen** —
   they become the no-wants regression guard
 
 _⚠ Same two warnings as F-2: this is a scorer-quality baseline, not a pytest
 baseline; and the labelled set must not become a Julie dependency._
 
+_**W-2 landed** (built 2026-09-17, committed 2026-09-21 as 1a40d75). `p21`–`p35`, five per intent, six with wants opposed to their skills; Job Zones 2/3/4, twelve domains. `wants` sits **beside** `profile` in the fixture, so it structurally cannot reach `UserProfile`. 201 labels (46 primary / 98 acceptable / 42 harmful / 15 anchor), **76 low-confidence for Sebastian** (`python -m backend.services.path_eval review`); the harmful rows are mostly *excellent skills matches that repeat the problem* (Web Developers for the developer done with code, Orderlies for the CNA with a failing back). The labelling agent states it never opened the design doc, the prototype folder or `runs/`, and ran no scorer. **Overseer verified against git HEAD and the corpus, not the agent's own hash:** the F-2 twenty and their 249 labels identical; all 106 wants tasks are exact corpus task statements of the stated anchor; every label code in the corpus with a Job Zone, none "All Other"; `test_path_eval.py` 49 passed. **One defect fixed:** p26's title "Full Stack Developer" resolved to Web Developers (15-1254.00) while its wants quote Software Developers' tasks — retitled; all 15 now resolve to their stated anchor. That check needs a live embedder, so no CI test can hold it: re-run it whenever a wants profile is added. **THE NUMBER TO BEAT** (`runs/w2_wants_blind_baseline.json`, `score_paths@HEAD`, wants ignored, n=15): **nDCG@10 0.300 · harmful_rate 0.100 · P@10 0.280 · MRR 0.560** — against 0.473 / 0.005 on the old twenty, and a harmful card on 12 of 15 profiles. Today's scorer is clearly worse once people say what they want, which is the gap ⚑13 aims at. **Open for Sebastian:** p32 carries two `primary` labels at Job Zone 4 against a Zone 2 anchor — unreachable under F-7's zone+1 ceiling, so no scorer can earn them; either the labels drop to acceptable or the ceiling is too tight._
+
+_2026-09-21: **W-3 split by the overseer.** **W-3a** (dispatched) is the gate alone: the conditions sidecar from the already-fetched ratings, the scorer, the measurement and the STOP rule. **W-3b** — the tasks sidecar with plain-words labels, `_fetch_from_s3`, the runbook's deploy dependency — is built only if W-3a passes, so a negative result wastes none of it. The boxes below are unchanged; the split is only the order._
+
 ### W-3 · Sidecars + the scorer, measured offline (M–L) — THE GATE
 
-- [ ] **Conditions sidecar** `*.experience.json` beside the corpus:
+- [x] **Conditions sidecar** `*.experience.json` beside the corpus:
   `flask corpus experience` builds it (three `details/` reports per job, 4 req/s,
   resumable; accepts the already-fetched
   `Desktop/solverah-experience-proto/onet_experience_raw.jsonl` so nothing is
   re-fetched). Two new `onet_client` methods. Axes are **percentile ranks across
   the corpus**; an axis averages the elements *present* — a missing element is
   never a zero
-- [ ] **Tasks sidecar** `*.tasks.json`: per job, up to ~8 task statements chosen
+- [x] **Tasks sidecar** `*.tasks.json`: per job, up to ~8 task statements chosen
   for spread, each with a plain-words display label written **once, offline**.
   The **original** statement is what gets embedded — display prose never reaches
   the embedder (F-7's metaphor hazard)
-- [ ] Task vectors are embedded **per request for the tapped tasks only**, in the
+- [x] Task vectors are embedded **per request for the tapped tasks only**, in the
   one batched call `score_paths` already makes, cached in `_EMBED_CACHE`. _Not_
   precomputed: every task of every job is ~120 MB at float32 and the instance is
   512 MB
-- [ ] Scorer, in the harness first: query rotation
+- [x] Scorer, in the harness first: query rotation
   `q' = q + beta*mean(more) - gamma*mean(less)` on each intent's existing query;
   conditions as a **one-sided** term blended into the rank; F-7's hard filters
   unchanged
-- [ ] **Measured arms, one table:** tasks only · conditions only · both; beta and
+- [x] **Measured arms, one table:** tasks only · conditions only · both; beta and
   gamma (watch gamma subtracting the anchor — F-6's finding); conditions weight;
   **diverse seed vs none with wants present (this settles ⚑10)**; `role_w` after
   feedback (**this settles ⚑11**; no standalone F-9)
-- [ ] **Gates:** with no wants, all 20 existing profiles **byte-identical** to
+- [x] **Gates:** with no wants, all 20 existing profiles **byte-identical** to
   `f8_structured_behavioural.json`; harmful rate does not rise anywhere; tune on
   nDCG@10; no per-axis claim under n = 5
-- [ ] **STOP RULE.** If the wants-aware scorer does not clearly beat W-2's
+- [x] **STOP RULE.** If the wants-aware scorer does not clearly beat W-2's
   wants-blind number on the new profiles, stop, write the negative result here
   and in design doc §8, and do not start W-4
-- [ ] Request path stays clean: no O*NET call, no scikit-learn, no corpus load in
+- [x] Request path stays clean: no O*NET call, no scikit-learn, no corpus load in
   `create_app()`; `_fetch_from_s3` pulls both new sidecars; both join the deploy
   dependency in `RUNBOOK_DEPLOY_MAIN_MERGE.md`. **No real S3** — the upload is
   Sebastian's trigger
 
+_2026-09-21: **W-3a landed — THE GATE PASSES.** Overseer reproduced every headline number live rather than re-reading the agent's: re-scored `runs/w3_wants_aware.json`, **re-recorded the wants-aware run (15/15 ranked lists identical to the agent's), re-recorded the new fifteen wants-blind on the new code (15/15 identical to W-2's baseline), re-recorded the old twenty with no wants (20/20 identical to `f8_structured_behavioural.json`, macro 0.473 / harm 0.005 unchanged)**; touched test files 540 passed / 43 skipped at CI parity on lane DB `solverah_w2`; nothing outside the chunk's ownership list touched; no label, profile or metric edited; the scorer diff reads no fixture. **Wants-aware vs wants-blind on the fifteen: nDCG@10 0.300 → 0.409 (+36%), harmful_rate 0.100 → 0.080, P@10 0.280 → 0.307, MRR 0.560 → 0.700.** Arms: tasks only 0.330 · conditions only 0.365 · **both 0.409** — the two signals stack, and on this set conditions carry more than §8.2's single-persona look suggested. Per intent (n=5, "clearly better" only): `stay_in_field` 0.279 → 0.427, `adjacent` 0.383 → 0.516, `fresh_start` 0.237 → 0.283. **12 profiles improve, 0 level, 3 worsen** (p23 head chef 0.047 → 0.000, p31 truck driver 0.510 → 0.429, p33 helpdesk 0.332 → 0.318); largest gains p26 developer-done-with-code 0.209 → 0.647 and p24 teacher 0.192 → 0.540. **Not a peak-chase:** nine grid cells at conditions weight 0.2 with beta > 0 sit on a 0.383–0.409 plateau; leave-one-intent-out picks the *same* cell on all three training splits and every held-out five beats its own wants-blind number. **Shipped:** `_WANTS_TASK_BETA 0.80`, `_WANTS_TASK_GAMMA 0.40`, `_WANTS_CONDITIONS_W 0.20`, `_WANTS_CONDITION_SHIFT 0.40`, `_WANTS_FRESH_START_ROLE_W 0.20` (only when tasks are stated); the whole table is in `path_scoring.py` beside them. **F-6's hazard is real and measured:** gamma subtracts the anchor on `stay_in_field` (0.427 at 0.4 → 0.368 at 1.2) while `adjacent` keeps rising — hence one low shared gamma. `score_paths(..., wants=None)`: `Wants` dataclass, empty == absent, unknown axis ignored, missing sidecar = degrade + one warning, conditions never read when nothing is stated. New: `occupation_conditions.py`, `flask corpus experience` (`--from-raw` built the real file; the live-fetch path is mock-tested only), three `onet_client` rating methods, `record-live --wants`. The sidecar `onet_corpus_20260916.experience.json` (334 KB, 911 occupations, seven axes as corpus percentiles) was **added** beside the corpus; no existing artifact file changed. Zero O*NET calls, embeddings under a cent._
+
+_**⚑10, priced with wants present — it costs MORE, not less:** on the five `fresh_start` profiles the diverse seed scores 0.283 against 0.385 for a plain best-N page (0.237 vs 0.297 with no wants), harm 0.040 either way; dropping it would move the fifteen-profile headline 0.409 → 0.443. The better the ordering gets, the more one-card-per-region throws away. The agent left the seed in — it is Sebastian's ruling, and the spread argument (8 of 8 regions vs 2) is a product judgement labels cannot settle. **Overseer recommendation changes to: drop the seed once a user has stated wants; keep it for a `fresh_start` user who has stated nothing.** **⚑11 re-measured and folded in:** `role_w` 0.20 after one simulated round of taps lifts the ten feedback-taking profiles 0.474 → 0.515 on top of the wants scorer (0.400 at zero taps), harm 0.060 → 0.020 — wants and taps stack; no standalone F-9._
+
+_**Carried to W-3b / W-7, not done here by design:** the tasks sidecar and plain-words labels; `_fetch_from_s3` does not pull `*.experience.json` (pinned by a test that names the file, so a production worker degrades silently until W-7 flips it); 28 of 939 retrievable jobs have no work-context report (skipped, never penalised; 84 O*NET calls would fill them); `pace` is built and unused; `test_cache_bounds.py` needs the conditions memo added as a fifth ~0.3 MB entry, and a wants request roughly doubles a user's `_EMBED_CACHE` demand (~8 → ~16 entries, residency window ~615 → ~315 users). **Dev tool:** `Desktop/solverah-experience-proto/lab/` (outside the repo, http://127.0.0.1:5077) shows backend-today, backend-with-wants and a slider formula side by side, with per-card reasons and a "why not this job" lookup; its wants column was checked identical to the harness run._
+
+_2026-09-21: **W-3b landed — W-3 is complete.** Overseer re-recorded all three runs live: **wants-aware 15/15 ranked lists identical to `runs/w3b_wants_no_seed.json`; old twenty with no wants 20/20 identical to `f8_structured_behavioural.json`** (the seed is still there for them); wants-blind fifteen 14/15 identical to W-2's baseline on the first pass and 15/15 on four re-runs — **the one miss was embedding jitter, not code:** OpenAI returned vectors differing in the fourth decimal and two `fresh_start` cards 0.0004 apart swapped inside one cluster (p34, rank 6). **Harness caveat worth keeping: an "identical ranked lists" guard over a live embedder can flake on a near-tie; re-run before believing a single miss.** Touched test files 706 passed / 49 skipped at CI parity (lane DB `solverah_w2`); the corpus folder gained exactly one file, the six existing artifacts untouched by size and timestamp. **⚑10 built** (one condition in `score_paths`: the zero-tap `fresh_start` page is the cluster-spanning seed only while wants are empty): **headline nDCG@10 0.409 → 0.444, harm 0.080 unchanged, P@10 0.307 → 0.360**; `fresh_start` 0.283 → 0.389, the other two intents byte-identical to W-3a. Against the wants-blind 0.300 that is **+48%**. **Tasks sidecar** `onet_corpus_20260916.tasks.json`: 941 occupations, 7,373 tasks, up to 8 per job chosen by greedy farthest-point over the task embeddings (seeded with O*NET's first statement, deterministic), each with the byte-exact original statement and a plain-words label from one offline `gpt-4o-mini` pass — **0 fallbacks, 0 duplicate labels within a job, every `task` verified by the overseer as an exact corpus statement, labels 2–10 words**; 18 military occupations have no task statements and carry empty lists. **Spend: $0.09 of completions + $0.02 of embeddings** (the 25-job gate projected $0.091). `flask corpus tasks` (`--no-labels` costs nothing and is what tests use), `occupation_tasks.py` with a lazy memo. **Production loading:** `_fetch_from_s3` pulls `*.experience.json` and `*.tasks.json` (missing object = degrade; W-3a's pinning test flipped); `corpus publish` carries them as an OPTIONAL tier — not required, because `corpus refresh` builds neither and a hard requirement would stop the quarterly cadence publishing at all; the runbook's corpus dependency is now **six objects, not four**, with a per-file degrade table. Mock S3 only. `test_cache_bounds.py` gains both memos at measured resident sizes — conditions **0.90 MB** (W-3a's note guessed 0.3 from the file size), tasks **2.59 MB** — and the corrected narrative: a wants request takes a user's `_EMBED_CACHE` demand 8.3 → 16.6 entries, residency window ~617 → ~308 users. One file outside the agent's ownership list was edited and flagged, correctly: `occupation_corpus.py`, where publish enumerates sidecars._
+
+_**The panel can say less than the harness assumed — measured by the overseer, not assumed away.** The W-2 profiles quote tasks from each job's FULL O*NET list (up to 30); the panel offers eight. Only **46 of the 106** quoted statements are among the offered eight. Re-scoring the fifteen with wants restricted to what a panel user could actually mark: **nDCG@10 0.399, harm 0.067** (against 0.444 / 0.080 with the full wants, 0.300 / 0.100 wants-blind). So the honest expectation for the shipped panel is **about 0.40, not 0.44** — still a third better than today, with less harm. It is also a pessimistic reading: a real user marks other offered tasks instead of nothing. Raising the panel to twelve tasks would close some of the gap at the cost of a longer screen; left at eight, revisit with real usage. **Not re-swept on purpose:** `_WANTS_FRESH_START_ROLE_W` 0.20 was tuned with the seed in; re-picking it on the same fifteen profiles the seed decision was taken on would be fitting twice to one set._
+
 ### W-4 · Storage + API (M) — only after W-3 passes
 
-- [ ] `path_wants` table: `(user_id, anchor_onet_code, kind task|condition,
+- [x] `path_wants` table: `(user_id, anchor_onet_code, kind task|condition,
   item_key, verdict more|less)`, unique per user + anchor + item. **One alembic
   head.** A change of current job leaves the old rows inert, not deleted
-- [ ] `GET /me/path-wants` — the panel's content for the user's resolved
+- [x] `GET /me/path-wants` — the panel's content for the user's resolved
   occupation plus their current answers; a typed `no_anchor` when there is no
   current job. `PUT /me/path-wants` — idempotent, partial answers valid. Rate
   limited like `path-feedback`
-- [ ] A wants write invalidates `path_cache` and `path_fits` (the enumeration
+- [x] A wants write invalidates `path_cache` and `path_fits` (the enumeration
   test's floor rises by one)
-- [ ] `score_paths` reads stored wants for **all three** intents;
+- [x] `score_paths` reads stored wants for **all three** intents;
   `stay_in_field` still ignores *card* feedback, as F-6 decided
-- [ ] Cards gain an additive `reasons: string[]` — what is **distinctive about
+- [x] Cards gain an additive `reasons: string[]` — what is **distinctive about
   this card**, never a line that reads the same on every card (§8.2)
-- [ ] Export + delete coverage for the new table (D-7's rule,
+- [x] Export + delete coverage for the new table (D-7's rule,
   `test_export_delete_coverage.py`); the D-01 guard reads docstrings — name no
   person-side table in prose
-- [ ] pytest per endpoint (happy / error / edge), OpenAPI regen, contract
+- [x] pytest per endpoint (happy / error / edge), OpenAPI regen, contract
   **re-verified at zero diffs, then** captured additively, `schema.ts` regen
+
+_2026-09-21: **W-4 landed.** Overseer verified rather than re-read: nothing outside the ownership list touched and no git writes; **one alembic head** (`20260921_path_wants`, down_revision `20260916_path_fb`, 20 characters) checked on the alembic lane DB, where the agent ran empty → head → down one → head; **every wire file is additive by numstat** — `contract_baseline.json` +72/−0, `openapi.json` +330/−0, `schema.ts` +280/−0; the agent's contract check read **0 differences across 103 responses BEFORE any wire change**, then 8 additive steps (baseline 111, re-verified at 0); test files and guards **675 passed / 42 skipped** at CI parity on the overseer's own run (employer-visibility, layering, export/delete, frontend-contract, migrations-chain and cache-bounds guards included), 339 / 38 again after the follow-up; `tsc -b` clean. **Rankings unmoved:** all 35 profiles re-recorded on the W-4 tree — old twenty 20/20 identical to F-8, wants fifteen 14/15 identical to W-3b; the one miss (p30, ranks 9/10) is a TRUE TIE, 0.5541 vs 0.5540 on the same ten cards, persistent across re-runs — the second sighting of the near-tie flake W-3b recorded, not a scoring change. **Built:** `path_wants` (user, anchor occupation, kind task|condition, `item_key`, `item_text`, verdict more|less; unique per user + anchor + item; "fine" is the absence of a row; a job change leaves old rows inert, not deleted). A task's key is `t_` + 12 hex of sha256 over the normalised ORIGINAL O*NET statement and the row stores that statement, so an answer survives a quarterly sidecar rebuild and a relabel, and the display label never reaches the embedder. `GET /api/v1/me/path-wants` → `status` ok | `no_anchor` | `unavailable` (the status describes the TASK half: an axis is a name in code and needs no sidecar, so the four conditions stay answerable), anchor, up to 8 tasks `{key, label, verdict}`, four conditions; `PUT` takes `{answers:[{kind,key,verdict|null}]}`, partial answers valid, `null` clears, validated whole before any write — unknown or foreign key → RFC 9457 **422 `not_offered`, nothing written**; both methods share a 20/min bucket; corpus down → the sibling routes' typed 503. **Wants reach `score_paths` at both sites** in `intelligence_service.py` — `path_suggestions` (the cold job) and `_rescore` (the tap re-rank) — for all three intents; `wants_for_scoring` checks `any_for_user` FIRST, so a user who never opened the panel pays no anchor resolution, no embedding and no sidecar read and gets `wants=None` (asserted). Invalidation floor **7 → 8**. **Deleted with the account, not exported** — `path_feedback`'s answer: "I want less of this part of my job" is a statement a person made about their working life, and everything they said is on the panel they said it on with the control that clears it. New: `path_wants_service.py`, `path_wants_repository.py`, `tests/test_path_wants_api.py` (57 tests); a public `resolve_anchor_code()` in `path_scoring.py` so the panel resolves the SAME anchor the scorer does instead of reaching into an underscore name — it also answers `no_anchor` before `get_corpus()`, so a first-job user is not shown a 503 during an S3 outage._
+
+_**Card `reasons: string[]` — additive, deterministic, conditions sidecar only, no LLM, no embeddings, at most two.** Three tiers: a stated axis at the far end in ABSOLUTE terms (percentile ≥ 0.80 for "more", ≤ 0.20 for "less": "Among the most people-facing jobs", "Very little dealing with the public"), then a stated axis compared with the user's own job (margin 0.25), then an unstated axis; every phrase passes the **distinctiveness rule** — a phrase on ≥ 70% of the page's cards is dropped from all of them. §8.2's hazard, caught live: for a developer who stated `people: more`, "More time with people than your current job" was true of 8 of 10 cards and vanished everywhere. **The strong tier is the overseer's follow-up**, because that rule alone meant the axis the user ASKED about could never speak; now Sales Representatives (people 0.81) says "Among the most people-facing jobs". **The agent corrected the overseer's premise and was right:** the overseer named Sales Engineers as the wrongly silent card; Sales Engineers sit at `people` 0.51 — the median — and stay silent correctly. The strong tier deliberately ignores the 0.25 margin (an absolute claim is not about the anchor; a user already at 0.95 asking for more would otherwise be told nothing about a card at 0.97) and still goes through the ubiquity count as its own phrase. **Reasons are built only when wants are stated** — W-3 pins that a user who stated nothing never touches the conditions sidecar, so their cards carry `[]` and keep the existing why-text; Sebastian told, recommendation is to leave it. `reasons` is on `PathSuggestion` in `openapi.json` and pinned by tests, but NOT in the contract baseline: suggestions are captured on a cache miss by design. The panel asks 4 of the 7 measured axes; reasons draw on 6 (`pace` excluded everywhere). Lane DBs `solverah_w4` / `_w4m` / `_w4c`. All copy is a best guess for Julie._
 
 ### W-5 · Frontend: the panel + card reasons (M–L)
 
-- [ ] A "what should change" panel above the results: own-job tasks in plain
+- [x] A "what should change" panel above the results: own-job tasks in plain
   words plus the conditions, each *more · fine · less*. **Never blocks the first
   result** — the page loads ranked as today and re-ranks on answer (⚑7's lesson).
   One screen, skippable, valid half-finished
-- [ ] No current job → no panel; taps only
-- [ ] Reason line on each card, where the percentage used to be
+- [x] No current job → no panel; taps only
+- [x] Reason line on each card, where the percentage used to be
 - [ ] Props typed, test beside each component, Vitest; verify in the browser
   against the API on **5055** (a stale Flask holds :5000)
 
+_2026-09-21: **W-5 landed (code); Sebastian's browser click-through is the open box.** Overseer's own run: Vitest **984 / 984** (85 files), `tsc -b` clean, `npm run build` clean (the panel ships in the lazy `PathIntelligencePage` chunk, 29.9 kB / 8.8 kB gzip, not the entry), `tests/test_frontend_contract.py` 6 passed (the agent had read it but not run it); only `src/features/intelligence/` touched, no new dependency, no new route; a grep of the new files finds no `%`, bar, score or graded word — W-1's assertions are re-asserted with reasons present. **Built:** `usePathWants.ts` + `PathWantsPanel.tsx` (tests beside each), the reason line on `PathSuggestionCard`, `isStalePanel` / `pathWantsMessage` in `pathFailure.ts`. **The panel never stands between the user and a result:** it is fetched in parallel and awaited by nothing; while loading, or if its GET fails for any reason, it renders NOTHING — no error, no empty box. `no_anchor` renders nothing; `unavailable` renders the four conditions only, no apology. Collapsed by default to one row ("Tell us what should change about your job, and we'll re-sort these", plus "N things you want to change" once answers exist); expanded: "About your work: Software Developers" (a colon, because O*NET titles are plural and no article reads right), tasks under "What you spend your time on", conditions under "How you work", each a real `fieldset` radio group — Less of this · Fine as it is · More of this — "fine" pre-selected and meaning no answer. **Edits are local; one `PUT` with only the changed rows goes out on "Update my suggestions"** (a scoring job takes seconds, so nothing re-scores per click); "Clear my answers" sends nulls through the same path. **No second job flow:** the save's `onSuccess` writes the returned panel into the query cache (no second GET), invalidates the suggestion-job keys, and the page answers with its own existing `fetchSuggestions()` — the same enqueue-and-poll it runs for a cache miss. 422 `not_offered` is branched on by CODE: draft discarded, panel reloaded against the new job, plain message; nothing was written, so it is not retried. Card reasons: a quiet list of at most two lines where the percentage used to be; `[]` or absent renders nothing at all. 27 ESLint warnings in the feature, none in new files or changed lines. One trap found and defused: the page test's `cardTitles()` helper matched the panel heading's classes, including while collapsed; the heading is `text-base` with a comment saying why. Copy is a best guess for Julie._
+
+_**Click-through prerequisites (Sebastian):** `flask db upgrade` for `20260921_path_wants` or both panel calls 500; `SOLVERAH_CORPUS_PATH` at `Desktop/solverah-corpus/` with `*.tasks.json` and `*.experience.json` present; API on 5055 with `VITE_API_URL`; a signed-in user WITH a current job title. Reasons appear on cards only after wants are saved._
+
 ### W-6 · Taps teach the wants (M) — measured, optional
 
-- [ ] A run of *interesting* cards is evidence about a condition the user never
+- [x] ~~A run of *interesting* cards~~ **measured, not built** -- a run of *interesting* cards is evidence about a condition the user never
   answered: infer a nudge from the liked cards' measured axes
-- [ ] Measure in F-6's simulated-feedback harness against taps alone; **ship only
+- [x] Measure in F-6's simulated-feedback harness against taps alone; **ship only
   if it wins**, harm 0. Otherwise record the number and close the box unbuilt
+
+_2026-09-21: **W-6 measured and CLOSED UNBUILT — it does not win as specified.** Run as a measurement only, in scratch outside the repo (`Temp/claude/w6/`, harness + every cell's per-profile nDCG kept in `refine.json`), so nothing in the tree moved while Sebastian clicked through W-5; `git status` identical before and after; embeddings under a cent, zero O*NET, zero LLM. **Rule tested:** for each panel axis the user did NOT state, if every card tapped *interesting* sits on the same side of the user's own job by a margin, treat it as an inferred more/less at reduced weight through the SAME one-sided conditions term; a stated axis always wins and is never diluted. F-6's simulation protocol reused exactly; **control arm reproduces W-3a's printed 0.3997 / 0.5148 to four decimals.** **Pooled, it looks like a win:** wants-stating tappers +0.013 (one round) / +0.019 (two); users who state nothing +0.016 / +0.027; harm never up; a flat plateau (margin 0.00–0.10 × weight 0.35–0.50) positive in all 16 cell×arm combinations; and a **placebo arm inferring the OPPOSITE direction is strongly, monotonically negative (down to −0.148)** — so the direction carries real information, not just an extra term. **It fails the leave-one-intent-out check, which is what that check is for:** the whole gain is `fresh_start` (+0.024 to +0.080); on `adjacent` — the majority of both populations — it is zero at one round and **negative at two (−0.042)**; constants chosen on one intent do not transfer to the other. Pooled by intent, leave-one-profile-out over the plateau: `fresh_start` +0.029 / +0.046, `adjacent` −0.007 / −0.033. **Mechanism that fits:** `adjacent` already carries a tap's direction in the Rocchio rotation under a large role weight, so the measured conditions add nothing the embedding did not have; `fresh_start` has a huge tightly-bunched pool and little anchor ordering, so a conditions term has room to reorder. **Taps do carry condition information the rotation misses, but only where the rotation is weak.** Not built, because the `fresh_start`-only scoping was chosen AFTER seeing the split, on the same nine profiles that produced it (two of which get no inference at all). If revisited: `fresh_start` only, one agreeing like, margin 0.10, inferred weight 0.5 × `_WANTS_CONDITIONS_W`, four panel axes — and new `fresh_start` profiles FIRST. One caveat that applies to every tap number in this plan: the simulated *interesting* tap is chosen by the label grade, so the liked card is by construction a good one; absolute tap effects are upper bounds._
 
 ### W-7 · Close-out (S)
 
-- [ ] real_stack E2E: wants → re-ranked page → tap → fit panel, asserting the DB
-- [ ] `feature_tour` ROUTES, runbook (two new sidecars in the corpus dependency),
+- [x] real_stack E2E: wants → re-ranked page → tap → fit panel, asserting the DB
+- [x] `feature_tour` ROUTES, runbook (two new sidecars in the corpus dependency),
   `render.yaml` / `.env.example` if a key is added
-- [ ] Fold in F's two stale docstrings (`score_paths` says 500;
+- [x] Fold in F's two stale docstrings (`score_paths` says 500;
   `get_my_path_suggestion_job` omits `corpus_unavailable`)
 - [ ] **One** full CI-parity suite run, backgrounded:
   `SOLVERAH_IGNORE_DOTENV=1`, `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`, the venv at
   `Desktop/solverah-venv311`; `npm test`; `tsc`
+
+_2026-09-21: **W-7 landed.** **Real-stack E2E EXECUTED, not shelved:** new `tests/e2e/path_wants.spec.ts` beside F's flow — real Flask, real Postgres migrated by `flask db upgrade` from empty (so `20260921_path_wants` is exercised), the production bundle under `vite preview`, live OpenAI, the REAL corpus with both new sidecars, live O*NET on the deep fit, no API stub anywhere — **1 passed in 48.9 s, and again in 46.5 s with byte-identical output.** It asserts the DATABASE at every step: the suggestion list is reached with the panel untouched and collapsed (the panel gates nothing) and carries **zero** reason lines before any wants exist (W-3's pin, seen end to end); three radio clicks write **no** `path_wants` row and send **no** `PUT` (W-5's one-save rule); "Update my suggestions" sends exactly one `PUT 200`, leaves three rows (`task|less`, `task|more`, `condition|more`) on one anchor (`15-1252.00`), whose `item_text` is **byte-equal to the sidecar's ORIGINAL O*NET statement and not the label shown**, and strictly increases `scoring_jobs`; `reasons` is an array on every card and **9 of 10 cards rendered a reason line** ("More dealing with the public" on Sales Engineers; "More leading other people" on Computer and Information Systems Managers); an *interesting* tap writes `path_feedback` and leaves the three wants in place (the `_rescore` site keeps them); the deep-fit dialog opens with **no `%` anywhere in `document.body`**; a reload brings the radios back selected and "3 things you want to change"; "Clear my answers" returns `path_wants` to zero rows and the reason lines to zero. **No defect found in W-3 / W-4 / W-5 code.** One lesson recorded in the spec and the e2e README: a Playwright click returns before React re-renders, so a "has it finished?" check passes against the pre-click DOM — gate on the save button's `aria-busy` going true → false. It used its own ports (5066 / 4188) and lane DBs (`solverah_w7` alembic-only, `_w7t`, `_w7c`), stopped every process by PID, and left 5055 / 5077 / 5173 — Sebastian's click-through — untouched. **Docstrings:** `score_paths` now says every caller answers a typed `503 corpus_unavailable` (it said 500); `get_my_path_suggestion_job` lists `corpus_unavailable`. The route docstring feeds OpenAPI, so `openapi.json` and `schema.ts` moved by that one description string; **contract re-verified at 0 differences across 111 responses.** **Runbook:** it named the two sidecars but not the migration — one subsection added: confirm `20260921_path_wants` in the pre-deploy log, because without the table both panel calls 500 and the panel's GET failing is SILENT by design, so a missed migration looks like "the feature did not ship". `feature_tour` ROUTES, `render.yaml` and `.env.example` need nothing (no new route, no new env key; confirmed by grep). **Found outside W, not fixed:** `profile_skills.proficiency` has no constraint, and a value outside {1, 3, 5} written straight to the column makes `GET /me/profile` raise a bare `KeyError` at `solverah/domain/profile_document.py:613` → untyped 500 → the SPA's route error boundary; the API validates, so it is only reachable by a direct write._
+
+### W-8 · Task wants reach the rank (S–M) — from Sebastian's first click-through
+
+- [x] Reproduce the founder's case term by term before changing anything
+- [x] A task-affinity term of its own in the rank, measured against W-3b
+- [x] A behavioural acceptance test as well as nDCG — a tie is not a demotion
+- [x] Guards: `wants=None` identical; old twenty identical; wants-blind fifteen identical
+
+_2026-09-21: **W-8 landed — a defect found by a person, not the harness.** Sebastian's first browser click-through: a Software Developer on `adjacent` marks LESS "Fixing software issues", MORE "Evaluating user needs for software", people: more — and **Computer Programmers is still the first card.** "It did not drop the weights of them correctly." Reproduced by the overseer on his real account, per term: the scorer HAD reacted — Programmers fell 0.717 → 0.678 — but into a **three-way tie spanning 0.003** (0.6801 / 0.6780 / 0.6772) that live-embedding jitter orders; he saw it first, the overseer's run saw it second. **Cause:** W-3a let the task wants act only through the query rotation, i.e. only through the `role` term (weight 0.45), and a rotated query lowers EVERY card's role cosine together (0.835 → 0.604, 0.627 → 0.516), so the spread it makes is small; `coverage` — the user's skills against the job, weight 0.33 — is untouched by wants and still favours the coding jobs; `zone` is a constant 0.22 on that page. The card most similar to the disliked task (raw cosine 0.399, the highest on the page) had nothing in the rank saying so. nDCG could not see this: a tie among three acceptable cards scores the same either way. **Fix:** per candidate, the cosine of its corpus document to the mean MORE and mean LESS vectors, each **rank-transformed to a percentile within the retrieved pool** (raw cosines of a short statement against a long document are compressed into ~0.25–0.42 and their position depends on how wordy the sentence is, not on fit — W-3a's lesson about raw O*NET ratings, again), `0.5 + 0.5·(pct_more − pct_less)`, neutral 0.5, blended over the conditions blend exactly as that is blended over the base. **One constant, `_WANTS_TASK_AFFINITY_W = 0.10`. Zero extra embedding calls, zero O*NET, two matrix products over rows already retrieved.** **Measured (overseer re-recorded all 35 live: fifteen 15/15 identical to `runs/w8_task_affinity.json`, old twenty 20/20 identical to F-8, wants-blind fifteen 15/15 identical to W-2; touched tests 417 passed / 42 skipped at CI parity): nDCG@10 0.444 → 0.464, harmful_rate 0.080 → 0.060; panel-reachable 0.399 → 0.411, harm 0.067 → 0.060** — against wants-blind 0.300 / 0.100 that is now +55%. Per intent: `adjacent` 0.516 → 0.551, `fresh_start` 0.389 → 0.422, `stay_in_field` 0.427 → 0.412 (one profile); 9 improve / 2 level / 4 worsen, the four being rank-9/10 churn. Plateau, not peak: every weight in 0.05–0.125 is within 0.006 on both metric sets, leave-one-intent-out picks the same cell on all three splits, and 0.10 is the round number both leave-one-profile-out picks bracket, biased low because the panel-reachable arm — the one real users live on — falls away first. **The behavioural result, on Sebastian's real account: Computer Programmers rank 1 → 5, 0.026 below the third card (about fifty times the jitter); Computer Systems Analysts leads — the row closest to what he marked MORE and furthest from what he marked LESS. A demotion, not a deletion.** Over the fifteen, the card that looks most like the disliked tasks moves **median rank 3 → 6**; its mean barely moves because in four profiles that card is legitimately the best match and stays first — the term is not a blanket demotion. `TestTheFoundersCase` is the regression test and both its assertions evaluate False on HEAD (proved by importing `git show HEAD:` into scratch, no git write). **Three findings worth keeping:** affinity alone, without the rotation, never reaches the plateau (0.433) — both mechanisms earn their place; with affinity present, pushing `adjacent`'s gamma to 1.2 now COSTS 0.015 where W-3a measured it still improving, because the LESS direction no longer has to be dragged in through the query — so gamma stays one shared 0.40; and **LESS-only users are the one arm this makes worse** (`fresh_start` 0.333 → 0.235, harm more than halved) — not given its own constant, because a second weight fitted to a synthetic ablation at n = 15 would be fitting to the ablation; first thing to revisit if real users turn out to state LESS alone. The affinity's percentiles are over the retrieved pool, so a change to `_RETRIEVE_K_ADJACENT` changes this term's scale. **Lesson for the plan:** the harness measures average ranking quality; it does not measure whether one person's stated dislike visibly moves the card they are looking at. Both checks now exist._
+
+_**Also from that click-through — not a code defect:** "loading a position takes so long". The server is fast (first open of a card 0.3–0.5 s, second 0.03 s, timed over 127.0.0.1). On this Windows machine `localhost` tries IPv6 (`::1`) first and Flask's dev server binds 127.0.0.1 only, costing **~2.0 s per request** before the fallback — proven with a bare `http.server`: bound to 127.0.0.1, 2.0 s via `localhost`; bound to `::1`, 0.02 s. Local remedy: `flask run --host ::1` (keep `VITE_API_URL` on `localhost`: switching it to 127.0.0.1 makes `localhost:5173` → `127.0.0.1:5000` cross-site and breaks the SameSite=Lax cookies). The real production cost is the cold deep fit's four O*NET calls (~2.4 s); **W-9 proposed, not dispatched:** precompute the deep fit's static O*NET inputs into a sidecar so a card click makes no network call, and warm the top cards when the list lands._
+
+_**The one full suite run (W-7's open box): 3,671 passed · 62 skipped · 2 failed · 3 errors in 28 min — not strictly green, and not a W regression.** All five are `psycopg2.OperationalError: server closed the connection unexpectedly` on `localhost (::1):5433`; the Postgres container was up five days with no termination in its log, so the drops are Docker Desktop's port proxy under load from three clients at once (the suite, Sebastian's Flask, another agent's runs). Re-run alone, the five pass and a DIFFERENT random test catches the same drop. None is in a Workstream W file. Vitest 984 / 984, `tsc -b` clean. A clean re-run on a quieter machine, over 127.0.0.1, is still owed before the box is ticked._
 
 _Still open from Workstream F and **not** absorbed here: regrade the own-job
 labels on p01–p04 to `anchor`; review the 56 low-confidence labels (p05 first);

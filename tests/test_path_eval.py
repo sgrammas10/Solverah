@@ -1205,3 +1205,35 @@ def test_the_recorded_w3_run_covers_the_fifteen_and_beats_the_baseline(
     assert aware.headline["harmful_rate_at_k"] <= blind.headline["harmful_rate_at_k"]
     assert not aware.empty_result_profiles
     assert not aware.errored_profiles
+
+
+def test_the_recorded_w8_run_beats_the_w3b_baseline_without_raising_harm(
+    profiles: list[EvalProfile], labels: dict[str, list[Label]]
+) -> None:
+    """W-8's gate, in the same shape as W-3's above and for the same reason.
+
+    `w3b_wants_no_seed.json` is the page W-8 had to beat: the wants-aware
+    scorer with ⚑10's seed drop, macro nDCG@10 0.444 at harm 0.080.  The
+    affinity term is measured against it, so the two files sitting side by side
+    is the measurement -- offline, pure, and re-scorable whenever the metric
+    changes.  Direction and not a pinned number, again: the constant may move
+    on a new sweep, "it beat the baseline and harm did not rise" may not.
+    """
+    wants_profiles = profiles_with_wants(profiles)
+    runs_dir = Path(path_eval.FIXTURE_DIR) / "runs"
+
+    baseline = evaluate(
+        path_eval.load_run(runs_dir / "w3b_wants_no_seed.json"), wants_profiles, labels
+    )
+    affinity = evaluate(
+        path_eval.load_run(runs_dir / "w8_task_affinity.json"), wants_profiles, labels
+    )
+
+    assert affinity.headline["profiles_scored"] == 15.0
+    assert affinity.headline["ndcg_at_k"] > baseline.headline["ndcg_at_k"]
+    assert (
+        affinity.headline["harmful_rate_at_k"]
+        <= baseline.headline["harmful_rate_at_k"]
+    )
+    assert not affinity.empty_result_profiles
+    assert not affinity.errored_profiles

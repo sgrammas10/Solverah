@@ -1,0 +1,862 @@
+{
+ "scorer_name": "wants-aware + W-8 task affinity (_WANTS_TASK_AFFINITY_W=0.10)",
+ "recorded_at": "2026-09-21T21:06:43Z",
+ "runs": [
+  {
+   "profile_id": "p21_pharmacy_tech_stay",
+   "results": [
+    {
+     "onet_code": "29-2053.00",
+     "title": "Psychiatric Technicians",
+     "score": 0.6237
+    },
+    {
+     "onet_code": "29-1051.00",
+     "title": "Pharmacists",
+     "score": 0.6189
+    },
+    {
+     "onet_code": "29-2042.00",
+     "title": "Emergency Medical Technicians",
+     "score": 0.5978
+    },
+    {
+     "onet_code": "29-2012.00",
+     "title": "Medical and Clinical Laboratory Technicians",
+     "score": 0.5761
+    },
+    {
+     "onet_code": "19-4031.00",
+     "title": "Chemical Technicians",
+     "score": 0.567
+    },
+    {
+     "onet_code": "19-4021.00",
+     "title": "Biological Technicians",
+     "score": 0.5595
+    },
+    {
+     "onet_code": "29-2055.00",
+     "title": "Surgical Technologists",
+     "score": 0.5519
+    },
+    {
+     "onet_code": "29-2061.00",
+     "title": "Licensed Practical and Licensed Vocational Nurses",
+     "score": 0.5501
+    },
+    {
+     "onet_code": "31-9097.00",
+     "title": "Phlebotomists",
+     "score": 0.5441
+    },
+    {
+     "onet_code": "29-2056.00",
+     "title": "Veterinary Technologists and Technicians",
+     "score": 0.5363
+    }
+   ],
+   "elapsed_s": 1.925,
+   "error": null
+  },
+  {
+   "profile_id": "p22_hvac_tech_stay",
+   "results": [
+    {
+     "onet_code": "49-1011.00",
+     "title": "First-Line Supervisors of Mechanics, Installers, and Repairers",
+     "score": 0.7322
+    },
+    {
+     "onet_code": "47-2111.00",
+     "title": "Electricians",
+     "score": 0.7134
+    },
+    {
+     "onet_code": "51-8021.00",
+     "title": "Stationary Engineers and Boiler Operators",
+     "score": 0.6768
+    },
+    {
+     "onet_code": "49-2095.00",
+     "title": "Electrical and Electronics Repairers, Powerhouse, Substation, and Relay",
+     "score": 0.6758
+    },
+    {
+     "onet_code": "17-2141.00",
+     "title": "Mechanical Engineers",
+     "score": 0.6665
+    },
+    {
+     "onet_code": "49-9071.00",
+     "title": "Maintenance and Repair Workers, General",
+     "score": 0.6589
+    },
+    {
+     "onet_code": "49-9012.00",
+     "title": "Control and Valve Installers and Repairers, Except Mechanical Door",
+     "score": 0.6494
+    },
+    {
+     "onet_code": "17-3023.00",
+     "title": "Electrical and Electronic Engineering Technologists and Technicians",
+     "score": 0.6333
+    },
+    {
+     "onet_code": "47-2152.04",
+     "title": "Solar Thermal Installers and Technicians",
+     "score": 0.6203
+    },
+    {
+     "onet_code": "49-2093.00",
+     "title": "Electrical and Electronics Installers and Repairers, Transportation Equipment",
+     "score": 0.6162
+    }
+   ],
+   "elapsed_s": 0.755,
+   "error": null
+  },
+  {
+   "profile_id": "p23_head_chef_stay",
+   "results": [
+    {
+     "onet_code": "35-2013.00",
+     "title": "Cooks, Private Household",
+     "score": 0.6616
+    },
+    {
+     "onet_code": "19-1012.00",
+     "title": "Food Scientists and Technologists",
+     "score": 0.6255
+    },
+    {
+     "onet_code": "35-2014.00",
+     "title": "Cooks, Restaurant",
+     "score": 0.5982
+    },
+    {
+     "onet_code": "35-2011.00",
+     "title": "Cooks, Fast Food",
+     "score": 0.5719
+    },
+    {
+     "onet_code": "35-1012.00",
+     "title": "First-Line Supervisors of Food Preparation and Serving Workers",
+     "score": 0.5582
+    },
+    {
+     "onet_code": "35-2012.00",
+     "title": "Cooks, Institution and Cafeteria",
+     "score": 0.5543
+    },
+    {
+     "onet_code": "35-2021.00",
+     "title": "Food Preparation Workers",
+     "score": 0.5536
+    },
+    {
+     "onet_code": "29-1031.00",
+     "title": "Dietitians and Nutritionists",
+     "score": 0.5529
+    },
+    {
+     "onet_code": "19-4013.00",
+     "title": "Food Science Technicians",
+     "score": 0.5245
+    },
+    {
+     "onet_code": "29-2051.00",
+     "title": "Dietetic Technicians",
+     "score": 0.5103
+    }
+   ],
+   "elapsed_s": 0.701,
+   "error": null
+  },
+  {
+   "profile_id": "p24_elementary_teacher_stay",
+   "results": [
+    {
+     "onet_code": "11-9032.00",
+     "title": "Education Administrators, Kindergarten through Secondary",
+     "score": 0.7046
+    },
+    {
+     "onet_code": "25-9031.00",
+     "title": "Instructional Coordinators",
+     "score": 0.6746
+    },
+    {
+     "onet_code": "25-2022.00",
+     "title": "Middle School Teachers, Except Special and Career/Technical Education",
+     "score": 0.6616
+    },
+    {
+     "onet_code": "25-2057.00",
+     "title": "Special Education Teachers, Middle School",
+     "score": 0.6566
+    },
+    {
+     "onet_code": "25-1081.00",
+     "title": "Education Teachers, Postsecondary",
+     "score": 0.6565
+    },
+    {
+     "onet_code": "25-2012.00",
+     "title": "Kindergarten Teachers, Except Special Education",
+     "score": 0.6557
+    },
+    {
+     "onet_code": "11-9031.00",
+     "title": "Education and Childcare Administrators, Preschool and Daycare",
+     "score": 0.6533
+    },
+    {
+     "onet_code": "25-2051.00",
+     "title": "Special Education Teachers, Preschool",
+     "score": 0.6505
+    },
+    {
+     "onet_code": "25-2031.00",
+     "title": "Secondary School Teachers, Except Special and Career/Technical Education",
+     "score": 0.6463
+    },
+    {
+     "onet_code": "25-2055.00",
+     "title": "Special Education Teachers, Kindergarten",
+     "score": 0.6397
+    }
+   ],
+   "elapsed_s": 0.379,
+   "error": null
+  },
+  {
+   "profile_id": "p25_sysadmin_stay",
+   "results": [
+    {
+     "onet_code": "15-1241.00",
+     "title": "Computer Network Architects",
+     "score": 0.7765
+    },
+    {
+     "onet_code": "15-1299.05",
+     "title": "Information Security Engineers",
+     "score": 0.7245
+    },
+    {
+     "onet_code": "15-1231.00",
+     "title": "Computer Network Support Specialists",
+     "score": 0.6899
+    },
+    {
+     "onet_code": "15-1212.00",
+     "title": "Information Security Analysts",
+     "score": 0.6782
+    },
+    {
+     "onet_code": "13-1199.07",
+     "title": "Security Management Specialists",
+     "score": 0.6676
+    },
+    {
+     "onet_code": "15-1299.08",
+     "title": "Computer Systems Engineers/Architects",
+     "score": 0.6633
+    },
+    {
+     "onet_code": "15-1252.00",
+     "title": "Software Developers",
+     "score": 0.6563
+    },
+    {
+     "onet_code": "15-1242.00",
+     "title": "Database Administrators",
+     "score": 0.6343
+    },
+    {
+     "onet_code": "15-1299.01",
+     "title": "Web Administrators",
+     "score": 0.6321
+    },
+    {
+     "onet_code": "15-1299.04",
+     "title": "Penetration Testers",
+     "score": 0.6294
+    }
+   ],
+   "elapsed_s": 0.466,
+   "error": null
+  },
+  {
+   "profile_id": "p26_developer_done_with_code_adjacent",
+   "results": [
+    {
+     "onet_code": "41-9031.00",
+     "title": "Sales Engineers",
+     "score": 0.6603
+    },
+    {
+     "onet_code": "13-1082.00",
+     "title": "Project Management Specialists",
+     "score": 0.6551
+    },
+    {
+     "onet_code": "11-9041.00",
+     "title": "Architectural and Engineering Managers",
+     "score": 0.64
+    },
+    {
+     "onet_code": "15-1299.09",
+     "title": "Information Technology Project Managers",
+     "score": 0.6242
+    },
+    {
+     "onet_code": "19-3099.01",
+     "title": "Transportation Planners",
+     "score": 0.597
+    },
+    {
+     "onet_code": "15-1241.00",
+     "title": "Computer Network Architects",
+     "score": 0.5949
+    },
+    {
+     "onet_code": "15-1243.00",
+     "title": "Database Architects",
+     "score": 0.5948
+    },
+    {
+     "onet_code": "13-1151.00",
+     "title": "Training and Development Specialists",
+     "score": 0.5886
+    },
+    {
+     "onet_code": "17-1011.00",
+     "title": "Architects, Except Landscape and Naval",
+     "score": 0.5886
+    },
+    {
+     "onet_code": "13-1111.00",
+     "title": "Management Analysts",
+     "score": 0.5864
+    }
+   ],
+   "elapsed_s": 0.482,
+   "error": null
+  },
+  {
+   "profile_id": "p27_emt_adjacent",
+   "results": [
+    {
+     "onet_code": "29-2043.00",
+     "title": "Paramedics",
+     "score": 0.6968
+    },
+    {
+     "onet_code": "29-1141.01",
+     "title": "Acute Care Nurses",
+     "score": 0.614
+    },
+    {
+     "onet_code": "29-1141.00",
+     "title": "Registered Nurses",
+     "score": 0.5983
+    },
+    {
+     "onet_code": "29-2061.00",
+     "title": "Licensed Practical and Licensed Vocational Nurses",
+     "score": 0.585
+    },
+    {
+     "onet_code": "29-2099.08",
+     "title": "Patient Representatives",
+     "score": 0.5665
+    },
+    {
+     "onet_code": "31-1131.00",
+     "title": "Nursing Assistants",
+     "score": 0.5612
+    },
+    {
+     "onet_code": "29-1141.03",
+     "title": "Critical Care Nurses",
+     "score": 0.558
+    },
+    {
+     "onet_code": "29-2053.00",
+     "title": "Psychiatric Technicians",
+     "score": 0.5512
+    },
+    {
+     "onet_code": "31-9092.00",
+     "title": "Medical Assistants",
+     "score": 0.5343
+    },
+    {
+     "onet_code": "29-1126.00",
+     "title": "Respiratory Therapists",
+     "score": 0.53
+    }
+   ],
+   "elapsed_s": 0.571,
+   "error": null
+  },
+  {
+   "profile_id": "p28_photographer_adjacent",
+   "results": [
+    {
+     "onet_code": "43-9031.00",
+     "title": "Desktop Publishers",
+     "score": 0.6439
+    },
+    {
+     "onet_code": "27-4032.00",
+     "title": "Film and Video Editors",
+     "score": 0.6426
+    },
+    {
+     "onet_code": "51-5111.00",
+     "title": "Prepress Technicians and Workers",
+     "score": 0.6308
+    },
+    {
+     "onet_code": "27-1011.00",
+     "title": "Art Directors",
+     "score": 0.6207
+    },
+    {
+     "onet_code": "27-1024.00",
+     "title": "Graphic Designers",
+     "score": 0.6203
+    },
+    {
+     "onet_code": "27-1014.00",
+     "title": "Special Effects Artists and Animators",
+     "score": 0.6182
+    },
+    {
+     "onet_code": "27-1013.00",
+     "title": "Fine Artists, Including Painters, Sculptors, and Illustrators",
+     "score": 0.6016
+    },
+    {
+     "onet_code": "27-4015.00",
+     "title": "Lighting Technicians",
+     "score": 0.5915
+    },
+    {
+     "onet_code": "27-3041.00",
+     "title": "Editors",
+     "score": 0.5717
+    },
+    {
+     "onet_code": "43-9081.00",
+     "title": "Proofreaders and Copy Markers",
+     "score": 0.5693
+    }
+   ],
+   "elapsed_s": 0.518,
+   "error": null
+  },
+  {
+   "profile_id": "p29_hotel_desk_adjacent",
+   "results": [
+    {
+     "onet_code": "43-3031.00",
+     "title": "Bookkeeping, Accounting, and Auditing Clerks",
+     "score": 0.6714
+    },
+    {
+     "onet_code": "11-3031.01",
+     "title": "Treasurers and Controllers",
+     "score": 0.6691
+    },
+    {
+     "onet_code": "11-9081.00",
+     "title": "Lodging Managers",
+     "score": 0.6542
+    },
+    {
+     "onet_code": "13-2011.00",
+     "title": "Accountants and Auditors",
+     "score": 0.6486
+    },
+    {
+     "onet_code": "37-1011.00",
+     "title": "First-Line Supervisors of Housekeeping and Janitorial Workers",
+     "score": 0.6449
+    },
+    {
+     "onet_code": "43-3021.00",
+     "title": "Billing and Posting Clerks",
+     "score": 0.6435
+    },
+    {
+     "onet_code": "11-3031.00",
+     "title": "Financial Managers",
+     "score": 0.6423
+    },
+    {
+     "onet_code": "11-9179.02",
+     "title": "Spa Managers",
+     "score": 0.6264
+    },
+    {
+     "onet_code": "11-3012.00",
+     "title": "Administrative Services Managers",
+     "score": 0.6174
+    },
+    {
+     "onet_code": "49-1011.00",
+     "title": "First-Line Supervisors of Mechanics, Installers, and Repairers",
+     "score": 0.6171
+    }
+   ],
+   "elapsed_s": 0.267,
+   "error": null
+  },
+  {
+   "profile_id": "p30_insurance_agent_adjacent",
+   "results": [
+    {
+     "onet_code": "13-2053.00",
+     "title": "Insurance Underwriters",
+     "score": 0.6863
+    },
+    {
+     "onet_code": "13-1031.00",
+     "title": "Claims Adjusters, Examiners, and Investigators",
+     "score": 0.6861
+    },
+    {
+     "onet_code": "15-2011.00",
+     "title": "Actuaries",
+     "score": 0.6793
+    },
+    {
+     "onet_code": "13-2023.00",
+     "title": "Appraisers and Assessors of Real Estate",
+     "score": 0.6063
+    },
+    {
+     "onet_code": "13-2052.00",
+     "title": "Personal Financial Advisors",
+     "score": 0.6027
+    },
+    {
+     "onet_code": "13-2054.00",
+     "title": "Financial Risk Specialists",
+     "score": 0.5881
+    },
+    {
+     "onet_code": "13-2041.00",
+     "title": "Credit Analysts",
+     "score": 0.5878
+    },
+    {
+     "onet_code": "13-2022.00",
+     "title": "Appraisers of Personal and Business Property",
+     "score": 0.5768
+    },
+    {
+     "onet_code": "11-9141.00",
+     "title": "Property, Real Estate, and Community Association Managers",
+     "score": 0.5446
+    },
+    {
+     "onet_code": "13-1141.00",
+     "title": "Compensation, Benefits, and Job Analysis Specialists",
+     "score": 0.5303
+    }
+   ],
+   "elapsed_s": 0.327,
+   "error": null
+  },
+  {
+   "profile_id": "p31_truck_driver_fresh",
+   "results": [
+    {
+     "onet_code": "53-1043.00",
+     "title": "First-Line Supervisors of Material-Moving Machine and Vehicle Operators",
+     "score": 0.5497
+    },
+    {
+     "onet_code": "43-5011.00",
+     "title": "Cargo and Freight Agents",
+     "score": 0.549
+    },
+    {
+     "onet_code": "43-5011.01",
+     "title": "Freight Forwarders",
+     "score": 0.5446
+    },
+    {
+     "onet_code": "53-7121.00",
+     "title": "Tank Car, Truck, and Ship Loaders",
+     "score": 0.5375
+    },
+    {
+     "onet_code": "53-1042.00",
+     "title": "First-Line Supervisors of Helpers, Laborers, and Material Movers, Hand",
+     "score": 0.5341
+    },
+    {
+     "onet_code": "53-1041.00",
+     "title": "Aircraft Cargo Handling Supervisors",
+     "score": 0.5229
+    },
+    {
+     "onet_code": "13-1041.08",
+     "title": "Customs Brokers",
+     "score": 0.519
+    },
+    {
+     "onet_code": "53-7051.00",
+     "title": "Industrial Truck and Tractor Operators",
+     "score": 0.5171
+    },
+    {
+     "onet_code": "43-5061.00",
+     "title": "Production, Planning, and Expediting Clerks",
+     "score": 0.5158
+    },
+    {
+     "onet_code": "43-5071.00",
+     "title": "Shipping, Receiving, and Inventory Clerks",
+     "score": 0.5154
+    }
+   ],
+   "elapsed_s": 0.703,
+   "error": null
+  },
+  {
+   "profile_id": "p32_childcare_worker_fresh",
+   "results": [
+    {
+     "onet_code": "25-2011.00",
+     "title": "Preschool Teachers, Except Special Education",
+     "score": 0.5896
+    },
+    {
+     "onet_code": "43-4161.00",
+     "title": "Human Resources Assistants, Except Payroll and Timekeeping",
+     "score": 0.5889
+    },
+    {
+     "onet_code": "43-4111.00",
+     "title": "Interviewers, Except Eligibility and Loan",
+     "score": 0.5591
+    },
+    {
+     "onet_code": "11-3012.00",
+     "title": "Administrative Services Managers",
+     "score": 0.5572
+    },
+    {
+     "onet_code": "25-9043.00",
+     "title": "Teaching Assistants, Special Education",
+     "score": 0.5474
+    },
+    {
+     "onet_code": "25-9042.00",
+     "title": "Teaching Assistants, Preschool, Elementary, Middle, and Secondary School, Except Special Education",
+     "score": 0.5458
+    },
+    {
+     "onet_code": "43-1011.00",
+     "title": "First-Line Supervisors of Office and Administrative Support Workers",
+     "score": 0.5361
+    },
+    {
+     "onet_code": "29-9021.00",
+     "title": "Health Information Technologists and Medical Registrars",
+     "score": 0.5354
+    },
+    {
+     "onet_code": "43-4031.00",
+     "title": "Court, Municipal, and License Clerks",
+     "score": 0.5312
+    },
+    {
+     "onet_code": "43-6014.00",
+     "title": "Secretaries and Administrative Assistants, Except Legal, Medical, and Executive",
+     "score": 0.5311
+    }
+   ],
+   "elapsed_s": 0.388,
+   "error": null
+  },
+  {
+   "profile_id": "p33_helpdesk_fresh",
+   "results": [
+    {
+     "onet_code": "49-2093.00",
+     "title": "Electrical and Electronics Installers and Repairers, Transportation Equipment",
+     "score": 0.5906
+    },
+    {
+     "onet_code": "49-2022.00",
+     "title": "Telecommunications Equipment Installers and Repairers, Except Line Installers",
+     "score": 0.564
+    },
+    {
+     "onet_code": "47-2111.00",
+     "title": "Electricians",
+     "score": 0.5498
+    },
+    {
+     "onet_code": "49-2098.00",
+     "title": "Security and Fire Alarm Systems Installers",
+     "score": 0.5434
+    },
+    {
+     "onet_code": "49-2094.00",
+     "title": "Electrical and Electronics Repairers, Commercial and Industrial Equipment",
+     "score": 0.5431
+    },
+    {
+     "onet_code": "49-1011.00",
+     "title": "First-Line Supervisors of Mechanics, Installers, and Repairers",
+     "score": 0.5421
+    },
+    {
+     "onet_code": "47-2152.00",
+     "title": "Plumbers, Pipefitters, and Steamfitters",
+     "score": 0.5279
+    },
+    {
+     "onet_code": "49-9071.00",
+     "title": "Maintenance and Repair Workers, General",
+     "score": 0.5226
+    },
+    {
+     "onet_code": "49-9062.00",
+     "title": "Medical Equipment Repairers",
+     "score": 0.5225
+    },
+    {
+     "onet_code": "49-2091.00",
+     "title": "Avionics Technicians",
+     "score": 0.5147
+    }
+   ],
+   "elapsed_s": 0.25,
+   "error": null
+  },
+  {
+   "profile_id": "p34_nursing_assistant_fresh",
+   "results": [
+    {
+     "onet_code": "29-1141.00",
+     "title": "Registered Nurses",
+     "score": 0.6457
+    },
+    {
+     "onet_code": "29-2099.08",
+     "title": "Patient Representatives",
+     "score": 0.5941
+    },
+    {
+     "onet_code": "29-2061.00",
+     "title": "Licensed Practical and Licensed Vocational Nurses",
+     "score": 0.5877
+    },
+    {
+     "onet_code": "29-2072.00",
+     "title": "Medical Records Specialists",
+     "score": 0.5848
+    },
+    {
+     "onet_code": "21-1094.00",
+     "title": "Community Health Workers",
+     "score": 0.5823
+    },
+    {
+     "onet_code": "29-9021.00",
+     "title": "Health Information Technologists and Medical Registrars",
+     "score": 0.578
+    },
+    {
+     "onet_code": "29-1141.03",
+     "title": "Critical Care Nurses",
+     "score": 0.5777
+    },
+    {
+     "onet_code": "11-9111.00",
+     "title": "Medical and Health Services Managers",
+     "score": 0.571
+    },
+    {
+     "onet_code": "29-2043.00",
+     "title": "Paramedics",
+     "score": 0.5696
+    },
+    {
+     "onet_code": "29-1141.01",
+     "title": "Acute Care Nurses",
+     "score": 0.5689
+    }
+   ],
+   "elapsed_s": 0.302,
+   "error": null
+  },
+  {
+   "profile_id": "p35_customer_service_rep_fresh",
+   "results": [
+    {
+     "onet_code": "43-3011.00",
+     "title": "Bill and Account Collectors",
+     "score": 0.633
+    },
+    {
+     "onet_code": "43-3021.00",
+     "title": "Billing and Posting Clerks",
+     "score": 0.62
+    },
+    {
+     "onet_code": "43-9041.00",
+     "title": "Insurance Claims and Policy Processing Clerks",
+     "score": 0.5723
+    },
+    {
+     "onet_code": "47-4011.01",
+     "title": "Energy Auditors",
+     "score": 0.5583
+    },
+    {
+     "onet_code": "33-9021.00",
+     "title": "Private Detectives and Investigators",
+     "score": 0.5544
+    },
+    {
+     "onet_code": "13-2081.00",
+     "title": "Tax Examiners and Collectors, and Revenue Agents",
+     "score": 0.5483
+    },
+    {
+     "onet_code": "23-2093.00",
+     "title": "Title Examiners, Abstractors, and Searchers",
+     "score": 0.5432
+    },
+    {
+     "onet_code": "51-9061.00",
+     "title": "Inspectors, Testers, Sorters, Samplers, and Weighers",
+     "score": 0.5275
+    },
+    {
+     "onet_code": "43-9022.00",
+     "title": "Word Processors and Typists",
+     "score": 0.5207
+    },
+    {
+     "onet_code": "43-3031.00",
+     "title": "Bookkeeping, Accounting, and Auditing Clerks",
+     "score": 0.5139
+    }
+   ],
+   "elapsed_s": 0.401,
+   "error": null
+  }
+ ],
+ "notes": "W-8.  The fifteen wants profiles on the shipped scorer with the pool-relative task-affinity term blended in at 0.10.  Macro nDCG@10 0.4440 -> 0.4643, harmful_rate 0.0800 -> 0.0600 against runs/w3b_wants_no_seed.json.  Live corpus, live embedder, zero O*NET."
+}

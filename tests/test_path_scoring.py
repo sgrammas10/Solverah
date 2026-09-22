@@ -2730,6 +2730,278 @@ class TestWantsFreshStartRoleWeight:
 
 
 # ---------------------------------------------------------------------------
+# W-8 -- the task wants as a term of their own
+# ---------------------------------------------------------------------------
+
+
+class TestPoolPercentile:
+    """The rank transform that makes a compressed cosine comparable.
+
+    Raw task-to-document cosines land in a narrow band whose *position* depends
+    on how the user's sentence was worded, so the term is built on order rather
+    than on magnitude.
+    """
+
+    def test_the_ends_of_the_pool_are_zero_and_one(self) -> None:
+        out = ps._pool_percentile(np.array([0.30, 0.31, 0.42]))
+
+        assert out[0] == pytest.approx(0.0)
+        assert out[-1] == pytest.approx(1.0)
+
+    def test_order_is_all_that_survives(self) -> None:
+        """A band shifted or stretched wholesale scores identically."""
+        tight = ps._pool_percentile(np.array([0.30, 0.31, 0.33, 0.42]))
+        wide = ps._pool_percentile(np.array([0.10, 0.40, 0.60, 0.95]))
+
+        assert list(tight) == list(wide)
+
+    def test_ties_share_the_mean_of_the_ranks_they_span(self) -> None:
+        """Two identical documents must not be separated by retrieval order."""
+        out = ps._pool_percentile(np.array([0.20, 0.50, 0.50, 0.80]))
+
+        assert out[1] == pytest.approx(out[2])
+        assert out[1] == pytest.approx(0.5)
+
+    def test_a_pool_of_one_is_neutral(self) -> None:
+        """There is no "relative to the pool" for a pool of one."""
+        assert list(ps._pool_percentile(np.array([0.37]))) == [0.5]
+
+
+class TestTaskAffinity:
+    """The per-candidate term itself, on the synthetic world.
+
+    Computer Programmers sit at `TECH_NEAR` and Electricians at `TRADE`, so a
+    task statement embedded onto one of those vectors is a task that names that
+    job's work and nothing else.
+    """
+
+    def _matches(self, world):
+        return [
+            Match(code=code, title=title, score=0.0, row=world.index_of(code))
+            for code, title in (
+                ("15-1251.00", "Computer Programmers"),
+                ("15-1254.00", "Web Developers"),
+                ("47-2111.00", "Electricians"),
+            )
+        ]
+
+    def _client(self, tasks):
+        return FakeOpenAI(dict(tasks))
+
+    def test_a_more_task_lifts_the_job_it_describes_above_neutral(self, world) -> None:
+        client = self._client({CUSTOMER_TASK: TRADE})
+        _batch_embed([CUSTOMER_TASK], client)
+
+        out = ps._task_affinity(
+            world, self._matches(world), ps.Wants(tasks_more=(CUSTOMER_TASK,)), client
+        )
+
+        assert out is not None
+        assert out[2] > 0.5 > out[0]  # Electricians up, Programmers down
+        assert out[2] == pytest.approx(1.0)
+
+    def test_a_less_task_pushes_the_job_it_describes_below_neutral(self, world) -> None:
+        """The founder's half of the feature, in miniature."""
+        client = self._client({CODING_TASK: TECH_NEAR})
+        _batch_embed([CODING_TASK], client)
+
+        out = ps._task_affinity(
+            world, self._matches(world), ps.Wants(tasks_less=(CODING_TASK,)), client
+        )
+
+        assert out is not None
+        assert out[0] == pytest.approx(0.0)  # Computer Programmers, bottom
+        assert out[2] == pytest.approx(1.0)  # Electricians, untouched by it
+
+    def test_both_directions_average_into_one_number(self, world) -> None:
+        client = self._client({CODING_TASK: TECH_NEAR, CUSTOMER_TASK: TRADE})
+        _batch_embed([CODING_TASK, CUSTOMER_TASK], client)
+
+        out = ps._task_affinity(
+            world,
+            self._matches(world),
+            ps.Wants(tasks_more=(CUSTOMER_TASK,), tasks_less=(CODING_TASK,)),
+            client,
+        )
+
+        # Worked out on paper.  Against the LESS vector (TECH_NEAR) the three
+        # cards rank cleanly, so pct_less = [1.0, 0.5, 0.0].  Against the MORE
+        # vector (TRADE) the two tech rows are both exactly orthogonal to it and
+        # therefore TIED, so they share the mean of ranks 0 and 1:
+        # pct_more = [0.25, 0.25, 1.0].  Hence 0.5 + 0.5*(more - less):
+        assert out[0] == pytest.approx(0.125)  # Computer Programmers
+        assert out[1] == pytest.approx(0.375)  # Web Developers
+        assert out[2] == pytest.approx(1.0)  # Electricians
+        assert out[0] < out[1] < out[2]
+
+    @pytest.mark.parametrize(
+        "wants",
+        [None, "empty", "conditions_only"],
+        ids=["none", "empty", "conditions-only"],
+    )
+    def test_nothing_stated_switches_the_term_off(self, world, wants) -> None:
+        stated = {
+            None: None,
+            "empty": ps.Wants(),
+            "conditions_only": ps.Wants(conditions={"desk": "more"}),
+        }[wants]
+
+        assert ps._task_affinity(world, self._matches(world), stated, None) is None
+
+    def test_no_candidates_switches_the_term_off(self, world) -> None:
+        client = self._client({CODING_TASK: TECH_NEAR})
+
+        assert ps._task_affinity(world, [], ps.Wants(tasks_less=(CODING_TASK,)), client) is None
+
+    def test_a_statement_with_no_usable_vector_switches_the_term_off(
+        self, world
+    ) -> None:
+        """The embedding batch failed for the tapped sentence.
+
+        Off rather than neutral-for-everyone: the two are the same ranking, and
+        `None` is what `score_paths` reads to keep the weight at zero, so the
+        blend never runs and the scores stay on the pre-W-8 scale.
+        """
+        out = ps._task_affinity(
+            world, self._matches(world), ps.Wants(tasks_less=(CODING_TASK,)), None
+        )
+
+        assert out is None
+
+
+class TestTaskAffinityThroughScorePaths:
+    """What the term does to the page, end to end."""
+
+    def _profile(self) -> UserProfile:
+        return profile(move_intent="adjacent", skills=[user_skill("Python")])
+
+    def _scores(self, world, onet, monkeypatch, weight: float) -> dict[str, float]:
+        prof = self._profile()
+        client = wants_openai(prof, tasks={CODING_TASK: TECH_NEAR})
+        monkeypatch.setattr(ps, "_WANTS_TASK_AFFINITY_W", weight)
+        return {
+            p.onet_code: p.score
+            for p in score_paths(
+                prof, onet, client, wants=ps.Wants(tasks_less=(CODING_TASK,))
+            )
+        }
+
+    def test_a_disliked_task_demotes_the_job_that_is_made_of_it(
+        self, world, onet, no_conditions, monkeypatch
+    ) -> None:
+        """Isolated from the rotation: both arms state the same want, and the
+        only difference is the weight on the new term."""
+        rotation_only = self._scores(world, onet, monkeypatch, 0.0)
+        with_term = self._scores(world, onet, monkeypatch, 0.10)
+
+        # Computer Programmers is the pool's closest row to the disliked
+        # sentence and takes the whole penalty; Electricians are the furthest
+        # from it and are lifted by the same term.
+        assert with_term["15-1251.00"] < rotation_only["15-1251.00"]
+        assert with_term["47-2111.00"] > rotation_only["47-2111.00"]
+
+    def test_the_weight_is_how_hard_it_pushes(
+        self, world, onet, no_conditions, monkeypatch
+    ) -> None:
+        """A three-row toy pool cannot show a rank flip at the shipped weight --
+        its role cosines are saturated by construction -- so what is pinned here
+        is that the gap closes monotonically.  The rank change at the shipped
+        weight is measured on the real corpus in `TestTheFoundersCase`."""
+        gaps = [
+            self._scores(world, onet, monkeypatch, w)["15-1251.00"]
+            - self._scores(world, onet, monkeypatch, w)["47-2111.00"]
+            for w in (0.0, 0.10, 0.30)
+        ]
+
+        assert gaps[0] > gaps[1] > gaps[2]
+
+    def test_the_weight_at_zero_is_the_page_without_the_term(
+        self, world, onet, no_conditions, monkeypatch
+    ) -> None:
+        """The control arm of the measurement, pinned.
+
+        Every W-8 number is quoted against the same scorer with this constant at
+        0.0, so "0.0 means W-3b" has to be true of the code and not only of the
+        sweep script that measured it.
+        """
+        prof = self._profile()
+        client = wants_openai(prof, tasks={CODING_TASK: TECH_NEAR})
+        wants = ps.Wants(tasks_less=(CODING_TASK,))
+
+        shipped = score_paths(prof, onet, client, wants=wants)
+        monkeypatch.setattr(ps, "_WANTS_TASK_AFFINITY_W", 0.0)
+        control = score_paths(prof, onet, client, wants=wants)
+
+        assert [(p.onet_code, p.score) for p in shipped] != [
+            (p.onet_code, p.score) for p in control
+        ]
+        assert all(0.0 <= p.score <= 1.0 for p in shipped)
+
+    def test_it_costs_no_extra_embedding_call(self, world, onet, no_conditions) -> None:
+        """The tapped statements already ride in the one batched request, and
+        every candidate vector is already in the corpus matrix."""
+        prof = self._profile()
+        client = wants_openai(prof, tasks={CODING_TASK: TECH_NEAR})
+
+        score_paths(prof, onet, client, wants=ps.Wants(tasks_less=(CODING_TASK,)))
+
+        assert client.calls == 1
+
+
+class TestFinalScoreBlends:
+    """Two nested blends, each switchable off on its own."""
+
+    def _signals(self, affinity: float = 0.5, shortfall: float = 0.0):
+        return ps._Signals(
+            match=Match(code="x", title="X", score=0.0, row=0),
+            role=0.8,
+            coverage=0.4,
+            style=0.0,
+            zone=1.0,
+            zone_raw=4,
+            conditions_shortfall=shortfall,
+            task_affinity=affinity,
+        )
+
+    def test_zero_weights_are_the_four_term_form(self) -> None:
+        weights = (0.45, 0.33, 0.22, 0.0)
+        expected = 0.45 * 0.8 + 0.33 * 0.4 + 0.22 * 1.0
+
+        assert ps._final_score(self._signals(), weights) == pytest.approx(expected)
+        assert ps._final_score(
+            self._signals(affinity=0.0), weights, 0.0, 0.0
+        ) == pytest.approx(expected)
+
+    def test_the_affinity_blend_preserves_the_range(self) -> None:
+        weights = (0.45, 0.33, 0.22, 0.0)
+
+        for affinity in (0.0, 0.5, 1.0):
+            score = ps._final_score(self._signals(affinity), weights, 0.2, 0.1)
+            assert 0.0 <= score <= 1.0
+
+    def test_a_neutral_affinity_still_moves_every_card_by_the_same_amount(
+        self,
+    ) -> None:
+        """So the blend cannot reorder a page it has nothing to say about."""
+        weights = (0.45, 0.33, 0.22, 0.0)
+        high = ps._Signals(
+            match=Match(code="a", title="A", score=0.0, row=0),
+            role=0.9, coverage=0.4, style=0.0, zone=1.0, zone_raw=4,
+        )
+        low = ps._Signals(
+            match=Match(code="b", title="B", score=0.0, row=1),
+            role=0.5, coverage=0.4, style=0.0, zone=1.0, zone_raw=4,
+        )
+
+        gap_off = ps._final_score(high, weights) - ps._final_score(low, weights)
+        gap_on = ps._final_score(high, weights, 0.0, 0.1) - ps._final_score(
+            low, weights, 0.0, 0.1
+        )
+
+        assert gap_on == pytest.approx(gap_off * 0.9)
+
+
+# ---------------------------------------------------------------------------
 # Against the real 1,016-row artifact
 # ---------------------------------------------------------------------------
 
@@ -3532,6 +3804,163 @@ class TestSimulatedFeedbackAgainstTheRealCorpus:
         changed = [r.onet_code for r in self._score(eval_profile, openai, feedback)]
         assert changed != baseline, "the simulated taps changed nothing"
         assert [r.onet_code for r in self._score(eval_profile, openai, {})] == baseline
+
+
+#: The two O*NET statements Sebastian tapped in the browser, byte-exact from the
+#: Software Developers row of the corpus -- the panel showed them as "Fixing
+#: software issues" and "Evaluating user needs for software", and the display
+#: label never reaches the embedder (W-4).
+_FOUNDER_LESS = (
+    "Modify existing software to correct errors, adapt it to new hardware, "
+    "or upgrade interfaces and improve performance."
+)
+_FOUNDER_MORE = (
+    "Analyze user needs and software requirements to determine feasibility of "
+    "design within time and cost constraints."
+)
+
+#: Live embeddings differ in the fourth decimal between calls (W-3b's near-tie
+#: flake), so a margin has to clear that by an order of magnitude to mean
+#: anything.  0.005 is ten times it.
+_JITTER_PROOF_MARGIN = 0.005
+
+
+@real_corpus
+@real_embeddings
+class TestTheFoundersCase:
+    """W-8's regression test: the defect Sebastian found clicking through.
+
+    He marked "Fixing software issues" LESS and "Evaluating user needs for
+    software" MORE on his own Software Developer panel, asked for more people,
+    and Computer Programmers -- the most coding-heavy card on the page -- was
+    still the first card after the re-sort.
+
+    Not a fixture: the profile is written out here because the defect is about a
+    real person's page, and pinning it to a fixture would let a fixture edit
+    silently retire it.  It is a REAL-CORPUS test for the same reason -- the
+    whole mechanism is "this job's document against this sentence", and a
+    six-dimensional synthetic world cannot have a Computer Programmers row that
+    is genuinely made of debugging.
+    """
+
+    def _profile(self) -> UserProfile:
+        return UserProfile(
+            current_title="Software Developer",
+            career_status="employed",
+            skills=[
+                UserSkill(name="Python", level="advanced"),
+                UserSkill(name="JavaScript", level="advanced"),
+                UserSkill(name="SQL", level="intermediate"),
+                UserSkill(name="AWS", level="intermediate"),
+                UserSkill(name="Git", level="intermediate"),
+            ],
+            archetype="",
+            move_intent="adjacent",
+            seniority_intent="open",
+            priority="learning_growth",
+        )
+
+    def _wants(self) -> "ps.Wants":
+        return ps.Wants(
+            tasks_more=(_FOUNDER_MORE,),
+            tasks_less=(_FOUNDER_LESS,),
+            conditions={"people": "more"},
+        )
+
+    @staticmethod
+    def _onet():
+        """Fails loudly: W-8 adds no O*NET call, on this path or any other."""
+        client = MagicMock(spec=OnetClient)
+        client.search_occupations.side_effect = AssertionError("unexpected O*NET search")
+        client.get_job_zone.side_effect = AssertionError("unexpected get_job_zone")
+        return client
+
+    def _page(self, openai) -> list[ScoredPath]:
+        return score_paths(self._profile(), self._onet(), openai, wants=self._wants())
+
+    def test_the_defect_is_still_there_with_the_term_switched_off(
+        self, corpus, openai, monkeypatch
+    ) -> None:
+        """This is HEAD, and it is why W-8 exists.
+
+        Measured at ``_WANTS_TASK_AFFINITY_W = 0.0``: Computer Programmers went
+        from rank 1 at 0.7121 with no wants to rank 2 at 0.6750 with them -- a
+        reaction, but into a three-way tie spanning 0.0029, where the fourth
+        decimal of a live embedding picks the winner.  Sebastian saw it first
+        and the overseer's run saw it second, on the same code.
+
+        If this assertion ever fails, the rotation itself has started separating
+        the cards and the affinity term should be re-measured against whatever
+        did that -- it is not a licence to delete the test.
+        """
+        monkeypatch.setattr(ps, "_WANTS_TASK_AFFINITY_W", 0.0)
+
+        page = self._page(openai)
+        codes = [p.onet_code for p in page]
+
+        assert "15-1251.00" in codes[:3], (
+            "the pre-W-8 defect is gone: Computer Programmers is no longer in "
+            "the top three with the affinity term off (page: %s)" % codes[:5]
+        )
+        assert page[0].score - page[2].score < 0.01, (
+            "the top three used to be a tie inside 0.003; they are now spread "
+            "by %.4f" % (page[0].score - page[2].score)
+        )
+
+    def test_the_job_made_of_the_disliked_task_leaves_the_top_three(
+        self, corpus, openai
+    ) -> None:
+        """And by a margin live-embedding jitter cannot flip.
+
+        A tie is not a demotion, which is the whole point: the fix has to be
+        visible to a person reading down the page, so "rank 4 by 0.0002" would
+        not count.  Measured at the shipped weight: rank 5 at 0.6299 against a
+        third card at 0.6485 -- a 0.0186 margin, 37 times the jitter.
+        """
+        page = self._page(openai)
+        codes = [p.onet_code for p in page]
+        assert "15-1251.00" in codes, "Computer Programmers left the page entirely"
+
+        rank = codes.index("15-1251.00")
+        assert rank >= 3, (
+            "Computer Programmers is still in the top three at rank %d" % (rank + 1)
+        )
+        margin = page[2].score - page[rank].score
+        assert margin > _JITTER_PROOF_MARGIN, (
+            "Computer Programmers is below the top three by only %.4f, which "
+            "embedding jitter can flip" % margin
+        )
+
+    def test_what_he_asked_for_is_what_reaches_the_top(
+        self, corpus, openai
+    ) -> None:
+        """The other half of the complaint, and the one that makes it a fix
+        rather than a filter.
+
+        Computer Systems Analysts is the corpus row closest to the sentence he
+        marked MORE (0.392, the highest of the page) and furthest from the one
+        he marked LESS (0.293).  It should be the first card, not merely not-
+        Programmers.
+        """
+        page = self._page(openai)
+
+        assert page[0].onet_code == "15-1211.00", (
+            "the first card is %s (%s), not Computer Systems Analysts"
+            % (page[0].onet_code, page[0].title)
+        )
+
+    def test_it_is_a_demotion_and_not_a_deletion(self, corpus, openai) -> None:
+        """A job he still has every skill for stays reachable.
+
+        "Less of this task" is not "never show me this job": he marked one of
+        eight statements, and a term that drove the card off the page would be
+        answering a question he did not ask.  At the shipped weight it sits at
+        rank 5 of 10; at 0.15 it falls off, which is one of the reasons the
+        constant is not 0.15.
+        """
+        codes = [p.onet_code for p in self._page(openai)]
+
+        assert "15-1251.00" in codes
 
 
 # ---------------------------------------------------------------------------

@@ -774,6 +774,71 @@ _WANTS_CONDITION_SHIFT: float = 0.40
 #: ``None`` disables the arm.
 _WANTS_FRESH_START_ROLE_W: float | None = 0.20
 
+#: How much of the final score W-8's **task affinity** term carries:
+#: ``final = (1 - w)*base + w*affinity``, blended over the conditions blend the
+#: same way that one is blended over the four-term base.
+#:
+#: THE DEFECT THIS FIXES was found by Sebastian in the browser, not by the
+#: harness: he marked "Fixing software issues" LESS and "Evaluating user needs
+#: for software" MORE, and Computer Programmers -- the most coding-heavy card on
+#: the page -- was still the first card after the re-sort.  Reproduced live
+#: (Software Developer, `adjacent`, Python/JavaScript/SQL/AWS/Git, people: more):
+#: the shipped scorer DID react, Programmers went from rank 1 at 0.7121 to rank
+#: 2 at 0.6750 -- but into a THREE-WAY TIE spanning 0.0029 (0.6762 / 0.6750 /
+#: 0.6733), where the fourth decimal of a live embedding decides the order.
+#:
+#: **Why W-3's rotation alone is that weak, measured per term:** the task wants
+#: reached the rank only through the query, i.e. only through `role`, and
+#: rotating the query lowers *every* card's role cosine together -- top card
+#: 0.830 -> 0.602, eleventh 0.627 -> 0.503 -- so the column moves down almost
+#: rigidly and separates the cards by very little.  Meanwhile `coverage` (the
+#: user's skills, weight 0.33) cannot see the wants at all and keeps voting for
+#: the job they asked to get away from, and `zone` is a flat 1.0 on every card
+#: of a single-zone page.  The row with **by far** the highest cosine to the
+#: disliked sentence -- Programmers at 0.399 against a next-highest 0.351 -- had
+#: nothing in the rank that said so.
+#:
+#: Macro nDCG@10 / harmful_rate over the fifteen wants profiles (p21-p35),
+#: against W-3b's shipped 0.4440 / 0.0800.  Every cell re-run in a second pass;
+#: the two passes agree to 0.0030 or better, so the shape is structure:
+#:
+#:     affinity w   0.000   0.050   0.075   0.100   0.125   0.150   0.20    0.30
+#:     nDCG@10     0.4440  0.4647  0.4583  0.4643  0.4695  0.4541  0.4447  0.4175
+#:     harm        0.0800  0.0600  0.0600  0.0600  0.0600  0.0600  0.0533  0.0533
+#:     panel-only  0.3991  0.4136    --    0.4112  0.4097  0.3940    --      --
+#:
+#: **A plateau from 0.05 to 0.125 and no identifiable peak inside it**: every
+#: cell in that interval is within 0.006 of every other on both metrics, and the
+#: two leave-one-profile-out selections disagree about which end wins -- the
+#: fifteen pick 0.125 (13/15), the panel-reachable arm picks 0.05 (11/15).
+#: 0.10 is the round number between the two answers, and it is the low half of
+#: the interval on purpose: `panel-only` is the arm real users live on (wants
+#: restricted to the eight tasks the panel actually offers) and it is the one
+#: that falls away first -- 0.15 is already below its own control there.
+#:
+#: Leave-one-INTENT-out picks the same cell (0.125) on all three splits, so the
+#: plateau's right edge transfers; at 0.10 the held-out five are `adjacent`
+#: 0.516 -> 0.551 and `fresh_start` 0.389 -> 0.431, with `stay_in_field`
+#: 0.427 -> 0.412 -- flat-to-slightly-down, and that 0.015 is one profile (p21,
+#: a single `primary` falling off rank 10 and coming back at 0.125).
+#:
+#: **Harm is a gate and it went the right way**: 0.080 -> 0.060 on the fifteen,
+#: 0.067 -> 0.060 panel-reachable, and unchanged at 0.0053 on the old twenty,
+#: which state no wants and therefore never reach this line.  9 profiles
+#: improve, 2 level, 4 worsen at 0.10; the four are rank-9/10 churn, not a card
+#: the user would call wrong.
+#:
+#: **The rotation is still doing work** -- this is not a replacement for it.
+#: Turning the rotation off and keeping only the affinity term (beta = gamma =
+#: 0, no `fresh_start` role override) tops out at 0.4332 at w = 0.30, below
+#: every plateau cell of the two together.  And the two are not the same signal
+#: wearing different hats: with the affinity term present, pushing `adjacent`'s
+#: gamma to 1.2 -- which W-3a measured as still improving -- now *costs* 0.015
+#: (0.4639 at gamma 0.8, 0.4466 at 1.2), because the LESS direction is already
+#: carried by a term that does not have to drag the query to carry it.  Shared
+#: gamma stays at 0.40 and no per-intent constant is introduced.
+_WANTS_TASK_AFFINITY_W: float = 0.10
+
 #: Cosine values are rescaled onto [0, 1] by a fixed affine map before the
 #: weights are applied.
 #:
@@ -1203,6 +1268,11 @@ class _Signals:
     conditions, a user who stated none, and a job that already meets everything
     asked for are all "nothing to subtract", and none of them should look like a
     zero score.
+
+    ``task_affinity`` is W-8's sixth, and its neutral value is 0.5 for the
+    mirror-image reason: it is a two-sided *score* on a pool-relative scale, so
+    "nothing to say about this candidate" is the middle of the scale rather than
+    the bottom of it.  See :func:`_task_affinity`.
     """
 
     match: Match
@@ -1212,6 +1282,7 @@ class _Signals:
     zone: float
     zone_raw: int | None
     conditions_shortfall: float = 0.0
+    task_affinity: float = 0.5
 
 
 # ---------------------------------------------------------------------------
@@ -1951,6 +2022,108 @@ def _conditions_shortfall(code: str, targets: "_ConditionTargets | None") -> flo
     return sum(gaps) / len(gaps)
 
 
+def _pool_percentile(values: "np.ndarray") -> "np.ndarray":
+    """Rank-transform *values* onto [0, 1] within the retrieved pool.
+
+    THE RESCALE IS THE WHOLE REASON THE TERM WORKS, and it is W-3a's finding
+    about raw O*NET ratings arriving again one layer up.  A short task statement
+    against a 300-token role document cosines into a narrow, *shifted* band --
+    measured on the founder's page, every card sits between 0.21 and 0.43, and
+    the band's position depends on how wordy the statement is, not on how well
+    the job matches it.  Left raw, a 0.05 spread would be multiplied by a
+    fifth-of-the-score weight and disappear underneath terms that swing a full
+    1.0; and a user who happened to tap a long sentence would get a systematically
+    different weight from one who tapped a short one.
+
+    A rank transform rather than a z-score because it needs no scale parameter
+    and cannot be moved by one outlier, and because the ordering is the only
+    thing the raw number is trusted for.  Measured against a clipped z-score
+    (see :data:`_WANTS_TASK_AFFINITY_W`), the two are within 0.005 of each other
+    on the fifteen; the rank transform wins on having one fewer constant.
+
+    Ties share the mean of the ranks they span, so two identical documents
+    cannot be separated by the order retrieval happened to return them in.
+    A pool of one is 0.5: there is no "relative to the pool" for a pool of one.
+    """
+    arr = np.asarray(values, dtype=np.float64)
+    if arr.size < 2:
+        return np.full(arr.size, 0.5)
+    _, inverse, counts = np.unique(arr, return_inverse=True, return_counts=True)
+    starts = np.concatenate(([0.0], np.cumsum(counts, dtype=np.float64)[:-1]))
+    mean_rank = starts + (counts - 1) / 2.0
+    return mean_rank[inverse] / (arr.size - 1)
+
+
+def _task_affinity(
+    corpus: OccupationCorpus,
+    matches: list[Match],
+    wants: "Wants | None",
+    openai_client,
+) -> "list[float] | None":
+    """Per-candidate [0, 1] score for *this job's* fit to the tasks marked (W-8).
+
+    WHY THIS EXISTS.  W-3 let the task wants reach the rank through the query
+    rotation alone, which means through the ``role`` term and nothing else.
+    Rotating the query lowers *every* card's role cosine together -- on the
+    founder's page the top card went 0.830 -> 0.602 and the eleventh 0.627 ->
+    0.503 -- so the rotation moves the whole column down and separates the cards
+    by very little, while ``coverage`` (the user's skills, weight 0.33) is blind
+    to the wants and keeps voting for the job they asked to get away from.  The
+    founder marked "Modify existing software to correct errors..." as LESS and
+    Computer Programmers -- the corpus row with **by far** the highest cosine to
+    that sentence, 0.399 against a next-highest 0.351 -- stayed in the top two.
+    Nothing in the rank said so directly.  This term says it directly.
+
+    ``more`` raises a candidate, ``less`` lowers it, and the two are averaged
+    into one number so that the term has a single weight::
+
+        both stated   0.5 + 0.5*(pct_more - pct_less)
+        only more     pct_more
+        only less     1 - pct_less
+
+    all three in [0, 1] with **0.5 as the neutral value**, so a candidate at the
+    pool median is neither helped nor hurt and the blend in
+    :func:`_final_score` cannot move a page that carries no information.
+
+    ONE WEIGHT FOR BOTH DIRECTIONS, AND THE ABLATION SAYS THAT IS THE RIGHT
+    SHAPE ONLY BECAUSE USERS STATE BOTH.  Re-running the fifteen with each side
+    deleted (macro nDCG@10 at affinity 0.0 -> 0.10): **more only** 0.4309 ->
+    0.4518, **less only** 0.3653 -> 0.3305, **both** 0.4440 -> 0.4643.  The LESS
+    side on its own is the one arm this term makes worse -- it demotes the whole
+    neighbourhood of the disliked sentence, and for a user who has said nothing
+    about what they *do* want, that neighbourhood is most of what they can
+    reach (the fall is `fresh_start`, 0.333 -> 0.235).  Its harm rate more than
+    halves at the same time (0.087 -> 0.033), so what it does is trade reach for
+    safety.  Read with care: those two arms score a *different user* against
+    labels written for the full block, so only the within-arm delta means
+    anything.  Not separately weighted, because a second constant fitted to a
+    synthetic ablation on n=15 would be fitting to the ablation; if a real
+    population turns out to state LESS alone, this is the first thing to revisit.
+
+    Costs two matrix products against rows the request has already retrieved and
+    vectors the one batched embedding call has already fetched: **no extra
+    embedding, no O*NET call, no per-candidate I/O.**  Returns None -- the term
+    is switched off, exactly as :func:`_condition_targets` switches its own off
+    -- when there is no stated task, no candidate, or no tapped statement that
+    could be embedded.
+    """
+    if wants is None or not wants.has_tasks or not matches:
+        return None
+    more = _mean_unit_vector(wants.tasks_more, openai_client)
+    less = _mean_unit_vector(wants.tasks_less, openai_client)
+    if more is None and less is None:
+        return None
+
+    rows = [m.row for m in matches]
+    more_pct = _pool_percentile(_dot_rows(corpus, rows, more)) if more is not None else None
+    less_pct = _pool_percentile(_dot_rows(corpus, rows, less)) if less is not None else None
+    if more_pct is not None and less_pct is not None:
+        return [0.5 + 0.5 * float(m - l) for m, l in zip(more_pct, less_pct)]
+    if more_pct is not None:
+        return [float(m) for m in more_pct]
+    return [1.0 - float(l) for l in less_pct]  # type: ignore[union-attr]
+
+
 # ---------------------------------------------------------------------------
 # Card reasons -- what is DISTINCTIVE about this card (W-4, design doc §8.2)
 # ---------------------------------------------------------------------------
@@ -2645,6 +2818,7 @@ def _build_signals(
     skills_vec: "np.ndarray | None",
     behavioral_vec: "np.ndarray | None",
     conditions: "_ConditionTargets | None" = None,
+    task_affinity: "Sequence[float] | None" = None,
 ) -> list[_Signals]:
     """Score every retrieved candidate on all four terms, in two matrix products.
 
@@ -2655,6 +2829,11 @@ def _build_signals(
 
     *conditions* is W-3's fifth term and is None whenever the user stated none,
     which is every request made before the wants layer existed.
+
+    *task_affinity* is W-8's sixth, one value per *matches* entry in the same
+    order, already pool-rescaled by :func:`_task_affinity`.  None -- no stated
+    task -- leaves every candidate at the neutral 0.5, which
+    :func:`_final_score` never reads because its weight is 0.0 in that case.
     """
     rows = [m.row for m in matches]
     coverage_raw = _dot_rows(corpus, rows, skills_vec)
@@ -2674,6 +2853,9 @@ def _build_signals(
                 ),
                 zone_raw=candidate_zone,
                 conditions_shortfall=_conditions_shortfall(match.code, conditions),
+                task_affinity=(
+                    0.5 if task_affinity is None else float(task_affinity[i])
+                ),
             )
         )
     return signals
@@ -2683,6 +2865,7 @@ def _final_score(
     signals: _Signals,
     weights: tuple[float, float, float, float],
     conditions_w: float = 0.0,
+    affinity_w: float = 0.0,
 ) -> float:
     """``role_w*role + coverage_w*coverage + zone_w*zone + style_w*style``.
 
@@ -2699,6 +2882,21 @@ def _final_score(
     `score_paths`' clamp at zero, where it would tie with every other demoted
     candidate.  ``conditions_w`` is 0.0 for every request that states no
     conditions, and then this is byte-identical to the four-term form.
+
+    W-8's task affinity is blended over the result of *that*, in the same shape
+    and for the same reasons::
+
+        final = (1 - aw)*final + aw*affinity
+
+    Two nested blends rather than one weighted sum of six terms, because the two
+    wants terms are answers to *different questions* -- "is this the kind of
+    work I asked for" and "is this the kind of day I asked for" -- and each has
+    to be switchable off on its own without renormalising the other four.  The
+    cost is that a request stating both shrinks the base's share to
+    ``(1-cw)(1-aw)``; at the shipped 0.20/0.15 that is 0.68, and the weights
+    were measured at those values rather than inferred from them.
+    ``affinity_w`` is 0.0 for every request that states no task, and then this
+    line does not execute at all.
     """
     role_w, coverage_w, zone_w, style_w = weights
     base = (
@@ -2707,9 +2905,14 @@ def _final_score(
         + zone_w * signals.zone
         + style_w * signals.style
     )
-    if conditions_w <= 0.0:
-        return base
-    return (1.0 - conditions_w) * base + conditions_w * (1.0 - signals.conditions_shortfall)
+    if conditions_w > 0.0:
+        base = (
+            (1.0 - conditions_w) * base
+            + conditions_w * (1.0 - signals.conditions_shortfall)
+        )
+    if affinity_w > 0.0:
+        base = (1.0 - affinity_w) * base + affinity_w * signals.task_affinity
+    return base
 
 
 def _overlapping_skills(
@@ -2877,7 +3080,10 @@ def score_paths(
 
        and, when the user stated work *conditions*, blend the one-sided
        conditions term over that: ``(1-w)*final + w*(1 - shortfall)``
-       (:func:`_conditions_shortfall`).
+       (:func:`_conditions_shortfall`); then, when they marked *tasks*, blend
+       W-8's pool-relative task affinity over the result the same way
+       (:func:`_task_affinity`), so a want reaches the rank as a term of its own
+       and not only through the query it rotated.
 
     5. Return up to ``_TOP_N`` results sorted by score descending.
 
@@ -3119,15 +3325,23 @@ def score_paths(
             conditions_w,
         )
 
+    # W-8, and it has to be computed HERE rather than beside the rotation: it is
+    # pool-relative, so it needs the retrieved set -- which the rotation itself
+    # helps choose.
+    affinity = _task_affinity(corpus, matches, wants, openai_client)
+    affinity_w = _WANTS_TASK_AFFINITY_W if affinity is not None else 0.0
+
     signals = _build_signals(
         user_profile, anchor, corpus, matches, skills_vec, behavioral_vec,
-        stated_conditions,
+        stated_conditions, affinity,
     )
     overlaps = _overlapping_skills(user_profile, corpus, matches, openai_client)
 
     scored: list[ScoredPath] = []
     for sig in signals:
-        raw = _final_score(sig, (role_w, coverage_w, zone_w, style_w), conditions_w)
+        raw = _final_score(
+            sig, (role_w, coverage_w, zone_w, style_w), conditions_w, affinity_w
+        )
         scored.append(
             ScoredPath(
                 onet_code=sig.match.code,
