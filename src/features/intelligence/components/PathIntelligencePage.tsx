@@ -28,6 +28,7 @@ import {
 import {
   useClearPathFeedback,
   usePathFit,
+  usePrefetchPathFits,
   useRecordPathFeedback,
   type PathFeedbackMap,
   type PathVerdict,
@@ -156,9 +157,12 @@ export default function PathIntelligencePage() {
   const recordFeedback = useRecordPathFeedback();
   const clearFeedback = useClearPathFeedback();
 
-  // F-6: the deep fit, opened by a card click.
+  // F-6: the deep fit, opened by a card click. W-9 made it a query keyed by
+  // occupation, so reopening a card is free and the cards on screen can be
+  // warmed before anybody clicks one.
   const [openCode, setOpenCode] = useState<string | null>(null);
-  const pathFit = usePathFit();
+  const pathFit = usePathFit(openCode);
+  const prefetchFits = usePrefetchPathFits();
 
   const fetchSuggestions = useCallback(() => {
     setShowPreferences(false);
@@ -313,13 +317,9 @@ export default function PathIntelligencePage() {
     });
   }, [rerank, effectiveFeedback, clearFeedback]);
 
-  const openFit = useCallback(
-    (onetCode: string) => {
-      setOpenCode(onetCode);
-      pathFit.mutate(onetCode);
-    },
-    [pathFit],
-  );
+  // Opening a card is now state and nothing else: the query below it fires on
+  // the code, and if the card was prefetched there is nothing to fire.
+  const openFit = useCallback((onetCode: string) => setOpenCode(onetCode), []);
 
   const openTitle =
     data?.suggestions.find((s) => s.onet_code === openCode)?.title ?? "this path";
@@ -406,14 +406,15 @@ export default function PathIntelligencePage() {
       {openCode && !feedbackState && (
         <PathFitPanel
           title={openTitle}
-          fit={pathFit.data ?? null}
+          fit={pathFit.data}
           pending={pathFit.isPending}
           errorCode={fitError}
-          onClose={() => {
-            setOpenCode(null);
-            pathFit.reset();
-          }}
-          onRetry={() => pathFit.mutate(openCode)}
+          // Closing clears nothing, deliberately (W-9). Each occupation has its
+          // own cache entry, so the next card cannot inherit this one's error --
+          // and dropping queries here could tear down a prefetch another card is
+          // waiting on.
+          onClose={() => setOpenCode(null)}
+          onRetry={pathFit.retry}
         />
       )}
 
@@ -546,6 +547,10 @@ export default function PathIntelligencePage() {
                 currentTitle={currentTitle}
                 careerStatus={data.career_status}
                 onOpen={openFit}
+                // W-9: warm the three cards that are on screen. Silent, once
+                // per code, and fired from the list's own effect so it cannot
+                // delay the list.
+                onVisibleCodes={prefetchFits}
                 feedback={effectiveFeedback}
                 onVerdict={handleVerdict}
                 feedbackPending={feedbackPending}

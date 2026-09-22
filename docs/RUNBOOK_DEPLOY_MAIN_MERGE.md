@@ -535,9 +535,9 @@ Order, on deploy day, before `git merge` to main:
 
 1. `flask corpus publish` — uploads the artifact set from `Desktop/solverah-corpus/`
    to the **app** bucket (`S3_BUCKET_NAME`, never the backup bucket). First real run is
-   Sebastian's trigger. **Six objects, not four** (see the wants sidecars below):
-   `.npy`, `.json`, `.zones.json`, `.clusters.json`, `.experience.json`, `.tasks.json`.
-   Count them in the JSON the command echoes — `"uploaded": 6`.
+   Sebastian's trigger. **Seven objects, not four** (see the optional sidecars below):
+   `.npy`, `.json`, `.zones.json`, `.clusters.json`, `.experience.json`, `.tasks.json`,
+   `.fit.json`. Count them in the JSON the command echoes — `"uploaded": 7`.
 2. Set `SOLVERAH_CORPUS_S3_KEY` (and `SOLVERAH_CORPUS_CACHE_DIR`) on `solverah-api` in the
    Render dashboard. Both are codified as `sync: false` in `render.yaml`'s `solverah-prod`
    group (F-8) — render.yaml governs nothing until Blueprint adoption, so the dashboard is
@@ -550,34 +550,46 @@ Rollback is the ordinary revert of the merge; the corpus object is inert if unus
 loader is lazy per process (never in `create_app()`), so `flask db upgrade` and the crons
 do not touch S3 — a missing key fails the feature, not the deploy.
 
-#### The two wants sidecars — the same dependency, but they DEGRADE instead of 503 (added 2026-09-21, W-3b)
+#### The three optional sidecars — the same dependency, but they DEGRADE instead of 503 (added 2026-09-21, W-3b; third row added 2026-09-22, W-9)
 
-Workstream W's wants layer reads two more files beside the matrix. Both are pulled by
+Workstream W reads three more files beside the matrix. All are pulled by
 `occupation_retrieval._fetch_from_s3` from keys derived from `SOLVERAH_CORPUS_S3_KEY`, and
-both are **optional to the loader and required to the feature**:
+all are **optional to the loader and required to the feature**:
 
 | object | written by | if it is missing |
 |---|---|---|
 | `<stem>.experience.json` | `flask corpus experience` (~2,800 O*NET requests, resumable) | the scorer drops its conditions term and logs **one** warning per worker; stated conditions are silently ignored |
 | `<stem>.tasks.json` | `flask corpus tasks` (no O*NET; ~$0.10 of `gpt-4o-mini`) | W-4's panel has no task half — and tasks are the wants layer's **first** signal, so most of the feature is gone |
+| `<stem>.fit.json` | `flask corpus fit` (~3,800 O*NET requests at 4/s, ~16 min, resumable) | every card a user opens costs four live O*NET calls again — 2,384 ms cold, 844 ms warm, against ~1 s on the sidecar path. Nothing is wrong on screen; it is just slow, and the frontend prefetches three cards per list, so the O*NET spend is ~3x what it used to be |
 
-**Neither returns a 503, and that is the hazard.** A worker with no `.experience.json`
+**None of them returns a 503, and that is the hazard.** A worker with no `.experience.json`
 serves a page that looks exactly like one where the user's answers did not matter — which
 is indistinguishable from the feature being broken, and is the shape F-8 box 9 was caught
-by once already with the cluster sidecar. So:
+by once already with the cluster sidecar. `.fit.json` is the quieter version of the same
+thing: the page is correct and slow, which reads as "the product is slow". So:
 
-- `flask corpus publish` **carries both when they sit beside the artifact and passes over
-  them when they do not** (`occupation_corpus.OPTIONAL_PUBLISHED_SUFFIXES`). It does not
-  refuse: `corpus refresh` is build → zones → clusters → publish and builds neither, so a
-  hard requirement would make the quarterly cadence unable to publish at all. **The count
-  in the echoed summary is the check** — four objects after a refresh means the two wants
-  files were not rebuilt for the new artifact and must be built before the key is switched.
-- After a **quarterly `corpus refresh`**, run `flask corpus experience` and
-  `flask corpus tasks` against the new `.npy` and publish again *before* moving
-  `SOLVERAH_CORPUS_S3_KEY`. The old artifact's sidecars do not serve the new one: the keys
-  are derived from the matrix filename.
+- `flask corpus publish` **carries all three when they sit beside the artifact and passes
+  over them when they do not** (`occupation_corpus.OPTIONAL_PUBLISHED_SUFFIXES`). It does
+  not refuse: `corpus refresh` is build → zones → clusters → publish and builds none of
+  them, so a hard requirement would make the quarterly cadence unable to publish at all.
+  **The count in the echoed summary is the check** — four objects after a refresh means the
+  three W sidecars were not rebuilt for the new artifact and must be built before the key
+  is switched.
+- After a **quarterly `corpus refresh`**, run `flask corpus experience`,
+  `flask corpus tasks` and `flask corpus fit` against the new `.npy` and publish again
+  *before* moving `SOLVERAH_CORPUS_S3_KEY`. The old artifact's sidecars do not serve the
+  new one: the keys are derived from the matrix filename.
+
+  ```
+  SOLVERAH_CORPUS_PATH=<dir holding the .npy>  flask corpus fit
+  ```
+
+  Resumable: it appends each occupation to a checkpoint JSONL under the system temp
+  directory as it completes, and a re-run skips what is already there. Rate-limited to
+  4 req/s against O*NET's documented threshold of 5; never run two of these at once.
 - Verify on the worker the same way as step 3: the boot/first-request log must show no
-  `no conditions sidecar beside` and no `no tasks sidecar beside` WARNING.
+  `no conditions sidecar beside`, no `no tasks sidecar beside` and no
+  `no fit sidecar beside` WARNING.
 
 #### The wants table — one migration, and it is NOT part of the corpus dependency (added 2026-09-21, W-7)
 

@@ -299,6 +299,58 @@ const CARD_B = {
   profile_dimensions: ["x", "y"],
   match_score: 0.7,
 };
+const CARD_C = {
+  onet_code: "29-1141.00",
+  title: "Registered Nurses",
+  why_text: "C",
+  profile_dimensions: ["x", "y"],
+  match_score: 0.6,
+};
+const CARD_D = {
+  onet_code: "47-2111.00",
+  title: "Electricians",
+  why_text: "D",
+  profile_dimensions: ["x", "y"],
+  match_score: 0.5,
+};
+
+/** A complete `PathFitResponse`, which the panel renders every field of. */
+function fitPayload(onetCode: string, title: string) {
+  return {
+    onet_code: onetCode,
+    title,
+    fit_score: 0.71,
+    retrieval_cosine: 0.8,
+    centroid_score: 0.6,
+    coverage_score: 0.8,
+    skills_score: 0.7,
+    work_style_score: 0.4,
+    zone: {
+      user_zone: 4,
+      user_zone_resolved: true,
+      occupation_zone: 4,
+      delta: 0,
+      score: 0.6,
+    },
+    matched_skills: ["Python"],
+    gap_skills: [],
+    tasks: [],
+    tech_stack: [],
+    weights: {},
+    // Zero since W-9: the four O*NET calls moved into the corpus sidecar.
+    onet_calls: 0,
+    narrative: null,
+    computed_at: "2026-09-16T12:00:00Z",
+    cached: false,
+  };
+}
+
+/** Every deep-fit POST this render has made, in order. */
+function fitRequests(): string[] {
+  return mocks.fetchWithAuth.mock.calls
+    .map((call) => String(call[0]))
+    .filter((path) => path.startsWith("/me/path-fit/"));
+}
 
 function suggestionsSucceedWith(suggestions: unknown[]) {
   suggestionsSettleAs({
@@ -589,6 +641,143 @@ describe("PathIntelligencePage - the deep fit on click", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: /how .* fits you/i })[1]);
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+// ─── W-9: the three cards on screen are warm before anybody clicks ─────────
+//
+// Sebastian's first click-through: "the loading of a position when i click on
+// it takes so long to load going to need to have a better approach to caching
+// these things." The server half of the answer is the fit sidecar; this is the
+// client half, and these are the four ways it could be wrong -- warming the
+// wrong cards, warming them twice, not being used by the click, or being
+// visible when it fails.
+
+describe("PathIntelligencePage - warming the cards on screen", () => {
+  it("warms exactly the three cards that rendered, not the whole list", async () => {
+    // `PathSuggestionList` pages at three. Warming all ten would spend seven
+    // requests on cards nobody has scrolled to.
+    suggestionsSucceedWith([CARD_A, CARD_B, CARD_C, CARD_D]);
+    routeFetch({});
+
+    renderPage();
+
+    await waitFor(() => expect(fitRequests()).toHaveLength(3));
+    expect(fitRequests().sort()).toEqual([
+      "/me/path-fit/11-2021.00",
+      "/me/path-fit/15-1252.00",
+      "/me/path-fit/29-1141.00",
+    ]);
+  });
+
+  it("warms the next three when Show more reveals them", async () => {
+    suggestionsSucceedWith([CARD_A, CARD_B, CARD_C, CARD_D]);
+    routeFetch({});
+    renderPage();
+    await waitFor(() => expect(fitRequests()).toHaveLength(3));
+
+    fireEvent.click(screen.getByRole("button", { name: /show 1 more path/i }));
+
+    await waitFor(() => expect(fitRequests()).toHaveLength(4));
+    expect(fitRequests()).toContain("/me/path-fit/47-2111.00");
+  });
+
+  it("warms nothing a second time when the list re-ranks under it", async () => {
+    // A re-rank changes the order, so the list reports a different set of
+    // codes -- but they are the same occupations, and the cache already has
+    // them. Re-requesting here is what burned the old 10/min limit.
+    suggestionsSucceedWith([CARD_A, CARD_B, CARD_C]);
+    routeFetch({
+      "/me/path-feedback": () => ({
+        suggestions: [CARD_C, CARD_A, CARD_B],
+        career_status: "employed",
+        generated_at: "2026-09-01T00:00:01Z",
+        feedback: { "11-2021.00": "interesting" },
+      }),
+    });
+    renderPage();
+    await waitFor(() => expect(fitRequests()).toHaveLength(3));
+
+    fireEvent.click(verdictButtons("interesting")[0]);
+
+    await waitFor(() =>
+      expect(cardTitles()).toEqual([
+        "Registered Nurses",
+        "Marketing Managers",
+        "Software Developers",
+      ])
+    );
+    expect(fitRequests()).toHaveLength(3);
+  });
+
+  it("opens a warm card without asking again", async () => {
+    suggestionsSucceedWith([CARD_A]);
+    routeFetch({
+      "/me/path-fit/11-2021.00": () => fitPayload("11-2021.00", "Marketing Managers"),
+    });
+    renderPage();
+    await waitFor(() => expect(fitRequests()).toHaveLength(1));
+
+    fireEvent.click(screen.getAllByRole("button", { name: /how .* fits you/i })[0]);
+
+    await waitFor(() => expect(screen.getByText("Python")).toBeInTheDocument());
+    expect(fitRequests()).toHaveLength(1);
+  });
+
+  it("reopening a card makes no second request", async () => {
+    suggestionsSucceedWith([CARD_A]);
+    routeFetch({
+      "/me/path-fit/11-2021.00": () => fitPayload("11-2021.00", "Marketing Managers"),
+    });
+    renderPage();
+    await waitFor(() => expect(fitRequests()).toHaveLength(1));
+
+    fireEvent.click(screen.getAllByRole("button", { name: /how .* fits you/i })[0]);
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /close/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /how .* fits you/i })[0]);
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(fitRequests()).toHaveLength(1);
+  });
+
+  it("renders nothing at all when a prefetch is refused", async () => {
+    // A 429 on something the user never asked for. No alert, no panel, no
+    // change to the list -- they find out nothing, because there is nothing
+    // they needed to know.
+    suggestionsSucceedWith([CARD_A, CARD_B, CARD_C]);
+    mocks.fetchWithAuth.mockImplementation((path: string) =>
+      path.startsWith("/me/path-fit/")
+        ? Promise.reject(new Error("rate_limited"))
+        : Promise.resolve({})
+    );
+
+    renderPage();
+
+    await waitFor(() => expect(fitRequests()).toHaveLength(3));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(cardTitles()).toEqual([
+      "Marketing Managers",
+      "Software Developers",
+      "Registered Nurses",
+    ]);
+  });
+
+  it("a click after a refused prefetch still gets its own error handling", async () => {
+    suggestionsSucceedWith([CARD_A, CARD_B]);
+    mocks.fetchWithAuth.mockImplementation((path: string) =>
+      path.startsWith("/me/path-fit/")
+        ? Promise.reject(new Error("corpus_unavailable"))
+        : Promise.resolve({})
+    );
+    renderPage();
+    await waitFor(() => expect(fitRequests()).toHaveLength(2));
+
+    fireEvent.click(screen.getAllByRole("button", { name: /how .* fits you/i })[0]);
+
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 });
 

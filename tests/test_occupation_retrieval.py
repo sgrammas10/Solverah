@@ -76,9 +76,10 @@ FIXTURE_CLUSTERS_BYTES = json.dumps(
     }
 ).encode("utf-8")
 
-#: W-3's two sidecars, here for the same reason the cluster one is: this module
-#: only has to put them on disk at the right name, and their contents are
-#: asserted by `test_occupation_conditions.py` and `test_occupation_tasks.py`.
+#: W-3's two sidecars and W-9's, here for the same reason the cluster one is:
+#: this module only has to put them on disk at the right name, and their
+#: contents are asserted by `test_occupation_conditions.py`,
+#: `test_occupation_tasks.py` and `test_occupation_fit.py`.
 FIXTURE_CONDITIONS_NAME = f"onet_corpus_{FIXTURE_VERSION}.experience.json"
 FIXTURE_CONDITIONS_BYTES = json.dumps(
     {
@@ -100,6 +101,21 @@ FIXTURE_TASKS_BYTES = json.dumps(
             "29-1141.00": [
                 {"task": "Record patients' vital signs.", "label": "Taking vital signs"}
             ]
+        },
+    }
+).encode("utf-8")
+
+FIXTURE_FIT_NAME = f"onet_corpus_{FIXTURE_VERSION}.fit.json"
+FIXTURE_FIT_BYTES = json.dumps(
+    {
+        "schema_version": 1,
+        "matrix_filename": f"onet_corpus_{FIXTURE_VERSION}.npy",
+        "count": 1,
+        "fits": {
+            "29-1141.00": {
+                "parts": ["hot_technologies"],
+                "hot_tech": ["Epic Systems"],
+            }
         },
     }
 ).encode("utf-8")
@@ -964,6 +980,7 @@ def s3_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> _FakeS3:
             f"corpus/{FIXTURE_CLUSTERS_NAME}": FIXTURE_CLUSTERS_BYTES,
             f"corpus/{FIXTURE_CONDITIONS_NAME}": FIXTURE_CONDITIONS_BYTES,
             f"corpus/{FIXTURE_TASKS_NAME}": FIXTURE_TASKS_BYTES,
+            f"corpus/{FIXTURE_FIT_NAME}": FIXTURE_FIT_BYTES,
         }
     )
     monkeypatch.setattr("solverah.infra.storage.get_s3_client", lambda: fake)
@@ -983,6 +1000,7 @@ class TestS3Source:
             f"corpus/{FIXTURE_CLUSTERS_NAME}",
             f"corpus/{FIXTURE_CONDITIONS_NAME}",
             f"corpus/{FIXTURE_TASKS_NAME}",
+            f"corpus/{FIXTURE_FIT_NAME}",
         ]
 
 

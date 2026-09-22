@@ -13,9 +13,12 @@ is the fix: keep the analysis, spend it on the one occupation the user clicked.
 The budget Tier 1 used to spread across ~40 candidates now goes to one, so the
 analysis gets **better**, not merely rarer:
 
-    per click      O*NET   4   get_skills_profile, get_hot_technologies,
-                                get_work_activities, get_tasks -- all
-                                ``_OCC_CACHE``-backed (24h), one code
+    per click      O*NET   0   W-9: the four answers are static per occupation
+                                and now live in ``<artifact>.fit.json``.
+                                Without the sidecar, or for a code it lacks,
+                                it is 4 again: get_skills_profile,
+                                get_hot_technologies, get_work_activities,
+                                get_tasks -- all ``_OCC_CACHE``-backed (24h)
                    OpenAI  1   one batched embedding request
                    LLM     0   see "NARRATIVE" below
 
@@ -59,6 +62,7 @@ from typing import Any, Iterable
 
 import numpy as np
 
+from backend.services import occupation_fit
 from backend.services.occupation_retrieval import (
     CorpusUnavailable,
     OccupationCorpus,
@@ -431,7 +435,8 @@ class _OccupationData:
 
     Every field degrades to empty rather than propagating: one occupation with
     no task data (74 of 1,016 have none) is a thinner panel, not a failed
-    request.  ``calls`` is the budget this module promises to keep at four, and
+    request.  ``calls`` is the budget this module promises to keep at four --
+    **and at zero since W-9, whenever the fit sidecar has the code** -- and
     :func:`deep_fit` reports it so a regression is visible on the wire rather
     than only in a provider bill.  It counts the four fetches **this module**
     makes and nothing else: anchor resolution costs 0 on the normal path -- the
@@ -713,8 +718,60 @@ def _resolve_row(onet_code: str, corpus: OccupationCorpus) -> int:
     return row
 
 
+def _stored_occupation(onet_code: str) -> _OccupationData | None:
+    """The same four answers out of W-9's sidecar, or None to go and fetch them.
+
+    Everything the four calls return is static per occupation, so
+    ``flask corpus fit`` fetches the whole catalog once and writes it beside the
+    artifact.  On a hit this costs **zero** O*NET requests and the client is not
+    touched at all; the click drops from 2,384 ms cold / 844 ms warm to the one
+    embeddings batch.
+
+    The sidecar stores what the endpoints returned, **unfiltered**: the
+    importance threshold and the ``.title``/``.name`` projections below are the
+    live path's own and are applied here byte-for-byte, so the two paths differ
+    in nothing but ``calls``.  That is measured, not argued:
+    ``tests/test_path_deep_fit.py::TestTheFitSidecar`` diffs the two ``DeepFit``s
+    over the synthetic world, and W-9's landing note diffs them over five real
+    codes against the real artifact.
+
+    Two ways to answer None, and both are the live path unchanged: no sidecar at
+    all (``get_fit_table`` logs one warning per corpus version), or a code the
+    table lacks.  ``get_corpus`` is memoised and :func:`deep_fit` has already
+    loaded it by the time this runs, so this costs a dict lookup.
+    """
+    table = occupation_fit.get_fit_table(get_corpus())
+    if table is None:
+        return None
+    record = table.for_code(onet_code)
+    if record is None:
+        return None
+    return _OccupationData(
+        generic_skills=[
+            Skill(
+                element_id=element.element_id,
+                name=element.name,
+                importance=element.importance,
+                level=element.level,
+            )
+            for element in record.generic_skills
+        ],
+        hot_tech=list(record.hot_tech),
+        work_activities=[
+            (element.name, element.importance)
+            for element in record.work_activities
+            if element.importance >= _WORK_ACTIVITY_IMPORTANCE_THRESHOLD
+        ],
+        tasks=[task.title for task in record.tasks if task.title],
+        calls=0,
+    )
+
+
 def _fetch_occupation(onet_code: str, onet_client: OnetClient) -> _OccupationData:
-    """The four ``_OCC_CACHE``-backed calls for one code.
+    """One occupation's four answers: from the sidecar if it has them, else live.
+
+    W-9 put the sidecar in front (see :func:`_stored_occupation`).  Below it,
+    unchanged, are the four ``_OCC_CACHE``-backed calls.
 
     Each is isolated, because the four failure modes are not the same failure:
     losing hot tech thins the role profile, losing work activities disables the
@@ -722,8 +779,13 @@ def _fetch_occupation(onet_code: str, onet_client: OnetClient) -> _OccupationDat
     reason to refuse a fit the other three can still describe -- which is the
     same judgement the funnel's ``_fetch_candidate_data`` made for work
     activities, extended to all four now that the request is about one
-    occupation rather than forty.
+    occupation rather than forty.  The builder keeps the same isolation, so a
+    code with a 404 on one endpoint is stored with the three it has.
     """
+    stored = _stored_occupation(onet_code)
+    if stored is not None:
+        return stored
+
     data = _OccupationData()
 
     for label, call, apply in (
@@ -961,7 +1023,9 @@ def deep_fit(
 
     Synchronous by design (design doc §2.3): four ``_OCC_CACHE``-backed O*NET
     calls for one code and one batched embedding request is fast enough that a
-    job/poll pair would cost the user more in round trips than it saved.
+    job/poll pair would cost the user more in round trips than it saved.  W-9
+    took the four calls out of the common case entirely -- see
+    :func:`_stored_occupation` -- leaving the one embeddings batch.
 
     Args:
         user_profile:  The same dataclass Tier 1 scores.

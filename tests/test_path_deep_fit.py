@@ -23,6 +23,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
+import backend.services.occupation_fit as occupation_fit
 import backend.services.path_deep_fit as pdf
 import backend.services.path_scoring as ps
 from backend.services.occupation_retrieval import CorpusUnavailable
@@ -66,6 +67,19 @@ def _clear_embed_cache():
     ps._EMBED_CACHE.clear()
     yield
     ps._EMBED_CACHE.clear()
+
+
+@pytest.fixture(autouse=True)
+def _clear_fit_memo():
+    """W-9's sidecar memo is a module global, so it must not cross tests.
+
+    Every test above `TestTheFitSidecar` runs with **no** sidecar -- the
+    synthetic corpus has no `.fit.json` beside it -- which is why the four-call
+    budget below is still four.
+    """
+    occupation_fit.reset_fit_cache()
+    yield
+    occupation_fit.reset_fit_cache()
 
 
 @pytest.fixture()
@@ -154,6 +168,214 @@ class TestCallBudget:
         user = fitted_profile()
         deep_fit(user, CODE, onet, tech_openai(user))
         assert onet.get_tech_skills.call_count == 0
+
+
+# ---------------------------------------------------------------------------
+# W-9: the same four answers, out of a file
+# ---------------------------------------------------------------------------
+#
+# Everything the four calls return is static per occupation, so `flask corpus
+# fit` fetches the catalog once and `_stored_occupation` reads it. The claim is
+# not "it is faster" -- that is measured offline, against the real artifact, and
+# recorded in W-9's landing note. The claim these tests make is the one a test
+# can make: the sidecar path spends NOTHING at O*NET and produces the SAME
+# `DeepFit` the live path produces from the same data.
+
+
+def fit_table_matching(onet_double, code: str = CODE) -> occupation_fit.FitTable:
+    """A `FitTable` holding exactly what the `onet` double would have answered.
+
+    Built from the double's own return values rather than restated, so the
+    equivalence assertion below is about the two code paths and cannot pass
+    because two hand-written fixtures happened to agree.
+    """
+    return occupation_fit.FitTable(
+        fits={
+            code: occupation_fit.OccupationFit(
+                generic_skills=tuple(
+                    occupation_fit.FitElement(
+                        s.element_id, s.name, s.importance, s.level
+                    )
+                    for s in onet_double.get_skills_profile.return_value
+                ),
+                hot_tech=tuple(onet_double.get_hot_technologies.return_value),
+                work_activities=tuple(
+                    occupation_fit.FitElement(
+                        a.element_id, a.name, a.importance, a.level
+                    )
+                    for a in onet_double.get_work_activities.return_value
+                ),
+                tasks=tuple(
+                    occupation_fit.FitTask(
+                        t.task_id, t.title, t.importance, t.category
+                    )
+                    for t in onet_double.get_tasks.return_value
+                ),
+                parts=occupation_fit.FIT_PARTS,
+            )
+        }
+    )
+
+
+class TestTheFitSidecar:
+    def test_a_hit_costs_no_onet_call_at_all(self, world, onet, monkeypatch) -> None:
+        table = fit_table_matching(onet)
+        monkeypatch.setattr(occupation_fit, "get_fit_table", lambda corpus: table)
+        user = fitted_profile()
+
+        fit = deep_fit(user, CODE, onet, tech_openai(user))
+
+        assert onet.get_skills_profile.call_count == 0
+        assert onet.get_hot_technologies.call_count == 0
+        assert onet.get_work_activities.call_count == 0
+        assert onet.get_tasks.call_count == 0
+        assert fit.onet_calls == 0
+
+    def test_a_hit_still_costs_exactly_one_embedding_request(
+        self, world, onet, monkeypatch
+    ) -> None:
+        """The embeddings batch is what is left of the click, so it must not
+        quietly become two."""
+        table = fit_table_matching(onet)
+        monkeypatch.setattr(occupation_fit, "get_fit_table", lambda corpus: table)
+        user = fitted_profile()
+        client = tech_openai(user)
+
+        deep_fit(user, CODE, onet, client)
+
+        assert client.calls == 1
+
+    def test_the_two_paths_produce_the_same_fit(
+        self, world, onet, monkeypatch
+    ) -> None:
+        """The equivalence, as an assertion rather than an argument.
+
+        Same user, same corpus, same four answers -- once through O*NET and once
+        through the file. Everything the panel renders has to match; the only
+        field allowed to differ is the one that reports what was spent.
+        """
+        user = fitted_profile()
+        live = deep_fit(user, CODE, onet, tech_openai(user)).to_dict()
+
+        table = fit_table_matching(onet)
+        monkeypatch.setattr(occupation_fit, "get_fit_table", lambda corpus: table)
+        ps._EMBED_CACHE.clear()
+        stored = deep_fit(user, CODE, onet, tech_openai(user)).to_dict()
+
+        assert live.pop("onet_calls") == 4
+        assert stored.pop("onet_calls") == 0
+        assert stored == live
+
+    def test_the_read_applies_the_same_filters_the_live_path_applies(
+        self, world, onet, monkeypatch
+    ) -> None:
+        """Nothing is filtered at BUILD time, so everything must be filtered at
+        READ time -- otherwise the sidecar path scores a role the live path
+        never would. `Filing` is under the work-activity threshold and `Trivia`
+        under the generic-skill one.
+        """
+        table = fit_table_matching(onet)
+        monkeypatch.setattr(occupation_fit, "get_fit_table", lambda corpus: table)
+
+        data = pdf._fetch_occupation(CODE, onet)
+
+        assert data.work_activities == [("Analyzing Data", 80.0)]
+        # Importance descending: Programming 90, the two tools at the flat
+        # _HOT_TECH_IMPORTANCE of 75 in O*NET's own order, Critical Thinking 70.
+        assert [name for name, _ in pdf._role_items_for(data)] == [
+            "Programming", "Python", "Git", "Critical Thinking"
+        ]
+
+    def test_a_partial_record_is_used_rather_than_refetched(
+        self, world, onet, monkeypatch
+    ) -> None:
+        """Three answers is a thinner panel. Going back to O*NET for the fourth
+        would reintroduce the latency for the occupations most likely to be
+        clicked twice."""
+        table = occupation_fit.FitTable(
+            fits={
+                CODE: occupation_fit.OccupationFit(
+                    hot_tech=("Python",), parts=("hot_technologies",)
+                )
+            }
+        )
+        monkeypatch.setattr(occupation_fit, "get_fit_table", lambda corpus: table)
+        user = fitted_profile()
+
+        fit = deep_fit(user, CODE, onet, tech_openai(user))
+
+        assert fit.onet_calls == 0
+        assert fit.tech_stack == ["Python"]
+        assert fit.tasks == []
+        assert onet.get_tasks.call_count == 0
+
+    def test_a_code_the_table_lacks_falls_through_to_the_live_path(
+        self, world, onet, monkeypatch
+    ) -> None:
+        table = fit_table_matching(onet, code="29-1141.00")
+        monkeypatch.setattr(occupation_fit, "get_fit_table", lambda corpus: table)
+        user = fitted_profile()
+
+        fit = deep_fit(user, CODE, onet, tech_openai(user))
+
+        assert fit.onet_calls == 4
+        assert onet.get_skills_profile.call_count == 1
+
+    def test_no_sidecar_at_all_is_the_live_path(self, world, onet) -> None:
+        """The degrade. The synthetic corpus has no `.fit.json` beside it, which
+        is the state every other test in this file runs in."""
+        user = fitted_profile()
+
+        fit = deep_fit(user, CODE, onet, tech_openai(user))
+
+        assert fit.onet_calls == 4
+
+    def test_a_sidecar_with_the_wrong_schema_version_is_the_live_path(
+        self, monkeypatch, onet, tmp_path
+    ) -> None:
+        """Through the real loader, not a stub: a file this build cannot read is
+        a slow click, never a wrong one or a 500."""
+        import dataclasses
+        import json
+
+        corpus = dataclasses.replace(
+            build_corpus(WORLD_ROWS, WORLD_ZONES),
+            matrix_path=tmp_path / "onet_corpus_x.npy",
+        )
+        monkeypatch.setattr(pdf, "get_corpus", lambda: corpus)
+        monkeypatch.setattr(ps, "get_corpus", lambda: corpus)
+        (tmp_path / "onet_corpus_x.fit.json").write_text(
+            json.dumps({"schema_version": 99, "fits": {CODE: {"parts": ["tasks"]}}}),
+            encoding="utf-8",
+        )
+        user = fitted_profile()
+
+        fit = deep_fit(user, CODE, onet, tech_openai(user))
+
+        assert fit.onet_calls == 4
+        assert onet.get_tasks.call_count == 1
+
+    def test_a_real_sidecar_beside_the_artifact_is_read_by_the_real_loader(
+        self, monkeypatch, onet, tmp_path
+    ) -> None:
+        """The other half of the previous test: the whole chain, file included."""
+        import dataclasses
+
+        corpus = dataclasses.replace(
+            build_corpus(WORLD_ROWS, WORLD_ZONES),
+            matrix_path=tmp_path / "onet_corpus_x.npy",
+        )
+        monkeypatch.setattr(pdf, "get_corpus", lambda: corpus)
+        monkeypatch.setattr(ps, "get_corpus", lambda: corpus)
+        occupation_fit.write_fit_sidecar(
+            corpus.matrix_path, fit_table_matching(onet)
+        )
+        user = fitted_profile()
+
+        fit = deep_fit(user, CODE, onet, tech_openai(user))
+
+        assert fit.onet_calls == 0
+        assert fit.tech_stack == ["Python", "Git"]
 
 
 # ---------------------------------------------------------------------------

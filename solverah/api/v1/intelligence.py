@@ -534,16 +534,24 @@ def get_my_path_suggestion_job(job_id: str):
     ),
 )
 @intelligence_bp.route("/me/path-fit/<onet_code>", methods=["POST"])
-@limiter.shared_limit("10 per minute", scope=_SCOPE_PATH_FIT)
+@limiter.shared_limit("30 per minute", scope=_SCOPE_PATH_FIT)
 @jwt_required()
 def post_my_path_fit(onet_code: str):
     """POST /me/path-fit/{onet_code} - the deep fit for one occupation.
 
-    10 per minute, matching `POST /me/path-suggestion-jobs` and `POST
-    /me/recommendations/refresh`: the budget that bounds provider spend lives on
-    the route that reaches the provider. A shortlist is ten cards, so ten clicks
-    a minute is every card on the page and then some, and a stored fit is served
-    without spending anything -- the limit bounds a loop, not a reader.
+    **30 per minute since W-9, and the number moved because what it protects
+    did.** It was 10, matching `POST /me/path-suggestion-jobs` and `POST
+    /me/recommendations/refresh`, because a click cost four live O*NET calls --
+    ten clicks was 40 requests a minute at somebody else's threshold. W-9 put
+    those four in a file beside the corpus (`occupation_fit`), so a click now
+    costs one embeddings batch and one row, and the frontend warms the three
+    cards on screen before they are clicked. Ten was then a limit that a page
+    load plus three deliberate clicks could reach: Sebastian burned it inside a
+    minute of testing.
+
+    A stored fit is still served without spending anything, so what this bounds
+    is 30 *distinct* occupations a minute -- three times the whole shortlist. It
+    bounds a loop, not a reader.
     """
     user = _current_user()
     if not user:

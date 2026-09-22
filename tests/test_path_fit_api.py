@@ -493,14 +493,17 @@ def test_an_unexpected_failure_is_a_500_and_stores_nothing(
 # ---------------------------------------------------------------------------
 
 
-def test_ten_per_minute_matching_the_path_suggestion_job(
+def test_thirty_per_minute_now_that_a_click_does_not_reach_onet(
     client, monkeypatch, mock_fit
 ):
     """A9: the budget bounds provider spend, so it lives on the door to the spend.
 
-    A stored fit is served without spending anything, so ten *distinct*
-    occupations is what the limit actually bounds -- which is the whole
-    shortlist and then some.
+    **10 until W-9.** That number was sized against four live O*NET calls per
+    click; the fit sidecar removed them, and the frontend now prefetches the
+    three cards on screen, so a page load plus three clicks could reach 10 on
+    its own -- it did, in one minute of Sebastian's testing. A stored fit is
+    still served without spending anything, so thirty *distinct* occupations is
+    what this bounds: three times the whole shortlist.
     """
     from app import app
     from solverah.extensions import limiter
@@ -516,14 +519,14 @@ def test_ten_per_minute_matching_the_path_suggestion_job(
                 "/api/v1/me/path-fit/15-12%02d.00" % i,
                 headers={"X-CSRF-TOKEN": csrf},
             ).status_code
-            for i in range(11)
+            for i in range(31)
         ]
     finally:
         app.config["TESTING"] = True
         limiter.reset()
 
-    assert statuses[:10] == [200] * 10
-    assert statuses[10] == 429
+    assert statuses[:30] == [200] * 30
+    assert statuses[30] == 429
 
 
 # ---------------------------------------------------------------------------

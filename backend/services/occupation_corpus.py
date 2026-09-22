@@ -818,21 +818,22 @@ PUBLISHED_SUFFIXES: tuple[str, ...] = (
     ".clusters.json",
 )
 
-#: W-3's two sidecars, published **when they are on disk** and passed over when
-#: they are not.  A second tier rather than two more required suffixes, because
-#: the two halves of the rule above pull in opposite directions here:
+#: W-3's two sidecars and W-9's, published **when they are on disk** and passed
+#: over when they are not.  A second tier rather than three more required
+#: suffixes, because the two halves of the rule above pull in opposite
+#: directions here:
 #:
-#: * ``corpus refresh`` is build -> zones -> clusters -> publish and builds
-#:   neither of these (one needs ~2,800 O*NET requests, the other an LLM pass),
-#:   so requiring them would make the quarterly cadence refuse to publish at
-#:   all; while
+#: * ``corpus refresh`` is build -> zones -> clusters -> publish and builds none
+#:   of these (two need thousands of O*NET requests, the third an LLM pass), so
+#:   requiring them would make the quarterly cadence refuse to publish at all;
+#:   while
 #: * a corpus rebuilt without them and published anyway would silently strip
 #:   the wants layer of its data, which is the F-8 box 9 failure again.
 #:
 #: The compromise is: never block a publish on them, always carry them when
 #: they exist, and leave the check to the OBJECT COUNT -- the summary lists
-#: every key, so "four, not six" is visible to whoever ran the command.
-#: RUNBOOK_DEPLOY_MAIN_MERGE.md is where "should there be six" is answered for
+#: every key, so "four, not seven" is visible to whoever ran the command.
+#: RUNBOOK_DEPLOY_MAIN_MERGE.md is where "should there be seven" is answered for
 #: a deploy, and the answer there is yes.
 #:
 #: What each missing file would cost:
@@ -840,9 +841,12 @@ PUBLISHED_SUFFIXES: tuple[str, ...] = (
 #:                     warning (`occupation_conditions.get_conditions`)
 #:   .tasks.json       W-4's panel has no task half -- and tasks are the wants
 #:                     layer's FIRST signal (design doc §8.2)
+#:   .fit.json         every card a user opens costs four live O*NET calls again
+#:                     -- 2,384 ms cold, 844 ms warm (`occupation_fit`, W-9)
 OPTIONAL_PUBLISHED_SUFFIXES: tuple[str, ...] = (
     ".experience.json",
     ".tasks.json",
+    ".fit.json",
 )
 
 #: Which command writes each file, named in the error when one is missing.
@@ -853,6 +857,7 @@ _SUFFIX_COMMANDS: dict[str, str] = {
     ".clusters.json": "flask corpus clusters",
     ".experience.json": "flask corpus experience",
     ".tasks.json": "flask corpus tasks",
+    ".fit.json": "flask corpus fit",
 }
 
 

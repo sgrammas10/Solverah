@@ -145,6 +145,7 @@ __all__ = [
     "clusters_sidecar_path",
     "conditions_sidecar_path",
     "fetch_job_zones",
+    "fit_sidecar_path",
     "get_corpus",
     "is_all_other_title",
     "load_corpus",
@@ -523,6 +524,25 @@ def conditions_sidecar_path(matrix_path: str | os.PathLike[str]) -> Path:
     return path.with_name(path.stem + ".experience.json")
 
 
+def fit_sidecar_path(matrix_path: str | os.PathLike[str]) -> Path:
+    """The ``*.fit.json`` that belongs beside *matrix_path*.
+
+    A deliberate duplicate of ``occupation_fit.fit_sidecar_path``, for the reason
+    :func:`clusters_sidecar_path` gives at length: that module imports from this
+    one, so importing back would be a cycle, and
+    ``test_the_two_fit_sidecar_path_helpers_agree`` fails if the two spellings
+    drift.
+
+    W-9's file, and the reason this module needs the name is
+    :func:`_fetch_from_s3`: without the object a production worker spends four
+    live O*NET calls on every card a user opens, which is the 2,384 ms cold
+    click the sidecar exists to remove.  Its absence is a degrade and never an
+    outage -- see ``occupation_fit.get_fit_table``.
+    """
+    path = Path(matrix_path)
+    return path.with_name(path.stem + ".fit.json")
+
+
 def tasks_sidecar_path(matrix_path: str | os.PathLike[str]) -> Path:
     """The ``*.tasks.json`` that belongs beside *matrix_path*.
 
@@ -744,15 +764,19 @@ def _fetch_from_s3() -> Path:
     #: its own cadence by its own CLI command and any of them can land after a
     #: worker has already cached the matrix.
     #:
-    #: The last two are W-3's, added in W-3b.  Without them a production worker
-    #: served the wants layer with no data behind it and said nothing about it,
-    #: which is the silent failure F-8 box 9 had already been caught by once
-    #: with the cluster sidecar: the feature looks built and does nothing.
+    #: Rows three and four are W-3's, added in W-3b.  Without them a production
+    #: worker served the wants layer with no data behind it and said nothing
+    #: about it, which is the silent failure F-8 box 9 had already been caught by
+    #: once with the cluster sidecar: the feature looks built and does nothing.
+    #:
+    #: Row five is W-9's, and its absence is louder than silent but slower than
+    #: it should be: every card a user opens costs four live O*NET calls again.
     optional = [
         ("zone", stem_key + ".zones.json", zone_sidecar_path(matrix_path)),
         ("cluster", stem_key + ".clusters.json", clusters_sidecar_path(matrix_path)),
         ("conditions", stem_key + ".experience.json", conditions_sidecar_path(matrix_path)),
         ("tasks", stem_key + ".tasks.json", tasks_sidecar_path(matrix_path)),
+        ("fit", stem_key + ".fit.json", fit_sidecar_path(matrix_path)),
     ]
 
     from solverah.infra import storage  # noqa: PLC0415 -- see docstring

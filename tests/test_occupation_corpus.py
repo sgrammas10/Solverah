@@ -1024,15 +1024,25 @@ class TestArtifactFiles:
         """`_fetch_from_s3` derives every key from the `.npy` key by string
         surgery. A name published here that the fetch does not ask for is a
         file in the bucket and a feature that still does nothing."""
-        from backend.services import occupation_conditions, occupation_tasks
+        from backend.services import occupation_conditions, occupation_fit, occupation_tasks
 
         stem = artifact.with_suffix("")
-        assert corpus.OPTIONAL_PUBLISHED_SUFFIXES == (".experience.json", ".tasks.json")
+        assert corpus.OPTIONAL_PUBLISHED_SUFFIXES == (
+            ".experience.json",
+            ".tasks.json",
+            # W-9. Without it every card a user opens costs four live O*NET
+            # calls again -- correct, and slow, which is the quiet version of
+            # the failure this test guards against.
+            ".fit.json",
+        )
         assert occupation_conditions.conditions_sidecar_path(artifact).name == (
             stem.name + ".experience.json"
         )
         assert occupation_tasks.tasks_sidecar_path(artifact).name == (
             stem.name + ".tasks.json"
+        )
+        assert occupation_fit.fit_sidecar_path(artifact).name == (
+            stem.name + ".fit.json"
         )
 
 

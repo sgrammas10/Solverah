@@ -792,6 +792,198 @@ def _fetch_experience_reports(
     return rows + fetched, limiter.count
 
 
+@corpus_cli.command("fit")
+@click.option(
+    "--corpus",
+    default=None,
+    help="The .npy artifact, or a directory holding one "
+    "(default: $SOLVERAH_CORPUS_PATH, then $SOLVERAH_CORPUS_DIR).",
+)
+@click.option(
+    "--limit",
+    default=None,
+    type=int,
+    help="Only the first N retrievable occupations. For a dry sample before "
+    "spending the ~3,800 requests a full run costs.",
+)
+@click.option(
+    "--checkpoint",
+    default=None,
+    type=click.Path(),
+    help="Where each occupation's four answers are appended as they arrive "
+    "(default: a scratch file under the system temp directory). "
+    "Re-running resumes from it and does not re-fetch finished occupations.",
+)
+@click.option(
+    "--rate",
+    default=None,
+    type=float,
+    show_default="4.0/s",
+    help="Aggregate O*NET requests per second. O*NET's documented threshold is 5.",
+)
+def corpus_fit(
+    corpus: str | None,
+    limit: int | None,
+    checkpoint: str | None,
+    rate: float | None,
+) -> None:
+    """Write the deep-fit sidecar beside an existing corpus artifact.
+
+    BUILD_PLAN W-9.  Opening a card runs `path_deep_fit.deep_fit`, whose first
+    act is four live O*NET calls for the clicked occupation -- measured at
+    2,384 ms cold and 844 ms with the client's own 24h cache warm.  Everything
+    those calls return is static per occupation, so this fetches all of it once
+    and writes it beside the artifact; after that a click costs zero O*NET
+    requests.  See `backend.services.occupation_fit` for what is stored and why
+    it is stored unfiltered.
+
+    **Four O*NET requests per occupation, so ~3,800 for the catalog** (~16
+    minutes at the default 4/s, under O*NET's documented threshold of 5).  That
+    is why this checkpoints: every occupation is appended to the JSONL as it
+    completes and a re-run skips what is already there, so a run that dies at
+    request 3,000 costs the remaining 800 and not all 3,800.
+
+    "..., All Other" rows are skipped -- retrieval never returns one and
+    `deep_fit` refuses a click on one, so four requests each would buy nothing
+    but rate limit.
+
+    Writes `<artifact>.fit.json` and touches neither the .npy nor any other
+    sidecar.
+    """
+    import tempfile
+
+    from backend.services import occupation_fit, occupation_retrieval
+
+    resolved = (
+        corpus
+        or os.environ.get("SOLVERAH_CORPUS_PATH")
+        or os.environ.get("SOLVERAH_CORPUS_DIR")
+    )
+    if not resolved:
+        raise click.ClickException(
+            "No corpus artifact. Pass --corpus or set SOLVERAH_CORPUS_PATH."
+        )
+
+    try:
+        matrix_path = occupation_retrieval.resolve_matrix_path(resolved)
+        loaded = occupation_retrieval.load_corpus(matrix_path)
+    except occupation_retrieval.CorpusUnavailable as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    # Beside the artifact would put a half-finished fetch log inside a published
+    # artifact set that `corpus publish` enumerates -- the judgement
+    # `_checkpointed_labeller` already makes for `corpus tasks`.
+    raw_path = (
+        Path(checkpoint)
+        if checkpoint
+        else Path(tempfile.gettempdir()) / "solverah" / f"{matrix_path.stem}.fit.raw.jsonl"
+    )
+    rows, onet_requests = _fetch_occupation_fits(loaded, raw_path, rate, limit)
+
+    table = occupation_fit.build_table(rows, source=raw_path.name)
+    if not table.count:
+        raise click.ClickException(
+            "no occupation carried a single O*NET answer; refusing to write an "
+            "empty sidecar."
+        )
+
+    path = occupation_fit.write_fit_sidecar(matrix_path, table)
+    click.echo(
+        json.dumps(
+            {
+                "event": "corpus_fit",
+                "matrix_path": str(matrix_path),
+                "fit_path": str(path),
+                "checkpoint": str(raw_path),
+                "occupations": table.count,
+                "complete": table.complete_count,
+                "partial": table.count - table.complete_count,
+                "onet_requests": onet_requests,
+                "bytes": path.stat().st_size,
+            }
+        )
+    )
+
+
+def _fetch_occupation_fits(
+    loaded, raw_path: Path, rate: float | None, limit: int | None
+) -> tuple[list, int]:
+    """Fetch every occupation's four answers, appending to *raw_path* as it goes.
+
+    Split out of the command body for the reason `_fetch_experience_reports` is:
+    the command keeps the shape its siblings have -- resolve, call a service,
+    write, echo JSON -- and the resumability bookkeeping lives in one place.
+
+    Checkpoint rows for codes that are NOT in this run's wanted set are dropped
+    rather than carried into the table.  That is what makes `--limit` a sample
+    of the catalog rather than "the sample plus whatever an earlier full run
+    left in the file", and it also stops a rebuilt corpus's retired codes
+    surviving in the sidecar.
+    """
+    from backend.services import occupation_corpus, occupation_fit
+    from backend.services.onet_client import OnetClient, OnetRateLimitError
+    from backend.services.occupation_retrieval import is_all_other_title
+
+    try:
+        onet_client = OnetClient()
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    wanted = [
+        (code, title)
+        for code, title in zip(loaded.codes, loaded.titles)
+        if not is_all_other_title(title)
+    ]
+    if limit is not None:
+        wanted = wanted[:limit]
+    wanted_codes = {code for code, _ in wanted}
+
+    rows: list = []
+    if raw_path.exists():
+        rows = [
+            row
+            for row in occupation_fit.iter_raw_rows(raw_path)
+            if str(row.get("code")) in wanted_codes
+        ]
+        click.echo(f"resuming: {len(rows)} occupations already fetched", err=True)
+    done = {str(row.get("code")) for row in rows}
+
+    limiter = occupation_corpus.RateLimiter(
+        rate if rate is not None else occupation_corpus.DEFAULT_REQUESTS_PER_SECOND
+    )
+
+    raw_path.parent.mkdir(parents=True, exist_ok=True)
+    fetched: list = []
+    with raw_path.open("a", encoding="utf-8") as handle:
+        try:
+            for index, (code, title) in enumerate(wanted, start=1):
+                if code in done:
+                    continue
+                record = occupation_fit.record_payload(
+                    code,
+                    title,
+                    occupation_fit.fetch_occupation_fit(
+                        onet_client, code, limiter=limiter
+                    ),
+                )
+                handle.write(json.dumps(record, ensure_ascii=True) + "\n")
+                handle.flush()
+                fetched.append(record)
+                if index % 25 == 0:
+                    click.echo(
+                        f"  {index}/{len(wanted)} occupations, "
+                        f"{limiter.count} requests",
+                        err=True,
+                    )
+        except OnetRateLimitError as exc:
+            raise click.ClickException(
+                f"O*NET rate limit hit: {exc}.  {raw_path} holds what was "
+                "fetched; re-run to resume."
+            ) from exc
+
+    return rows + fetched, limiter.count
+
+
 @corpus_cli.command("tasks")
 @click.option(
     "--corpus",

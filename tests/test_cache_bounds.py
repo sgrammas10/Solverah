@@ -49,15 +49,15 @@ as F-8's brief originally had it: F-5's deep fit and F-6's re-rank both use it,
 and ``test_embed_cache_reads_tolerate_the_stored_vector_type`` pins that the two
 tiers hold one object.
 
-**W-3 added two per-worker SIDECAR MEMOS, and they are a different shape.**
-``occupation_conditions._TABLE`` and ``occupation_tasks._TABLE`` are not caches
--- nothing accumulates in them and nothing is ever evicted. Each holds exactly
-one table, for exactly one corpus version, read once from a file that is fixed
-at build time. So the bound is not a policy, it is an *upper bound on a known
-artifact*, and the two tests for each are: the measured size of that artifact,
-recorded here so a build that doubles it fails a test rather than a dyno; and
-that a second corpus version REPLACES the memo instead of joining it, which is
-the only way either could grow.
+**W-3 added two per-worker SIDECAR MEMOS, and W-9 a third. They are a different
+shape.** ``occupation_conditions._TABLE``, ``occupation_tasks._TABLE`` and
+``occupation_fit._TABLE`` are not caches -- nothing accumulates in them and
+nothing is ever evicted. Each holds exactly one table, for exactly one corpus
+version, read once from a file that is fixed at build time. So the bound is not
+a policy, it is an *upper bound on a known artifact*, and the two tests for each
+are: the measured size of that artifact, recorded here so a build that doubles
+it fails a test rather than a dyno; and that a second corpus version REPLACES
+the memo instead of joining it, which is the only way any of them could grow.
 
 **W-3 also roughly doubled the ``_EMBED_CACHE`` demand of one user**, and the
 residency-window arithmetic below is corrected for it: a wants request embeds
@@ -600,11 +600,11 @@ def test_occupation_cache_is_bounded_even_when_nothing_has_expired(occ) -> None:
     assert occ("15-0000.00") not in onet_client._OCC_CACHE
 
 
-# ── W-3's two sidecar memos ─────────────────────────────────────────────────
+# ── W-3's two sidecar memos, and W-9's third ────────────────────────────────
 #
 # Not caches. Each holds ONE table for ONE corpus version, read once from a file
 # whose contents are fixed at build time, and nothing is ever evicted because
-# nothing ever accumulates. So there are exactly two ways either becomes a
+# nothing ever accumulates. So there are exactly two ways any of them becomes a
 # memory problem, and each has a test:
 #
 #   1. the artifact itself grows -- a rebuild with more axes, or a panel size
@@ -639,6 +639,27 @@ _MEASURED_CONDITIONS_MEMO_BYTES = 947_278
 #: should have to look at before raising it.
 _MEASURED_TASKS_MEMO_BYTES = 2_713_513
 
+#: The same, for W-9's fit table, measured 2026-09-22 on the built
+#: `onet_corpus_20260916.fit.json` (10.4 MB on disk): 941 occupations carrying
+#: 31,850 rated Skills, 37,351 Work Activities, 19,130 task statements and
+#: 11,339 hot-technology names.
+#:
+#: **This is the largest of the three memos, and it is why `occupation_fit`
+#: defines its own slotted dataclasses instead of reusing `onet_client.Skill`
+#: and `Task`.** Same data, same four field names, both measured with the walk
+#: below: rebuilt with those two plain dataclasses the identical table is
+#: 20,168,455 bytes (19.23 MB), because ~88,000 instances each carry a
+#: per-instance `__dict__`. Slotted it is the number below -- 7.4 MB less, on a
+#: 512 MB instance that boots at ~148 MB and OOMed once already. The repeated
+#: strings are interned on load for the same reason: O*NET's Skills and Work
+#: Activities taxonomies are ~76 names shared by EVERY occupation, so without
+#: interning the table holds 941 copies of "Reading Comprehension".
+#:
+#: What makes it grow: a corpus rebuild with more occupations, or O*NET
+#: publishing longer task lists. Not a product decision, unlike the tasks memo
+#: -- so the response to this failing is to look at the artifact, not the panel.
+_MEASURED_FIT_MEMO_BYTES = 12_387_463
+
 #: Everything above, added up, as a share of the instance. A booted worker with
 #: empty caches measures ~148 MB against 512 MB, so 364 MB is the headroom for
 #: every cache plus request handling -- and `_EMBED_CACHE_MAX_BYTES` (32 MB)
@@ -670,6 +691,14 @@ def _deep_sizeof(obj, seen=None) -> int:
     A local copy for the reason `_deep_bytes` above is one: it must measure a
     tree the production code does not expose a helper for, and importing one
     would tie this file's numbers to a helper that could change under them.
+
+    **`__slots__` is walked as well as `__dict__`**, and that is not a detail:
+    W-9's `occupation_fit` types are slotted precisely to drop the per-instance
+    dict, and a measurer that only followed `__dict__` would score them at the
+    size of their pointers and report a 941-occupation table as a rounding
+    error. The `seen` set is shared down the whole walk, so the interned names
+    O*NET repeats for every occupation are counted once -- which is the other
+    half of what makes that table small.
     """
     seen = set() if seen is None else seen
     if id(obj) in seen:
@@ -684,22 +713,28 @@ def _deep_sizeof(obj, seen=None) -> int:
             total += _deep_sizeof(value, seen)
     elif hasattr(obj, "__dict__"):
         total += _deep_sizeof(vars(obj), seen)
+    for slot in getattr(type(obj), "__slots__", ()):
+        if hasattr(obj, slot):
+            total += _deep_sizeof(getattr(obj, slot), seen)
     return total
 
 
 @pytest.fixture(autouse=True)
 def _clean_sidecar_memos():
-    from backend.services import occupation_conditions, occupation_tasks
+    from backend.services import occupation_conditions, occupation_fit, occupation_tasks
 
-    occupation_conditions.reset_conditions_cache()
-    occupation_tasks.reset_tasks_cache()
+    def _clear() -> None:
+        occupation_conditions.reset_conditions_cache()
+        occupation_tasks.reset_tasks_cache()
+        occupation_fit.reset_fit_cache()
+
+    _clear()
     yield
-    occupation_conditions.reset_conditions_cache()
-    occupation_tasks.reset_tasks_cache()
+    _clear()
 
 
-def test_the_two_memos_and_every_cache_fit_the_one_worker_budget() -> None:
-    """The arithmetic the 2026-09-16 OOM fix left behind, with W-3 added.
+def test_the_three_memos_and_every_cache_fit_the_one_worker_budget() -> None:
+    """The arithmetic the 2026-09-16 OOM fix left behind, with W-3 and W-9 added.
 
     `workers` went 3 -> 1 on a 512 MB Starter, so this is not a per-worker
     share of anything: it is what the process holds. The memos are fixed costs
@@ -710,11 +745,12 @@ def test_the_two_memos_and_every_cache_fit_the_one_worker_budget() -> None:
         path_scoring._EMBED_CACHE_MAX_BYTES
         + _MEASURED_CONDITIONS_MEMO_BYTES
         + _MEASURED_TASKS_MEMO_BYTES
+        + _MEASURED_FIT_MEMO_BYTES
     )
 
     assert total <= _TOTAL_MEMORY_CEILING_BYTES, (
-        "the bounded caches plus the W-3 memos claim %.1f MB of a 512 MB "
-        "instance that boots at ~148 MB" % (total / 1024 / 1024)
+        "the bounded caches plus the W-3 and W-9 memos claim %.1f MB of a "
+        "512 MB instance that boots at ~148 MB" % (total / 1024 / 1024)
     )
 
 
@@ -777,6 +813,39 @@ def test_the_tasks_memo_holds_one_table_not_one_per_version(
     assert occupation_tasks._TABLE is second, "the old table stayed resident"
 
 
+def test_the_fit_memo_holds_one_table_not_one_per_version(
+    sidecar_corpus, tmp_path
+) -> None:
+    """Same property, and it matters most here: W-9's table is the biggest of
+    the three, so two of them resident is ~16 MB nobody accounted for."""
+    import dataclasses
+
+    from backend.services import occupation_fit
+
+    def _write(corpus, code: str) -> None:
+        occupation_fit.write_fit_sidecar(
+            corpus.matrix_path,
+            occupation_fit.FitTable(
+                fits={
+                    code: occupation_fit.OccupationFit(
+                        hot_tech=("Python",), parts=("hot_technologies",)
+                    )
+                }
+            ),
+        )
+
+    _write(sidecar_corpus, "29-1141.00")
+    first = occupation_fit.get_fit_table(sidecar_corpus)
+    assert first is not None
+
+    later = dataclasses.replace(sidecar_corpus, version="testfix-2")
+    _write(later, "15-1252.00")
+    second = occupation_fit.get_fit_table(later)
+
+    assert second is not first
+    assert occupation_fit._TABLE is second, "the old table stayed resident"
+
+
 @pytest.mark.skipif(
     not os.environ.get("SOLVERAH_CORPUS_PATH"),
     reason="SOLVERAH_CORPUS_PATH is unset; CI has no corpus artifact",
@@ -819,4 +888,20 @@ class TestTheMemosAgainstTheRealArtifacts:
             "the tasks memo is %.2f MB against a recorded %.2f MB; raising "
             "MAX_TASKS_PER_OCCUPATION is the usual cause"
             % (resident / 1024 / 1024, _MEASURED_TASKS_MEMO_BYTES / 1024 / 1024)
+        )
+
+    def test_the_fit_memo_is_the_size_it_is_recorded_as(self) -> None:
+        from backend.services import occupation_fit
+        from backend.services.occupation_retrieval import get_corpus
+
+        table = occupation_fit.get_fit_table(get_corpus())
+        if table is None:
+            pytest.skip("no fit sidecar beside the artifact")
+
+        resident = _deep_sizeof(table.fits)
+
+        assert resident <= _MEASURED_FIT_MEMO_BYTES * 1.5, (
+            "the fit memo is %.2f MB against a recorded %.2f MB; a rebuild "
+            "grew it, or something stopped being slotted or interned"
+            % (resident / 1024 / 1024, _MEASURED_FIT_MEMO_BYTES / 1024 / 1024)
         )
