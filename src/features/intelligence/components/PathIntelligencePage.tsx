@@ -435,7 +435,10 @@ export default function PathIntelligencePage() {
               Your Career Paths
             </h1>
             <p className="text-sm text-ink-secondary pt-1">
-              Career paths scored against your skills and work profile, with plain-language
+              {/* W-13. "scored against" was the page telling the user there is
+                  a score, on the one screen ruling flag 12 says must not show
+                  one. Best-guess copy; Julie revises on the built product. */}
+              Career paths matched to your skills and work profile, with plain-language
               guidance on why each one fits.
             </p>
           </div>

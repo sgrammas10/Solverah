@@ -708,6 +708,65 @@ class TestThePanel:
         )
         assert [gap.name for gap in gaps] == ["Snowflake", "Airflow"]
 
+    # -- W-13: O*NET's expansion-plus-acronym names, as a person writes them --
+
+    def test_a_tool_named_expansion_then_acronym_shows_the_acronym_alone(
+        self, world, onet
+    ) -> None:
+        """The third browser test: "Hypertext markup language HTML" on the panel.
+
+        Display only. The list is still O*NET's, in O*NET's order, and the
+        occupation still has exactly the tools it had.
+        """
+        onet.get_hot_technologies.return_value = [
+            "Hypertext markup language HTML",
+            "Cascading style sheets CSS",
+            "Oracle Java",
+        ]
+        fit = outsider_fit(outsider_profile(), onet)
+        assert fit.tech_stack == ["HTML", "CSS", "Oracle Java"]
+
+    def test_a_gap_named_expansion_then_acronym_shows_the_acronym_alone(
+        self, world, onet
+    ) -> None:
+        """"Worth picking up" is the other section the tester saw them in."""
+        ps._EMBED_CACHE["bookkeeping"] = unit(1, 0)
+        ps._EMBED_CACHE["Border Gateway Protocol BGP"] = unit(0, 1)
+        ps._EMBED_CACHE["Extensible markup language XML"] = unit(0, 1)
+        data = pdf._OccupationData(
+            hot_tech=["Border Gateway Protocol BGP", "Extensible markup language XML"]
+        )
+        gaps = pdf._gap_skills(
+            [user_skill("Bookkeeping", "advanced")], pdf._role_items_for(data)
+        )
+        assert [gap.name for gap in gaps] == [
+            "Border Gateway Protocol BGP",
+            "Extensible markup language XML",
+        ], "the matching still runs on O*NET's own spelling"
+        assert [pdf._display_name(gap.name) for gap in gaps] == ["BGP", "XML"]
+
+    def test_the_rename_does_not_break_the_dedup_it_runs_after(
+        self, world, onet
+    ) -> None:
+        """W-12's dedup compares role names against role names.
+
+        It has to see O*NET's spelling or it cannot tell that the tool the user
+        matched and the tool in the hot list are the same tool -- so the rename
+        is applied to what comes OUT of it and never to what goes in.
+        """
+        onet.get_hot_technologies.return_value = [
+            "Structured query language SQL",
+            "Hypertext markup language HTML",
+        ]
+        user = profile(skills=[user_skill("SQL", "advanced")])
+        onet.search_occupations.side_effect = None
+        onet.search_occupations.return_value = []
+
+        fit = deep_fit(user, CODE, onet, None)
+
+        assert fit.matched_skills == ["SQL"], "the user's own name, untouched"
+        assert fit.tech_stack == ["HTML"], "SQL deduped out, HTML renamed"
+
     def test_the_payload_is_plain_json(self, world, onet) -> None:
         import json
 
@@ -1097,6 +1156,74 @@ class TestTheGapListDoesNotNameWhatTheUserHas:
 
         assert pdf._find_matched_skills(skills, role_items) == ["SQL"]
         assert pdf._role_coverage_score(skills, role_items) == 0.0
+
+
+class TestDisplayNames:
+    """W-13: O*NET writes "Hypertext markup language HTML"; the panel says HTML.
+
+    The five the third browser test found, and three names that are not this
+    pattern and must survive exactly as the catalogue wrote them.
+    """
+
+    @pytest.mark.parametrize(
+        "catalogued, shown",
+        [
+            ("Hypertext markup language HTML", "HTML"),
+            ("Extensible markup language XML", "XML"),
+            ("Cascading style sheets CSS", "CSS"),
+            ("Border Gateway Protocol BGP", "BGP"),
+            ("Amazon Web Services AWS software", "AWS"),
+        ],
+    )
+    def test_the_acronym_stands_alone(self, catalogued, shown) -> None:
+        assert pdf._display_name(catalogued) == shown
+
+    @pytest.mark.parametrize(
+        "untouched",
+        [
+            "Oracle Java",
+            "Microsoft Azure software",
+            "Node.js",
+            # The initials do not spell it -- "EC2" is not letters-only anyway,
+            # and no reading of the words before it produces the 2.
+            "Amazon Elastic Compute Cloud EC2",
+            # Three capitals at the end that the preceding words do not spell.
+            "Adobe Systems Adobe AIR",
+            # Nothing before the acronym to collapse.
+            "IBM",
+            # The acronym is not at the end.
+            "Microsoft SQL Server",
+        ],
+    )
+    def test_anything_else_is_left_exactly_as_onet_wrote_it(self, untouched) -> None:
+        assert pdf._display_name(untouched) == untouched
+
+    def test_the_initials_rule_alone_would_miss_html_and_xml(self) -> None:
+        """Why the check is not "first letters of the words".
+
+        "Hypertext markup language" gives H-M-L and "Extensible markup
+        language" gives E-M-L. Both are the pattern; neither passes an initials
+        test. This pins the reason the rule is written the way it is.
+        """
+        assert "".join(w[0] for w in "Hypertext markup language".split()).upper() == "HML"
+        assert "".join(w[0] for w in "Extensible markup language".split()).upper() == "EML"
+        assert pdf._display_name("Hypertext markup language HTML") == "HTML"
+        assert pdf._display_name("Extensible markup language XML") == "XML"
+
+    def test_every_word_must_contribute_a_letter(self) -> None:
+        """The tightening that keeps the subsequence rule from being a sieve.
+
+        A word may carry more than one letter -- it has to, or "Hypertext" could
+        not supply the H and the T -- but no word may carry none. That is what
+        rules out an expansion with more words than the acronym has letters, and
+        what leaves "Adobe Systems Adobe AIR" alone: "systems" has no I.
+        """
+        assert pdf._spells_out(["Cascading", "style", "sheets"], "CSS")
+        assert pdf._spells_out(["Hypertext", "markup", "language"], "HTML")
+        assert not pdf._spells_out(["Adobe", "Systems", "Adobe"], "AIR")
+        assert not pdf._spells_out(
+            ["Cascading", "style", "sheets", "level", "two"], "CSS"
+        ), "five words cannot each contribute to a three-letter acronym"
 
 
 @pytest.mark.skipif(

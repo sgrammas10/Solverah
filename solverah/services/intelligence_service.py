@@ -810,9 +810,29 @@ def _rescore(
         "generated_at": datetime.datetime.now(datetime.timezone.utc).strftime(
             "%Y-%m-%dT%H:%M:%SZ"
         ),
+        # W-13. **On the stored payload, not only on the response.** This used
+        # to be `body={**payload, "feedback": judgements}` with `payload`
+        # itself cached without the key -- so the tap's own 200 carried the
+        # judgements and every later read of the cache did not.
+        #
+        # That is the whole of the third browser test's finding: tap "Not for
+        # me" twice, reload, and the cards stay removed while "These paths are
+        # shaped by what you've told us / Start over" is gone. A reload posts a
+        # scoring job; `path_suggestions` answers it from this cache on a hit
+        # and `scoring_jobs` stores that body as the job's `result`; the page
+        # renders the bar from `result.feedback`. One missing key in the cached
+        # copy and the user is looking at a list bent by state they can neither
+        # see nor undo -- the exact failure F-6 put `feedback` on the wire to
+        # prevent, reintroduced by the one path that wrote the cache by hand.
+        #
+        # `path_suggestions` has always cached the key; this is now the same
+        # object in both places for the same reason that function keeps its
+        # cache write inline: the succeeded job and the warm cache must never
+        # disagree about what was computed.
+        "feedback": judgements,
     }
     path_cache.store(user.id, payload)
-    return IntelligenceResult(status=200, body={**payload, "feedback": judgements})
+    return IntelligenceResult(status=200, body=payload)
 
 
 #: Copy for a card the re-rank surfaced that had no narrative yet.

@@ -681,3 +681,66 @@ def test_a_failing_page_batch_still_fails_the_job(client, monkeypatch):
     assert client.get("/api/v1/me/path-suggestions").status_code == 404, (
         "a job that could not narrate the page must warm no cache"
     )
+
+
+# ---------------------------------------------------------------------------
+# W-13: no grade reaches the wire (ruling flag 12)
+# ---------------------------------------------------------------------------
+
+
+def test_a_graded_narrative_is_scrubbed_before_it_reaches_the_wire(
+    client, monkeypatch
+):
+    """The third browser test's card, end to end.
+
+    The narrator is NOT doubled here -- the OpenAI client under it is. Every
+    other test in this file replaces `generate_narratives` wholesale, which is
+    right for what those are about and wrong for this one: the scrub lives
+    inside that function, so a double for it would step over the thing being
+    proved. What is faked is the provider, returning the sentence the tester
+    actually saw.
+    """
+    import json
+
+    csrf = _register_and_login(client, monkeypatch, email="w13grade@example.com")
+    _set_profile("w13grade@example.com", {
+        "career_status": "employed",
+        "skills": ["Communication", "Python"],
+        "experience": [{"position": "Software Engineer", "company": "Acme"}],
+    })
+    monkeypatch.setenv("ONET_API_KEY", "test-key")
+    monkeypatch.setattr(
+        path_scoring_mod, "score_paths", MagicMock(return_value=SCORED_PATHS[:1])
+    )
+
+    graded = {
+        "suggestions": [
+            {
+                "onet_code": "11-2021.00",
+                "title": "Marketing Managers",
+                "why_text": (
+                    "You would own campaigns end to end, making it a strong fit "
+                    "for your background."
+                ),
+                "profile_dimensions": [
+                    "Builds on Communication skills",
+                    "95% overlap with your skills",
+                ],
+            }
+        ]
+    }
+    choice = MagicMock()
+    choice.message.content = json.dumps(graded)
+    response = MagicMock()
+    response.choices = [choice]
+    provider = MagicMock()
+    provider.chat.completions.create.return_value = response
+    monkeypatch.setattr(path_narrative_mod, "_get_openai_client", lambda: provider)
+
+    _warm_cache(client, csrf)
+    body = client.get("/api/v1/me/path-suggestions").get_json()
+
+    [card] = body["suggestions"]
+    assert card["why_text"] == "You would own campaigns end to end."
+    assert card["profile_dimensions"] == ["Builds on Communication skills"]
+    assert "%" not in json.dumps(body["suggestions"])

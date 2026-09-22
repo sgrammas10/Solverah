@@ -380,6 +380,72 @@ def test_the_rescore_is_written_into_the_cache_the_get_serves(
     assert served.get_json()["suggestions"] == posted["suggestions"]
 
 
+def test_the_cached_rescore_carries_the_judgements_that_shaped_it(
+    client, signed_in, corpus, mock_scorer, mock_narrator
+):
+    """W-13, from the third browser test: tap twice, reload, the bar is gone.
+
+    The cards stayed removed -- the re-ranked list is what the cache serves --
+    but "These paths are shaped by what you've told us / Start over" had
+    vanished, so the user was looking at a list bent by state they could
+    neither see nor undo. That bar renders off `feedback` on the payload.
+
+    `_rescore` put `feedback` on the RESPONSE and not on the dict it stored, so
+    the tap's own 200 carried the map and everything served from the cache
+    afterwards -- this GET, and the succeeded job a reload polls -- did not. The
+    payload and the response are now one object, which is the only arrangement
+    in which the two cannot disagree.
+    """
+    posted = _post(client, signed_in, verdict="too_similar").get_json()
+    assert posted["feedback"] == {CODE: "too_similar"}
+
+    served = client.get("/api/v1/me/path-suggestions").get_json()
+    assert served["feedback"] == posted["feedback"]
+
+
+def test_a_reset_leaves_an_empty_map_on_the_cached_payload_not_a_missing_key(
+    client, signed_in, corpus, mock_scorer, mock_narrator
+):
+    """"Start over" has to be visible as *no* judgements, not as no answer.
+
+    An absent key and an empty map render the same thing today, but only
+    because the client treats them the same; the route that clears should still
+    say what it did.
+    """
+    _post(client, signed_in, verdict="too_similar")
+    _delete(client, signed_in)
+
+    served = client.get("/api/v1/me/path-suggestions").get_json()
+    assert served["feedback"] == {}
+
+
+def test_the_job_a_reload_polls_carries_the_stored_judgements(
+    client, signed_in, corpus, mock_scorer, mock_narrator
+):
+    """The other half of the reload, at the layer the page actually reads.
+
+    A browser reload does not call `GET /me/path-suggestions`: it posts a
+    scoring job and polls it. `scoring_jobs._score_path_suggestions` returns
+    `intelligence_service.path_suggestions`' body verbatim, and on a warm cache
+    that body IS the dict `_rescore` stored -- so the missing key travelled all
+    the way to the job's `result` and into `jobData.feedback` on the page.
+    """
+    from app import app
+    from model import User
+    from solverah.services import scoring_jobs
+
+    _post(client, signed_in, verdict="too_similar")
+
+    with app.app_context():
+        user = User.query.filter_by(email=EMAIL).first()
+        status, result, error = scoring_jobs._score_path_suggestions(
+            {"user_id": user.id}
+        )
+
+    assert (status, error) == (scoring_jobs.SUCCEEDED, None)
+    assert result["feedback"] == {CODE: "too_similar"}
+
+
 def test_a_tap_does_not_throw_away_the_stored_deep_fits(
     client, signed_in, corpus, mock_scorer, mock_narrator
 ):

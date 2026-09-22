@@ -125,6 +125,19 @@ function renderPage() {
   );
 }
 
+// ─── the header ────────────────────────────────────────────────────────────
+
+describe("PathIntelligencePage - the subtitle", () => {
+  it("says the paths are matched, never scored", () => {
+    // Ruling flag 12: no percentage, no score, and no grade word standing in
+    // for one reaches this screen -- which has to include the page's own
+    // description of what it is doing. Wording is Julie's; the ban is not.
+    renderPage();
+    expect(screen.getByText(/matched to your skills and work profile/i)).toBeInTheDocument();
+    expect(screen.queryByText(/scored against/i)).toBeNull();
+  });
+});
+
 // ─── loading state ─────────────────────────────────────────────────────────
 
 describe("PathIntelligencePage - loading state", () => {
@@ -907,6 +920,31 @@ describe("PathIntelligencePage - judgements that outlive a page load", () => {
     const pressed = document.querySelector('[data-verdict="interesting"]');
     expect(pressed).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: /start over/i })).toBeInTheDocument();
+  });
+
+  it("renders the whole bar off the server's map, with no local tap", () => {
+    // W-13, from the third browser test: tap "Not for me" on two cards and
+    // reload, and the cards stayed removed while the bar and its "Start over"
+    // were gone -- judgements in force with no way to see or undo them. The
+    // page was right and the payload was wrong (`intelligence_service._rescore`
+    // cached itself without `feedback`); this pins the page's half, which is
+    // that the whole bar comes from the job result alone.
+    suggestionsSettleAs({
+      job_id: "path-job-1",
+      status: "succeeded",
+      result: {
+        suggestions: [CARD_A, CARD_B],
+        career_status: "employed",
+        generated_at: "2026-09-01T00:00:00Z",
+        feedback: { "11-2021.00": "not_for_me" },
+      },
+      error: null,
+    });
+
+    renderPage();
+
+    expect(screen.getByText(/shaped by what you/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start over/i })).toBeEnabled();
   });
 
   it("treats a payload with no feedback key as no judgements", () => {

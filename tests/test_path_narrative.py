@@ -18,6 +18,7 @@ from backend.services.path_narrative import (
     UserContext,
     _build_prompt,
     _format_management_prefs,
+    _scrub_grades,
     _validate_response,
     generate_narratives,
 )
@@ -212,6 +213,185 @@ class TestBuildPrompt:
     def test_user_message_handles_empty_top_skills(self):
         msgs = _build_prompt(DEFAULT_CANDIDATES, user_ctx(top_skills=[]))
         assert "none listed" in msgs[1]["content"]
+
+
+# ---------------------------------------------------------------------------
+# W-13: no score in the prompt, and no grade out of it (ruling flag 12)
+# ---------------------------------------------------------------------------
+
+
+class TestThePromptCarriesNoScore:
+    """Ruling flag 12's first half: a model handed a number writes about it.
+
+    The third browser test found "...making it a strong fit for your
+    background." on a Database Administrators card. The prompt was handing the
+    narrator ``match_score`` per candidate and calling the list "sorted by
+    match_score, highest first".
+    """
+
+    def test_no_candidate_carries_a_score_field(self):
+        msgs = _build_prompt(DEFAULT_CANDIDATES, user_ctx())
+        assert "match_score" not in msgs[1]["content"]
+        assert "match_score" not in msgs[0]["content"]
+
+    def test_no_candidate_score_value_reaches_the_prompt(self):
+        msgs = _build_prompt(DEFAULT_CANDIDATES, user_ctx())
+        for candidate in DEFAULT_CANDIDATES:
+            assert str(candidate.score) not in msgs[1]["content"]
+
+    def test_the_order_is_still_stated_without_naming_a_score(self):
+        # The ranking has not stopped existing -- it is just not a number the
+        # narrator is shown.
+        msgs = _build_prompt(DEFAULT_CANDIDATES, user_ctx())
+        assert "order" in msgs[1]["content"]
+        assert [c.onet_code for c in DEFAULT_CANDIDATES] == re.findall(
+            r'"onet_code": "([^"]+)"', msgs[1]["content"]
+        )
+
+    def test_the_system_prompt_forbids_grading(self):
+        system = _build_prompt(DEFAULT_CANDIDATES, user_ctx())[0]["content"]
+        assert "NEVER rate, rank or grade the fit" in system
+
+
+class TestScrubGrades:
+    """The deterministic half. A prompt is a request; this is the guarantee."""
+
+    def test_a_trailing_graded_clause_is_dropped(self):
+        assert _scrub_grades(
+            "Database administrators keep an organisation's data available and "
+            "secure, making it a strong fit for your background."
+        ) == "Database administrators keep an organisation's data available and secure."
+
+    def test_a_sentence_that_is_only_a_grade_is_dropped_whole(self):
+        assert _scrub_grades("A great fit.") == ""
+
+    def test_a_leading_graded_clause_is_cut_off_the_front(self):
+        assert _scrub_grades("Strong match: uses your Python.") == "Uses your Python."
+
+    def test_a_clean_sentence_is_untouched(self):
+        clean = (
+            "You would design and maintain the databases an organisation runs "
+            "on, using your SQL every day."
+        )
+        assert _scrub_grades(clean) == clean
+
+    def test_matches_as_a_verb_about_an_archetype_is_not_a_grade(self):
+        # Rule 4's own example tag. A word list that caught "matches" would
+        # empty the tags of every card on the page.
+        assert (
+            _scrub_grades("Matches your Deep Diver archetype")
+            == "Matches your Deep Diver archetype"
+        )
+
+    def test_a_clean_tag_keeps_its_exact_text_and_gains_no_full_stop(self):
+        assert _scrub_grades("Builds on your Python skills") == "Builds on your Python skills"
+
+    def test_a_percentage_is_scrubbed(self):
+        assert _scrub_grades("95% overlap with your skills") == ""
+
+    def test_an_explicit_score_is_scrubbed_decimal_point_and_all(self):
+        # The decimal point is not a sentence boundary: splitting on it would
+        # keep "82 for this path."
+        assert _scrub_grades("Your fit score is 0.82 for this path.") == ""
+
+    def test_only_the_graded_sentence_of_two_is_dropped(self):
+        assert (
+            _scrub_grades("You would lead a team of analysts. It is the top choice for you.")
+            == "You would lead a team of analysts."
+        )
+
+    def test_a_graded_tail_after_and_is_cut(self):
+        assert (
+            _scrub_grades(
+                "Network engineers keep traffic moving between sites, and it is "
+                "highly suitable for you."
+            )
+            == "Network engineers keep traffic moving between sites."
+        )
+
+    def test_an_excellent_match_sentence_is_dropped(self):
+        assert (
+            _scrub_grades("This role is an excellent match for someone with your experience.")
+            == ""
+        )
+
+    def test_prose_with_no_grading_survives_verbatim(self):
+        assert (
+            _scrub_grades("You would write and review code all day.")
+            == "You would write and review code all day."
+        )
+
+    def test_empty_input_is_empty_output(self):
+        assert _scrub_grades("") == ""
+        assert _scrub_grades("   ") == ""
+
+
+class TestGradesNeverReachTheWire:
+    """End to end through the fake client: what `generate_narratives` returns."""
+
+    GRADED = {
+        "suggestions": [
+            {
+                "onet_code": "15-1211.00",
+                "title": "Database Administrators",
+                "why_text": (
+                    "Database administrators keep systems reliable, making it a "
+                    "strong fit for your background."
+                ),
+                "profile_dimensions": [
+                    "Builds on your Python skills",
+                    "95% overlap with your skills",
+                ],
+            }
+        ]
+    }
+    ONLY_A_GRADE = {
+        "suggestions": [
+            {
+                "onet_code": "15-1211.00",
+                "title": "Database Administrators",
+                "why_text": "A great fit.",
+                "profile_dimensions": ["Matches your Deep Diver archetype", "A perfect match"],
+            }
+        ]
+    }
+
+    def test_a_graded_narrative_lands_scrubbed(self, monkeypatch):
+        _patch_client(monkeypatch, return_json=self.GRADED)
+        [result] = generate_narratives([scored_path("15-1211.00")], user_ctx())
+
+        assert result.why_text == "Database administrators keep systems reliable."
+        assert result.profile_dimensions == ["Builds on your Python skills"]
+
+    def test_a_narrative_that_was_all_grade_falls_back_to_the_overlap_sentence(
+        self, monkeypatch
+    ):
+        # The same sentence `intelligence_service._describe` writes for a card
+        # the re-rank surfaced with no narrative -- imported, not copied.
+        from solverah.services.intelligence_service import _overlap_sentence
+
+        _patch_client(monkeypatch, return_json=self.ONLY_A_GRADE)
+        [result] = generate_narratives([scored_path("15-1211.00")], user_ctx())
+
+        assert result.why_text == _overlap_sentence(["Python", "SQL"])
+        assert result.why_text == "Uses your Python and SQL."
+        assert result.profile_dimensions == ["Matches your Deep Diver archetype"]
+
+    def test_the_scrub_is_logged_once_with_the_codes(self, monkeypatch, caplog):
+        _patch_client(monkeypatch, return_json=self.GRADED)
+        with caplog.at_level("WARNING", logger="backend.services.path_narrative"):
+            generate_narratives([scored_path("15-1211.00")], user_ctx())
+
+        scrubbed = [r for r in caplog.records if r.message == "path_narrative_grade_scrubbed"]
+        assert len(scrubbed) == 1
+        assert scrubbed[0].codes == ["15-1211.00"]
+
+    def test_a_clean_batch_logs_nothing(self, monkeypatch, caplog):
+        _patch_client(monkeypatch)
+        with caplog.at_level("WARNING", logger="backend.services.path_narrative"):
+            generate_narratives(DEFAULT_CANDIDATES, user_ctx())
+
+        assert [r for r in caplog.records if r.message == "path_narrative_grade_scrubbed"] == []
 
 
 # ---------------------------------------------------------------------------

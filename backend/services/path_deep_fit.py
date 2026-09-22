@@ -992,6 +992,92 @@ def _visible_tech_stack(
     return [name for name in hot_tech if name not in shown][:_TOP_TECH]
 
 
+# ---------------------------------------------------------------------------
+# W-13: O*NET's catalogue names, as a person would write them
+# ---------------------------------------------------------------------------
+#
+# From the third browser test.  "Worth picking up" and "Tools people use" were
+# printing "Hypertext markup language HTML", "Extensible markup language XML",
+# "Cascading style sheets CSS" and "Border Gateway Protocol BGP" -- O*NET's own
+# convention of writing the expansion and then the acronym, which nobody says
+# out loud and which reads as a cataloguing error on a page of plain language.
+#
+# **Display only, and applied last.**  The matching, the dedup between the
+# panel's three sections and the ordering all run on O*NET's spelling and are
+# untouched: `_visible_tech_stack` compares role names against role names, and
+# a shortened name would break that comparison in exactly the case it was built
+# for.  This runs on the strings that are about to go on the wire and nothing
+# else.  Matched skills are not put through it at all -- those already render
+# under the user's own name for the skill.
+
+#: An acronym O*NET appended to its own expansion: two to six capitals, and
+#: letters only, so "Amazon Elastic Compute Cloud EC2" keeps its full name --
+#: "EC2" is not spelled by any reading of the words before it.
+_TRAILING_ACRONYM_RE = re.compile(r"^(.*?)\s+([A-Z]{2,6})$")
+
+#: The two words O*NET puts after the acronym ("...AWS software").
+_ACRONYM_SUFFIXES: tuple[str, ...] = ("software", "program")
+
+
+def _spells_out(words: list[str], acronym: str) -> bool:
+    """Do *words*, in order, spell *acronym* -- each word contributing at least one letter?
+
+    Not "the initials match": O*NET's own names defeat that on the two most
+    common ones.  "Hypertext markup language HTML" has initials H-M-L, and
+    "Extensible markup language XML" has E-M-L, because the first word of each
+    carries two of the acronym's letters or a letter from the middle of itself.
+
+    So the acronym is split into consecutive non-empty runs, one per word, and
+    each run must appear in its word in order.  Requiring *every* word to
+    contribute is what keeps it tight: it is why "Adobe Systems Adobe AIR" is
+    left alone, and why the number of words can never exceed the number of
+    letters.
+    """
+    if not words or len(words) > len(acronym):
+        return False
+
+    def subsequence(letters: str, word: str) -> bool:
+        position = 0
+        for character in word:
+            if position < len(letters) and character == letters[position]:
+                position += 1
+        return position == len(letters)
+
+    # reachable[j]: the first j letters can be spelled by the words seen so far.
+    reachable = {0}
+    for word in (w.lower() for w in words):
+        nxt: set[int] = set()
+        for start in reachable:
+            for end in range(start + 1, len(acronym) + 1):
+                if subsequence(acronym[start:end].lower(), word):
+                    nxt.add(end)
+        if not nxt:
+            return False
+        reachable = nxt
+    return len(acronym) in reachable
+
+
+def _display_name(name: str) -> str:
+    """O*NET's expansion-plus-acronym collapsed to the acronym, or *name* unchanged.
+
+    "Hypertext markup language HTML" -> "HTML".  "Amazon Web Services AWS
+    software" -> "AWS".  "Oracle Java", "Microsoft Azure software" and
+    "Node.js" are not this pattern and come back exactly as O*NET wrote them.
+    """
+    stem = name.strip()
+    if not stem:
+        return name
+    head, _, last = stem.rpartition(" ")
+    if head and last.lower() in _ACRONYM_SUFFIXES:
+        stem = head
+    match = _TRAILING_ACRONYM_RE.match(stem)
+    if match is None:
+        return name
+    expansion, acronym = match.group(1), match.group(2)
+    words = [word for word in re.split(r"[\s/-]+", expansion) if word]
+    return acronym if _spells_out(words, acronym) else name
+
+
 def _retrieval_cosine(
     user_profile: UserProfile,
     anchor,
@@ -1168,6 +1254,15 @@ def deep_fit(
     # is what the other two sections did not already show, so it needs both of
     # them in hand.
     gaps = _gap_skills(user_profile.skills, role_items)
+    # W-13, and the order matters: `_visible_tech_stack` dedups by comparing
+    # O*NET's own names, so it is given the raw gaps and the raw hot-tech list
+    # and only what comes OUT of it is renamed for the screen.
+    visible_tech = [_display_name(name) for name in
+                    _visible_tech_stack(data.hot_tech, matched_pairs, gaps)]
+    display_gaps = [
+        SkillGap(name=_display_name(gap.name), importance=gap.importance)
+        for gap in gaps
+    ]
 
     zone_fit = _zone_fit(user_profile, anchor, corpus, onet_code)
     zone_is_reliable = (
@@ -1195,9 +1290,9 @@ def deep_fit(
         work_style_score=round(work_style_score, 4),
         zone=zone_fit,
         matched_skills=matched_skills,
-        gap_skills=gaps,
+        gap_skills=display_gaps,
         tasks=data.tasks[:_TOP_TASKS],
-        tech_stack=_visible_tech_stack(data.hot_tech, matched_pairs, gaps),
+        tech_stack=visible_tech,
         weights={
             "role": round(role_w, 4),
             "coverage": round(coverage_w, 4),

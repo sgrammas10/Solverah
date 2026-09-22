@@ -192,7 +192,7 @@ panel cleared and no taps (press "Start over" and "Clear my answers" if they sho
 
 | # | Do | Expect | ✓ |
 |---|----|--------|---|
-| NB1 | Search type **Stay in my field** | All ten are software / IT jobs. **No** Logistics Engineers, Project Management Specialists or Security Management Specialists. (Sales Engineers may still appear — that's decision item 7, not a failure) | ☐ |
+| NB1 | Search type **Stay in my field** | **No** Logistics Engineers, Project Management Specialists or Security Management Specialists. Mostly software / IT; Sales Engineers and Architectural & Engineering Managers may still appear — they are neighbours of your job by the same measure as the rest, and whether to tighten that is decision item 7, not a failure | ☐ |
 | NB2 | Compare with **Something adjacent** (same answers) | The two lists differ | ☐ |
 | NB3 | On Stay, click **Not for me** on any card | The card disappears **and stays gone**; the rest of the list keeps its order, one new card fills in at the bottom | ☐ |
 | NB4 | On Stay, click **Too similar to my job** on the card closest to your job (Computer Programmers) | It disappears, and so does anything even closer to your job; nothing else re-orders | ☐ |
@@ -226,6 +226,20 @@ panel cleared and no taps (press "Start over" and "Clear my answers" if they sho
 | NE3 | Same panel | "Worth picking up" and "Tools people use" have **no item in common** | ☐ |
 | NE4 | Open two other jobs | Same three checks. A job with nothing new in Tools may show no "Tools people use" section at all — that's a pass | ☐ |
 | NE5 | All panels | Still no number, bar or percentage | ☐ |
+
+## O. Fourth run — W-13 (landed 2026-09-22)
+
+Restart Flask first. Same account, *Something adjacent*, D's three answers saved.
+
+| # | Do | Expect | ✓ |
+|---|----|--------|---|
+| O1 | Read every why-sentence and every pill on the page, then tap Not-for-me three times and read the newcomers too | **No** sentence or pill rates the fit: nothing like "strong fit", "great match", "ideal", "highly suitable", "top choice", a score or a `%`. Sentences describe the work and which of your skills it uses. ("Matches your … archetype" as a pill is fine) | ☐ |
+| O2 | Tap **Not for me** on two cards, then **reload** | The removed cards stay removed **and** the bar "These paths are shaped by what you've told us / Start over" is there | ☐ |
+| O3 | Press **Start over** after the reload | The removed cards can come back; the bar disappears | ☐ |
+| O4 | Adjust search preferences: pick a different option on question 1, then move the mouse across the others on the way to Next | Exactly **one** option looks selected. Hovering another does not tint it green | ☐ |
+| O5 | Open Computer Programmers' fit panel, read "Worth picking up" and "Tools people use" | Acronyms shown as acronyms: **HTML**, **CSS**, **XML**, not "Hypertext markup language HTML". Names like "Oracle Java", "Node.js", "Microsoft Azure software" unchanged | ☐ |
+| O6 | Page subtitle | "Career paths **matched to** your skills and work profile…" — not "scored against" | ☐ |
+| O7 | Everything in N-D still holds (newcomers after a tap have real sentences and pills) | ☐ |
 
 ## L. The lab page (127.0.0.1:5077) — optional
 

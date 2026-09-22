@@ -97,3 +97,62 @@ describe("PathPreferencesForm - re-entry with saved preferences", () => {
     expect(pressedOption()).toHaveTextContent(/fresh direction/i);
   });
 });
+
+// ─── W-13: exactly one option may read as selected ─────────────────────────
+//
+// The third browser test: after moving the choice from "Fresh direction" to
+// "Stay in my field", the old option kept a faint green tint and no tick. The
+// state was never wrong -- `selected` is an equality against one stored value
+// -- so the first test below passed before the fix and is here to pin that.
+// The defect was the palette: green was the selected signal AND the hover
+// signal, so the pointer resting anywhere on its way down the list lit a
+// second option in the colour that means "chosen".
+
+describe("PathPreferencesForm - only one option reads selected", () => {
+  function optionButtons(): HTMLElement[] {
+    return Array.from(document.querySelectorAll<HTMLElement>("[aria-pressed]"));
+  }
+
+  it("moves aria-pressed to the option just clicked and leaves none behind", () => {
+    render(<PathPreferencesForm onComplete={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /fresh direction/i }));
+    fireEvent.click(screen.getByRole("button", { name: /stay in my field/i }));
+
+    const pressed = optionButtons().filter(
+      (b) => b.getAttribute("aria-pressed") === "true"
+    );
+    expect(pressed).toHaveLength(1);
+    expect(pressed[0]).toHaveTextContent(/stay in my field/i);
+  });
+
+  it("gives the tick to the selected option alone", () => {
+    render(<PathPreferencesForm onComplete={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /fresh direction/i }));
+    fireEvent.click(screen.getByRole("button", { name: /stay in my field/i }));
+
+    const ticked = optionButtons().filter((b) => (b.textContent ?? "").includes("✓"));
+    expect(ticked).toHaveLength(1);
+    expect(ticked[0]).toHaveTextContent(/stay in my field/i);
+  });
+
+  it("reserves the selected palette for the selected option, hover included", () => {
+    // The regression. An unselected option must carry NO forest-green class at
+    // all -- not on rest, and not behind a `hover:` prefix. Green on this
+    // control means chosen, and a second green option is the defect however it
+    // was painted there.
+    render(<PathPreferencesForm onComplete={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /fresh direction/i }));
+    fireEvent.click(screen.getByRole("button", { name: /stay in my field/i }));
+
+    for (const button of optionButtons()) {
+      const green = Array.from(button.classList).filter((c) => c.includes("forest"));
+      if (button.getAttribute("aria-pressed") === "true") {
+        expect(green).toEqual(
+          expect.arrayContaining(["border-forest-dark", "bg-forest-pale"])
+        );
+      } else {
+        expect(green).toEqual([]);
+      }
+    }
+  });
+});

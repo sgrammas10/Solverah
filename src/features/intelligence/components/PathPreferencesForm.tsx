@@ -133,10 +133,21 @@ export default function PathPreferencesForm({ onComplete }: PathPreferencesFormP
               type="button"
               aria-pressed={selected}
               onClick={() => selectOption(opt.value as MoveIntent & SeniorityIntent & Priority)}
+              // W-13, from the third browser test: after moving the choice
+              // from "Fresh direction" to "Stay in my field", two options read
+              // as selected. Only one ever IS -- `selected` is an equality
+              // against a single stored value, and `aria-pressed` follows it --
+              // so the defect was entirely in the palette: GREEN was the whole
+              // of the selected signal (a forest border and a pale-green fill)
+              // and it was ALSO the hover signal on every unselected option.
+              // Put the pointer anywhere in the list on the way to "Next" and a
+              // second option lights up green, tickless, exactly as reported.
+              //
+              // Hover is now neutral. Green means chosen and nothing else.
               className={`w-full text-left px-5 py-4 rounded-xl border transition-all ${
                 selected
                   ? "border-2 border-forest-dark bg-forest-pale"
-                  : "border border-cream-muted bg-white hover:border-forest-light"
+                  : "border border-cream-muted bg-white hover:border-ink-tertiary"
               }`}
             >
               <div className="flex items-start justify-between gap-3">
