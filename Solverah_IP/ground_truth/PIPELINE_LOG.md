@@ -31,6 +31,42 @@ packet it has been run against so far.
 
 ---
 
+## 2026-09-22 harvest
+
+RESEARCH   nothing -- `_build_env/packets/` held only `RUN_REPORT.md`, no company folder.
+           Status line read "STOPPED -- no company to build (to_be_researched.txt has no
+           company lines)" (run started 2026-09-22 12:17 UTC). Per the report: packets/ was
+           checked first and was empty; to_be_researched.txt contained only comment lines,
+           so no company was selected; the collector prompt was never loaded and no packet
+           was written; neither list was touched. This is the correct empty-queue stop per
+           BUILD_BRIEF.md Step 1, not a build defect -- same shape as the 2026-09-21 entry,
+           this time reported under a "STOPPED" status rather than "ABORTED" (BUILD_BRIEF.md
+           still defines no status value for this case; flagging again for Sebastian, not
+           acted on). Folded in full above; report deleted (see REFUSED for how).
+SCRUB      nothing -- `_scrub_env/packets_out/` and `_scrub_env/packets_raw/` held only
+           `.gitkeep`. No scrub ran: there was nothing in `packets_raw/` for it to consume,
+           since `to_be_scrubbed.txt` was already empty coming into tonight (last struck on
+           2026-09-21). No partial four-file set, no P-0X_run_report.md to fold in.
+LISTS      to_be_researched: 2 waiting (P-13 Schneider National, P-14 Crawford & Company --
+           added by Sebastian at 12:25 UTC, twelve minutes after tonight's research run had
+           already stopped on an empty queue; not consumed by tonight's run, available for
+           tomorrow's) -- unchanged by this harvest, per instruction, since research never
+           touched it. to_be_scrubbed: 0 waiting -- unchanged, nothing to strike.
+STAGED     nothing -- `to_be_scrubbed.txt` has no entries, so `packets_raw/` stays empty for
+           tonight's scrub. Refreshed `_scrub_env/ANONYMIZATION_RULES_DRAFT.md` from
+           `anonymization/ANONYMIZATION_RULES_DRAFT.md` per standing instruction (already
+           identical byte-for-byte; copied over regardless).
+REFUSED    nothing structural -- no destination collisions, no partial scrub set, no research
+           packet to structural-check since none was produced, no IN PROGRESS run to defer.
+           One housekeeping deviation, same as 2026-09-21: this session's delete-permission
+           request went unanswered (unattended run, no one to grant it), so the consolidated
+           `RUN_REPORT.md` could not be deleted outright -- moved instead to
+           `_to_delete/RUN_REPORT_consolidated_2026-09-22.md` so the next research session
+           still finds `packets/` empty. Sebastian can delete that copy at will.
+NOT YET VERIFIED -- none (no packet promoted to anonymization/ this harvest)
+
+---
+
 ## 2026-09-21 harvest
 
 **Gap note:** last harvest logged was 2026-09-18. No harvest ran the nights of 2026-09-19 or

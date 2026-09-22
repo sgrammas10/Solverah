@@ -20,3 +20,25 @@
 # freely, this is not a locked pick.
 P-13	Schneider National
 P-14	Crawford & Company
+
+# Added 2026-09-22 (Claude, Cowork), second batch. All five are from Ground_Truth_Roster_v2.1_FINAL,
+# so their expected pole leans are already on the roster (Wayfair skipped -- excluded, GT-01).
+# Coverage over the 12 BUILT packets: every pole has >=3 anchors except feedback-blunt (Akuna
+# only; Cummins's blunt read is still unverified) and collaboration-solo (Doist + DigitalOcean,
+# both remote-tech -- P-13/P-14 above). Ordered by value:
+#   P-15 HRT      -- the roster's other blunt anchor and the locked fallback. Same prop-shop
+#                    archetype as Akuna and likely Feedback-THIN (STATE S-48), so this is
+#                    insurance on a 1-anchor pole, not a fix for blunt=finance correlation.
+#   P-16 Smartsheet -- optimize/mid-pace in TECH. Today every optimize anchor is retail/mfg/utility,
+#                    so optimize is confounded with old industry. Private since early 2025.
+#   P-17 HCA      -- directed/steady/process/collective in healthcare; frontline-heavy, scope-label
+#                    per S-51/D-22.
+#   P-18 Fifth Third -- directed/steady/process/optimize in finance (no finance incumbent yet).
+#   P-19 Centene  -- weakest pick: mostly repeats HCA's leans; mainly moves N toward the 15-20
+#                    size target. Chosen over The Hartford for industry balance and because
+#                    "Hartford" is a city-name homonym (D23 check). Cut this one first.
+P-15	Hudson River Trading
+P-16	Smartsheet
+P-17	HCA Healthcare
+P-18	Fifth Third Bank
+P-19	Centene
