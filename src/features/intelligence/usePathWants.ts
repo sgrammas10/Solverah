@@ -156,6 +156,13 @@ export interface UsePathWantsResult {
   setVerdict: (kind: WantKind, key: string, verdict: WantVerdict | null) => void;
   /** How many rows carry an answer right now, drafts included. */
   answeredCount: number;
+  /**
+   * How many rows carry a SAVED answer -- what the server has stored, never
+   * the local draft. This is what the collapsed row's summary counts: an
+   * unsaved pill is not a thing that survives a reload, and must not be
+   * counted as one.
+   */
+  savedCount: number;
   /** How many rows differ from what the server has stored. */
   changedCount: number;
   saving: boolean;
@@ -237,6 +244,11 @@ export function usePathWants(options: UsePathWantsOptions = {}): UsePathWantsRes
     [rows, verdictFor],
   );
 
+  const savedCount = useMemo(
+    () => rows.filter((row) => row.stored !== null).length,
+    [rows],
+  );
+
   const changedCount = Object.keys(draft).length;
 
   const send = useCallback(
@@ -276,11 +288,21 @@ export function usePathWants(options: UsePathWantsOptions = {}): UsePathWantsRes
   }, [draft, send]);
 
   const clearAll = useCallback(() => {
+    // Only rows the server actually has an answer for need a write: clearing
+    // a row that exists only as a local draft has nothing to clear on the
+    // server, and sending it anyway would be a PUT over a no-op change.
     const answers: PathWantAnswer[] = rows
-      .filter((row) => verdictFor(row.kind, row.key) !== null)
+      .filter((row) => row.stored !== null)
       .map((row) => ({ kind: row.kind, key: row.key, verdict: null }));
+    if (answers.length === 0) {
+      // Nothing saved -- only a draft, if anything. Drop it locally; there is
+      // no server-side clear to send.
+      setDraft({});
+      setSaveError(null);
+      return;
+    }
     send(answers);
-  }, [rows, verdictFor, send]);
+  }, [rows, send]);
 
   return {
     status: (data?.status as PathWantsStatus | undefined) ?? null,
@@ -292,6 +314,7 @@ export function usePathWants(options: UsePathWantsOptions = {}): UsePathWantsRes
     verdictFor,
     setVerdict,
     answeredCount,
+    savedCount,
     changedCount,
     saving: savePanel.isPending,
     saveError,

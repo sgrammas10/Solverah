@@ -202,6 +202,18 @@ describe("PathSuggestionCard - tooltip", () => {
     );
   });
 
+  it("opens below the button, never above it, so it cannot cover the verdict row", () => {
+    // `bottom-full` opens upward and used to sit on top of the Interesting /
+    // Too similar / Not for me row above this CTA.
+    renderCard();
+    const wrapper = screen.getByRole("button", { name: /set as target role/i })
+      .parentElement!;
+    fireEvent.mouseEnter(wrapper);
+    const tooltip = screen.getByRole("tooltip");
+    expect(tooltip.className).not.toMatch(/\bbottom-full\b/);
+    expect(tooltip.className).toMatch(/\btop-full\b/);
+  });
+
   it("hides the tooltip after the mouse leaves", () => {
     renderCard();
     const wrapper = screen.getByRole("button", { name: /set as target role/i })

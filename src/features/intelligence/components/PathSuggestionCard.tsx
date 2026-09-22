@@ -192,9 +192,13 @@ export default function PathSuggestionCard({
           Set as target role
         </button>
         {showTooltip && (
+          // Below the button, not above it: `bottom-full` used to open the
+          // tooltip upward, straight over the Interesting / Too similar / Not
+          // for me row that sits above this CTA. The card has no `overflow`
+          // clipping, so a tooltip hanging below the last element is fine.
           <div
             role="tooltip"
-            className="absolute bottom-full left-0 mb-2 w-56 rounded bg-ink-primary px-3 py-2 text-xs text-white shadow-lg"
+            className="absolute top-full left-0 mt-2 w-56 rounded bg-ink-primary px-3 py-2 text-xs text-white shadow-lg"
           >
             Coming soon — goal tracking is on the way
           </div>

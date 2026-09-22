@@ -34,7 +34,7 @@
  * the built product; the tests select controls by role and by `data-want`,
  * never by their prose, so a copy edit cannot redden the suite.
  */
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import {
   usePathWants,
@@ -130,19 +130,49 @@ export default function PathWantsPanel({ onSaved, rescoring = false }: PathWants
   // alone: the page is also "loading" on a first visit, and the button must not
   // claim to be re-sorting something the user never asked it to.
   const [awaitingRescore, setAwaitingRescore] = useState(false);
+  // Whether a re-score has actually been OBSERVED starting since the last
+  // save landed. The naive `!rescoring && awaitingRescore` clear ran on the
+  // very next render, while the page's `fetchSuggestions()` call was still in
+  // flight and `rescoring` had not yet flipped true -- clearing the flag
+  // before any re-score was ever seen. Tracked in a ref because seeing
+  // `rescoring` flip true->false is an event, not a value to render from.
+  const sawRescoreStart = useRef(false);
 
   const wants = usePathWants({
     onSaved: () => {
+      sawRescoreStart.current = false;
       setAwaitingRescore(true);
       onSaved();
     },
   });
 
   useEffect(() => {
-    if (!rescoring && awaitingRescore) setAwaitingRescore(false);
+    if (!awaitingRescore) return;
+    if (rescoring) {
+      sawRescoreStart.current = true;
+      return;
+    }
+    if (sawRescoreStart.current) {
+      sawRescoreStart.current = false;
+      setAwaitingRescore(false);
+    }
   }, [rescoring, awaitingRescore]);
 
-  const { status, anchor, tasks, conditions, answeredCount, changedCount } = wants;
+  // Bounded fallback for the window BEFORE a re-score is observed starting --
+  // the save landed but `onSaved` threw before enqueuing, say -- so this flag
+  // cannot stick forever and lock the pills for good. It must NOT cover the
+  // re-score itself: a real one can run 11-27s (measured in the user test),
+  // well past 15s, and firing here would clear the flag mid-re-sort -- the
+  // button's label goes stale and, worse, every pill unlocks while the list
+  // is still being replaced. That IS D1. Once `rescoring` is observed true,
+  // only the effect above's true->false path may clear the flag.
+  useEffect(() => {
+    if (!awaitingRescore || rescoring) return;
+    const timer = setTimeout(() => setAwaitingRescore(false), 15000);
+    return () => clearTimeout(timer);
+  }, [awaitingRescore, rescoring]);
+
+  const { status, anchor, tasks, conditions, answeredCount, savedCount, changedCount } = wants;
 
   // Quiet in every one of these: loading, a refused GET, no current job. The
   // page has already rendered the suggestions and owes the user nothing here.
@@ -160,8 +190,10 @@ export default function PathWantsPanel({ onSaved, rescoring = false }: PathWants
   // `anchor.title` is the O*NET title and O*NET titles are plural ("Chefs and
   // Head Cooks"), so no article reads correctly in front of one.
   const heading = anchor ? `About your work: ${anchor.title}` : "About your work";
+  // Saved answers only: an unsaved pill does not survive a reload, so it must
+  // not be counted as "a thing you want to change" until it actually is one.
   const summary =
-    answeredCount === 1 ? "1 thing you want to change" : `${answeredCount} things you want to change`;
+    savedCount === 1 ? "1 thing you want to change" : `${savedCount} things you want to change`;
 
   return (
     <section className="rounded-xl border border-cream-muted bg-white">
@@ -178,7 +210,7 @@ export default function PathWantsPanel({ onSaved, rescoring = false }: PathWants
           <span className="block text-sm font-semibold text-ink-primary">
             Tell us what should change about your job, and we'll re-sort these
           </span>
-          {answeredCount > 0 && (
+          {savedCount > 0 && (
             <span className="block text-xs text-ink-secondary">{summary}</span>
           )}
         </span>
