@@ -10,3 +10,13 @@
 # is empty the research task STOPS and says so -- it must never pick a company itself, and
 # must never read the roster looking for one.
 
+# Added 2026-09-22 (Claude, Cowork) -- both target the same open gap: a genuine non-remote-tech
+# solo/async collaboration anchor. Doist is currently the ONLY anchor for that pole AND for
+# pace-steady, and it is separately flagged as the weakest-scrubbed packet in the set -- so that
+# pole depends entirely on the packet most likely to need a rebuild. DigitalOcean (P-08) was
+# built anyway despite the 2026-08-20 decision to look past remote-tech for this pole, so the
+# gap is still open, not closed by P-08. See STATE.md S-48 and AGENT_DECISION_QUEUE.md's
+# 2026-08-20 "hunt for archetype-diverse anchors" entry. Ranked by confidence -- reorder/delete
+# freely, this is not a locked pick.
+P-13	Schneider National
+P-14	Crawford & Company
