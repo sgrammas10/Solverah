@@ -488,3 +488,196 @@ def test_path_suggestions_answers_a_typed_503_for_a_missing_corpus(client, monke
 
     assert result.status == 503
     assert result.body == {"error": "corpus_unavailable"}
+
+
+# ---------------------------------------------------------------------------
+# W-12 -- the job narrates twenty and serves ten
+# ---------------------------------------------------------------------------
+#
+# The first browser test: after a tap, the cards that came in to replace the
+# removed ones read "Uses your SQL." with no pills, next to cards with a real
+# why-sentence.  F-8 routed the fix onward -- the LLM narrative on a re-ranked
+# card "has to be earned off the request path" -- and this is where it is
+# earned.  The serving half is in `tests/test_path_feedback_api.py`.
+
+
+def _deep_scored(n: int = 20) -> list:
+    return [
+        ScoredPath(
+            onet_code="15-00%02d.00" % i,
+            title="Role %d" % i,
+            score=0.9 - i / 100,
+            overlapping_skills=["Python"],
+        )
+        for i in range(n)
+    ]
+
+
+def _mock_deep_scoring(monkeypatch, *, fail_codes=frozenset()):
+    """A scorer that honours `reserve`, and a narrator that records its batches.
+
+    `generate_narratives` is the thing patched, not `generate_narratives_batched`
+    -- so the real batching runs and the calls recorded here are the real
+    completions the job would have made.
+    """
+    monkeypatch.setenv("ONET_API_KEY", "test-key")
+    everything = _deep_scored(20)
+
+    def score(*_args, reserve=0, **_kwargs):
+        return everything[: 10 + reserve]
+
+    batches: list[list[str]] = []
+
+    def narrate(candidates, _ctx):
+        codes = [c.onet_code for c in candidates]
+        batches.append(codes)
+        if fail_codes & set(codes):
+            raise RuntimeError("the provider is down")
+        return [
+            PathSuggestion(
+                onet_code=c.onet_code,
+                title=c.title,
+                why_text="Narrated %s." % c.onet_code,
+                profile_dimensions=["Builds on your Python", "Fits you"],
+            )
+            for c in candidates
+        ]
+
+    mock_score = MagicMock(side_effect=score)
+    monkeypatch.setattr(path_scoring_mod, "score_paths", mock_score)
+    monkeypatch.setattr(
+        path_narrative_mod, "generate_narratives", MagicMock(side_effect=narrate)
+    )
+    return mock_score, batches
+
+
+def _deep_profile(client, monkeypatch, email):
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_profile(
+        email,
+        {
+            "career_status": "employed",
+            "skills": ["Python"],
+            "skill_levels": {"Python": "advanced"},
+            "experience": [{"position": "Software Engineer", "company": "Acme"}],
+        },
+    )
+    return csrf
+
+
+def test_the_job_asks_the_scorer_for_a_reserve(client, monkeypatch):
+    from solverah.services.intelligence_service import RESERVE_DEPTH
+
+    csrf = _deep_profile(client, monkeypatch, "w12reserve@example.com")
+    mock_score, _ = _mock_deep_scoring(monkeypatch)
+
+    _warm_cache(client, csrf)
+
+    assert mock_score.call_args.kwargs["reserve"] == RESERVE_DEPTH
+
+
+def test_the_job_narrates_twenty_in_two_batches_of_ten(client, monkeypatch):
+    """Two completions, ten cards each, in parallel.
+
+    Measured on three F-2 profiles against the real API before this was built:
+    ten cards 10.35 / 11.09 / 10.35 s, two batches of ten on threads 11.87 /
+    9.37 / 9.96 s -- mean difference -0.20 s -- against 17.72 / 18.58 / 18.87 s
+    for one call of twenty.  The job's wall time is unchanged; the spend is one
+    extra completion, about 1,520 tokens.
+    """
+    csrf = _deep_profile(client, monkeypatch, "w12batches@example.com")
+    _, batches = _mock_deep_scoring(monkeypatch)
+
+    _warm_cache(client, csrf)
+
+    assert len(batches) == 2
+    assert sorted(len(codes) for codes in batches) == [10, 10]
+    assert sorted(batches, key=lambda codes: codes[0]) == [
+        ["15-00%02d.00" % i for i in range(10)],
+        ["15-00%02d.00" % i for i in range(10, 20)],
+    ]
+
+
+def test_only_the_page_reaches_the_wire(client, monkeypatch):
+    """The cached payload IS the response body and the job's stored result, so
+    the reserve cannot live in it -- ten cards out, ten cards cached elsewhere.
+    """
+    csrf = _deep_profile(client, monkeypatch, "w12wire@example.com")
+    _mock_deep_scoring(monkeypatch)
+
+    _warm_cache(client, csrf)
+    body = client.get("/api/v1/me/path-suggestions").get_json()
+
+    assert set(body) == {"suggestions", "career_status", "generated_at", "feedback"}
+    assert [s["onet_code"] for s in body["suggestions"]] == [
+        "15-00%02d.00" % i for i in range(10)
+    ]
+    assert all("Narrated" in s["why_text"] for s in body["suggestions"])
+
+
+def test_the_other_ten_are_in_the_reserve(client, monkeypatch):
+    from app import app
+    from model import User
+    from solverah.services import path_cache
+
+    csrf = _deep_profile(client, monkeypatch, "w12stash@example.com")
+    _mock_deep_scoring(monkeypatch)
+
+    _warm_cache(client, csrf)
+
+    with app.app_context():
+        user = User.query.filter_by(email="w12stash@example.com").one()
+        reserve = path_cache.get_reserve(user.id)
+
+    assert sorted(reserve) == ["15-00%02d.00" % i for i in range(10, 20)]
+    assert reserve["15-0011.00"]["why_text"] == "Narrated 15-0011.00."
+    assert reserve["15-0011.00"]["profile_dimensions"] == [
+        "Builds on your Python",
+        "Fits you",
+    ]
+
+
+def test_a_failing_reserve_batch_does_not_fail_the_job(client, monkeypatch):
+    """The ten still land; the second ten fall back.
+
+    Failing the whole job -- and with it the shortlist, which is the product --
+    because prose for a card the user cannot see came back malformed would trade
+    the thing that matters for the thing that does not.
+    """
+    from app import app
+    from model import User
+    from solverah.services import path_cache
+
+    csrf = _deep_profile(client, monkeypatch, "w12halfdown@example.com")
+    _mock_deep_scoring(
+        monkeypatch, fail_codes={"15-00%02d.00" % i for i in range(10, 20)}
+    )
+
+    _warm_cache(client, csrf)
+    resp = client.get("/api/v1/me/path-suggestions")
+
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert [s["onet_code"] for s in body["suggestions"]] == [
+        "15-00%02d.00" % i for i in range(10)
+    ]
+    assert all("Narrated" in s["why_text"] for s in body["suggestions"])
+    with app.app_context():
+        user = User.query.filter_by(email="w12halfdown@example.com").one()
+        assert path_cache.get_reserve(user.id) == {}
+
+
+def test_a_failing_page_batch_still_fails_the_job(client, monkeypatch):
+    """The asymmetry, and the reason the service rather than the narrator makes
+    it: only here is it known which batch was the page.
+    """
+    csrf = _deep_profile(client, monkeypatch, "w12pagedown@example.com")
+    _mock_deep_scoring(
+        monkeypatch, fail_codes={"15-00%02d.00" % i for i in range(10)}
+    )
+
+    _warm_cache(client, csrf)
+
+    assert client.get("/api/v1/me/path-suggestions").status_code == 404, (
+        "a job that could not narrate the page must warm no cache"
+    )

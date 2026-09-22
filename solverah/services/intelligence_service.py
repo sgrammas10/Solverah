@@ -74,6 +74,20 @@ PATH_PRIORITIES = {
 #: Values of ``endDate`` that mean the user still holds the role.
 _CURRENT_ROLE_MARKERS = ("present", "current")
 
+#: W-12.  How many cards BELOW the page the scoring job narrates and caches.
+#:
+#: Ten, measured rather than picked.  Replaying three taps the way `_rescore`
+#: does, on three F-2 profiles, surfaced 12, 14 and 20 distinct occupations --
+#: so a reserve of ten on top of the page of ten covers all three, and the worst
+#: of them exactly.  Five would leave the third profile's first tap short on its
+#: own (six un-narrated cards).  Twenty more would double the job's second
+#: batch for the tail of a distribution nobody has walked.
+#:
+#: The cost is one extra narrator completion per job -- ~1,520 tokens, about
+#: +$0.0007 -- and no wall time, because the two batches run on threads
+#: (`path_narrative.generate_narratives_batched` has the measurements).
+RESERVE_DEPTH: int = 10
+
 
 @dataclass
 class IntelligenceResult:
@@ -270,8 +284,16 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
     the warm cache must never disagree about what was computed.
     """
     from backend.services.onet_client import OnetClient
-    from backend.services.path_narrative import NarrativeGenerationError, generate_narratives
-    from backend.services.path_scoring import CorpusUnavailable, InsufficientProfile, score_paths
+    from backend.services.path_narrative import (
+        NarrativeGenerationError,
+        generate_narratives_batched,
+    )
+    from backend.services.path_scoring import (
+        PAGE_SIZE,
+        CorpusUnavailable,
+        InsufficientProfile,
+        score_paths,
+    )
 
     # Imported here, not at module scope: `path_wants_service` builds its panel
     # out of this module's `build_user_profile`, so the two import each other and
@@ -322,7 +344,14 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
             user, user_profile, onet_client, openai_client
         )
         scored = score_paths(
-            user_profile, onet_client, openai_client, feedback=judgements, wants=wants
+            user_profile,
+            onet_client,
+            openai_client,
+            feedback=judgements,
+            wants=wants,
+            # W-12. Ten more than the page, narrated below and kept off the wire,
+            # so a tap that promotes one of them finds prose already written.
+            reserve=RESERVE_DEPTH,
         )
     except InsufficientProfile:
         # The user has no job title and no skills, so there is nothing to score.
@@ -365,13 +394,44 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
         )
         return _error(500, "Unable to score career paths")
 
+    # W-12. The page is the first `PAGE_SIZE` of what came back; everything after
+    # it is the reserve, which is narrated and cached but never served.
+    page = scored[:PAGE_SIZE]
+    page_codes = {path.onet_code for path in page}
+
     try:
-        suggestions = generate_narratives(
+        narrated = generate_narratives_batched(
             scored, build_user_context(profile, user.intake, career_status)
         )
     except NarrativeGenerationError:
         logger.exception("Path narrative generation failed for user %s", user.id)
         return _error(500, "Unable to generate path narratives")
+
+    suggestions = [s for s in narrated if s.onet_code in page_codes]
+    if page and not suggestions:
+        # The batch carrying the page came back unusable. Fatal, exactly as it
+        # was before W-12 -- the shortlist IS the product, and a job that
+        # succeeded with no prose on any card would warm the cache with a
+        # ten-card page of fallback sentences and no way to ask again.
+        #
+        # A RESERVE batch failing is not fatal and is not handled here:
+        # `generate_narratives_batched` logs it and returns the batches that
+        # worked, so those cards simply have no reserve entry and get the
+        # `_overlap_sentence` fallback if a tap ever promotes them.
+        logger.error(
+            "Path narrative generation produced nothing for the page, user %s",
+            user.id,
+        )
+        return _error(500, "Unable to generate path narratives")
+
+    reserve_narratives = {
+        s.onet_code: {
+            "why_text": s.why_text,
+            "profile_dimensions": list(s.profile_dimensions),
+        }
+        for s in narrated
+        if s.onet_code not in page_codes
+    }
 
     score_map = {path.onet_code: path.score for path in scored}
     # W-4, additive and keyed the same way `score_map` is: the narrator returns
@@ -402,6 +462,10 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
     }
 
     path_cache.store(user.id, payload)
+    # Written unconditionally, empty included: this generation's reserve must
+    # replace the last one rather than be merged with it, or a card dropped from
+    # the shortlist would keep prose written against an older profile.
+    path_cache.store_reserve(user.id, reserve_narratives)
     return IntelligenceResult(status=200, body=payload)
 
 
@@ -774,8 +838,13 @@ def _describe(user: User, scored) -> List[Dict[str, Any]]:
     tap was the narrator, and the narrator is not close to affordable here
     (`gpt-4o-mini`, measured against the real API on the F-2 profiles):
 
-        cards narrated    1        2        3        5       10
-        latency        1.4-1.7s 1.9-2.1s 2.5-2.7s 3.1-3.7s  6.7s
+        cards narrated    1        2        3        5        10
+        latency        1.4-1.7s 1.9-2.1s 2.5-2.7s 3.1-3.7s 10.3-11.1s
+
+    (The ten-card figure read 6.7 s from F-6 until W-12 re-measured it on three
+    profiles: 10.35 / 11.09 / 10.35 s. Nothing in this repository changed; the
+    provider got slower. It is corrected here rather than left to be read off
+    as a current number.)
 
     A tap surfaces two to six new cards, so narrating them would put **1.5-4
     seconds** on a control the user is expected to press repeatedly, and roughly
@@ -787,30 +856,40 @@ def _describe(user: User, scored) -> List[Dict[str, Any]]:
 
     ── WHAT A CARD SAYS INSTEAD ───────────────────────────────────────────────
 
-    Two sources, in order:
+    Three sources, in this order:
 
-    1. **The narrative it already has.** Most of a re-rank is the same
+    1. **The reserve (W-12).** The scoring job narrates twenty and shows ten;
+       the other ten are in `path_cache.get_reserve`, written by the same
+       narrator, from the same profile, in the same job. A card promoted out of
+       the reserve therefore arrives reading like the cards beside it, which is
+       what F-8 routed onward and what the first browser test asked for.
+
+       **This is consulted BEFORE the carry-forward, and that order is the fix
+       rather than a detail.** The carry-forward keeps any truthy `why_text`,
+       *including a fallback sentence this function wrote on an earlier tap* --
+       so without the reserve going first, a card that surfaced once as "Uses
+       your SQL." would keep that sentence for the rest of the session even
+       after prose for it existed. Reserve first means the upgrade lands on the
+       next tap.
+
+    2. **The narrative it already has.** Most of a re-rank is the same
        occupations reordered, and a `why_text` is a function of (occupation,
        profile) -- a tap moves neither. Those are carried across verbatim from
        the cached payload, so the prose the user has been reading does not
        change under them.
-    2. **Its overlapping skills**, for a card that was not on the list before.
-       `score_paths` already computes these per card at no extra cost (one
-       matrix product over skills the batch request already embedded), and they
-       are the *same data* the narrator is handed to write from. "Uses your
-       Lesson planning, Classroom management and Student assessment" is more
-       concrete than most of what an LLM writes from the same input, and it
-       arrives in microseconds.
+    3. **Its overlapping skills**, for a card beyond the reserve that was not on
+       the list before. `score_paths` already computes these per card at no
+       extra cost (one matrix product over skills the batch request already
+       embedded), and they are the *same data* the narrator is handed to write
+       from. "Uses your Lesson planning, Classroom management and Student
+       assessment" is more concrete than most of what an LLM writes from the
+       same input, and it arrives in microseconds.
 
     `profile_dimensions` is left empty for those cards rather than filled with
     invented tags: an empty list renders nothing, and a fabricated tag is worse
     than a missing one.
-
-    **Routed onward (F-8):** if the LLM narrative is wanted on re-ranked cards,
-    it has to be earned off the request path -- a background pass, or a narrator
-    cheap enough to be worth the round trip. That is a spend-and-latency call,
-    not something to slip in here.
     """
+    reserve = path_cache.get_reserve(user.id)
     cached = path_cache.get(user.id) or {}
     carried = {
         item.get("onet_code"): item
@@ -820,7 +899,7 @@ def _describe(user: User, scored) -> List[Dict[str, Any]]:
 
     out: List[Dict[str, Any]] = []
     for path in scored:
-        prior = carried.get(path.onet_code)
+        prior = reserve.get(path.onet_code) or carried.get(path.onet_code)
         out.append(
             {
                 "onet_code": path.onet_code,

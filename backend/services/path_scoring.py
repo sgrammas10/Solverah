@@ -141,6 +141,14 @@ _WEIGHTS_NO_ZONE: tuple[float, float, float] = (1.00, 0.00, 0.00)
 #: Maximum number of ScoredPath objects returned.
 _TOP_N: int = 10
 
+#: :data:`_TOP_N` under a public name, for W-12's ``reserve`` callers.
+#:
+#: A caller that asks :func:`score_paths` for a reserve gets one list back and
+#: has to know where the page ends and the reserve begins.  The alternative is a
+#: second literal ``10`` in the service layer, which is how the shortlist and the
+#: thing that slices it drift apart.
+PAGE_SIZE: int = _TOP_N
+
 #: How many corpus rows to retrieve before re-ranking.
 #:
 #: The retrieval cosine is only one of four signals, so the pool has to be wider
@@ -664,10 +672,14 @@ _FRESH_START_EXCLUDE_PREFIX_LEN: int = 4
 #               any job at or above where they are, so overshooting costs
 #               nothing.
 #
-# Both apply to all three intents.  `stay_in_field` still ignores *card*
-# feedback exactly as F-6 decided -- that is a judgement about a question the
-# scorer asked -- but the wants are the user's own statement about their own
-# job, which is the question they came with.
+# Both apply to all three intents -- the wants are the user's own statement
+# about their own job, which is the question they came with, rather than a
+# judgement about a question the scorer asked.  W-11 narrowed *where* they apply
+# for `stay_in_field`: they reach its RANK and not its retrieval pool, because
+# that intent's query is the user's own corpus row and rotating it walks the
+# pool out of the field (see `score_paths`).  `stay_in_field` still takes no
+# Rocchio rotation from card feedback, exactly as F-6 decided; W-11 gave it that
+# feedback's REMOVALS, which delete a card rather than reorder a list.
 
 #: Rocchio, again: ``q' = normalise(q + beta*mean(more) - gamma*mean(less))``
 #: over the embeddings of the tapped task statements.
@@ -698,6 +710,14 @@ _FRESH_START_EXCLUDE_PREFIX_LEN: int = 4
 #: low rather than a per-intent one set high: a user who asked to stay in their
 #: field must not be walked out of it by a list of things they dislike about
 #: Tuesdays.
+#:
+#: **W-11 finished that argument rather than re-tuning it.**  The table above is
+#: the hazard measured at n = 5 on labels; a person then saw it happen -- the
+#: whole `stay_in_field` page left the field at the shipped 0.40.  A gamma low
+#: enough to be safe there was also a gamma too low to be worth much anywhere,
+#: so `stay_in_field` stopped rotating its pool at all and these two constants
+#: now describe `adjacent` and `fresh_start` only.  The `stay_in_field` row is
+#: kept because it is what the decision was made on.
 _WANTS_TASK_BETA: float = 0.80
 _WANTS_TASK_GAMMA: float = 0.40
 
@@ -2124,6 +2144,71 @@ def _task_affinity(
     return [1.0 - float(l) for l in less_pct]  # type: ignore[union-attr]
 
 
+def _anchored_role_scores(
+    corpus: OccupationCorpus,
+    matches: list[Match],
+    query: "np.ndarray",
+    wants: "Wants | None",
+    openai_client,
+) -> "np.ndarray | None":
+    """The `role` term for a pool retrieved on the UN-rotated anchor (W-11).
+
+    Returns the cosine of the ROTATED query against the rows already retrieved,
+    or None -- leaving ``role`` as the retrieval cosine -- when no task was
+    stated, which is every request `stay_in_field` made before this ruling.
+
+    WHY THIS IS NOT JUST "LEAVE `role` ALONE", AND WHY THE ANSWER IS MEASURED.
+    Ruling 1 stopped the wants from choosing `stay_in_field`'s pool.  That also
+    took them out of the retrieval cosine, which is this intent's largest single
+    weight -- so the anchored pool has two readings of `role`, and only a
+    measurement separates them:
+
+      (a) the ANCHOR cosine.  The wants reach the rank through W-8's affinity
+          term and W-3a's conditions term alone, and `role` answers the question
+          the intent asks: how near is this to the job I have.
+      (b) the ROTATED-QUERY cosine over the same pool.  The pool then answers
+          "is this still my field" and `role` answers "is this the kind of work
+          I asked for" -- two different questions, one each.
+
+    Measured live on p21-p25, the five `stay_in_field` wants profiles, against
+    ``runs/w8_task_affinity.json`` (nDCG@10; harmful_rate was
+    0.000/0.100/0.300/0.200/0.000 in EVERY arm, macro 0.120, and never moved):
+
+        profile                       W-8      (a)      (b)
+        p21_pharmacy_tech_stay      0.3583   0.4129   0.3583
+        p22_hvac_tech_stay          0.2934   0.1851   0.2934
+        p23_head_chef_stay          0.0000   0.0000   0.0000
+        p24_elementary_teacher      0.5714   0.4592   0.5714
+        p25_sysadmin_stay           0.8366   0.8439   0.8366
+        MACRO                       0.4119   0.3802   0.4119
+
+    **(b), and the clearest reason is a row the table does not have.**  (a)
+    costs 0.032 macro and loses 0.11 on two profiles; on p22 it does that
+    WITHOUT changing which ten occupations are shown -- same set, worse order --
+    so what (a) throws away is the rotation's ordering information rather than
+    anything about the pool.
+
+    **(b) lands on W-8's page: the same ten occupations on all five profiles,
+    the same order on three, and the two order differences are adjacent pairs
+    that finish 0.0011 and 0.0007 apart -- about twice the live-embedding jitter
+    W-3b measured.**  The scores themselves move by up to 0.009, because the
+    affinity percentiles are pool-relative and the pool is no longer the rotated
+    one; not one profile's nDCG@10 or harmful_rate moves at all.
+
+    Carry that finding rather than the reassurance: on these five profiles the
+    rotated query and the anchor retrieve pools that agree about the top ten, so
+    **the labelled set cannot see ruling 1 at all.**  It is not evidence the
+    ruling changes nothing -- it was found on a page where the two pools
+    disagreed about four cards in ten, and no p21-p25 anchor sits near that kind
+    of boundary -- it is evidence that this harness is the wrong instrument for
+    this one defect, which is why `TestTheFoundersStayCase` stands beside it.
+    """
+    if wants is None or not wants.has_tasks or not matches:
+        return None
+    rotated = _wants_rotated_query(query, wants, openai_client)
+    return _dot_rows(corpus, [m.row for m in matches], rotated)
+
+
 # ---------------------------------------------------------------------------
 # Card reasons -- what is DISTINCTIVE about this card (W-4, design doc §8.2)
 # ---------------------------------------------------------------------------
@@ -2157,13 +2242,22 @@ def _task_affinity(
 # Sales Engineers, the most people-facing job on the page and exactly what the
 # user asked for.  The axis they ASKED ABOUT could never speak, on any card.
 #
-# The fix is a second phrase for the same axis that makes an ABSOLUTE claim
+# W-4's fix was a second phrase for the same axis making an ABSOLUTE claim
 # instead of a comparative one: "Among the most people-facing jobs" is true of
-# the far end of the corpus and is therefore NOT true of most of a page.  It is a
-# different string, so it is counted and dropped by the same ubiquity rule on its
-# own frequency -- a page that really is all extremes loses it too.  Stated axes
-# only: an absolute claim about something the user never raised is a fact about
-# the job, not a reason they are being shown it.
+# the far end of the corpus and is therefore NOT true of most of a page.  Stated
+# axes only: an absolute claim about something the user never raised is a fact
+# about the job, not a reason they are being shown it.
+#
+# IT WAS HALF THE FIX, AND A PERSON FOUND THE OTHER HALF.  The strong phrase only
+# speaks for a card at the far end of the corpus; on a page where every card is
+# moderately above the user, the stated axis still went silent everywhere.  W-11
+# ruling 3: a phrase on a STATED axis -- tier 0 or tier 1 -- is exempt from the
+# ubiquity drop, and only tier 2, the axes the user never raised, is still swept.
+# The reasoning is in `_attach_reasons`, at the line that does it.
+#
+# W-11 ruling 4 is the same honesty one step further: a tier-1 phrase can point
+# AGAINST the ask, and it then reads as "Still more dealing with the public"
+# rather than as the page arguing with the user (`_acknowledged`).
 
 #: Percentiles at which a STATED axis earns the absolute phrasing.  The top and
 #: bottom fifth of the corpus: far enough out that "among the most" is a fair
@@ -2286,6 +2380,44 @@ def _strong_phrase(axis: str, direction: "str | None", value: float) -> str | No
     return None
 
 
+def _opposes(direction: "str | None", delta: float) -> bool:
+    """True when this card points the OTHER way from what the user asked for.
+
+    A comparative line on a stated axis can contradict the ask: the user said
+    ``less`` and the card is higher, or ``more`` and it is lower.  That happens
+    because the axis is one term among six -- a card that is wrong on one axis
+    and right on everything else still makes the page, and saying so is the
+    honest thing to do.  It is only ever True on tier 1: tier 0 is
+    direction-checked by :func:`_strong_phrase` before it is built, and tier 2
+    has no stated direction to oppose.
+    """
+    if direction == "less":
+        return delta > 0
+    if direction == "more":
+        return delta < 0
+    return False
+
+
+def _acknowledged(phrase: str) -> str:
+    """``"More dealing with the public"`` -> ``"Still more dealing with the public"``.
+
+    W-11 ruling 4.  The line stays -- it is the truth about a card the scorer put
+    on the page anyway, and deleting it would leave the user's one stated axis
+    silent on exactly the cards it has something to say about.  What changes is
+    how it reads.  Unprefixed, "More dealing with the public" on a card shown to
+    someone who asked for *less* of it is the page arguing back; "Still more
+    dealing with the public" is the page conceding the point and letting them
+    judge.  One word, and it is the difference between a contradiction and a
+    caveat.
+
+    Copy is a best guess and Julie revises it on the built product (BUILD_PLAN);
+    what is not a wording question is that the acknowledgement is generated from
+    the sign of the delta rather than written into the phrase table -- every
+    phrase has both readings depending on who is looking at it.
+    """
+    return "Still " + phrase[:1].lower() + phrase[1:]
+
+
 def _candidate_reasons(
     code: str,
     anchor_percentiles: "Mapping[str, float]",
@@ -2300,8 +2432,12 @@ def _candidate_reasons(
     ``0``  a STATED axis where this job is at the far end of the corpus, phrased
            absolutely (:func:`_strong_phrase`).  Ordered by how extreme it is.
     ``1``  a stated axis, phrased against the user's own job.  Ordered by the size
-           of the difference.
+           of the difference.  Prefixed "Still " when the difference points
+           against what they asked for (W-11 ruling 4, :func:`_acknowledged`).
     ``2``  an axis the user never mentioned, same phrasing, same ordering.
+
+    Tier is also what :func:`_attach_reasons` exempts from the ubiquity sweep:
+    0 and 1 survive it, 2 does not (W-11 ruling 3).
 
     The axis name is the last element and is therefore the tie-break, which is
     what makes two identical pages produce identical reasons: dict iteration order
@@ -2346,14 +2482,11 @@ def _candidate_reasons(
         delta = value - anchor_value
         if abs(delta) < _REASON_MIN_DELTA:
             continue
-        out.append(
-            (
-                1 if direction is not None else 2,
-                -abs(delta),
-                axis,
-                higher if delta > 0 else lower,
-            )
-        )
+        phrase = higher if delta > 0 else lower
+        tier = 1 if direction is not None else 2
+        if tier == 1 and _opposes(direction, delta):
+            phrase = _acknowledged(phrase)
+        out.append((tier, -abs(delta), axis, phrase))
     out.sort()
     return out
 
@@ -2423,11 +2556,36 @@ def _attach_reasons(
     ceiling = max(2.0, _REASON_UBIQUITY * len(scored))
     ubiquitous = {phrase for phrase, n in counts.items() if n >= ceiling}
 
+    # W-11 RULING 3 -- A STATED AXIS IS EXEMPT FROM THE UBIQUITY DROP.
+    #
+    # The rule above is right about an axis the user never raised: a fact true of
+    # nine cards out of ten has told the reader nothing about any of them.  It is
+    # wrong about the axis they ASKED ABOUT, and the strong tier was only half
+    # the fix.  Sebastian's tester (D5) marked `people: more` as a developer, and
+    # a developer sits at percentile 0.07 for `people` -- so "More time with
+    # people than your current job" is true of nearly every card, was counted
+    # ubiquitous, and was dropped from all of them.  The one question he asked
+    # was the one question the page never answered, on any card, ever.  That is
+    # not a repetitive page; it is a page that can only say something the user
+    # did not ask about.
+    #
+    # The distinctiveness rule assumes a phrase competes for the reader's
+    # attention against the other phrases on the page.  A stated axis is not
+    # competing -- it is the answer, and "yes, on this one too" is information
+    # the moment they asked the question.  So tier 0 and tier 1 survive the
+    # sweep and tier 2 does not.  The counts are still taken over every phrase:
+    # they are per-phrase, and in practice a stated axis produces the same tier
+    # on every card, so nothing crosses the line.
+    #
+    # The two-phrase cap and stated-first ordering are unchanged, which is what
+    # stops this from turning ten cards into ten copies of one sentence: an
+    # exempt stated line takes at most one of the two slots on a card, and the
+    # second slot is still the distinctiveness rule's to fill.
     for path in scored:
         path.reasons = [
             phrase
-            for _, _, _, phrase in per_card.get(path.onet_code, ())
-            if phrase not in ubiquitous
+            for tier, _, _, phrase in per_card.get(path.onet_code, ())
+            if tier <= 1 or phrase not in ubiquitous
         ][:_REASON_MAX_PER_CARD]
 
 
@@ -2819,6 +2977,7 @@ def _build_signals(
     behavioral_vec: "np.ndarray | None",
     conditions: "_ConditionTargets | None" = None,
     task_affinity: "Sequence[float] | None" = None,
+    role_scores: "Sequence[float] | None" = None,
 ) -> list[_Signals]:
     """Score every retrieved candidate on all four terms, in two matrix products.
 
@@ -2834,6 +2993,13 @@ def _build_signals(
     order, already pool-rescaled by :func:`_task_affinity`.  None -- no stated
     task -- leaves every candidate at the neutral 0.5, which
     :func:`_final_score` never reads because its weight is 0.0 in that case.
+
+    *role_scores* replaces the retrieval cosine for the ``role`` term, one value
+    per *matches* entry.  W-11's measured arm: `stay_in_field` retrieves on the
+    un-rotated anchor, so the retrieval cosine no longer carries the stated
+    wants, and the alternative is to score the same pool against the rotated
+    query.  None -- every other request -- leaves ``role`` as the retrieval
+    cosine it has always been.
     """
     rows = [m.row for m in matches]
     coverage_raw = _dot_rows(corpus, rows, skills_vec)
@@ -2845,7 +3011,9 @@ def _build_signals(
         signals.append(
             _Signals(
                 match=match,
-                role=_rescale_cosine(match.score),
+                role=_rescale_cosine(
+                    match.score if role_scores is None else float(role_scores[i])
+                ),
                 coverage=_rescale_cosine(float(coverage_raw[i])),
                 style=_rescale_cosine(float(style_raw[i])),
                 zone=_zone_delta_score(
@@ -3045,6 +3213,7 @@ def score_paths(
     openai_client=None,
     feedback: "Mapping[str, str] | None" = None,
     wants: "Wants | None" = None,
+    reserve: int = 0,
 ) -> list[ScoredPath]:
     """Score candidate career paths against *user_profile* and return the top 10.
 
@@ -3085,7 +3254,9 @@ def score_paths(
        (:func:`_task_affinity`), so a want reaches the rank as a term of its own
        and not only through the query it rotated.
 
-    5. Return up to ``_TOP_N`` results sorted by score descending.
+    5. Return up to ``_TOP_N`` results sorted by score descending -- plus, when
+       *reserve* asks for them, that many more from below the page, carrying no
+       ``reasons``.  See the *reserve* argument.
 
     Args:
         user_profile:  Career snapshot of the user.
@@ -3097,12 +3268,17 @@ def score_paths(
                        list are unavailable, which is a degrade rather than a
                        failure.
         feedback:      ``{onet_code: verdict}`` from ``path_feedback`` (F-6,
-                       widened to ``fresh_start`` by F-7).  NOT read by
-                       ``stay_in_field``, which is answering a question the user
-                       asked directly; reordering it by judgements made about a
-                       different question would be the scorer overriding the
-                       request.  ``None`` or empty is the zero-tap case and must
-                       produce a full default list -- design doc §3.2.
+                       widened to ``fresh_start`` by F-7 and to
+                       ``stay_in_field``'s REMOVALS by W-11).  ``stay_in_field``
+                       honours ``not_for_me`` and ``too_similar`` -- the
+                       dismissed codes and the radius -- because those delete a
+                       card rather than reorder a list, and takes no Rocchio
+                       rotation and no promotion from ``interesting``: it is
+                       answering a question the user asked directly, and
+                       *reordering* it by judgements made about a different
+                       question would be the scorer overriding the request.
+                       ``None`` or empty is the zero-tap case and must produce a
+                       full default list -- design doc §3.2.
         wants:         W-3's :class:`Wants` -- what the user said should change
                        about their own job.  Read by **all three** intents,
                        unlike *feedback*: this is their own statement about
@@ -3110,6 +3286,17 @@ def score_paths(
                        chose.  ``None`` or empty must produce exactly the list
                        this function returned before the wants layer existed,
                        which `TestWantsIsAdditive` pins.
+        reserve:       W-12.  How many candidates BELOW the page to return after
+                       it, for a caller that needs to prepare something for
+                       cards the user cannot see yet -- today only the scoring
+                       job, which narrates them so a tap that promotes one finds
+                       prose already written (see
+                       ``intelligence_service._describe``).  Defaults to 0, so
+                       every existing caller and every eval run is byte-identical
+                       and stays that way.  The reserve is NOT part of the page:
+                       it carries ``reasons == []``, it is never shown, and a
+                       caller that renders it is rendering cards this function
+                       did not rank for display.
 
     Raises:
         InsufficientProfile: The profile has neither a usable title nor a single
@@ -3180,27 +3367,52 @@ def score_paths(
     # every intent starts from, and a tap is a reaction to what that query
     # returned.  Rotating in the other order would make the same two inputs
     # produce a different vector depending on which arrived first.
+    #
+    # W-11 RULING 1 -- THE ROTATION IS FOR THE INTENTS WHOSE QUERY IS NOT THE
+    # USER'S OWN ROW.  W-3 rotated all three.  For `stay_in_field` the query IS
+    # the anchor, so rotating it does not steer the pool, it *replaces* the
+    # centre the pool is drawn around -- and the pool walks out of the field the
+    # user asked to stay in.  Reproduced on Sebastian's account (a Software
+    # Developer marking one coding task LESS, one analysis task MORE, people
+    # more): `stay_in_field` returned Project Management Specialists, Sales
+    # Engineers, Logistics Engineers and Security Management Specialists, the
+    # same ten codes `adjacent` returned, where with no wants every one of the
+    # ten was a technology occupation.  The two intents had collapsed into one.
+    #
+    # The wants still reach `stay_in_field` -- through the RANK, where W-8's task
+    # affinity and W-3a's conditions term both work on any pool.  What they no
+    # longer do is choose the neighbourhood.  `adjacent` and `fresh_start` keep
+    # the rotation: their query is already off the anchor by construction, which
+    # is what the two intents mean.
     stated_conditions = _condition_targets(wants, anchor, corpus)
     conditions_w = _WANTS_CONDITIONS_W if stated_conditions is not None else 0.0
-    if query is not None and wants is not None and wants.has_tasks:
+    rotates_query = user_profile.move_intent in ("adjacent", "fresh_start")
+    if query is not None and wants is not None and wants.has_tasks and rotates_query:
         query = _wants_rotated_query(query, wants, openai_client)
 
-    # F-6, widened to `fresh_start` by F-7.  ONE implementation, two
-    # initialisers: `adjacent` starts from an annulus around the user's own
-    # occupation and `fresh_start` from a diverse spanning set, and from the
-    # first tap onward they are the same loop -- same Rocchio rotation, same
-    # radius, same exclusions.  That is the architectural payoff design doc §3.3
-    # names, and it is why nothing below branches on which intent it is.
+    # F-6, widened to `fresh_start` by F-7 and to `stay_in_field`'s REMOVALS by
+    # W-11.  ONE implementation, two initialisers: `adjacent` starts from an
+    # annulus around the user's own occupation and `fresh_start` from a diverse
+    # spanning set, and from the first tap onward they are the same loop -- same
+    # Rocchio rotation, same radius, same exclusions.  That is the architectural
+    # payoff design doc §3.3 names.
     #
-    # `stay_in_field` is still excluded, for the reason the `feedback` argument
-    # documents: it is answering a question the user asked directly, and
-    # reordering it by judgements made about a different question would be the
-    # scorer overriding the request.
-    takes_feedback = user_profile.move_intent in ("adjacent", "fresh_start")
+    # W-11 RULING 2 -- `stay_in_field` TAKES THE REMOVALS AND NOT THE ROTATION.
+    # F-6 gave it neither, on the argument the `feedback` argument still records:
+    # reordering an answer to a question the user asked directly, using
+    # judgements about a different question, is the scorer overriding the
+    # request.  That argument holds for the ROTATION and does not hold for a
+    # removal.  "Not for me" and "too similar" are not opinions about the
+    # ordering -- they are the user deleting a card, and a deleted card coming
+    # back on the next render is the product ignoring them.  So for
+    # `stay_in_field` the exclusion list and the radius apply, `_rocchio_query`
+    # does not, and "interesting" is recorded and moves nothing: there is no
+    # rotation for it to feed, and promoting a card inside a list the user asked
+    # to be ordered by nearness to their own job is the override F-6 refused.
     is_fresh_start = user_profile.move_intent == "fresh_start"
     judgements: "Mapping[str, str]" = feedback or {}
     radius_exclusions: list[str] = []
-    if takes_feedback and judgements and query is not None:
+    if judgements and query is not None:
         anchor_vec = _anchor_vector(anchor, corpus)
         # No corpus anchor (an All-Other row, an unresolvable title): fall back
         # to the UN-rotated query, which is the user's own profile document and
@@ -3211,7 +3423,8 @@ def score_paths(
         _, radius_exclusions = _radius_exclusions(
             corpus, anchor_vec if anchor_vec is not None else query, judgements
         )
-        query = _rocchio_query(query, corpus, judgements)
+        if rotates_query:
+            query = _rocchio_query(query, corpus, judgements)
         # A card they dismissed does not come back.  An "interesting" one does:
         # tapping it should pull it up and surround it with more of the same, not
         # make it disappear.
@@ -3281,10 +3494,15 @@ def score_paths(
             extra_exclusions=radius_exclusions,
             # A wider pool where the radius can take a slice out of it.  See
             # _RETRIEVE_K_ADJACENT.
+            # `rotates_query` and not "has judgements": the wider pool is the
+            # two rotating intents' constant, set once so a tap cannot change
+            # the pool size the W-8 affinity percentiles are computed over.
+            # `stay_in_field` keeps `_RETRIEVE_K` with or without taps for the
+            # same reason -- W-11 moves what is IN its pool, never how big.
             k=(
                 corpus.count
                 if seeding
-                else _RETRIEVE_K_ADJACENT if takes_feedback else None
+                else _RETRIEVE_K_ADJACENT if rotates_query else None
             ),
             zone_max=zone_max,
         )
@@ -3331,9 +3549,18 @@ def score_paths(
     affinity = _task_affinity(corpus, matches, wants, openai_client)
     affinity_w = _WANTS_TASK_AFFINITY_W if affinity is not None else 0.0
 
+    # W-11 ruling 1's second half: the anchored pool still has to score its
+    # `role` term somehow, and which cosine it uses was measured rather than
+    # argued -- the table is in `_anchored_role_scores`.
+    role_scores = (
+        _anchored_role_scores(corpus, matches, query, wants, openai_client)
+        if not rotates_query
+        else None
+    )
+
     signals = _build_signals(
         user_profile, anchor, corpus, matches, skills_vec, behavioral_vec,
-        stated_conditions, affinity,
+        stated_conditions, affinity, role_scores,
     )
     overlaps = _overlapping_skills(user_profile, corpus, matches, openai_client)
 
@@ -3370,6 +3597,15 @@ def score_paths(
     # from the ten cards on the strength of the thirty that were cut.
     page = scored[:_TOP_N]
     _attach_reasons(page, anchor, corpus, wants)
+    if reserve > 0:
+        # W-12.  Appended AFTER `_attach_reasons`, and that ordering is the
+        # whole of the guarantee: the reasons pass counts phrases across the
+        # cards it is given, so handing it twenty would drop lines from the ten
+        # shown on the strength of ten nobody sees -- a wire change, made by a
+        # keyword that is supposed to change nothing about them.  The reserve
+        # therefore leaves here with `reasons == []`, which is also the honest
+        # value: a reason is a statement about a page, and these are not on one.
+        return page + scored[_TOP_N:_TOP_N + reserve]
     return page
 
 

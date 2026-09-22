@@ -18,6 +18,7 @@ cleanly when `SOLVERAH_CORPUS_PATH` is unset -- CI has no artifact.
 """
 from __future__ import annotations
 
+import dataclasses
 import os
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -2030,33 +2031,39 @@ class TestFeedbackThroughScorePaths:
         assert after["47-2111.00"] > before["47-2111.00"]
 
     @pytest.mark.parametrize("intent", ["stay_in_field", None])
-    def test_the_other_intents_ignore_judgements_entirely(
-        self, world, onet, intent
+    def test_the_other_intents_take_no_rotation_from_a_judgement(
+        self, world, onet, monkeypatch, intent
     ) -> None:
         """`adjacent` and `fresh_start` ask the user which way to go; these do not.
 
-        Reordering `stay_in_field` by answers to a question it never asked would
-        be the scorer overriding the user's stated request. F-7 moved
+        *Reordering* `stay_in_field` by answers to a question it never asked
+        would be the scorer overriding the user's stated request. F-7 moved
         `fresh_start` to the other side of this line -- it is the same loop with
         a different seed, which is the whole architectural point -- so this
         parametrize deliberately no longer covers it; see
         `TestFreshStartFeedback`.
+
+        W-11 ruling 2 narrowed the claim from "ignores judgements entirely" to
+        "takes no rotation from them": a removal is not a reordering, and
+        `TestStayInFieldTaps` is the other half. So this asserts the rotation is
+        never reached rather than that the list never changes.
         """
+        monkeypatch.setattr(
+            ps,
+            "_rocchio_query",
+            lambda *a, **k: pytest.fail("stay_in_field rotated on card feedback"),
+        )
         prof = profile(
             move_intent=intent, skills=[user_skill("Python"), user_skill("SQL")]
         )
         client = tech_openai(prof)
-        plain = [p.onet_code for p in score_paths(prof, onet, client)]
-        judged = [
-            p.onet_code
-            for p in score_paths(
-                prof,
-                onet,
-                client,
-                feedback={"15-1251.00": "too_similar", "47-2111.00": "interesting"},
-            )
-        ]
-        assert plain == judged
+
+        assert score_paths(
+            prof,
+            onet,
+            client,
+            feedback={"15-1251.00": "too_similar", "47-2111.00": "interesting"},
+        )
 
     def test_no_onet_call_is_made_on_the_feedback_path(self, world, onet) -> None:
         """Tier 1 makes zero O*NET requests and a tap must not change that.
@@ -2251,12 +2258,18 @@ class TestTaskRotation:
     @pytest.mark.parametrize(
         "intent", ["stay_in_field", "adjacent", "fresh_start", None]
     )
-    def test_every_intent_rotates(self, world, onet, intent) -> None:
-        """Unlike card feedback, which `stay_in_field` ignores by design.
+    def test_every_intent_answers_a_stated_task(self, world, onet, intent) -> None:
+        """Unlike card feedback, which `stay_in_field` takes no rotation from.
 
         The wants are the user's own statement about their own job -- the
         question they arrived with -- not a judgement about a card the scorer
         chose to show them (design doc §8.3).
+
+        Named for the effect and not the mechanism, because W-11 ruling 1 split
+        the two: `adjacent` and `fresh_start` answer a stated task by rotating
+        the query, `stay_in_field` answers it in the rank alone (W-8's affinity
+        term, W-3a's conditions term) and keeps the anchor's own pool.
+        `TestStayInFieldKeepsItsPool` is that half.
         """
         prof = self._profile(intent)
         client = wants_openai(prof, tasks={CUSTOMER_TASK: TRADE})
@@ -2335,6 +2348,413 @@ class TestTaskRotation:
 
         assert np.allclose(rotated, base)
         assert "degenerate query" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# W-11 -- the four rulings from the first hands-on user test
+# ---------------------------------------------------------------------------
+
+
+#: The direction the anchor's own field runs along: a task the user could ask
+#: for more of without leaving it.  Used where the point is that the RANK moved.
+IN_FIELD_TASK = "Analyse user needs and system requirements."
+#: A task pointing straight out of the field, at the trade cluster.  Used where
+#: the point is whether the POOL moved.
+OUT_OF_FIELD_TASK = "Install and maintain electrical systems."
+#: A task on an axis no row's position along its own arc predicts, so a rotation
+#: toward it reorders a cluster instead of merely stretching it -- which is what
+#: `fresh_start` needs, its whole pool being one cluster.
+CROSSWISE_TASK = "Work outdoors in all weather."
+
+
+def two_cluster_corpus() -> OccupationCorpus:
+    """Two clusters far enough apart that "which cluster" is visible in a page.
+
+    25 technology rows on a narrow arc from the anchor, 40 trade rows on their
+    own arc around an orthogonal direction, every other one of those lifted onto
+    a fourth dimension the anchor has no component in (so a rotation toward that
+    dimension reorders the trade cluster rather than stretching it).
+
+    Bigger than `_RETRIEVE_K` on purpose: with 65 rows and k=30 the retrieval
+    pool is a real subset, which is the only way "the pool left the field" can be
+    asserted at all.  The five-row `world` fixture retrieves everything, always.
+    """
+    rows: list[tuple[str, str, np.ndarray]] = [
+        ("15-%04d.00" % (1200 + i), "Tech Role %d" % i, unit(1, 0.02 * i, 0, 0))
+        for i in range(25)
+    ] + [
+        (
+            "47-%04d.00" % (2100 + i),
+            "Trade Role %d" % i,
+            unit(0.01 * i, 0, 1, 0.5 * (i % 2)),
+        )
+        for i in range(40)
+    ]
+    return build_corpus(rows, {code: 4 for code, _, _ in rows})
+
+
+class _PoolSpy:
+    """Records what `_retrieve_candidates` returned, without changing it."""
+
+    def __init__(self, monkeypatch) -> None:
+        self.pools: list[list[str]] = []
+        real = ps._retrieve_candidates
+
+        def _spy(*args, **kwargs):
+            matches = real(*args, **kwargs)
+            self.pools.append([m.code for m in matches])
+            return matches
+
+        monkeypatch.setattr(ps, "_retrieve_candidates", _spy)
+
+    @property
+    def last(self) -> list[str]:
+        return self.pools[-1]
+
+
+class TestStayInFieldKeepsItsPool:
+    """W-11 ruling 1: stated wants reach `stay_in_field`'s RANK, not its pool.
+
+    REPRODUCED BY A PERSON BEFORE IT WAS MEASURED.  Sebastian, a Software
+    Developer, marked one coding task LESS, one analysis task MORE and `people:
+    more`, and asked to stay in his field.  With no wants his ten cards were ten
+    technology occupations.  With the wants saved they were the same ten codes
+    `adjacent` returned -- Project Management Specialists, Sales Engineers,
+    Logistics Engineers, Security Management Specialists.  The intent had stopped
+    meaning anything.
+
+    The cause is structural rather than a bad constant: `_wants_rotated_query`
+    rotated the query for all three intents, and for this one the query IS the
+    anchor row, so the rotation does not steer a pool drawn around the user's own
+    job -- it moves the point the pool is drawn around.
+    """
+
+    @pytest.fixture()
+    def wide(self, monkeypatch) -> OccupationCorpus:
+        corpus = two_cluster_corpus()
+        monkeypatch.setattr(ps, "get_corpus", lambda: corpus)
+        return corpus
+
+    @staticmethod
+    def _profile(intent: str) -> UserProfile:
+        return profile(move_intent=intent, skills=[user_skill("Python")])
+
+    @staticmethod
+    def _client(prof: UserProfile) -> FakeOpenAI:
+        """Every document embeds to the tech direction; the tapped tasks do not.
+
+        `OUT_OF_FIELD_TASK` points at the trade cluster, which is what makes the
+        rotation's effect on retrieval visible: a query rotated 0.8 of the way
+        toward it walks out of the anchor's neighbourhood.
+        """
+        return wants_openai(
+            prof,
+            tasks={
+                OUT_OF_FIELD_TASK: TRADE,
+                IN_FIELD_TASK: unit(1, 0.45, 0, 0),
+                CROSSWISE_TASK: unit(0, 0, 0, 1),
+            },
+        )
+
+    def test_the_retrieved_pool_is_the_one_the_unrotated_anchor_gives(
+        self, wide, onet, monkeypatch
+    ) -> None:
+        prof = self._profile("stay_in_field")
+        client = self._client(prof)
+        spy = _PoolSpy(monkeypatch)
+
+        score_paths(prof, onet, client)
+        blind = spy.last
+        score_paths(prof, onet, client, wants=ps.Wants(tasks_more=(OUT_OF_FIELD_TASK,)))
+        stated = spy.last
+
+        assert stated == blind
+
+    def test_the_page_is_a_subset_of_the_no_wants_pool(
+        self, wide, onet, monkeypatch
+    ) -> None:
+        """The behavioural acceptance test the ruling names.
+
+        Stated as a subset rather than as "all tech", because the point is not
+        that trade rows are banned -- a trade row inside the anchor's own
+        neighbourhood is a perfectly good `stay_in_field` suggestion -- but that
+        the wants may not go and fetch candidates the anchor never reached.
+        """
+        prof = self._profile("stay_in_field")
+        client = self._client(prof)
+        spy = _PoolSpy(monkeypatch)
+
+        score_paths(prof, onet, client)
+        pool = set(spy.last)
+        page = {
+            p.onet_code
+            for p in score_paths(
+                prof, onet, client, wants=ps.Wants(tasks_more=(OUT_OF_FIELD_TASK,))
+            )
+        }
+
+        assert page <= pool
+
+    def test_the_wants_still_reorder_the_page_they_did_not_choose(
+        self, wide, onet, monkeypatch
+    ) -> None:
+        """The other half, and the reason the ruling is "rank, not pool" rather
+        than "stay_in_field ignores wants": a want the user stated has to be
+        visible on the page, or the panel is decoration.
+
+        The task here points ALONG the field rather than out of it, which is the
+        case the ruling has to serve -- a developer asking for more analysis and
+        less debugging is not asking to stop being in technology.  W-8's
+        affinity term carries it, over a pool the wants did not choose.
+        """
+        prof = self._profile("stay_in_field")
+        client = self._client(prof)
+        spy = _PoolSpy(monkeypatch)
+
+        blind = [p.onet_code for p in score_paths(prof, onet, client)]
+        pool = set(spy.last)
+        stated = [
+            p.onet_code
+            for p in score_paths(
+                prof, onet, client, wants=ps.Wants(tasks_more=(IN_FIELD_TASK,))
+            )
+        ]
+
+        assert stated != blind
+        assert set(stated) <= pool
+
+    @pytest.mark.parametrize("intent", ["adjacent", "fresh_start"])
+    def test_the_two_rotating_intents_still_rotate(
+        self, wide, onet, monkeypatch, intent
+    ) -> None:
+        """`adjacent` and `fresh_start` keep W-3's rotation.
+
+        Their query is off the anchor by construction -- that is what the two
+        intents mean -- so moving it further is the feature rather than the
+        defect.
+        """
+        monkeypatch.setattr(ps, "_FRESH_START_SKILL_FLOOR", 0.0)
+        prof = self._profile(intent)
+        client = self._client(prof)
+        spy = _PoolSpy(monkeypatch)
+
+        score_paths(prof, onet, client)
+        blind = spy.last
+        # `CROSSWISE_TASK` rather than the out-of-field one because
+        # `fresh_start` has already excluded the anchor's whole SOC minor group:
+        # its pool is the trade cluster, and a rotation toward that cluster's
+        # own axis would stretch the order it already has instead of changing
+        # which rows are in it.
+        score_paths(prof, onet, client, wants=ps.Wants(tasks_more=(CROSSWISE_TASK,)))
+        stated = spy.last
+
+        assert stated != blind
+
+    def test_a_stay_user_who_stated_nothing_is_untouched(self, wide, onet) -> None:
+        """`TestWantsIsAdditive` on the corpus this ruling is measured on."""
+        prof = self._profile("stay_in_field")
+        client = self._client(prof)
+
+        without = [(p.onet_code, p.score) for p in score_paths(prof, onet, client)]
+        empty = [
+            (p.onet_code, p.score)
+            for p in score_paths(prof, onet, client, wants=ps.Wants())
+        ]
+
+        assert empty == without
+
+
+def stay_corpus(n: int = 40, step: float = 0.08) -> OccupationCorpus:
+    """`arc_corpus` with Job Zones, so `score_paths` can run over it.
+
+    The arc gives a strict cosine order from row 0, which is what the radius
+    tests need; the zones keep `_resolve_current_zone` off the O*NET client,
+    which the `onet` fixture makes fatal.  Forty rows against
+    `_RADIUS_MIN_SURVIVORS` of ten leaves the floor room not to fire.
+    """
+    return build_corpus(
+        [(f"15-{1200 + i}.00", f"Role {i}", unit(1, i * step)) for i in range(n)],
+        {f"15-{1200 + i}.00": 4 for i in range(n)},
+    )
+
+
+class TestStayInFieldTaps:
+    """W-11 ruling 2: `stay_in_field` honours the removals and nothing else.
+
+    F-6 gave this intent no feedback at all, on an argument that holds for a
+    reordering and does not hold for a deletion. "Not for me" is not an opinion
+    about the ordering -- it is the user taking a card off the page, and a
+    dismissed card returning on the next render is the product telling them their
+    answer did not count. The rotation stays out: promoting a card inside a list
+    the user asked to be ordered by nearness to their own job is the override F-6
+    refused.
+    """
+
+    @pytest.fixture()
+    def arc(self, monkeypatch) -> OccupationCorpus:
+        corpus = stay_corpus()
+        monkeypatch.setattr(ps, "get_corpus", lambda: corpus)
+        return corpus
+
+    @staticmethod
+    def _profile() -> UserProfile:
+        return profile(move_intent="stay_in_field", skills=[user_skill("Python")])
+
+    def test_no_feedback_is_the_page_that_existed_before_this_ruling(
+        self, arc, onet
+    ) -> None:
+        """`None` and `{}` are the same request, and both are the zero-tap page.
+
+        The whole additive constraint in one assertion -- scores as well as
+        codes, because ruling 2 must not move a single number for a user who has
+        tapped nothing.
+        """
+        prof = self._profile()
+        client = tech_openai(prof)
+
+        without = [(p.onet_code, p.score) for p in score_paths(prof, onet, client)]
+        empty = [
+            (p.onet_code, p.score)
+            for p in score_paths(prof, onet, client, feedback={})
+        ]
+        none = [
+            (p.onet_code, p.score)
+            for p in score_paths(prof, onet, client, feedback=None)
+        ]
+
+        assert empty == without
+        assert none == without
+
+    def test_not_for_me_removes_that_card_and_only_that_card(
+        self, arc, onet
+    ) -> None:
+        prof = self._profile()
+        client = tech_openai(prof)
+        before = [p.onet_code for p in score_paths(prof, onet, client)]
+        dismissed = before[3]
+
+        after = [
+            p.onet_code
+            for p in score_paths(prof, onet, client, feedback={dismissed: "not_for_me"})
+        ]
+
+        assert dismissed not in after
+        # Everything else it showed is still there, in the same order: one card
+        # was deleted, the page was not re-ranked.
+        assert [c for c in before if c != dismissed] == after[: len(before) - 1]
+
+    def test_too_similar_removes_it_and_everything_closer_to_the_anchor(
+        self, arc, onet
+    ) -> None:
+        """The radius, which is the one verdict whose effect is a region.
+
+        A card the user called too similar sits next to the anchor by
+        definition, so honouring it means honouring the neighbourhood: a page
+        that dropped the named card and kept the four that are *nearer* has not
+        answered them.
+        """
+        prof = self._profile()
+        client = tech_openai(prof)
+        before = [p.onet_code for p in score_paths(prof, onet, client)]
+        marked = before[4]
+
+        after = [
+            p.onet_code
+            for p in score_paths(prof, onet, client, feedback={marked: "too_similar"})
+        ]
+
+        assert marked not in after
+        assert not set(before[:5]) & set(after)
+        assert len(after) == ps._TOP_N
+
+    def test_interesting_changes_nothing(self, arc, onet) -> None:
+        """Recorded, and it moves nothing: there is no rotation for it to feed.
+
+        Asserted on the scores and not only the codes -- a promotion that failed
+        to reorder a page would pass a codes-only assertion.
+        """
+        prof = self._profile()
+        client = tech_openai(prof)
+        before = [(p.onet_code, p.score) for p in score_paths(prof, onet, client)]
+
+        after = [
+            (p.onet_code, p.score)
+            for p in score_paths(
+                prof, onet, client, feedback={before[2][0]: "interesting"}
+            )
+        ]
+
+        assert after == before
+
+    def test_no_rocchio_rotation_is_ever_built(self, arc, onet, monkeypatch) -> None:
+        """The removals arrive without the reordering they travel with elsewhere.
+
+        Asserted on the call and not on the output: a rotation that happened to
+        leave this small arc in the same order would pass an output assertion and
+        still be the scorer overriding the request.
+        """
+        monkeypatch.setattr(
+            ps,
+            "_rocchio_query",
+            lambda *a, **k: pytest.fail("stay_in_field built a Rocchio query"),
+        )
+        prof = self._profile()
+        client = tech_openai(prof)
+
+        assert score_paths(
+            prof,
+            onet,
+            client,
+            feedback={"15-1203.00": "too_similar", "15-1207.00": "interesting"},
+        )
+
+    def test_an_explicit_yes_outranks_the_inferred_radius(self, arc, onet) -> None:
+        """F-6's rule, which ruling 2 inherits along with the radius itself.
+
+        The radius is inferred from one tap about one card and covers a whole
+        region; "I like this one" is said about the card. A user watching the
+        occupation they marked interesting vanish because a different card drew a
+        "too similar" is the feature contradicting itself.
+        """
+        prof = self._profile()
+        client = tech_openai(prof)
+        before = [p.onet_code for p in score_paths(prof, onet, client)]
+        liked, marked = before[1], before[4]
+
+        after = [
+            p.onet_code
+            for p in score_paths(
+                prof,
+                onet,
+                client,
+                feedback={marked: "too_similar", liked: "interesting"},
+            )
+        ]
+
+        assert liked in after
+        assert marked not in after
+
+    def test_the_pool_size_does_not_change_when_a_tap_arrives(
+        self, arc, onet, monkeypatch
+    ) -> None:
+        """`stay_in_field` keeps `_RETRIEVE_K` with or without taps.
+
+        The two rotating intents widen to `_RETRIEVE_K_ADJACENT` so the radius
+        has something to eat into. This intent must not, because W-8's task
+        affinity is a percentile *within the retrieved pool*: a pool that changed
+        size on the first tap would silently rescale a term the user's stated
+        wants are read through.
+        """
+        prof = self._profile()
+        client = tech_openai(prof)
+        spy = _PoolSpy(monkeypatch)
+
+        score_paths(prof, onet, client)
+        blind = len(spy.last)
+        score_paths(prof, onet, client, feedback={"15-1230.00": "not_for_me"})
+
+        assert blind == ps._RETRIEVE_K
+        assert len(spy.last) == ps._RETRIEVE_K
 
     def test_a_wants_with_no_tasks_is_the_identity(self, world) -> None:
         assert ps._wants_rotated_query(TECH, ps.Wants(), None) is TECH
@@ -3963,6 +4383,118 @@ class TestTheFoundersCase:
         assert "15-1251.00" in codes
 
 
+@real_corpus
+@real_embeddings
+class TestTheFoundersStayCase:
+    """W-11 ruling 1's regression test: the SAME person, asking to stay.
+
+    Same profile, same three answers, one field changed -- `move_intent` is
+    `stay_in_field` instead of `adjacent`.  On HEAD the two intents returned the
+    same ten codes, and four of the ten were outside technology entirely:
+    Project Management Specialists, Sales Engineers, Logistics Engineers,
+    Security Management Specialists.  With no wants saved, the same request
+    returned ten technology occupations.
+
+    Real corpus for `TestTheFoundersCase`'s reason and one more: "did the page
+    leave the field" is a question about SOC major groups over a real taxonomy,
+    and a synthetic world's two clusters can only caricature it.
+    """
+
+    def _profile(self) -> UserProfile:
+        return dataclasses.replace(
+            TestTheFoundersCase._profile(TestTheFoundersCase()),
+            move_intent="stay_in_field",
+        )
+
+    def _wants(self) -> "ps.Wants":
+        return TestTheFoundersCase._wants(TestTheFoundersCase())
+
+    def _page(self, openai, wants) -> list[ScoredPath]:
+        return score_paths(
+            self._profile(), TestTheFoundersCase._onet(), openai, wants=wants
+        )
+
+    def test_every_card_comes_from_the_anchors_own_pool(
+        self, corpus, openai, monkeypatch
+    ) -> None:
+        """The invariant the ruling actually states, on his page.
+
+        Not "the list is unchanged" -- the wants are supposed to reorder it, and
+        W-8's affinity term and W-3a's conditions term both do.  Not "every card
+        is SOC 15" either: the anchored pool for a Software Developer reaches
+        Computer Hardware Engineers, Bioinformatics Scientists and Sales
+        Engineers, and a want that promotes one of those has promoted a real
+        neighbour of his job.  What the wants may no longer do is FETCH a
+        candidate the anchor never reached.
+        """
+        spy = _PoolSpy(monkeypatch)
+        self._page(openai, None)
+        pool = set(spy.last)
+        stated = self._page(openai, self._wants())
+
+        strayed = [
+            (p.onet_code, p.title) for p in stated if p.onet_code not in pool
+        ]
+        assert not strayed, (
+            "stating wants fetched candidates the anchor's own pool never "
+            "reached: %s" % strayed
+        )
+
+    def test_the_cards_that_only_the_rotation_could_reach_are_gone(
+        self, corpus, openai
+    ) -> None:
+        """The specific rows, by code, because he read them off the screen.
+
+        Project Management Specialists, Logistics Engineers and Security
+        Management Specialists are the three he named that are NOT in the
+        anchored pool at any depth -- the rotated query was the only way any of
+        them reached a `stay_in_field` page.
+
+        **Sales Engineers is deliberately not in this list**, and that is the
+        honest half of the fix.  It sits at rank 29 of the anchor's own 30, so
+        it is a neighbour of his job by the same measure every other card on the
+        page is, and his stated "more people" promotes it. Excluding it would
+        mean a SOC filter, which F-2 measured the cost of and F-3 removed.
+        """
+        codes = {p.onet_code for p in self._page(openai, self._wants())}
+
+        assert not codes & {"13-1082.00", "13-1081.01", "13-1199.07"}
+
+    def test_the_wants_still_move_the_order(self, corpus, openai) -> None:
+        """Ruling 1 is "rank, not pool", and this is the "rank" half on his page.
+
+        A `stay_in_field` page that came back byte-identical with the wants
+        saved would mean the panel he filled in did nothing at all, which is the
+        opposite failure and just as bad.
+        """
+        blind = [p.onet_code for p in self._page(openai, None)]
+        stated = [p.onet_code for p in self._page(openai, self._wants())]
+
+        assert stated != blind
+
+    def test_the_axis_he_marked_speaks_on_his_page(self, corpus, openai) -> None:
+        """W-11 ruling 3, on the page the tester read (D5).
+
+        He marked `people: more`. A Software Developer sits at percentile 0.07
+        for `people`, so the comparative line is true of most of any page he is
+        shown -- which is exactly why the ubiquity rule swept it from all ten
+        cards, and why the one question he asked was the one the page could
+        never answer. Measured here after the exemption: seven of the ten cards
+        say something about people, one of them with the strong phrase.
+        """
+        page = self._page(openai, self._wants())
+        spoke = [
+            p.onet_code
+            for p in page
+            if any("people" in phrase for phrase in p.reasons)
+        ]
+
+        assert len(spoke) >= 5, (
+            "the axis he marked speaks on %d of %d cards: %s"
+            % (len(spoke), len(page), [p.reasons for p in page])
+        )
+
+
 # ---------------------------------------------------------------------------
 # Card reasons -- what is DISTINCTIVE about this card (W-4)
 # ---------------------------------------------------------------------------
@@ -4029,7 +4561,7 @@ class TestCardReasons:
 
     # -- the distinctiveness rule ------------------------------------------
 
-    def test_a_phrase_true_of_the_whole_page_is_dropped_from_every_card(
+    def test_an_unstated_phrase_true_of_the_whole_page_is_dropped_from_every_card(
         self, monkeypatch, world
     ) -> None:
         """Design doc 8.2's measured case, as a page.
@@ -4038,12 +4570,17 @@ class TestCardReasons:
         people" describes 2 of 2 cards and says nothing about either.  It goes
         from BOTH -- which of two identical lines survives is arbitrary, and an
         arbitrary survivor is a line the user cannot interpret.
+
+        On an UNSTATED axis, which is where the rule survived W-11 ruling 3: the
+        user here marked a task and no condition at all, so `people` is
+        something the page is volunteering.  The stated case is
+        `test_a_stated_axis_survives_a_page_it_describes_everywhere`.
         """
         page = self._attach(
             monkeypatch,
             world,
             _reason_page("15-1254.00", "47-2111.00"),
-            ps.Wants(conditions={"people": "more"}),
+            ps.Wants(tasks_more=("Consult with customers.",)),
             table=self.MID_TABLE,
         )
         assert all(
@@ -4063,11 +4600,119 @@ class TestCardReasons:
             world,
             # Three cards, one of which is not far from the anchor on `people`.
             _reason_page("15-1254.00", "47-2111.00", "15-1251.00"),
-            ps.Wants(conditions={"people": "more"}),
+            ps.Wants(tasks_more=("Consult with customers.",)),
             table=self.MID_TABLE,
         )
         said = [phrase for card in page for phrase in card.reasons]
         assert any("More time with people" in phrase for phrase in said)
+
+    # -- W-11 ruling 3: the axis the user marked is exempt -------------------
+
+    def test_a_stated_axis_survives_a_page_it_describes_everywhere(
+        self, monkeypatch, world
+    ) -> None:
+        """The tester's D5, as a page of ten.
+
+        Nine of ten cards are moderately above the developer on `people` -- not
+        far enough out for the strong tier, far enough for the comparative line
+        -- and `people` is the one thing he marked.  Before this ruling the
+        phrase was on 9 of 10, was counted ubiquitous and was dropped from all
+        ten, so the single question he asked was the single question the page
+        could not answer.  It now survives on all nine.
+        """
+        codes = ["47-%04d.00" % (2100 + i) for i in range(10)]
+        table = {"15-1252.00": {"people": 0.07}}
+        table.update({code: {"people": 0.50} for code in codes[:9]})
+        table[codes[9]] = {"people": 0.10}
+
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page(*codes),
+            ps.Wants(conditions={"people": "more"}),
+            table=table,
+        )
+
+        answered = [
+            card.onet_code
+            for card in page
+            if "More time with people than your current job" in card.reasons
+        ]
+        assert answered == codes[:9]
+        assert page[9].reasons == []
+
+    def test_the_same_page_still_drops_the_line_the_user_never_asked_for(
+        self, monkeypatch, world
+    ) -> None:
+        """The half of the rule that ruling 3 did NOT touch, on the same shape.
+
+        `desk` is at 9 of 10 exactly as `people` is, and nobody asked about it,
+        so it is still a line that tells the reader nothing about any card.
+        """
+        codes = ["47-%04d.00" % (2100 + i) for i in range(10)]
+        table = {"15-1252.00": {"people": 0.07, "desk": 1.00}}
+        table.update(
+            {code: {"people": 0.50, "desk": 0.40} for code in codes[:9]}
+        )
+        table[codes[9]] = {"people": 0.10, "desk": 0.98}
+
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page(*codes),
+            ps.Wants(conditions={"people": "more"}),
+            table=table,
+        )
+
+        assert all(
+            "More on your feet, less desk time" not in phrase
+            for card in page
+            for phrase in card.reasons
+        )
+        # And the stated axis is still there, so this is the exemption being
+        # selective rather than the sweep being switched off.
+        assert page[0].reasons == ["More time with people than your current job"]
+
+    def test_a_page_with_no_stated_axis_is_unchanged_by_the_exemption(
+        self, monkeypatch, world
+    ) -> None:
+        """A user who stated only tasks has no tier 0 and no tier 1, so ruling 3
+        can reach nothing: every phrase on the page goes through the sweep
+        exactly as it did before."""
+        codes = ["47-%04d.00" % (2100 + i) for i in range(10)]
+        table = {"15-1252.00": {"people": 0.07}}
+        table.update({code: {"people": 0.50} for code in codes})
+
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page(*codes),
+            ps.Wants(tasks_less=("Modify existing software.",)),
+            table=table,
+        )
+
+        assert [card.reasons for card in page] == [[]] * 10
+
+    def test_the_two_phrase_cap_still_binds_an_exempt_line(
+        self, monkeypatch, world
+    ) -> None:
+        """What stops the exemption turning ten cards into ten copies of one
+        sentence: a stated line takes one of the two slots, not both."""
+        codes = ["47-%04d.00" % (2100 + i) for i in range(10)]
+        table = {"15-1252.00": {"people": 0.07, "public": 0.10, "desk": 1.00}}
+        table.update(
+            {code: {"people": 0.50, "public": 0.60, "desk": 0.20} for code in codes}
+        )
+
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page(*codes),
+            ps.Wants(conditions={"people": "more", "public": "more"}),
+            table=table,
+        )
+
+        assert all(len(card.reasons) == 2 for card in page)
 
     # -- ordering ----------------------------------------------------------
 
@@ -4134,11 +4779,16 @@ class TestCardReasons:
     ) -> None:
         """The defect the strong tier was added for, as a regression test.
 
-        Three of the four cards are moderately above the developer on `people`,
-        so the comparative phrase is on 3 of 4 and is correctly dropped -- and
-        before the strong tier that left the fourth card, the most people-facing
-        job on the page and exactly what the user asked for, saying nothing at
-        all.
+        Three of the four cards are moderately above the developer on `people`
+        and the fourth is at the top of the corpus: before the strong tier, the
+        most people-facing job on the page -- exactly what the user asked for --
+        said nothing at all, because its comparative line was on 3 of 4 cards
+        and was swept.
+
+        W-11 ruling 3 later exempted the stated axis outright, so the other
+        three now keep the comparative line as well.  The strong tier is still
+        doing its own job here: the extreme card gets the absolute phrase, which
+        is a different and better sentence than "more than your current job".
         """
         page = self._attach(
             monkeypatch,
@@ -4154,7 +4804,9 @@ class TestCardReasons:
             },
         )
         assert page[0].reasons == ["Among the most people-facing jobs"]
-        assert [card.reasons for card in page[1:]] == [[], [], []]
+        assert [card.reasons for card in page[1:]] == [
+            ["More time with people than your current job"]
+        ] * 3
 
     def test_it_fires_only_on_an_axis_the_user_stated(
         self, monkeypatch, world
@@ -4206,11 +4858,18 @@ class TestCardReasons:
         assert page[0].reasons == ["Mostly on your feet"]
         assert page[1].reasons == ["More on your feet, less desk time"]
 
-    def test_the_strong_phrase_goes_through_the_ubiquity_rule_too(
+    def test_the_strong_phrase_is_exempt_from_the_ubiquity_rule(
         self, monkeypatch, world
     ) -> None:
-        """It is a different string, so it is counted on its own frequency -- a
-        page that really is all extremes loses it as well."""
+        """W-11 ruling 3, on tier 0.
+
+        W-4 put the strong phrase through the sweep on its own frequency, so a
+        page that really is all extremes lost it as well.  That is the D5 defect
+        again one tier up: a user who asked for more public contact, handed a
+        page of three jobs that are all at the top of the corpus for it, was
+        told nothing about any of them -- when the honest answer is that all
+        three are an answer to their question.
+        """
         page = self._attach(
             monkeypatch,
             world,
@@ -4223,11 +4882,9 @@ class TestCardReasons:
                 "15-1251.00": {"public": 0.85},
             },
         )
-        assert all(
-            "Constantly dealing with the public" not in phrase
-            for card in page
-            for phrase in card.reasons
-        )
+        assert [card.reasons for card in page] == [
+            ["Constantly dealing with the public"]
+        ] * 3
 
     def test_the_strong_phrase_replaces_the_comparative_one_not_joins_it(
         self, monkeypatch, world
@@ -4335,6 +4992,113 @@ class TestCardReasons:
             monkeypatch, world, _reason_page("47-2111.00", "15-1254.00"), wants
         )
         assert [list(card.reasons) for card in second] == snapshot
+
+    # -- W-11 ruling 4: the honest line acknowledges the ask -----------------
+
+    def test_a_line_against_a_stated_less_is_prefixed(
+        self, monkeypatch, world
+    ) -> None:
+        """The card said "less people" and this one has more of them.
+
+        The line is kept deliberately -- it is the truth about a card the scorer
+        put on the page for other reasons, and W-11 ruling 3 now guarantees it
+        reaches every card that has it.  Unprefixed it reads as the page arguing
+        with the user; "Still ..." concedes the point and lets them judge.
+        """
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00"),
+            ps.Wants(conditions={"people": "less"}),
+            table={"15-1252.00": {"people": 0.30}, "47-2111.00": {"people": 0.70}},
+        )
+        assert page[0].reasons == [
+            "Still more time with people than your current job"
+        ]
+
+    def test_a_line_against_a_stated_more_is_prefixed(
+        self, monkeypatch, world
+    ) -> None:
+        """The mirror image: they asked for more desk time and this card is on
+        its feet.  Same rule, the other sign."""
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00"),
+            ps.Wants(conditions={"desk": "more"}),
+            table={"15-1252.00": {"desk": 0.70}, "47-2111.00": {"desk": 0.30}},
+        )
+        assert page[0].reasons == ["Still more on your feet, less desk time"]
+
+    @pytest.mark.parametrize(
+        ("direction", "anchor_value", "card_value", "expected"),
+        [
+            ("more", 0.30, 0.70, "More time with people than your current job"),
+            ("less", 0.70, 0.30, "Less time with people than your current job"),
+        ],
+    )
+    def test_a_line_that_agrees_is_never_prefixed(
+        self, monkeypatch, world, direction, anchor_value, card_value, expected
+    ) -> None:
+        """Both directions, the aligned sign.  A card that answers the question
+        has nothing to concede."""
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00"),
+            ps.Wants(conditions={"people": direction}),
+            table={
+                "15-1252.00": {"people": anchor_value},
+                "47-2111.00": {"people": card_value},
+            },
+        )
+        assert page[0].reasons == [expected]
+
+    def test_the_strong_tier_is_never_prefixed(self, monkeypatch, world) -> None:
+        """Tier 0 is direction-checked before it is built (`_strong_phrase`), so
+        a strong phrase that contradicts the ask does not exist to prefix."""
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00"),
+            ps.Wants(conditions={"people": "more"}),
+            table={"15-1252.00": {"people": 0.10}, "47-2111.00": {"people": 0.95}},
+        )
+        assert page[0].reasons == ["Among the most people-facing jobs"]
+
+    def test_an_unstated_axis_is_never_prefixed(self, monkeypatch, world) -> None:
+        """Tier 2 has no stated direction to oppose, so there is nothing to
+        acknowledge -- "Still" would be answering a question nobody asked."""
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00"),
+            ps.Wants(conditions={"leading": "more"}),
+            table={
+                "15-1252.00": {"people": 0.70, "leading": 0.50},
+                "47-2111.00": {"people": 0.30, "leading": 0.55},
+            },
+        )
+        assert page[0].reasons == ["Less time with people than your current job"]
+
+    def test_the_prefix_does_not_reorder_the_card(self, monkeypatch, world) -> None:
+        """Ordering is by tier then by the size of the difference; the phrase is
+        the last tie-break and a longer string must not jump the queue."""
+        page = self._attach(
+            monkeypatch,
+            world,
+            _reason_page("47-2111.00"),
+            ps.Wants(conditions={"people": "less", "public": "less"}),
+            table={
+                "15-1252.00": {"people": 0.10, "public": 0.10},
+                # public is the larger difference, so it leads either way.
+                "47-2111.00": {"people": 0.45, "public": 0.90},
+            },
+        )
+        assert page[0].reasons == [
+            "Still more dealing with the public",
+            "Still more time with people than your current job",
+        ]
 
     # -- the degrades ------------------------------------------------------
 
@@ -4502,3 +5266,121 @@ class TestResolveAnchorCode:
         prof = self._profile(move_intent="adjacent")
         with pytest.raises(CorpusUnavailable):
             ps.resolve_anchor_code(prof, onet, tech_openai(prof))
+
+
+class TestTheReserve:
+    """W-12's `reserve`: candidates below the page, for a caller that narrates.
+
+    The scoring job narrates twenty cards and shows ten, so that a tap promoting
+    an eleventh finds prose already written instead of "Uses your SQL." (F-8,
+    routed onward).  Everything below is about the half of that promise this
+    module owns: **asking for a reserve must not change the page by one byte.**
+
+    Two ways it could, and one test each: the extra candidates could reorder or
+    perturb the ten (they cannot -- the slice is taken first), and they could
+    reach `_attach_reasons`, whose distinctiveness rule counts phrases across the
+    cards it is handed.  Twenty cards in that count would drop lines from the ten
+    shown on the strength of ten nobody sees, which is a wire change made by a
+    keyword whose entire contract is that it makes none.
+    """
+
+    @staticmethod
+    def deep_world():
+        """One anchor and thirty near neighbours -- enough to have a rank 11-20.
+
+        The five-row world every other test uses cannot express this: `_TOP_N`
+        is ten and it holds four scoreable rows, so there is no below-the-page
+        to reserve.
+        """
+        rows = [("15-1252.00", "Software Developers", TECH)]
+        zones = {"15-1252.00": 4}
+        for i in range(30):
+            code = "15-13%02d.00" % i
+            jitter = np.zeros(DIMS, dtype=np.float32)
+            jitter[1] = 0.02 * (i + 1)
+            vec = TECH + jitter
+            rows.append((code, "Tech role %d" % i, vec / np.linalg.norm(vec)))
+            zones[code] = 4
+        return build_corpus(rows, zones)
+
+    @pytest.fixture()
+    def deep(self, monkeypatch):
+        corpus = self.deep_world()
+        monkeypatch.setattr(ps, "get_corpus", lambda: corpus)
+        return corpus
+
+    @staticmethod
+    def _user():
+        return profile(
+            current_title="Software Developer",
+            skills=[user_skill("Python", "advanced")],
+            move_intent="adjacent",
+        )
+
+    def test_reserve_zero_is_byte_identical_to_not_asking(self, deep, onet) -> None:
+        """The default, and the reason every existing caller and every eval run
+        is unaffected rather than merely unbroken."""
+        user = self._user()
+        client = tech_openai(user)
+
+        assert ps.score_paths(user, onet, client, reserve=0) == ps.score_paths(
+            user, onet, client
+        )
+
+    def test_a_reserve_appends_below_the_page_and_carries_no_reasons(
+        self, deep, onet
+    ) -> None:
+        user = self._user()
+        client = tech_openai(user)
+
+        page = ps.score_paths(user, onet, client)
+        deeper = ps.score_paths(user, onet, client, reserve=10)
+
+        assert len(page) == ps.PAGE_SIZE
+        assert len(deeper) == ps.PAGE_SIZE + 10
+        # Dataclass equality, so this covers `reasons` and `overlapping_skills`
+        # as well as the codes and the scores.
+        assert deeper[: ps.PAGE_SIZE] == page
+        reserve = deeper[ps.PAGE_SIZE :]
+        assert all(card.reasons == [] for card in reserve)
+        assert not {c.onet_code for c in reserve} & {c.onet_code for c in page}
+        assert [c.score for c in reserve] == sorted(
+            (c.score for c in reserve), reverse=True
+        )
+        assert reserve[0].score <= page[-1].score, "the reserve is BELOW the page"
+
+    def test_the_reasons_pass_never_sees_the_reserve(
+        self, deep, onet, monkeypatch
+    ) -> None:
+        """The ordering guarantee, pinned at the seam rather than inferred.
+
+        `_attach_reasons` drops a phrase that would read the same on most of the
+        page.  Most of TEN and most of TWENTY are different fractions, so what it
+        is handed decides what the ten shown cards say.
+        """
+        sizes: list[int] = []
+        real = ps._attach_reasons
+
+        def spy(page, *args, **kwargs):
+            sizes.append(len(page))
+            return real(page, *args, **kwargs)
+
+        monkeypatch.setattr(ps, "_attach_reasons", spy)
+        user = self._user()
+
+        ps.score_paths(user, onet, tech_openai(user), reserve=10)
+
+        assert sizes == [ps.PAGE_SIZE], "the reasons pass was handed the reserve"
+
+    def test_a_reserve_larger_than_the_corpus_is_not_an_error(
+        self, deep, onet
+    ) -> None:
+        """Asking for more than exists returns what exists.  The caller is a job
+        picking a depth, not a client naming a page it can render."""
+        user = self._user()
+        client = tech_openai(user)
+
+        deeper = ps.score_paths(user, onet, client, reserve=500)
+
+        assert ps.PAGE_SIZE < len(deeper) <= 30
+        assert deeper[: ps.PAGE_SIZE] == ps.score_paths(user, onet, client)

@@ -799,3 +799,193 @@ def test_end_to_end_clearing_restores_the_zero_tap_list(client, signed_in, real_
 
     restored = _delete(client, signed_in).get_json()["suggestions"]
     assert [s["onet_code"] for s in restored] == codes
+
+
+# ---------------------------------------------------------------------------
+# The reserve (W-12) -- a promoted card reads like the ones beside it
+# ---------------------------------------------------------------------------
+#
+# The first browser test: after "Interesting" / "Not for me", the cards that
+# came in to replace the removed ones read "Uses your SQL." with no dimension
+# pills, next to cards with a real why-sentence and pills.  F-8 routed the fix
+# onward -- "if the LLM narrative is wanted on re-ranked cards, it has to be
+# earned off the request path" -- and W-12 earns it in the scoring job, which
+# narrates twenty and shows ten.  These are the serving half.
+
+
+def _store_reserve(narratives: dict) -> None:
+    from app import app
+    from solverah.services import path_cache
+
+    with app.app_context():
+        path_cache.store_reserve(_user_id(), narratives)
+
+
+def test_a_card_promoted_out_of_the_reserve_arrives_with_its_narrative(
+    client, signed_in, corpus, mock_scorer, mock_narrator
+):
+    """Card 11, the moment a tap lifts it onto the page.
+
+    The job wrote this prose in the same run, from the same profile, with the
+    same narrator as the ten shown -- so the card arrives reading like its
+    neighbours instead of announcing that it is new.
+    """
+    _store_reserve(
+        {
+            OTHER: {
+                "why_text": "A real sentence the narrator wrote for card 11.",
+                "profile_dimensions": ["Builds on your Python", "Fits your autonomy"],
+            }
+        }
+    )
+    mock_scorer.return_value = _scored(CODE, OTHER)
+
+    body = _post(client, signed_in, verdict="interesting").get_json()
+
+    promoted = next(s for s in body["suggestions"] if s["onet_code"] == OTHER)
+    assert promoted["why_text"] == "A real sentence the narrator wrote for card 11."
+    assert promoted["profile_dimensions"] == [
+        "Builds on your Python",
+        "Fits your autonomy",
+    ]
+    assert mock_narrator.call_count == 0, "the tap is still LLM-free"
+
+
+def test_a_card_beyond_the_reserve_still_gets_the_fallback(
+    client, signed_in, corpus, mock_scorer, mock_narrator
+):
+    """Card 21.  The reserve is ten deep, so past it the F-6 sentence stands --
+    and it is a good sentence, built from the same overlapping skills the
+    narrator would have been handed.
+    """
+    _store_reserve(
+        {
+            "15-1254.00": {
+                "why_text": "Prose for a card that is not this one.",
+                "profile_dimensions": ["irrelevant"],
+            }
+        }
+    )
+    mock_scorer.return_value = _scored(CODE, OTHER)
+
+    body = _post(client, signed_in, verdict="interesting").get_json()
+
+    beyond = next(s for s in body["suggestions"] if s["onet_code"] == OTHER)
+    assert beyond["why_text"] == "Uses your Python and SQL."
+    assert beyond["profile_dimensions"] == []
+
+
+def test_the_reserve_outranks_a_fallback_an_earlier_tap_wrote(
+    client, signed_in, corpus, mock_scorer, mock_narrator
+):
+    """The ordering inside `_describe`, and the reason it is an ordering.
+
+    The carry-forward keeps any truthy `why_text` it finds in the cached
+    payload, INCLUDING a fallback sentence `_describe` wrote itself on an
+    earlier tap.  Consulted first, it would pin "Uses your Python and SQL." to
+    that card for the rest of the session even though prose for it exists.  The
+    reserve therefore goes first, and the upgrade lands on the next tap.
+    """
+    from app import app
+    from solverah.services import path_cache
+
+    with app.app_context():
+        path_cache.store(
+            _user_id(),
+            {
+                "suggestions": [
+                    {
+                        "onet_code": OTHER,
+                        "title": "Role",
+                        "why_text": "Uses your Python and SQL.",
+                        "profile_dimensions": [],
+                        "match_score": 0.8,
+                    }
+                ],
+                "career_status": "employed",
+                "generated_at": "2026-09-22T00:00:00Z",
+            },
+        )
+        path_cache.store_reserve(
+            _user_id(),
+            {
+                OTHER: {
+                    "why_text": "The narrator's sentence, written in the job.",
+                    "profile_dimensions": ["Builds on your Python"],
+                }
+            },
+        )
+
+    body = _post(client, signed_in, verdict="interesting").get_json()
+
+    upgraded = next(s for s in body["suggestions"] if s["onet_code"] == OTHER)
+    assert upgraded["why_text"] == "The narrator's sentence, written in the job."
+    assert upgraded["profile_dimensions"] == ["Builds on your Python"]
+
+
+def test_a_shown_cards_own_narrative_is_still_carried_across(
+    client, signed_in, corpus, mock_scorer, mock_narrator
+):
+    """The reserve going first must not disturb the ten.
+
+    It cannot collide with them -- the job puts only the below-the-page cards in
+    it -- but "cannot" is worth a test, because the day it does the user watches
+    prose change under them, which is exactly what the carry-forward exists to
+    prevent.
+    """
+    from app import app
+    from solverah.services import path_cache
+
+    with app.app_context():
+        path_cache.store(
+            _user_id(),
+            {
+                "suggestions": [
+                    {
+                        "onet_code": CODE,
+                        "title": "Software Developers",
+                        "why_text": "Written by the narrator, once.",
+                        "profile_dimensions": ["a", "b"],
+                        "match_score": 0.9,
+                    }
+                ],
+                "career_status": "employed",
+                "generated_at": "2026-09-22T00:00:00Z",
+            },
+        )
+        path_cache.store_reserve(
+            _user_id(),
+            {OTHER: {"why_text": "For card 11.", "profile_dimensions": ["x"]}},
+        )
+
+    body = _post(client, signed_in, code=OTHER, verdict="interesting").get_json()
+
+    shown = next(s for s in body["suggestions"] if s["onet_code"] == CODE)
+    assert shown["why_text"] == "Written by the narrator, once."
+
+
+def test_dropping_the_shortlist_drops_the_reserve_with_it():
+    """The lifetime rule, at the seam that enforces it.
+
+    A reserve narrative is written against one profile.  Every write that
+    changes a scoring input already calls `path_cache.invalidate`, and the
+    reserve lives behind that same call so none of them can cover the payload
+    and forget the prose -- which would let a tap promote a card wearing a
+    sentence about a person who no longer exists.
+    """
+    from solverah.services import path_cache
+
+    path_cache.store(4242, {"suggestions": []})
+    path_cache.store_reserve(4242, {CODE: {"why_text": "x", "profile_dimensions": []}})
+
+    path_cache.invalidate(4242)
+
+    assert path_cache.get(4242) is None
+    assert path_cache.get_reserve(4242) == {}
+
+
+def test_a_reserve_miss_is_an_empty_mapping_not_an_error():
+    """Every caller is asking "is there prose for this card"; a miss is "no"."""
+    from solverah.services import path_cache
+
+    assert path_cache.get_reserve(999_999) == {}

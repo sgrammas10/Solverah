@@ -1237,3 +1237,50 @@ def test_the_recorded_w8_run_beats_the_w3b_baseline_without_raising_harm(
     )
     assert not affinity.empty_result_profiles
     assert not affinity.errored_profiles
+
+
+def test_the_recorded_w11_run_holds_w8s_numbers_while_staying_in_the_field(
+    profiles: list[EvalProfile], labels: dict[str, list[Label]]
+) -> None:
+    """W-11's gate, and it is a NOT-WORSE gate rather than a better one.
+
+    Ruling 1 fixes something the labels cannot see. `stay_in_field` stopped
+    rotating its retrieval query, which on Sebastian's own page replaced four of
+    ten technology occupations with project management, sales and logistics --
+    and on p21-p25 changes the top ten by two adjacent-pair swaps inside 0.0005.
+    No anchor in the labelled five sits near the kind of boundary his does, so
+    the honest claim here is "the five did not get worse", and the claim that it
+    is a fix lives in `TestTheFoundersStayCase`.
+
+    Which makes this the test with the real teeth for the other ten: the run was
+    re-recorded live on the new scorer and its `adjacent` and `fresh_start`
+    ranked lists came back 10/10 byte-identical to `w8_task_affinity.json`, so a
+    future change that leaks out of `stay_in_field` moves these numbers.
+    """
+    wants_profiles = profiles_with_wants(profiles)
+    runs_dir = Path(path_eval.FIXTURE_DIR) / "runs"
+
+    affinity = evaluate(
+        path_eval.load_run(runs_dir / "w8_task_affinity.json"), wants_profiles, labels
+    )
+    anchored = evaluate(
+        path_eval.load_run(runs_dir / "w11_stay_anchored.json"), wants_profiles, labels
+    )
+
+    assert anchored.headline["profiles_scored"] == 15.0
+    assert anchored.headline["ndcg_at_k"] >= affinity.headline["ndcg_at_k"]
+    assert (
+        anchored.headline["harmful_rate_at_k"]
+        <= affinity.headline["harmful_rate_at_k"]
+    )
+    assert not anchored.empty_result_profiles
+    assert not anchored.errored_profiles
+
+    # Per profile, on the five the ruling touches: none of them lost ground.
+    by_id = {report.profile_id: report for report in anchored.profiles}
+    for report in affinity.profiles:
+        if not report.profile_id.endswith("_stay"):
+            continue
+        after = by_id[report.profile_id]
+        assert after.ndcg_at_k >= report.ndcg_at_k, report.profile_id
+        assert after.harmful_rate_at_k <= report.harmful_rate_at_k, report.profile_id

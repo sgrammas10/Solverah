@@ -123,6 +123,42 @@ def fitted_profile(**kwargs):
     return profile(skills=[user_skill("Python", "advanced")], **kwargs)
 
 
+def outsider_profile(**kwargs):
+    """A user who owns NONE of the tools the `onet` double returns.
+
+    W-12 made `tech_stack` the tools *no other section already showed*, so a
+    test about what that list carries -- where it came from, what order it is in
+    -- must be run by someone whose own skills take nothing out of it.
+    `fitted_profile`'s "Python" is one of the two tools the double returns, and
+    a test asserting the list still reads `["Python", "Git"]` for that user
+    would be asserting the defect.  Nothing here is about the dedup itself; the
+    three cases that are live in `TestThePanel`.
+    """
+    return profile(skills=[user_skill("Bookkeeping", "advanced")], **kwargs)
+
+
+def outsider_fit(user, onet, code: str = CODE):
+    """`deep_fit` for an outsider, with no OpenAI client.
+
+    No client is the point rather than a shortcut.  WITH embeddings every role
+    item is either something a user skill reached (a match) or something none of
+    them did (a gap), so "a tool in neither list" is a narrow state to arrange
+    and a brittle thing to assert around -- and the synthetic double answers
+    every text it does not know with one shared vector, which makes any user
+    skill match anything at cosine 1.0.  Without a client there are no cosines,
+    no matches, and -- by :func:`_gap_skills`' own degrade rule -- no measurable
+    gaps, so `tech_stack` is the raw list O*NET ranked.  That is the state the
+    tests below are about: where the list came from and what order it is in.
+
+    The `search_occupations` stub is the no-client anchor fallback: without
+    embeddings, `_resolve_current_zone` cannot read the user's own title off the
+    corpus and asks O*NET instead.
+    """
+    onet.search_occupations.side_effect = None
+    onet.search_occupations.return_value = []
+    return deep_fit(user, code, onet, None)
+
+
 # ---------------------------------------------------------------------------
 # The call budget -- the whole reason this tier is a second tier
 # ---------------------------------------------------------------------------
@@ -300,9 +336,9 @@ class TestTheFitSidecar:
             }
         )
         monkeypatch.setattr(occupation_fit, "get_fit_table", lambda corpus: table)
-        user = fitted_profile()
+        user = outsider_profile()
 
-        fit = deep_fit(user, CODE, onet, tech_openai(user))
+        fit = outsider_fit(user, onet)
 
         assert fit.onet_calls == 0
         assert fit.tech_stack == ["Python"]
@@ -370,9 +406,9 @@ class TestTheFitSidecar:
         occupation_fit.write_fit_sidecar(
             corpus.matrix_path, fit_table_matching(onet)
         )
-        user = fitted_profile()
+        user = outsider_profile()
 
-        fit = deep_fit(user, CODE, onet, tech_openai(user))
+        fit = outsider_fit(user, onet)
 
         assert fit.onet_calls == 0
         assert fit.tech_stack == ["Python", "Git"]
@@ -540,9 +576,102 @@ class TestThePanel:
     def test_tasks_and_tech_are_carried_in_the_order_onet_ranked_them(
         self, world, onet
     ) -> None:
-        user = fitted_profile()
-        fit = deep_fit(user, CODE, onet, tech_openai(user))
+        user = outsider_profile()
+        fit = outsider_fit(user, onet)
         assert fit.tasks == ["Write and test code.", "Review pull requests."]
+        assert fit.tech_stack == ["Python", "Git"]
+
+    # -- W-12: a tool is shown once, in the most specific section that applies --
+    #
+    # The first browser test read "Skills you already have: SQL, Amazon Web
+    # Services", then "Worth picking up" repeating most of the role's tools,
+    # then "Tools people use: Structured query language SQL, Amazon Web Services
+    # AWS software" -- the tester's own two skills a second time, under O*NET's
+    # cataloguing names, beside the short names they had just been shown.
+
+    def test_a_tool_the_user_has_by_identity_is_shown_once_under_their_own_name(
+        self, world, onet
+    ) -> None:
+        """The tester's SQL, with O*NET's real spelling of it.
+
+        No OpenAI client on purpose: the match that has to hold here is the
+        identity one -- F-8's `skill_aliases` -- and an embedding double would
+        let a cosine make the test pass for a reason this half does not rely on.
+        """
+        onet.get_hot_technologies.return_value = ["Structured query language SQL", "Git"]
+        user = profile(skills=[user_skill("SQL", "advanced")])
+        onet.search_occupations.side_effect = None  # the no-client anchor fallback
+        onet.search_occupations.return_value = []
+
+        fit = deep_fit(user, CODE, onet, None)
+
+        assert fit.matched_skills == ["SQL"], "the user's own name, not O*NET's"
+        assert fit.tech_stack == ["Git"], "'Structured query language SQL' came back"
+
+    def test_a_tool_the_user_has_by_cosine_is_shown_once_too(
+        self, world, onet
+    ) -> None:
+        """The tester's AWS, and the reason the dedup cannot work on names.
+
+        "Amazon Web Services" and "Amazon Web Services AWS software" share no
+        alias -- nothing shortens the catalogue name to the vendor's own phrase
+        -- so the only thing that knows they are one tool is the cosine that
+        matched them.  A dedup comparing spellings would leave this one on the
+        screen twice, which is what the tester saw.
+        """
+        onet.get_hot_technologies.return_value = ["Amazon Web Services AWS software"]
+        user = profile(skills=[user_skill("Amazon Web Services", "advanced")])
+        client = tech_openai(user)
+        client.embeddings.table.update(
+            {
+                "amazon web services": TECH,
+                "Amazon Web Services AWS software": TECH,
+            }
+        )
+        assert not (
+            pdf.skill_aliases("Amazon Web Services")
+            & pdf.skill_aliases("Amazon Web Services AWS software")
+        ), "if these ever alias, this test is no longer about the cosine"
+
+        fit = deep_fit(user, CODE, onet, client)
+
+        assert fit.matched_skills == ["Amazon Web Services"]
+        assert fit.tech_stack == []
+
+    def test_a_hot_tech_in_the_gap_list_is_not_repeated_in_the_tech_list(
+        self, world, onet
+    ) -> None:
+        """The gap list is the more specific of the two, so it keeps the tool."""
+        user = fitted_profile()
+        client = tech_openai(user)
+        # The user points one way and every role item the other, so Git -- a hot
+        # technology -- comes out as a gap rather than as a match.
+        client.embeddings.table.update(
+            {
+                "python": TECH,
+                "Python": TRADE,
+                "Git": TRADE,
+                "Programming": TRADE,
+                "Critical Thinking": TRADE,
+            }
+        )
+
+        fit = deep_fit(user, CODE, onet, client)
+
+        assert "Git" in [gap.name for gap in fit.gap_skills]
+        assert fit.matched_skills == ["Python"], "matched by identity, not cosine"
+        assert fit.tech_stack == []
+
+    def test_a_tool_in_neither_list_still_appears_in_onet_order(
+        self, world, onet
+    ) -> None:
+        """The dedup removes; it does not reorder, and it is not a blanket empty."""
+        user = outsider_profile()
+
+        fit = outsider_fit(user, onet)
+
+        assert fit.matched_skills == []
+        assert fit.gap_skills == []
         assert fit.tech_stack == ["Python", "Git"]
 
     def test_role_items_keep_onets_ranking_not_the_alphabet(self, world, onet) -> None:

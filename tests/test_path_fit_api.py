@@ -556,7 +556,10 @@ def real_stack(monkeypatch):
     onet.get_skills_profile.return_value = [
         Skill(element_id="2.A.1.a", name="Programming", importance=90.0, level=0.0)
     ]
-    onet.get_hot_technologies.return_value = ["Python"]
+    # Two tools, and the signed-in profile owns exactly one of them: W-12's
+    # dedup is only visible on the wire when the role has something left to show
+    # after the user's own tool is taken out.
+    onet.get_hot_technologies.return_value = ["Python", "Git"]
     onet.get_work_activities.return_value = []
     onet.get_tasks.return_value = [
         Task(task_id="1", title="Write code.", importance=90.0, category="Core")
@@ -576,7 +579,11 @@ def test_end_to_end_through_the_real_analysis(client, signed_in, real_stack):
     body = resp.get_json()
     assert body["title"] == "Computer Programmers"
     assert body["tasks"] == ["Write code."]
-    assert body["tech_stack"] == ["Python"]
+    # W-12, end to end and through the no-OpenAI degrade: the user's own Python
+    # is shown once, under the user's own name, and "Tools people use" keeps the
+    # tool they do not have.
+    assert body["matched_skills"] == ["Python"]
+    assert body["tech_stack"] == ["Git"]
     assert body["onet_calls"] == 4
     assert body["zone"]["occupation_zone"] == 4
     assert 0.0 <= body["fit_score"] <= 1.0

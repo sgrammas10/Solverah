@@ -42,7 +42,16 @@ from collections import OrderedDict
 from threading import Lock
 from typing import Dict, Optional
 
-__all__ = ["get", "invalidate", "store", "clear", "snapshot"]
+__all__ = [
+    "get",
+    "invalidate",
+    "store",
+    "clear",
+    "snapshot",
+    "get_reserve",
+    "store_reserve",
+    "reserve_snapshot",
+]
 
 #: Most-recently-used payloads retained per worker.
 #:
@@ -55,6 +64,28 @@ __all__ = ["get", "invalidate", "store", "clear", "snapshot"]
 MAX_ENTRIES = 500
 
 _cache: "OrderedDict[int, dict]" = OrderedDict()  # user_id -> response payload
+
+#: W-12.  ``user_id -> {onet_code: {"why_text", "profile_dimensions"}}`` for the
+#: cards BELOW the ten the payload above holds.
+#:
+#: **Why it lives in this module and not next to it.** The scoring job narrates
+#: twenty cards and shows ten; the other ten are written so that a tap promoting
+#: one of them finds prose instead of "Uses your SQL." (F-8, routed onward, now
+#: wanted).  They cannot go in the payload: ``cached_path_suggestions`` returns
+#: the cached dict as the response body and the job stores it as its result, so
+#: **this cache is the wire** and a new key in it is a new field on
+#: ``GET /me/path-suggestions``.
+#:
+#: What they must share with the payload is a LIFETIME.  A narrative is written
+#: against one profile, and a profile edit that drops the shortlist has to drop
+#: the reserve with it or a tap would promote a card wearing prose about a person
+#: who no longer exists -- the one failure a separate store invites and the
+#: reason this is a second dict here rather than a second module.  Every writer
+#: that changes a scoring input already calls :func:`invalidate` (the enumeration
+#: `tests/test_path_preferences_api.py` guards), so putting the reserve behind
+#: the same function and the same lock covers all of them at once and cannot be
+#: half-done by a caller that forgets the second call.
+_reserve: "OrderedDict[int, Dict[str, dict]]" = OrderedDict()
 _lock = Lock()
 
 
@@ -92,15 +123,58 @@ def invalidate(user_id: int) -> None:
     """
     with _lock:
         _cache.pop(user_id, None)
+        # W-12. The reserve goes with it, always. See `_reserve`.
+        _reserve.pop(user_id, None)
 
 
 def clear() -> None:
     """Empty the cache. Used by tests to isolate one case from the next."""
     with _lock:
         _cache.clear()
+        _reserve.clear()
 
 
 def snapshot() -> Dict[int, dict]:
     """A copy of the current contents, for assertions and diagnostics."""
     with _lock:
         return dict(_cache)
+
+
+# ---------------------------------------------------------------------------
+# The reserve narratives (W-12)
+# ---------------------------------------------------------------------------
+
+
+def store_reserve(user_id: int, narratives: Dict[str, dict]) -> None:
+    """Cache the below-the-page narratives for *user_id*.
+
+    Same LRU bound and the same ``MAX_ENTRIES`` as the payloads: one entry is
+    ten ``{"why_text", "profile_dimensions"}`` dicts, smaller than the payload
+    it accompanies, and a worker that holds one should hold the other.
+    """
+    with _lock:
+        _reserve[user_id] = narratives
+        _reserve.move_to_end(user_id)
+        while len(_reserve) > MAX_ENTRIES:
+            _reserve.popitem(last=False)
+
+
+def get_reserve(user_id: int) -> Dict[str, dict]:
+    """The reserve narratives for *user_id*, or an empty mapping.
+
+    Empty rather than None: every caller is asking "is there prose for this
+    card", and a miss is "no" rather than an error -- the reserve is an
+    optimisation over the fallback sentence, never a precondition for one.
+    """
+    with _lock:
+        narratives = _reserve.get(user_id)
+        if narratives is None:
+            return {}
+        _reserve.move_to_end(user_id)
+        return dict(narratives)
+
+
+def reserve_snapshot() -> Dict[int, Dict[str, dict]]:
+    """A copy of the reserve, for assertions and diagnostics."""
+    with _lock:
+        return {user_id: dict(item) for user_id, item in _reserve.items()}

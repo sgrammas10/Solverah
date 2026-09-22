@@ -474,6 +474,64 @@ def _build_role_profile(
     return items
 
 
+def _matched_role_items(
+    user_skills: list[UserSkill],
+    role_items: list[tuple[str, float]],
+) -> list[tuple[str, str]]:
+    """``(the user's name for a skill, the role item it matched)``, in user order.
+
+    The whole of the panel's matching rule, and the *only* copy of it.
+    :func:`_find_matched_skills` is the half of this the panel prints; W-12
+    needed the other half -- **which** role item each skill accounted for --
+    to stop "Tools people use" repeating a tool another section had already
+    shown.  Recovering that from the two name lists afterwards is impossible in
+    the case that matters: "Amazon Web Services" and "Amazon Web Services AWS
+    software" match by cosine and share no alias, so nothing downstream can tell
+    they are one tool.  Only the comparison that made the match knows.
+
+    Precondition: _batch_embed has been called for all texts.
+    Used for UI display only -- does not affect the centroid score.
+    """
+    role_aliases = [(name, skill_aliases(name)) for name, _ in role_items]
+    available_role = [
+        (name, _EMBED_CACHE[name])
+        for name, _ in role_items
+        if name in _EMBED_CACHE
+    ]
+
+    matched: list[tuple[str, str]] = []
+    for us in user_skills:
+        # F-8 box 5: identity first. If the user's term and one of the role's
+        # terms are the same string once O*NET's naming conventions are undone,
+        # that is a match and no cosine is consulted -- which is what stops a
+        # user with "SQL" being told they lack "Structured query language SQL".
+        # It also works with no embeddings at all, so an OpenAI outage degrades
+        # to exact matching rather than to silence.
+        user_alias_set = skill_aliases(us.name)
+        identical = next(
+            (name for name, aliases in role_aliases if user_alias_set & aliases),
+            None,
+        )
+        if identical is not None:
+            matched.append((us.name, identical))
+            continue
+        if not available_role:
+            continue
+        user_emb = _EMBED_CACHE.get(us.name.lower())
+        if user_emb is None:
+            continue
+        best_name, best_sim = max(
+            (
+                (name, _cosine_similarity(user_emb, role_emb))
+                for name, role_emb in available_role
+            ),
+            key=lambda pair: pair[1],
+        )
+        if best_sim >= _EMBED_THRESHOLD:
+            matched.append((us.name, best_name))
+    return matched
+
+
 def _find_matched_skills(
     user_skills: list[UserSkill],
     role_items: list[tuple[str, float]],
@@ -483,36 +541,7 @@ def _find_matched_skills(
     Precondition: _batch_embed has been called for all texts.
     Used for UI display only -- does not affect the centroid score.
     """
-    role_alias_set = _aliases_of(name for name, _ in role_items)
-    available_role = [
-        (name, _EMBED_CACHE[name])
-        for name, _ in role_items
-        if name in _EMBED_CACHE
-    ]
-
-    matched: list[str] = []
-    for us in user_skills:
-        # F-8 box 5: identity first. If the user's term and one of the role's
-        # terms are the same string once O*NET's naming conventions are undone,
-        # that is a match and no cosine is consulted -- which is what stops a
-        # user with "SQL" being told they lack "Structured query language SQL".
-        # It also works with no embeddings at all, so an OpenAI outage degrades
-        # to exact matching rather than to silence.
-        if skill_aliases(us.name) & role_alias_set:
-            matched.append(us.name)
-            continue
-        if not available_role:
-            continue
-        user_emb = _EMBED_CACHE.get(us.name.lower())
-        if user_emb is None:
-            continue
-        best_sim = max(
-            (_cosine_similarity(user_emb, role_emb) for _, role_emb in available_role),
-            default=0.0,
-        )
-        if best_sim >= _EMBED_THRESHOLD:
-            matched.append(us.name)
-    return matched
+    return [name for name, _ in _matched_role_items(user_skills, role_items)]
 
 
 def _compute_centroid_score(
@@ -917,6 +946,52 @@ def _gap_skills(
     return gaps[:_TOP_GAPS]
 
 
+def _visible_tech_stack(
+    hot_tech: list[str],
+    matched_pairs: list[tuple[str, str]],
+    gap_skills: list[SkillGap],
+) -> list[str]:
+    """The hot technologies no other section of the panel has already shown.
+
+    W-12, from the first browser test.  "Tools people use" was the *raw* hot
+    technology list, so the panel said three things about one tool at once: a
+    user with SQL and AWS read "Skills you already have: SQL, Amazon Web
+    Services", then "Worth picking up" repeating most of the role's tools, then
+    "Tools people use: Structured query language SQL, Amazon Web Services AWS
+    software" -- their own two skills again, under O*NET's cataloguing names,
+    beside the short names they had just been shown.
+
+    **A tool is shown once, in the most specific section that applies.**  The
+    two specific sections are the ones that say something about *this user*:
+    :func:`_find_matched_skills` ("you have this") and :func:`_gap_skills`
+    ("this role wants it and you have not named it").  What is left over is the
+    genuinely neutral remainder -- the role's other tools -- which is what the
+    section was for.
+
+    **What is compared is the ROLE's own name for the tool, not the user's.**
+    The defect is precisely that the same tool has two names: the matched list
+    prints the user's spelling ("SQL", "Amazon Web Services") and the hot
+    technology list carries the catalogue's ("Structured query language SQL",
+    "Amazon Web Services AWS software").  Comparing the two spellings needs a
+    normalisation, and no normalisation gets that second pair -- they share no
+    alias and were matched by cosine.  So this does not compare spellings at
+    all: :func:`_matched_role_items` reports which role item each skill was
+    matched *against*, and those names come from the same list ``hot_tech``
+    does, so the comparison is exact by construction.  One mapping, the one the
+    match was actually made under, rather than a second opinion about it.
+
+    **Filtered, then trimmed** -- not trimmed and then filtered.  The section is
+    a window on a ranked list, and removing an entry because it was shown
+    elsewhere should let the next tool up into the window rather than leave a
+    hole: a user who already has four of an occupation's tools should see more
+    of the rest, not a shorter list.  Order is untouched, so what remains is
+    still O*NET's own ranking.
+    """
+    shown = {role_name for _, role_name in matched_pairs}
+    shown |= {gap.name for gap in gap_skills}
+    return [name for name in hot_tech if name not in shown][:_TOP_TECH]
+
+
 def _retrieval_cosine(
     user_profile: UserProfile,
     anchor,
@@ -1070,15 +1145,29 @@ def deep_fit(
         user_profile, anchor, corpus, row, skills_vec, behavioral_vec, openai_client
     )
 
-    centroid_score, coverage_score, skills_score, matched_skills = _skills_signals(
+    centroid_score, coverage_score, skills_score, _ = _skills_signals(
         user_profile.skills, role_items, openai_client
     )
+    # W-12: the printed list and the tech-stack dedup are two halves of ONE
+    # matching, so both are read off one call to it. `_skills_signals`' fourth
+    # value is the same list by a longer route (`_compute_centroid_score` ->
+    # `_find_matched_skills` -> here), and it is discarded rather than used so
+    # that the panel and the dedup cannot be looking at two different answers.
+    # The cost of matching twice is a few hundred cached-vector dot products
+    # against four O*NET-shaped calls and an embeddings batch -- unmeasurable.
+    matched_pairs = _matched_role_items(user_profile.skills, role_items)
+    matched_skills = [name for name, _ in matched_pairs]
 
     work_style_score = (
         _work_style_similarity(behavioral_document, data.work_activities, openai_client)
         if behavioral_document
         else 0.0
     )
+
+    # Computed here rather than in the constructor call below: W-12's tech stack
+    # is what the other two sections did not already show, so it needs both of
+    # them in hand.
+    gaps = _gap_skills(user_profile.skills, role_items)
 
     zone_fit = _zone_fit(user_profile, anchor, corpus, onet_code)
     zone_is_reliable = (
@@ -1106,9 +1195,9 @@ def deep_fit(
         work_style_score=round(work_style_score, 4),
         zone=zone_fit,
         matched_skills=matched_skills,
-        gap_skills=_gap_skills(user_profile.skills, role_items),
+        gap_skills=gaps,
         tasks=data.tasks[:_TOP_TASKS],
-        tech_stack=data.hot_tech[:_TOP_TECH],
+        tech_stack=_visible_tech_stack(data.hot_tech, matched_pairs, gaps),
         weights={
             "role": round(role_w, 4),
             "coverage": round(coverage_w, 4),
