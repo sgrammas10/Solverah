@@ -1,204 +1,39 @@
-import { useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
-import { useRecommendations } from '../useRecommendations';
+/**
+ * SearchResults -- /search, shown honestly as not built yet.
+ *
+ * It used to filter `/me/recommendations` by `?q=` and render the matches with
+ * pagination and a "Match score". That list is always empty (see
+ * useRecommendations.ts), so every query, real or gibberish, ended at
+ * "No results found for ...", which read as a search that works and found
+ * nothing. It also rendered in the old dark palette on the cream page.
+ *
+ * Until there is something to search, the route says so, the way
+ * CompanyLensPage does while its model is pending, and makes no request.
+ * `?q=` is ignored on purpose: echoing it back would imply it was used.
+ */
+import { Link } from "react-router-dom";
 import { Search } from "lucide-react";
 
-const RESULTS_PER_PAGE = 5; // adjust as you like
-
 export default function SearchResults() {
-  const [searchParams] = useSearchParams();
-  const rawQuery = searchParams.get("q") || "";
-  const hasQuery = rawQuery.trim().length > 0;
-  const query = rawQuery.toLowerCase();
-  // Shared with Feed through useRecommendations. Disabled for an empty/
-  // whitespace query so landing on /search with nothing typed doesn't fire
-  // the request at all.
-  const {
-    data,
-    isLoading: loading,
-    isError,
-    isFetching,
-    refetch,
-  } = useRecommendations({ enabled: hasQuery });
-  const jobs = data ?? [];
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [page, setPage] = useState(1);
-
-  const filtered = jobs.filter((job) => {
-    if (!query) return true;
-    return (
-      job.Title?.toLowerCase().includes(query) ||
-      job.Company?.toLowerCase().includes(query) ||
-      job.RoleDescription?.toLowerCase().includes(query)
-    );
-  });
-
-  const totalPages = Math.ceil(filtered.length / RESULTS_PER_PAGE);
-  const startIdx = (page - 1) * RESULTS_PER_PAGE;
-  const endIdx = startIdx + RESULTS_PER_PAGE;
-  const currentPageJobs = filtered.slice(startIdx, endIdx);
-
-  const toggleExpanded = (id: string | number) => {
-    const key = String(id);
-    setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  if (!hasQuery)
-    return (
-      <div className="text-center py-20 text-slate-100">
-        <Search className="mx-auto h-12 w-12 text-slate-500 mb-4" />
-        <h2 className="text-lg font-semibold text-white">
-          Search for companies and roles
-        </h2>
-        <p className="text-slate-300">
-          Type a company name, job title, or keyword to get started.
-        </p>
-        <Link to="/feed" className="text-emerald-200 mt-4 hover:underline">
-          ← Back to Feed
-        </Link>
-      </div>
-    );
-
-  // `isError && isFetching` is a retry in flight, so "Try again" doesn't look dead.
-  if (loading || (isError && isFetching))
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Search className="animate-spin w-6 h-6 text-slate-400" />
-      </div>
-    );
-
-  if (isError)
-    return (
-      <div className="text-center py-20 text-slate-100">
-        <Search className="mx-auto h-12 w-12 text-slate-500 mb-4" />
-        <h2 className="text-lg font-semibold text-white">
-          We couldn't run that search right now
-        </h2>
-        <p className="text-slate-300">Please try again in a moment.</p>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          className="text-emerald-200 mt-4 hover:underline"
-        >
-          Try again
-        </button>
-      </div>
-    );
-
-  if (!filtered.length)
-    return (
-      <div className="text-center py-20 text-slate-100">
-        <Search className="mx-auto h-12 w-12 text-slate-500 mb-4" />
-        <h2 className="text-lg font-semibold text-white">
-          No results found for “{query}”
-        </h2>
-        <p className="text-slate-300">Try adjusting your search terms.</p>
-        <Link to="/feed" className="text-emerald-200 mt-4 hover:underline">
-          ← Back to Feed
-        </Link>
-      </div>
-    );
-
   return (
-    <div className="max-w-5xl mx-auto px-6 py-10 text-slate-100">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">
-            Search results for “{query}”
-          </h1>
-          <p className="text-slate-300">
-            Showing {startIdx + 1}–{Math.min(endIdx, filtered.length)} of {filtered.length} results
-          </p>
-        </div>
-        <Link to="/feed" className="text-emerald-200 hover:underline">
-          ← Back to Feed
+    <div className="min-h-screen bg-cream-base flex items-start justify-center px-4 sm:px-6 pt-16 pb-20">
+      <div className="rounded-xl border border-cream-muted bg-white px-6 py-8 text-center max-w-md w-full">
+        <Search className="h-8 w-8 text-forest-light mx-auto mb-4" aria-hidden="true" />
+        <h1 className="font-display text-xl font-semibold text-ink-primary mb-2">
+          Search is coming soon
+        </h1>
+        <p className="text-sm text-ink-secondary leading-relaxed mb-6">
+          We're still building search for companies and roles, so there's
+          nothing to look through yet. We'll switch it on once it can give you
+          real answers.
+        </p>
+        <Link
+          to="/job-seeker/dashboard"
+          className="block w-full bg-forest-dark text-white text-sm font-semibold py-3 rounded-[4px] hover:bg-forest-mid transition-colors"
+        >
+          Back to your dashboard
         </Link>
       </div>
-
-      <div className="space-y-4">
-        {currentPageJobs.map((job, idx) => {
-          const idKey = job.ID ?? `${page}-${idx}`;
-          const isExpanded = !!expanded[idKey];
-
-          return (
-            <div key={idKey} className="border border-white/10 rounded-lg bg-slate-900/60 p-4 shadow-lg shadow-black/20">
-              <a
-                href={job.Link || "#"}
-                className="text-emerald-200 font-semibold text-lg hover:underline"
-                target="_blank"
-                rel="noreferrer"
-              >
-                {job.Title}
-              </a>
-              <div className="text-sm text-slate-200/80">
-                {job.Company} • {job.Location} • {job.EmploymentType}
-              </div>
-
-              <div className="text-slate-200/80 mt-3 whitespace-pre-line">
-                {isExpanded
-                  ? job.RoleDescription
-                  : job.RoleDescription?.slice(0, 250) + (job.RoleDescription?.length > 250 ? "..." : "")}
-              </div>
-
-              {job.RoleDescription?.length > 250 && (
-                <button
-                  onClick={() => toggleExpanded(idKey)}
-                  className="mt-2 text-sm text-emerald-200 hover:underline"
-                >
-                  {isExpanded ? "View less" : "View more"}
-                </button>
-              )}
-
-              <div className="text-xs text-slate-400 mt-2">
-                Match score: {(job.score * 100).toFixed(0)}%
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Pagination controls */}
-      {totalPages > 1 && (
-        <div className="flex flex-wrap justify-center items-center gap-2 mt-8">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className={`px-3 py-1 border rounded-full text-sm ${
-              page === 1
-                ? "text-slate-500 border-white/10"
-                : "text-emerald-200 border-emerald-300/40 hover:bg-white/5"
-            }`}
-          >
-            Previous
-          </button>
-
-          {[...Array(totalPages)].map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setPage(i + 1)}
-              className={`px-3 py-1 rounded-full border text-sm ${
-                page === i + 1
-                  ? "bg-emerald-400/20 text-emerald-100 border-emerald-300/40"
-                  : "border-white/10 text-slate-200 hover:bg-white/5"
-              }`}
-            >
-              {i + 1}
-            </button>
-          ))}
-
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className={`px-3 py-1 border rounded-full text-sm ${
-              page === totalPages
-                ? "text-slate-500 border-white/10"
-                : "text-emerald-200 border-emerald-300/40 hover:bg-white/5"
-            }`}
-          >
-            Next
-          </button>
-        </div>
-      )}
     </div>
   );
 }
