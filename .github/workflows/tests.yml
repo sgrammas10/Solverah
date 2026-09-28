@@ -73,8 +73,8 @@ jobs:
 
       # Bundle budget (GAP/ARCHITECTURE.md 6.5). Measures the entry chunk and the
       # stylesheet — what the browser downloads before first paint — and fails on
-      # regression. The limits in .size-limit.cjs are ~5 % above the sizes
-      # measured at 79969d3, not aspirational targets: a budget the build already
+      # regression. The limits in .size-limit.cjs sit a few % above measured
+      # sizes (79969d3, re-baselined 2026-09-28), not aspirational targets: a budget the build already
       # exceeds is red on day one and gets raised or deleted rather than heeded.
       #
       # Note for whoever sees this fail: find what landed on the eager path

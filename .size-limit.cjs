@@ -17,6 +17,12 @@
  * quietly measures a number that is neither the entry nor the initial payload.
  * vite.config.ts pins the entry to `assets/entry-[hash].js` so this glob is exact.
  *
+ * The stylesheet is read out of dist/index.html rather than globbed, for the same
+ * reason. `dist/assets/*.css` also matched every lazy chunk's stylesheet, so the
+ * first lazy section with its own CSS (the landing ecosystem section, 2026-09-28)
+ * put ~2.3 kB of below-the-fold CSS into the "initial" figure. The link that
+ * index.html points at is the one stylesheet first paint waits on, by definition.
+ *
  * WHERE THE NUMBERS COME FROM
  *
  * Measured, not aspired to. A budget the build already exceeds is a broken gate on
@@ -35,6 +41,11 @@
  * between zlib versions, since this is measured on Node 22 locally and Node 24 on
  * the runner.
  *
+ * Re-baselined 2026-09-28 for the launched landing page (scroll-story hero on the
+ * eager path, by design: it is the first paint). Measured with the stylesheet fix
+ * above: entry JS 99.2 kB, CSS 10.38 kB. Limits raised to 101 kB and 11 kB, ~2 %
+ * and ~6 % above.
+ *
  * Phase 4b took the entry from 774 kB -> 326 kB raw and 215 kB -> 95 kB gzipped by
  * moving the route modules behind React.lazy. This budget exists to keep that.
  *
@@ -50,17 +61,33 @@
  * or one of its static imports is the usual cause. Raising the limit is
  * occasionally right, but it is the second thing to try, not the first.
  */
+const fs = require("fs");
+const path = require("path");
+
+function entryStylesheet() {
+  const html = path.join(__dirname, "dist", "index.html");
+  if (!fs.existsSync(html)) {
+    throw new Error("dist/index.html not found: run `npm run build` before `npm run size`.");
+  }
+  // Only the built asset, not the Google Fonts link that sits beside it.
+  const match = fs
+    .readFileSync(html, "utf8")
+    .match(/<link[^>]*rel="stylesheet"[^>]*href="\/(assets\/[^"]+\.css)"/);
+  if (!match) throw new Error("No /assets/*.css stylesheet linked from dist/index.html.");
+  return path.posix.join("dist", match[1]);
+}
+
 module.exports = [
   {
     name: "Initial JS (entry chunk)",
     path: "dist/assets/entry-*.js",
     gzip: true,
-    limit: "99 kB",
+    limit: "101 kB",
   },
   {
     name: "Initial CSS",
-    path: "dist/assets/*.css",
+    path: entryStylesheet(),
     gzip: true,
-    limit: "9.5 kB",
+    limit: "11 kB",
   },
 ];

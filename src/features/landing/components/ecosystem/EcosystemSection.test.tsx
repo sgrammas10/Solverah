@@ -11,26 +11,32 @@ function renderAt(search = "") {
 }
 
 describe("ecosystem section", () => {
-  it("defaults to the card, with the hub described for screen readers", () => {
+  it("defaults to the split, with the hub described for screen readers", () => {
     renderAt();
 
-    expect(screen.getByRole("heading", { name: "One profile, read six ways." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Six instruments, one profile." })).toBeInTheDocument();
     const hub = screen.getByRole("img", { name: /Solverah at the centre/ });
     for (const n of HUB_NODES) expect(hub).toHaveAccessibleName(expect.stringContaining(n.name));
+  });
+
+  it("falls back to the split on an unknown variant", () => {
+    renderAt("?eco=nonsense");
+
+    expect(screen.getByRole("heading", { name: "Six instruments, one profile." })).toBeInTheDocument();
+  });
+
+  it("card links to how a reading is made", () => {
+    renderAt("?eco=card");
+
+    expect(screen.getByRole("heading", { name: "One profile, read six ways." })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "See how a reading is made" })).toHaveAttribute(
       "href",
       "#how-it-reads"
     );
   });
 
-  it("falls back to the card on an unknown variant", () => {
-    renderAt("?eco=nonsense");
-
-    expect(screen.getByRole("heading", { name: "One profile, read six ways." })).toBeInTheDocument();
-  });
-
   it("split lists every instrument, and hovering one lights its node", () => {
-    const { container } = renderAt("?eco=split");
+    const { container } = renderAt();
 
     const items = screen.getAllByRole("listitem");
     expect(items).toHaveLength(HUB_NODES.length);

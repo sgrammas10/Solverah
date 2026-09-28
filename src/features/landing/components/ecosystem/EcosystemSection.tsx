@@ -26,15 +26,16 @@ import "./ecosystem.css";
  * each end, every edge on its own interval) and the button is the page's own. This module is
  * lazy-loaded, with its own stylesheet, so it adds nothing to first paint.
  *
- * Three layouts are on trial. `?eco=card|split|flow|off` picks one, and in
- * development a switcher in the corner flips between them.
+ * Split is the chosen layout (2026-09-28, "for now"). The card and flow
+ * layouts stay reachable with `?eco=card|split|flow|off`, and in development a
+ * switcher in the corner flips between them.
  */
 
 type Icon = LucideIcon;
 
 export const VARIANTS = ["card", "split", "flow", "off"] as const;
 export type EcoVariant = (typeof VARIANTS)[number];
-const DEFAULT_VARIANT: EcoVariant = "card";
+const DEFAULT_VARIANT: EcoVariant = "split";
 
 type HubNode = {
   id: string;
