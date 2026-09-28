@@ -132,3 +132,28 @@ describe("AccountModal success step, signin action", () => {
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 });
+
+describe("AccountModal password fields: show/hide toggle", () => {
+  it.each([
+    ["form" as AccountStep, "Create a password"],
+    ["form" as AccountStep, "Confirm password"],
+    ["signin" as AccountStep, "Password"],
+  ])("step %s, %s: starts hidden and toggles to visible and back", (step, label) => {
+    renderModal({ step });
+
+    const input = screen.getByLabelText(label);
+    expect(input).toHaveAttribute("type", "password");
+
+    const toggles = screen.getAllByRole("button", { name: "Show password" });
+    // One toggle per password field, each inside the field's own wrapper.
+    const toggle = toggles.find((b) => b.parentElement?.contains(input));
+    expect(toggle).toBeDefined();
+
+    fireEvent.click(toggle!);
+    expect(input).toHaveAttribute("type", "text");
+    expect(toggle).toHaveAccessibleName("Hide password");
+
+    fireEvent.click(toggle!);
+    expect(input).toHaveAttribute("type", "password");
+  });
+});

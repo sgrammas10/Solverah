@@ -1,8 +1,44 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import { AccountStep, AccountAction } from "../useIntakeForm";
 
 const inputCls =
   "w-full rounded border border-cream-muted bg-cream-base px-3 py-2.5 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors";
+
+interface PasswordFieldProps {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+/** A password input with Register.tsx's show/hide toggle. */
+function PasswordField({ id, label, value, onChange }: PasswordFieldProps) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="text-sm font-medium text-ink-primary">{label}</label>
+      <div className="relative">
+        <input
+          id={id}
+          type={visible ? "text" : "password"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={`${inputCls} pr-10`}
+        />
+        <button
+          type="button"
+          onClick={() => setVisible((v) => !v)}
+          className="absolute inset-y-0 right-3 flex items-center text-ink-tertiary hover:text-ink-secondary transition-colors"
+          aria-label={visible ? "Hide password" : "Show password"}
+        >
+          {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 type Props = {
   isOpen: boolean;
@@ -105,24 +141,18 @@ export default function AccountModal({
         {step === "form" && (
           <div className="mt-6 space-y-4">
             <div className="grid gap-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-ink-primary">Create a password</label>
-                <input
-                  type="password"
-                  value={accountPassword}
-                  onChange={(e) => setAccountPassword(e.target.value)}
-                  className={inputCls}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-ink-primary">Confirm password</label>
-                <input
-                  type="password"
-                  value={accountConfirm}
-                  onChange={(e) => setAccountConfirm(e.target.value)}
-                  className={inputCls}
-                />
-              </div>
+              <PasswordField
+                id="account-modal-password"
+                label="Create a password"
+                value={accountPassword}
+                onChange={setAccountPassword}
+              />
+              <PasswordField
+                id="account-modal-confirm"
+                label="Confirm password"
+                value={accountConfirm}
+                onChange={setAccountConfirm}
+              />
             </div>
             {error && (
               <p className="rounded bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">{error}</p>
@@ -159,15 +189,12 @@ export default function AccountModal({
                   className={inputCls}
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-ink-primary">Password</label>
-                <input
-                  type="password"
-                  value={signInPassword}
-                  onChange={(e) => setSignInPassword(e.target.value)}
-                  className={inputCls}
-                />
-              </div>
+              <PasswordField
+                id="account-modal-signin-password"
+                label="Password"
+                value={signInPassword}
+                onChange={setSignInPassword}
+              />
             </div>
             {error && (
               <p className="rounded bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">{error}</p>

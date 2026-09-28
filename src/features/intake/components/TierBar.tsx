@@ -1,4 +1,9 @@
-const TIER_LABELS = ["Work Pulse Lite", "Work Pulse", "Work Pulse Pro"] as const;
+/**
+ * Pro is not built yet. It stays on the bar so the path reads true, but it is
+ * labelled as coming soon the same way the results and Intelligence pages
+ * label it, and nothing on the bar is clickable.
+ */
+const TIER_LABELS = ["Work Pulse Lite", "Work Pulse", "Work Pulse Pro · coming soon"] as const;
 
 type TierState = "completed" | "next" | "future";
 
@@ -14,7 +19,7 @@ export default function TierBar({ nextTierIndex = 1 }: TierBarProps) {
 
   return (
     <div>
-      <p className="text-xs text-ink-tertiary uppercase tracking-widest mb-3">
+      <p className="text-sm font-medium text-ink-secondary mb-3">
         Your Solverah journey
       </p>
       <div className="flex items-center">
@@ -32,7 +37,7 @@ export default function TierBar({ nextTierIndex = 1 }: TierBarProps) {
               )}
               <span
                 className={[
-                  "text-xs mt-1.5 whitespace-nowrap",
+                  "text-xs mt-1.5 text-center max-w-[9rem]",
                   tier.state === "future" ? "text-ink-tertiary" : "text-forest-dark font-semibold",
                 ].join(" ")}
               >

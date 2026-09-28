@@ -27,13 +27,31 @@ function renderGuestQuizPreview() {
 describe("GuestQuizPreview - happy path", () => {
   it("renders the page heading", () => {
     renderGuestQuizPreview();
-    expect(screen.getByText(/Get a feel for what Solverah delivers/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Try a quiz before you sign up.");
   });
 
   it("shows 'Start quiz' links for each quiz card", () => {
     renderGuestQuizPreview();
     const startLinks = screen.getAllByRole("link", { name: /start quiz/i });
     expect(startLinks.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("offers Sign in beside Create account at the top", () => {
+    renderGuestQuizPreview();
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+    expect(screen.getByRole("link", { name: "Create account" })).toHaveAttribute("href", "/register");
+  });
+
+  it("links each quiz to its own route", () => {
+    renderGuestQuizPreview();
+    expect(screen.getByRole("link", { name: "Start quiz: Early Career" })).toHaveAttribute(
+      "href",
+      "/quiz-preview/early-career",
+    );
+    expect(screen.getByRole("link", { name: /Start quiz: Your Future, Your Way/ })).toHaveAttribute(
+      "href",
+      "/quiz-preview/teen-focused",
+    );
   });
 
   it("does not show the locked-out message", () => {
@@ -59,12 +77,19 @@ describe("GuestQuizPreview - locked state (completed quiz)", () => {
     expect(screen.getByText(/already taken a guest quiz/i)).toBeInTheDocument();
   });
 
-  it("shows Sign in and Create account buttons instead of Start quiz", () => {
+  it("locks every quiz row instead of offering Start quiz", () => {
     vi.mocked(guestQuiz.hasCompletedGuestQuiz).mockReturnValue(true);
     renderGuestQuizPreview();
-    expect(screen.getAllByRole("link", { name: /sign in/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: /create account/i }).length).toBeGreaterThan(0);
     expect(screen.queryByRole("link", { name: /start quiz/i })).toBeNull();
+    expect(screen.getAllByText("Sign in above to unlock")).toHaveLength(5);
+  });
+
+  it("keeps a single Sign in and a single Create account, at the top of the page", () => {
+    vi.mocked(guestQuiz.hasCompletedGuestQuiz).mockReturnValue(true);
+    renderGuestQuizPreview();
+    // One of each: the rows no longer repeat the account actions.
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+    expect(screen.getByRole("link", { name: "Create account" })).toHaveAttribute("href", "/register");
   });
 
   it("shows locked message when pending quiz save exists", () => {
@@ -76,5 +101,15 @@ describe("GuestQuizPreview - locked state (completed quiz)", () => {
     });
     renderGuestQuizPreview();
     expect(screen.getByText(/already taken a guest quiz/i)).toBeInTheDocument();
+  });
+});
+
+// ─── styling guards ───────────────────────────────────────────────────────────
+
+describe("GuestQuizPreview - landing style", () => {
+  it("uses no uppercase eyebrow and no pill buttons", () => {
+    renderGuestQuizPreview();
+    expect(document.querySelector(".uppercase")).toBeNull();
+    expect(document.querySelector(".rounded-full")).toBeNull();
   });
 });

@@ -48,7 +48,7 @@ const MOCK_INSIGHT = {
 describe("GuestQuizInsights - happy path", () => {
   it("renders the page heading", () => {
     renderGuestQuizInsights(MOCK_INSIGHT);
-    expect(screen.getByText("Quiz Insights")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Your quiz insights");
   });
 
   it("shows overall summary when provided", () => {
@@ -68,6 +68,14 @@ describe("GuestQuizInsights - happy path", () => {
     expect(screen.getByText("Thrive with mentorship")).toBeInTheDocument();
   });
 
+  it("labels sections with headings in sentence case, not uppercase eyebrows", () => {
+    renderGuestQuizInsights(MOCK_INSIGHT);
+    expect(screen.getByRole("heading", { level: 3, name: "Key takeaways" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Next steps" })).toBeInTheDocument();
+    expect(document.querySelector(".uppercase")).toBeNull();
+    expect(document.querySelector(".rounded-full")).toBeNull();
+  });
+
   it("renders next steps", () => {
     renderGuestQuizInsights(MOCK_INSIGHT);
     expect(screen.getByText("Update your resume")).toBeInTheDocument();
@@ -80,6 +88,12 @@ describe("GuestQuizInsights - empty state", () => {
   it("shows no-insights message when no state is provided", () => {
     renderGuestQuizInsights();
     expect(screen.getByText(/No insights found/i)).toBeInTheDocument();
+  });
+
+  it("offers a way to a quiz from the empty state", () => {
+    renderGuestQuizInsights();
+    fireEvent.click(screen.getByRole("button", { name: "Choose a quiz" }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/quiz-preview");
   });
 
   it("shows no-insights message when insights array is empty", () => {

@@ -12,6 +12,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import TierBar from "./TierBar";
+import { PRIMARY } from "../../../shared/ui/publicStyles";
 import {
   isKnownScoringPhase,
   useScoringJobStatus,
@@ -133,7 +134,7 @@ export default function TeaserResult({
 
   return (
     <div>
-      <p className="text-sm font-semibold uppercase tracking-widest text-forest-light mb-3">
+      <p className="font-headline text-[1.2rem] font-bold tracking-[-0.01em] text-ink-primary mb-3">
         Here's what's emerging from your responses
       </p>
 
@@ -168,7 +169,7 @@ export default function TeaserResult({
       <button
         type="button"
         onClick={onContinue}
-        className="w-full bg-forest-dark text-white font-semibold py-3.5 rounded hover:bg-forest-mid transition-colors"
+        className={`${PRIMARY} w-full`}
       >
         Create my free account →
       </button>

@@ -45,7 +45,9 @@
  * publicity gate (PRODUCT_DECISIONS §4). `/how-matching-works` is the existing
  * public transparency page and stays the shorter, pre-signup one.
  */
-import { Link } from "react-router-dom";
+import { sectionId } from "../../../shared/lib/sectionId";
+import DocLayout from "../../../shared/ui/DocLayout";
+import { DOC_H2, DOC_P } from "../../../shared/ui/publicStyles";
 
 interface TrustSection {
   /** Heading text, and the handle the tests assert on. */
@@ -113,78 +115,53 @@ const SECTIONS: TrustSection[] = [
   },
 ];
 
+const CONTENTS = SECTIONS.map(({ title }) => ({ id: sectionId(title), title }));
+
 function TrustPage() {
   return (
-    <main className="min-h-screen bg-cream-base font-sans">
-      <div className="mx-auto max-w-3xl px-6 py-16">
-        <Link
-          to="/intelligence"
-          className="inline-flex items-center gap-1.5 text-sm text-ink-tertiary hover:text-forest-mid transition-colors mb-8"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path
-              d="M10 12L6 8l4-4"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          Back to your Intelligence hub
-        </Link>
-
-        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-2">
-          Transparency
-        </p>
-        <h1 className="font-display text-3xl font-bold text-ink-primary mb-6">
-          How this works, and what we hold back
-        </h1>
-
-        <p className="text-base text-ink-secondary leading-relaxed mb-12">
+    <DocLayout
+      title="How this works, and what we hold back"
+      meta="Last reviewed 10 September 2026"
+      lead={
+        <p>
           Solverah measures the conditions you do your best work in. This page covers how those
           measurements are made, what we do with them, and why one of them is never shown back to
           you. That last part is the one most likely to read as evasion, so it gets the longest
           section.
         </p>
-
-        {SECTIONS.map(({ title, body, aside }) => (
-          <section key={title} className="mb-12">
-            <h2 className="font-display text-xl font-semibold text-ink-primary mb-3">{title}</h2>
-            {body.map((paragraph) => (
-              <p key={paragraph.slice(0, 48)} className="text-sm text-ink-secondary leading-relaxed mb-3">
-                {paragraph}
-              </p>
-            ))}
-            {aside && (
-              <div className="mt-5 rounded-xl border border-cream-muted bg-white px-5 py-4">
-                <h3 className="text-sm font-semibold text-ink-primary mb-1.5">{aside.title}</h3>
-                <p className="text-sm text-ink-secondary leading-relaxed">{aside.body}</p>
-              </div>
-            )}
-          </section>
-        ))}
-
-        <section className="rounded-xl border border-forest-light bg-forest-pale px-6 py-5">
-          <p className="text-sm text-ink-primary leading-relaxed">
-            Nothing on this page describes something that does not exist yet. Where a thing is still
-            being built, it says so — and when that changes, this page changes with it.
-          </p>
+      }
+      back={{ to: "/intelligence", label: "Back to your Intelligence hub" }}
+      sections={CONTENTS}
+      related={[
+        { to: "/how-matching-works", label: "How matching works" },
+        { to: "/privacy", label: "Privacy policy" },
+        { to: "/terms", label: "Terms of service" },
+      ]}
+    >
+      {SECTIONS.map(({ title, body, aside }, i) => (
+        <section key={title} className={i ? "mt-14" : ""}>
+          <h2 id={sectionId(title)} className={`${DOC_H2} mb-4`}>
+            {title}
+          </h2>
+          {body.map((paragraph) => (
+            <p key={paragraph.slice(0, 48)} className={`${DOC_P} mb-5`}>
+              {paragraph}
+            </p>
+          ))}
+          {aside && (
+            <div className="mt-6 border-l-[3px] border-forest-dark bg-white px-5 py-4">
+              <h3 className="text-[0.95rem] font-semibold text-ink-primary">{aside.title}</h3>
+              <p className="mt-1 text-[0.95rem] leading-[1.6] text-ink-secondary">{aside.body}</p>
+            </div>
+          )}
         </section>
+      ))}
 
-        <div className="mt-12 border-t border-cream-muted pt-6 flex flex-wrap gap-6">
-          <Link to="/how-matching-works" className="text-xs text-ink-tertiary underline hover:text-forest-mid">
-            How matching works
-          </Link>
-          <Link to="/privacy" className="text-xs text-ink-tertiary underline hover:text-forest-mid">
-            Privacy Policy
-          </Link>
-          <Link to="/terms" className="text-xs text-ink-tertiary underline hover:text-forest-mid">
-            Terms of Service
-          </Link>
-          <span className="text-xs text-ink-tertiary">Last reviewed 10 September 2026</span>
-        </div>
-      </div>
-    </main>
+      <p className="mt-14 border-t border-cream-muted pt-8 text-[1.05rem] font-medium leading-[1.7] text-ink-primary">
+        Nothing on this page describes something that does not exist yet. Where a thing is still
+        being built, it says so, and when that changes, this page changes with it.
+      </p>
+    </DocLayout>
   );
 }
 

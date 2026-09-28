@@ -13,7 +13,7 @@
  *  - matching is still described as not-yet-live, because the page is wrong the
  *    day it implies CompanyLens works.
  */
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import TrustPage from "./TrustPage";
@@ -118,6 +118,24 @@ describe("TrustPage", () => {
     );
     expect(screen.getByRole("link", { name: /privacy policy/i })).toHaveAttribute("href", "/privacy");
     expect(screen.getByRole("link", { name: /terms of service/i })).toHaveAttribute("href", "/terms");
+  });
+
+  it("lists every section in the contents, each pointing at its heading", () => {
+    renderTrustPage();
+    const toc = screen.getByRole("navigation", { name: "Contents" });
+    const links = within(toc).getAllByRole("link");
+    expect(links).toHaveLength(5);
+    for (const link of links) {
+      const target = document.getElementById(link.getAttribute("href")!.slice(1));
+      expect(target?.tagName).toBe("H2");
+      expect(target).toHaveTextContent(link.textContent!);
+    }
+  });
+
+  it("has no uppercase eyebrow label", () => {
+    renderTrustPage();
+    expect(screen.queryByText(/^transparency$/i)).toBeNull();
+    expect(document.querySelector(".uppercase")).toBeNull();
   });
 
   it("offers a way back to the hub", () => {
