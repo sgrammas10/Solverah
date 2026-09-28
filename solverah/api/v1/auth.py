@@ -138,9 +138,15 @@ def start_session(user, body: dict):
         ``(response, session)`` -- the Flask response with both cookies
         attached, and the :class:`refresh_tokens.IssuedSession` behind it.
     """
+    # Before `issue`, whose commit expires `user`: read afterwards, the address
+    # cost a reload of the row on every sign-in. On a clean login the row is
+    # still loaded here and this is free. A caller that has already committed
+    # -- OTP sign-in, the intake claim, a login that had a count to clear --
+    # hands in an expired row and pays its one reload here instead.
+    identity = user.email
     session = refresh_tokens.issue(user)
     access_token = create_access_token(
-        identity=user.email, additional_claims={"sid": session.family_id}
+        identity=identity, additional_claims={"sid": session.family_id}
     )
     payload = dict(body)
     payload["csrfToken"] = get_csrf_token(access_token)

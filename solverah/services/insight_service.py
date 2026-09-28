@@ -166,11 +166,18 @@ def generate_for_user(user: Optional[User], data: Dict[str, Any], logger) -> Ins
     is how the original ran. It means a request from a JWT whose user has since
     been deleted still pays for a completion before returning 404. Preserved,
     because reordering changes which error a caller sees.
+
+    No transaction is open during that call. The route's user lookup began one,
+    and it is ended before the provider is asked rather than left idling through
+    the round trip; the id is taken first because the commit expires the row.
     """
     quiz_group = (data.get("quizGroup") or "").strip()
     normalized, error = _validate_request(quiz_group, data.get("quizzes") or [])
     if error:
         return error
+
+    user_id = user.id if user is not None else None
+    db.session.commit()
 
     payload, error, model = _generate(quiz_group, normalized, logger)
     if error:
@@ -182,14 +189,15 @@ def generate_for_user(user: Optional[User], data: Dict[str, Any], logger) -> Ins
     if not isinstance(insights, list):
         return _error(500, "Malformed insight response")
 
-    if not user:
+    if user_id is None:
         return _error(404, "User not found")
 
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
-    def store(existing: Dict[str, Any]) -> Dict[str, Any]:
-        quiz_insights = existing.get("quizInsights")
-        quiz_insights = dict(quiz_insights) if isinstance(quiz_insights, dict) else {}
+    def store(stored: Any) -> Dict[str, Any]:
+        # `quizInsights` is one profile key, written as one: the rest of the
+        # document is neither read nor rewritten to replace it.
+        quiz_insights = dict(stored) if isinstance(stored, dict) else {}
 
         if quiz_group == CAREER_QUIZ_GROUP:
             quiz_insights[CAREER_QUIZ_GROUP] = _career_group_store(
@@ -203,9 +211,9 @@ def generate_for_user(user: Optional[User], data: Dict[str, Any], logger) -> Ins
             quiz_insights[quiz_group] = _single_group_store(
                 insights, overall_insight, timestamp, model
             )
-        return {**existing, "quizInsights": quiz_insights}
+        return quiz_insights
 
-    profile_repository.update_document(user.id, store)
+    profile_repository.update_extra_key(user_id, "quizInsights", store)
     db.session.commit()
 
     return InsightResult(

@@ -18,6 +18,10 @@ before its fix to watch it fail:
   count.
 * ``refresh_tokens.issue`` and ``rotate`` re-read rows their own commit had just
   expired, and ``rotate`` set ``successor_id`` in a statement of its own.
+  ``auth.start_session`` then read ``user.email`` after ``issue`` committed,
+  so even a clean login reloaded the row it had just looked up.
+* ``intake_service.sign_in`` kept its own copy of the counter, with the same
+  lost update, and reset it only in memory before a 403 that rolled it back.
 * ``outbox.depth`` sent two counts, on two connections.
 * ``resume_jobs.create`` reloaded the job it had just inserted.
 
@@ -72,23 +76,29 @@ def ctx(client):
 # -- helpers ------------------------------------------------------------------
 
 
-def _register_confirmed(client, email=EMAIL):
-    """An account that can sign in: registered through the API, confirmed directly."""
-    from app import app
-    from model import User, db
-
+def _register(client, email=EMAIL):
+    """A registered account whose address is not confirmed yet. Returns its id."""
     resp = client.post(
         "/api/v1/auth/register",
         json={"email": email, "password": PASSWORD, "name": "Ledger B",
               "terms_accepted": True},
     )
     assert resp.status_code == 201, resp.get_data(as_text=True)
+    return resp.get_json()["user"]["id"]
+
+
+def _register_confirmed(client, email=EMAIL):
+    """An account that can sign in: registered through the API, confirmed directly."""
+    from app import app
+    from model import User, db
+
+    user_id = _register(client, email)
     with app.app_context():
-        user = User.query.filter_by(email=email).one()
+        user = db.session.get(User, user_id)
         user.email_confirmed = True
         user.confirmation_token = None
         db.session.commit()
-        return user.id
+    return user_id
 
 
 def _login(client, password=PASSWORD, email=EMAIL):
@@ -97,11 +107,36 @@ def _login(client, password=PASSWORD, email=EMAIL):
 
 def _user_row(user_id):
     """The ``users`` row as the database holds it, read on a connection of its own."""
+    from app import app
     from model import User, db
 
     users = User.__table__
-    with db.engine.connect() as connection:
-        return connection.execute(sa.select(users).where(users.c.id == user_id)).one()
+    with app.app_context():
+        with db.engine.connect() as connection:
+            return connection.execute(sa.select(users).where(users.c.id == user_id)).one()
+
+
+def _seed_submission(email=EMAIL):
+    """An anonymous intake submission for *email*, waiting to be claimed."""
+    import uuid
+
+    from app import app
+    from model import IntakeSubmission, db
+
+    submission_id = str(uuid.uuid4())
+    with app.app_context():
+        db.session.add(IntakeSubmission(
+            id=submission_id, first_name="Ledger", last_name="Bee", email=email,
+            state="NY", resume_key="intake/%s/resume.pdf" % submission_id,
+            resume_mime="application/pdf", resume_size_bytes=1024,
+        ))
+        db.session.commit()
+    return submission_id
+
+
+def _sign_in_claim(submission_id, password, email=EMAIL):
+    return {"mode": "sign_in", "submission_id": submission_id,
+            "email": email, "password": password}
 
 
 def _reads_of(statements, table):
@@ -297,15 +332,16 @@ def test_a_tombstoned_account_looks_up_and_signs_in_exactly_as_before(client, ct
 # -- login ---------------------------------------------------------------------
 
 
-def test_login_reads_the_user_row_at_most_twice_and_never_rereads_its_session(client, ctx):
-    """Ledger ``auth_service``:233/236 and ``refresh_tokens``:244.
+def test_a_clean_login_reads_the_user_row_once_and_never_rereads_its_session(client, ctx):
+    """Ledger ``auth_service``:233/236, ``refresh_tokens``:244 and ``auth.py``:141.
 
-    Before the fix a successful login SELECTed the same ``users`` row three
+    Before wave 1 a successful login SELECTed the same ``users`` row three
     times -- the lookup, a reload after a commit with nothing to write, a reload
     after ``issue`` committed -- and SELECTed back the ``user_sessions`` row
-    ``issue`` had just inserted.  What remains is the lookup, and one reload
-    when ``auth.start_session`` reads ``user.email`` after ``issue`` has
-    committed; that read is in the route, outside this package.
+    ``issue`` had just inserted.  Wave 1 left one reload: ``auth.start_session``
+    read ``user.email`` after ``issue`` had committed and expired the row.  It
+    reads it first now, off the row the lookup loaded, so the lookup is the
+    only read.
     """
     _register_confirmed(client)
 
@@ -313,7 +349,7 @@ def test_login_reads_the_user_row_at_most_twice_and_never_rereads_its_session(cl
         resp = _login(client)
 
     assert resp.status_code == 200, resp.get_data(as_text=True)
-    assert len(_reads_of(statements, "users")) <= 2, statements
+    assert len(_reads_of(statements, "users")) == 1, statements
     assert _reads_of(statements, "user_sessions") == [], statements
 
 
@@ -425,6 +461,121 @@ def test_a_failed_login_moves_version_so_a_stale_writer_still_loses(client, ctx)
         stale.close()
 
 
+# -- the intake sign-in: the same lockout rule as login ----------------------------
+
+
+def test_two_failed_intake_sign_ins_through_two_sessions_are_both_counted(client, ctx):
+    """The lost update ``login`` had, on the intake claim's password path.
+
+    ``intake_service.sign_in`` kept its own copy of the counter, a read-modify-
+    write in Python.  Two attempts that overlap in the password check both read
+    the same ``version``, and the second write raised ``StaleDataError``.
+    """
+    from app import app
+    from solverah.services import intake_service
+
+    user_id = _register_confirmed(client)
+    submission_id = _seed_submission()
+    before = _user_row(user_id)
+    inner = []
+
+    def check_password_while_another_attempt_runs(_hash, _password):
+        with app.app_context():
+            inner.append(intake_service.sign_in(
+                _sign_in_claim(submission_id, WRONG), check_password=lambda *_args: False
+            ))
+        return False
+
+    outer = intake_service.sign_in(
+        _sign_in_claim(submission_id, WRONG),
+        check_password=check_password_while_another_attempt_runs,
+    )
+
+    assert [r.status for r in inner] == [401]
+    assert outer.status == 401
+    after = _user_row(user_id)
+    assert after.failed_login_count == before.failed_login_count + 2
+    assert after.version == before.version + 2
+
+
+def test_an_intake_sign_in_clears_the_count_before_the_unconfirmed_403(client):
+    """A correct password clears the count even while the address is unconfirmed.
+
+    ``login`` resets and commits, then applies the confirmation gate, so
+    confirming an email never leaves a stale counter behind.  ``sign_in`` reset
+    in memory and answered 403, and the request's rollback took the reset with
+    it.  No ``ctx`` here: each request gets its own session, as in production.
+    """
+    user_id = _register(client)
+    submission_id = _seed_submission()
+    wrong = client.post("/api/v1/intake/claims", json=_sign_in_claim(submission_id, WRONG))
+    assert wrong.status_code == 401
+    assert _user_row(user_id).failed_login_count == 1
+
+    resp = client.post("/api/v1/intake/claims", json=_sign_in_claim(submission_id, PASSWORD))
+
+    assert resp.status_code == 403, resp.get_data(as_text=True)
+    row = _user_row(user_id)
+    assert row.failed_login_count == 0
+    assert row.locked_until is None
+
+
+def test_an_intake_sign_in_after_a_failure_clears_the_count_and_still_links(
+    client, monkeypatch
+):
+    """Characterisation of the path the follow-up changed shape on.
+
+    With a count to clear, ``sign_in`` now commits the reset before its
+    confirmation gate, so the merge that follows runs on reloaded rows and
+    commits on its own.  The outcome must be what it was when both landed in
+    one commit: signed in, count cleared, name taken from the submission, and
+    the submission linked.
+    """
+    from app import app
+    from model import IntakeSubmission, db
+
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
+    user_id = _register_confirmed(client)
+    submission_id = _seed_submission()
+    wrong = client.post("/api/v1/intake/claims", json=_sign_in_claim(submission_id, WRONG))
+    assert wrong.status_code == 401
+    before = _user_row(user_id)
+    assert before.failed_login_count == 1
+
+    resp = client.post("/api/v1/intake/claims", json=_sign_in_claim(submission_id, PASSWORD))
+
+    assert resp.status_code == 200, resp.get_data(as_text=True)
+    assert resp.get_json()["user"] == {
+        "id": user_id, "email": EMAIL, "name": "Ledger Bee", "role": "job-seeker",
+    }
+    row = _user_row(user_id)
+    assert row.failed_login_count == 0
+    assert row.name == "Ledger Bee"
+    assert row.version > before.version
+    with app.app_context():
+        assert db.session.get(IntakeSubmission, submission_id).status == "account_linked"
+
+
+def test_login_and_the_intake_sign_in_count_toward_one_lockout(client):
+    """Characterisation: two password paths, one counter, one threshold."""
+    from solverah.services import auth_service
+
+    user_id = _register_confirmed(client)
+    submission_id = _seed_submission()
+    for _attempt in range(auth_service.MAX_LOGIN_ATTEMPTS - 1):
+        assert _login(client, WRONG).status_code == 401
+
+    resp = client.post("/api/v1/intake/claims", json=_sign_in_claim(submission_id, WRONG))
+
+    assert resp.status_code == 401
+    row = _user_row(user_id)
+    assert row.failed_login_count == 0
+    assert row.locked_until is not None
+    right = client.post("/api/v1/intake/claims", json=_sign_in_claim(submission_id, PASSWORD))
+    assert right.status_code == 423
+    assert _login(client).status_code == 423
+
+
 # -- register and OTP sign-in ----------------------------------------------------
 
 
@@ -491,28 +642,18 @@ def test_an_intake_sign_in_reloads_the_user_row_at_most_once(client, ctx, monkey
     ``intake_service.sign_in`` commits the merge and hands ``start_session`` the
     expired ``user``.  Before: ``issue`` reloaded it to read ``user.id``,
     reloaded it again after its own commit for the log line, and SELECTed the
-    session row back for ``family_id``.  Now the one reload left is the route's
-    read of ``user.email`` after ``issue`` commits (``auth.start_session``).
+    session row back for ``family_id``.  The one reload left is
+    ``auth.start_session`` reading ``user.email``, and ``sign_in``'s own commit
+    is what makes that a reload.
     """
-    import uuid
-
-    from model import IntakeSubmission, db
-
     monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
     _register_confirmed(client)
-    submission_id = str(uuid.uuid4())
-    db.session.add(IntakeSubmission(
-        id=submission_id, first_name="Ledger", last_name="Bee", email=EMAIL,
-        state="NY", resume_key="intake/%s/resume.pdf" % submission_id,
-        resume_mime="application/pdf", resume_size_bytes=1024,
-    ))
-    db.session.commit()
+    submission_id = _seed_submission()
 
     with count_queries() as statements:
-        resp = client.post("/api/v1/intake/claims", json={
-            "mode": "sign_in", "submission_id": submission_id,
-            "email": EMAIL, "password": PASSWORD,
-        })
+        resp = client.post(
+            "/api/v1/intake/claims", json=_sign_in_claim(submission_id, PASSWORD)
+        )
 
     assert resp.status_code == 200, resp.get_data(as_text=True)
     assert len(_reads_of(statements, "users")) <= 2, statements

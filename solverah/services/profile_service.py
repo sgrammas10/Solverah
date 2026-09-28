@@ -131,6 +131,9 @@ def save_profile(user: User, raw_profile_data: Any, clean_profile_data) -> Profi
             has nothing to do with the service layer.
     """
     profile_data = clean_profile_data(raw_profile_data)
+    # Read now, not after the commit: the commit expires `user`, and reading an
+    # attribute of an expired row reloads the whole row.
+    user_id = user.id
 
     # Filled in by the merge below. The merge runs once per attempt -- again on
     # every lost compare-and-swap -- so the corrections are *collected* there and
@@ -148,32 +151,32 @@ def save_profile(user: User, raw_profile_data: Any, clean_profile_data) -> Profi
         pending["corrections"] = corrections
         return domain.merge_profile(existing, profile_data)
 
-    document = profile_repository.update_document(user.id, merge)
+    document = profile_repository.update_document(user_id, merge)
 
     if pending["resume_key"] and pending["corrections"]:
         profile_repository.record_resume_corrections(
-            user.id, pending["resume_key"], pending["corrections"]
+            user_id, pending["resume_key"], pending["corrections"]
         )
 
     audit.log_audit_event(
         action="update",
-        actor_user_id=user.id,
+        actor_user_id=user_id,
         resource="profile",
         metadata={
             "updated_fields": sorted(profile_data.keys()),
-            "target_user_id": user.id,
+            "target_user_id": user_id,
         },
     )
     # Evaluated before the commit because the F-5 invalidation has to ride the
     # same transaction; the Tier-1 cache is in-process and cannot.
     path_inputs_changed = bool(profile_data.keys() & domain.PATH_INPUT_KEYS)
     if path_inputs_changed:
-        path_fit_repository.invalidate(user.id)
+        path_fit_repository.invalidate(user_id)
 
     db.session.commit()
 
     if path_inputs_changed:
-        path_cache.invalidate(user.id)
+        path_cache.invalidate(user_id)
 
     return ProfileResult(
         status=200,
@@ -205,12 +208,13 @@ def set_career_status(user: User, status: Any) -> ProfileResult:
     if status not in domain.CAREER_STATUSES:
         return _error(400, "invalid_status")
 
+    user_id = user.id  # before the commit expires `user`; see save_profile
     profile_repository.update_document(
-        user.id, lambda existing: {**existing, "career_status": status}
+        user_id, lambda existing: {**existing, "career_status": status}
     )
-    path_fit_repository.invalidate(user.id)  # in-transaction, with the commit below
+    path_fit_repository.invalidate(user_id)  # in-transaction, with the commit below
     db.session.commit()
-    path_cache.invalidate(user.id)  # after the commit: it caches what is now true
+    path_cache.invalidate(user_id)  # after the commit: it caches what is now true
 
     return ProfileResult(status=200, body={"career_status": status})
 
@@ -231,10 +235,11 @@ def set_skill_proficiency(user: User, skills: Any) -> ProfileResult:
         written.update(skill_levels)
         return updated
 
-    profile_repository.update_document(user.id, apply)
-    path_fit_repository.invalidate(user.id)  # F-5, with the Tier-1 cache below
+    user_id = user.id  # before the commit expires `user`; see save_profile
+    profile_repository.update_document(user_id, apply)
+    path_fit_repository.invalidate(user_id)  # F-5, with the Tier-1 cache below
     db.session.commit()
-    path_cache.invalidate(user.id)
+    path_cache.invalidate(user_id)
 
     return ProfileResult(
         status=200,
@@ -278,7 +283,10 @@ def dashboard_data(user: User, email: str) -> ProfileResult:
     intake-submission existence check, one ``UNION ALL`` for the newest event of
     each activity source (``dashboard_repository.latest_activity``), and the
     current-Work-Pulse existence check. No per-source or per-row queries. The
-    cached payload is per user, so the key carries the user id and nothing else.
+    document is read without the two assessment results ``load_document`` can
+    merge in: nothing below reads either, so fetching them was a query whose
+    answer was thrown away. The cached payload is per user, so the key carries
+    the user id and nothing else.
 
     **What invalidates it, and the one thing that does not.** Every change to the
     profile document drops the key, from
@@ -297,7 +305,7 @@ def dashboard_data(user: User, email: str) -> ProfileResult:
     if cached is not None:
         return ProfileResult(status=200, body=cached)
 
-    profile = profile_repository.load_document(user.id)
+    profile = profile_repository.load_document(user.id, include_assessments=False)
 
     applications = (
         len(profile.get("applications", [])) if "applications" in profile else 0
@@ -367,8 +375,13 @@ def update_identity(user: User, name: Any) -> ProfileResult:
         resource="identity",
         metadata={"updated_fields": ["name"], "target_user_id": user.id},
     )
+    # Built before the commit, which expires `user`: read back afterwards, the
+    # answer cost a SELECT of the row this request had just written. The only
+    # answer that can differ is one racing a concurrent write to the row, and
+    # when the name changed the UPDATE's version check refuses that race anyway.
+    result = read_identity(user)
     db.session.commit()
-    return read_identity(user)
+    return result
 
 
 def read_profile_document(user: User) -> ProfileResult:
@@ -412,8 +425,12 @@ def patch_profile(user: User, profile: Any, clean_profile_data) -> ProfileResult
 
 
 def read_skills(user: User) -> ProfileResult:
-    """Self-rated proficiencies, and whether the user has confirmed them."""
-    profile = profile_repository.load_document(user.id)
+    """Self-rated proficiencies, and whether the user has confirmed them.
+
+    Neither key is one of the assessment results ``load_document`` merges in, so
+    the document is read without them.
+    """
+    profile = profile_repository.load_document(user.id, include_assessments=False)
     return ProfileResult(
         status=200,
         body={
@@ -456,6 +473,12 @@ def _resume_id_of(resume_key: str) -> Optional[str]:
     return None
 
 
+def _stored_resume_key(user_id: int) -> Optional[str]:
+    """The object key on this user's ``resumes`` row, or None."""
+    resume = profile_repository.current_resume(user_id)
+    return resume.object_key if resume is not None else None
+
+
 def resume_upload_ticket(user: User, mime: str, size: int, max_bytes: int) -> ProfileResult:
     """Step 1 of 2: an upload ticket scoped to this user by construction."""
     object_key = resume_service.object_key_for_user(user.id, mime)
@@ -474,11 +497,12 @@ def resolve_resume_key(user: User, resume_id: str, mime: Optional[str] = None) -
     rebuilt from the caller's own id, so it can only ever address the caller's
     own prefix -- an id belonging to another user produces a key under *this*
     user's prefix, which does not exist, rather than reaching theirs.
+
+    The stored resume is read only by the two answers that consult it: a
+    malformed id and a key rebuilt for a write never did.
     """
-    resume = profile_repository.current_resume(user.id)
-    stored = resume.object_key if resume is not None else None
     if resume_id == CURRENT_RESUME:
-        return stored or None
+        return _stored_resume_key(user.id) or None
 
     if not resume_id or "/" in resume_id:
         return None
@@ -486,6 +510,7 @@ def resolve_resume_key(user: User, resume_id: str, mime: Optional[str] = None) -
     if mime is None:
         # A read: only the stored resume can be addressed, because the
         # extension is part of the key and is not knowable from the id alone.
+        stored = _stored_resume_key(user.id)
         if stored and _resume_id_of(stored) == resume_id:
             return stored
         return None

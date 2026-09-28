@@ -62,20 +62,24 @@ def _error(status: int, message: str) -> SituationReportResult:
 
 
 def _manager_section(user_id: int) -> dict:
+    """``{"has_profile": bool}`` -- one EXISTS probe, not the newest sitting."""
     import manager_profile_store
 
-    return {"has_profile": manager_profile_store.latest_manager_profile(user_id) is not None}
+    return {"has_profile": manager_profile_store.has_manager_profile(user_id)}
 
 
 def _live_career_status(user_id: int) -> Optional[str]:
     """The caller's CURRENT career_status, deriving it the same way
     `intelligence_service.path_suggestions` does -- reading through
     `profile_repository` rather than the ORM directly, and falling back to a
-    derivation from experience when the field was never explicitly set."""
+    derivation from experience when the field was never explicitly set.
+
+    `include_assessments=False`: neither the field nor the derivation reads the
+    two assessment-result keys, so their query is skipped."""
     from solverah.repositories import profile_repository
     from solverah.services.intelligence_service import derive_career_status
 
-    profile = profile_repository.load_document(user_id)
+    profile = profile_repository.load_document(user_id, include_assessments=False)
     status = profile.get("career_status")
     if not status:
         status = derive_career_status(profile)
@@ -229,19 +233,19 @@ def _events_since_report(user_id: int, submitted_at: Optional[str]) -> List[Dict
     (BUILD_PLAN B-4) -- what the frontend's resubmission banner reads to ask
     "does your Situation Report still describe this job?". `type` and `date`
     only, never `note`: `pulse_events.note` is free text a user typed, and D-15
-    holds for this payload the same as every other field in it.
+    holds for this payload the same as every other field in it -- so the note is
+    not even selected, and "strictly newer" is the query's own `at > submitted_at`.
     """
     import pulse_store
 
     if not submitted_at:
         return []
-    since = datetime.datetime.fromisoformat(submitted_at)
-    events = pulse_store.pulse_events_in_range(user_id, since=since)
-    return [
-        {"type": event["event_type"], "date": event["at"]}
-        for event in events
-        if event["at"] is not None and datetime.datetime.fromisoformat(event["at"]) > since
-    ]
+    events = pulse_store.pulse_events_in_range(
+        user_id,
+        after=datetime.datetime.fromisoformat(submitted_at),
+        columns=("event_type", "at"),
+    )
+    return [{"type": event["event_type"], "date": event["at"]} for event in events]
 
 
 #: Which source `_dimension_weights` reads from -- see its docstring. Read with
@@ -341,7 +345,8 @@ def get_situation_report(user: User) -> SituationReportResult:
     import environment_report_store
     from work_pulse import situation, situation_content, situation_items
 
-    env = environment_report_store.latest_environment_report(user.id)
+    # No state of this page shows the raw answers, so their JSONB stays in the database.
+    env = environment_report_store.latest_environment_report(user.id, include_raw_answers=False)
     has_core = assessment_store.has_completed_assessment(user.id)
     manager = _manager_section(user.id)
 
@@ -445,7 +450,10 @@ def get_situation_report(user: User) -> SituationReportResult:
 
 def recalibrate(user: User) -> SituationReportResult:
     """⚑5's explicit re-pin. Idempotent when already pinned to the latest
-    completed core sitting: no write, no audit row, `recalibrated: false`."""
+    completed core sitting: no write, no audit row, `recalibrated: false`.
+
+    The pin row is read once, by `_pinned_submission_id`; a move is one upsert
+    (`situation_report_pin_store.set_pin`), which reads nothing first."""
     import assessment_store
     import situation_report_pin_store
     from solverah.services.audit import log_audit_event

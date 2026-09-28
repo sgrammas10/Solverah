@@ -23,6 +23,16 @@ Deliberately unchanged:
   else (D-01).  Its submission row is written there, in the same transaction as
   the raw responses, and carries no result and no answers.  Unifying where a
   sitting is *recorded* was not licence to widen what a sitting *exposes*.
+
+No provider call runs inside a transaction.  The caller's user lookup opens
+one -- the worker's ``find_by_id`` before it scores -- and Work Pulse used to
+open and flush its submission row before narrating as well, so a connection
+sat idle in transaction for the whole paid round trip, which is seconds and can
+be minutes when the SDK retries.  The two provider-scored submits with an
+account read what they need, copy it out as values (a commit expires every
+instance in the session), end that transaction, and write only once the reply
+is in.  The same goes for ``user.id``: every submit takes it once, before its
+first commit, so no commit is followed by a reload of the user row.
 """
 
 from __future__ import annotations
@@ -178,29 +188,34 @@ def submit_work_pulse(user: User, answers: Any, logger) -> AssessmentResult:
     if not isinstance(answers, list) or len(answers) != WORK_PULSE_ANSWER_COUNT:
         return _error(400, "answers must be a list of exactly 12 items")
 
-    # Open the submission row before the LLM call, so a concurrent duplicate
-    # collides cheaply -- on `uq_assessment_submissions_current` -- rather than
-    # after a paid round trip. That is the same reason the intake row used to be
-    # created here; only the constraint doing the work has changed.
-    submission = assessment_repository.open_current(
-        user.id, "work_pulse", CLIENT_FORM_VERSION
-    )
-
     # Context for the narrative, from the two places it has always come from:
     # the claimed WPLL sitting (now a submission of its own) and the intake
     # row's statement selections (which are intake data, not an assessment, and
-    # stay where they are).
-    wpll = assessment_repository.current_submission(user.id, "wpll")
-    intake = intake_repository.find_user_intake(user.id)
+    # stay where they are). Copied out as values, like the user's id, because
+    # the commit below expires every instance in the session.
+    user_id = user.id
+    wpll = assessment_repository.current_result(user_id, "wpll")
+    wpll_answers = (wpll.answers if wpll else None) or None
+    intake = intake_repository.find_user_intake(
+        user_id, only=("selected_statement_ids",)
+    )
+    selected_statement_ids = (intake.selected_statement_ids if intake else None) or None
+
+    # Nothing written and no transaction open while the provider works (see the
+    # module docstring). The row is opened after the reply, not before: opening
+    # it first held a flushed INSERT -- and its entry in
+    # `uq_assessment_submissions_current` -- across the whole round trip and
+    # bought nothing, since a concurrent duplicate waited on that entry and then
+    # paid for its own call anyway. `open_current` resolves the duplicate the
+    # same way at write time.
+    db.session.commit()
 
     try:
         result = _chat_json(
             assessment_prompts.build_wp_narrative_prompt(
                 answers,
-                wpll_answers=(wpll.answers if wpll else None) or None,
-                selected_statement_ids=(
-                    intake.selected_statement_ids if intake else None
-                ) or None,
+                wpll_answers=wpll_answers,
+                selected_statement_ids=selected_statement_ids,
             ),
             "OPENAI_WP_MODEL",
             "gpt-4o-mini",
@@ -217,13 +232,18 @@ def submit_work_pulse(user: User, answers: Any, logger) -> AssessmentResult:
     # succeed before the narrative is attempted, so that completion is always
     # recorded even if the second commit fails for any reason -- losing a
     # 12-question submission is the outcome this ordering exists to prevent.
+    submission = assessment_repository.open_current(
+        user_id, "work_pulse", CLIENT_FORM_VERSION
+    )
     submission.answers = answers
     submission.completed_at = auth_domain.utcnow()
     submission.status = "complete"
 
+    # One profile key, so it is written as one: the rest of the document is
+    # neither read nor rewritten. Every completed sitting overwrites it.
     preferences = derive_culture_preferences(answers)
-    profile_repository.update_document(
-        user.id, lambda existing: {**existing, "culture_preferences": preferences}
+    profile_repository.update_extra_key(
+        user_id, "culture_preferences", lambda _stored: preferences
     )
 
     db.session.commit()
@@ -241,9 +261,9 @@ def submit_work_pulse(user: User, answers: Any, logger) -> AssessmentResult:
         # Inside the same transaction as the write that made them stale, so a
         # crash between the two cannot leave a changed profile beside fits
         # computed from the old one.
-        path_fit_repository.invalidate(user.id)
+        path_fit_repository.invalidate(user_id)
         db.session.commit()
-        path_cache.invalidate(user.id)
+        path_cache.invalidate(user_id)
     except Exception:  # noqa: BLE001 -- see the comment above
         db.session.rollback()
         logger.exception("Work Pulse: failed to persist narrative/result")
@@ -253,7 +273,7 @@ def submit_work_pulse(user: User, answers: Any, logger) -> AssessmentResult:
 
 def get_work_pulse_result(user: User) -> AssessmentResult:
     """Return the stored Work Pulse narrative, for rehydrating a fresh session."""
-    submission = assessment_repository.current_submission(user.id, "work_pulse")
+    submission = assessment_repository.current_result(user.id, "work_pulse")
     if submission is None or submission.completed_at is None:
         return _error(404, "No Work Pulse results found")
     if not submission.result:
@@ -266,7 +286,7 @@ def get_work_pulse_result(user: User) -> AssessmentResult:
     return AssessmentResult(status=200, body=submission.result)
 
 
-def _store(user: User, kind: str, *, answers, result, narrative=None) -> None:
+def _store(user_id: int, kind: str, *, answers, result, narrative=None) -> None:
     """Record a completed, scored sitting of one of the deterministic-or-narrated
     instruments. Does not commit -- the caller owns the transaction.
 
@@ -275,9 +295,12 @@ def _store(user: User, kind: str, *, answers, result, narrative=None) -> None:
     between the two commits; ``core`` does not, because its persistence is behind
     ``assessment_store``; ``wpll`` does not, because its stored state arrives from
     an anonymous session being claimed rather than from a submission.
+
+    Takes the id rather than the user: ``submit_manager_match`` has already
+    committed once by the time it gets here, and that commit expired the row.
     """
     now = auth_domain.utcnow()
-    submission = assessment_repository.open_current(user.id, kind, CLIENT_FORM_VERSION)
+    submission = assessment_repository.open_current(user_id, kind, CLIENT_FORM_VERSION)
     submission.answers = answers
     submission.result = result
     submission.narrative = narrative
@@ -309,10 +332,11 @@ def submit_focus_type(user: User, data: Dict[str, Any]) -> AssessmentResult:
         data["scene_5"],
     )
 
-    _store(user, "focus_type", answers=data, result=result)
-    path_fit_repository.invalidate(user.id)  # F-5, with the Tier-1 cache below
+    user_id = user.id  # a value: the commit below expires the user row
+    _store(user_id, "focus_type", answers=data, result=result)
+    path_fit_repository.invalidate(user_id)  # F-5, with the Tier-1 cache below
     db.session.commit()
-    path_cache.invalidate(user.id)
+    path_cache.invalidate(user_id)
 
     return AssessmentResult(status=200, body=result)
 
@@ -332,6 +356,12 @@ def submit_manager_match(user: User, answers: Any, logger) -> AssessmentResult:
         scoring = score_manager_match(answers)
     except ValueError as exc:
         return _error(400, str(exc))
+
+    # The caller's user lookup began a transaction; it ends here rather than
+    # idling through the provider call (see the module docstring). The id is
+    # kept as a value because that commit expires the user row.
+    user_id = user.id
+    db.session.commit()
 
     try:
         llm_result = _chat_json(
@@ -358,22 +388,22 @@ def submit_manager_match(user: User, answers: Any, logger) -> AssessmentResult:
     result = {**llm_result, **scoring}
 
     _store(
-        user,
+        user_id,
         "manager_match",
         answers=answers,
         result=result,
         narrative=llm_result["narrative"],
     )
-    path_fit_repository.invalidate(user.id)  # F-5, with the Tier-1 cache below
+    path_fit_repository.invalidate(user_id)  # F-5, with the Tier-1 cache below
     db.session.commit()
-    path_cache.invalidate(user.id)
+    path_cache.invalidate(user_id)
 
     return AssessmentResult(status=200, body=result)
 
 
 def get_manager_match_result(user: User) -> AssessmentResult:
     """Return the stored ManagerMatch result."""
-    submission = assessment_repository.current_submission(user.id, "manager_match")
+    submission = assessment_repository.current_result(user.id, "manager_match")
     if submission is None or submission.result is None:
         return _error(404, "No ManagerMatch result found")
     return AssessmentResult(status=200, body=submission.result)
@@ -605,7 +635,7 @@ def result(kind: AssessmentKind, user: User) -> AssessmentResult:
     if kind.key == "manager_match":
         return get_manager_match_result(user)
     if kind.key == "focus_type":
-        submission = assessment_repository.current_submission(user.id, "focus_type")
+        submission = assessment_repository.current_result(user.id, "focus_type")
         if submission is None or submission.result is None:
             return _error(404, "No FocusType result found")
         return AssessmentResult(status=200, body=submission.result)

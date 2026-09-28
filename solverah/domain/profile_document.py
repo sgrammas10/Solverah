@@ -488,9 +488,11 @@ def _decompose_resume(document: Dict[str, Any]) -> Optional[ResumeRecord]:
 
     ``uploadedResume`` stays in ``extra`` -- it carries the original filename,
     which has no column -- and its ``type``/``size`` are *copied* here so the
-    queryable row is complete. The copy cannot drift: every write rewrites the
-    whole profile state from the document, so the two are re-derived together or
-    not at all.
+    queryable row is complete. The copy cannot drift: every write that can
+    change either one re-derives this record from the whole document, and the
+    ``resumes`` row is rewritten whenever the record differs from it. A write
+    that leaves the row alone -- ``update_document`` skips an unchanged one --
+    is a write the row already agrees with.
     """
     object_key = document.get("resumeKey")
     if not isinstance(object_key, str) or not object_key:

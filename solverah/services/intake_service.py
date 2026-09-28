@@ -36,7 +36,13 @@ from solverah.repositories import (
     profile_repository,
     user_repository,
 )
-from solverah.services import assessment_service, audit, outbox, resume_service
+from solverah.services import (
+    assessment_service,
+    audit,
+    auth_service,
+    outbox,
+    resume_service,
+)
 
 __all__ = [
     "IntakeResult",
@@ -323,9 +329,14 @@ def sign_in(data: Dict[str, Any], *, check_password) -> IntakeResult:
 
     Intake values win on conflict: the user just typed them, so they are newer
     than whatever is on the profile.
-    """
-    from solverah.services.auth_service import LOGIN_LOCKOUT_MINUTES, MAX_LOGIN_ATTEMPTS
 
+    The password check is ``auth_service.login``'s, through the same two
+    functions: ``record_failed_login`` on a wrong password, and
+    ``clear_failed_logins`` before the confirmation gate. Until 2026-09-28 this
+    kept its own copy of the counter, a read-modify-write in Python, so two
+    overlapping failures raised ``StaleDataError``; and it reset the count only
+    in memory, so the 403 below rolled the reset back.
+    """
     submission_id = (data.get("submission_id") or "").strip()
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
@@ -351,17 +362,14 @@ def sign_in(data: Dict[str, Any], *, check_password) -> IntakeResult:
         return _error(423, "Account locked. Try again later.")
 
     if not check_password(user.password_hash, password):
-        user.failed_login_count += 1
-        if user.failed_login_count >= MAX_LOGIN_ATTEMPTS:
-            user.locked_until = auth_domain.lockout_until(LOGIN_LOCKOUT_MINUTES)
-            user.failed_login_count = 0
-        db.session.commit()
+        auth_service.record_failed_login(user)
         return _error(401, "Invalid credentials")
 
-    user.failed_login_count = 0
-    user.locked_until = None
+    # Read before clear_failed_logins can commit and expire the row.
+    email_confirmed = getattr(user, "email_confirmed", False)
+    auth_service.clear_failed_logins(user)
 
-    if not getattr(user, "email_confirmed", False):
+    if not email_confirmed:
         return _error(
             403, "Email not confirmed. Please confirm your email before signing in."
         )

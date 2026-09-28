@@ -20,20 +20,27 @@ publish call just delays the send to the outbox sweep, the same "at-least-once"
 guarantee `solverah/services/outbox.py`'s own docstring accepts for every other
 caller.
 
-**The due-selection scan.** `send_due_prompts` walks every confirmed-email user
-once. There is no ``pulse_settings`` column to filter on in SQL -- it is a key
-inside `profiles.extra`, a JSONB remainder column -- so this is a Python-side
-scan rather than a query predicate. Deliberately: the product is pre-launch,
-the user table is small, and adding a JSONB path index for one weekly cron job
-would be optimizing a problem this codebase does not have yet.
+**The due-selection scan.** `send_due_prompts` reads its candidates -- every
+confirmed-email user with at least one check-in, and that check-in's time -- in
+one query, and their settings in one more. There is no ``pulse_settings`` column
+to filter on in SQL -- it is a key inside `profiles.extra`, a JSONB remainder
+column -- so due-ness itself is still decided in Python over that batch rather
+than as a query predicate. Deliberately: the product is pre-launch, the user
+table is small, and adding a JSONB path index for one weekly cron job would be
+optimizing a problem this codebase does not have yet. The batch only rules
+users out; a user it rules in is re-read just before the write, so each prompt
+is still decided on reads taken moments before it is recorded, as it was before
+there was a batch (see the loop).
 """
 
 from __future__ import annotations
 
 import datetime
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Tuple
 
-from model import User, db
+import sqlalchemy as sa
+
+from model import PulseCheckin, User, db
 from solverah.services import outbox, pulse_settings
 
 __all__ = ["TARGET_ROUTE", "send_due_prompts"]
@@ -47,6 +54,41 @@ TARGET_ROUTE = "/pulse"
 
 def _deep_link(base_url: str) -> str:
     return base_url.rstrip("/") + TARGET_ROUTE
+
+
+def _confirmed_user_count() -> int:
+    """How many confirmed-email users there are -- the run's ``checked`` count,
+    which has always counted every one of them, check-in or not."""
+    return db.session.execute(
+        sa.select(sa.func.count()).select_from(User).where(User.email_confirmed)
+    ).scalar_one()
+
+
+def _candidates(user_id: Optional[int] = None) -> List[Tuple[int, str, datetime.datetime]]:
+    """``(user_id, email, latest taken_at)`` for every confirmed-email user with
+    at least one check-in -- or for *user_id* alone -- one row per user, in one
+    query.
+
+    Plain tuples, not ``User`` rows, and that is load-bearing: the loop commits
+    once per prompted user, a commit expires every ORM row in the session, and
+    an expired row read on the next iteration is a SELECT per user. ``DISTINCT
+    ON`` keeps each user's newest check-in -- the same row, by the same order,
+    as `pulse_store.latest_pulse_checkin` -- and that order is the one
+    `ix_pulse_checkins_user_taken` (user_id, taken_at DESC) is kept in.
+    """
+    statement = (
+        sa.select(PulseCheckin.user_id, User.email, PulseCheckin.taken_at)
+        .join(User, User.id == PulseCheckin.user_id)
+        .where(User.email_confirmed)
+    )
+    if user_id is not None:
+        statement = statement.where(PulseCheckin.user_id == user_id)
+    rows = db.session.execute(
+        statement.distinct(PulseCheckin.user_id).order_by(
+            PulseCheckin.user_id, PulseCheckin.taken_at.desc(), PulseCheckin.id.desc()
+        )
+    )
+    return [(row_user_id, email, taken_at) for row_user_id, email, taken_at in rows]
 
 
 def send_due_prompts(
@@ -66,31 +108,45 @@ def send_due_prompts(
     baseline is their most recent check-in's `taken_at`, not cron-discovery
     time -- see `pulse_settings.is_due`'s docstring.
 
+    Statements, whatever the number of users: one count (``checked`` has always
+    counted every confirmed-email user), one read of the candidates, one of
+    their settings. A prompted user then costs a constant few more -- the
+    re-read below, the settings write, the outbox row -- and its own commit.
+
     Returns:
         Counts keyed by outcome, for the cron's JSON log line.
     """
-    import pulse_store
-
     now = now if now is not None else datetime.datetime.now(datetime.timezone.utc)
 
-    checked = 0
+    checked = _confirmed_user_count()
     sent = 0
     dropped_to_monthly = 0
 
-    # `.all()`, not `.yield_per()`: a server-side cursor does not survive the
-    # per-user `db.session.commit()` below (`psycopg2.ProgrammingError: named
-    # cursor isn't valid anymore`) -- the commit ends the transaction the
-    # cursor was streaming rows under. Loading the whole list up front is the
+    # Whole lists, not a streamed cursor: a server-side cursor does not survive
+    # the per-user `db.session.commit()` below (`psycopg2.ProgrammingError:
+    # named cursor isn't valid anymore`) -- the commit ends the transaction the
+    # cursor was streaming rows under. Loading the candidates up front is the
     # same pre-launch-scale call the module docstring already makes for doing
     # this scan in Python instead of a JSONB query in the first place.
-    for user in User.query.filter(User.email_confirmed).all():
-        checked += 1
-        latest_checkin = pulse_store.latest_pulse_checkin(user.id)
-        if latest_checkin is None:
+    candidates = _candidates()
+    batch = pulse_settings.read_settings_for_users([user_id for user_id, _, _ in candidates])
+
+    for user_id, _email, last_checkin_at in candidates:
+        if not pulse_settings.is_due(batch[user_id], now=now, last_checkin_at=last_checkin_at):
             continue
 
-        settings = pulse_settings.read_settings(user.id)
-        last_checkin_at = datetime.datetime.fromisoformat(latest_checkin["taken_at"])
+        # The batch was read before any of this run's commits, so it only rules
+        # users out. A user it rules in is read again here -- the latest check-in
+        # and the settings, the two reads the loop used to make for every user --
+        # so a cadence change, a check-in, or an account deletion (which drops
+        # the confirmation) that landed while earlier users were being prompted
+        # decides this prompt, and `record_prompt` never writes the batch's
+        # older settings back over it.
+        current = _candidates(user_id)
+        if not current:
+            continue
+        _, email, last_checkin_at = current[0]
+        settings = pulse_settings.read_settings(user_id)
         if not pulse_settings.is_due(settings, now=now, last_checkin_at=last_checkin_at):
             continue
 
@@ -119,7 +175,7 @@ def send_due_prompts(
                 dropped_to_monthly += 1
 
         pulse_settings.record_prompt(
-            user.id,
+            user_id,
             cadence=new_cadence,
             consecutive_unanswered=consecutive_unanswered,
             prompted_at=now,
@@ -128,11 +184,15 @@ def send_due_prompts(
         entry_id = outbox.enqueue(
             outbox.TOPIC_EMAIL_PULSE_PROMPT,
             {
-                "to": user.email,
+                "to": email,
                 "deep_link": _deep_link(base_url),
                 "slowdown_notice": slowdown_notice,
             },
         )
+        # One commit per prompted user, on purpose: the settings write and its
+        # outbox row land together or not at all (the module docstring's
+        # idempotency). It expires nothing the loop reads next -- `candidates`
+        # holds tuples, not ORM rows.
         db.session.commit()
         outbox.publish_soon(entry_id)
         sent += 1

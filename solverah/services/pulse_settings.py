@@ -1,11 +1,14 @@
 """Pulse cadence + anti-nag state (BUILD_PLAN B-2).
 
-No table of its own. `profiles.extra["pulse_settings"]`, via
-`profile_repository.update_document`, is the storage -- D-7 (BUILD_PLAN,
-2026-09-10, cross-cutting rule) is why: a new user-data table has to join the
-`GET /me/export` and account-deletion seam D-7b owns this wave, and the profile
-document already does. `profile_repository.load_document`/`update_document`
-thread this key through both for free; nothing here has to.
+No table of its own. `profiles.extra["pulse_settings"]` is the storage -- D-7
+(BUILD_PLAN, 2026-09-10, cross-cutting rule) is why: a new user-data table has
+to join the `GET /me/export` and account-deletion seam D-7b owns this wave, and
+the profile document already does. `profile_repository.load_document`/
+`update_document` thread this key through both for free; nothing here has to.
+This module itself reads and writes the one key through
+`profile_repository.read_extra_key`/`update_extra_key` -- one SELECT to read,
+three statements to write, the same compare-and-swap on `profiles.version` as a
+whole-document save -- because nothing here needs the rest of the document.
 
 Shape (every key optional -- a user who has never touched Pulse has none of
 them, and `read_settings` fills every default; rows written before the
@@ -46,7 +49,7 @@ retry, which already handles that.
 from __future__ import annotations
 
 import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 
 __all__ = [
     "CADENCE_INTERVALS",
@@ -58,6 +61,7 @@ __all__ = [
     "is_due",
     "mark_answered",
     "read_settings",
+    "read_settings_for_users",
     "record_prompt",
     "set_cadence",
 ]
@@ -101,12 +105,25 @@ def read_settings(user_id: int) -> Dict[str, Any]:
 
     A user who has never touched Pulse settings has no `pulse_settings` key at
     all in their profile document, which is not a special case here: it reads
-    the same as an explicit `{"cadence": "weekly", ...}` would.
+    the same as an explicit `{"cadence": "weekly", ...}` would. One SELECT of
+    the key (`profile_repository.read_extra_key`), which is exactly what the
+    whole document's `.get(SETTINGS_KEY)` would give.
     """
     from solverah.repositories import profile_repository
 
-    document = profile_repository.load_document(user_id)
-    return _with_defaults(document.get(SETTINGS_KEY))
+    return _with_defaults(profile_repository.read_extra_key(user_id, SETTINGS_KEY))
+
+
+def read_settings_for_users(user_ids: Sequence[int]) -> Dict[int, Dict[str, Any]]:
+    """`read_settings` for many users in one SELECT: every id in *user_ids* maps
+    to its settings, defaults filled in -- a user with no profile row or no key
+    reads as the defaults, exactly as `read_settings` would give. Sends nothing
+    for an empty *user_ids*.
+    """
+    from solverah.repositories import profile_repository
+
+    stored = profile_repository.read_extra_key_for_users(user_ids, SETTINGS_KEY)
+    return {user_id: _with_defaults(stored.get(user_id)) for user_id in user_ids}
 
 
 def is_due(
@@ -166,43 +183,43 @@ def set_cadence(user_id: int, cadence: str) -> Dict[str, Any]:
 
     from solverah.repositories import profile_repository
 
-    def _mutate(document: Dict[str, Any]) -> Dict[str, Any]:
-        current = _with_defaults(document.get(SETTINGS_KEY))
-        updated = {
-            **current,
+    def _mutate(stored: Any) -> Dict[str, Any]:
+        return {
+            **_with_defaults(stored),
             "cadence": cadence,
             "awaiting_response": False,
             "consecutive_unanswered": 0,
             "auto_slowed": False,
         }
-        return {**document, SETTINGS_KEY: updated}
 
-    new_document = profile_repository.update_document(user_id, _mutate)
-    return new_document[SETTINGS_KEY]
+    return profile_repository.update_extra_key(user_id, SETTINGS_KEY, _mutate)
+
+
+def _answered(stored: Any) -> Dict[str, Any]:
+    """`mark_answered`'s write: the stored settings, defaults filled in, with
+    `awaiting_response` off. Pure -- `update_extra_key` re-runs it on every
+    lost compare-and-swap."""
+    settings = _with_defaults(stored)
+    settings["awaiting_response"] = False
+    return settings
 
 
 def mark_answered(user_id: int) -> None:
     """Flip `awaiting_response` off after a completed check-in.
 
-    A no-op -- no read past the first, no write at all -- when nothing was
+    A no-op -- one SELECT of the key, no write at all -- when nothing was
     outstanding, which is the common case: most check-ins are voluntary, not a
     reply to a specific prompt email. Does not touch `consecutive_unanswered`;
     the cadence engine is the only reader of that field, and it re-derives
     "was the last prompt answered" from `awaiting_response` at its own next
     due-check rather than this call trying to guess what that will need.
     """
-    current = read_settings(user_id)
-    if not current["awaiting_response"]:
+    if not read_settings(user_id)["awaiting_response"]:
         return
 
     from solverah.repositories import profile_repository
 
-    def _mutate(document: Dict[str, Any]) -> Dict[str, Any]:
-        settings = _with_defaults(document.get(SETTINGS_KEY))
-        settings["awaiting_response"] = False
-        return {**document, SETTINGS_KEY: settings}
-
-    profile_repository.update_document(user_id, _mutate)
+    profile_repository.update_extra_key(user_id, SETTINGS_KEY, _answered)
 
 
 def record_prompt(
@@ -227,8 +244,8 @@ def record_prompt(
     """
     from solverah.repositories import profile_repository
 
-    def _mutate(document: Dict[str, Any]) -> Dict[str, Any]:
-        settings = _with_defaults(document.get(SETTINGS_KEY))
+    def _mutate(stored: Any) -> Dict[str, Any]:
+        settings = _with_defaults(stored)
         settings.update(
             cadence=cadence,
             last_prompted_at=prompted_at.isoformat(),
@@ -236,6 +253,6 @@ def record_prompt(
             consecutive_unanswered=consecutive_unanswered,
             auto_slowed=auto_slowed,
         )
-        return {**document, SETTINGS_KEY: settings}
+        return settings
 
-    profile_repository.update_document(user_id, _mutate)
+    profile_repository.update_extra_key(user_id, SETTINGS_KEY, _mutate)

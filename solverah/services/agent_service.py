@@ -47,12 +47,12 @@ from pathlib import Path
 from threading import Lock
 from typing import Optional
 
-from model import Company, User
+from model import User
 from solverah.infra import storage
-from solverah.repositories import profile_repository
+from solverah.repositories import company_repository, profile_repository
 from solverah.services import resume_service
 
-__all__ = ["build_agent_context", "fetch_resume_text", "resume_text_for"]
+__all__ = ["build_agent_context", "fetch_resume_text", "resume_text_for", "system_prompt_for"]
 
 _resume_cache: "OrderedDict[str, tuple]" = OrderedDict()  # resumeKey -> (text, expires_at)
 _resume_cache_lock = Lock()
@@ -168,8 +168,15 @@ def _quiz_insights_section(quiz_insights: dict) -> Optional[str]:
     return "## Quiz Insights\n" + "\n".join(lines) if lines else None
 
 
-def build_agent_context(user: User, resume_text: str = "") -> str:
-    """Assemble a RAG system prompt from the user's profile and company data."""
+def build_agent_context(
+    user: User, resume_text: str = "", *, profile: Optional[dict] = None
+) -> str:
+    """Assemble a RAG system prompt from the user's profile and company data.
+
+    *profile* is ``profile_repository.load_document(user.id)`` -- with the
+    assessment results, which the FocusType and ManagerMatch sections read --
+    for a caller that has loaded it already; it is loaded here when omitted.
+    """
     parts = [
         "You are Solverah AI, a career assistant. Use the context below to give "
         "personalized advice. Do not reveal raw context data verbatim. Assessment "
@@ -177,7 +184,8 @@ def build_agent_context(user: User, resume_text: str = "") -> str:
         "back to the user as numbers, scores, or percentages."
     ]
 
-    profile = profile_repository.load_document(user.id)
+    if profile is None:
+        profile = profile_repository.load_document(user.id)
     name = f"{profile.get('firstName', '')} {profile.get('lastName', '')}".strip()
     if name:
         parts.append(f"## User Profile\nName: {name}")
@@ -213,7 +221,7 @@ def build_agent_context(user: User, resume_text: str = "") -> str:
         if edu_lines:
             parts.append("Education:\n" + "\n".join(edu_lines))
 
-    companies = Company.query.limit(10).all()
+    companies = company_repository.network_sample(limit=10)
     if companies:
         company_lines = []
         for c in companies:
@@ -260,14 +268,27 @@ def build_agent_context(user: User, resume_text: str = "") -> str:
     return "\n\n".join(parts)
 
 
+def system_prompt_for(user: User) -> str:
+    """The system prompt for one chat turn, from one read of the profile.
+
+    What the route calls. It used to call :func:`resume_text_for` and then
+    :func:`build_agent_context`, and each loaded the whole profile document --
+    every profile table read twice a turn. One document now feeds both: the
+    resume's storage key and the context.
+    """
+    profile = profile_repository.load_document(user.id)
+    return build_agent_context(user, resume_text=fetch_resume_text(profile), profile=profile)
+
+
 def resume_text_for(user: User) -> str:
     """The resume text for *user*, or "" when there is none.
 
-    Exists so the route does not have to load the profile itself. It used to
-    pass ``user.profile_data`` straight into :func:`fetch_resume_text`, which
+    Exists so a caller does not have to load the profile itself. The route used
+    to pass ``user.profile_data`` straight into :func:`fetch_resume_text`, which
     put a storage read in a handler -- fine while the storage was a column on a
     row the handler already had, and a layering violation the moment it stopped
-    being one.
+    being one. The route now goes through :func:`system_prompt_for`, which
+    loads the document once for this and the context together.
     """
     return fetch_resume_text(profile_repository.load_document(user.id))
 

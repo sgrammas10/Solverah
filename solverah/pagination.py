@@ -139,12 +139,14 @@ def page(
 ) -> Tuple[List[Any], Optional[str]]:
     """Slice an ordered, in-memory sequence into one keyset page.
 
-    In-memory is the honest description of what the two paginated lists can do
-    today: culture matching scores every company in process (P0-2), and the
-    company list is small enough that the query is not the bottleneck.  The
-    *interface* is what matters -- callers hand back opaque cursors and never
-    see an offset -- so Phase 2 can push the same keyset into SQL without the
-    client noticing.
+    Two ways in.  A list whose query already starts at the cursor -- the keyset
+    in SQL, as the company list does it -- passes its over-fetch: ``limit + 1``
+    rows and no *after* for a first page, and for a later one the cursor's own
+    row first, then ``limit + 1`` more, with *after*.  The row past the page is
+    what says another page exists.  A list that can only sort in process -- the
+    culture matches, whose sort key is a score computed per request (P0-2) --
+    passes every row.  Either way the cursor, and when it is minted, come from
+    here, so the client cannot tell which it was.
 
     Args:
         rows: Rows already in their final sort order.

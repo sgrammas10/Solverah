@@ -1741,12 +1741,14 @@ none of it. Phase 3's cache is where this gets paid back.
 
 **Left for a follow-up, on purpose.**
 
-- `public_id` on an experience or education row is not a stable handle. Writes are
-  delete-then-insert, because a profile save has always replaced these lists
-  wholesale and the document carries no stable per-entry identity — the
-  frontend's list `id` is `Date.now()` for a new row and an array index for a
-  parsed one. It becomes a handle when Part 5.2's `/me/experiences` lands and an
-  entry is addressed individually.
+- `public_id` on an experience or education row is not a stable handle. A save
+  that changes a list rewrites it delete-then-insert, because a profile save has
+  always replaced these lists wholesale and the document carries no stable
+  per-entry identity — the frontend's list `id` is `Date.now()` for a new row and
+  an array index for a parsed one. A save that leaves a list unchanged skips it
+  (since 2026-09-28), so its ids survive that save, but the next edit to the list
+  reissues every one. It becomes a handle when Part 5.2's `/me/experiences` lands
+  and an entry is addressed individually.
 - `profile_experiences.source` is always `'user'`. The document records no
   per-entry provenance; Phase 3 moved parsing off the request path (3a), so
   the parse worker writing `'parsed'` directly is now unblocked — still a

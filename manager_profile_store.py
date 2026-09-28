@@ -21,6 +21,7 @@ from typing import Any, Optional
 
 __all__ = [
     "write_manager_profile",
+    "has_manager_profile",
     "latest_manager_profile",
     "manager_profile_history",
 ]
@@ -66,14 +67,33 @@ def _serialize(row) -> dict[str, Any]:
     }
 
 
+def has_manager_profile(user_id: int) -> bool:
+    """Whether this user has submitted at least one sitting.
+
+    The Situation Report's manager section (⚑4) asks only this, so it gets one
+    `SELECT EXISTS` on `user_id` -- the leading column of
+    `ix_manager_profiles_user_created` -- instead of `latest_manager_profile`'s whole
+    newest row: neither JSONB column leaves the database to be thrown away.
+    """
+    import sqlalchemy as sa
+
+    from model import ManagerProfile, db
+
+    return db.session.execute(
+        sa.select(sa.exists().where(ManagerProfile.user_id == user_id))
+    ).scalar_one()
+
+
 def latest_manager_profile(user_id: int) -> Optional[dict[str, Any]]:
     """This user's most recent sitting, or None if they have never submitted one.
 
-    THE sanctioned read for the Decoder's `GET /me/manager-playbook` and, later, the
-    Situation Report's manager section (⚑4). Ordered by `created_at` (with `id` as the
-    tiebreak two sittings in the same instant would otherwise leave ambiguous), matching
-    `ix_manager_profiles_user_created`'s column order so this is an index-only scan rather
-    than a sort.
+    THE sanctioned read for the Decoder's `GET /me/manager-playbook`; the Situation
+    Report's manager section (⚑4) needs only `has_manager_profile`. Ordered by
+    `created_at` (with `id` as the tiebreak two sittings in the same instant would
+    otherwise leave ambiguous), matching `ix_manager_profiles_user_created`'s column
+    order, so the index hands back the newest row first rather than the rows being
+    sorted. Not an index-only scan: the whole row, both JSONB columns included, comes
+    from the table.
     """
     from model import ManagerProfile
 

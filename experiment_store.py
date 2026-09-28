@@ -16,17 +16,24 @@ mutates rather than appending.
 from __future__ import annotations
 
 import datetime
-from typing import Any, Optional
+from typing import Any, Optional, Sequence
 
 __all__ = [
     "EXPERIMENT_WINDOW",
+    "ONE_ACTIVE_INDEX",
     "active_experiment",
     "checkin_experienced_values",
     "abandon_experiment",
+    "experienced_values_by_window",
     "experiment_for_user",
     "experiments_for_user",
     "start_experiment",
 ]
+
+#: The partial unique index behind the one-active-experiment rule
+#: (`model.Experiment`), named so a caller can tell that refusal apart from any
+#: other IntegrityError.
+ONE_ACTIVE_INDEX = "uq_experiments_one_active_per_user"
 
 #: The fixed two-week window (BUILD_PLAN B-5). Stored into `ends_at` at write
 #: time -- see `model.Experiment`'s docstring for why that is not computed on
@@ -54,8 +61,9 @@ def active_experiment(user_id: int) -> Optional[dict[str, Any]]:
 
     THE sanctioned read for the 409 check: `solverah.services.experiment_service
     .start_experiment` calls this before writing, and the partial unique index
-    on `experiments` (`uq_experiments_one_active_per_user`) is what makes a race
-    between two such checks lose at the database rather than double-book.
+    on `experiments` (`ONE_ACTIVE_INDEX`) is what makes a race between two such
+    checks lose at the database rather than double-book -- the service answers
+    that loss with the same 409.
     """
     from model import Experiment
 
@@ -71,8 +79,8 @@ def start_experiment(
     Does NOT commit -- the caller owns the transaction boundary, same as
     `environment_report_store.write_environment_report`. Does not check for an
     already-active experiment; that is the service layer's job (the 409), with
-    this call's own `uq_experiments_one_active_per_user` as the backstop a race
-    would otherwise slip through.
+    `ONE_ACTIVE_INDEX` as the backstop a race would otherwise slip through: the
+    flush here raises its IntegrityError.
     """
     from model import Experiment
 
@@ -143,24 +151,56 @@ def checkin_experienced_values(
     `experienced` values from check-ins in the 14 days strictly before
     `started_at`, and from check-ins in `[started_at, ends_at]`.
 
-    The two windows are disjoint by construction: `pulse_store.pulse_checkin_history`'s
-    bounds are inclusive, so a check-in landing exactly on `started_at` would
-    otherwise count on both sides. It is excluded from the "before" list here
-    (`< started_at`, not `<=`) and left in the "after" one, matching the
-    literal `[started_at, ends_at]` the readout is defined over.
+    The two windows are disjoint by construction: a check-in landing exactly on
+    `started_at` is excluded from the "before" list (`< started_at`, not `<=`)
+    and left in the "after" one, matching the literal `[started_at, ends_at]`
+    the readout is defined over. One read -- `experienced_values_by_window` for
+    a single window.
+    """
+    return experienced_values_by_window(user_id, [(started_at, ends_at)])[0]
+
+
+def experienced_values_by_window(
+    user_id: int, windows: Sequence[tuple[datetime.datetime, datetime.datetime]]
+) -> list[tuple[list[int], list[int]]]:
+    """`checkin_experienced_values` for each `(started_at, ends_at)` in *windows*,
+    in order, from ONE read of this user's check-ins.
+
+    The read covers `[min(started_at) - 14 days, max(ends_at)]` -- every window's
+    "before" and "after" at once, inclusive at both ends as
+    `pulse_store.pulse_checkin_history` always is -- and selects only `taken_at`
+    and `experienced`. Each window is then cut from it in Python with exactly the
+    boundaries the per-window reads drew: `[started_at - 14 days, started_at)`
+    before, `[started_at, ends_at]` after, newest first within each. Listing N
+    experiments is therefore one query rather than 2N. Nothing is read for an
+    empty *windows*.
     """
     import pulse_store
 
-    before = pulse_store.pulse_checkin_history(
-        user_id, since=started_at - EXPERIMENT_WINDOW, until=started_at
-    )
-    after = pulse_store.pulse_checkin_history(user_id, since=started_at, until=ends_at)
+    if not windows:
+        return []
 
-    before_values = [
-        checkin["experienced"]
-        for checkin in before
-        if checkin["taken_at"] is not None
-        and datetime.datetime.fromisoformat(checkin["taken_at"]) < started_at
+    since = min(started_at for started_at, _ in windows) - EXPERIMENT_WINDOW
+    until = max(ends_at for _, ends_at in windows)
+    checkins = [
+        (datetime.datetime.fromisoformat(checkin["taken_at"]), checkin["experienced"])
+        for checkin in pulse_store.pulse_checkin_history(
+            user_id, since=since, until=until, columns=("taken_at", "experienced")
+        )
     ]
-    after_values = [checkin["experienced"] for checkin in after]
-    return before_values, after_values
+
+    return [
+        (
+            [
+                experienced
+                for taken_at, experienced in checkins
+                if started_at - EXPERIMENT_WINDOW <= taken_at < started_at
+            ],
+            [
+                experienced
+                for taken_at, experienced in checkins
+                if started_at <= taken_at <= ends_at
+            ],
+        )
+        for started_at, ends_at in windows
+    ]

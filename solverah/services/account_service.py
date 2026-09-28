@@ -54,7 +54,7 @@ from assessment_store import export_person_side
 from environment_report_store import environment_report_history
 from experiment_store import experiments_for_user
 from manager_profile_store import manager_profile_history
-from model import IntakeSubmission, User, db
+from model import AssessmentSubmission, IntakeSubmission, User, db
 from pulse_store import pulse_checkin_history, pulse_events_in_range
 from situation_report_pin_store import explicit_pin
 from solverah.domain import auth as auth_domain
@@ -62,6 +62,7 @@ from solverah.infra import storage
 from solverah.repositories import (
     account_repository,
     assessment_repository,
+    intake_repository,
     profile_repository,
 )
 from solverah.services import audit
@@ -81,6 +82,10 @@ TOMBSTONE_DOMAIN = "tombstone.invalid"
 #: cannot destroy an account.
 DELETE_CONFIRMATION = "DELETE"
 
+#: Every kind whose current sitting the export reads, in one query: the legacy
+#: quiz's two (``_legacy_quiz``) and the two whose raw answers D-7b added.
+_EXPORT_SUBMISSION_KINDS = ("wpll", "work_pulse", "focus_type", "manager_match")
+
 
 @dataclass
 class AccountResult:
@@ -99,12 +104,35 @@ def _now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 
+def _profile_resume_key(user_id: int) -> Any:
+    """``load_document(user_id).get("resumeKey")``, read without the document when it can be.
+
+    The key is in one of two places. A profile written since Phase 2a keeps it
+    on its ``resumes`` row, and ``assemble`` lays that row over anything in
+    ``extra`` -- so a row, when there is one, is the answer, and one indexed read
+    finds it. Every such row was written after its ``profiles`` row existed (the
+    migration inserted every profile first; ``update_document`` ensures the row
+    before writing one), so it is always a row ``load_document`` would read too.
+    With no row, whatever key there is rides in ``extra`` -- on a profile the
+    migration carried over verbatim and nobody has saved since, or as a value
+    too malformed to promote -- and the document itself answers, as it does
+    when there is no resume at all: nothing short of reading ``extra`` tells
+    those cases apart.
+    """
+    resume = profile_repository.current_resume(user_id)
+    if resume is not None:
+        return resume.object_key
+    return profile_repository.load_document(user_id, include_assessments=False).get(
+        "resumeKey"
+    )
+
+
 def collect_resume_keys(user: User, intakes: List[IntakeSubmission]) -> List[str]:
     """Every R2 object key that stores this person's resume bytes."""
     keys = []
-    profile = profile_repository.load_document(user.id)
-    if profile.get("resumeKey"):
-        keys.append(profile["resumeKey"])
+    profile_key = _profile_resume_key(user.id)
+    if profile_key:
+        keys.append(profile_key)
     for intake in intakes:
         if intake.resume_key:
             keys.append(intake.resume_key)
@@ -137,7 +165,9 @@ def delete_r2_objects(keys: List[str]) -> List[str]:
     return failed
 
 
-def _legacy_quiz(user_id: int):
+def _legacy_quiz(
+    user_id: int, submissions: Dict[str, AssessmentSubmission]
+) -> Optional[Dict[str, Any]]:
     """The export's ``legacy_quiz`` block, unchanged on the wire since Phase 2d.
 
     The five keys were columns on ``user_intake`` and are now two rows in
@@ -155,19 +185,23 @@ def _legacy_quiz(user_id: int):
     * The block is present, rather than ``null``, whenever the account has a
       ``user_intake`` row -- even with no submissions behind it. That is the
       condition the old code had, because the five values lived on that row.
-      Its *existence* is what is read here, not any assessment column on it;
-      the row is still live and still holds ``selected_statement_ids``.
+      Its *existence* is all that is read here -- its id, not the row. The row
+      is still live and still holds ``selected_statement_ids``, beside dead
+      quiz columns of JSON that a yes-or-no question has no use for.
     * ``null`` survives as the answer for an account that has neither.
 
     The name stays ``legacy_quiz`` too. It reads oddly now that these are
     ordinary submissions, but renaming an export key to suit the storage
     underneath it is precisely the coupling the key was named to avoid.
+
+    *submissions* is the export's one ``current_submissions`` read. It holds
+    both kinds' full rows, ``narrative`` included, so nothing is read again here.
     """
-    wpll = assessment_repository.current_submission(user_id, "wpll")
-    work_pulse = assessment_repository.current_submission(user_id, "work_pulse")
+    wpll = submissions.get("wpll")
+    work_pulse = submissions.get("work_pulse")
 
     if wpll is None and work_pulse is None:
-        if account_repository.find_user_intake(user_id) is None:
+        if intake_repository.find_user_intake(user_id, only=("id",)) is None:
             return None
 
     return {
@@ -192,8 +226,14 @@ def export_account_data(user: User) -> AccountResult:
     # (confirmed on the wire by A25's contract ledger, docs/ARCHITECTURE.md: `export` is
     # one of the six steps `manager_match_result` is embedded in). Only the raw
     # submitted answers were absent from every part of the payload.
-    focus_type_submission = assessment_repository.current_submission(user.id, "focus_type")
-    manager_match_submission = assessment_repository.current_submission(user.id, "manager_match")
+    #
+    # One read for every sitting the export carries -- these two and the legacy
+    # quiz's two -- where each kind used to be a query of its own.
+    submissions = assessment_repository.current_submissions(
+        user.id, _EXPORT_SUBMISSION_KINDS
+    )
+    focus_type_submission = submissions.get("focus_type")
+    manager_match_submission = submissions.get("manager_match")
 
     payload = {
         "exported_at": _now(),
@@ -223,7 +263,7 @@ def export_account_data(user: User) -> AccountResult:
             }
             for i in intakes
         ],
-        "legacy_quiz": _legacy_quiz(user.id),
+        "legacy_quiz": _legacy_quiz(user.id, submissions),
         # Keyed "assessment_answers" rather than after the table it comes from:
         # the export is the subject's answers, and mirroring an internal table
         # name into a public payload is how a schema detail becomes an API

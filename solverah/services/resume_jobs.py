@@ -103,13 +103,20 @@ def create(
     finds nothing, and the answer to "what if the enqueue fails" has to be a row
     a sweep can find rather than a message that was never sent.
 
-    Returns the job *detached*, holding its columns as written.  ``id`` and
-    ``public_id`` are server-generated and come back on the INSERT's
-    ``RETURNING``; detaching before the commit keeps them readable afterwards.
-    Left attached, the commit would expire them, and the first read after it --
-    the enqueue below, or the route's ``public_id`` -- would reload a row this
-    function had just written.  The ``status`` it reports is therefore always
-    ``queued``, the state it was written in, which is what the ``202`` means.
+    Returns a DETACHED job.  ``id``, ``public_id`` and ``status`` are loaded,
+    as is every other column as written, so reading any of them needs no
+    session.  ``id`` and ``public_id`` are server-generated and come back on the
+    INSERT's ``RETURNING``; detaching before the commit is what keeps them
+    readable after it.  Left attached, the commit would expire them, and the
+    first read afterwards -- the enqueue below, or the route's ``public_id`` --
+    would reload the row this function had just written.
+
+    ``status`` is therefore always ``queued``, the state the row was written
+    in, which is what the ``202`` means.  In production the route reported that
+    before too, because the reload ran before the enqueue.  Under eager Celery
+    (``APP_ENV=testing``) the parse runs inside the enqueue, and the ``202``
+    used to carry the finished job's status; it now says ``queued`` there as
+    well.  A finished status is the poll endpoint's to report.
     """
     job = ResumeParseJob(
         user_id=user.id,

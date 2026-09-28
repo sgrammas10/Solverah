@@ -12,21 +12,41 @@ Usage (inside a Flask app context)::
 
     profile = get_company("google")
 
-Known scale limit, unchanged by Phase 1: :func:`all_companies` returns every
-row with ``profile_json`` attached, and the culture-matching service scores the
-whole set in process on every request.  That is P0-2 in docs/ARCHITECTURE.md and
-is fixed in Phase 2 with a vector index and a precomputed, cached match set.
-The query is at least in one place now, which is what makes that fix a local
-change.
+``profile_json`` is the whole research document, tens of kilobytes a row, and
+the two paginated lists need one field of it.  So the reads they make are
+narrow: :func:`list_rows` and :func:`summaries` take ``industry`` out of the
+document by JSON path in the database, :func:`culture_rows` is the eight culture
+columns and the key, and :func:`network_sample` is three columns.  Only
+``GET /companies/<id>`` and the seeding shim read the document itself.
+
+Known scale limit, still: culture matching scores every company with a pace, in
+process, on every request -- P0-2 in docs/ARCHITECTURE.md, which the causal
+model replaces.  :func:`culture_rows` is that scan; it no longer drags the
+document along with it.
 """
 
 from __future__ import annotations
 
 import re
+from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+import sqlalchemy as sa
 
 from model import Company, db
 from packages.ml.culture import CompanyProfile
 from solverah.infra import cache
+
+#: The eight columns ``matching_service`` builds a ``CultureValues`` from.
+CULTURE_COLUMNS = (
+    Company.work_environment,
+    Company.pace,
+    Company.empathy,
+    Company.creative_drive,
+    Company.adaptability,
+    Company.futuristic,
+    Company.harmony,
+    Company.data_orientation,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -113,7 +133,11 @@ def get_company(slug_or_name: str) -> CompanyProfile | None:
 
 
 def all_companies() -> list[Company]:
-    """Return all Company ORM rows (lightweight — profile_json included)."""
+    """Return all Company ORM rows, ``profile_json`` included.
+
+    For the seeding scripts, through ``company_culture_LLM/store.py``. Nothing on
+    a request path calls it: culture matching reads :func:`culture_rows`.
+    """
     return Company.query.order_by(Company.name).all()
 
 
@@ -133,20 +157,123 @@ def get_by_id(company_id: int):
 
 
 def search_companies(q: str | None = None) -> list[Company]:
-    """Companies matching *q*, ordered by ``(name, id)``.
+    """Whole Company rows whose name matches *q*, ordered by ``(name, id)``.
+
+    What ``GET /companies`` read before it paged in SQL; :func:`list_rows` is
+    what it reads now. Kept for any caller that wants the ORM rows.
+    """
+    query = Company.query
+    if q:
+        query = query.filter(Company.name.ilike("%%%s%%" % q))
+    return query.order_by(Company.name, Company.id).all()
+
+
+def _industry():
+    """``profile_json -> 'overview' -> 'industry'``, typed JSON.
+
+    The one field of the research document either list shows, read by path so
+    the document never leaves the database. The driver decodes it as it decodes
+    the whole document, so it is the value ``profile_json["overview"]["industry"]``
+    held in Python, and None where the key or ``overview`` is missing.
+    """
+    return Company.profile_json["overview"]["industry"]
+
+
+def _list_filters(q: Optional[str], industry: Optional[str]) -> List[Any]:
+    clauses = []
+    if q:
+        # The pattern the list has always used. Unescaped, so a `%` or `_` in q
+        # is a wildcard, as it was.
+        clauses.append(Company.name.ilike("%%%s%%" % q))
+    if industry is not None:
+        # `(industry or "").lower() == wanted`, in SQL. The stored value is a
+        # string or null -- CompanyOverview.industry is Optional[str] and
+        # upsert_company is the only writer.
+        clauses.append(
+            sa.func.lower(sa.func.coalesce(_industry().as_string(), "")) == industry
+        )
+    return clauses
+
+
+def list_rows(
+    *,
+    q: Optional[str] = None,
+    industry: Optional[str] = None,
+    start_at: Optional[Tuple[str, int]] = None,
+    limit: Optional[int] = None,
+) -> List[sa.Row]:
+    """``id``, ``name``, ``slug`` and ``industry`` of the company list, in ``(name, id)`` order.
 
     The ordering is the pagination contract, not a display preference: it is
     unique -- ``name`` is unique in the schema and ``id`` breaks any tie a
     future non-unique name would introduce -- which is what makes a keyset
     cursor over it stable.
 
-    ``q`` is pushed into SQL. Filtering by industry is not, because industry
-    lives inside ``profile_json`` rather than in a column, so the service does
-    it in Python after the fetch. That is a scan and it is called out where it
-    happens; Phase 4.5 promotes ``industry`` to an indexed column and the filter
-    moves down here with it.
+    Args:
+        q: Keep names containing it, case-insensitively (``ILIKE '%q%'``).
+        industry: Keep rows whose industry, lowercased, equals it. The caller
+            lowercases it; None means no industry filter, and ``""`` keeps the
+            rows with no industry.
+        start_at: A ``(name, id)`` to start at, *inclusive* -- the keyset as the
+            database orders it. Inclusive so the caller can see whether the row
+            its cursor names is still in the list.
+        limit: At most this many rows; None for all of them.
+
+    Neither filter is indexed: ``q`` is a substring match and ``industry`` sits
+    inside ``profile_json``. Both still run in the database, so a page reads its
+    rows and no others unless a filter has to look past them.
     """
-    query = Company.query
-    if q:
-        query = query.filter(Company.name.ilike("%%%s%%" % q))
-    return query.order_by(Company.name, Company.id).all()
+    statement = sa.select(
+        Company.id, Company.name, Company.slug, _industry().label("industry")
+    ).where(*_list_filters(q, industry))
+    if start_at is not None:
+        statement = statement.where(
+            sa.tuple_(Company.name, Company.id) >= sa.tuple_(*start_at)
+        )
+    statement = statement.order_by(Company.name, Company.id)
+    if limit is not None:
+        statement = statement.limit(limit)
+    return db.session.execute(statement).all()
+
+
+def culture_rows() -> List[sa.Row]:
+    """``id`` and the :data:`CULTURE_COLUMNS` of every company with a ``pace``.
+
+    The scan culture matching scores (P0-2): a company without a pace has never
+    been scoreable, so the filter is in the query rather than in the loop. In
+    no particular order -- the caller sorts by score.
+    """
+    return db.session.execute(
+        sa.select(Company.id, *CULTURE_COLUMNS).where(Company.pace.isnot(None))
+    ).all()
+
+
+def summaries(company_ids: Iterable[int]) -> Dict[int, sa.Row]:
+    """``{id: row}`` of ``id``, ``name``, ``slug`` and ``industry``, one IN query.
+
+    For the page of matches a request returns, after scoring has chosen it. An
+    id with no row is absent. Sends nothing for no ids.
+    """
+    ids = list(company_ids)
+    if not ids:
+        return {}
+    rows = db.session.execute(
+        sa.select(
+            Company.id, Company.name, Company.slug, _industry().label("industry")
+        ).where(Company.id.in_(ids))
+    )
+    return {row.id: row for row in rows}
+
+
+def network_sample(limit: int = 10) -> List[sa.Row]:
+    """``name``, ``work_environment`` and ``pace`` of the first *limit* companies by id.
+
+    The agent's "companies in network" context. Ordered, so the same ten come
+    back every time -- with no ORDER BY they were whichever ten the scan met
+    first -- and by id, which the primary key serves.
+    """
+    return db.session.execute(
+        sa.select(Company.name, Company.work_environment, Company.pace)
+        .order_by(Company.id)
+        .limit(limit)
+    ).all()

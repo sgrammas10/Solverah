@@ -51,8 +51,10 @@ __all__ = [
     "AuthResult",
     "MAX_LOGIN_ATTEMPTS",
     "LOGIN_LOCKOUT_MINUTES",
+    "clear_failed_logins",
     "confirm_email",
     "login",
+    "record_failed_login",
     "register",
     "request_password_reset",
     "resend_confirmation",
@@ -105,17 +107,19 @@ def _write_login_counter(user_id: int, **values: Any) -> None:
     """Write the lockout columns in one UPDATE, then commit.
 
     In SQL rather than through the ORM instance, so the new values are computed
-    from the row as the database holds it when the UPDATE runs. Counted in
-    Python, two failed logins that overlapped both read the same count and
-    ``version``; ``users`` carries ``version_id_col``, so the second write
-    matched no row and raised ``StaleDataError`` -- a 500 on the login path, and
-    a lost count.
+    from the row as the database holds it when the UPDATE runs. Two counter
+    writes that overlap therefore both land: the second waits on the first's
+    row lock, then computes from its committed count. Counted in Python, both
+    read the same count and ``version``; ``users`` carries ``version_id_col``,
+    so the second write matched no row and raised ``StaleDataError`` -- a 500,
+    and a lost count.
 
-    ``version`` moves here exactly as an ORM write would move it, which keeps
-    the optimistic lock honest for everyone else: a session holding this row
-    from before the UPDATE still fails its own write rather than overwriting
-    silently. The ``User`` instance in the caller's session is stale until the
-    commit below expires it, and nothing reads it in between.
+    The UPDATE moves ``version`` but does not check it, and not checking is
+    what lets two counter writes serialise instead of failing. What moving it
+    keeps is the ORM side of the contract: a session that loaded this row
+    before the UPDATE still gets ``StaleDataError`` from its own flush rather
+    than overwriting these values. The ``User`` instance in the caller's session
+    is stale until the commit below expires it, and nothing reads it in between.
     """
     db.session.execute(
         sa.update(_users)
@@ -123,6 +127,41 @@ def _write_login_counter(user_id: int, **values: Any) -> None:
         .values(version=_users.c.version + 1, **values)
     )
     db.session.commit()
+
+
+def record_failed_login(user: User) -> None:
+    """Count one wrong password against *user*. Commits.
+
+    The lockout rule for every password sign-in -- :func:`login` and
+    ``intake_service.sign_in`` -- lives here once, so the two share one counter
+    and one threshold. The intake path used to keep its own copy, counted in
+    Python, with the lost update :func:`_write_login_counter` describes. The
+    failure that reaches :data:`MAX_LOGIN_ATTEMPTS` sets ``locked_until`` and
+    restarts the count; every SET expression reads the pre-update row.
+    """
+    reached = _users.c.failed_login_count + 1 >= MAX_LOGIN_ATTEMPTS
+    _write_login_counter(
+        user.id,
+        failed_login_count=sa.case((reached, 0), else_=_users.c.failed_login_count + 1),
+        locked_until=sa.case(
+            (reached, domain.lockout_until(LOGIN_LOCKOUT_MINUTES)),
+            else_=_users.c.locked_until,
+        ),
+    )
+
+
+def clear_failed_logins(user: User) -> None:
+    """After a correct password, zero the count and lift any lock. Commits if it writes.
+
+    Both password paths call this *before* their email-confirmation gate, so
+    confirming an address never leaves a stale counter behind. A row with
+    nothing to clear is not written: a commit with nothing in it still costs a
+    round trip and expires ``user``, and the next read reloads the row. When it
+    does write, ``user`` comes back expired, so callers read what they need off
+    it first.
+    """
+    if user.failed_login_count or user.locked_until is not None:
+        _write_login_counter(user.id, failed_login_count=0, locked_until=None)
 
 
 # ---------------------------------------------------------------------------
@@ -230,10 +269,10 @@ def login(*, email: str, password: str, check_password, wp_v2_completed) -> Auth
     attempt counter is reset, so confirming an email does not leave a stale
     counter behind.
 
-    Both counter writes are single SQL statements (:func:`_write_login_counter`
-    says why), and a successful login with nothing to reset writes and commits
-    nothing: the session row ``refresh_tokens.issue`` inserts next is then the
-    request's only commit.
+    The counter is :func:`record_failed_login` and :func:`clear_failed_logins`,
+    shared with the intake sign-in. A successful login with nothing to reset
+    writes and commits nothing: the session row ``refresh_tokens.issue``
+    inserts next is then the request's only commit.
     """
     email = (email or "").strip().lower()
     password = password or ""
@@ -257,31 +296,14 @@ def login(*, email: str, password: str, check_password, wp_v2_completed) -> Auth
 
     if not user or not check_password(user.password_hash, password):
         if user:
-            # The threshold failure locks the account and restarts the count,
-            # as before. Every SET expression reads the pre-update row.
-            reached = _users.c.failed_login_count + 1 >= MAX_LOGIN_ATTEMPTS
-            _write_login_counter(
-                user.id,
-                failed_login_count=sa.case(
-                    (reached, 0), else_=_users.c.failed_login_count + 1
-                ),
-                locked_until=sa.case(
-                    (reached, domain.lockout_until(LOGIN_LOCKOUT_MINUTES)),
-                    else_=_users.c.locked_until,
-                ),
-            )
+            record_failed_login(user)
         return _error(401, "Invalid credentials")
 
-    # Read before the reset below can commit and expire the row.
+    # Read before clear_failed_logins can commit and expire the row.
     user_id = user.id
     account = _account(user)
     email_confirmed = getattr(user, "email_confirmed", False)
-
-    # Reset failed attempts and clear lockout -- when there is anything to
-    # reset. The unconditional commit this replaced wrote nothing on a clean
-    # login, and still expired `user`, so the next read reloaded the row.
-    if user.failed_login_count or user.locked_until is not None:
-        _write_login_counter(user_id, failed_login_count=0, locked_until=None)
+    clear_failed_logins(user)
 
     # Require email confirmation
     if not email_confirmed:

@@ -101,7 +101,13 @@ def persist_submission(db, user_id: int, result: ScoredSubmission) -> str:
     transaction by construction: a scores row whose raw responses were not written is
     un-recomputable, raw responses with no scores are invisible to every consumer, and a
     submission row without either is a sitting that never happened.
+
+    Four statements however many dimensions are scored, and none of them a read: the form
+    registration, the sitting's INSERT (whose RETURNING brings `public_id` back), one
+    multi-row INSERT of the raw responses, and one upsert of the scores.
     """
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
     from model import (
         AssessmentForm,
         AssessmentResponse,
@@ -124,10 +130,13 @@ def persist_submission(db, user_id: int, result: ScoredSubmission) -> str:
         scored_at=db.func.now(),
     )
     db.session.add(sitting)
-    # Flushed and refreshed because `public_id` defaults to `uuidv7()` in the database
-    # (A13) -- the value does not exist until the INSERT has run.
+    # Flushed because `public_id` defaults to `uuidv7()` in the database (A13) -- the value
+    # does not exist until the INSERT has run. The INSERT fetches it back with RETURNING
+    # (the mapper's eager_defaults="auto" on a driver that supports it), so there is no
+    # second read. Added through the ORM rather than as a Core insert on purpose:
+    # dashboard_feed's after_flush hook is what retires the cached Recent Activity when a
+    # sitting lands, and a Core statement would slip past it.
     db.session.flush()
-    db.session.refresh(sitting, ["public_id"])
     submission_id = sitting.public_id.hex
 
     for item_id, choice in result.choices.items():
@@ -140,36 +149,48 @@ def persist_submission(db, user_id: int, result: ScoredSubmission) -> str:
                 form_version=result.form_version,
             )
         )
+    # One multi-row INSERT, sent now rather than at the caller's commit: the upsert below
+    # is a Core statement, which does not autoflush, and the raw rows land before the
+    # scores derived from them -- the order this function has always written them in.
+    db.session.flush()
 
-    for dimension_key, score in result.scores.items():
-        existing = PersonDimensionScore.query.filter_by(
-            user_id=user_id,
-            dimension_key=dimension_key,
-            scoring_key_version=result.scoring_key_version,
-        ).first()
-        # D-17: confidence comes from the submission, indexed strictly -- a dimension the
-        # scorer scored but did not grade for confidence is a contract violation, not a
-        # default-to-NULL (D-07). None is a legitimate VALUE here for exactly one reason:
-        # CONFIDENCE_PENDING_DIMENSIONS (feedback, D-17(a)).
-        confidence = result.confidences[dimension_key]
-        if existing is None:
-            db.session.add(
-                PersonDimensionScore(
-                    user_id=user_id,
-                    dimension_key=dimension_key,
-                    score=score,
-                    confidence=confidence,
-                    scoring_key_version=result.scoring_key_version,
-                    submission_id=submission_id,
-                )
+    scores = [
+        {
+            "user_id": user_id,
+            "dimension_key": dimension_key,
+            "score": score,
+            # D-17: confidence comes from the submission, indexed strictly -- a dimension
+            # the scorer scored but did not grade for confidence is a contract violation,
+            # not a default-to-NULL (D-07). None is a legitimate VALUE here for exactly one
+            # reason: CONFIDENCE_PENDING_DIMENSIONS (feedback, D-17(a)).
+            "confidence": result.confidences[dimension_key],
+            "scoring_key_version": result.scoring_key_version,
+            "submission_id": submission_id,
+        }
+        for dimension_key, score in result.scores.items()
+    ]
+    if scores:
+        # One statement on the table's own unique key, uq_pscore_person_dim_keyversion,
+        # instead of a SELECT and a write per dimension. The first sitting under a key
+        # inserts (scored_at from its column default); a retake overwrites in place, as
+        # the RETAKE SEMANTICS above describe. Two first sittings at once no longer race:
+        # the second waits for the first's rows and updates them, where select-then-insert
+        # had already decided "no row" and failed on the unique key.
+        upsert = pg_insert(PersonDimensionScore.__table__).values(scores)
+        db.session.execute(
+            upsert.on_conflict_do_update(
+                index_elements=["user_id", "dimension_key", "scoring_key_version"],
+                set_={
+                    "score": upsert.excluded.score,
+                    # A retake refreshes confidence with the score -- a new sitting's score
+                    # carrying the OLD sitting's e would attribute one submission's answer
+                    # pattern to another.
+                    "confidence": upsert.excluded.confidence,
+                    "submission_id": upsert.excluded.submission_id,
+                    "scored_at": db.func.now(),
+                },
             )
-        else:
-            existing.score = score
-            # A retake refreshes confidence with the score -- a new sitting's score carrying
-            # the OLD sitting's e would attribute one submission's answer pattern to another.
-            existing.confidence = confidence
-            existing.submission_id = submission_id
-            existing.scored_at = db.func.now()
+        )
 
     return submission_id
 
