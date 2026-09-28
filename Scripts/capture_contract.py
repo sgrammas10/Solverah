@@ -164,6 +164,13 @@ that ordering silently reversed, which no unit test phrases as a wire fact.
 be 500s on both sides of the diff -- identical bytes proving nothing. No request
 is made with it; both steps refuse before the client is used.
 
+**Re-baselined for the real dashboard feed (2026-09-28).** A deliberate change,
+and A28 (docs/ARCHITECTURE.md) is the ledger. `dashboard_data` stopped returning
+static placeholder `recentActivity`/`recommendations` and now derives both from
+the user's own rows. No step added, removed or reordered. Verified before the
+recapture, on the standing baseline: 2 differences, `dashboard` and
+`dashboard-cached`, both body-only; every other step byte-identical.
+
 **Extended for BUILD_PLAN W-4 (2026-09-21): the "what should change" panel.** A
 new surface, not a change to any existing one -- every record above keeps its
 position, exactly as the F-6 block appended after the F-5 one. Verified before

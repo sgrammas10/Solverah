@@ -245,7 +245,7 @@
               }
             ],
             "default": null,
-            "description": "Groq model. Defaults to \"llama-3.1-8b-instant\".",
+            "description": "Groq model. Defaults to \"openai/gpt-oss-20b\" (or SOLVERAH_AGENT_MODEL).",
             "title": "Model"
           }
         },
@@ -776,6 +776,7 @@
       },
       "DashboardActivity": {
         "additionalProperties": true,
+        "description": "One real event: the newest of its source (see ``dashboard_repository``).",
         "properties": {
           "icon": {
             "anyOf": [
@@ -787,6 +788,7 @@
               }
             ],
             "default": null,
+            "description": "A lucide icon name the dashboard maps.",
             "title": "Icon"
           },
           "text": {
@@ -811,6 +813,7 @@
               }
             ],
             "default": null,
+            "description": "ISO-8601 UTC timestamp of the event. The client humanizes it.",
             "title": "Time"
           },
           "type": {
@@ -823,6 +826,7 @@
               }
             ],
             "default": null,
+            "description": "\"assessment\", \"pulse\" or \"profile\".",
             "title": "Type"
           }
         },
@@ -831,6 +835,7 @@
       },
       "DashboardRecommendation": {
         "additionalProperties": true,
+        "description": "One unfinished next step, most important first.",
         "properties": {
           "action": {
             "anyOf": [
@@ -866,7 +871,21 @@
               }
             ],
             "default": null,
+            "description": "An SPA route.",
             "title": "Href"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stable rule name, e.g. \"career_status\", \"work_pulse\", \"pulse\".",
+            "title": "Id"
           },
           "priority": {
             "anyOf": [
@@ -878,6 +897,7 @@
               }
             ],
             "default": null,
+            "description": "\"urgent\" or \"normal\".",
             "title": "Priority"
           },
           "title": {
@@ -898,7 +918,7 @@
       },
       "DashboardResponse": {
         "additionalProperties": false,
-        "description": "Job-seeker dashboard summary.\n\n``recentActivity`` and ``recommendations`` are static placeholders in the\ncurrent implementation; the three counts are live.",
+        "description": "Job-seeker dashboard summary.\n\n``recentActivity`` (at most five, newest first) and ``recommendations`` (at\nmost three) are derived from the caller's own rows; the counts are live.",
         "properties": {
           "applications": {
             "title": "Applications",
@@ -7554,7 +7574,7 @@
     },
     "/api/v1/me/dashboard": {
       "get": {
-        "description": "GET /me/dashboard - profile completion, match count, application count.\n\nrecentActivity and recommendations are static placeholders until those\nfeatures exist; the three counts are live.",
+        "description": "GET /me/dashboard - profile completion, counts, activity, next steps.\n\nrecentActivity is the caller's real events (newest first, ISO timestamps)\nand recommendations their next unfinished steps; see\nsolverah.services.dashboard_feed. The three counts are live.",
         "operationId": "get_me_get_my_dashboard",
         "responses": {
           "200": {

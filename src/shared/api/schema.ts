@@ -640,10 +640,11 @@ export interface paths {
         };
         /**
          * Summary statistics for the job-seeker dashboard
-         * @description GET /me/dashboard - profile completion, match count, application count.
+         * @description GET /me/dashboard - profile completion, counts, activity, next steps.
          *
-         *     recentActivity and recommendations are static placeholders until those
-         *     features exist; the three counts are live.
+         *     recentActivity is the caller's real events (newest first, ISO timestamps)
+         *     and recommendations their next unfinished steps; see
+         *     solverah.services.dashboard_feed. The three counts are live.
          */
         get: operations["get_me_get_my_dashboard"];
         put?: never;
@@ -1535,7 +1536,7 @@ export interface components {
             messages: components["schemas"]["AgentChatMessage"][];
             /**
              * Model
-             * @description Groq model. Defaults to "llama-3.1-8b-instant".
+             * @description Groq model. Defaults to "openai/gpt-oss-20b" (or SOLVERAH_AGENT_MODEL).
              * @default null
              */
             model: string | null;
@@ -1836,10 +1837,14 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
-        /** DashboardActivity */
+        /**
+         * DashboardActivity
+         * @description One real event: the newest of its source (see ``dashboard_repository``).
+         */
         DashboardActivity: {
             /**
              * Icon
+             * @description A lucide icon name the dashboard maps.
              * @default null
              */
             icon: string | null;
@@ -1850,18 +1855,23 @@ export interface components {
             text: string | null;
             /**
              * Time
+             * @description ISO-8601 UTC timestamp of the event. The client humanizes it.
              * @default null
              */
             time: string | null;
             /**
              * Type
+             * @description "assessment", "pulse" or "profile".
              * @default null
              */
             type: string | null;
         } & {
             [key: string]: unknown;
         };
-        /** DashboardRecommendation */
+        /**
+         * DashboardRecommendation
+         * @description One unfinished next step, most important first.
+         */
         DashboardRecommendation: {
             /**
              * Action
@@ -1875,11 +1885,19 @@ export interface components {
             description: string | null;
             /**
              * Href
+             * @description An SPA route.
              * @default null
              */
             href: string | null;
             /**
+             * Id
+             * @description Stable rule name, e.g. "career_status", "work_pulse", "pulse".
+             * @default null
+             */
+            id: string | null;
+            /**
              * Priority
+             * @description "urgent" or "normal".
              * @default null
              */
             priority: string | null;
@@ -1895,8 +1913,8 @@ export interface components {
          * DashboardResponse
          * @description Job-seeker dashboard summary.
          *
-         *     ``recentActivity`` and ``recommendations`` are static placeholders in the
-         *     current implementation; the three counts are live.
+         *     ``recentActivity`` (at most five, newest first) and ``recommendations`` (at
+         *     most three) are derived from the caller's own rows; the counts are live.
          */
         DashboardResponse: {
             /** Applications */

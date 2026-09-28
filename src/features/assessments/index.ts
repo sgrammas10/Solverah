@@ -48,6 +48,7 @@ export { default as WorkPulseBanner } from "./components/WorkPulseBanner";
 export { default as WorkPulseUnlock } from "./components/WorkPulseUnlock";
 export { default as PulseDashboardCard } from "./components/PulseDashboardCard";
 export { default as SituationDashboardCard } from "./components/SituationDashboardCard";
+export { nextActionFor } from "./components/SituationDashboardCard";
 export {
   pulseKeys,
   usePulseHistory,

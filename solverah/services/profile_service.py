@@ -31,18 +31,20 @@ a fix rather than a rearrangement.
 
 from __future__ import annotations
 
+import datetime
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from model import User, db
 from solverah.domain import profile as domain
 from solverah.infra import cache
 from solverah.repositories import (
     assessment_repository,
+    dashboard_repository,
     path_fit_repository,
     profile_repository,
 )
-from solverah.services import audit, path_cache, resume_service
+from solverah.services import audit, dashboard_feed, path_cache, resume_service
 
 __all__ = [
     "CURRENT_RESUME",
@@ -255,54 +257,40 @@ def set_skill_proficiency(user: User, skills: Any) -> ProfileResult:
 # Dashboard
 # ---------------------------------------------------------------------------
 
-#: Static until the underlying features exist.  Kept as data rather than being
-#: built inline so the day they become dynamic is a change to one name.
-_PLACEHOLDER_ACTIVITY: List[Dict[str, Any]] = [
-    {
-        "type": "assessment",
-        "text": "Complete your leadership assessment",
-        "time": "1 day ago",
-        "icon": "Brain",
-    }
-]
+dashboard_feed.install_invalidation()
 
-_PLACEHOLDER_RECOMMENDATIONS: List[Dict[str, Any]] = [
-    {
-        "title": "Complete Psychometric Assessment",
-        "description": "Boost visibility",
-        "action": "Take Assessment",
-        "priority": "high",
-        "href": "/job-seeker/profile#assessments",
-    },
-    {
-        "title": "Add Recent Experience",
-        "description": "Update your experience section",
-        "action": "Update Profile",
-        "priority": "medium",
-        "href": "/job-seeker/profile#experience",
-    },
-]
+
+def _has_work_pulse(user_id: int) -> bool:
+    """The current Work Pulse instrument is on record -- the banner's own rule."""
+    from assessment_store import has_completed_assessment
+
+    return has_completed_assessment(user_id)
 
 
 def dashboard_data(user: User, email: str) -> ProfileResult:
     """Summary stats for the job-seeker dashboard. Cached in Redis (Phase 3).
 
-    ``recentActivity`` and ``recommendations`` are static placeholders; the
-    counts are live. Preserved as-is so the dashboard renders identically.
+    ``recentActivity`` is the user's real events, newest first, and
+    ``recommendations`` their next unfinished steps; both are built by
+    :mod:`solverah.services.dashboard_feed`. The counts are live.
 
-    Three queries -- the assembled profile document, a recommendation count, and
-    an intake-submission existence check -- for a screen the user lands on first
-    and returns to constantly. The cached payload is per user, so the key carries
-    the user id and nothing else.
+    Reads on a miss: the assembled profile document, a recommendation count, an
+    intake-submission existence check, one ``UNION ALL`` for the newest event of
+    each activity source (``dashboard_repository.latest_activity``), and the
+    current-Work-Pulse existence check. No per-source or per-row queries. The
+    cached payload is per user, so the key carries the user id and nothing else.
 
     **What invalidates it, and the one thing that does not.** Every change to the
     profile document drops the key, from
     :func:`solverah.repositories.profile_repository.update_document`, which is
-    the single write path Phase 2a left. ``jobMatches`` has no live writer today.
-    ``hasIntakeSubmission`` does: an anonymous intake finalized under this
-    address while the user is already signed in elsewhere would flip it, and that
-    write has no user id to key off. It is the one field the TTL rather than an
-    invalidation bounds, which is what the TTL is for.
+    the single write path Phase 2a left. Every insert or update of an activity
+    row (assessment sitting, environment report, manager profile, pulse
+    check-in, resume) drops it through ``dashboard_feed``'s ``after_flush`` hook.
+    ``jobMatches`` has no live writer today. ``hasIntakeSubmission`` does: an
+    anonymous intake finalized under this address while the user is already
+    signed in elsewhere would flip it, and that write has no user id to key off.
+    It -- and a pulse check-in going stale with the passage of time -- are what
+    the TTL rather than an invalidation bounds, which is what the TTL is for.
     """
     key = cache.dashboard_key(user.id)
     cached = cache.get_json(key)
@@ -314,13 +302,17 @@ def dashboard_data(user: User, email: str) -> ProfileResult:
     applications = (
         len(profile.get("applications", [])) if "applications" in profile else 0
     )
+    activity_rows = dashboard_repository.latest_activity(user.id)
+    now = datetime.datetime.now(datetime.timezone.utc)
 
     body = {
         "profileCompletion": "%d%%" % domain.profile_completion_percent(profile),
         "jobMatches": profile_repository.count_job_recommendations(user.id),
         "applications": applications,
-        "recentActivity": list(_PLACEHOLDER_ACTIVITY),
-        "recommendations": [dict(item) for item in _PLACEHOLDER_RECOMMENDATIONS],
+        "recentActivity": dashboard_feed.build_activity(activity_rows, profile),
+        "recommendations": dashboard_feed.build_recommendations(
+            profile, activity_rows, has_work_pulse=_has_work_pulse(user.id), now=now
+        ),
         "hasIntakeSubmission": profile_repository.has_intake_submission(email),
     }
     cache.set_json(key, body)

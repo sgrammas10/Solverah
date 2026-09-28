@@ -55,29 +55,44 @@ class SkillRating(SolverahModel):
 
 
 class DashboardActivity(SolverahModel):
+    """One real event: the newest of its source (see ``dashboard_repository``)."""
+
     model_config = ConfigDict(extra="allow")
 
-    type: Optional[str] = None
+    type: Optional[str] = Field(
+        default=None, description='"assessment", "pulse" or "profile".'
+    )
     text: Optional[str] = None
-    time: Optional[str] = None
-    icon: Optional[str] = None
+    time: Optional[str] = Field(
+        default=None,
+        description="ISO-8601 UTC timestamp of the event. The client humanizes it.",
+    )
+    icon: Optional[str] = Field(
+        default=None, description="A lucide icon name the dashboard maps."
+    )
 
 
 class DashboardRecommendation(SolverahModel):
+    """One unfinished next step, most important first."""
+
     model_config = ConfigDict(extra="allow")
 
+    id: Optional[str] = Field(
+        default=None,
+        description='Stable rule name, e.g. "career_status", "work_pulse", "pulse".',
+    )
     title: Optional[str] = None
     description: Optional[str] = None
     action: Optional[str] = None
-    priority: Optional[str] = None
-    href: Optional[str] = None
+    priority: Optional[str] = Field(default=None, description='"urgent" or "normal".')
+    href: Optional[str] = Field(default=None, description="An SPA route.")
 
 
 class DashboardResponse(SolverahModel):
     """Job-seeker dashboard summary.
 
-    ``recentActivity`` and ``recommendations`` are static placeholders in the
-    current implementation; the three counts are live.
+    ``recentActivity`` (at most five, newest first) and ``recommendations`` (at
+    most three) are derived from the caller's own rows; the counts are live.
     """
 
     profileCompletion: str = Field(description='Percentage with a literal "%", e.g. "71%".')

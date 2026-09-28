@@ -28,14 +28,20 @@ import { Link, useNavigate } from 'react-router-dom';
 // rows, and "Briefcase" is one of them.
 import { User, FileText, Brain, Briefcase, TrendingUp } from 'lucide-react';
 import { IntakePromptModal } from '../../intake';
+import type { components } from '../../../shared/api/schema';
 import {
   WorkPulseBanner,
   WorkPulseUnlock,
   PulseDashboardCard,
   SituationDashboardCard,
+  useSituationReport,
 } from '../../assessments';
+import type { SituationReport } from '../../assessments';
+import { nextActionFor } from '../../assessments';
 
 const iconMap: Record<string, any> = { User, FileText, Brain, Briefcase, TrendingUp };
+
+type DashboardRecommendation = components['schemas']['DashboardRecommendation'];
 
 /** Query keys for the dashboard document. `all` is the invalidation handle. */
 export const dashboardKeys = {
@@ -43,10 +49,57 @@ export const dashboardKeys = {
   summary: () => ['dashboard', 'summary'] as const,
 };
 
+const MINUTE = 60_000;
+
+/**
+ * An activity row's `time` is an ISO timestamp (the server caches the payload,
+ * so a server-rendered "just now" would go stale). Humanized here, at render.
+ * Anything that does not parse is shown as sent.
+ */
+export function timeAgo(iso: string | null | undefined, now: Date = new Date()): string {
+  if (!iso) return '';
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return iso;
+  const minutes = Math.floor((now.getTime() - then.getTime()) / MINUTE);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 30) return days < 14 ? 'last week' : `${Math.floor(days / 7)} weeks ago`;
+  return then.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/**
+ * Routes the lead cards already link to on this screen (D-6: never two buttons
+ * to one place). Mirrors what `WorkPulseBanner` and `SituationDashboardCard`
+ * render: the banner's "/work-pulse", the card's one "Next" action, and its
+ * "See your Situation Report" link in the states that show it. The card renders
+ * nothing without a report, so nothing is offered then.
+ */
+export function hrefsOfferedElsewhere(
+  report: SituationReport | undefined,
+  workPulseBannerVisible: boolean,
+): Set<string> {
+  // PulseDashboardCard renders on every dashboard and always links to /pulse.
+  const offered = new Set<string>(['/pulse']);
+  if (workPulseBannerVisible) offered.add('/work-pulse');
+  if (!report) return offered;
+  const action = nextActionFor(report, workPulseBannerVisible);
+  if (action) offered.add(action.to);
+  const showsReportLink =
+    report.state === 'complete' ||
+    (report.state === 'needs_environment_report' && !report.can_submit_environment_report);
+  if (showsReportLink) offered.add('/situation-report');
+  return offered;
+}
+
 function JobSeekerDashboard() {
   const navigate = useNavigate();
 
-  const goToProfileTab = (href?: string) => {
+  const goToProfileTab = (href?: string | null) => {
     if (!href) { navigate('/job-seeker/profile'); return; }
     const hash = href.includes('#') ? href.split('#')[1] : undefined;
     navigate(
@@ -54,6 +107,18 @@ function JobSeekerDashboard() {
         ? { pathname: '/job-seeker/profile', search: `?tab=${encodeURIComponent(hash)}` }
         : '/job-seeker/profile',
     );
+  };
+
+  /* Profile hrefs keep the tab translation; every other href is an SPA route.
+     Career status has no page of its own -- the profile page's modal sets it. */
+  const openRecommendation = (rec: DashboardRecommendation) => {
+    if (rec.id === 'career_status') {
+      navigate('/job-seeker/profile', { state: { showCareerStatusModal: true } });
+    } else if (rec.href?.startsWith('/') && !rec.href.startsWith('/job-seeker/profile')) {
+      navigate(rec.href);
+    } else {
+      goToProfileTab(rec.href);
+    }
   };
 
   const [intakeModalOpen, setIntakeModalOpen] = useState(false);
@@ -99,6 +164,13 @@ function JobSeekerDashboard() {
      instrument. Two buttons to one place on one screen is the thing D-6 is
      cleaning up, not something to reintroduce three inches lower. */
   const workPulseBannerVisible = Boolean(user) && !user?.wp_v2_completed && !wplBannerDismissed;
+
+  // Shares the card's query (same key), so this costs no extra request.
+  const { data: situationReport } = useSituationReport();
+  const offeredElsewhere = hrefsOfferedElsewhere(situationReport, workPulseBannerVisible);
+  const recommendations: DashboardRecommendation[] = (dashboardData?.recommendations ?? []).filter(
+    (rec: DashboardRecommendation) => !rec.href || !offeredElsewhere.has(rec.href),
+  );
 
   return (
     <div className="min-h-screen bg-cream-base font-sans text-ink-primary">
@@ -227,7 +299,9 @@ function JobSeekerDashboard() {
                           </div>
                           <div>
                             <p className="text-sm text-ink-primary">{activity.text}</p>
-                            <p className="text-xs text-ink-tertiary mt-0.5">{activity.time}</p>
+                            <p className="text-xs text-ink-tertiary mt-0.5">
+                              <time dateTime={activity.time}>{timeAgo(activity.time)}</time>
+                            </p>
                           </div>
                         </div>
                       );
@@ -236,9 +310,9 @@ function JobSeekerDashboard() {
                 ) : (
                   <div className="text-center py-10">
                     <TrendingUp className="h-8 w-8 text-ink-tertiary mx-auto mb-3" />
-                    <p className="text-sm text-ink-secondary">Nothing here yet.</p>
+                    <p className="text-sm text-ink-secondary">You're just getting started.</p>
                     <p className="text-xs text-ink-tertiary mt-1">
-                      Your activity shows up here as you complete Work Pulse and fill in your profile.
+                      When you take Work Pulse or update your profile, you'll see it listed here.
                     </p>
                   </div>
                 )}
@@ -248,20 +322,20 @@ function JobSeekerDashboard() {
             {/* Recommendations */}
             <div className={cardCls}>
               <h2 className="font-display text-lg font-semibold text-ink-primary mb-5">Recommendations</h2>
-              {!dashboardData?.recommendations?.length && (
+              {!recommendations.length && (
                 <div className="text-center py-10">
                   <Brain className="h-8 w-8 text-ink-tertiary mx-auto mb-3" />
-                  <p className="text-sm text-ink-secondary">No recommendations yet.</p>
+                  <p className="text-sm text-ink-secondary">Suggestions start after Work Pulse.</p>
                   <p className="text-xs text-ink-tertiary mt-1">
-                    Once you finish Work Pulse we&rsquo;ll suggest what to do next.
+                    Once you&rsquo;ve taken it, we&rsquo;ll point you to what&rsquo;s worth doing next.
                   </p>
                 </div>
               )}
               <div className="space-y-3">
-                {dashboardData?.recommendations?.map((rec: any, index: number) => (
+                {recommendations.map((rec, index) => (
                   <button
-                    key={index}
-                    onClick={() => goToProfileTab(rec.href)}
+                    key={rec.id ?? index}
+                    onClick={() => openRecommendation(rec)}
                     className="w-full text-left p-4 rounded-lg border border-cream-muted bg-cream-base hover:border-forest-pale transition-colors"
                   >
                     <h3 className="text-sm font-semibold text-ink-primary">{rec.title}</h3>

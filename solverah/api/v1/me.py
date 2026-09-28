@@ -400,10 +400,11 @@ def put_my_skills():
 @me_bp.route("/me/dashboard", methods=["GET"])
 @jwt_required()
 def get_my_dashboard():
-    """GET /me/dashboard - profile completion, match count, application count.
+    """GET /me/dashboard - profile completion, counts, activity, next steps.
 
-    recentActivity and recommendations are static placeholders until those
-    features exist; the three counts are live.
+    recentActivity is the caller's real events (newest first, ISO timestamps)
+    and recommendations their next unfinished steps; see
+    solverah.services.dashboard_feed. The three counts are live.
     """
     email = get_jwt_identity()
     user = user_repository.find_by_email(email)
