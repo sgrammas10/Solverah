@@ -10,7 +10,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth";
 import { useProfile } from "../../profile";
 import {
@@ -38,6 +38,7 @@ import PathPreferencesForm from "./PathPreferencesForm";
 import PathFitPanel from "./PathFitPanel";
 import PathWantsPanel from "./PathWantsPanel";
 import SkillProficiencyModal from "./SkillProficiencyModal";
+import { careerStatusNavState } from "../../../shared/lib/careerStatusReturn";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -86,9 +87,31 @@ function SkeletonCards() {
   );
 }
 
+/**
+ * Does the profile say where the user is in their career?
+ *
+ * Mirrors the server's rule (`profile.get("career_status") or
+ * derive_career_status(profile)` in intelligence_service): a stored status, or
+ * any experience entry ending "Present"/"Current", which the server reads as
+ * employed. Checking it on mount is what lets the page ask for the status
+ * first, instead of walking the user through skill ratings and preferences
+ * only to fail the scoring job on `career_status_not_set` at the end.
+ */
+function hasCareerStatus(profile: Record<string, unknown> | undefined): boolean {
+  const stored = profile?.career_status;
+  if (typeof stored === "string" && stored.trim()) return true;
+  const experience = profile?.experience;
+  if (!Array.isArray(experience)) return false;
+  return experience.some((entry) => {
+    const end = (entry as { endDate?: unknown } | null)?.endDate;
+    return ["present", "current"].includes(String(end ?? "").trim().toLowerCase());
+  });
+}
+
 // Placeholder — will be replaced by the full component in SOL-31.
 function CareerStatusOnboardingPrompt() {
   const navigate = useNavigate();
+  const location = useLocation();
   return (
     <div className="rounded-xl border border-cream-muted bg-white px-6 py-8 text-center space-y-4">
       <p className="font-semibold text-ink-primary">Set your career status to get started.</p>
@@ -99,7 +122,12 @@ function CareerStatusOnboardingPrompt() {
         type="button"
         onClick={() =>
           navigate("/job-seeker/profile?tab=experience", {
-            state: { showCareerStatusModal: true },
+            // returnTo: once the status is saved, the profile page offers to
+            // bring the user straight back here.
+            state: careerStatusNavState(
+              location.pathname + location.search,
+              "Path Intelligence"
+            ),
           })
         }
         className="bg-forest-dark text-white font-semibold px-4 py-2 rounded text-sm hover:bg-forest-mid transition-colors"
@@ -110,9 +138,34 @@ function CareerStatusOnboardingPrompt() {
   );
 }
 
+/** Shown before the preferences form to a user with no skills on file: the
+ *  scorer needs at least one, so asking for preferences first would only end
+ *  at `profile_incomplete`. Best-guess copy; Julie revises. */
+function AddSkillsPrompt() {
+  return (
+    <div className="rounded-xl border border-cream-muted bg-white px-6 py-8 text-center space-y-4">
+      <p className="font-semibold text-ink-primary">Add a few skills to get started.</p>
+      <p className="text-sm text-ink-secondary leading-relaxed">
+        Path Intelligence matches career paths to what you can already do. Add at least
+        one skill in the Skills section of your profile's Experience tab, then come back here.
+      </p>
+      <Link
+        to="/job-seeker/profile?tab=experience"
+        className="inline-block bg-forest-dark text-white font-semibold px-4 py-2 rounded text-sm hover:bg-forest-mid transition-colors"
+      >
+        Add skills
+      </Link>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
+
+/** The page's screen: every job-lifecycle state, plus `needs_skills`, which is
+ *  decided on mount and never by the job. */
+type PageState = FetchState | "needs_skills";
 
 export default function PathIntelligencePage() {
   const navigate = useNavigate();
@@ -131,6 +184,9 @@ export default function PathIntelligencePage() {
   const [showPreferences, setShowPreferences] = useState(false);
   const [showProficiencyModal, setShowProficiencyModal] = useState(false);
   const [proficiencySkipped, setProficiencySkipped] = useState(false);
+  // Decided once on mount, before anything else: no career status, or no
+  // skills, means nothing below can succeed yet, so the page says so up front.
+  const [entryGate, setEntryGate] = useState<"career_status" | "skills" | null>(null);
   const hasFiredRef = useRef(false);
 
   const startSuggestions = useStartPathSuggestionJob();
@@ -243,9 +299,14 @@ export default function PathIntelligencePage() {
     ? stateForFailure(profileLevelFailure)
     : null;
 
-  const fetchState: FetchState = showPreferences
-    ? "needs_preferences"
-    : feedbackState ?? jobState;
+  const fetchState: PageState =
+    entryGate === "career_status"
+      ? "career_status_not_set"
+      : entryGate === "skills"
+        ? "needs_skills"
+        : showPreferences
+          ? "needs_preferences"
+          : feedbackState ?? jobState;
 
   const feedbackPending = recordFeedback.isPending || clearFeedback.isPending;
 
@@ -374,7 +435,14 @@ export default function PathIntelligencePage() {
     if (profileLoading) return;
     if (!hasFiredRef.current) {
       hasFiredRef.current = true;
-      if (userSkills.length > 0 && proficiencyConfirmed !== true) {
+      if (!hasCareerStatus(profile)) {
+        // First, because every later step is wasted without it: the scoring
+        // job would fail on `career_status_not_set` after the user had rated
+        // skills and answered preferences.
+        setEntryGate("career_status");
+      } else if (userSkills.length === 0) {
+        setEntryGate("skills");
+      } else if (proficiencyConfirmed !== true) {
         setShowProficiencyModal(true);
         // Don't decide a screen here — the modal controls what happens next
       } else if (!profile?.path_preferences) {
@@ -428,7 +496,7 @@ export default function PathIntelligencePage() {
                 Path Intelligence
               </p>
               <span className="rounded-full bg-forest-pale border border-forest-light px-2 py-0.5 text-xs font-semibold text-forest-mid">
-                Pro
+                Pro · coming soon
               </span>
             </div>
             <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
@@ -498,6 +566,9 @@ export default function PathIntelligencePage() {
               </button>
             </div>
           )}
+
+          {/* No skills on file */}
+          {fetchState === "needs_skills" && <AddSkillsPrompt />}
 
           {/* Career status not set */}
           {fetchState === "career_status_not_set" && <CareerStatusOnboardingPrompt />}

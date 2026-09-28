@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import {
   buildDefaultProfile,
@@ -514,9 +514,30 @@ describe("useProfileForm - save mutation", () => {
     expect(result.current.isSaved).toBe(true);
   });
 
+  it("the save bar never passes 90 mid-save, then stays up at 100 after the save settles", async () => {
+    let finish: (v: unknown) => void = () => {};
+    mockActions.saveProfileData.mockReturnValueOnce(new Promise((r) => { finish = r; }));
+    const result = await setup();
+
+    await act(async () => {
+      result.current.handleSubmit({ preventDefault: () => {} } as any);
+    });
+    await act(async () => { await new Promise((r) => setTimeout(r, 1500)); });
+    expect(result.current.isSaving).toBe(true);
+    expect(result.current.saveBarVisible).toBe(true);
+    expect(result.current.saveProgress).toBeLessThanOrEqual(90);
+
+    await act(async () => { finish({}); });
+    await waitFor(() => expect(result.current.isSaving).toBe(false));
+    // Settled: the bar is still on screen, full, so the user sees it finish.
+    expect(result.current.saveBarVisible).toBe(true);
+    expect(result.current.saveProgress).toBe(100);
+
+    await waitFor(() => expect(result.current.saveBarVisible).toBe(false), { timeout: 2000 });
+  });
+
   it("a 4xx on the profile write ends isSaving and leaves the form unsaved", async () => {
     // 4xx means fail — mutations never retry, so the write is attempted once
-    // and the two-write chain stops before the recommendations refresh.
     mockActions.saveProfileData.mockRejectedValueOnce(new Error("Validation failed"));
     const result = await setup();
     act(() => { result.current.handleChange("summary", "draft"); });
@@ -532,10 +553,9 @@ describe("useProfileForm - save mutation", () => {
     expect(result.current.isSaved).toBe(false);
   });
 
-  it("a failed recommendations refresh does not fail the save", async () => {
-    // The refresh keeps its own swallowed catch, exactly as the hand-rolled
-    // submit treated it: the profile write is the save; the refresh is best-effort.
-    mockAuth.fetchWithAuth.mockRejectedValueOnce(new Error("refresh down"));
+  it("a save makes no recommendations refresh request", async () => {
+    // Regression: the save used to chain POST /me/recommendations/refresh,
+    // an endpoint with no consumer, and the bar waited on it.
     const result = await setup();
     act(() => { result.current.handleChange("summary", "draft"); });
 
@@ -543,11 +563,49 @@ describe("useProfileForm - save mutation", () => {
       result.current.handleSubmit({ preventDefault: () => {} } as any);
     });
 
-    expect(mockAuth.fetchWithAuth).toHaveBeenCalledWith(
+    expect(mockActions.saveProfileData).toHaveBeenCalledTimes(1);
+    expect(mockAuth.fetchWithAuth).not.toHaveBeenCalledWith(
       "/me/recommendations/refresh",
-      expect.objectContaining({ method: "POST" })
+      expect.anything()
     );
-    expect(result.current.isSaving).toBe(false);
     expect(result.current.isSaved).toBe(true);
+  });
+});
+
+// ─── useProfileForm — onSaved (career-status return) ──────────────────────────
+
+describe("useProfileForm - onSaved", () => {
+  async function setupWithOnSaved(onSaved: (saved: any) => void) {
+    const { Wrapper } = createWrapper();
+    const { result } = renderHook(() => useProfileForm({ onSaved }), { wrapper: Wrapper });
+    await act(async () => {});
+    return result;
+  }
+
+  it("reports a save with a current role as career_status employed", async () => {
+    const onSaved = vi.fn();
+    const result = await setupWithOnSaved(onSaved);
+    act(() => { result.current.addExperience(); });
+    const id = result.current.formData.experience[0].id;
+    act(() => { result.current.updateExperience(id, "endDate", "Present"); });
+
+    await act(async () => {
+      result.current.handleSubmit({ preventDefault: () => {} } as any);
+    });
+
+    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(onSaved.mock.calls[0][0].career_status).toBe("employed");
+  });
+
+  it("does not report a save that failed", async () => {
+    mockActions.saveProfileData.mockRejectedValueOnce(new Error("nope"));
+    const onSaved = vi.fn();
+    const result = await setupWithOnSaved(onSaved);
+
+    await act(async () => {
+      result.current.handleSubmit({ preventDefault: () => {} } as any);
+    });
+
+    expect(onSaved).not.toHaveBeenCalled();
   });
 });

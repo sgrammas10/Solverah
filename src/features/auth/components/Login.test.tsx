@@ -5,6 +5,7 @@ import Login from "./Login";
 import { useAuth } from "../useAuth";
 import * as guestQuiz from "../../../shared/lib/guestQuiz";
 import { createQueryClient } from "../../../shared/api/queryClient";
+import { profileKeys } from "../../profile";
 import { useApiMocks } from "../../../../tests/msw/server";
 
 vi.mock("../useAuth");
@@ -197,6 +198,38 @@ describe("Login - pending quiz save", () => {
     expect(mockNavigate).toHaveBeenCalledWith(
       `/quiz-insights?group=${encodeURIComponent("next-chapter")}`
     );
+  });
+
+  it("invalidates the cached profile document before navigating to quiz-insights (G22)", async () => {
+    const pendingQuiz = {
+      quizGroup: "next-chapter",
+      quizResults: { q1: "a" },
+      quizPayload: { answers: {} },
+      createdAt: "2024-01-01T00:00:00.000Z",
+    };
+    vi.spyOn(guestQuiz, "getPendingQuizSave").mockReturnValue(pendingQuiz);
+    mockLogin.mockResolvedValueOnce({ role: "job-seeker", id: "1", email: "a@b.com", name: "A", profileComplete: false });
+    mockFetchWithAuth.mockResolvedValue({});
+
+    // A pre-login copy of the profile with no quizResults, as the app holds it.
+    const queryClient = createQueryClient();
+    queryClient.setQueryData(profileKeys.document(), { name: "A" });
+    let invalidatedAtNavigate: boolean | undefined;
+    mockNavigate.mockImplementationOnce(() => {
+      invalidatedAtNavigate = queryClient.getQueryState(profileKeys.document())?.isInvalidated;
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <Login />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    await submitForm();
+
+    expect(mockNavigate).toHaveBeenCalledWith(`/quiz-insights?group=${encodeURIComponent("next-chapter")}`);
+    expect(invalidatedAtNavigate).toBe(true);
   });
 
   it("clears the pending quiz save after successfully saving", async () => {

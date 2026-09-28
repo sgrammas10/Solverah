@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../useAuth';
 import { getPendingQuizSave, clearPendingQuizSave } from "../../../shared/lib/guestQuiz";
 import { API_BASE } from "../../../shared/api/api";
 import { parseApiError } from "../../../shared/api/apiError";
+import { profileKeys } from "../../profile";
 
 const INTAKE_STORAGE_KEY = 'solverah_intake';
 
@@ -106,6 +107,7 @@ function Login() {
   const { login, fetchWithAuth } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
 
   const loginMutation = useMutation({
     mutationFn: (credentials: { email: string; password: string }) =>
@@ -153,6 +155,11 @@ function Login() {
             method: 'POST',
             body: JSON.stringify(pending.quizPayload),
           });
+          // G22: the profile document cached before this replay has no
+          // quizResults, and /quiz-insights reads that cache first -- without
+          // this it showed an empty page until a reload. Awaited so the next
+          // page mounts on the refetched copy. ManagerMatchPage does the same.
+          await queryClient.invalidateQueries({ queryKey: profileKeys.document() });
           redirectPath = `/quiz-insights?group=${encodeURIComponent(pending.quizGroup)}`;
           clearPendingQuizSave();
         } catch (saveErr) {

@@ -113,9 +113,18 @@ function suggestionsFailWith(code: string) {
   });
 }
 
+const READY_PROFILE = {
+  path_preferences: { move_type: "stay_in_field" },
+  career_status: "employed",
+  skills: ["Python"],
+  skills_proficiency_confirmed: true,
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.profile = { path_preferences: { move_type: "stay_in_field" } };
+  // A profile that clears both entry gates (career status, at least one
+  // skill) and the proficiency modal, so the job starts on mount.
+  mocks.profile = { ...READY_PROFILE };
   mocks.start.isPending = false;
   mocks.start.isError = false;
   mocks.start.error = null;
@@ -236,6 +245,70 @@ describe("PathIntelligencePage - career status not set", () => {
   });
 });
 
+// ─── entry gates: career status first, then skills ─────────────────────────
+
+describe("PathIntelligencePage - entry order", () => {
+  it("asks for career status first, before the proficiency modal or preferences", () => {
+    mocks.profile = { skills: ["React"], skills_proficiency_confirmed: false };
+    renderPage();
+    expect(screen.getByText(/set your career status to get started/i)).toBeInTheDocument();
+    expect(screen.queryByText("Rate your skills")).toBeNull();
+    expect(mocks.startSuggestionsMutate).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText(/loading suggestions/i)).toBeNull();
+  });
+
+  it("asks for career status before the preferences form when nothing is set", () => {
+    mocks.profile = { skills: ["React"], skills_proficiency_confirmed: true };
+    renderPage();
+    expect(screen.getByText(/set your career status to get started/i)).toBeInTheDocument();
+    // The preferences form (no path_preferences here) must not be what shows.
+    expect(screen.queryByText(/question 1 of/i)).toBeNull();
+  });
+
+  it("treats a current role in experience as a career status, as the server does", () => {
+    mocks.profile = {
+      ...READY_PROFILE,
+      career_status: undefined,
+      experience: [{ position: "Analyst", endDate: "Present" }],
+    };
+    renderPage();
+    expect(screen.queryByText(/set your career status/i)).toBeNull();
+    expect(mocks.startSuggestionsMutate).toHaveBeenCalledTimes(1);
+  });
+
+  it("carries a returnTo back to this page when sending the user to set it", () => {
+    mocks.profile = { skills: ["React"] };
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /update profile/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/job-seeker/profile?tab=experience", {
+      state: {
+        showCareerStatusModal: true,
+        returnTo: { path: "/", label: "Path Intelligence" },
+      },
+    });
+  });
+
+  it("asks for skills, with a link to add them, before the preferences form", () => {
+    mocks.profile = { career_status: "between_jobs", skills: [] };
+    renderPage();
+    expect(screen.getByText(/add a few skills to get started/i)).toBeInTheDocument();
+    expect(screen.queryByText(/question 1 of/i)).toBeNull();
+    expect(screen.getByRole("link", { name: /add skills/i })).toHaveAttribute(
+      "href",
+      "/job-seeker/profile?tab=experience"
+    );
+    expect(mocks.startSuggestionsMutate).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText(/loading suggestions/i)).toBeNull();
+  });
+});
+
+describe("PathIntelligencePage - Pro badge", () => {
+  it("reads as coming soon, not as a live tier", () => {
+    renderPage();
+    expect(screen.getByText(/pro · coming soon/i)).toBeInTheDocument();
+  });
+});
+
 // ─── skill proficiency modal ───────────────────────────────────────────────
 
 const baseUser = mocks.user;
@@ -248,6 +321,7 @@ describe("PathIntelligencePage - skill proficiency modal", () => {
   it("shows proficiency modal on first PI visit when skills are unrated", () => {
     mocks.profile = {
       path_preferences: { move_type: "stay_in_field" },
+      career_status: "employed",
       skills: ["React", "Python"],
       skills_proficiency_confirmed: false,
     };
@@ -259,6 +333,7 @@ describe("PathIntelligencePage - skill proficiency modal", () => {
   it("skip closes modal and shows nudge banner after results load", async () => {
     mocks.profile = {
       path_preferences: { move_type: "stay_in_field" },
+      career_status: "employed",
       skills: ["React"],
       skills_proficiency_confirmed: false,
     };
@@ -277,6 +352,7 @@ describe("PathIntelligencePage - skill proficiency modal", () => {
   it("saving ratings PATCHes proficiency then re-fetches suggestions", async () => {
     mocks.profile = {
       path_preferences: { move_type: "stay_in_field" },
+      career_status: "employed",
       skills: ["React"],
       skills_proficiency_confirmed: false,
     };

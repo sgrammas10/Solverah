@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import JobSeekerProfile from "./JobSeekerProfile";
@@ -7,6 +7,8 @@ import { ApiError } from "../../../shared/api/apiError";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
+  /** The options JobSeekerProfile passed to useProfileForm (its onSaved). */
+  formOptions: undefined as undefined | { onSaved?: (saved: any) => void },
   fetchWithAuth: vi.fn(),
   profileForm: {
     formData: {
@@ -32,6 +34,7 @@ const mocks = vi.hoisted(() => ({
     isSaving: false,
     isSaved: true,
     saveProgress: 0,
+    saveBarVisible: false,
     isUploadingResume: false,
     uploadProgress: 0,
     uploadedResume: null,
@@ -64,7 +67,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../useProfileForm", () => ({
-  useProfileForm: () => mocks.profileForm,
+  useProfileForm: (options?: { onSaved?: (saved: any) => void }) => {
+    mocks.formOptions = options;
+    return mocks.profileForm;
+  },
 }));
 
 vi.mock("../../auth/useAuth", () => ({
@@ -93,6 +99,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.profileForm.isSaved = true;
   mocks.profileForm.isSaving = false;
+  mocks.profileForm.saveBarVisible = false;
+  mocks.profileForm.saveProgress = 0;
 });
 
 function renderJobSeekerProfile(search = "") {
@@ -106,12 +114,12 @@ function renderJobSeekerProfile(search = "") {
 /** Navigated here with the modal already open, as `EnvironmentReportPage`'s
  *  "Set your career status" button does. Needs a real query client -- the
  *  modal's save is a `useMutation`. */
-function renderWithCareerStatusModal() {
+function renderWithCareerStatusModal(state: Record<string, unknown> = { showCareerStatusModal: true }) {
   render(
     <QueryClientProvider client={createQueryClient()}>
       <MemoryRouter
         initialEntries={[
-          { pathname: "/job-seeker/profile", state: { showCareerStatusModal: true } },
+          { pathname: "/job-seeker/profile", state },
         ]}
       >
         <JobSeekerProfile />
@@ -207,6 +215,15 @@ describe("JobSeekerProfile - save button", () => {
     renderJobSeekerProfile();
     expect(screen.getByRole("button", { name: /saving/i })).toBeDisabled();
   });
+
+  it("keeps the save bar on screen at 100% after the save finishes", () => {
+    mocks.profileForm.isSaving = false;
+    mocks.profileForm.saveBarVisible = true;
+    mocks.profileForm.saveProgress = 100;
+    renderJobSeekerProfile();
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(document.querySelector('[style*="width: 100%"]')).not.toBeNull();
+  });
 });
 
 // ─── career status modal (G13) ────────────────────────────────────────────────
@@ -243,5 +260,90 @@ describe("JobSeekerProfile - career status modal (G13)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /currently unemployed/i }));
     await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith("/intelligence/paths"));
+  });
+});
+
+// ─── career status: offer the way back ────────────────────────────────────────
+
+const RETURN_STATE = {
+  showCareerStatusModal: true,
+  returnTo: { path: "/intelligence/paths", label: "Path Intelligence" },
+};
+
+describe("JobSeekerProfile - return after setting career status", () => {
+  it.each([
+    [/currently unemployed/i, "between_jobs"],
+    [/looking for my first job/i, "first_job"],
+  ])("offers to go back after %s is saved", async (button, status) => {
+    mocks.fetchWithAuth.mockResolvedValueOnce({});
+    renderWithCareerStatusModal(RETURN_STATE);
+
+    fireEvent.click(screen.getByRole("button", { name: button }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Status saved.");
+    expect(dialog).toHaveTextContent("Go back to Path Intelligence?");
+    expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/me/career-status", {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+    // The modal is gone and nothing has navigated on the user's behalf.
+    expect(screen.queryByText("Where are you in your career?")).toBeNull();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /go back/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/intelligence/paths");
+  });
+
+  it("Stay here closes the dialog and goes nowhere", async () => {
+    mocks.fetchWithAuth.mockResolvedValueOnce({});
+    renderWithCareerStatusModal(RETURN_STATE);
+    fireEvent.click(screen.getByRole("button", { name: /currently unemployed/i }));
+    await screen.findByRole("dialog");
+
+    fireEvent.click(screen.getByRole("button", { name: /stay here/i }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("offers to go back after an employed save (a current role)", async () => {
+    renderWithCareerStatusModal(RETURN_STATE);
+    // The user closes the modal to tick "I currently work here" and saves.
+    fireEvent.click(screen.getByRole("button", { name: /close/i }));
+    act(() => {
+      mocks.formOptions?.onSaved?.({ ...mocks.profileForm.formData, career_status: "employed" });
+    });
+
+    expect(screen.getByRole("dialog")).toHaveTextContent("Go back to Path Intelligence?");
+    fireEvent.click(screen.getByRole("button", { name: /go back/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/intelligence/paths");
+  });
+
+  it("does not ask after an ordinary save that set no career status", () => {
+    renderWithCareerStatusModal(RETURN_STATE);
+    act(() => {
+      mocks.formOptions?.onSaved?.({ ...mocks.profileForm.formData });
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("does not ask after an employed save when nobody sent the user here", () => {
+    renderJobSeekerProfile();
+    act(() => {
+      mocks.formOptions?.onSaved?.({ ...mocks.profileForm.formData, career_status: "employed" });
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("ignores a returnTo that points off-site", async () => {
+    mocks.fetchWithAuth.mockResolvedValueOnce({});
+    renderWithCareerStatusModal({
+      showCareerStatusModal: true,
+      returnTo: { path: "//evil.example", label: "Evil" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /currently unemployed/i }));
+    // Falls back to the old behaviour.
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith("/intelligence/paths"));
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

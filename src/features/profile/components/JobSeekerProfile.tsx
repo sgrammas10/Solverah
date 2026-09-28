@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { User, Briefcase, GraduationCap, Star, X } from "lucide-react";
 import { useProfileForm } from "../useProfileForm";
+import { profileKeys } from "../useProfile";
 import { useAuth } from "../../auth";
+import { readCareerStatusReturnTo } from "../../../shared/lib/careerStatusReturn";
+import CareerStatusReturnDialog from "./CareerStatusReturnDialog";
 import PersonalInfoTab from "./PersonalInfoTab";
 import ExperienceTab from "./ExperienceTab";
 import EducationTab from "./EducationTab";
@@ -22,20 +25,27 @@ const tabs = [
 
 interface CareerStatusModalProps {
   onDismiss: () => void;
+  /** Runs after the status is saved. */
+  onSaved: () => void;
 }
 
-function CareerStatusModal({ onDismiss }: CareerStatusModalProps) {
+function CareerStatusModal({ onDismiss, onSaved }: CareerStatusModalProps) {
   const { fetchWithAuth } = useAuth();
-  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // A failed PATCH re-enables the buttons and nothing more, as before.
   const selectStatus = useMutation({
-    mutationFn: (status: "between_jobs" | "first_job") =>
-      fetchWithAuth("/me/career-status", {
+    mutationFn: async (status: "between_jobs" | "first_job") => {
+      await fetchWithAuth("/me/career-status", {
         method: "PATCH",
         body: JSON.stringify({ status }),
-      }),
-    onSuccess: () => navigate("/intelligence/paths"),
+      });
+      // The page the user goes back to reads career_status off the cached
+      // profile document; a stale copy would put the same "set your career
+      // status" prompt straight back in front of them.
+      await queryClient.invalidateQueries({ queryKey: profileKeys.document() });
+    },
+    onSuccess: onSaved,
   });
 
   const loading = selectStatus.isPending;
@@ -134,6 +144,11 @@ function JobSeekerProfile() {
   const [showCareerStatusModal, setShowCareerStatusModal] = useState<boolean>(
     () => !!(location.state as any)?.showCareerStatusModal
   );
+  // Where the user was sent from to set a career status, if anywhere. Cleared
+  // once they have answered the "go back?" dialog, so later saves don't ask.
+  const [returnTo, setReturnTo] = useState(() => readCareerStatusReturnTo(location.state));
+  const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const incoming = getTabFromURL();
@@ -141,7 +156,25 @@ function JobSeekerProfile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search, location.hash, location.state]);
 
-  const profile = useProfileForm();
+  const profile = useProfileForm({
+    // The employed path: saving a profile with a current role sets
+    // career_status "employed" (useProfileForm.handleSubmit).
+    onSaved: (saved) => {
+      if (returnTo && saved.career_status === "employed") {
+        setShowCareerStatusModal(false);
+        setShowReturnDialog(true);
+      }
+    },
+  });
+
+  const handleCareerStatusSaved = () => {
+    setShowCareerStatusModal(false);
+    if (returnTo) {
+      setShowReturnDialog(true);
+    } else {
+      navigate("/intelligence/paths");
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-ink-primary font-sans bg-cream-base">
@@ -238,9 +271,11 @@ function JobSeekerProfile() {
 
         {/* Save Button */}
         <div className="pt-6">
-          {profile.isSaving && (
+          {profile.saveBarVisible && (
             <div className="mb-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-forest-light">Saving profile</div>
+              <div className="text-sm text-ink-secondary">
+                {profile.isSaving ? "Saving profile" : "Saved"}
+              </div>
               <div className="mt-2 h-2 w-full rounded-full bg-cream-subtle">
                 <div
                   className="h-2 rounded-full bg-forest-light transition-all duration-300"
@@ -263,7 +298,21 @@ function JobSeekerProfile() {
 
       {/* Career Status Modal — shown when navigated here from Path Intelligence */}
       {showCareerStatusModal && (
-        <CareerStatusModal onDismiss={() => setShowCareerStatusModal(false)} />
+        <CareerStatusModal
+          onDismiss={() => setShowCareerStatusModal(false)}
+          onSaved={handleCareerStatusSaved}
+        />
+      )}
+
+      {showReturnDialog && returnTo && (
+        <CareerStatusReturnDialog
+          label={returnTo.label}
+          onGoBack={() => navigate(returnTo.path)}
+          onStay={() => {
+            setShowReturnDialog(false);
+            setReturnTo(null);
+          }}
+        />
       )}
     </div>
   );

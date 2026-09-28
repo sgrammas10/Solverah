@@ -13,7 +13,7 @@
  * Exported helpers:
  *   buildDefaultProfile(user?)     — Build a blank ProfileFormData from a User.
  *   normalizeProfileData(incoming) — Coerce a raw server payload to ProfileFormData shape.
- *   useProfileForm()               — The hook itself; returns form state + mutators.
+ *   useProfileForm(options?)       — The hook itself; returns form state + mutators.
  */
 import React, { useState, useEffect, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -107,7 +107,15 @@ export function normalizeProfileData(
   };
 }
 
-export function useProfileForm() {
+export interface UseProfileFormOptions {
+  /** Called after a save has landed on the server, with what was saved --
+   *  including a `career_status` of "employed" that the save derived from a
+   *  current role. JobSeekerProfile uses it to offer the way back to the page
+   *  that sent the user here to set a career status. */
+  onSaved?: (saved: ProfileFormData) => void;
+}
+
+export function useProfileForm(options: UseProfileFormOptions = {}) {
   const { user, updateProfile, fetchWithAuth } = useAuth();
   // The document writes come from the profile slice's own hook now; only
   // identity (`user`, `updateProfile`) and the transport stay on auth.
@@ -170,10 +178,10 @@ export function useProfileForm() {
     resumeParseJobStatus.data,
   ]);
 
-  // The two-write save -- the profile PATCH (through useProfileActions) and the
-  // recommendations refresh -- as one mutation, so "saving" is the mutation's
-  // pending state rather than a hand-rolled boolean. The refresh keeps its own
-  // swallowed catch: a failed recommendation rebuild has never failed the save.
+  // The profile PATCH (through useProfileActions) as a mutation, so "saving" is
+  // the mutation's pending state rather than a hand-rolled boolean. It used to
+  // chain a POST /me/recommendations/refresh after the write; nothing consumes
+  // those recommendations yet, so the save no longer waits on it.
   const saveProfile = useMutation({
     mutationFn: async (profileDataToSave: ProfileFormData) => {
       if (saveProfileData) {
@@ -181,27 +189,14 @@ export function useProfileForm() {
         // signature, which the anonymous spread type has and the named
         // `ProfileFormData` interface does not.
         await saveProfileData({ ...profileDataToSave });
-        console.log("Profile saved to backend!");
       } else {
         console.warn("saveProfileData is not available; profile saved locally only.");
       }
-
-      const modelPipeline = buildProfilePipeline();
-      const stringified = JSON.stringify(modelPipeline);
-      try {
-        await fetchWithAuth("/me/recommendations/refresh", {
-          method: "POST",
-          body: JSON.stringify({ profilePipeline: stringified }),
-        });
-        console.log("Job recommendations generated and saved!");
-      } catch (err) {
-        console.error("Error generating recommendations:", err);
-      }
-      console.log("AI Profile Pipeline:", stringified);
     },
     onSuccess: (_data, profileDataToSave) => {
       setFormData(profileDataToSave);
       setIsSaved(true);
+      options.onSaved?.(profileDataToSave);
     },
     onSettled: () => {
       setSaveProgress(100);
@@ -209,6 +204,10 @@ export function useProfileForm() {
     },
   });
   const isSaving = saveProfile.isPending;
+  // The bar outlives isSaving: onSettled fills it to 100 and the reset timer
+  // hides it, so the user sees it finish. It cannot reach 100 before the save
+  // settles because the ticker below caps at 90.
+  const saveBarVisible = isSaving || saveProgress > 0;
 
   // The resume upload -- ticket then S3 PUT -- as one mutation: the two steps
   // succeed or fail as a unit, exactly as the hand-rolled try block treated
@@ -369,52 +368,6 @@ export function useProfileForm() {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isSaved]);
-
-  const buildProfilePipeline = () => {
-    const sections: { section: string; content: string }[] = [];
-    if (formData.summary?.trim()) {
-      sections.push({ section: "Summary", content: formData.summary.trim() });
-    }
-    const experienceEntries =
-      formData.experience?.map((exp: any) => {
-        const parts: string[] = [];
-        if (exp.position) parts.push(`Role: ${exp.position}`);
-        if (exp.company) parts.push(`Company: ${exp.company}`);
-        if (exp.description) parts.push(`Description: ${exp.description}`);
-        return parts.join("\n");
-      }) ?? [];
-    if (experienceEntries.length > 0) {
-      sections.push({ section: "Experience", content: experienceEntries.join("\n\n") });
-    }
-    if (formData.skills?.length > 0) {
-      const levels = formData.skill_levels ?? {};
-      const skillsContent = formData.skills
-        .map((s) => (levels[s] ? `${s} (${levels[s]})` : s))
-        .join(", ");
-      sections.push({ section: "Skills", content: skillsContent });
-    }
-    const educationEntries =
-      formData.education?.map((edu: any) => {
-        const parts: string[] = [];
-        if (edu.degree) parts.push(`Degree: ${edu.degree}`);
-        if (edu.institution) parts.push(`Institution: ${edu.institution}`);
-        if (edu.gpa) parts.push(`GPA: ${edu.gpa}`);
-        return parts.join("\n");
-      }) ?? [];
-    if (educationEntries.length > 0) {
-      sections.push({ section: "Education", content: educationEntries.join("\n\n") });
-    }
-    const locationLines: string[] = [];
-    const primary = (formData.primaryLocation || formData.location || "").trim();
-    if (primary) locationLines.push(`Primary: ${primary}`);
-    if (formData.secondaryLocations?.length > 0) {
-      locationLines.push(`Open to: ${formData.secondaryLocations.join(", ")}`);
-    }
-    if (locationLines.length > 0) {
-      sections.push({ section: "Locations", content: locationLines.join("\n") });
-    }
-    return sections;
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -637,6 +590,7 @@ export function useProfileForm() {
     isSaved,
     setIsSaved,
     saveProgress,
+    saveBarVisible,
     isUploadingResume,
     uploadProgress,
     uploadedResume,
