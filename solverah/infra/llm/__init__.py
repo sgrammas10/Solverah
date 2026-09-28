@@ -39,8 +39,10 @@ __all__ = [
 ]
 
 #: Groq's small, fast model. Chosen for latency: the agent streams, so
-#: time-to-first-token matters more than depth.
-DEFAULT_AGENT_MODEL = "llama-3.1-8b-instant"
+#: time-to-first-token matters more than depth. Was ``llama-3.1-8b-instant``
+#: until Groq retired it and every chat turn came back 422 "model not found";
+#: ``SOLVERAH_AGENT_MODEL`` now swaps the model without a deploy.
+DEFAULT_AGENT_MODEL = "openai/gpt-oss-20b"
 
 
 def get_openai_client():
@@ -86,5 +88,9 @@ def get_agent_client():
 
 
 def default_agent_model() -> str:
-    """Return the default Groq model name."""
-    return DEFAULT_AGENT_MODEL
+    """The Groq model a chat turn uses when the client names none.
+
+    ``SOLVERAH_AGENT_MODEL`` wins when set (read per call, like the key), so the
+    next provider retirement is an env change rather than a code change.
+    """
+    return os.environ.get("SOLVERAH_AGENT_MODEL", "").strip() or DEFAULT_AGENT_MODEL

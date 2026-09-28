@@ -149,7 +149,7 @@ class AgentChatRequest(SolverahModel):
         description="Full conversation history; must be non-empty."
     )
     model: Optional[str] = Field(
-        default=None, description='Groq model. Defaults to "llama-3.1-8b-instant".'
+        default=None, description='Groq model. Defaults to "openai/gpt-oss-20b" (or SOLVERAH_AGENT_MODEL).'
     )
 
 
@@ -288,7 +288,7 @@ class AgentMessagesRequest(SolverahModel):
         min_length=1, description="Full conversation history; must be non-empty."
     )
     model: Optional[str] = Field(
-        default=None, description='Groq model. Defaults to "llama-3.1-8b-instant".'
+        default=None, description='Groq model. Defaults to "openai/gpt-oss-20b" (or SOLVERAH_AGENT_MODEL).'
     )
 
 

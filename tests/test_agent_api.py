@@ -132,6 +132,62 @@ def test_agent_chat_success(client, monkeypatch):
     assert "Solverah AI" in messages_sent[0]["content"]
 
 
+def test_agent_chat_without_model_uses_env_override(client, monkeypatch):
+    """No client model -> SOLVERAH_AGENT_MODEL is what Groq is asked for."""
+    csrf = _register_and_login(client, monkeypatch)
+    mock_client = _mock_llm_streaming(monkeypatch)
+    monkeypatch.setenv("SOLVERAH_AGENT_MODEL", "override/model")
+
+    resp = client.post(
+        "/api/v1/agent/messages",
+        json={"messages": [{"role": "user", "content": "hi"}]},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert resp.status_code == 200
+    assert mock_client.chat.completions.create.call_args.kwargs["model"] == "override/model"
+
+
+def test_agent_chat_without_model_never_asks_for_the_retired_one(client, monkeypatch):
+    csrf = _register_and_login(client, monkeypatch)
+    mock_client = _mock_llm_streaming(monkeypatch)
+    monkeypatch.delenv("SOLVERAH_AGENT_MODEL", raising=False)
+
+    resp = client.post(
+        "/api/v1/agent/messages",
+        json={"messages": [{"role": "user", "content": "hi"}]},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert resp.status_code == 200
+    assert mock_client.chat.completions.create.call_args.kwargs["model"] == "openai/gpt-oss-20b"
+
+
+def test_agent_chat_gpt_oss_asks_for_low_reasoning_effort(client, monkeypatch):
+    csrf = _register_and_login(client, monkeypatch)
+    mock_client = _mock_llm_streaming(monkeypatch)
+    monkeypatch.delenv("SOLVERAH_AGENT_MODEL", raising=False)
+
+    resp = client.post(
+        "/api/v1/agent/messages",
+        json={"messages": [{"role": "user", "content": "hi"}]},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert resp.status_code == 200
+    assert mock_client.chat.completions.create.call_args.kwargs["reasoning_effort"] == "low"
+
+
+def test_agent_chat_other_models_get_no_reasoning_effort(client, monkeypatch):
+    csrf = _register_and_login(client, monkeypatch)
+    mock_client = _mock_llm_streaming(monkeypatch)
+
+    resp = client.post(
+        "/api/v1/agent/messages",
+        json={"messages": [{"role": "user", "content": "hi"}], "model": "mistral"},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert resp.status_code == 200
+    assert "reasoning_effort" not in mock_client.chat.completions.create.call_args.kwargs
+
+
 def test_agent_chat_custom_model(client, monkeypatch):
     csrf = _register_and_login(client, monkeypatch)
     _mock_llm_streaming(monkeypatch)

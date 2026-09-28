@@ -141,10 +141,14 @@ def _do_agent_stream():
     system_prompt = agent_service.build_agent_context(user, resume_text=resume_text)
     full_messages = [{"role": "system", "content": system_prompt}] + messages
 
+    # gpt-oss reasons before its first token; "low" keeps that wait short for
+    # chat. Other Groq models reject the parameter, so it is scoped by name.
+    extra = {"reasoning_effort": "low"} if model.startswith("openai/gpt-oss") else {}
+
     try:
         client = llm.get_agent_client()
         stream = client.chat.completions.create(
-            model=model, messages=full_messages, stream=True
+            model=model, messages=full_messages, stream=True, **extra
         )
     except Exception as exc:  # noqa: BLE001 -- mapped onto statuses below
         current_app.logger.error("agent_chat error: %s: %s", type(exc).__name__, exc)
