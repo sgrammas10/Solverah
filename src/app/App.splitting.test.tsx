@@ -42,7 +42,7 @@ describe("App - route code splitting", () => {
 
     await screen.findAllByText(/Solverah/i);
 
-    // The assertion that matters. If PrelaunchLandingPage were lazy, React
+    // The assertion that matters. If LandingPage were lazy, React
     // would suspend on the way in and this fallback would have mounted.
     expect(container.querySelector(ROUTE_SKELETON)).toBeNull();
   });

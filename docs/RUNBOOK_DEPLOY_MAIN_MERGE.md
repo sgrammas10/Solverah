@@ -518,3 +518,87 @@ once `REDIS_URL` is set it simply stays set, which is harmless.
   try to *create* a second service rather than adopt the existing one. Reconcile
   the name before any Blueprint adoption; see `docs/RENDER_DEPLOYMENT.md` for the
   two adoption paths.
+
+---
+
+### Workstream F deploy dependency — the corpus must be in S3 BEFORE the merge (added 2026-09-16)
+
+Path Intelligence now retrieves from a precomputed O*NET corpus (`BUILD_PLAN.md` §6).
+The old candidate funnel is **tombstoned — there is no fallback.** With no artifact in S3
+or no key set: deep-fit clicks, feedback taps, and the cold suggestions job all return a
+typed `503 corpus_unavailable`, which the SPA branches on — the untyped
+`500 Unable to score career paths` retry card the cold job used to fall through to (the
+S16.11 dead-gate shape) is closed, an F-8 follow-up. Either way the feature is down for
+everyone until the corpus is published.
+
+Order, on deploy day, before `git merge` to main:
+
+1. `flask corpus publish` — uploads the artifact set from `Desktop/solverah-corpus/`
+   to the **app** bucket (`S3_BUCKET_NAME`, never the backup bucket). First real run is
+   Sebastian's trigger. **Seven objects, not four** (see the optional sidecars below):
+   `.npy`, `.json`, `.zones.json`, `.clusters.json`, `.experience.json`, `.tasks.json`,
+   `.fit.json`. Count them in the JSON the command echoes — `"uploaded": 7`.
+2. Set `SOLVERAH_CORPUS_S3_KEY` (and `SOLVERAH_CORPUS_CACHE_DIR`) on `solverah-api` in the
+   Render dashboard. Both are codified as `sync: false` in `render.yaml`'s `solverah-prod`
+   group (F-8) — render.yaml governs nothing until Blueprint adoption, so the dashboard is
+   the live setting.
+3. Verify one worker loads it: the boot log shows no `occupation corpus unavailable`
+   WARNING, and `POST /api/v1/me/path-suggestion-jobs` completes for a test account.
+4. Then merge.
+
+Rollback is the ordinary revert of the merge; the corpus object is inert if unused. The
+loader is lazy per process (never in `create_app()`), so `flask db upgrade` and the crons
+do not touch S3 — a missing key fails the feature, not the deploy.
+
+#### The three optional sidecars — the same dependency, but they DEGRADE instead of 503 (added 2026-09-21, W-3b; third row added 2026-09-22, W-9)
+
+Workstream W reads three more files beside the matrix. All are pulled by
+`occupation_retrieval._fetch_from_s3` from keys derived from `SOLVERAH_CORPUS_S3_KEY`, and
+all are **optional to the loader and required to the feature**:
+
+| object | written by | if it is missing |
+|---|---|---|
+| `<stem>.experience.json` | `flask corpus experience` (~2,800 O*NET requests, resumable) | the scorer drops its conditions term and logs **one** warning per worker; stated conditions are silently ignored |
+| `<stem>.tasks.json` | `flask corpus tasks` (no O*NET; ~$0.10 of `gpt-4o-mini`) | W-4's panel has no task half — and tasks are the wants layer's **first** signal, so most of the feature is gone |
+| `<stem>.fit.json` | `flask corpus fit` (~3,800 O*NET requests at 4/s, ~16 min, resumable) | every card a user opens costs four live O*NET calls again — 2,384 ms cold, 844 ms warm, against ~1 s on the sidecar path. Nothing is wrong on screen; it is just slow, and the frontend prefetches three cards per list, so the O*NET spend is ~3x what it used to be |
+
+**None of them returns a 503, and that is the hazard.** A worker with no `.experience.json`
+serves a page that looks exactly like one where the user's answers did not matter — which
+is indistinguishable from the feature being broken, and is the shape F-8 box 9 was caught
+by once already with the cluster sidecar. `.fit.json` is the quieter version of the same
+thing: the page is correct and slow, which reads as "the product is slow". So:
+
+- `flask corpus publish` **carries all three when they sit beside the artifact and passes
+  over them when they do not** (`occupation_corpus.OPTIONAL_PUBLISHED_SUFFIXES`). It does
+  not refuse: `corpus refresh` is build → zones → clusters → publish and builds none of
+  them, so a hard requirement would make the quarterly cadence unable to publish at all.
+  **The count in the echoed summary is the check** — four objects after a refresh means the
+  three W sidecars were not rebuilt for the new artifact and must be built before the key
+  is switched.
+- After a **quarterly `corpus refresh`**, run `flask corpus experience`,
+  `flask corpus tasks` and `flask corpus fit` against the new `.npy` and publish again
+  *before* moving `SOLVERAH_CORPUS_S3_KEY`. The old artifact's sidecars do not serve the
+  new one: the keys are derived from the matrix filename.
+
+  ```
+  SOLVERAH_CORPUS_PATH=<dir holding the .npy>  flask corpus fit
+  ```
+
+  Resumable: it appends each occupation to a checkpoint JSONL under the system temp
+  directory as it completes, and a re-run skips what is already there. Rate-limited to
+  4 req/s against O*NET's documented threshold of 5; never run two of these at once.
+- Verify on the worker the same way as step 3: the boot/first-request log must show no
+  `no conditions sidecar beside`, no `no tasks sidecar beside` and no
+  `no fit sidecar beside` WARNING.
+
+#### The wants table — one migration, and it is NOT part of the corpus dependency (added 2026-09-21, W-7)
+
+Workstream W also adds one alembic revision, `20260921_path_wants` (down_revision
+`20260916_path_fb`), creating the `path_wants` table that stores what a user said should
+change about their own job. `preDeployCommand: flask db upgrade` applies it on the deploy
+itself (§3a), so there is nothing to run by hand — but confirm it in the **pre-deploy log**
+alongside the other migrations this merge carries, because without the table both
+`GET` and `PUT /api/v1/me/path-wants` answer `500` and the panel simply never appears:
+its GET failing is silent by design (⚑7), so a missed migration looks like "the feature
+did not ship" rather than like an error. Additive and unconditionally reversible; it is
+independent of the S3 corpus dependency above and of its ordering.

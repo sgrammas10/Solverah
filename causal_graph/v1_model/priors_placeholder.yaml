@@ -1,0 +1,61 @@
+# priors_placeholder.yaml  --  the PLACEHOLDER weights priors.yaml carried until
+# 2026-09-17, kept on purpose. NOT loaded by the model: match_core.load() reads
+# priors.yaml, which now holds the expert-elicited values.
+#
+# Two jobs:
+#   1. The record. The difference between this file and priors.yaml IS the expert's
+#      contribution (Solverah_IP/priors_elicitation/README.md) -- diff the two to see it.
+#   2. The neutral fixture. tests/test_match_scoring.py loads this file for its analytic
+#      anchors (perfect match == exactly 0.5), which hold only under intercept 0, dir 0
+#      and zero confounder means. A guard test pins that neutrality, so do not "improve"
+#      these numbers.
+#
+# Original header follows.
+#
+# PLACEHOLDER weights. Directionally correct, magnitudes provisional.
+# Replace with expert-elicited values later. The structure code never changes.
+#
+# Convention (logistic linear predictor):
+#   logit(P_fit) = intercept
+#                + sum over active dims:  mag*|gap| + dir*gap
+#                + sum over active+measurable confounders:  weight * raw_value
+#
+# Every weight is now a real prior distribution, {mean, sd}, not a bare
+# point estimate:
+#   mean -> the expert's best guess (same placeholder logic as before)
+#   sd   -> how sure the expert is. Small sd = confident, large sd = "not
+#           sure, let the data decide." These sd's are themselves
+#           placeholders -- tighten/loosen once an expert actually weighs in.
+#
+# Placeholder logic:
+#   mag mean < 0 -> any mismatch lowers P(fit)   (the true, near-tautological signal)
+#   dir mean = 0 -> no assumed asymmetry until the expert says otherwise
+#   confounder mean = 0 -> no assumed effect until data/expert (term present, weight neutral)
+
+intercept: { mean: 0.0, sd: 1.0 }
+
+dimensions:
+  autonomy:      { mag: {mean: -1.0, sd: 0.5}, dir: {mean: 0.0, sd: 0.5} }
+  pace:          { mag: {mean: -1.0, sd: 0.5}, dir: {mean: 0.0, sd: 0.5} }
+  collaboration: { mag: {mean: -1.0, sd: 0.5}, dir: {mean: 0.0, sd: 0.5} }
+  feedback:      { mag: {mean: -1.0, sd: 0.5}, dir: {mean: 0.0, sd: 0.5} }
+  innovation:    { mag: {mean: -1.0, sd: 0.5}, dir: {mean: 0.0, sd: 0.5} }
+  decision:      { mag: {mean: -1.0, sd: 0.5}, dir: {mean: 0.0, sd: 0.5} }
+  # structure / orientation added here when toggled active
+
+confounders:
+  # continuous confounders (stage_size, comp): one weight, applied to the
+  # standardized value.
+  stage_size: { mean: 0.0, sd: 1.0 }
+  comp:       { mean: 0.0, sd: 1.0 }
+  # industry is categorical (see solverah_model_config.yaml `levels`) -- this
+  # single {mean, sd} is the shared prior for a *vector* of independent
+  # per-level weights, not one scalar weight.
+  industry:   { mean: 0.0, sd: 1.0 }
+  # prestige added here when toggled active
+
+# Ordinal-head cutpoint spacings. NOT expert-elicited -- placeholder priors.
+# The cutpoint between ratings 3 and 4 is PINNED at 0 so that sigmoid(z)
+# is exactly P(rating >= 4) = "doing well"; see build_model.py.
+cutpoints:
+  spacing: { mu_log: 0.405465, sigma_log: 0.5 }   # LogNormal; exp(mu) = 1.5

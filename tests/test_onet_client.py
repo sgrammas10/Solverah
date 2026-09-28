@@ -19,6 +19,7 @@ from backend.services.onet_client import (
     OnetClient,
     OnetRateLimitError,
     Skill,
+    Task,
 )
 
 
@@ -513,3 +514,473 @@ class TestGetBrightOutlookOccupations:
 
         assert first == second
         assert mock_get.call_count == 3  # not re-fetched on the second call
+
+
+# ---------------------------------------------------------------------------
+# get_occupation_description  (corpus builder, BUILD_PLAN F-1)
+# ---------------------------------------------------------------------------
+
+
+class TestGetOccupationDescription:
+    _RESPONSE = {
+        "code": "15-2051.00",
+        "title": "Data Scientists",
+        "description": (
+            "Develop and implement a set of techniques or analytics applications to "
+            "transform raw data into meaningful information."
+        ),
+        "tags": {"bright_outlook": True},
+    }
+
+    def test_returns_description_text(self, client: OnetClient) -> None:
+        with patch.object(client._session, "get", return_value=_mock_response(self._RESPONSE)):
+            description = client.get_occupation_description("15-2051.00")
+
+        assert description.startswith("Develop and implement a set of techniques")
+
+    def test_hits_the_occupation_root_endpoint(self, client: OnetClient) -> None:
+        with patch.object(
+            client._session, "get", return_value=_mock_response(self._RESPONSE)
+        ) as mock_get:
+            client.get_occupation_description("15-2051.00")
+
+        assert mock_get.call_args[0][0].endswith("/online/occupations/15-2051.00")
+
+    def test_missing_description_returns_empty_string(self, client: OnetClient) -> None:
+        """A blank field degrades a role document; it must not raise and lose
+        the occupation from the corpus entirely."""
+        with patch.object(
+            client._session,
+            "get",
+            return_value=_mock_response({"code": "55-1011.00", "title": "Air Crew Officers"}),
+        ):
+            assert client.get_occupation_description("55-1011.00") == ""
+
+    def test_result_is_cached(self, client: OnetClient) -> None:
+        with patch.object(
+            client._session, "get", return_value=_mock_response(self._RESPONSE)
+        ) as mock_get:
+            first = client.get_occupation_description("15-2051.00")
+            second = client.get_occupation_description("15-2051.00")
+
+        assert first == second
+        assert mock_get.call_count == 1
+
+    def test_raises_on_api_error(self, client: OnetClient) -> None:
+        with patch.object(client._session, "get", return_value=_mock_response({}, status_code=500)):
+            with pytest.raises(OnetAPIError):
+                client.get_occupation_description("15-2051.00")
+
+    def test_raises_on_rate_limit(
+        self, client: OnetClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr("backend.services.onet_client.time.sleep", lambda _: None)
+        with patch.object(client._session, "get", return_value=_mock_response({}, status_code=429)):
+            with pytest.raises(OnetRateLimitError):
+                client.get_occupation_description("15-2051.00")
+
+
+# ---------------------------------------------------------------------------
+# get_tasks  (corpus builder, BUILD_PLAN F-1)
+# ---------------------------------------------------------------------------
+
+
+class TestGetTasks:
+    _RESPONSE = {
+        "start": 1,
+        "end": 3,
+        "total": 3,
+        "task": [
+            {
+                "id": "21828",
+                "title": "Create graphs, charts, or other visualizations.",
+                "importance": 71,
+                "category": "Core",
+            },
+            {
+                "id": "21823",
+                "title": "Analyze, manipulate, or process large sets of data.",
+                "importance": 83,
+                "category": "Core",
+            },
+            {
+                "id": "21840",
+                "title": "Read scientific articles.",
+                "importance": 42,
+                "category": "Supplemental",
+            },
+        ],
+    }
+
+    def test_returns_tasks_sorted_by_importance_descending(self, client: OnetClient) -> None:
+        """O*NET happens to return them ranked, but that is its choice, not a
+        contract -- "top N tasks" must mean the same thing regardless."""
+        with patch.object(client._session, "get", return_value=_mock_response(self._RESPONSE)):
+            tasks = client.get_tasks("15-2051.00")
+
+        assert [t.importance for t in tasks] == [83.0, 71.0, 42.0]
+        assert tasks[0] == Task(
+            task_id="21823",
+            title="Analyze, manipulate, or process large sets of data.",
+            importance=83.0,
+            category="Core",
+        )
+
+    def test_uses_details_endpoint_for_importance_and_category(self, client: OnetClient) -> None:
+        """/summary/tasks costs the same one request but omits both fields."""
+        with patch.object(
+            client._session, "get", return_value=_mock_response(self._RESPONSE)
+        ) as mock_get:
+            tasks = client.get_tasks("15-2051.00")
+
+        assert mock_get.call_args[0][0].endswith("/details/tasks")
+        assert mock_get.call_args.kwargs.get("params", {}).get("end") == 100
+        assert tasks[2].category == "Supplemental"
+
+    def test_falls_back_to_sub_code_when_umbrella_is_empty(self, client: OnetClient) -> None:
+        responses = [
+            _mock_response({"task": []}),
+            _mock_response(self._RESPONSE),
+        ]
+        with patch.object(client._session, "get", side_effect=responses) as mock_get:
+            tasks = client.get_tasks("15-2051.00")
+
+        assert len(tasks) == 3
+        assert mock_get.call_args_list[1][0][0].endswith(
+            "/online/occupations/15-2051.01/details/tasks"
+        )
+
+    def test_missing_sub_code_returns_empty_instead_of_raising(self, client: OnetClient) -> None:
+        """Regression: 74 of the catalog's 1,016 occupations have no task data
+        -- all 19 of the 55-0000 Military Specific family plus the "..., All
+        Other" residual codes -- and many of those have no .01 sub-code, so the
+        fallback 404s.  A task-less occupation is a thinner role document, not a
+        failed fetch; letting the 404 propagate would drop all 74 occupations
+        from the corpus."""
+        responses = [
+            _mock_response({"task": []}),
+            _mock_response({}, status_code=404),
+        ]
+        with patch.object(client._session, "get", side_effect=responses):
+            assert client.get_tasks("55-1011.00") == []
+
+    def test_missing_fields_default_safely(self, client: OnetClient) -> None:
+        with patch.object(
+            client._session,
+            "get",
+            return_value=_mock_response({"task": [{"title": "Do the thing."}]}),
+        ):
+            tasks = client.get_tasks("15-2051.00")
+
+        assert tasks[0] == Task(task_id="", title="Do the thing.", importance=0.0, category="")
+
+    def test_result_is_cached(self, client: OnetClient) -> None:
+        with patch.object(
+            client._session, "get", return_value=_mock_response(self._RESPONSE)
+        ) as mock_get:
+            client.get_tasks("15-2051.00")
+            client.get_tasks("15-2051.00")
+
+        assert mock_get.call_count == 1
+
+    def test_cached_list_is_copied(self, client: OnetClient) -> None:
+        """Callers must not be able to corrupt every later cache hit."""
+        with patch.object(client._session, "get", return_value=_mock_response(self._RESPONSE)):
+            first = client.get_tasks("15-2051.00")
+            first.clear()
+            second = client.get_tasks("15-2051.00")
+
+        assert len(second) == 3
+
+    def test_raises_on_rate_limit(
+        self, client: OnetClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr("backend.services.onet_client.time.sleep", lambda _: None)
+        with patch.object(client._session, "get", return_value=_mock_response({}, status_code=429)):
+            with pytest.raises(OnetRateLimitError):
+                client.get_tasks("15-2051.00")
+
+
+# ---------------------------------------------------------------------------
+# get_hot_technologies  (corpus builder, BUILD_PLAN F-1)
+# ---------------------------------------------------------------------------
+
+
+class TestGetHotTechnologies:
+    _RESPONSE = {
+        "start": 1,
+        "end": 3,
+        "total": 3,
+        "example": [
+            {"title": "Python", "hot_technology": True, "in_demand": True, "percentage": 66},
+            {
+                "title": "Structured query language SQL",
+                "hot_technology": True,
+                "in_demand": True,
+                "percentage": 51,
+            },
+            {"title": "R", "hot_technology": True, "in_demand": True, "percentage": 34},
+        ],
+    }
+
+    def test_preserves_demand_order_and_capitalisation(self, client: OnetClient) -> None:
+        """The whole reason this exists rather than get_tech_skills(hot_only=True),
+        which returns an unordered set of lower-cased names."""
+        with patch.object(client._session, "get", return_value=_mock_response(self._RESPONSE)):
+            names = client.get_hot_technologies("15-2051.00")
+
+        assert names == ["Python", "Structured query language SQL", "R"]
+
+    def test_hits_the_hot_technology_endpoint(self, client: OnetClient) -> None:
+        with patch.object(
+            client._session, "get", return_value=_mock_response(self._RESPONSE)
+        ) as mock_get:
+            client.get_hot_technologies("15-2051.00")
+
+        assert mock_get.call_args[0][0].endswith("/online/occupations/15-2051.00/hot_technology")
+        assert mock_get.call_args.kwargs.get("params", {}).get("end") == 100
+
+    def test_no_hot_technologies_returns_empty_list(self, client: OnetClient) -> None:
+        """The endpoint answers 200 with total:0 for these, not 404 -- measured
+        against the 55-0000 Military Specific family."""
+        with patch.object(
+            client._session,
+            "get",
+            return_value=_mock_response({"start": 1, "end": 0, "total": 0, "example": []}),
+        ):
+            assert client.get_hot_technologies("55-1011.00") == []
+
+    def test_entries_without_a_title_are_skipped(self, client: OnetClient) -> None:
+        with patch.object(
+            client._session,
+            "get",
+            return_value=_mock_response({"example": [{"percentage": 5}, {"title": "Python"}]}),
+        ):
+            assert client.get_hot_technologies("15-2051.00") == ["Python"]
+
+    def test_result_is_cached(self, client: OnetClient) -> None:
+        with patch.object(
+            client._session, "get", return_value=_mock_response(self._RESPONSE)
+        ) as mock_get:
+            client.get_hot_technologies("15-2051.00")
+            client.get_hot_technologies("15-2051.00")
+
+        assert mock_get.call_count == 1
+
+    def test_raises_on_api_error(self, client: OnetClient) -> None:
+        with patch.object(client._session, "get", return_value=_mock_response({}, status_code=500)):
+            with pytest.raises(OnetAPIError):
+                client.get_hot_technologies("15-2051.00")
+
+
+# ---------------------------------------------------------------------------
+# get_job_families / get_job_family_occupations  (catalog enumeration)
+# ---------------------------------------------------------------------------
+
+
+class TestGetJobFamilies:
+    #: The live v2 shape: a BARE ARRAY, plus a trailing meta-entry with a title
+    #: and href but no code.  Confirmed against api-v2.onetcenter.org 2026-09-16.
+    _BARE_ARRAY = [
+        {
+            "href": "https://example.com/17-0000",
+            "code": "17-0000",
+            "title": "Architecture and Engineering",
+        },
+        {
+            "href": "https://example.com/15-0000",
+            "code": "15-0000",
+            "title": "Computer and Mathematical",
+        },
+        {"href": "https://example.com/all", "title": "All Job Families"},
+    ]
+
+    def test_parses_the_bare_array_the_live_api_returns(self, client: OnetClient) -> None:
+        """Regression: this endpoint returns a top-level JSON array, like
+        /online/bright_outlook.  The previous ``data.get("job_family")`` raised
+        AttributeError: 'list' object has no attribute 'get' on every live call,
+        which made whole-catalog enumeration impossible."""
+        with patch.object(client._session, "get", return_value=_mock_response(self._BARE_ARRAY)):
+            families = client.get_job_families()
+
+        assert {f["code"] for f in families} == {"17-0000", "15-0000"}
+
+    def test_skips_the_meta_entry_that_has_no_code(self, client: OnetClient) -> None:
+        with patch.object(client._session, "get", return_value=_mock_response(self._BARE_ARRAY)):
+            families = client.get_job_families()
+
+        assert all(f["code"] for f in families)
+        assert "All Job Families" not in {f["title"] for f in families}
+
+    def test_still_parses_the_wrapped_shape(self, client: OnetClient) -> None:
+        """Accepted so a future re-wrap cannot break enumeration a second time."""
+        wrapped = {"job_family": [{"code": "15-0000", "title": "Computer and Mathematical"}]}
+        with patch.object(client._session, "get", return_value=_mock_response(wrapped)):
+            assert client.get_job_families() == [
+                {"code": "15-0000", "title": "Computer and Mathematical"}
+            ]
+
+    def test_empty_response_returns_empty_list(self, client: OnetClient) -> None:
+        with patch.object(client._session, "get", return_value=_mock_response([])):
+            assert client.get_job_families() == []
+
+
+class TestGetJobFamilyOccupations:
+    _RESPONSE = {
+        "start": 1,
+        "end": 2,
+        "total": 114,
+        "occupation": [
+            {"code": "51-2011.00", "title": "Aircraft Structure Assemblers"},
+            {"code": "51-2021.00", "title": "Coil Winders"},
+        ],
+    }
+
+    def test_returns_occupations(self, client: OnetClient) -> None:
+        with patch.object(client._session, "get", return_value=_mock_response(self._RESPONSE)):
+            result = client.get_job_family_occupations("51-0000")
+
+        assert result == [
+            Occupation(code="51-2011.00", title="Aircraft Structure Assemblers"),
+            Occupation(code="51-2021.00", title="Coil Winders"),
+        ]
+
+    def test_defaults_to_the_first_hundred(self, client: OnetClient) -> None:
+        """The pre-existing contract, which path_scoring's candidate funnel
+        relies on: adding paging must not widen anybody else's pool."""
+        with patch.object(
+            client._session, "get", return_value=_mock_response(self._RESPONSE)
+        ) as mock_get:
+            client.get_job_family_occupations("51-0000")
+
+        assert mock_get.call_args.kwargs.get("params", {}) == {"start": 1, "end": 100}
+
+    def test_passes_explicit_page_bounds_through(self, client: OnetClient) -> None:
+        """51-0000 (Production) holds 114 occupations, so a caller that needs
+        the whole family -- the corpus builder does -- must be able to ask for
+        the second page."""
+        with patch.object(
+            client._session, "get", return_value=_mock_response(self._RESPONSE)
+        ) as mock_get:
+            client.get_job_family_occupations("51-0000", start=101, end=200)
+
+        assert mock_get.call_args.kwargs.get("params", {}) == {"start": 101, "end": 200}
+
+    def test_raises_on_api_error(self, client: OnetClient) -> None:
+        with patch.object(client._session, "get", return_value=_mock_response({}, status_code=500)):
+            with pytest.raises(OnetAPIError):
+                client.get_job_family_occupations("51-0000")
+
+
+# ---------------------------------------------------------------------------
+# The three rating reports the conditions sidecar is built from (BUILD_PLAN W-3)
+# ---------------------------------------------------------------------------
+
+
+class TestRatingReports:
+    """`get_work_context` / `get_work_styles` / `get_occupational_interests`.
+
+    Build-time methods: `flask corpus experience` calls each once per
+    occupation and the answers go into a sidecar.  They are the only methods on
+    this client that do NOT cache, which the last test here pins -- caching
+    2,733 one-shot reads into the cache the request path shares would spend
+    `tests/test_cache_bounds.py`'s budget on entries nobody reads twice.
+    """
+
+    _CONTEXT = {
+        "element": [
+            {"id": "4.C.1.a.2.l", "name": "Contact With Others", "context": 72.0},
+            {"id": "4.C.2.d.1.b", "name": "Spend Time Sitting", "context": 95.0},
+            {"id": "4.C.1.b.1.g", "name": "Deal With External Customers", "context": None},
+        ]
+    }
+
+    def test_work_context_returns_named_values(self, client: OnetClient) -> None:
+        with patch.object(client._session, "get", return_value=_mock_response(self._CONTEXT)):
+            values = client.get_work_context("15-1252.00")
+
+        assert values == {"Contact With Others": 72.0, "Spend Time Sitting": 95.0}
+
+    def test_an_element_with_no_value_is_dropped_not_stored_as_zero(
+        self, client: OnetClient
+    ) -> None:
+        """The distinction the axis bundles depend on -- see
+        `occupation_conditions._bundle_mean`.  An unrated element must not
+        arrive as a rating of none."""
+        with patch.object(client._session, "get", return_value=_mock_response(self._CONTEXT)):
+            values = client.get_work_context("15-1252.00")
+
+        assert "Deal With External Customers" not in values
+
+    def test_work_context_hits_the_details_endpoint_asking_for_a_hundred(
+        self, client: OnetClient
+    ) -> None:
+        with patch.object(
+            client._session, "get", return_value=_mock_response(self._CONTEXT)
+        ) as mock_get:
+            client.get_work_context("15-1252.00")
+
+        assert mock_get.call_args[0][0].endswith(
+            "/online/occupations/15-1252.00/details/work_context"
+        )
+        assert mock_get.call_args.kwargs.get("params", {}) == {"end": 100}
+
+    def test_work_styles_reads_the_importance_field(self, client: OnetClient) -> None:
+        response = {"element": [{"name": "Attention to Detail", "importance": 91.0}]}
+
+        with patch.object(
+            client._session, "get", return_value=_mock_response(response)
+        ) as mock_get:
+            values = client.get_work_styles("15-1252.00")
+
+        assert values == {"Attention to Detail": 91.0}
+        assert mock_get.call_args[0][0].endswith("/details/work_styles")
+
+    def test_interests_reads_the_occupational_interest_field(
+        self, client: OnetClient
+    ) -> None:
+        response = {
+            "element": [
+                {"name": "Investigative", "occupational_interest": 78.0},
+                {"name": "Realistic", "occupational_interest": 22.0},
+            ]
+        }
+
+        with patch.object(
+            client._session, "get", return_value=_mock_response(response)
+        ) as mock_get:
+            values = client.get_occupational_interests("15-1252.00")
+
+        assert values == {"Investigative": 78.0, "Realistic": 22.0}
+        assert mock_get.call_args[0][0].endswith("/details/interests")
+
+    def test_an_empty_report_is_an_empty_mapping_not_a_raise(
+        self, client: OnetClient
+    ) -> None:
+        """17 military occupations carry almost nothing; one blank report must
+        not lose the other 938 rows of a build."""
+        with patch.object(client._session, "get", return_value=_mock_response({})):
+            assert client.get_work_context("55-1011.00") == {}
+
+    def test_raises_on_api_error(self, client: OnetClient) -> None:
+        with patch.object(client._session, "get", return_value=_mock_response({}, status_code=500)):
+            with pytest.raises(OnetAPIError):
+                client.get_work_context("15-1252.00")
+
+    def test_raises_on_rate_limit(
+        self, client: OnetClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr("backend.services.onet_client.time.sleep", lambda _: None)
+        with patch.object(client._session, "get", return_value=_mock_response({}, status_code=429)):
+            with pytest.raises(OnetRateLimitError):
+                client.get_work_styles("15-1252.00")
+
+    def test_the_result_is_deliberately_not_cached(self, client: OnetClient) -> None:
+        with patch.object(
+            client._session, "get", return_value=_mock_response(self._CONTEXT)
+        ) as mock_get:
+            client.get_work_context("15-1252.00")
+            client.get_work_context("15-1252.00")
+
+        assert mock_get.call_count == 2
+        assert not onet_module._OCC_CACHE

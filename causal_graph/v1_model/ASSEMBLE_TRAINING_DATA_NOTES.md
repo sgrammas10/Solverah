@@ -146,6 +146,130 @@ the one thing standing between these rows and a fit run. `solverah_model_config.
 `settings.outcome` block still describes only the binary head (`type: binary`). E-5 cannot
 start on this source until an `OrderedLogistic` branch exists.
 
+#### Both blockers cleared, 2026-09-17
+
+The `OrderedLogistic` branch exists. `build_model.build_model(..., head="experienced")`
+attaches it; `head="appeal"` is the default and is the unchanged binary model. The two
+heads are declared side by side in `solverah_model_config.yaml`'s new `settings.heads`
+block, and `settings.outcome` stays as the legacy alias of `heads.appeal` so every
+existing reader (`recovery_multiseed.py`) keeps working. Nothing dichotomizes an
+`experienced` rating anywhere on the path -- that is D-20, and a rating that is not an
+integer in 1..5 now raises rather than being rounded or clipped into one.
+
+**The mapping, which is the part worth knowing.** `priors.yaml`'s weights were elicited
+on a BINARY scale: `sigmoid(z) = P(still doing well after a year)`, "doing well" being a
+rating of 4 or 5. PyMC parameterizes `OrderedLogistic` as `P(Y <= k) = sigmoid(c_k -
+eta)` (verified against pymc 5.25.1's `OrderedLogistic.compute_p`). So with
+
+* `eta = z`, the FULL linear predictor, intercept included, and
+* `c_3` -- the boundary between ratings 3 and 4 -- PINNED at 0, a constant,
+
+`P(Y >= 4) = 1 - sigmoid(0 - z) = sigmoid(z)` *identically*. The expert's numbers keep
+their meaning on the ordinal head with no rescaling, and `sigmoid(z)` in the serving path
+(`match_core.point_p_fit` / `score_pairs`) goes on meaning exactly what it meant.
+
+The pin is load-bearing, and its absence would be silent. An intercept and a free
+cutpoint vector are jointly unidentified: shift every cutpoint by d and the intercept by
+d and the likelihood is unchanged. Leave `c_3` free and the sampler still runs and
+nothing fails -- the intercept just quietly stops meaning "8 in 10 still doing well". The
+remaining three cutpoints are free, built from positive `LogNormal` spacings
+(`cut_spacing`) so ordering holds by construction; their priors live in `priors.yaml` (and
+identically in `priors_placeholder.yaml`) under `cutpoints:`, flagged as NOT
+expert-elicited. The pin's position is derived from `heads.experienced.doing_well_at`,
+not hardcoded, so moving the threshold moves the pin with it.
+
+**NULL `comp`: the term is excluded.** `match_core.preprocess_conf` takes an optional
+`conf_missing` mask -- exactly the one `EnvironmentAssembleResult.conf_missing` carries.
+Where the mask is True a continuous confounder's standardized value becomes exactly
+`0.0`, and since it enters the logit as `w * value`, that row's term drops out of `z`.
+Deliberately NOT a missingness-indicator weight: that would be a 21st weight, and the
+flat weight naming is a database interface pinned at 20 rows. Modelling the missingness
+stays available as a later config change with its own sign-off. Without a mask, a NaN now
+RAISES and names the confounder -- before this it standardized into a NaN and propagated
+through the whole linear predictor into `p_fit`, unflagged.
+
+**What still stands between these rows and a fit.** Three things, none of them this
+file's two:
+
+1. **`industry` is still unfeedable from this source.** The instrument does not ask it,
+   so every row carries `None` for it, and a categorical confounder goes through
+   `levels.index(v)`, which raises. The continuous ruling does not transfer: `0.0` is a
+   neutral standardized value, but there is no neutral level index to stand in for one
+   weight out of a per-level vector. That is a config decision -- add an `unknown` level,
+   or deactivate the confounder for runs off this source -- and it is unmade.
+   *(Made on 2026-09-21 -- see the next section. Item 1 is closed; 2 and 3 stand.)*
+2. **There is no volume yet.** `assemble_environment_training_data` is verified against
+   sqlite and against `build_model`'s real contract, not against a populated production
+   database.
+3. **The head is verified on data it generated itself.** `ordinal_recovery.py` +
+   `results/ordinal_recovery.md` show the head recovering known weights and known
+   cutpoints at the resolution the real instruments emit. That is an inference check, not
+   evidence that the expert's weights describe real placements. Only outcome data can say
+   that, which is why BUILD_PLAN's "First real-priors fit" box stays unchecked.
+
+## 2026-09-21 — the third blocker is closed: a masked `industry` excludes its term
+
+The ruling above ("that is a config decision, and it is unmade") is made. **Exclude the
+term**, exactly as for a missing `comp` — carried by the mask that
+`EnvironmentAssembleResult.conf_missing` already supplies, not by a config edit. With
+that, **nothing in code** stands between the environment rows and a fit. What remains is
+items 2 and 3 above: **data volume**, and the fact that the head has so far only been
+checked against data it generated itself. Neither is a code change.
+
+**The mechanism, in two sentences.** `preprocess_conf` gives a masked categorical row
+level index 0 as a *placeholder* and returns a second array, `{key}__present`, that is
+`1.0` where the value is present and `0.0` where it is masked; `outcome_logit` then adds
+`w[level] * present`, so a masked row contributes exactly nothing and the placeholder
+weight is never read. With no mask — or an all-False one — the code takes the literal
+old expression and returns the old keys, because `point_p_fit`/`score_pairs` run it on
+every request and bit-identity there is the requirement, not closeness.
+
+**Two rejected alternatives, recorded so they are not re-proposed.**
+
+* **An `unknown` LEVEL.** When every row off a source shares it, it is perfectly
+  collinear with the intercept: unidentified, pure prior, and it would bleed into the
+  intercept — the one that currently means "8 in 10 still doing well", the elicited
+  baseline the cutpoint pin exists to preserve. A sixth level that only ever appears
+  alone is not a category, it is a second intercept.
+* **Deactivating `industry` in the config.** That removes the confounder from the
+  company-side path too, where it *is* supplied, and it changes the flat weight set,
+  which `tests/test_match_scoring.py` pins at 20 rows. A fix for one source must not
+  silently re-specify the model for the other.
+
+**The mask is self-reversing.** Nothing about this is a permanent exclusion of
+`industry`. When a source starts supplying it, those rows stop being masked, `present`
+goes to `1.0`, and the term returns — no code change, no config change, no migration.
+That is the property the level-and-config alternatives lacked.
+
+**Follow-up, NOT done and not in scope here.** `industry` could be derived product-side
+from the user's resolved occupation code rather than asked. Worth doing only if early
+fits show unexplained sector differences; until then a derived confounder is an
+unvalidated one.
+
+**Parked, and not the same variable.** The expert's note on industry is about *switching*
+industries — a transition, whose cost depends on where you come from as well as where you
+land. A per-level weight cannot express that: it scores the destination only. It is a
+different variable with a different shape, and it sits with her other structural notes
+rather than being approximated by this one.
+
+Unmasked, a `None` or an unrecognized level still raises — now naming the confounder, the
+offending values and the rows, instead of `list.index`'s bare `None is not in list`.
+Masking is a claim the caller makes explicitly; it is not a way for an unasked value to
+reach a fit quietly.
+
+*Tests:* `tests/test_ordinal_head.py` section 7 (numpy, runs in CI, including an
+end-to-end pass from three real assembled environment rows to a finite `z` under the live
+priors) and `causal_graph/v1_model/test_ordinal_head.py` sections 6–7 (PyMC: pytensor
+accepts the masked expression, the unmasked model's `pm.Data` names and free RVs are
+unchanged on both heads, and a short NUTS fit with `industry` masked on every row leaves
+`w_industry` sitting on its `Normal(0, 1)` prior).
+
+*Note for whoever edits `assemble_training_data.py` next:* the docstring on
+`EnvironmentAssembleResult` still says the output "IS NOT YET FEEDABLE STRAIGHT INTO
+build_model" because `preprocess_conf` handles neither case. Both halves of that are now
+false. That file was outside this change's ownership, so the correction is recorded here
+rather than made there.
+
 ### Pointer: condition experiments (BUILD_PLAN B-5)
 
 The `experiments` table (`model.Experiment`) holds one row per user per two-week

@@ -178,6 +178,68 @@ D-1) gets the same buckets and the same prohibition: instrument results inform
 advice and are never recited as numbers. An agent that can be interrogated for
 a person-side score is the same violation with a chat window in front of it.
 
+### The Situation Report orders by severity tier, then expert-weighted cost
+Sebastian, 2026-09-17.
+
+Two things were wrong. The ranking was computed and then discarded — the
+service emitted dimensions in fixed `DIMENSIONS` order and both frontends
+render the order they are handed, so every user saw *autonomy* first whatever
+their answers said. And the ranking itself was flat: all six dimensions
+treated as equally costly to be wrong on.
+
+Both are fixed. The report now lists dimensions worst-first, by:
+
+1. **severity tier** — `straining`, then `notable`, then `aligned`;
+2. **within a tier**, the weighted directional cost of the mismatch, highest
+   first;
+3. ties by the fixed dimension order.
+
+The tier is the outer key on purpose. The bucket *word* is the only magnitude
+a reader ever sees, so a green "Aligned" card sitting above an amber
+"Straining" one would read as a contradiction no weight could justify. Tiering
+confines the weights to ordering same-severity rows against each other.
+
+The weights are the **expert-elicited priors** adopted 2026-09-17
+(`causal_graph/v1_model/priors.yaml`), read through `match_scoring`. They give
+the report its directional asymmetry: on *feedback*, a role blunter than the
+person wants costs more than one gentler than they want, because that is what
+Julie's 3-in-10 versus 7-in-10 answers say. On *decision*, one direction costs
+exactly nothing — her answer there equalled her own baseline. That is a real
+elicited zero, not a defect, and it is not clamped away.
+
+**This is priors-only.** One expert's judgement converted to logit-scale
+weights, with no outcome data behind it. The weights are read from the file,
+not from the `model_run` / `weight_posterior` tables — nothing seeds a run in
+production. There is no fallback to flat weights if the file cannot be read
+(D-07: never degrade to a default); the file ships in the image, so a missing
+one is a deploy defect and must surface as one.
+
+**The payload shape does not change.** No cost, no weight, no tier, no
+magnitude of any kind reaches the wire — D-15 holds exactly as written above.
+Order and the existing `rank` field are the entire change.
+
+### The Situation Report's weight source is a setting, defaulting to priors
+Sebastian, 2026-09-21.
+
+`SOLVERAH_MODEL_WEIGHTS_SOURCE` chooses where the ranking weights above come
+from: `priors` (the default, and what unset also means) reads
+`causal_graph/v1_model/priors.yaml` exactly as described in the entry above,
+unchanged. `run` reads the latest `model_run` / `weight_posterior` row instead,
+through `match_scoring.load_run_weights`.
+
+**The default stays `priors` because production is unseeded.** Nothing writes
+a `model_run` row in production today, so leaving the default as-is means this
+change carries no new deploy dependency — prod's behavior does not move. `run`
+mode exists so a developer with a local fitted run can see it rank the report
+without a code change, ahead of the real fit that will eventually make `run`
+the production default.
+
+**No fallback.** Set to `run` with no `model_run` present, or one whose weight
+rows do not match the active config, this raises rather than silently serving
+the priors file — the same D-07 rule the entry above already applies to a
+missing priors file. A typo in the value is treated as an error too, never as
+`priors`.
+
 ### Manager Decoder is green-lit, and its playbook is template-first
 Sebastian, 2026-09-08; signed 2026-09-10, as drafted.
 

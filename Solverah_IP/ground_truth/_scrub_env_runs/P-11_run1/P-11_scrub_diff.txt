@@ -1,0 +1,288 @@
+P-11 SCRUB DIFF
+Every Section-1 excerpt line that differs between the raw packet and the de-identified
+packet. RAW is shown first, SCRUBBED second, for each changed line. This file is the
+record of what changed and why; the packet's own scrub log names counts and rules, not
+strings. Minted-token mappings (per A6(a)) are recorded here, in the raw lines below,
+since replacing a real string with a token is exactly the kind of change this file exists
+to preserve.
+
+Minted-token map (for this run's own reference — the strings themselves, never repeated
+in the packet's scrub log):
+  [Site A] = East Greenbush, NY
+  [Site B] = Rensselaer, NY
+  [Site C] = Sleepy Hollow, NY
+  [Site D] = Tarrytown, NY
+  [Site E] = "tempel lane" (non-standard, lower-case string as entered by the reviewer)
+  [Site F] = Saratoga Springs
+
+====================================================================================================
+
+--- Section 1, line 18 (A) ---
+RAW:
+     • "A better workplace enables our colleagues to produce better science, which leads to a better world."  — [company careers site, culture page] — Regeneron, corporate voice — https://careers.regeneron.com/en/working-at-regeneron/culture-innovation/ — accessed 2026-09-08
+SCRUBBED:
+     • "A better workplace enables our colleagues to produce better science, which leads to a better world."  — [company careers site, culture page] — corporate voice — accessed 2026-09-08
+
+--- Section 1, line 20 (A) ---
+RAW:
+     • "Our culture is the formula for our success. These core values aren’t just a series of slogans but behaviors woven into the day-to-day experience of our unique community."  — [company careers site, culture page] — Regeneron, corporate voice — https://careers.regeneron.com/en/working-at-regeneron/culture-innovation/ — accessed 2026-09-08
+SCRUBBED:
+     • "Our culture is the formula for our success. These core values aren’t just a series of slogans but behaviors woven into the day-to-day experience of our unique community."  — [company careers site, culture page] — corporate voice — accessed 2026-09-08
+
+--- Section 1, line 22 (A) ---
+RAW:
+     • "Science drives our business, and passion drives our science. Whether you're doing science, supporting it, or delivering it, leading with science is what we do."  — [company careers site, stated core value "Lead With Science"] — Regeneron, corporate voice — https://careers.regeneron.com/en/working-at-regeneron/culture-innovation/ — accessed 2026-09-08
+SCRUBBED:
+     • "Science drives our business, and passion drives our science. Whether you're doing science, supporting it, or delivering it, leading with science is what we do."  — [company careers site, stated core value] — corporate voice — accessed 2026-09-08 — [named core value stripped from source tag in brackets; clause otherwise verbatim]
+
+--- Section 1, line 24 (A) ---
+RAW:
+     • "We take the long view and tackle the big ideas, the unsolvable problems and the bottlenecks that get in the way. We pursue ideas with passion and courage to make a real difference."  — [company careers site, stated core value "Take on Big Ideas"] — Regeneron, corporate voice — https://careers.regeneron.com/en/working-at-regeneron/culture-innovation/ — accessed 2026-09-08
+SCRUBBED:
+     • "We take the long view and tackle the big ideas, the unsolvable problems and the bottlenecks that get in the way. We pursue ideas with passion and courage to make a real difference."  — [company careers site, stated core value] — corporate voice — accessed 2026-09-08 — [named core value stripped from source tag in brackets; clause otherwise verbatim]
+
+--- Section 1, line 26 (A) ---
+RAW:
+     • "It may not always be easy, but we figure it out and get it done. We have little appetite for unnecessary bureaucracy that can get in the way of innovation or quality."  — [company careers site, stated core value "Make it Happen"] — Regeneron, corporate voice — https://careers.regeneron.com/en/working-at-regeneron/culture-innovation/ — accessed 2026-09-08
+SCRUBBED:
+     • "It may not always be easy, but we figure it out and get it done. We have little appetite for unnecessary bureaucracy that can get in the way of innovation or quality."  — [company careers site, stated core value] — corporate voice — accessed 2026-09-08 — [named core value stripped from source tag in brackets; clause otherwise verbatim]
+
+--- Section 1, line 28 (A) ---
+RAW:
+     • "While others talk about teamwork, we actually do it. When you work with smart, fun people, you bring out the best in each other and can do the extraordinary."  — [company careers site, stated core value "Be Great Together"] — Regeneron, corporate voice — https://careers.regeneron.com/en/working-at-regeneron/culture-innovation/ — accessed 2026-09-08
+SCRUBBED:
+     • "While others talk about teamwork, we actually do it. When you work with smart, fun people, you bring out the best in each other and can do the extraordinary."  — [company careers site, stated core value] — corporate voice — accessed 2026-09-08 — [named core value stripped from source tag in brackets; clause otherwise verbatim]
+
+--- Section 1, line 30 (A) ---
+RAW:
+     • "We are a team of original thinkers who work together to create life-transforming medicines for people with serious diseases. Whether it's in the laboratory or at lunch, our company is built on breakthrough ideas, diverse personal strengths and a culture of connection."  — [company careers site, home page] — Regeneron, corporate voice — https://careers.regeneron.com/en/ — accessed 2026-09-08
+SCRUBBED:
+     • "We are a team of original thinkers who work together to create life-transforming medicines for people with serious diseases. Whether it's in the laboratory or at lunch, our company is built on breakthrough ideas, diverse personal strengths and a culture of connection."  — [company careers site, home page] — corporate voice — accessed 2026-09-08
+
+--- Section 1, line 35 (B) ---
+RAW:
+     • "As any company has its struggles at the end of the day regeneron tries to make sure that each person feels respected and welcome no matter how you present yourself. Best company i have ever worked for and its not even close. [...]"  — [employee review] — Lead Process Technician III, East Greenbush, NY — https://www.indeed.com/cmp/Regeneron/reviews?sort=date — 2026-07-25
+SCRUBBED:
+     • "As any company has its struggles at the end of the day [the company] tries to make sure that each person feels respected and welcome no matter how you present yourself. Best company i have ever worked for and its not even close. [...]"  — [employee review] — Lead Process Technician III, [Site A] — rev-01 — 2026-07-25 — [company name substituted and location tokenised in brackets; quote otherwise verbatim]
+
+--- Section 1, line 37 (B) ---
+RAW:
+     • "Regeneron has been a good first job coming out of college. The people I work with are incredible, and really make the job. Many departments are spread extremely thin at the lower levels while upper management gets richer."  — [employee review] — Biotech Production Specialist, Rensselaer, NY — https://www.indeed.com/cmp/Regeneron/reviews?sort=date — 2026-06-15
+SCRUBBED:
+     • "[The company] has been a good first job coming out of college. The people I work with are incredible, and really make the job. Many departments are spread extremely thin at the lower levels while upper management gets richer."  — [employee review] — Biotech Production Specialist, [Site B] — rev-02 — 2026-06-15 — [company name substituted and location tokenised in brackets; quote otherwise verbatim]
+
+--- Section 1, line 39 (B) ---
+RAW:
+     • "Worked in Corporate IT. Leadership clearly not well-trained, culturally dependent in promotions and prime positions. Benefits were great, high pay but not worth the stress."  — [employee review] — Product Manager, Sleepy Hollow, NY — https://www.indeed.com/cmp/Regeneron/reviews?sort=date — 2026-06-01
+SCRUBBED:
+     • "Worked in Corporate IT. Leadership clearly not well-trained, culturally dependent in promotions and prime positions. Benefits were great, high pay but not worth the stress."  — [employee review] — Product Manager, [Site C] — rev-03 — 2026-06-01 — [location tokenised in brackets]
+
+--- Section 1, line 41 (B) ---
+RAW:
+     • "The opportunities are immense, pay is great, Management is Awesome. Great team to work with and colleagues you can trust.Everyday is a new learning experience."  — [employee review] — title: not stated, location not stated — https://www.indeed.com/cmp/Regeneron/reviews?sort=date — 2026-05-11
+SCRUBBED:
+     • "The opportunities are immense, pay is great, Management is Awesome. Great team to work with and colleagues you can trust.Everyday is a new learning experience."  — [employee review] — title: not stated, location not stated — rev-04 — 2026-05-11
+
+--- Section 1, line 43 (B) ---
+RAW:
+     • "What is the best part of working at the company? Its really nice taking part in a process that gets medication to those who need it. What is the most stressful part about working at the company? Constant changes. Since Regeneron is growing so fast there are many changes being implemented constantly. [...]"  — [employee review] — Associate QC Analyst, East Greenbush, NY — https://www.indeed.com/cmp/Regeneron/reviews?sort=date — 2026-05-03
+SCRUBBED:
+     • "What is the best part of working at the company? Its really nice taking part in a process that gets medication to those who need it. What is the most stressful part about working at the company? Constant changes. Since [the company] is growing so fast there are many changes being implemented constantly. [...]"  — [employee review] — Associate QC Analyst, [Site A] — rev-05 — 2026-05-03 — [company name substituted and location tokenised in brackets; quote otherwise verbatim]
+
+--- Section 1, line 45 (B) ---
+RAW:
+     • "Great atmosphere and learning environment as an intern. Most of the people I worked with were nice and supportive. Pay could be better, but they do offer stipend."  — [employee review] — Intern, Rensselaer, NY — https://www.indeed.com/cmp/Regeneron/reviews?sort=date — 2026-03-26
+SCRUBBED:
+     • "Great atmosphere and learning environment as an intern. Most of the people I worked with were nice and supportive. Pay could be better, but they do offer stipend."  — [employee review] — Intern, [Site B] — rev-06 — 2026-03-26 — [location tokenised in brackets]
+
+--- Section 1, line 47 (B) ---
+RAW:
+     • "If you are lucky to have a good manager then you may survive long term. A lot of bullying and blame culture. Take initiative to learn things yourself."  — [employee review] — Scientist, location not stated — https://www.indeed.com/cmp/Regeneron/reviews?sort=date — 2026-03-24
+SCRUBBED:
+     • "If you are lucky to have a good manager then you may survive long term. A lot of bullying and blame culture. Take initiative to learn things yourself."  — [employee review] — Scientist, location not stated — rev-07 — 2026-03-24
+
+--- Section 1, line 49 (B) ---
+RAW:
+     • "Regeneron is a great place to work if you love science. Management really care about the people we help who live with disease. You can work from home one day a week. Benefits are pretty good but it is an expensive area to live."  — [employee review] — Director, Tarrytown, NY — https://www.indeed.com/cmp/Regeneron/reviews?sort=date — 2026-03-22
+SCRUBBED:
+     • "[The company] is a great place to work if you love science. Management really care about the people we help who live with disease. You can work from home one day a week. Benefits are pretty good but it is an expensive area to live."  — [employee review] — Director, [Site D] — rev-08 — 2026-03-22 — [company name substituted and location tokenised in brackets; quote otherwise verbatim]
+
+--- Section 1, line 51 (B) ---
+RAW:
+     • "Racist place to work at and they will target you if you don't kiss their rear end. They will make contact with you as if their your friend but will throw you under the bus to cover themselves. also, if you're a contract worker they will treat you very low and ignore you if you say hello to them. they [...]"  — [employee review] — Contract Security Officer, "tempel lane" (location string as entered by the reviewer) — https://www.indeed.com/cmp/Regeneron/reviews?sort=date — 2026-01-30
+SCRUBBED:
+     • "Racist place to work at and they will target you if you don't kiss their rear end. They will make contact with you as if their your friend but will throw you under the bus to cover themselves. also, if you're a contract worker they will treat you very low and ignore you if you say hello to them. they [...]"  — [employee review] — Contract Security Officer, [Site E] (non-standard location string tokenised) — rev-09 — 2026-01-30 — [location tokenised in brackets]
+
+--- Section 1, line 53 (B) ---
+RAW:
+     • "Some managers can be supportive some aren't. Different sites have different cultures. IT is behind compared to other big pharma. Training is very minimum after SOP."  — [employee review] — title: not stated, location not stated — https://www.indeed.com/cmp/Regeneron/reviews?sort=date — 2026-01-21
+SCRUBBED:
+     • "Some managers can be supportive some aren't. Different sites have different cultures. IT is behind compared to other big pharma. Training is very minimum after SOP."  — [employee review] — title: not stated, location not stated — rev-10 — 2026-01-21
+
+--- Section 1, line 55 (B) ---
+RAW:
+     • "As a contractor I was treated like an outsider, even though technically I was. It was very apparently and felt from most employees, including managers. It did not feel welcoming at all, people in group were very close knit. The only good thing was the frequent parties, free breafast once a week, and [...]"  — [employee review] — Quality Control Technician, Rensselaer, NY — https://www.indeed.com/cmp/Regeneron/reviews?sort=date — 2026-01-12
+SCRUBBED:
+     • "As a contractor I was treated like an outsider, even though technically I was. It was very apparently and felt from most employees, including managers. It did not feel welcoming at all, people in group were very close knit. The only good thing was the frequent parties, free breafast once a week, and [...]"  — [employee review] — Quality Control Technician, [Site B] — rev-11 — 2026-01-12 — [location tokenised in brackets]
+
+--- Section 1, line 57 (B) ---
+RAW:
+     • "I worked offsite so I can’t vouch much for their main site, but my department is a great team to be on. Pay is good, we are encouraged to go to trainings and seminars, the people are lovely there [...]"  — [employee review] — Design Assurance and Engineering Quality Engineer Technician II, Rensselaer, NY — https://www.indeed.com/cmp/Regeneron/reviews?sort=date — 2026-01-05
+SCRUBBED:
+     • "I worked offsite so I can’t vouch much for their main site, but my department is a great team to be on. Pay is good, we are encouraged to go to trainings and seminars, the people are lovely there [...]"  — [employee review] — Design Assurance and Engineering Quality Engineer Technician II, [Site B] — rev-12 — 2026-01-05 — [location tokenised in brackets]
+
+--- Section 1, line 59 (B) ---
+RAW:
+     • "They have skeleton crews working jobs that require many more people on the teams. People quit due to burn out or better opportunities, they don’t replace them and just spread the work out more. The upper management has no idea what they are doing most of the time. So don’t expect and support, answers, [...]"  — [employee review] — title: not stated, East Greenbush, NY — https://www.indeed.com/cmp/Regeneron/reviews?sort=date — 2025-12-21
+SCRUBBED:
+     • "They have skeleton crews working jobs that require many more people on the teams. People quit due to burn out or better opportunities, they don’t replace them and just spread the work out more. The upper management has no idea what they are doing most of the time. So don’t expect and support, answers, [...]"  — [employee review] — title: not stated, [Site A] — rev-13 — 2025-12-21 — [location tokenised in brackets]
+
+--- Section 1, line 61 (B) ---
+RAW:
+     • "Everyone I have worked with has been helpful and kind. The culture is great for promoting growth. However, it seems the workload has been increasing across the board because positions are not being backfilled."  — [employee review] — Biotech Production Specialist, location not stated — https://www.indeed.com/cmp/Regeneron/reviews?sort=date — 2025-11-07
+SCRUBBED:
+     • "Everyone I have worked with has been helpful and kind. The culture is great for promoting growth. However, it seems the workload has been increasing across the board because positions are not being backfilled."  — [employee review] — Biotech Production Specialist, location not stated — rev-14 — 2025-11-07
+
+--- Section 1, line 63 (B) ---
+RAW:
+     • "Daily communication issues between departments which cause issues in manufacturing and scheduling. If any issues arise, management and HR will lie and throw you under the bus immediately to protect themselves and the company- back-stabbing culture. Constant staffing issues and not enough employees to [...]"  — [employee review] — Biotech Production Specialist, Rensselaer, NY — https://www.indeed.com/cmp/Regeneron/reviews?sort=date — 2025-11-05
+SCRUBBED:
+     • "Daily communication issues between departments which cause issues in manufacturing and scheduling. If any issues arise, management and HR will lie and throw you under the bus immediately to protect themselves and the company- back-stabbing culture. Constant staffing issues and not enough employees to [...]"  — [employee review] — Biotech Production Specialist, [Site B] — rev-15 — 2025-11-05 — [location tokenised in brackets]
+
+--- Section 1, line 68 (C) ---
+RAW:
+     • "Please be advised that at Regeneron, we believe we do our best work when we are together. For that reason, many roles are required to be performed on-site."  — [job posting — appears on all postings checked; quoted here from the Industrial Operations & Product Supply posting] — Regeneron, employer voice — https://careers.regeneron.com/en/jobs/r49618/senior-automation-engineer/ — confirmed open 2026-09-08
+SCRUBBED:
+     • "Please be advised that at [the company], we believe we do our best work when we are together. For that reason, many roles are required to be performed on-site."  — [job posting — appears on all postings checked; quoted here from the Industrial Operations & Product Supply posting] — employer voice — confirmed open 2026-09-08 — [company name substituted in brackets; clause otherwise verbatim]
+
+--- Section 1, line 70 (C) ---
+RAW:
+     • "In this role, you will build, develop, and optimize systems for our sophisticated biopharmaceutical manufacturing processes. You will collaborate closely with multiple teams to include Manufacturing, Quality Control, and Facilities. This position offers the opportunity to contribute to a fast-growing, science-driven organization making a meaningful difference to patients worldwide."  — [job posting — Industrial Operations & Product Supply] — Regeneron, employer voice — https://careers.regeneron.com/en/jobs/r49618/senior-automation-engineer/ — confirmed open 2026-09-08
+SCRUBBED:
+     • "In this role, you will build, develop, and optimize systems for our sophisticated biopharmaceutical manufacturing processes. You will collaborate closely with multiple teams to include Manufacturing, Quality Control, and Facilities. This position offers the opportunity to contribute to a fast-growing, science-driven organization making a meaningful difference to patients worldwide."  — [job posting — Industrial Operations & Product Supply] — employer voice — confirmed open 2026-09-08
+
+--- Section 1, line 72 (C) ---
+RAW:
+     • "Champion continuous improvement as an everyday outlook, not just a metric."  — [job posting — Industrial Operations & Product Supply] — Regeneron, employer voice — https://careers.regeneron.com/en/jobs/r49618/senior-automation-engineer/ — confirmed open 2026-09-08
+SCRUBBED:
+     • "Champion continuous improvement as an everyday outlook, not just a metric."  — [job posting — Industrial Operations & Product Supply] — employer voice — confirmed open 2026-09-08
+
+--- Section 1, line 74 (C) ---
+RAW:
+     • "Identify, investigate, and resolve manufacturing deviations tied to automated control systems."  — [job posting — Industrial Operations & Product Supply] — Regeneron, employer voice — https://careers.regeneron.com/en/jobs/r49618/senior-automation-engineer/ — confirmed open 2026-09-08
+SCRUBBED:
+     • "Identify, investigate, and resolve manufacturing deviations tied to automated control systems."  — [job posting — Industrial Operations & Product Supply] — employer voice — confirmed open 2026-09-08
+
+--- Section 1, line 76 (C) ---
+RAW:
+     • "Independently executes a broad array of work supporting department priorities in routine Pharmacometrics deliverables on study design, analysis, and reporting."  — [job posting — Research & Preclinical Development] — Regeneron, employer voice — https://careers.regeneron.com/en/jobs/r50265/senior-research-specialist-tpkpd/ — confirmed open 2026-09-08
+SCRUBBED:
+     • "Independently executes a broad array of work supporting department priorities in routine Pharmacometrics deliverables on study design, analysis, and reporting."  — [job posting — Research & Preclinical Development] — employer voice — confirmed open 2026-09-08
+
+--- Section 1, line 78 (C) ---
+RAW:
+     • "Conducts compliance-related activities (SOPs, etc.); ensures regulatory-submission conformance, data integrity, and GxP compliance; adheres to controlled SOPs; and meets mandatory-training and data-confidentiality requirements."  — [job posting — Research & Preclinical Development] — Regeneron, employer voice — https://careers.regeneron.com/en/jobs/r50265/senior-research-specialist-tpkpd/ — confirmed open 2026-09-08
+SCRUBBED:
+     • "Conducts compliance-related activities (SOPs, etc.); ensures regulatory-submission conformance, data integrity, and GxP compliance; adheres to controlled SOPs; and meets mandatory-training and data-confidentiality requirements."  — [job posting — Research & Preclinical Development] — employer voice — confirmed open 2026-09-08
+
+--- Section 1, line 80 (C) ---
+RAW:
+     • "This role is based in our [location removed] office and will be onsite four days per week."  — [job posting — Research & Preclinical Development; office location elided, wording otherwise verbatim] — Regeneron, employer voice — https://careers.regeneron.com/en/jobs/r50265/senior-research-specialist-tpkpd/ — confirmed open 2026-09-08
+SCRUBBED:
+     • "This role is based in our [location removed] office and will be onsite four days per week."  — [job posting — Research & Preclinical Development; office location elided, wording otherwise verbatim] — employer voice — confirmed open 2026-09-08
+
+--- Section 1, line 82 (C) ---
+RAW:
+     • "Work in alignment with the Brand Plan, develop and implement a local account plan based on key data sources and local market insights."  — [job posting — Commercial] — Regeneron, employer voice — https://careers.regeneron.com/en/jobs/r48513/specialty-representative-immunology-southwestern-ontario/ — confirmed open 2026-09-08
+SCRUBBED:
+     • "Work in alignment with the brand plan, develop and implement a local account plan based on key data sources and local market insights."  — [job posting — Commercial] — employer voice — confirmed open 2026-09-08 — [named internal program de-branded in brackets; clause otherwise verbatim]
+
+--- Section 1, line 84 (C) ---
+RAW:
+     • "You can operate optimally in a “start-up” model as this is a completely new team."  — [job posting — Commercial] — Regeneron, employer voice — https://careers.regeneron.com/en/jobs/r48513/specialty-representative-immunology-southwestern-ontario/ — confirmed open 2026-09-08
+SCRUBBED:
+     • "You can operate optimally in a “start-up” model as this is a completely new team."  — [job posting — Commercial] — employer voice — confirmed open 2026-09-08
+
+--- Section 1, line 86 (C) ---
+RAW:
+     • "Develop innovative approaches to delivering on core activities that integrate in new technologies,"  — [job posting — Global Development; trailing comma and wording reproduced exactly as published] — Regeneron, employer voice — https://careers.regeneron.com/en/jobs/r50472/director-global-patient-safety-sciences-delivery-general-medicine/ — confirmed open 2026-09-08
+SCRUBBED:
+     • "Develop innovative approaches to delivering on core activities that integrate in new technologies,"  — [job posting — Global Development; trailing comma and wording reproduced exactly as published] — employer voice — confirmed open 2026-09-08
+
+--- Section 1, line 88 (C) ---
+RAW:
+     • "Analyze aggregate safety data to identify emerging safety issues and patterns, in partnership with Safety Sciences Strategy"  — [job posting — Global Development] — Regeneron, employer voice — https://careers.regeneron.com/en/jobs/r50472/director-global-patient-safety-sciences-delivery-general-medicine/ — confirmed open 2026-09-08
+SCRUBBED:
+     • "Analyze aggregate safety data to identify emerging safety issues and patterns, in partnership with [an internal safety strategy team]"  — [job posting — Global Development] — employer voice — confirmed open 2026-09-08 — [named internal team de-branded in brackets; clause otherwise verbatim; NOT in Section 4 pre-flag block]
+
+--- Section 1, line 97 (D) ---
+RAW:
+     • "Regeneron’s diverse teams of scientists get to work validating potential targets: our library science team reviews scientific literature for existing research on potential targets to inform our validation strategies, while multiple teams of research scientists recreate certain biological conditions in the lab to learn more about them."  — [company-published article on how research is done] — Regeneron, corporate voice — https://www.regeneron.com/stories/the-regeneron-scientific-journey — 2026-06-09
+SCRUBBED:
+     • "[The company]’s diverse teams of scientists get to work validating potential targets: our library science team reviews scientific literature for existing research on potential targets to inform our validation strategies, while multiple teams of research scientists recreate certain biological conditions in the lab to learn more about them."  — [company-published article on how research is done] — corporate voice — 2026-06-09 — [company name substituted in brackets; clause otherwise verbatim]
+
+--- Section 1, line 99 (D) ---
+RAW:
+     • "From decoding DNA to testing molecules in disease models, Regeneron’s scientific journey is a continuous cycle of discovery, validation and refinement. Each stage informs the next, creating a feedback loop that helps science move faster and more precisely toward potential treatments for patients. Our journey is powered by data and technology, alongside human expertise and ingenuity."  — [company-published article on how research is done] — Regeneron, corporate voice — https://www.regeneron.com/stories/the-regeneron-scientific-journey — 2026-06-09
+SCRUBBED:
+     • "From decoding DNA to testing molecules in disease models, [the company]’s scientific journey is a continuous cycle of discovery, validation and refinement. Each stage informs the next, creating a feedback loop that helps science move faster and more precisely toward potential treatments for patients. Our journey is powered by data and technology, alongside human expertise and ingenuity."  — [company-published article on how research is done] — corporate voice — 2026-06-09 — [company name substituted in brackets; clause otherwise verbatim]
+
+--- Section 1, line 101 (D) ---
+RAW:
+     • "We had an entirely new marketing team, with the longest-tenured member having six years of experience. We found ourselves faced with an FDA approval after 3.5 months of review. It was the most challenging task I have ever encountered. We were building the plane while it was flying — while sourcing parts and reading the blueprints on how to put it together. Yet we were able to successfully launch with incredible results that exceeded all expectations."  — [named employee testimonial on company careers site] — John Bae, Director of Marketing, Commercial — https://careers.regeneron.com/en/working-at-regeneron/culture-innovation/ — accessed 2026-09-08, no publication date shown on page
+SCRUBBED:
+     • "We had an entirely new marketing team, with the longest-tenured member having six years of experience. We found ourselves faced with an FDA approval after 3.5 months of review. It was the most challenging task I have ever encountered. We were building the plane while it was flying — while sourcing parts and reading the blueprints on how to put it together. Yet we were able to successfully launch with incredible results that exceeded all expectations."  — [named employee testimonial on company careers site] — a Director of Marketing, Commercial — accessed 2026-09-08, no publication date shown on page — [named individual replaced with role in brackets]
+
+--- Section 1, line 103 (D) ---
+RAW:
+     • "We have an optimistic and highly collaborative approach to solving problems. When we experience failures — and there are a lot of them! — we don’t get down. We say, "Let’s go back and think about what we can change." And we have multiple approaches going simultaneously, which is very Regeneron. We don’t limit ourselves to one way of doing things."  — [named executive testimonial on company careers site] — Lynn Macdonald, Senior Vice President — https://careers.regeneron.com/en/working-at-regeneron/culture-innovation/ — accessed 2026-09-08, no publication date shown on page
+SCRUBBED:
+     • "We have an optimistic and highly collaborative approach to solving problems. When we experience failures — and there are a lot of them! — we don’t get down. We say, "Let’s go back and think about what we can change." And we have multiple approaches going simultaneously, which is very [the company]. We don’t limit ourselves to one way of doing things."  — [named executive testimonial on company careers site] — a Senior Vice President — accessed 2026-09-08, no publication date shown on page — [named individual replaced with role in brackets; company name substituted in brackets; clause otherwise verbatim]
+
+--- Section 1, line 108 (E) ---
+RAW:
+     • "Regeneron CEO Len Schleifer used the stage during the first day at the 44th annual J.P. Morgan Healthcare Conference to underscore the company’s scientific-driven strategy, placing an emphasis on its broad pipeline which spans six major therapeutic areas along with a commitment to near-term data readouts which are expected to drive continued growth."  — [trade press reporting] — Nicholas Jacobus, Pharmaceutical Executive — https://www.pharmexec.com/view/jp-morgan-2026-regeneron-focusing-broad-pipeline-development — 2026-01-13
+SCRUBBED:
+     • "[The company]’s [chief executive] used the stage during the first day at the 44th annual J.P. Morgan Healthcare Conference to underscore the company’s scientific-driven strategy, placing an emphasis on its broad pipeline which spans six major therapeutic areas along with a commitment to near-term data readouts which are expected to drive continued growth."  — [trade press reporting] — trade press — 2026-01-13 — [company name and named executive replaced with role in brackets; journalist byline reduced to publication class; clause otherwise verbatim]
+
+--- Section 1, line 110 (E) ---
+RAW:
+     • "New York is set to gain 1,000 new biotech jobs as Regeneron Pharmaceuticals plans a $2 billion expansion in Saratoga Springs, marking one of the state’s biggest life sciences investments in years." and, in the same report, "The project will double Regeneron’s production capacity in the state and includes room for further growth."  — [local news reporting] — Staff Report, FingerLakes1.com — https://www.fingerlakes1.com/2025/11/14/new-york-lands-2-billion-biotech-expansion-and-1000-new-jobs/ — 2025-11-14
+SCRUBBED:
+     • "New York is set to gain a four-figure number of new biotech jobs as [the company] plans a large, multi-billion-dollar expansion in [Site F], marking one of the state’s biggest life sciences investments in years." and, in the same report, "The project will double [the company]’s production capacity in the state and includes room for further growth."  — [local news reporting] — local news — 2025-11-14 — [company name substituted and location tokenised in brackets; dollar figure and jobs figure replaced with magnitude language; clause otherwise verbatim]
+
+--- Section 1, line 115 (F) ---
+RAW:
+     • "Our strategy is rooted in the understanding that a better workplace drives better science and that better science drives a better world."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — Regeneron Pharmaceuticals, Inc. — https://www.sec.gov/Archives/edgar/data/872589/000087258926000008/regn-20251231.htm — filed 2026-02-04, for fiscal year ended 2025-12-31
+SCRUBBED:
+     • "Our strategy is rooted in the understanding that a better workplace drives better science and that better science drives a better world."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — company-authored — filed 2026-02-04, for fiscal year ended 2025-12-31
+
+--- Section 1, line 117 (F) ---
+RAW:
+     • "We believe that by fostering an inclusive culture and bringing different voices and perspectives to the discourse, we improve our ability to fulfill our mission to repeatedly bring important medicines to patients with serious diseases."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — Regeneron Pharmaceuticals, Inc. — https://www.sec.gov/Archives/edgar/data/872589/000087258926000008/regn-20251231.htm — filed 2026-02-04, for fiscal year ended 2025-12-31
+SCRUBBED:
+     • "We believe that by fostering an inclusive culture and bringing different voices and perspectives to the discourse, we improve our ability to fulfill our mission to repeatedly bring important medicines to patients with serious diseases."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — company-authored — filed 2026-02-04, for fiscal year ended 2025-12-31
+
+--- Section 1, line 119 (F) ---
+RAW:
+     • "Our employee-led cross-functional resource groups, open to all, help colleagues to connect around common interests and support our culture of inclusion and collaboration."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — Regeneron Pharmaceuticals, Inc. — https://www.sec.gov/Archives/edgar/data/872589/000087258926000008/regn-20251231.htm — filed 2026-02-04, for fiscal year ended 2025-12-31
+SCRUBBED:
+     • "Our employee-led cross-functional resource groups, open to all, help colleagues to connect around common interests and support our culture of inclusion and collaboration."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — company-authored — filed 2026-02-04, for fiscal year ended 2025-12-31
+
+--- Section 1, line 121 (F) ---
+RAW:
+     • "In addition, we continue to invest in our current and future leaders through a number of leadership development courses and programs and feedback and coaching opportunities."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — Regeneron Pharmaceuticals, Inc. — https://www.sec.gov/Archives/edgar/data/872589/000087258926000008/regn-20251231.htm — filed 2026-02-04, for fiscal year ended 2025-12-31
+SCRUBBED:
+     • "In addition, we continue to invest in our current and future leaders through a number of leadership development courses and programs and feedback and coaching opportunities."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — company-authored — filed 2026-02-04, for fiscal year ended 2025-12-31
+
+--- Section 1, line 123 (F) ---
+RAW:
+     • "We communicate frequently and transparently with our employees through a variety of communication methods, including video and written communications, company forums and town halls, annual engagement surveys, and pulse surveys."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — Regeneron Pharmaceuticals, Inc. — https://www.sec.gov/Archives/edgar/data/872589/000087258926000008/regn-20251231.htm — filed 2026-02-04, for fiscal year ended 2025-12-31
+SCRUBBED:
+     • "We communicate frequently and transparently with our employees through a variety of communication methods, including video and written communications, company forums and town halls, annual engagement surveys, and pulse surveys."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — company-authored — filed 2026-02-04, for fiscal year ended 2025-12-31
+
+--- Section 1, line 125 (F) ---
+RAW:
+     • "The primary underpinning of our pay philosophy is to award stock-based pay to all eligible employees to ensure that when we deliver for patients and for shareholders, everyone shares in the upside growth."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — Regeneron Pharmaceuticals, Inc. — https://www.sec.gov/Archives/edgar/data/872589/000087258926000008/regn-20251231.htm — filed 2026-02-04, for fiscal year ended 2025-12-31
+SCRUBBED:
+     • "The primary underpinning of our pay philosophy is to award stock-based pay to all eligible employees to ensure that when we deliver for patients and for shareholders, everyone shares in the upside growth."  — [10-K, Item 1, Human Capital Resources; company-authored legal filing] — company-authored — filed 2026-02-04, for fiscal year ended 2025-12-31

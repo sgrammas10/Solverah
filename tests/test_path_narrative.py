@@ -5,6 +5,8 @@ All OpenAI calls are mocked — no live network traffic in CI.
 from __future__ import annotations
 
 import json
+import re
+import threading
 from unittest.mock import MagicMock
 
 import pytest
@@ -16,6 +18,7 @@ from backend.services.path_narrative import (
     UserContext,
     _build_prompt,
     _format_management_prefs,
+    _scrub_grades,
     _validate_response,
     generate_narratives,
 )
@@ -210,6 +213,255 @@ class TestBuildPrompt:
     def test_user_message_handles_empty_top_skills(self):
         msgs = _build_prompt(DEFAULT_CANDIDATES, user_ctx(top_skills=[]))
         assert "none listed" in msgs[1]["content"]
+
+
+# ---------------------------------------------------------------------------
+# W-13: no score in the prompt, and no grade out of it (ruling flag 12)
+# ---------------------------------------------------------------------------
+
+
+class TestThePromptCarriesNoScore:
+    """Ruling flag 12's first half: a model handed a number writes about it.
+
+    The third browser test found "...making it a strong fit for your
+    background." on a Database Administrators card. The prompt was handing the
+    narrator ``match_score`` per candidate and calling the list "sorted by
+    match_score, highest first".
+    """
+
+    def test_no_candidate_carries_a_score_field(self):
+        msgs = _build_prompt(DEFAULT_CANDIDATES, user_ctx())
+        assert "match_score" not in msgs[1]["content"]
+        assert "match_score" not in msgs[0]["content"]
+
+    def test_no_candidate_score_value_reaches_the_prompt(self):
+        msgs = _build_prompt(DEFAULT_CANDIDATES, user_ctx())
+        for candidate in DEFAULT_CANDIDATES:
+            assert str(candidate.score) not in msgs[1]["content"]
+
+    def test_the_order_is_still_stated_without_naming_a_score(self):
+        # The ranking has not stopped existing -- it is just not a number the
+        # narrator is shown.
+        msgs = _build_prompt(DEFAULT_CANDIDATES, user_ctx())
+        assert "order" in msgs[1]["content"]
+        assert [c.onet_code for c in DEFAULT_CANDIDATES] == re.findall(
+            r'"onet_code": "([^"]+)"', msgs[1]["content"]
+        )
+
+    def test_the_system_prompt_forbids_grading(self):
+        system = _build_prompt(DEFAULT_CANDIDATES, user_ctx())[0]["content"]
+        assert "NEVER rate, rank or grade the fit" in system
+
+
+class TestScrubGrades:
+    """The deterministic half. A prompt is a request; this is the guarantee."""
+
+    def test_a_trailing_graded_clause_is_dropped(self):
+        assert _scrub_grades(
+            "Database administrators keep an organisation's data available and "
+            "secure, making it a strong fit for your background."
+        ) == "Database administrators keep an organisation's data available and secure."
+
+    def test_a_sentence_that_is_only_a_grade_is_dropped_whole(self):
+        assert _scrub_grades("A great fit.") == ""
+
+    def test_a_leading_graded_clause_is_cut_off_the_front(self):
+        assert _scrub_grades("Strong match: uses your Python.") == "Uses your Python."
+
+    def test_a_clean_sentence_is_untouched(self):
+        clean = (
+            "You would design and maintain the databases an organisation runs "
+            "on, using your SQL every day."
+        )
+        assert _scrub_grades(clean) == clean
+
+    def test_matches_as_a_verb_about_an_archetype_is_not_a_grade(self):
+        # Rule 4's own example tag. A word list that caught "matches" would
+        # empty the tags of every card on the page.
+        assert (
+            _scrub_grades("Matches your Deep Diver archetype")
+            == "Matches your Deep Diver archetype"
+        )
+
+    def test_a_clean_tag_keeps_its_exact_text_and_gains_no_full_stop(self):
+        assert _scrub_grades("Builds on your Python skills") == "Builds on your Python skills"
+
+    def test_a_percentage_is_scrubbed(self):
+        assert _scrub_grades("95% overlap with your skills") == ""
+
+    def test_an_explicit_score_is_scrubbed_decimal_point_and_all(self):
+        # The decimal point is not a sentence boundary: splitting on it would
+        # keep "82 for this path."
+        assert _scrub_grades("Your fit score is 0.82 for this path.") == ""
+
+    def test_only_the_graded_sentence_of_two_is_dropped(self):
+        assert (
+            _scrub_grades("You would lead a team of analysts. It is the top choice for you.")
+            == "You would lead a team of analysts."
+        )
+
+    def test_a_graded_tail_after_and_is_cut(self):
+        assert (
+            _scrub_grades(
+                "Network engineers keep traffic moving between sites, and it is "
+                "highly suitable for you."
+            )
+            == "Network engineers keep traffic moving between sites."
+        )
+
+    def test_an_excellent_match_sentence_is_dropped(self):
+        assert (
+            _scrub_grades("This role is an excellent match for someone with your experience.")
+            == ""
+        )
+
+    def test_prose_with_no_grading_survives_verbatim(self):
+        assert (
+            _scrub_grades("You would write and review code all day.")
+            == "You would write and review code all day."
+        )
+
+    def test_empty_input_is_empty_output(self):
+        assert _scrub_grades("") == ""
+        assert _scrub_grades("   ") == ""
+
+
+class TestFourthUserTestPhrasings:
+    """W-15: three phrasings the fourth user test found on real narrator output.
+
+    The list had "well aligned" but not the verb the other way round, and it
+    had no family for praising the MOVE ("a great opportunity") rather than the
+    fit. The tester's words are embedded verbatim; the prose around each is the
+    shape the narrator writes.
+    """
+
+    def test_aligning_well_with_your_technical_skills_is_cut(self):
+        assert (
+            _scrub_grades(
+                "Data engineers build the pipelines that move data between "
+                "systems, aligning well with your technical skills."
+            )
+            == "Data engineers build the pipelines that move data between systems."
+        )
+
+    def test_its_a_great_opportunity_is_dropped(self):
+        assert (
+            _scrub_grades(
+                "You would design cloud infrastructure for product teams. "
+                "It's a great opportunity to use your AWS experience."
+            )
+            == "You would design cloud infrastructure for product teams."
+        )
+
+    def test_its_an_excellent_way_to_grow_is_dropped(self):
+        assert (
+            _scrub_grades(
+                "You would plan and track releases across several teams. "
+                "It's an excellent way to grow your leadership skills."
+            )
+            == "You would plan and track releases across several teams."
+        )
+
+    @pytest.mark.parametrize(
+        "sentence",
+        [
+            "It aligns closely with your SQL work.",
+            "Your background aligned perfectly with this.",
+            "This aligns strongly with your experience.",
+            "A perfect step for you.",
+            "A fantastic move for someone like you.",
+            "An ideal path forward.",
+            "A wonderful chance to lead.",
+            "An amazing option for you.",
+            "You are well positioned for this.",
+            "You are perfectly placed to do it.",
+            "You are ideally equipped for the work.",
+        ],
+    )
+    def test_the_rest_of_each_new_family_is_scrubbed(self, sentence):
+        assert _scrub_grades(sentence) == ""
+
+    @pytest.mark.parametrize(
+        "tag", ["Fits your AWS experience", "Matches your Deep Diver archetype"]
+    )
+    def test_tags_that_name_a_skill_or_trait_survive(self, tag):
+        assert _scrub_grades(tag) == tag
+
+    def test_the_prompt_no_longer_asks_for_encouraging_prose(self):
+        system = _build_prompt(DEFAULT_CANDIDATES, user_ctx())[0]["content"]
+        assert "encouraging" not in system.lower()
+        assert (
+            "concrete: what the work involves and which of their skills it uses"
+            in system
+        )
+
+
+class TestGradesNeverReachTheWire:
+    """End to end through the fake client: what `generate_narratives` returns."""
+
+    GRADED = {
+        "suggestions": [
+            {
+                "onet_code": "15-1211.00",
+                "title": "Database Administrators",
+                "why_text": (
+                    "Database administrators keep systems reliable, making it a "
+                    "strong fit for your background."
+                ),
+                "profile_dimensions": [
+                    "Builds on your Python skills",
+                    "95% overlap with your skills",
+                ],
+            }
+        ]
+    }
+    ONLY_A_GRADE = {
+        "suggestions": [
+            {
+                "onet_code": "15-1211.00",
+                "title": "Database Administrators",
+                "why_text": "A great fit.",
+                "profile_dimensions": ["Matches your Deep Diver archetype", "A perfect match"],
+            }
+        ]
+    }
+
+    def test_a_graded_narrative_lands_scrubbed(self, monkeypatch):
+        _patch_client(monkeypatch, return_json=self.GRADED)
+        [result] = generate_narratives([scored_path("15-1211.00")], user_ctx())
+
+        assert result.why_text == "Database administrators keep systems reliable."
+        assert result.profile_dimensions == ["Builds on your Python skills"]
+
+    def test_a_narrative_that_was_all_grade_falls_back_to_the_overlap_sentence(
+        self, monkeypatch
+    ):
+        # The same sentence `intelligence_service._describe` writes for a card
+        # the re-rank surfaced with no narrative -- imported, not copied.
+        from solverah.services.intelligence_service import _overlap_sentence
+
+        _patch_client(monkeypatch, return_json=self.ONLY_A_GRADE)
+        [result] = generate_narratives([scored_path("15-1211.00")], user_ctx())
+
+        assert result.why_text == _overlap_sentence(["Python", "SQL"])
+        assert result.why_text == "Uses your Python and SQL."
+        assert result.profile_dimensions == ["Matches your Deep Diver archetype"]
+
+    def test_the_scrub_is_logged_once_with_the_codes(self, monkeypatch, caplog):
+        _patch_client(monkeypatch, return_json=self.GRADED)
+        with caplog.at_level("WARNING", logger="backend.services.path_narrative"):
+            generate_narratives([scored_path("15-1211.00")], user_ctx())
+
+        scrubbed = [r for r in caplog.records if r.message == "path_narrative_grade_scrubbed"]
+        assert len(scrubbed) == 1
+        assert scrubbed[0].codes == ["15-1211.00"]
+
+    def test_a_clean_batch_logs_nothing(self, monkeypatch, caplog):
+        _patch_client(monkeypatch)
+        with caplog.at_level("WARNING", logger="backend.services.path_narrative"):
+            generate_narratives(DEFAULT_CANDIDATES, user_ctx())
+
+        assert [r for r in caplog.records if r.message == "path_narrative_grade_scrubbed"] == []
 
 
 # ---------------------------------------------------------------------------
@@ -448,3 +700,188 @@ class TestBuildPromptPreferences:
             ctx = user_ctx(move_intent=value)
             msgs = _build_prompt([scored_path("15-1252.00")], ctx)
             assert expected_label in msgs[1]["content"]
+
+
+# ---------------------------------------------------------------------------
+# generate_narratives_batched (W-12)
+# ---------------------------------------------------------------------------
+
+
+def _deep_candidates(n: int = 20) -> list[ScoredPath]:
+    return [scored_path("15-00%02d.00" % i, "Role %d" % i) for i in range(n)]
+
+
+def _codes_in(messages) -> list[str]:
+    """The candidate codes a narrator call was asked about, in prompt order."""
+    return re.findall(r'"onet_code": "([^"]+)"', messages[1]["content"])
+
+
+def _batching_client(monkeypatch, *, fail_when=None, barrier=None):
+    """A narrator double that answers whatever codes it is handed.
+
+    Returns the list of per-call code lists, which is what the batching
+    assertions are about.  Failure is keyed on CONTENT and not on call order,
+    because the batches run on threads and arrive in whichever order the
+    provider answers.
+    """
+    calls: list[list[str]] = []
+    guard = threading.Lock()
+
+    def create(*, model, messages, response_format, **_):
+        codes = _codes_in(messages)
+        with guard:
+            calls.append(codes)
+        if barrier is not None:
+            barrier.wait()
+        if fail_when is not None and fail_when(codes):
+            raise RuntimeError("the provider is down")
+        return _make_openai_response(
+            {
+                "suggestions": [
+                    {
+                        "onet_code": code,
+                        "title": "Role %s" % code,
+                        "why_text": "Written for %s." % code,
+                        "profile_dimensions": [
+                            "Builds on your Python skills",
+                            "Fits your autonomy preference",
+                        ],
+                    }
+                    for code in codes
+                ]
+            }
+        )
+
+    client = MagicMock()
+    client.chat.completions.create.side_effect = create
+    monkeypatch.setattr(narrative_module, "_get_openai_client", lambda: client)
+    return calls
+
+
+class TestBatchedNarratives:
+    """W-12: twenty cards narrated as two parallel tens, best-effort per batch.
+
+    Measured before it was built (three F-2 profiles, the real API): ten cards
+    10.35 / 11.09 / 10.35 s, two batches of ten on threads 11.87 / 9.37 / 9.96 s
+    -- a mean difference of -0.20 s -- and twenty in ONE completion 17.72 /
+    18.58 / 18.87 s.  The parallelism is the whole saving, which is why it is
+    pinned here rather than assumed.
+    """
+
+    def test_twenty_candidates_go_out_as_two_batches_of_ten(self, monkeypatch):
+        calls = _batching_client(monkeypatch)
+        candidates = _deep_candidates(20)
+
+        result = narrative_module.generate_narratives_batched(candidates, user_ctx())
+
+        assert len(calls) == 2, "one completion per batch, and no more"
+        assert sorted(len(codes) for codes in calls) == [10, 10]
+        assert sorted(calls, key=lambda codes: codes[0]) == [
+            [c.onet_code for c in candidates[:10]],
+            [c.onet_code for c in candidates[10:]],
+        ]
+        assert [s.onet_code for s in result] == [
+            c.onet_code for c in candidates
+        ], "the caller slices the page off the front, so order survives the fan-out"
+
+    def test_the_batches_actually_run_at_the_same_time(self, monkeypatch):
+        """A barrier rather than a stopwatch.
+
+        Both calls must be in flight together for the barrier to release; if the
+        second only started after the first returned, it times out and this test
+        fails instead of passing slowly.
+        """
+        barrier = threading.Barrier(2, timeout=10)
+        _batching_client(monkeypatch, barrier=barrier)
+
+        result = narrative_module.generate_narratives_batched(
+            _deep_candidates(20), user_ctx()
+        )
+
+        assert len(result) == 20
+        assert not barrier.broken
+
+    def test_a_failing_second_batch_still_lands_the_first_ten(self, monkeypatch):
+        """The reserve is a nice-to-have; the page is the product."""
+        candidates = _deep_candidates(20)
+        second = {c.onet_code for c in candidates[10:]}
+        _batching_client(monkeypatch, fail_when=lambda codes: codes[0] in second)
+
+        result = narrative_module.generate_narratives_batched(candidates, user_ctx())
+
+        assert [s.onet_code for s in result] == [c.onet_code for c in candidates[:10]]
+
+    def test_a_failing_first_batch_still_lands_the_second_ten(self, monkeypatch):
+        """This function privileges no batch -- `path_suggestions` is what decides
+        that the missing one was the page and answers 500.  Keeping that judgement
+        in one place is why this one is symmetric.
+        """
+        candidates = _deep_candidates(20)
+        first = {c.onet_code for c in candidates[:10]}
+        _batching_client(monkeypatch, fail_when=lambda codes: codes[0] in first)
+
+        result = narrative_module.generate_narratives_batched(candidates, user_ctx())
+
+        assert [s.onet_code for s in result] == [c.onet_code for c in candidates[10:]]
+
+    def test_a_malformed_batch_is_dropped_rather_than_raised(self, monkeypatch):
+        """The narrator's own retry runs first; what reaches the pool is the
+        second failure, and it must not take the other batch down with it.
+        """
+        mock_client = MagicMock()
+        candidates = _deep_candidates(20)
+        second = {c.onet_code for c in candidates[10:]}
+
+        def create(*, model, messages, response_format, **_):
+            codes = _codes_in(messages)
+            if codes[0] in second:
+                return _make_openai_response({"suggestions": "not a list"})
+            return _make_openai_response(
+                {
+                    "suggestions": [
+                        {
+                            "onet_code": code,
+                            "title": "Role",
+                            "why_text": "Because.",
+                            "profile_dimensions": ["One", "Two"],
+                        }
+                        for code in codes
+                    ]
+                }
+            )
+
+        mock_client.chat.completions.create.side_effect = create
+        monkeypatch.setattr(narrative_module, "_get_openai_client", lambda: mock_client)
+
+        result = narrative_module.generate_narratives_batched(candidates, user_ctx())
+
+        assert len(result) == 10
+
+    def test_ten_candidates_are_the_same_single_call_as_before(self, monkeypatch):
+        """A job that scores fewer than eleven must be unchanged, not equivalent:
+        no pool, no thread, the one completion `generate_narratives` always made.
+        """
+        calls = _batching_client(monkeypatch)
+
+        result = narrative_module.generate_narratives_batched(
+            _deep_candidates(10), user_ctx()
+        )
+
+        assert len(calls) == 1
+        assert len(result) == 10
+
+    def test_an_uneven_tail_is_its_own_batch(self, monkeypatch):
+        calls = _batching_client(monkeypatch)
+
+        narrative_module.generate_narratives_batched(_deep_candidates(13), user_ctx())
+
+        assert sorted(len(codes) for codes in calls) == [3, 10]
+
+    def test_nothing_to_narrate_is_empty_rather_than_an_error(self, monkeypatch):
+        """Unlike `generate_narratives`: here the batches are derived from what
+        the scorer returned, so "none" is a state rather than a caller mistake.
+        """
+        calls = _batching_client(monkeypatch)
+
+        assert narrative_module.generate_narratives_batched([], user_ctx()) == []
+        assert calls == []

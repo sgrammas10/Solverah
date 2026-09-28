@@ -3367,6 +3367,266 @@
         "title": "PasswordResetVerifyResponse",
         "type": "object"
       },
+      "PathFeedbackRequest": {
+        "additionalProperties": false,
+        "description": "The body of ``POST /me/path-feedback``: one judgement about one card.",
+        "properties": {
+          "onet_code": {
+            "description": "O*NET-SOC, e.g. \"15-1252.00\", from a card in the shortlist.",
+            "title": "Onet Code",
+            "type": "string"
+          },
+          "verdict": {
+            "description": "\"too_similar\", \"interesting\", or \"not_for_me\". The three are not interchangeable: the first raises a cosine radius around the user's own occupation and the other two rotate the retrieval query toward and away from what they named.",
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "onet_code",
+          "verdict"
+        ],
+        "title": "PathFeedbackRequest",
+        "type": "object"
+      },
+      "PathFeedbackResponse": {
+        "additionalProperties": true,
+        "description": "``200`` from ``POST`` and ``DELETE /me/path-feedback``.\n\n`suggestions`, `career_status` and `generated_at` are\n`PathSuggestionsResponse`'s fields with `PathSuggestionsResponse`'s meaning --\nthis re-ranked list is written into the same per-user cache `GET\n/me/path-suggestions` serves, so the two are the same list and not two views\nof one.",
+        "properties": {
+          "career_status": {
+            "title": "Career Status",
+            "type": "string"
+          },
+          "feedback": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Every judgement standing for this user, as onet_code -> verdict. Empty after a DELETE.",
+            "title": "Feedback",
+            "type": "object"
+          },
+          "generated_at": {
+            "description": "ISO 8601 UTC, second precision.",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/PathSuggestion"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "career_status",
+          "generated_at"
+        ],
+        "title": "PathFeedbackResponse",
+        "type": "object"
+      },
+      "PathFitGap": {
+        "additionalProperties": false,
+        "description": "One thing this role rates highly that the user's skills do not cover.",
+        "properties": {
+          "importance": {
+            "description": "O*NET importance, 0-100.",
+            "title": "Importance",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "importance"
+        ],
+        "title": "PathFitGap",
+        "type": "object"
+      },
+      "PathFitResponse": {
+        "additionalProperties": true,
+        "description": "``200`` from ``POST /me/path-fit/{onet_code}``.\n\nIdentical whether the fit was just computed or served from storage;\n``cached`` is the only thing that differs, and it describes the response\nrather than the fit.",
+        "properties": {
+          "cached": {
+            "description": "True when this came from storage rather than being computed now.",
+            "title": "Cached",
+            "type": "boolean"
+          },
+          "centroid_score": {
+            "title": "Centroid Score",
+            "type": "number"
+          },
+          "computed_at": {
+            "description": "When the analysis ran, UTC.",
+            "title": "Computed At",
+            "type": "string"
+          },
+          "coverage_score": {
+            "title": "Coverage Score",
+            "type": "number"
+          },
+          "fit_score": {
+            "description": "0.0-1.0. NOT the Tier-1 card score and it will not equal it: coverage here is measured against the occupation's own rated skills and hot technologies, not against its role document.",
+            "title": "Fit Score",
+            "type": "number"
+          },
+          "gap_skills": {
+            "description": "Most important first, at most 8.",
+            "items": {
+              "$ref": "#/components/schemas/PathFitGap"
+            },
+            "title": "Gap Skills",
+            "type": "array"
+          },
+          "matched_skills": {
+            "description": "The user's own skills this role uses.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Matched Skills",
+            "type": "array"
+          },
+          "narrative": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Reserved. Always null in F-5 -- adding an LLM call per click is a latency and spend decision that has not been made.",
+            "title": "Narrative"
+          },
+          "onet_calls": {
+            "description": "O*NET requests this fit cost. Four unless a call failed.",
+            "title": "Onet Calls",
+            "type": "integer"
+          },
+          "onet_code": {
+            "title": "Onet Code",
+            "type": "string"
+          },
+          "retrieval_cosine": {
+            "description": "Raw cosine of the user's retrieval query against this role document.",
+            "title": "Retrieval Cosine",
+            "type": "number"
+          },
+          "skills_score": {
+            "title": "Skills Score",
+            "type": "number"
+          },
+          "tasks": {
+            "description": "O*NET task statements, most important first.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Tasks",
+            "type": "array"
+          },
+          "tech_stack": {
+            "description": "Hot technologies, most in-demand first.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Tech Stack",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "weights": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "The role/coverage/zone/style split used.",
+            "title": "Weights",
+            "type": "object"
+          },
+          "work_style_score": {
+            "title": "Work Style Score",
+            "type": "number"
+          },
+          "zone": {
+            "$ref": "#/components/schemas/PathFitZone"
+          }
+        },
+        "required": [
+          "onet_code",
+          "title",
+          "fit_score",
+          "retrieval_cosine",
+          "centroid_score",
+          "coverage_score",
+          "skills_score",
+          "work_style_score",
+          "zone",
+          "onet_calls",
+          "computed_at",
+          "cached"
+        ],
+        "title": "PathFitResponse",
+        "type": "object"
+      },
+      "PathFitZone": {
+        "additionalProperties": false,
+        "description": "Job Zone feasibility of this occupation for this user.\n\nThe live scale is 2-5: O*NET v2 merged zones 1 and 2. `occupation_zone` and\n`delta` are null for the 93 corpus rows with no zone, and a missing zone is\nNEUTRAL -- `score` is then what a role at the user's own level would get,\nnot a penalty.",
+        "properties": {
+          "delta": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "occupation_zone - user_zone, or null.",
+            "title": "Delta"
+          },
+          "occupation_zone": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "This occupation's Job Zone, or null if it has none.",
+            "title": "Occupation Zone"
+          },
+          "score": {
+            "description": "The feasibility term, -0.3 to 1.0.",
+            "title": "Score",
+            "type": "number"
+          },
+          "user_zone": {
+            "description": "The user's own Job Zone, 2-5.",
+            "title": "User Zone",
+            "type": "integer"
+          },
+          "user_zone_resolved": {
+            "description": "False when user_zone is the fallback guess rather than a real value.",
+            "title": "User Zone Resolved",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "user_zone",
+          "user_zone_resolved",
+          "score"
+        ],
+        "title": "PathFitZone",
+        "type": "object"
+      },
       "PathPreferencesDocument": {
         "additionalProperties": false,
         "description": "``GET|PUT /me/path-preferences`` -- the three career-search preferences.\n\nThe endpoint this replaces was write-only and answered ``{\"message\": ...}``,\nso a client had no way to read back what it had saved and had to keep its\nown copy or dig the values out of the profile blob. A resource that can be\nread is most of what the redesign is for.\n\nNull on every field means the user has not set them. The fields are optional\non the *response* and required on :class:`PathPreferencesPutRequest`,\nbecause \"not yet answered\" is a real state and \"answered with nothing\" is\nnot -- the scorer branches on all three.",
@@ -3474,6 +3734,14 @@
             "description": "Which parts of the profile drove the match.",
             "title": "Profile Dimensions"
           },
+          "reasons": {
+            "description": "W-4, additive. At most two plain-words phrases saying what is DISTINCTIVE about this card against the user's own job -- the line that replaces the percentage W-1 removed. Built from the measured work-conditions sidecar and nothing else: no LLM, no extra embedding. Empty is normal and carries no error: a phrase that would read the same on most of the page says nothing about any card and is dropped from all of them (design doc 8.2), and a user who has stated no wants gets no reason line at all.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
           "title": {
             "anyOf": [
               {
@@ -3545,7 +3813,7 @@
               }
             ],
             "default": null,
-            "description": "Present only on 'failed'. `career_status_not_set` means the profile is missing a field the scorer requires -- the same condition the synchronous GET answers 400 for.",
+            "description": "Present only on 'failed'. `career_status_not_set` means the profile is missing a field the scorer requires -- the same condition the synchronous GET answers 400 for. `profile_incomplete` means it has neither a job title nor any skills, so there is nothing to score; both are answered by prompting for the missing data, not by retrying.",
             "title": "Error"
           },
           "job_id": {
@@ -3579,11 +3847,19 @@
       },
       "PathSuggestionsResponse": {
         "additionalProperties": false,
-        "description": "Scored and narrated career paths, cached per user.\n\nA 400 with ``career_status_not_set`` means the profile is missing a field\nthe scorer requires, and the client should prompt for it. A 500 means O*NET\nor the narrator failed, and the client should retry.",
+        "description": "Scored and narrated career paths, cached per user.\n\nA 400 with ``career_status_not_set`` means the profile is missing a field\nthe scorer requires, and the client should prompt for it. A 400 with\n``profile_incomplete`` means the profile has neither a job title nor any\nskills, so there is nothing to retrieve on -- prompt for those rather than\nretrying. A 500 means the occupation corpus or the narrator failed, and the\nclient should retry.",
         "properties": {
           "career_status": {
             "title": "Career Status",
             "type": "string"
+          },
+          "feedback": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "F-6, additive. Every inline judgement standing for this user, as onet_code -> verdict, and the same map `POST /me/path-feedback` returns. It travels with the list because it SHAPED the list: a client that got the ranking without it would show a user a shortlist bent by state they cannot see and cannot reset. Empty for a user who has judged nothing, which is also the state in which the ranking is the plain default.",
+            "title": "Feedback",
+            "type": "object"
           },
           "generated_at": {
             "description": "ISO 8601 UTC, second precision.",
@@ -3603,6 +3879,193 @@
           "generated_at"
         ],
         "title": "PathSuggestionsResponse",
+        "type": "object"
+      },
+      "PathWantAnchor": {
+        "additionalProperties": false,
+        "description": "The occupation the panel is asking about.",
+        "properties": {
+          "onet_code": {
+            "description": "O*NET-SOC, e.g. \"15-1252.00\".",
+            "title": "Onet Code",
+            "type": "string"
+          },
+          "title": {
+            "description": "The occupation's O*NET title, not the user's own.",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "onet_code",
+          "title"
+        ],
+        "title": "PathWantAnchor",
+        "type": "object"
+      },
+      "PathWantAnswer": {
+        "additionalProperties": false,
+        "description": "One answer in a ``PUT /me/path-wants`` body.",
+        "properties": {
+          "key": {
+            "description": "The `key` of a task row or the `axis` of a condition row, from a GET for the user's CURRENT anchor. A key this anchor does not offer is a 422 and nothing is written.",
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "description": "\"task\" or \"condition\".",
+            "title": "Kind",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "\"more\", \"less\", or null. Null clears the answer.",
+            "title": "Verdict"
+          }
+        },
+        "required": [
+          "kind",
+          "key"
+        ],
+        "title": "PathWantAnswer",
+        "type": "object"
+      },
+      "PathWantCondition": {
+        "additionalProperties": false,
+        "description": "One measured work-condition row of the panel.",
+        "properties": {
+          "axis": {
+            "description": "One of \"people\", \"public\", \"leading\", \"desk\". Also the PUT key.",
+            "title": "Axis",
+            "type": "string"
+          },
+          "label": {
+            "description": "Plain words. What the user reads.",
+            "title": "Label",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "\"more\", \"less\", or null.",
+            "title": "Verdict"
+          }
+        },
+        "required": [
+          "axis",
+          "label"
+        ],
+        "title": "PathWantCondition",
+        "type": "object"
+      },
+      "PathWantTask": {
+        "additionalProperties": false,
+        "description": "One task row of the panel.",
+        "properties": {
+          "key": {
+            "description": "Opaque, stable, and what a PUT sends back. Derived from the original O*NET statement, so an answer survives a quarterly sidecar rebuild and a relabel -- not a position and not the label.",
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "description": "Plain words, written offline. What the user reads.",
+            "title": "Label",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "\"more\", \"less\", or null. Null is \"fine\", and is stored as no row.",
+            "title": "Verdict"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "PathWantTask",
+        "type": "object"
+      },
+      "PathWantsPutRequest": {
+        "additionalProperties": false,
+        "description": "The body of ``PUT /me/path-wants``.\n\nPARTIAL IS VALID AND IS THE EXPECTED CASE. The panel is skippable and must be\nvalid half-finished (design doc 8.3), so a body naming three of twelve rows\nchanges those three and leaves the rest exactly as they were. This is a PUT\nover *the answers it names*, not over the panel: a client that wanted to\nclear a row sends it with a null verdict rather than omitting it.",
+        "properties": {
+          "answers": {
+            "description": "May be empty: writing nothing is a valid, idempotent no-op.",
+            "items": {
+              "$ref": "#/components/schemas/PathWantAnswer"
+            },
+            "title": "Answers",
+            "type": "array"
+          }
+        },
+        "title": "PathWantsPutRequest",
+        "type": "object"
+      },
+      "PathWantsResponse": {
+        "additionalProperties": false,
+        "description": "``200`` from ``GET`` and ``PUT /me/path-wants`` -- the same shape from both.\n\nOne shape rather than two, for the reason `PathFeedbackResponse` gives: a\nclient renders one panel component and reads the state of its own controls\noff the response it just wrote, instead of making a second call to find out\nwhat it stored.",
+        "properties": {
+          "anchor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PathWantAnchor"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Null exactly when status is \"no_anchor\"."
+          },
+          "conditions": {
+            "description": "The four condition rows, in a fixed order. Offered whenever there is an anchor: the axes are names in code, so nothing on this half depends on a sidecar being present.",
+            "items": {
+              "$ref": "#/components/schemas/PathWantCondition"
+            },
+            "title": "Conditions",
+            "type": "array"
+          },
+          "status": {
+            "description": "\"ok\" when the panel can be shown; \"no_anchor\" when the user has no current job, or it resolves to nothing usable, in which case there is no panel and taps alone steer the page; \"unavailable\" when the task sidecar could not be loaded, which leaves the conditions half answerable and the task half empty.",
+            "title": "Status",
+            "type": "string"
+          },
+          "tasks": {
+            "description": "The offered task rows, in sidecar order, at most eight. Empty for an occupation O*NET publishes no statements for, and empty when status is \"no_anchor\" or \"unavailable\".",
+            "items": {
+              "$ref": "#/components/schemas/PathWantTask"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "PathWantsResponse",
         "type": "object"
       },
       "ProblemDetailError": {
@@ -7646,6 +8109,264 @@
         ]
       }
     },
+    "/api/v1/me/path-feedback": {
+      "delete": {
+        "description": "The reset. Deletes every stored judgement for the signed-in user and returns the shortlist they would have seen having tapped nothing -- which is byte-for-byte the list `POST /me/path-suggestion-jobs` produces, because zero judgements is the identity case in the scorer.\n\nIdempotent: clearing nothing is a `200` with that same list, not a `404`. The client is asking for a state, not deleting a row it named.",
+        "operationId": "delete_intelligence_delete_my_path_feedback",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathFeedbackResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Clear every path judgement and return the default shortlist",
+        "tags": [
+          "me"
+        ]
+      },
+      "post": {
+        "description": "Stores one verdict about one occupation and returns the re-ranked shortlist, which is also written into the per-user cache `GET /me/path-suggestions` serves.\n\n`verdict` is one of `too_similar`, `interesting`, `not_for_me`. They are three different signals, not three strengths of one: `too_similar` raises a cosine radius around the user's own occupation and excludes everything inside it, while the other two rotate the retrieval query toward and away from what they named. Only the `adjacent` move_intent reads them; they are stored for everyone, so switching to `adjacent` later does not start from nothing.\n\nRe-tapping the same card replaces that judgement. A card judged `too_similar` or `not_for_me` does not come back; one judged `interesting` does, ranked higher.\n\n`error` on a failure is one of `invalid_verdict`, `career_status_not_set`, `profile_incomplete` (400); `invalid_onet_code`, `unknown_occupation`, `unsupported_occupation` (404); or `corpus_unavailable` (503).",
+        "operationId": "post_intelligence_post_my_path_feedback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PathFeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathFeedbackResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Record a judgement about one suggested path and re-rank the shortlist",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/path-fit/{onet_code}": {
+      "post": {
+        "description": "The Tier-2 analysis of one O*NET occupation: which of the user's skills it uses, what it rates highly that they have not named, coverage and work-style fit, Job Zone feasibility, its tasks and its hot technologies.\n\nSynchronous. Costs four `_OCC_CACHE`-backed O*NET requests and one batched embedding request; the result is stored per (user, occupation) and returned from storage until the profile changes, so clicking the same card twice is free. `cached` says which happened.\n\nRate limited for the same reason `POST /me/path-suggestion-jobs` is (A9): this is the door to a provider spend.\n\n`error` on a failure is one of `career_status_not_set`, `profile_incomplete` (400); `invalid_onet_code`, `unknown_occupation`, `unsupported_occupation` (404); or `corpus_unavailable` (503). The first two are answered by prompting for the missing data, the next three by dropping the card, the last by retrying.",
+        "operationId": "post_intelligence_post_my_path_fit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "onet_code",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathFitResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Deep-fit one occupation for the signed-in user",
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/api/v1/me/path-preferences": {
       "get": {
         "description": "GET /me/path-preferences - the three saved preferences, or nulls.\n\nNew in Phase 1b: the endpoint this pairs with was write-only, so a client\nwanting to show the user their own answers had to keep a copy or read them\nout of the profile blob.",
@@ -7813,7 +8534,7 @@
     },
     "/api/v1/me/path-suggestion-jobs/{job_id}": {
       "get": {
-        "description": "GET /me/path-suggestion-jobs/{job_id} - poll a queued scoring.\n\n404 covers no such job, a malformed handle, and somebody else's job alike.\nDistinguishing them would confirm that a handle exists, which is the only\nthing protecting one.\n\n`error` on a failed job carries the scorer's own message -- notably\n`career_status_not_set`, the same condition the synchronous GET answers 400\nfor, which the client handles by prompting for the missing field rather than\nby retrying.",
+        "description": "GET /me/path-suggestion-jobs/{job_id} - poll a queued scoring.\n\n404 covers no such job, a malformed handle, and somebody else's job alike.\nDistinguishing them would confirm that a handle exists, which is the only\nthing protecting one.\n\n`error` on a failed job carries the scorer's own message -- notably\n`career_status_not_set`, the same condition the synchronous GET answers 400\nfor, `profile_incomplete` when the profile carries neither a job title nor\nany skills, and `corpus_unavailable` when the occupation corpus could not be\nloaded. The client handles the first two by prompting for the missing data\nand the third by offering the user a retry.",
         "operationId": "get_intelligence_get_my_path_suggestion_job",
         "parameters": [
           {
@@ -7910,6 +8631,141 @@
           }
         ],
         "summary": "Read the cached career path suggestions",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/path-wants": {
+      "get": {
+        "description": "The panel is built from the user's OWN occupation: about eight of its O*NET tasks in plain words, plus four measured work conditions, each carrying whatever the user has already answered.\n\n`status` is `ok`, `no_anchor` (no current job, or a title that resolves to nothing usable -- show no panel and let card taps steer the page), or `unavailable` (the task sidecar could not be loaded, so the task half is empty and only the conditions can be answered).\n\nCosts no O*NET request and no LLM call. The anchor is resolved out of the corpus, on the one profile-document embedding `score_paths` caches anyway.\n\n`error` on a failure is `corpus_unavailable` (503), which is retried.",
+        "operationId": "get_intelligence_get_my_path_wants",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathWantsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Read the \"what should change\" panel for the user's own job",
+        "tags": [
+          "me"
+        ]
+      },
+      "put": {
+        "description": "Stores the answers named in the body and returns the whole panel, in `GET /me/path-wants`' shape -- so a client renders one component and reads the state of its own controls off the response it just wrote.\n\nPARTIAL IS VALID and is the expected case: the body names the rows it is changing and leaves the rest alone, because the panel is skippable and must be valid half-finished. `verdict: null` clears a row, and clearing something already clear is a `200`, not a `404`.\n\nIdempotent: sending the same body twice writes the same state.\n\nEvery key is checked against what a `GET` would offer for the user's CURRENT occupation. A key from a different one -- which is what a client holding a panel across a job change sends -- is a `422` and NOTHING is written, not even the acceptable half of the body.\n\nA write drops the cached shortlist, so the next `POST /me/path-suggestion-jobs` re-ranks with the new answers. This route deliberately does not re-rank itself: the panel must never stand between the user and a result.",
+        "operationId": "put_intelligence_put_my_path_wants",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PathWantsPutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathWantsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Record what should change about the user's own job",
         "tags": [
           "me"
         ]

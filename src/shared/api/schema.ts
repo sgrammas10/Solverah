@@ -780,6 +780,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/path-feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record a judgement about one suggested path and re-rank the shortlist
+         * @description Stores one verdict about one occupation and returns the re-ranked shortlist, which is also written into the per-user cache `GET /me/path-suggestions` serves.
+         *
+         *     `verdict` is one of `too_similar`, `interesting`, `not_for_me`. They are three different signals, not three strengths of one: `too_similar` raises a cosine radius around the user's own occupation and excludes everything inside it, while the other two rotate the retrieval query toward and away from what they named. Only the `adjacent` move_intent reads them; they are stored for everyone, so switching to `adjacent` later does not start from nothing.
+         *
+         *     Re-tapping the same card replaces that judgement. A card judged `too_similar` or `not_for_me` does not come back; one judged `interesting` does, ranked higher.
+         *
+         *     `error` on a failure is one of `invalid_verdict`, `career_status_not_set`, `profile_incomplete` (400); `invalid_onet_code`, `unknown_occupation`, `unsupported_occupation` (404); or `corpus_unavailable` (503).
+         */
+        post: operations["post_intelligence_post_my_path_feedback"];
+        /**
+         * Clear every path judgement and return the default shortlist
+         * @description The reset. Deletes every stored judgement for the signed-in user and returns the shortlist they would have seen having tapped nothing -- which is byte-for-byte the list `POST /me/path-suggestion-jobs` produces, because zero judgements is the identity case in the scorer.
+         *
+         *     Idempotent: clearing nothing is a `200` with that same list, not a `404`. The client is asking for a state, not deleting a row it named.
+         */
+        delete: operations["delete_intelligence_delete_my_path_feedback"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/path-fit/{onet_code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deep-fit one occupation for the signed-in user
+         * @description The Tier-2 analysis of one O*NET occupation: which of the user's skills it uses, what it rates highly that they have not named, coverage and work-style fit, Job Zone feasibility, its tasks and its hot technologies.
+         *
+         *     Synchronous. Costs four `_OCC_CACHE`-backed O*NET requests and one batched embedding request; the result is stored per (user, occupation) and returned from storage until the profile changes, so clicking the same card twice is free. `cached` says which happened.
+         *
+         *     Rate limited for the same reason `POST /me/path-suggestion-jobs` is (A9): this is the door to a provider spend.
+         *
+         *     `error` on a failure is one of `career_status_not_set`, `profile_incomplete` (400); `invalid_onet_code`, `unknown_occupation`, `unsupported_occupation` (404); or `corpus_unavailable` (503). The first two are answered by prompting for the missing data, the next three by dropping the card, the last by retrying.
+         */
+        post: operations["post_intelligence_post_my_path_fit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/path-preferences": {
         parameters: {
             query?: never;
@@ -857,8 +915,10 @@ export interface paths {
          *
          *     `error` on a failed job carries the scorer's own message -- notably
          *     `career_status_not_set`, the same condition the synchronous GET answers 400
-         *     for, which the client handles by prompting for the missing field rather than
-         *     by retrying.
+         *     for, `profile_incomplete` when the profile carries neither a job title nor
+         *     any skills, and `corpus_unavailable` when the occupation corpus could not be
+         *     loaded. The client handles the first two by prompting for the missing data
+         *     and the third by offering the user a retry.
          */
         get: operations["get_intelligence_get_my_path_suggestion_job"];
         put?: never;
@@ -884,6 +944,44 @@ export interface paths {
          */
         get: operations["get_intelligence_get_path_suggestions"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/path-wants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the "what should change" panel for the user's own job
+         * @description The panel is built from the user's OWN occupation: about eight of its O*NET tasks in plain words, plus four measured work conditions, each carrying whatever the user has already answered.
+         *
+         *     `status` is `ok`, `no_anchor` (no current job, or a title that resolves to nothing usable -- show no panel and let card taps steer the page), or `unavailable` (the task sidecar could not be loaded, so the task half is empty and only the conditions can be answered).
+         *
+         *     Costs no O*NET request and no LLM call. The anchor is resolved out of the corpus, on the one profile-document embedding `score_paths` caches anyway.
+         *
+         *     `error` on a failure is `corpus_unavailable` (503), which is retried.
+         */
+        get: operations["get_intelligence_get_my_path_wants"];
+        /**
+         * Record what should change about the user's own job
+         * @description Stores the answers named in the body and returns the whole panel, in `GET /me/path-wants`' shape -- so a client renders one component and reads the state of its own controls off the response it just wrote.
+         *
+         *     PARTIAL IS VALID and is the expected case: the body names the rows it is changing and leaves the rest alone, because the panel is skippable and must be valid half-finished. `verdict: null` clears a row, and clearing something already clear is a `200`, not a `404`.
+         *
+         *     Idempotent: sending the same body twice writes the same state.
+         *
+         *     Every key is checked against what a `GET` would offer for the user's CURRENT occupation. A key from a different one -- which is what a client holding a panel across a job change sends -- is a `422` and NOTHING is written, not even the acceptable half of the body.
+         *
+         *     A write drops the cached shortlist, so the next `POST /me/path-suggestion-jobs` re-ranks with the new answers. This route deliberately does not re-rank itself: the panel must never stand between the user and a result.
+         */
+        put: operations["put_intelligence_put_my_path_wants"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3170,6 +3268,186 @@ export interface components {
             user: components["schemas"]["SummaryUser"];
         };
         /**
+         * PathFeedbackRequest
+         * @description The body of ``POST /me/path-feedback``: one judgement about one card.
+         */
+        PathFeedbackRequest: {
+            /**
+             * Onet Code
+             * @description O*NET-SOC, e.g. "15-1252.00", from a card in the shortlist.
+             */
+            onet_code: string;
+            /**
+             * Verdict
+             * @description "too_similar", "interesting", or "not_for_me". The three are not interchangeable: the first raises a cosine radius around the user's own occupation and the other two rotate the retrieval query toward and away from what they named.
+             */
+            verdict: string;
+        };
+        /**
+         * PathFeedbackResponse
+         * @description ``200`` from ``POST`` and ``DELETE /me/path-feedback``.
+         *
+         *     `suggestions`, `career_status` and `generated_at` are
+         *     `PathSuggestionsResponse`'s fields with `PathSuggestionsResponse`'s meaning --
+         *     this re-ranked list is written into the same per-user cache `GET
+         *     /me/path-suggestions` serves, so the two are the same list and not two views
+         *     of one.
+         */
+        PathFeedbackResponse: {
+            /** Career Status */
+            career_status: string;
+            /**
+             * Feedback
+             * @description Every judgement standing for this user, as onet_code -> verdict. Empty after a DELETE.
+             */
+            feedback?: {
+                [key: string]: string;
+            };
+            /**
+             * Generated At
+             * @description ISO 8601 UTC, second precision.
+             */
+            generated_at: string;
+            /** Suggestions */
+            suggestions?: components["schemas"]["PathSuggestion"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PathFitGap
+         * @description One thing this role rates highly that the user's skills do not cover.
+         */
+        PathFitGap: {
+            /**
+             * Importance
+             * @description O*NET importance, 0-100.
+             */
+            importance: number;
+            /** Name */
+            name: string;
+        };
+        /**
+         * PathFitResponse
+         * @description ``200`` from ``POST /me/path-fit/{onet_code}``.
+         *
+         *     Identical whether the fit was just computed or served from storage;
+         *     ``cached`` is the only thing that differs, and it describes the response
+         *     rather than the fit.
+         */
+        PathFitResponse: {
+            /**
+             * Cached
+             * @description True when this came from storage rather than being computed now.
+             */
+            cached: boolean;
+            /** Centroid Score */
+            centroid_score: number;
+            /**
+             * Computed At
+             * @description When the analysis ran, UTC.
+             */
+            computed_at: string;
+            /** Coverage Score */
+            coverage_score: number;
+            /**
+             * Fit Score
+             * @description 0.0-1.0. NOT the Tier-1 card score and it will not equal it: coverage here is measured against the occupation's own rated skills and hot technologies, not against its role document.
+             */
+            fit_score: number;
+            /**
+             * Gap Skills
+             * @description Most important first, at most 8.
+             */
+            gap_skills?: components["schemas"]["PathFitGap"][];
+            /**
+             * Matched Skills
+             * @description The user's own skills this role uses.
+             */
+            matched_skills?: string[];
+            /**
+             * Narrative
+             * @description Reserved. Always null in F-5 -- adding an LLM call per click is a latency and spend decision that has not been made.
+             * @default null
+             */
+            narrative: string | null;
+            /**
+             * Onet Calls
+             * @description O*NET requests this fit cost. Four unless a call failed.
+             */
+            onet_calls: number;
+            /** Onet Code */
+            onet_code: string;
+            /**
+             * Retrieval Cosine
+             * @description Raw cosine of the user's retrieval query against this role document.
+             */
+            retrieval_cosine: number;
+            /** Skills Score */
+            skills_score: number;
+            /**
+             * Tasks
+             * @description O*NET task statements, most important first.
+             */
+            tasks?: string[];
+            /**
+             * Tech Stack
+             * @description Hot technologies, most in-demand first.
+             */
+            tech_stack?: string[];
+            /** Title */
+            title: string;
+            /**
+             * Weights
+             * @description The role/coverage/zone/style split used.
+             */
+            weights?: {
+                [key: string]: number;
+            };
+            /** Work Style Score */
+            work_style_score: number;
+            zone: components["schemas"]["PathFitZone"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PathFitZone
+         * @description Job Zone feasibility of this occupation for this user.
+         *
+         *     The live scale is 2-5: O*NET v2 merged zones 1 and 2. `occupation_zone` and
+         *     `delta` are null for the 93 corpus rows with no zone, and a missing zone is
+         *     NEUTRAL -- `score` is then what a role at the user's own level would get,
+         *     not a penalty.
+         */
+        PathFitZone: {
+            /**
+             * Delta
+             * @description occupation_zone - user_zone, or null.
+             * @default null
+             */
+            delta: number | null;
+            /**
+             * Occupation Zone
+             * @description This occupation's Job Zone, or null if it has none.
+             * @default null
+             */
+            occupation_zone: number | null;
+            /**
+             * Score
+             * @description The feasibility term, -0.3 to 1.0.
+             */
+            score: number;
+            /**
+             * User Zone
+             * @description The user's own Job Zone, 2-5.
+             */
+            user_zone: number;
+            /**
+             * User Zone Resolved
+             * @description False when user_zone is the fallback guess rather than a real value.
+             */
+            user_zone_resolved: boolean;
+        };
+        /**
          * PathPreferencesDocument
          * @description ``GET|PUT /me/path-preferences`` -- the three career-search preferences.
          *
@@ -3252,6 +3530,11 @@ export interface components {
              */
             profile_dimensions: unknown;
             /**
+             * Reasons
+             * @description W-4, additive. At most two plain-words phrases saying what is DISTINCTIVE about this card against the user's own job -- the line that replaces the percentage W-1 removed. Built from the measured work-conditions sidecar and nothing else: no LLM, no extra embedding. Empty is normal and carries no error: a phrase that would read the same on most of the page says nothing about any card and is dropped from all of them (design doc 8.2), and a user who has stated no wants gets no reason line at all.
+             */
+            reasons?: string[];
+            /**
              * Title
              * @default null
              */
@@ -3303,7 +3586,7 @@ export interface components {
         PathSuggestionJobStatus: {
             /**
              * Error
-             * @description Present only on 'failed'. `career_status_not_set` means the profile is missing a field the scorer requires -- the same condition the synchronous GET answers 400 for.
+             * @description Present only on 'failed'. `career_status_not_set` means the profile is missing a field the scorer requires -- the same condition the synchronous GET answers 400 for. `profile_incomplete` means it has neither a job title nor any skills, so there is nothing to score; both are answered by prompting for the missing data, not by retrying.
              * @default null
              */
             error: string | null;
@@ -3327,12 +3610,22 @@ export interface components {
          * @description Scored and narrated career paths, cached per user.
          *
          *     A 400 with ``career_status_not_set`` means the profile is missing a field
-         *     the scorer requires, and the client should prompt for it. A 500 means O*NET
-         *     or the narrator failed, and the client should retry.
+         *     the scorer requires, and the client should prompt for it. A 400 with
+         *     ``profile_incomplete`` means the profile has neither a job title nor any
+         *     skills, so there is nothing to retrieve on -- prompt for those rather than
+         *     retrying. A 500 means the occupation corpus or the narrator failed, and the
+         *     client should retry.
          */
         PathSuggestionsResponse: {
             /** Career Status */
             career_status: string;
+            /**
+             * Feedback
+             * @description F-6, additive. Every inline judgement standing for this user, as onet_code -> verdict, and the same map `POST /me/path-feedback` returns. It travels with the list because it SHAPED the list: a client that got the ranking without it would show a user a shortlist bent by state they cannot see and cannot reset. Empty for a user who has judged nothing, which is also the state in which the ranking is the plain default.
+             */
+            feedback?: {
+                [key: string]: string;
+            };
             /**
              * Generated At
              * @description ISO 8601 UTC, second precision.
@@ -3340,6 +3633,136 @@ export interface components {
             generated_at: string;
             /** Suggestions */
             suggestions?: components["schemas"]["PathSuggestion"][];
+        };
+        /**
+         * PathWantAnchor
+         * @description The occupation the panel is asking about.
+         */
+        PathWantAnchor: {
+            /**
+             * Onet Code
+             * @description O*NET-SOC, e.g. "15-1252.00".
+             */
+            onet_code: string;
+            /**
+             * Title
+             * @description The occupation's O*NET title, not the user's own.
+             */
+            title: string;
+        };
+        /**
+         * PathWantAnswer
+         * @description One answer in a ``PUT /me/path-wants`` body.
+         */
+        PathWantAnswer: {
+            /**
+             * Key
+             * @description The `key` of a task row or the `axis` of a condition row, from a GET for the user's CURRENT anchor. A key this anchor does not offer is a 422 and nothing is written.
+             */
+            key: string;
+            /**
+             * Kind
+             * @description "task" or "condition".
+             */
+            kind: string;
+            /**
+             * Verdict
+             * @description "more", "less", or null. Null clears the answer.
+             * @default null
+             */
+            verdict: string | null;
+        };
+        /**
+         * PathWantCondition
+         * @description One measured work-condition row of the panel.
+         */
+        PathWantCondition: {
+            /**
+             * Axis
+             * @description One of "people", "public", "leading", "desk". Also the PUT key.
+             */
+            axis: string;
+            /**
+             * Label
+             * @description Plain words. What the user reads.
+             */
+            label: string;
+            /**
+             * Verdict
+             * @description "more", "less", or null.
+             * @default null
+             */
+            verdict: string | null;
+        };
+        /**
+         * PathWantTask
+         * @description One task row of the panel.
+         */
+        PathWantTask: {
+            /**
+             * Key
+             * @description Opaque, stable, and what a PUT sends back. Derived from the original O*NET statement, so an answer survives a quarterly sidecar rebuild and a relabel -- not a position and not the label.
+             */
+            key: string;
+            /**
+             * Label
+             * @description Plain words, written offline. What the user reads.
+             */
+            label: string;
+            /**
+             * Verdict
+             * @description "more", "less", or null. Null is "fine", and is stored as no row.
+             * @default null
+             */
+            verdict: string | null;
+        };
+        /**
+         * PathWantsPutRequest
+         * @description The body of ``PUT /me/path-wants``.
+         *
+         *     PARTIAL IS VALID AND IS THE EXPECTED CASE. The panel is skippable and must be
+         *     valid half-finished (design doc 8.3), so a body naming three of twelve rows
+         *     changes those three and leaves the rest exactly as they were. This is a PUT
+         *     over *the answers it names*, not over the panel: a client that wanted to
+         *     clear a row sends it with a null verdict rather than omitting it.
+         */
+        PathWantsPutRequest: {
+            /**
+             * Answers
+             * @description May be empty: writing nothing is a valid, idempotent no-op.
+             */
+            answers?: components["schemas"]["PathWantAnswer"][];
+        };
+        /**
+         * PathWantsResponse
+         * @description ``200`` from ``GET`` and ``PUT /me/path-wants`` -- the same shape from both.
+         *
+         *     One shape rather than two, for the reason `PathFeedbackResponse` gives: a
+         *     client renders one panel component and reads the state of its own controls
+         *     off the response it just wrote, instead of making a second call to find out
+         *     what it stored.
+         */
+        PathWantsResponse: {
+            /**
+             * @description Null exactly when status is "no_anchor".
+             * @default null
+             */
+            anchor: components["schemas"]["PathWantAnchor"] | null;
+            /**
+             * Conditions
+             * @description The four condition rows, in a fixed order. Offered whenever there is an anchor: the axes are names in code, so nothing on this half depends on a sidecar being present.
+             */
+            conditions?: components["schemas"]["PathWantCondition"][];
+            /**
+             * Status
+             * @description "ok" when the panel can be shown; "no_anchor" when the user has no current job, or it resolves to nothing usable, in which case there is no panel and taps alone steer the page; "unavailable" when the task sidecar could not be loaded, which leaves the conditions half answerable and the task half empty.
+             */
+            status: string;
+            /**
+             * Tasks
+             * @description The offered task rows, in sidecar order, at most eight. Empty for an occupation O*NET publishes no statements for, and empty when status is "no_anchor" or "unavailable".
+             */
+            tasks?: components["schemas"]["PathWantTask"][];
         };
         /**
          * ProblemDetailError
@@ -6100,6 +6523,207 @@ export interface operations {
             };
         };
     };
+    post_intelligence_post_my_path_feedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PathFeedbackRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PathFeedbackResponse"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    delete_intelligence_delete_my_path_feedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PathFeedbackResponse"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    post_intelligence_post_my_path_fit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                onet_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PathFitResponse"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
     get_intelligence_get_path_preferences: {
         parameters: {
             query?: never;
@@ -6287,6 +6911,113 @@ export interface operations {
             };
             /** @description Not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    get_intelligence_get_my_path_wants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PathWantsResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    put_intelligence_put_my_path_wants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PathWantsPutRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PathWantsResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,0 +1,69 @@
+P-11 CONTENT DEFECTS
+
+These are defects in the BUILD (the raw packet and its Section 4 pre-flag block), found by
+sweeping Section 1 myself rather than trusting the pre-flag block, per the brief's instruction
+that the pre-flag block is a cross-check and never the sweep. None of these were corrected in
+the scrubbed packet -- they are recorded here and scrubbed around, per "content defects" in the
+brief.
+
+1. OVER-FLAG -- Section 4 claims the company name appears "inside C excerpts 1 and 2." My sweep
+   found the company name inside C excerpt 1's quote body ("at Regeneron, we believe...") but
+   NOT inside C excerpt 2's quote body ("In this role, you will build, develop, and optimize
+   systems for our sophisticated biopharmaceutical manufacturing processes..." -- no occurrence
+   of the company name anywhere in that sentence or its source tag). C excerpt 2 was left
+   untouched inside its quote body.
+
+2. OVER-FLAG -- Section 4's "NAMED INTERNAL PROGRAMS AND TOOLS" block claims "Phoenix
+   WinNonlin", "CDISC SEND", "PC/PP domains" and "SUPPQUAL" appear in "C excerpt 6." None of
+   these four strings appear anywhere in Section 1 as built. C excerpt 6 reads in full: "Conducts
+   compliance-related activities (SOPs, etc.); ensures regulatory-submission conformance, data
+   integrity, and GxP compliance; adheres to controlled SOPs; and meets mandatory-training and
+   data-confidentiality requirements." -- none of the four flagged terms is present.
+
+3. OVER-FLAG -- the same Section 4 block also lists "Factory Acceptance Test" / "Site Acceptance
+   Test" and "GAMP 5" as terms "surfaced in Section 1," without the "encountered but NOT quoted"
+   caveat it correctly attaches to other terms in the same paragraph (e.g. "Safety Monitoring
+   Team", "Safety Surveillance Plan", "Signal Evaluation Report"). None of these three strings
+   appears anywhere in Section 1 either.
+
+4. OVER-FLAG (partial) -- Section 4 states that "E excerpt 2 names 'Saratoga Springs', 'New
+   York', 'Duplainville Road' and the state's economic development agency." Two of the four
+   claimed strings are real ("Saratoga Springs" and "New York" are both in the excerpt and were
+   scrubbed/tokenised accordingly). The other two, "Duplainville Road" and any named economic
+   development agency, do not appear anywhere in E excerpt 2 or anywhere else in Section 1. E
+   excerpt 2's full text is limited to the two sentences quoted from the local-news report; no
+   street name or agency name is present in either sentence.
+
+5. OVER-FLAG / MISCOUNT -- Section 4 states "Tarrytown, NY" (x2) among the review-attribution
+   locations. Only one review attribution in Section 1 carries "Tarrytown, NY" (the 2026-03-22
+   Director review). This tracks a broader inconsistency: Section 2g's SCOPE BLOCK separately
+   describes "two Directors" among the Tarrytown/Sleepy Hollow corporate voices, but Section 1
+   contains only one Director-titled review (2026-03-22, Tarrytown) and one Product-Manager
+   review at Sleepy Hollow -- not two Directors.
+
+6. OVER-FLAG -- the preserved-source-typo lists in both Section 2e and Section 4 include
+   "Commercial posting: 'supporting our Canada in a hybrid work mode' [sic]" as a string present
+   in Section 1. This string does not appear anywhere in Section 1. The two Commercial-posting
+   excerpts actually quoted into Section 1 (C8, "Work in alignment with the Brand Plan...", and
+   C9, "You can operate optimally in a 'start-up' model...") contain no such sentence.
+
+7. MISS (the more serious direction) -- Section 4's pre-flag block never names "Safety Sciences
+   Strategy," a capitalised internal-team/function name that appears verbatim inside C excerpt
+   11's quote body ("...in partnership with Safety Sciences Strategy"). This is exactly the kind
+   of internal-organisation name A5 covers (an internal team name, not an industry-standard
+   term), and it was not on the pre-flag list at all -- caught only by sweeping Section 1 myself.
+   It has been de-branded in the scrubbed packet under R4/A5 ("[an internal safety strategy
+   team]"), declared on its excerpt line, and is recorded here because a miss is exactly what
+   this file exists to catch.
+
+8. HEADER/COUNT DEFECT (self-check 13) -- Section 1's C-section header declares "(6-10 excerpts
+   from 3+ open postings, different functions)." The section actually contains 11 excerpts,
+   exceeding the declared upper bound of 10. Per the brief's instruction on this exact class of
+   discrepancy ("do not fix either one... record it... and reproduce the header verbatim"),
+   the header has been carried into the scrubbed packet unchanged and the count is reported here
+   rather than corrected in either direction.
+
+No other content defects (quote attributed to the wrong section, a stated count disagreeing
+with an actual count elsewhere, a contradicted attribution, an impossible date, or an internal
+contradiction between two company-authored excerpts) were found in Section 1 beyond the eight
+recorded above.

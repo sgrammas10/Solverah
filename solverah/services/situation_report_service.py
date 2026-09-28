@@ -25,6 +25,8 @@ byte-identical: nothing this function reads changes when a new sitting merely ex
 from __future__ import annotations
 
 import datetime
+import functools
+import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -242,6 +244,95 @@ def _events_since_report(user_id: int, submitted_at: Optional[str]) -> List[Dict
     ]
 
 
+#: Which source `_dimension_weights` reads from -- see its docstring. Read with
+#: `os.environ.get` at call time (the same plain style `solverah/cli.py` uses for
+#: `DEFAULT_APP_BASE_URL`), never at import time, so tests can monkeypatch it
+#: per test and a running process picks up a changed setting without a restart.
+_WEIGHTS_SOURCE_VAR = "SOLVERAH_MODEL_WEIGHTS_SOURCE"
+
+
+@functools.lru_cache(maxsize=1)
+def _priors_dimension_weights() -> Dict[str, Dict[str, float]]:
+    """E-5's elicited per-dimension weights, read from
+    `causal_graph/v1_model/priors.yaml` through `match_scoring`. Means only; the
+    `sd` describes the expert's confidence and has no bearing on which of two
+    mismatches is listed first.
+
+    No fallback to flat weights if this fails. D-07 forbids degrading to a
+    default, the file is in the repo, and the image copies the whole tree -- so a
+    missing file is a deploy defect and must surface as one. Cached because the
+    file is read once per worker and never changes under a running process --
+    unlike the `run` source below, nothing can invalidate it short of a restart.
+    """
+    import match_scoring
+
+    cfg, pri = match_scoring.load()
+    weights = match_scoring.weights_from_priors(cfg, pri)
+    return {
+        dim: {"mag": float(w["mag"]["mean"]), "dir": float(w["dir"]["mean"])}
+        for dim, w in weights["dimensions"].items()
+    }
+
+
+#: The `run`-source cache: `{"run_id": ..., "weights": ...}`. Unlike the priors
+#: path, `lru_cache` on no arguments would never notice a newer `model_run`
+#: appearing -- a developer fits one and the server keeps ranking on the old
+#: weights until restart. Instead this re-checks the CURRENT run's id on every
+#: call (one cheap query) and only re-parses the weight rows when that id
+#: changes, so a new run reaches the next request with no cache to clear by hand.
+_run_weights_cache: Dict[str, Any] = {"run_id": None, "weights": None}
+
+
+def _run_dimension_weights() -> Dict[str, Dict[str, float]]:
+    """The latest `model_run`'s per-dimension weights, via
+    `match_scoring.load_run_weights`. NO FALLBACK (D-07): a database with no run,
+    or a run whose weight rows do not match the active config, raises
+    `MatchModelError` and this lets it propagate -- a dev box asked to serve a
+    fitted run that is not there must say so, not quietly serve the priors.
+    """
+    import match_scoring
+
+    run = match_scoring.current_run(db)
+    # id AND trained_at: a recreated dev database restarts ids at 1, so the id
+    # alone would let a brand-new run 1 be served from the old run 1's cache.
+    run_key = (run.id, run.trained_at)
+    if _run_weights_cache["run_id"] != run_key:
+        _, weights = match_scoring.load_run_weights(db, run=run)
+        _run_weights_cache["run_id"] = run_key
+        _run_weights_cache["weights"] = {
+            dim: {"mag": float(w["mag"]["mean"]), "dir": float(w["dir"]["mean"])}
+            for dim, w in weights["dimensions"].items()
+        }
+    return _run_weights_cache["weights"]
+
+
+def _dimension_weights() -> Dict[str, Dict[str, float]]:
+    """E-5's per-dimension weights for `work_pulse.situation`'s ranking, from
+    whichever source `SOLVERAH_MODEL_WEIGHTS_SOURCE` names (PRODUCT_DECISIONS,
+    2026-09-21):
+
+    - unset or `"priors"` (the default): today's behavior, unchanged --
+      `causal_graph/v1_model/priors.yaml`'s expert-elicited means, through
+      `match_scoring`. Production stays on this; it is the only source with no
+      new deploy dependency.
+    - `"run"`: the latest `model_run` row, via `match_scoring.load_run_weights`.
+      No fallback to priors if a run does not exist or is malformed (D-07).
+    - anything else: `ValueError`, naming the variable and the two valid values
+      -- a typo must not silently read as `"priors"`.
+
+    Either branch returns plain `{dim: {"mag": float, "dir": float}}`, means
+    only, regardless of source.
+    """
+    source = os.environ.get(_WEIGHTS_SOURCE_VAR) or "priors"
+    if source == "priors":
+        return _priors_dimension_weights()
+    if source == "run":
+        return _run_dimension_weights()
+    raise ValueError(
+        f"{_WEIGHTS_SOURCE_VAR}={source!r} is not valid -- must be 'priors' or 'run'"
+    )
+
+
 def get_situation_report(user: User) -> SituationReportResult:
     """The three states, per BUILD_PLAN §3.5. D-15 (structural, every state): no
     person-side score, no numeric gap, no per-dimension magnitude, anywhere.
@@ -284,7 +375,15 @@ def get_situation_report(user: User) -> SituationReportResult:
     person_scores = assessment_store.dimension_scores_for_submission(submission_id)
 
     env_scores = env["dimension_scores"]
-    report_rows = situation.build_situation_report(env_scores, person_scores)
+    report_rows = situation.build_situation_report(
+        env_scores, person_scores, weights=_dimension_weights()
+    )
+    # `build_situation_report` is order-stable by contract and returns fixed
+    # DIMENSIONS order; `rank` is the ranking. Both frontends render the list in
+    # the order they receive it and neither sorts -- D-15 leaves them no
+    # magnitude to sort on -- so the ranking only reaches a reader if the
+    # payload is ordered here.
+    report_rows = sorted(report_rows, key=lambda row: row["rank"])
 
     career_status_snapshot = env["career_status"]
     past_tense = situation_items.is_past_tense(career_status_snapshot)

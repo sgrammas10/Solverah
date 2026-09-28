@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../../auth";
-import { useProfileActions } from "../../profile";
+import { useProfile, useProfileActions } from "../../profile";
 import type { MoveIntent, SeniorityIntent, Priority } from "../types";
 
 interface PathPreferencesFormProps {
@@ -47,11 +47,19 @@ type Answers = {
 export default function PathPreferencesForm({ onComplete }: PathPreferencesFormProps) {
   const { fetchWithAuth } = useAuth();
   const { updateProfileData } = useProfileActions();
+  // The page passes only `onComplete` and this form cannot reach into
+  // PathIntelligencePage (owned elsewhere), so it reads the same profile
+  // document the page already has cached, straight from the shared query
+  // cache. First visit, `path_preferences` is absent and every step opens
+  // blank as before; on "Adjust search preferences" it re-enters with what
+  // was last saved, rather than asking the three questions over again.
+  const { data: profile } = useProfile();
+  const stored = profile?.path_preferences as Partial<Answers> | undefined;
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Answers>({
-    move_intent: null,
-    seniority_intent: null,
-    priority: null,
+    move_intent: stored?.move_intent ?? null,
+    seniority_intent: stored?.seniority_intent ?? null,
+    priority: stored?.priority ?? null,
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -123,11 +131,23 @@ export default function PathPreferencesForm({ onComplete }: PathPreferencesFormP
             <button
               key={opt.value}
               type="button"
+              aria-pressed={selected}
               onClick={() => selectOption(opt.value as MoveIntent & SeniorityIntent & Priority)}
+              // W-13, from the third browser test: after moving the choice
+              // from "Fresh direction" to "Stay in my field", two options read
+              // as selected. Only one ever IS -- `selected` is an equality
+              // against a single stored value, and `aria-pressed` follows it --
+              // so the defect was entirely in the palette: GREEN was the whole
+              // of the selected signal (a forest border and a pale-green fill)
+              // and it was ALSO the hover signal on every unselected option.
+              // Put the pointer anywhere in the list on the way to "Next" and a
+              // second option lights up green, tickless, exactly as reported.
+              //
+              // Hover is now neutral. Green means chosen and nothing else.
               className={`w-full text-left px-5 py-4 rounded-xl border transition-all ${
                 selected
                   ? "border-2 border-forest-dark bg-forest-pale"
-                  : "border border-cream-muted bg-white hover:border-forest-light"
+                  : "border border-cream-muted bg-white hover:border-ink-tertiary"
               }`}
             >
               <div className="flex items-start justify-between gap-3">

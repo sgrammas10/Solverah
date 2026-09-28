@@ -21,6 +21,9 @@ from sqlalchemy import func
 from model import (
     IntakeSubmission,
     JobRecommendation,
+    PathFeedback,
+    PathFit,
+    PathWant,
     PulseCheckin,
     PulseEvent,
     ResumeParseCorrection,
@@ -131,6 +134,35 @@ def delete_personal_rows(user_id: int, intakes: List[IntakeSubmission]) -> None:
     # deletion tombstones the user row instead of removing it, so the delete has
     # to be explicit; the same reasoning as the assessment submissions above.
     UserSession.query.filter_by(user_id=user_id).delete()
+    # Stored Tier-2 deep fits (BUILD_PLAN F-5). `payload.matched_skills` is the user's
+    # own typed skill names and `gap_skills` is derived from them, so the row carries
+    # free text about a person -- destroyed, not retained de-identified, which is the
+    # D-7b line `pulse_events` falls on and `pulse_checkins` does not. Explicit rather
+    # than by cascade, for the reason the two paragraphs above give: deletion tombstones
+    # the user row instead of removing it, so `fk_pathfit_user` never fires.
+    PathFit.query.filter_by(user_id=user_id).delete()
+    # Inline card judgements (BUILD_PLAN F-6). Destroyed rather than retained
+    # de-identified, and this one is NOT the free-text test the two rows above turn
+    # on: `verdict` is a closed vocabulary and `onet_code` is a catalogue key, so
+    # nothing here is prose. It is destroyed because of what the row *means* rather
+    # than how it is spelled -- a judgement is a statement a person made about their
+    # own career ("this is too close to what I already do"), and a de-identified
+    # opinion is still that person's opinion. The D-16 research argument that keeps
+    # `pulse_checkins` and `experiments` does not reach it: nothing downstream reads
+    # these rows for anything but rebuilding one user's own query.
+    PathFeedback.query.filter_by(user_id=user_id).delete()
+    # Stated wants (BUILD_PLAN W-4). Destroyed on `path_feedback`'s reasoning
+    # exactly, and it is worth saying why the two reach the same answer from
+    # different sides. Nothing on this row is prose either -- `verdict` and
+    # `kind` are closed vocabularies, `anchor_onet_code` is a catalogue key,
+    # `item_key` is a digest and `item_text` is O*NET's own published sentence,
+    # not a word the user typed -- so the D-7b *spelling* rule would retain it.
+    # It is destroyed because of what the row MEANS: "I want less of this part of
+    # my job" is a statement a person made about their own working life, and a
+    # de-identified statement is still theirs. Nothing downstream reads these
+    # rows for anything but rotating one user's own retrieval query, so a
+    # retained row would be retention with no reader.
+    PathWant.query.filter_by(user_id=user_id).delete()
 
 
 def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_password: str) -> None:

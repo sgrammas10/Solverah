@@ -57,14 +57,11 @@ export default function IntakeForm({
   return (
     <div id="waitlist" className="animate-fade-up-slower opacity-0">
       <div className="border border-cream-muted rounded-xl bg-white p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-2">
-          Early Access
-        </p>
         <h2 className="font-display text-[1.75rem] font-semibold text-ink-primary leading-snug mb-2">
-          Join the Solverah signal
+          Tell us who you are
         </h2>
         <p className="text-sm text-ink-secondary leading-relaxed mb-6">
-          Private intake for thoughtful collaborators. Resumes upload to secure storage; we store only what you choose to share.
+          Your resume goes to private storage and we keep only what you choose to share. A person reads it before anything comes back to you.
         </p>
 
         <form className="space-y-5" onSubmit={onSubmit}>

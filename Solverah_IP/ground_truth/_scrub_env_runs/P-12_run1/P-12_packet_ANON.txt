@@ -1,0 +1,237 @@
+PACKET P-12   ·   DE-IDENTIFIED   ·   RATER-FACING
+  scrubbed from : P-12_packet.txt (build v4.11, model claude-opus-5, built 2026-09-17)
+  ruleset       : ANONYMIZATION_RULES_DRAFT.md
+  scrubbed      : 2026-09-18
+  status        : DRAFT — the approved combination of the two Carolinas utility subsidiaries
+                  referenced in section E takes effect 2027-01-01, after every piece of
+                  evidence in this packet
+
+  DO NOT SEARCH FOR ANY PHRASE IN THIS PACKET. If you recognise the company, that is
+  expected and is not a failure — record it on the recognition flag and keep scoring
+  from the evidence in front of you, not from what you know.
+
+SCOPE DECLARATION (read this first)
+  The employee reviews in this packet come from customer-service and customer-care roles, field
+  and plant technician roles, work-management and IT roles at a large regulated electric and gas
+  utility, plus a majority of reviewers who posted no job title at all. Other parts of this company
+  - nuclear generation operations, engineering, software and technology, finance, accounting and
+  legal - are present on the source site only in single-digit or low-double-digit review counts and
+  are effectively not represented in them. Two of the fifteen reviews come from a separately
+  branded wholly-owned subsidiary of the same company. Company-authored sources describe the whole
+  organisation.
+
+########## SECTION 1 - EVIDENCE PACKET (the only part the raters see) ##########
+
+--- A. CAREERS / VALUES PAGE (5-8 excerpts) ---
+
+   • "We prioritize physical and psychological safety, encourage innovation and nurture an environment where everyone feels they belong."  — [careers page] — company-authored — accessed 2026-09-17
+
+   • "We aim to meet customer needs with a workforce that reflects our communities, fosters inclusion, and achieves excellence through data‑driven decisions."  — [careers page] — company-authored — accessed 2026-09-17
+
+   • "To maintain their confidence, we are committed to a culture of transparency, high performance and pride among employees."  — [corporate ethics page] — company-authored — accessed 2026-09-17
+
+   • "Behaviors, as well as results, matter in our company."  — [corporate ethics page] — company-authored — accessed 2026-09-17
+
+   • "Employees and contingent workers are encouraged to report suspected wrongdoing and may do so anonymously without fear of reprisal through an independent third party, which provides a 24-hour telephone line and an online reporting option."  — [corporate ethics page] — company-authored — accessed 2026-09-17
+
+   • "We are safety-focused professionals committed to powering communities, supporting one another and delivering reliable energy every day."  — [careers page, lineworker role family, stated as "Our Vision - Who We Are"] — company-authored — accessed 2026-09-17
+
+   • "We build and maintain a resilient energy grid by working as a team, following rigorous safety standards and taking pride in the work we do for our customers and communities."  — [careers page, lineworker role family, stated as "Our Mission - What We Do"] — company-authored — accessed 2026-09-17
+
+   • "Our hiring process is designed to help candidates understand the role and demonstrate readiness for field-based work."  — [careers page, lineworker role family] — company-authored — accessed 2026-09-17
+
+--- B. EMPLOYEE REVIEWS (12-15, most recent first) ---
+
+NOTE TO RATER: Six of the fifteen reviews below (40%) are cut off at the source site and are
+therefore read here as opening fragments only. Three end at an explicit "Show more" control; three
+more stop part-way through the review with no marker of any kind. Long, detailed reviews are the
+ones that get cut, so the reviews you can read in full are systematically the shorter and less
+detailed ones. The cut point is marked [...] in each affected excerpt.
+
+NOTE TO RATER: The review profile used for this section is shared on the source site with an
+unrelated employer of the same name operating in a different industry, whose employees' reviews are
+pooled into the same profile. Reviews describing that other employer were checked for and none of
+them entered this section. The site-reported review total for this profile therefore overstates the
+number that describe this company.
+
+NOTE TO RATER: Two of the fifteen reviews are from a separately branded, wholly-owned subsidiary of
+the same company and are labelled [subsidiary] below.
+
+   • "I worked at this company for a period of time and had a generally positive experience overall. The work environment was professional, and most coworkers were helpful and respectful. Management communicated expectations clearly, and the daily tasks were usually straightforward once training was completed. [...]"  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — rev-01 — 2026-08-05
+
+   • "They have Mico [sic] managers, there is no trust in team members or their work, and low pay scale. Not a lot of room for advancement and growth. Do not recommend [...]"  — [employee review] — Work Management Specialist, [Site A] — rev-02 — 2026-07-04
+
+   • "Not recommended for young professionals who aren’t obsessed with climbing the corporate ladder. It seems frowned upon that someone dare just want to do their job well and then leave their job. There is diversity regarding race, gender, etc but it is very old when it comes to leadership and further retention [...]"  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — rev-03 — 2026-05-11
+
+   • "What is the most stressful part about working at the company? Being on call and responding to stressful storm situations [...]"  — [employee review, site's question-and-answer review format] — Associate Customer Care Specialist, [Site B] — rev-04 — 2026-05-10
+
+   • "Your co-workers will lie about to to [sic] get ahead themselves. Managers and team leads start to think they are gods and their egos get inflated. They think they own the people they supervise. Anyone ca ena [sic] manager so long so there are dumb people acting like they are gods."  — [employee review] — Customer Service, [Site C] — rev-05 — 2026-05-07
+
+   • "What is the most stressful part about working at the company? The on call sucked working such a wide area. Never know when you would be home. [...]"  — [employee review, subsidiary, site's question-and-answer review format] — Gas fitter, [Site D] — rev-06 — 2026-04-30
+
+   • "What is the most stressful part about working at the company? Having to be on call at any moment along with no work life balance. [...]"  — [employee review, site's question-and-answer review format] — Business Service Representative, location not stated — rev-07 — 2026-04-28
+
+   • "Heavy workload, difficult to maintain work life balance. Leadership is disconnected and bureaucratic. Colleagues are collaborative. Large organization with opportunities to change roles."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — rev-08 — 2026-04-21
+
+   • "[The company] is a powerhouse — if you want prestige, opportunity, and a network that opens doors, it delivers. But it’s not for coasting or “figuring things out slowly.” It’s for people ready to perform at a high level and keep up."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — rev-09 — 2026-04-16  — [company name rewritten in brackets; clause otherwise verbatim]
+
+   • "Great company to work for. Good people with good values. Lots of opportunities to grow and be mentored. Flexible management with reasonable expectations."  — [employee review, subsidiary] — reviewer posted as "Anonymous"; job title not stated; location not stated — rev-10 — 2026-03-17
+
+   • "Daily performance based jobs that varies per household. Average day can last 8 to 10 hours and a lot of upgrading on their systems. Be prepared to work."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — rev-11 — 2026-03-16
+
+   • "Good place to work. Learn a lot about a lot of different types of equipment. Learn a lot about analog components. First line management does their best to help where they can."  — [employee review] — Instrumentation Technician, location not stated — rev-12 — 2026-03-08
+
+   • "Allt [sic] of stuff to learn but worth it. Customers are difficult but if you have empathy you can do a great job. Mangerwas [sic] cool and the days went by fast."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — rev-13 — 2026-03-02
+
+   • "Good place to work. Depending on job function you have options to move to different regions. Most positions require 3 days in an office. Most leaders are flexible with work/life balance."  — [employee review] — Lead IT Security Analyst, [Site E] — rev-14 — 2026-02-19
+
+   • "Enjoyed my time at [the company]. The management was supportive of the team and the benefits were great. I would recommend this company to other people."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; [Site F] — rev-15 — 2026-02-07  — [company name rewritten in brackets; clause otherwise verbatim]
+
+--- C. JOB POSTINGS (6-10 excerpts from 3+ open postings, different functions) ---
+
+   • "The job responsibility of the Associate Distribution Dispatcher is to complete a dispatcher qualification program which typically takes between eighteen to twenty-four months."  — [job posting, distribution dispatch / grid operations function; confirmed open, closes 2026-09-27] — company-authored — accessed 2026-09-17  — [programme name rewritten in brackets; clause otherwise verbatim]
+
+   • "The goal of the program is to develop proficiency in all Distribution Dispatcher functions through the use of various training methods including the classroom, on-the-job training, and field experience."  — [job posting, distribution dispatch / grid operations function; confirmed open, closes 2026-09-27] — company-authored — accessed 2026-09-17
+
+   • "The Distribution Dispatcher functions include operating the electrical distribution system in a safe and reliable manner; monitoring multiple computer applications for system alarms and outages; coordinating and directing switching activities for normal maintenance and power restoration; forming contingency plans to mitigate consequences and implementing contingency plans should an event occur; and dispatching service level work orders to field resources."  — [job posting, distribution dispatch / grid operations function; confirmed open, closes 2026-09-27] — company-authored — accessed 2026-09-17
+
+   • "Must be able to work in a high paced, rapidly changing environment"  — [job posting, distribution dispatch / grid operations function; confirmed open, closes 2026-09-27] — company-authored — accessed 2026-09-17
+
+   • "Employees at this level solve problems, in single areas of specialization, with general supervision. Incumbents are expected to develop skills, and the ability to work with greater independence, as well as strive to become subject matter experts."  — [job posting, regulatory compliance function; confirmed open, closes 2026-09-27] — company-authored — accessed 2026-09-17
+
+   • "Guide and support business units in the development of self-reports, cause analyses, corrective plans, and mitigation plan porting."  — [job posting, regulatory compliance function; confirmed open, closes 2026-09-27; source's own wording preserved, "porting" appears to be a typographical error in the posting] — company-authored — accessed 2026-09-17
+
+   • "Perform or assist in business area trending analysis and reporting."  — [job posting, regulatory compliance function; confirmed open, closes 2026-09-27] — company-authored — accessed 2026-09-17
+
+   • "Employees at this level manage work with minimal supervision. Incumbents are expected to develop advanced skills and to have the ability to work independently, with guidance limited to unusual or complex projects or issues."  — [job posting, strategic sourcing / supply chain function; confirmed open, closes 2026-10-01] — company-authored — accessed 2026-09-17
+
+   • "Perform market analysis and research best practices successfully adopted by other industries and companies."  — [job posting, strategic sourcing / supply chain function; confirmed open, closes 2026-10-01] — company-authored — accessed 2026-09-17
+
+   • "Serve as lead negotiator and primary decision maker in resolving customer issues, ensuring timely and effective solutions."  — [job posting, commercial account management function; confirmed open, closes 2026-09-23] — company-authored — accessed 2026-09-17
+
+   • "Own and manage the entire customer relationship, coordinating with internal departments, including senior leadership, to ensure alignment."  — [job posting, commercial account management function; confirmed open, closes 2026-09-23] — company-authored — accessed 2026-09-17
+
+--- D. FIRST-PERSON ACCOUNT (yield: 8 passages from 3 sources · ladder fully attempted) ---
+
+   • "What excites me most is helping employees across [the company] do their jobs better, whether that means making their work safer or improving the quality of inspections,"  — [company publication, feature article; direct quotation, quotation marks present on the rendered source page] — a drone pilot and drone-program team member (non-executive), quoted by a company publication contributor — 2025-09-19  — [company name rewritten in brackets; clause otherwise verbatim]
+
+   • "Not only does this save time and money, it means fewer workers need to cross hazardous environments,"  — [company publication, feature article; direct quotation, quotation marks present on the rendered source page] — a drone pilot and drone-program team member (non-executive) — 2025-09-19
+
+   • "After each flight, data analysts review the footage to identify potential issues and share their findings with field supervisors, helping crews work smarter and safer."  — [company publication, feature article; the writer's own sentence, NOT a quotation from any employee - no quotation marks on the source page] — a company publication contributor — 2025-09-19
+
+   • "At first, it was working with my hands, being outside and doing something different every day. Now, in a supervisory role, I’m still close to the work but also involved in planning, logistics, training and leading a team. It’s challenging, but I’m still very connected to what first drew me into this job."  — [company publication, published question-and-answer interview; this is the interviewee's answer text as printed, which the page sets without quotation marks] — an operations supervisor, lineworker crews (non-executive) — accessed 2026-09-17 (source publishes no date)
+
+   • "Absolutely. We’re always thinking about how the work impacts customers. Sometimes we cut power to work safely, so we focus on minimizing disruption."  — [company publication, published question-and-answer interview; interviewee's answer text as printed, set without quotation marks] — an operations supervisor, lineworker crews (non-executive) — accessed 2026-09-17 (source publishes no date)
+
+   • "There are a lot of poles out there, and the only way to tackle that kind of work is one at a time. We focus on doing each one safely and correctly before moving on to the next."  — [company publication, published question-and-answer interview; interviewee's answer text as printed, set without quotation marks] — an operations supervisor, lineworker crews (non-executive) — accessed 2026-09-17 (source publishes no date)
+
+   • "Yes, it definitely does. We’re doing much more proactive work now. More lines are being reconducted, and we’re using newer technologies that just weren’t available when I started in the industry."  — [company publication, published question-and-answer interview; interviewee's answer text as printed, set without quotation marks] — an operations supervisor, lineworker crews (non-executive) — accessed 2026-09-17 (source publishes no date)
+
+   • "He handled the daily challenges of running a power plant with a commonsense approach: Stay level-headed. Look for the simple solution. Tackle the problem."  — [company publication, long-form leadership profile; the writer's own sentence, NOT a quotation from the executive - no quotation marks on the source page] — a company publication contributor, writing about the chief executive — 2025-04-01
+
+--- E. RECENT NEWS (yield: 4 · searches logged) ---
+
+   • "Providing the reliable power our customers expect requires us to add every available megawatt to the grid and increase speed to power as we build for economic growth,"  — [trade press, independent reporting; direct quotation, quotation marks present on the rendered source page] — the chief executive, quoted by trade press — 2026-02-12
+
+   • "The company is already spending at a substantial pace in order to keep up with demand and it expects the rate of growth to accelerate in 2027 and 2028, when many new data centers are expected to connect to the grid, [the chief executive] said."  — [trade press, independent reporting; the reporter's own sentence reporting the executive in indirect speech - no quotation marks on the source page] — trade press — 2026-02-12  — [company name, executive identity, and spending figure rewritten in brackets/magnitude language; clause otherwise verbatim]
+
+   • "[The company]’s proposal to combine its two subsidiaries in [State A] and [State B] was approved by the [State A] Utilities Commission last week, the company said Tuesday."  — [local television news, independent reporting] — local television news — 2026-05-05  — [company name and place names rewritten in brackets; clause otherwise verbatim]
+
+   • "[The company] is seeking to combine the two subsidiaries by Jan. 1, 2027."  — [local television news, independent reporting] — local television news — 2026-05-05  — [company name rewritten in brackets; clause otherwise verbatim]
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 6 · public/private: PUBLIC) ---
+
+   • "Our Human Resources organization is responsible for our human capital management strategy, which includes recruiting and hiring, onboarding and training, inclusion, workforce planning, talent and succession planning, performance management and employee development."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — filed 2026-02-26 (fiscal year ended 2025-12-31)
+
+   • "Key areas of focus include fostering a high-performance and inclusive culture built on strong leadership and highly engaged employees, building a pipeline of skilled workers and ensuring knowledge transfer as employees retire."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — filed 2026-02-26
+
+   • "Our compensation program is market driven and designed to link pay to individual and company performance and encourage long-term commitment to our business."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — filed 2026-02-26
+
+   • "Employee-led councils open to all employees are also embedded in departments across the Company and focus on driving engagement and inclusion deeper into the employee experience."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — filed 2026-02-26
+
+   • "The foundation for our growth and success is our continued focus on operational excellence, the leading indicator of which is safety."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — filed 2026-02-26
+
+   • "As an indication of our commitment to safety, we include safety metrics in both the short-term and long-term incentive plans based on an internal safety-performance metric for employees."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — filed 2026-02-26  — [internal metric name rewritten in brackets; clause otherwise verbatim]
+
+########## END OF PACKET ##########
+
+SCRUB LOG — P-12
+
+Counts per rule (section 1 only):
+  R1  attribution company-name + URL stripped: 52/52 excerpts (A:8, B:15 -> rev-01..rev-15,
+      C:11, D:8, E:4, F:6). B review URLs replaced with stable local ids rev-01..rev-15,
+      assigned in packet order (most-recent-first); no review recurs, so no id repeats.
+  R2  company name inside a quote body, substituted with [the company]/[The company]:
+      6 instances (B rev-09, B rev-15, C excerpt 1, D excerpt 1, E excerpt 3, E excerpt 4),
+      plus 1 more folded into a combined R2+R3 edit in E excerpt 2 (see R3).
+  R3  named humans stripped, role kept: 17 total across attribution lines and one quote
+      body (D1:2, D2:1, D3:1, D4-D7:1 each, D8:2, E1:2, E2: 1 in attribution + 1 in the
+      quote body combined with its R2 edit, E3:1, E4:1). Journalist bylines (Emma Penrod,
+      Matthew Sockol) converted to publication-class only per R3's byline clause.
+  R4/A5 branded/internal names, proper noun rewritten, clause kept: 5 instances — 2
+      declared in quote bodies (C excerpt 1: "The Dispatcher Qualification Program" -> "a
+      dispatcher qualification program"; F excerpt 6: "TICR" -> "an internal
+      safety-performance metric"), plus the "illumination" publication brand stripped 3
+      times in D attributions (D1, D3, D8), which are attribution-only and not declared.
+  R5/A6 place names tokenised: 6 city-level tokens in B attributions ([Site A] Columbus IN,
+      [Site B] Concord NC, [Site C] Lake Mary FL, [Site D] Salisbury NC, [Site E] Charlotte
+      NC, [Site F] Raleigh NC — mapping is in the diff file, not here, per A6(a)), plus 2
+      minted state-level tokens inside E excerpt 3's quote body ([State A] for the state
+      named twice in that excerpt, including inside the regulatory agency's name; [State B]
+      for the other state named once) — mapping again in the diff file only.
+  R6/A1 figures replaced with magnitude language: 1 instance (E excerpt 2: "more than a
+      billion dollars per month" -> "at a substantial pace").
+
+Judgment calls made this run:
+  1. Header "status" field. The raw BUILD RECORD carries no explicit status line for this
+     ruleset field to carry forward. Set to DRAFT, with the 2027-01-01 Carolinas-subsidiary-
+     combination caveat from section 2g attached, since that is the one forward-looking fact
+     in the raw packet a rater would need flagged.
+  2. E excerpt 2's spending figure. "More than a billion dollars per month" is already a
+     rounded, magnitude-style figure rather than a precise one, so treating it as an R6/A1
+     target was a judgment call rather than a clear case. Replaced it anyway: paired with
+     the rest of the excerpt it still narrows the field of candidate companies by scale.
+  3. E excerpt 3's place names. Read "administrative regions" and "named agencies" in the
+     SCRUB_BRIEF's own gloss on R5/A6 as covering the two bare state names and the state
+     utilities commission named inside this quote body, even though neither is a city/job-
+     site location of the kind R5's other examples address. Minted [State A]/[State B]
+     since no pre-flag token existed for either, and reused [State A] for the commission
+     name (which contains the same state name) rather than minting a third token, per A6's
+     instruction to reuse a token for the same place within a packet.
+  4. Harry Sideris's title. Collapsed "President and CEO" to the ruleset's own canonical
+     "[the chief executive]" placeholder everywhere he is named (D8, E1, E2), rather than
+     preserving "President and CEO" as kept title text, for consistency and because R3's
+     own worked example uses that exact placeholder for a CEO.
+  5. TICR (F excerpt 6). Treated as an internal organisation abbreviation under A5, per the
+     pre-flag's own D15 cross-reference, and did not print its expansion ("total incident
+     case rate") in the substitution, to avoid handing back a second searchable string in
+     place of the first.
+  6. A8 (source-system record ids) considered and NOT applied to section C. The four
+     requisition ids (e.g. R41581) appear only inside the job-posting URLs, which are
+     removed wholesale — never as separate plain text in the attribution the way P-09's
+     ids were. Posting-to-posting distinctiveness is already carried by each excerpt's
+     function descriptor (distribution dispatch / regulatory compliance / strategic
+     sourcing / commercial account management), so no [posting N] tokens were minted.
+  7. A9/R8 recurrence note considered and NOT applied. Checked section A against section F
+     for a claim restated in two company voices (the JC-1/A3/A9 pattern). Found related
+     themes (safety, culture) but no clause that is substantively the same claim reworded,
+     so no recurrence note was added anywhere in this packet.
+  8. A7 (review headlines) and the OPEN reviewer-re-identification item: both not
+     applicable. This packet's section B excerpts carry no separate review-headline/title
+     field to preserve, strip, or flag.
+  9. Dates left untouched. Section 4 flags the 2027-01-01 subsidiary-combination date (E4)
+     and the surrounding 2027/2028 references (E2) as part of a high-risk identifying
+     combination, but no rule authorises editing a date inside a quote body (R1 treats
+     dates generally as load-bearing; dates are not one of R2/R3/R4-A5/R6-A1/R5-A6). Left
+     literal and flagged as residual risk in the run report rather than resolved here.
+
+Left alone deliberately (signal, not identifier, per the governing principle):
+  - The four distinctive verbatim self-description strings flagged in section 4 (kept
+    verbatim, consistent with JC-1's precedent).
+  - Generic self-references to "our company" / "the Company" (A4, F4) — not literal
+    occurrences of the company's name, left untouched.
+  - Job titles and sector/function language throughout every section.
+  - All five preserved source typos, each still marked [sic] as in the raw packet.
+  - The non-breaking hyphen (U+2011) in "data‑driven" (A excerpt 2) — preserved exactly,
+    not normalised to an ordinary hyphen.
+  - "Remote": does not occur anywhere in this packet (N/A, not a miss).

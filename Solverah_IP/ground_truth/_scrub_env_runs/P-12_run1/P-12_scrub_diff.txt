@@ -1,0 +1,232 @@
+SCRUB DIFF — P-12
+raw line above, scrubbed line below, for every changed line in the section-1 body.
+(Header block, SCOPE DECLARATION, and section markers are reproduced verbatim in the
+output and are not diffed here since they did not change. Sections 2-4 of the raw
+packet are build/QA material that never enters the rater-facing output at all, per
+the brief's Steps 5-6 and the output format spec; their omission is structural, not
+a line-level edit, so they are not diffed line-by-line below either.)
+
+--- HEADER BLOCK (raw build record -> rater-facing header, reformatted per output spec) ---
+RAW:
+  BUILD RECORD
+    prompt version : v4.11
+    model          : claude-opus-5
+    built          : 2026-09-17
+    environment    : clean session, one company, no prior packet context
+    assisted       : NO
+SCRUBBED:
+  PACKET P-12   ·   DE-IDENTIFIED   ·   RATER-FACING
+    scrubbed from : P-12_packet.txt (build v4.11, model claude-opus-5, built 2026-09-17)
+    ruleset       : ANONYMIZATION_RULES_DRAFT.md
+    scrubbed      : 2026-09-18
+    status        : DRAFT (see run report)
+
+--- SECTION 1 BODY: 52 changed excerpt lines ---
+
+[raw line 22]
+RAW:      • "We prioritize physical and psychological safety, encourage innovation and nurture an environment where everyone feels they belong."  — [careers page] — Duke Energy, company-authored — https://www.duke-energy.com/our-company/careers — accessed 2026-09-17
+SCRUBBED: • "We prioritize physical and psychological safety, encourage innovation and nurture an environment where everyone feels they belong."  — [careers page] — company-authored — accessed 2026-09-17
+
+[raw line 24]
+RAW:      • "We aim to meet customer needs with a workforce that reflects our communities, fosters inclusion, and achieves excellence through data‑driven decisions."  — [careers page] — Duke Energy, company-authored — https://www.duke-energy.com/our-company/careers — accessed 2026-09-17
+SCRUBBED: • "We aim to meet customer needs with a workforce that reflects our communities, fosters inclusion, and achieves excellence through data‑driven decisions."  — [careers page] — company-authored — accessed 2026-09-17
+
+[raw line 26]
+RAW:      • "To maintain their confidence, we are committed to a culture of transparency, high performance and pride among employees."  — [corporate ethics page] — Duke Energy, company-authored — https://www.duke-energy.com/our-company/about-us/ethics — accessed 2026-09-17
+SCRUBBED: • "To maintain their confidence, we are committed to a culture of transparency, high performance and pride among employees."  — [corporate ethics page] — company-authored — accessed 2026-09-17
+
+[raw line 28]
+RAW:      • "Behaviors, as well as results, matter in our company."  — [corporate ethics page] — Duke Energy, company-authored — https://www.duke-energy.com/our-company/about-us/ethics — accessed 2026-09-17
+SCRUBBED: • "Behaviors, as well as results, matter in our company."  — [corporate ethics page] — company-authored — accessed 2026-09-17
+
+[raw line 30]
+RAW:      • "Employees and contingent workers are encouraged to report suspected wrongdoing and may do so anonymously without fear of reprisal through an independent third party, which provides a 24-hour telephone line and an online reporting option."  — [corporate ethics page] — Duke Energy, company-authored — https://www.duke-energy.com/our-company/about-us/ethics — accessed 2026-09-17
+SCRUBBED: • "Employees and contingent workers are encouraged to report suspected wrongdoing and may do so anonymously without fear of reprisal through an independent third party, which provides a 24-hour telephone line and an online reporting option."  — [corporate ethics page] — company-authored — accessed 2026-09-17
+
+[raw line 32]
+RAW:      • "We are safety-focused professionals committed to powering communities, supporting one another and delivering reliable energy every day."  — [careers page, lineworker role family, stated as "Our Vision - Who We Are"] — Duke Energy, company-authored — https://www.duke-energy.com/our-company/careers/line-workers — accessed 2026-09-17
+SCRUBBED: • "We are safety-focused professionals committed to powering communities, supporting one another and delivering reliable energy every day."  — [careers page, lineworker role family, stated as "Our Vision - Who We Are"] — company-authored — accessed 2026-09-17
+
+[raw line 34]
+RAW:      • "We build and maintain a resilient energy grid by working as a team, following rigorous safety standards and taking pride in the work we do for our customers and communities."  — [careers page, lineworker role family, stated as "Our Mission - What We Do"] — Duke Energy, company-authored — https://www.duke-energy.com/our-company/careers/line-workers — accessed 2026-09-17
+SCRUBBED: • "We build and maintain a resilient energy grid by working as a team, following rigorous safety standards and taking pride in the work we do for our customers and communities."  — [careers page, lineworker role family, stated as "Our Mission - What We Do"] — company-authored — accessed 2026-09-17
+
+[raw line 36]
+RAW:      • "Our hiring process is designed to help candidates understand the role and demonstrate readiness for field-based work."  — [careers page, lineworker role family] — Duke Energy, company-authored — https://www.duke-energy.com/our-company/careers/line-workers — accessed 2026-09-17
+SCRUBBED: • "Our hiring process is designed to help candidates understand the role and demonstrate readiness for field-based work."  — [careers page, lineworker role family] — company-authored — accessed 2026-09-17
+
+[raw line 55]
+RAW:      • "I worked at this company for a period of time and had a generally positive experience overall. The work environment was professional, and most coworkers were helpful and respectful. Management communicated expectations clearly, and the daily tasks were usually straightforward once training was completed. [...]"  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-08-05
+SCRUBBED: • "I worked at this company for a period of time and had a generally positive experience overall. The work environment was professional, and most coworkers were helpful and respectful. Management communicated expectations clearly, and the daily tasks were usually straightforward once training was completed. [...]"  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — rev-01 — 2026-08-05
+
+[raw line 57]
+RAW:      • "They have Mico [sic] managers, there is no trust in team members or their work, and low pay scale. Not a lot of room for advancement and growth. Do not recommend [...]"  — [employee review] — Work Management Specialist, Columbus, IN — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-07-04
+SCRUBBED: • "They have Mico [sic] managers, there is no trust in team members or their work, and low pay scale. Not a lot of room for advancement and growth. Do not recommend [...]"  — [employee review] — Work Management Specialist, [Site A] — rev-02 — 2026-07-04
+
+[raw line 59]
+RAW:      • "Not recommended for young professionals who aren’t obsessed with climbing the corporate ladder. It seems frowned upon that someone dare just want to do their job well and then leave their job. There is diversity regarding race, gender, etc but it is very old when it comes to leadership and further retention [...]"  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-05-11
+SCRUBBED: • "Not recommended for young professionals who aren’t obsessed with climbing the corporate ladder. It seems frowned upon that someone dare just want to do their job well and then leave their job. There is diversity regarding race, gender, etc but it is very old when it comes to leadership and further retention [...]"  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — rev-03 — 2026-05-11
+
+[raw line 61]
+RAW:      • "What is the most stressful part about working at the company? Being on call and responding to stressful storm situations [...]"  — [employee review, site's question-and-answer review format] — Associate Customer Care Specialist, Concord, NC — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-05-10
+SCRUBBED: • "What is the most stressful part about working at the company? Being on call and responding to stressful storm situations [...]"  — [employee review, site's question-and-answer review format] — Associate Customer Care Specialist, [Site B] — rev-04 — 2026-05-10
+
+[raw line 63]
+RAW:      • "Your co-workers will lie about to to [sic] get ahead themselves. Managers and team leads start to think they are gods and their egos get inflated. They think they own the people they supervise. Anyone ca ena [sic] manager so long so there are dumb people acting like they are gods."  — [employee review] — Customer Service, Lake Mary, FL — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-05-07
+SCRUBBED: • "Your co-workers will lie about to to [sic] get ahead themselves. Managers and team leads start to think they are gods and their egos get inflated. They think they own the people they supervise. Anyone ca ena [sic] manager so long so there are dumb people acting like they are gods."  — [employee review] — Customer Service, [Site C] — rev-05 — 2026-05-07
+
+[raw line 65]
+RAW:      • "What is the most stressful part about working at the company? The on call sucked working such a wide area. Never know when you would be home. [...]"  — [employee review, subsidiary, site's question-and-answer review format] — Gas fitter, Salisbury, NC — https://www.indeed.com/cmp/Piedmont-Natural-Gas/reviews?fcountry=ALL&sort=date — 2026-04-30
+SCRUBBED: • "What is the most stressful part about working at the company? The on call sucked working such a wide area. Never know when you would be home. [...]"  — [employee review, subsidiary, site's question-and-answer review format] — Gas fitter, [Site D] — rev-06 — 2026-04-30
+
+[raw line 67]
+RAW:      • "What is the most stressful part about working at the company? Having to be on call at any moment along with no work life balance. [...]"  — [employee review, site's question-and-answer review format] — Business Service Representative, location not stated — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-04-28
+SCRUBBED: • "What is the most stressful part about working at the company? Having to be on call at any moment along with no work life balance. [...]"  — [employee review, site's question-and-answer review format] — Business Service Representative, location not stated — rev-07 — 2026-04-28
+
+[raw line 69]
+RAW:      • "Heavy workload, difficult to maintain work life balance. Leadership is disconnected and bureaucratic. Colleagues are collaborative. Large organization with opportunities to change roles."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-04-21
+SCRUBBED: • "Heavy workload, difficult to maintain work life balance. Leadership is disconnected and bureaucratic. Colleagues are collaborative. Large organization with opportunities to change roles."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — rev-08 — 2026-04-21
+
+[raw line 71]
+RAW:      • "Duke is a powerhouse — if you want prestige, opportunity, and a network that opens doors, it delivers. But it’s not for coasting or “figuring things out slowly.” It’s for people ready to perform at a high level and keep up."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-04-16
+SCRUBBED: • "[The company] is a powerhouse — if you want prestige, opportunity, and a network that opens doors, it delivers. But it’s not for coasting or “figuring things out slowly.” It’s for people ready to perform at a high level and keep up."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — rev-09 — 2026-04-16  — [company name rewritten in brackets; clause otherwise verbatim]
+
+[raw line 73]
+RAW:      • "Great company to work for. Good people with good values. Lots of opportunities to grow and be mentored. Flexible management with reasonable expectations."  — [employee review, subsidiary] — reviewer posted as "Anonymous"; job title not stated; location not stated — https://www.indeed.com/cmp/Piedmont-Natural-Gas/reviews?fcountry=ALL&sort=date — 2026-03-17
+SCRUBBED: • "Great company to work for. Good people with good values. Lots of opportunities to grow and be mentored. Flexible management with reasonable expectations."  — [employee review, subsidiary] — reviewer posted as "Anonymous"; job title not stated; location not stated — rev-10 — 2026-03-17
+
+[raw line 75]
+RAW:      • "Daily performance based jobs that varies per household. Average day can last 8 to 10 hours and a lot of upgrading on their systems. Be prepared to work."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-03-16
+SCRUBBED: • "Daily performance based jobs that varies per household. Average day can last 8 to 10 hours and a lot of upgrading on their systems. Be prepared to work."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — rev-11 — 2026-03-16
+
+[raw line 77]
+RAW:      • "Good place to work. Learn a lot about a lot of different types of equipment. Learn a lot about analog components. First line management does their best to help where they can."  — [employee review] — Instrumentation Technician, location not stated — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-03-08
+SCRUBBED: • "Good place to work. Learn a lot about a lot of different types of equipment. Learn a lot about analog components. First line management does their best to help where they can."  — [employee review] — Instrumentation Technician, location not stated — rev-12 — 2026-03-08
+
+[raw line 79]
+RAW:      • "Allt [sic] of stuff to learn but worth it. Customers are difficult but if you have empathy you can do a great job. Mangerwas [sic] cool and the days went by fast."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-03-02
+SCRUBBED: • "Allt [sic] of stuff to learn but worth it. Customers are difficult but if you have empathy you can do a great job. Mangerwas [sic] cool and the days went by fast."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; location not stated — rev-13 — 2026-03-02
+
+[raw line 81]
+RAW:      • "Good place to work. Depending on job function you have options to move to different regions. Most positions require 3 days in an office. Most leaders are flexible with work/life balance."  — [employee review] — Lead IT Security Analyst, Charlotte, NC — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-02-19
+SCRUBBED: • "Good place to work. Depending on job function you have options to move to different regions. Most positions require 3 days in an office. Most leaders are flexible with work/life balance."  — [employee review] — Lead IT Security Analyst, [Site E] — rev-14 — 2026-02-19
+
+[raw line 83]
+RAW:      • "Enjoyed my time at Duke Energy. The management was supportive of the team and the benefits were great. I would recommend this company to other people."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; Raleigh, NC — https://www.indeed.com/cmp/Duke-Energy/reviews?fcountry=ALL&sort=date — 2026-02-07
+SCRUBBED: • "Enjoyed my time at [the company]. The management was supportive of the team and the benefits were great. I would recommend this company to other people."  — [employee review] — reviewer posted as "Anonymous"; job title not stated; [Site F] — rev-15 — 2026-02-07  — [company name rewritten in brackets; clause otherwise verbatim]
+
+[raw line 87]
+RAW:      • "The job responsibility of the Associate Distribution Dispatcher is to complete The Dispatcher Qualification Program which typically takes between eighteen to twenty-four months."  — [job posting, distribution dispatch / grid operations function; confirmed open, closes 2026-09-27] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/St-Petersburg-FL/Associate-Distribution-Dispatcher_R41581 — accessed 2026-09-17
+SCRUBBED: • "The job responsibility of the Associate Distribution Dispatcher is to complete a dispatcher qualification program which typically takes between eighteen to twenty-four months."  — [job posting, distribution dispatch / grid operations function; confirmed open, closes 2026-09-27] — company-authored — accessed 2026-09-17  — [programme name rewritten in brackets; clause otherwise verbatim]
+
+[raw line 89]
+RAW:      • "The goal of the program is to develop proficiency in all Distribution Dispatcher functions through the use of various training methods including the classroom, on-the-job training, and field experience."  — [job posting, distribution dispatch / grid operations function; confirmed open, closes 2026-09-27] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/St-Petersburg-FL/Associate-Distribution-Dispatcher_R41581 — accessed 2026-09-17
+SCRUBBED: • "The goal of the program is to develop proficiency in all Distribution Dispatcher functions through the use of various training methods including the classroom, on-the-job training, and field experience."  — [job posting, distribution dispatch / grid operations function; confirmed open, closes 2026-09-27] — company-authored — accessed 2026-09-17
+
+[raw line 91]
+RAW:      • "The Distribution Dispatcher functions include operating the electrical distribution system in a safe and reliable manner; monitoring multiple computer applications for system alarms and outages; coordinating and directing switching activities for normal maintenance and power restoration; forming contingency plans to mitigate consequences and implementing contingency plans should an event occur; and dispatching service level work orders to field resources."  — [job posting, distribution dispatch / grid operations function; confirmed open, closes 2026-09-27] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/St-Petersburg-FL/Associate-Distribution-Dispatcher_R41581 — accessed 2026-09-17
+SCRUBBED: • "The Distribution Dispatcher functions include operating the electrical distribution system in a safe and reliable manner; monitoring multiple computer applications for system alarms and outages; coordinating and directing switching activities for normal maintenance and power restoration; forming contingency plans to mitigate consequences and implementing contingency plans should an event occur; and dispatching service level work orders to field resources."  — [job posting, distribution dispatch / grid operations function; confirmed open, closes 2026-09-27] — company-authored — accessed 2026-09-17
+
+[raw line 93]
+RAW:      • "Must be able to work in a high paced, rapidly changing environment"  — [job posting, distribution dispatch / grid operations function; confirmed open, closes 2026-09-27] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/St-Petersburg-FL/Associate-Distribution-Dispatcher_R41581 — accessed 2026-09-17
+SCRUBBED: • "Must be able to work in a high paced, rapidly changing environment"  — [job posting, distribution dispatch / grid operations function; confirmed open, closes 2026-09-27] — company-authored — accessed 2026-09-17
+
+[raw line 95]
+RAW:      • "Employees at this level solve problems, in single areas of specialization, with general supervision. Incumbents are expected to develop skills, and the ability to work with greater independence, as well as strive to become subject matter experts."  — [job posting, regulatory compliance function; confirmed open, closes 2026-09-27] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/Belews-Creek-NC/Compliance-Analyst---Senior-Compliance-Analyst_R41399 — accessed 2026-09-17
+SCRUBBED: • "Employees at this level solve problems, in single areas of specialization, with general supervision. Incumbents are expected to develop skills, and the ability to work with greater independence, as well as strive to become subject matter experts."  — [job posting, regulatory compliance function; confirmed open, closes 2026-09-27] — company-authored — accessed 2026-09-17
+
+[raw line 97]
+RAW:      • "Guide and support business units in the development of self-reports, cause analyses, corrective plans, and mitigation plan porting."  — [job posting, regulatory compliance function; confirmed open, closes 2026-09-27; source's own wording preserved, "porting" appears to be a typographical error in the posting] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/Belews-Creek-NC/Compliance-Analyst---Senior-Compliance-Analyst_R41399 — accessed 2026-09-17
+SCRUBBED: • "Guide and support business units in the development of self-reports, cause analyses, corrective plans, and mitigation plan porting."  — [job posting, regulatory compliance function; confirmed open, closes 2026-09-27; source's own wording preserved, "porting" appears to be a typographical error in the posting] — company-authored — accessed 2026-09-17
+
+[raw line 99]
+RAW:      • "Perform or assist in business area trending analysis and reporting."  — [job posting, regulatory compliance function; confirmed open, closes 2026-09-27] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/Belews-Creek-NC/Compliance-Analyst---Senior-Compliance-Analyst_R41399 — accessed 2026-09-17
+SCRUBBED: • "Perform or assist in business area trending analysis and reporting."  — [job posting, regulatory compliance function; confirmed open, closes 2026-09-27] — company-authored — accessed 2026-09-17
+
+[raw line 101]
+RAW:      • "Employees at this level manage work with minimal supervision. Incumbents are expected to develop advanced skills and to have the ability to work independently, with guidance limited to unusual or complex projects or issues."  — [job posting, strategic sourcing / supply chain function; confirmed open, closes 2026-10-01] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/Charlotte-NC/Strategic-Sourcing-Specialist-OR-Strategic-Senior-Sourcing-Specialist_R41579 — accessed 2026-09-17
+SCRUBBED: • "Employees at this level manage work with minimal supervision. Incumbents are expected to develop advanced skills and to have the ability to work independently, with guidance limited to unusual or complex projects or issues."  — [job posting, strategic sourcing / supply chain function; confirmed open, closes 2026-10-01] — company-authored — accessed 2026-09-17
+
+[raw line 103]
+RAW:      • "Perform market analysis and research best practices successfully adopted by other industries and companies."  — [job posting, strategic sourcing / supply chain function; confirmed open, closes 2026-10-01] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/Charlotte-NC/Strategic-Sourcing-Specialist-OR-Strategic-Senior-Sourcing-Specialist_R41579 — accessed 2026-09-17
+SCRUBBED: • "Perform market analysis and research best practices successfully adopted by other industries and companies."  — [job posting, strategic sourcing / supply chain function; confirmed open, closes 2026-10-01] — company-authored — accessed 2026-09-17
+
+[raw line 105]
+RAW:      • "Serve as lead negotiator and primary decision maker in resolving customer issues, ensuring timely and effective solutions."  — [job posting, commercial account management function; confirmed open, closes 2026-09-23] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/Raleigh-NC/Account-Executive_R41561 — accessed 2026-09-17
+SCRUBBED: • "Serve as lead negotiator and primary decision maker in resolving customer issues, ensuring timely and effective solutions."  — [job posting, commercial account management function; confirmed open, closes 2026-09-23] — company-authored — accessed 2026-09-17
+
+[raw line 107]
+RAW:      • "Own and manage the entire customer relationship, coordinating with internal departments, including senior leadership, to ensure alignment."  — [job posting, commercial account management function; confirmed open, closes 2026-09-23] — Duke Energy, company-authored — https://dukeenergy.wd1.myworkdayjobs.com/search/job/Raleigh-NC/Account-Executive_R41561 — accessed 2026-09-17
+SCRUBBED: • "Own and manage the entire customer relationship, coordinating with internal departments, including senior leadership, to ensure alignment."  — [job posting, commercial account management function; confirmed open, closes 2026-09-23] — company-authored — accessed 2026-09-17
+
+[raw line 111]
+RAW:      • "What excites me most is helping employees across Duke Energy do their jobs better, whether that means making their work safer or improving the quality of inspections,"  — [company publication, feature article; direct quotation, quotation marks present on the rendered source page] — Aron Wallace, drone pilot and drone-program team member (non-executive), quoted by Lee Freedman, illumination Contributor — https://illumination.duke-energy.com/articles/drones-at-work-how-aron-wallace-and-his-team-are-changing-field-operations — 2025-09-19
+SCRUBBED: • "What excites me most is helping employees across [the company] do their jobs better, whether that means making their work safer or improving the quality of inspections,"  — [company publication, feature article; direct quotation, quotation marks present on the rendered source page] — a drone pilot and drone-program team member (non-executive), quoted by a company publication contributor — 2025-09-19  — [company name rewritten in brackets; clause otherwise verbatim]
+
+[raw line 113]
+RAW:      • "Not only does this save time and money, it means fewer workers need to cross hazardous environments,"  — [company publication, feature article; direct quotation, quotation marks present on the rendered source page] — Aron Wallace, drone pilot and drone-program team member (non-executive) — https://illumination.duke-energy.com/articles/drones-at-work-how-aron-wallace-and-his-team-are-changing-field-operations — 2025-09-19
+SCRUBBED: • "Not only does this save time and money, it means fewer workers need to cross hazardous environments,"  — [company publication, feature article; direct quotation, quotation marks present on the rendered source page] — a drone pilot and drone-program team member (non-executive) — 2025-09-19
+
+[raw line 115]
+RAW:      • "After each flight, data analysts review the footage to identify potential issues and share their findings with field supervisors, helping crews work smarter and safer."  — [company publication, feature article; the writer's own sentence, NOT a quotation from any employee - no quotation marks on the source page] — Lee Freedman, illumination Contributor — https://illumination.duke-energy.com/articles/drones-at-work-how-aron-wallace-and-his-team-are-changing-field-operations — 2025-09-19
+SCRUBBED: • "After each flight, data analysts review the footage to identify potential issues and share their findings with field supervisors, helping crews work smarter and safer."  — [company publication, feature article; the writer's own sentence, NOT a quotation from any employee - no quotation marks on the source page] — a company publication contributor — 2025-09-19
+
+[raw line 117]
+RAW:      • "At first, it was working with my hands, being outside and doing something different every day. Now, in a supervisory role, I’m still close to the work but also involved in planning, logistics, training and leading a team. It’s challenging, but I’m still very connected to what first drew me into this job."  — [company publication, published question-and-answer interview; this is the interviewee's answer text as printed, which the page sets without quotation marks] — Clynt Walter, operations supervisor, lineworker crews (non-executive) — https://illumination.duke-energy.com/articles/beyond-storm-response-lineworkers-making-the-system-upgrades-customers-depend-on — accessed 2026-09-17 (source publishes no date)
+SCRUBBED: • "At first, it was working with my hands, being outside and doing something different every day. Now, in a supervisory role, I’m still close to the work but also involved in planning, logistics, training and leading a team. It’s challenging, but I’m still very connected to what first drew me into this job."  — [company publication, published question-and-answer interview; this is the interviewee's answer text as printed, which the page sets without quotation marks] — an operations supervisor, lineworker crews (non-executive) — accessed 2026-09-17 (source publishes no date)
+
+[raw line 119]
+RAW:      • "Absolutely. We’re always thinking about how the work impacts customers. Sometimes we cut power to work safely, so we focus on minimizing disruption."  — [company publication, published question-and-answer interview; interviewee's answer text as printed, set without quotation marks] — Clynt Walter, operations supervisor, lineworker crews (non-executive) — https://illumination.duke-energy.com/articles/beyond-storm-response-lineworkers-making-the-system-upgrades-customers-depend-on — accessed 2026-09-17 (source publishes no date)
+SCRUBBED: • "Absolutely. We’re always thinking about how the work impacts customers. Sometimes we cut power to work safely, so we focus on minimizing disruption."  — [company publication, published question-and-answer interview; interviewee's answer text as printed, set without quotation marks] — an operations supervisor, lineworker crews (non-executive) — accessed 2026-09-17 (source publishes no date)
+
+[raw line 121]
+RAW:      • "There are a lot of poles out there, and the only way to tackle that kind of work is one at a time. We focus on doing each one safely and correctly before moving on to the next."  — [company publication, published question-and-answer interview; interviewee's answer text as printed, set without quotation marks] — Clynt Walter, operations supervisor, lineworker crews (non-executive) — https://illumination.duke-energy.com/articles/beyond-storm-response-lineworkers-making-the-system-upgrades-customers-depend-on — accessed 2026-09-17 (source publishes no date)
+SCRUBBED: • "There are a lot of poles out there, and the only way to tackle that kind of work is one at a time. We focus on doing each one safely and correctly before moving on to the next."  — [company publication, published question-and-answer interview; interviewee's answer text as printed, set without quotation marks] — an operations supervisor, lineworker crews (non-executive) — accessed 2026-09-17 (source publishes no date)
+
+[raw line 123]
+RAW:      • "Yes, it definitely does. We’re doing much more proactive work now. More lines are being reconducted, and we’re using newer technologies that just weren’t available when I started in the industry."  — [company publication, published question-and-answer interview; interviewee's answer text as printed, set without quotation marks] — Clynt Walter, operations supervisor, lineworker crews (non-executive) — https://illumination.duke-energy.com/articles/beyond-storm-response-lineworkers-making-the-system-upgrades-customers-depend-on — accessed 2026-09-17 (source publishes no date)
+SCRUBBED: • "Yes, it definitely does. We’re doing much more proactive work now. More lines are being reconducted, and we’re using newer technologies that just weren’t available when I started in the industry."  — [company publication, published question-and-answer interview; interviewee's answer text as printed, set without quotation marks] — an operations supervisor, lineworker crews (non-executive) — accessed 2026-09-17 (source publishes no date)
+
+[raw line 125]
+RAW:      • "He handled the daily challenges of running a power plant with a commonsense approach: Stay level-headed. Look for the simple solution. Tackle the problem."  — [company publication, long-form leadership profile; the writer's own sentence, NOT a quotation from the executive - no quotation marks on the source page] — Caroline Portillo, illumination, writing about Harry Sideris (executive) — https://illumination.duke-energy.com/articles/building-the-future-harry-sideris-leads-duke-energy-into-a-new-era — 2025-04-01
+SCRUBBED: • "He handled the daily challenges of running a power plant with a commonsense approach: Stay level-headed. Look for the simple solution. Tackle the problem."  — [company publication, long-form leadership profile; the writer's own sentence, NOT a quotation from the executive - no quotation marks on the source page] — a company publication contributor, writing about the chief executive — 2025-04-01
+
+[raw line 129]
+RAW:      • "Providing the reliable power our customers expect requires us to add every available megawatt to the grid and increase speed to power as we build for economic growth,"  — [trade press, independent reporting; direct quotation, quotation marks present on the rendered source page] — Harry Sideris, President and CEO, quoted by Emma Penrod, Utility Dive — https://www.utilitydive.com/news/103-billion-duke-claims-largest-spending-plan-of-any-regulated-us-utility/812047/ — 2026-02-12
+SCRUBBED: • "Providing the reliable power our customers expect requires us to add every available megawatt to the grid and increase speed to power as we build for economic growth,"  — [trade press, independent reporting; direct quotation, quotation marks present on the rendered source page] — the chief executive, quoted by trade press — 2026-02-12
+
+[raw line 131]
+RAW:      • "The company is already spending more than a billion dollars per month in order to keep up with demand and it expects the rate of growth to accelerate in 2027 and 2028, when many new data centers are expected to connect to the grid, Duke Energy President and CEO Harry Sideris said."  — [trade press, independent reporting; the reporter's own sentence reporting the executive in indirect speech - no quotation marks on the source page] — Emma Penrod, Utility Dive — https://www.utilitydive.com/news/103-billion-duke-claims-largest-spending-plan-of-any-regulated-us-utility/812047/ — 2026-02-12
+SCRUBBED: • "The company is already spending at a substantial pace in order to keep up with demand and it expects the rate of growth to accelerate in 2027 and 2028, when many new data centers are expected to connect to the grid, [the chief executive] said."  — [trade press, independent reporting; the reporter's own sentence reporting the executive in indirect speech - no quotation marks on the source page] — trade press — 2026-02-12  — [company name, executive identity, and spending figure rewritten in brackets/magnitude language; clause otherwise verbatim]
+
+[raw line 133]
+RAW:      • "Duke Energy’s proposal to combine its two subsidiaries in North and South Carolina was approved by the North Carolina Utilities Commission last week, the company said Tuesday."  — [local television news, independent reporting] — Matthew Sockol, WNCN / CBS17 — https://www.cbs17.com/news/north-carolina-news/nc-utilities-commission-approves-merger-of-2-duke-energy-companies/ — 2026-05-05
+SCRUBBED: • "[The company]’s proposal to combine its two subsidiaries in [State A] and [State B] was approved by the [State A] Utilities Commission last week, the company said Tuesday."  — [local television news, independent reporting] — local television news — 2026-05-05  — [company name and place names rewritten in brackets; clause otherwise verbatim]
+
+[raw line 135]
+RAW:      • "Duke Energy is seeking to combine the two subsidiaries by Jan. 1, 2027."  — [local television news, independent reporting] — Matthew Sockol, WNCN / CBS17 — https://www.cbs17.com/news/north-carolina-news/nc-utilities-commission-approves-merger-of-2-duke-energy-companies/ — 2026-05-05
+SCRUBBED: • "[The company] is seeking to combine the two subsidiaries by Jan. 1, 2027."  — [local television news, independent reporting] — local television news — 2026-05-05  — [company name rewritten in brackets; clause otherwise verbatim]
+
+[raw line 139]
+RAW:      • "Our Human Resources organization is responsible for our human capital management strategy, which includes recruiting and hiring, onboarding and training, inclusion, workforce planning, talent and succession planning, performance management and employee development."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — Duke Energy Corporation — https://www.sec.gov/Archives/edgar/data/17797/000132616026000014/duk-20251231.htm — filed 2026-02-26 (fiscal year ended 2025-12-31)
+SCRUBBED: • "Our Human Resources organization is responsible for our human capital management strategy, which includes recruiting and hiring, onboarding and training, inclusion, workforce planning, talent and succession planning, performance management and employee development."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — filed 2026-02-26 (fiscal year ended 2025-12-31)
+
+[raw line 141]
+RAW:      • "Key areas of focus include fostering a high-performance and inclusive culture built on strong leadership and highly engaged employees, building a pipeline of skilled workers and ensuring knowledge transfer as employees retire."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — Duke Energy Corporation — https://www.sec.gov/Archives/edgar/data/17797/000132616026000014/duk-20251231.htm — filed 2026-02-26
+SCRUBBED: • "Key areas of focus include fostering a high-performance and inclusive culture built on strong leadership and highly engaged employees, building a pipeline of skilled workers and ensuring knowledge transfer as employees retire."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — filed 2026-02-26
+
+[raw line 143]
+RAW:      • "Our compensation program is market driven and designed to link pay to individual and company performance and encourage long-term commitment to our business."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — Duke Energy Corporation — https://www.sec.gov/Archives/edgar/data/17797/000132616026000014/duk-20251231.htm — filed 2026-02-26
+SCRUBBED: • "Our compensation program is market driven and designed to link pay to individual and company performance and encourage long-term commitment to our business."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — filed 2026-02-26
+
+[raw line 145]
+RAW:      • "Employee-led councils open to all employees are also embedded in departments across the Company and focus on driving engagement and inclusion deeper into the employee experience."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — Duke Energy Corporation — https://www.sec.gov/Archives/edgar/data/17797/000132616026000014/duk-20251231.htm — filed 2026-02-26
+SCRUBBED: • "Employee-led councils open to all employees are also embedded in departments across the Company and focus on driving engagement and inclusion deeper into the employee experience."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — filed 2026-02-26
+
+[raw line 147]
+RAW:      • "The foundation for our growth and success is our continued focus on operational excellence, the leading indicator of which is safety."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — Duke Energy Corporation — https://www.sec.gov/Archives/edgar/data/17797/000132616026000014/duk-20251231.htm — filed 2026-02-26
+SCRUBBED: • "The foundation for our growth and success is our continued focus on operational excellence, the leading indicator of which is safety."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — filed 2026-02-26
+
+[raw line 149]
+RAW:      • "As an indication of our commitment to safety, we include safety metrics in both the short-term and long-term incentive plans based on the TICR for employees."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — Duke Energy Corporation — https://www.sec.gov/Archives/edgar/data/17797/000132616026000014/duk-20251231.htm — filed 2026-02-26
+SCRUBBED: • "As an indication of our commitment to safety, we include safety metrics in both the short-term and long-term incentive plans based on an internal safety-performance metric for employees."  — [10-K, Item 1, Human Capital Management; company-authored legal filing] — filed 2026-02-26  — [internal metric name rewritten in brackets; clause otherwise verbatim]

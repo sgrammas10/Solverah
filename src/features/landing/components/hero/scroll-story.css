@@ -1,0 +1,316 @@
+/*
+ * Scroll story hero. The section is tall; its stage sticks under the 4rem nav
+ * for the whole scroll, and each step restyles the stage. Card styles come
+ * from cards.css (.ht-result); this file only places them.
+ */
+
+.ss {
+  position: relative;
+  /* one screen for the pinned stage, plus scroll distance for the steps */
+  height: calc(100vh + (var(--steps) - 1) * 70vh);
+}
+
+.ss-stage {
+  position: sticky;
+  top: 4rem;
+  height: calc(100vh - 4rem);
+  overflow: hidden;
+  background: #faf7f2;
+  transition: background-color 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ss-tone-cream {
+  background-color: #faf7f2;
+}
+
+.ss-tone-subtle {
+  background-color: #eae4db;
+}
+
+.ss-tone-pale {
+  background-color: #d8f3dc;
+}
+
+.ss-tone-dark {
+  background-color: #1b4332;
+}
+
+.ss-inner {
+  position: relative;
+  width: 100%;
+  max-width: 1180px;
+  height: 100%;
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}
+
+/* ---------- words ---------- */
+
+.ss-text {
+  position: absolute;
+  z-index: 5;
+  left: 1.5rem;
+  right: 1.5rem;
+  top: 1.75rem;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(16px);
+  transition:
+    opacity 500ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 600ms cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 500ms;
+}
+
+.ss-text[data-active="true"] {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition-delay: 120ms, 120ms, 0s;
+}
+
+.ss-text--intro {
+  text-align: center;
+}
+
+.ss-h1,
+.ss-h2 {
+  margin: 0;
+  font-family: Archivo, "Arial Narrow", system-ui, sans-serif;
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -0.025em;
+  color: #1a1a1a;
+  text-wrap: balance;
+  transition: color 500ms ease;
+}
+
+.ss-h1 {
+  max-width: 18ch;
+  margin-inline: auto;
+  font-size: clamp(2.75rem, 5.6vw, 5.2rem);
+}
+
+.ss-h2 {
+  max-width: 14ch;
+  font-size: clamp(2rem, 4.2vw, 3.1rem);
+  line-height: 1.02;
+}
+
+.ss-lead {
+  margin: 1rem 0 0;
+  max-width: 42ch;
+  font-size: clamp(1.02rem, 1.6vw, 1.18rem);
+  line-height: 1.6;
+  color: #555555;
+}
+
+.ss-text--intro .ss-lead {
+  margin-inline: auto;
+}
+
+.ss-text .ht-actions {
+  margin-top: 1.5rem;
+}
+
+.ss-tone-dark .ss-h2 {
+  color: #faf7f2;
+}
+
+.ss-tone-dark .ss-lead {
+  color: #d8f3dc;
+}
+
+.ss-promise {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.86rem;
+  color: #d8f3dc;
+}
+
+.ss-promise li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ss-promise svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+@media (min-width: 900px) {
+  .ss-text {
+    left: 1.5rem;
+    right: auto;
+    top: 50%;
+    width: 42%;
+    transform: translateY(calc(-50% + 16px));
+  }
+
+  .ss-text[data-active="true"] {
+    transform: translateY(-50%);
+  }
+
+  .ss-text--intro {
+    left: 50%;
+    top: 2.5rem;
+    width: min(44rem, 90%);
+    transform: translateX(-50%) translateY(16px);
+  }
+
+  .ss-text--intro[data-active="true"] {
+    transform: translateX(-50%);
+  }
+}
+
+/* ---------- cards ---------- */
+
+.ss-cards {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.ss-card {
+  position: absolute;
+  width: min(17rem, 80vw);
+  transition:
+    left 800ms cubic-bezier(0.16, 1, 0.3, 1),
+    top 800ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 800ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 500ms ease;
+}
+
+.ss-card--wide {
+  width: min(25rem, 88vw);
+}
+
+.ss-card .ht-result--main .ht-result-title,
+.ss-card--wide .ht-result-title {
+  font-size: 1.6rem;
+}
+
+.ss-note {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  bottom: 0.9rem;
+  margin: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 0.76rem;
+  color: #555555;
+  transition: color 500ms ease;
+}
+
+.ss-tone-dark .ss-note {
+  color: #d8f3dc;
+}
+
+/* ---------- step dots ---------- */
+
+/* Hidden on phones, where they would sit on the card; scrolling is the
+   control there anyway. */
+.ss-dots {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .ss-dots {
+    display: flex;
+  }
+}
+
+.ss-dots {
+  position: absolute;
+  z-index: 6;
+  right: 1.25rem;
+  top: 50%;
+  flex-direction: column;
+  gap: 0.6rem;
+  transform: translateY(-50%);
+}
+
+.ss-dots button {
+  width: 0.6rem;
+  height: 0.6rem;
+  padding: 0;
+  border: 1.5px solid #1b4332;
+  border-radius: 9999px;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease,
+    height 300ms ease;
+}
+
+.ss-dots button[aria-current="step"] {
+  height: 1.5rem;
+  background: #1b4332;
+}
+
+.ss-tone-dark .ss-dots button {
+  border-color: #faf7f2;
+}
+
+.ss-tone-dark .ss-dots button[aria-current="step"] {
+  background: #faf7f2;
+}
+
+/* The site's forest-light focus ring is too faint on the dark final scene. */
+.ss-tone-dark :focus-visible {
+  outline-color: #faf7f2;
+}
+
+.ss-dots button:focus-visible {
+  outline: 2px solid #40916c;
+  outline-offset: 3px;
+}
+
+/*
+ * Reduced motion (on whenever Windows "Animation effects" is off): nothing
+ * glides. Cards and words change place instantly and fade instead, and the
+ * background colour still changes, so each step still reads as a new scene.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .ss-card {
+    transition: opacity 400ms ease;
+  }
+
+  .ss-text,
+  .ss-text[data-active="true"] {
+    transition:
+      opacity 400ms ease,
+      visibility 0s linear 400ms;
+  }
+
+  .ss-text[data-active="true"] {
+    transition-delay: 0s;
+  }
+
+  .ss-text {
+    transform: none;
+  }
+
+  @media (min-width: 900px) {
+    .ss-text,
+    .ss-text[data-active="true"] {
+      transform: translateY(-50%);
+    }
+
+    .ss-text--intro,
+    .ss-text--intro[data-active="true"] {
+      transform: translateX(-50%);
+    }
+  }
+}
+
+.ss-tone-dark .ss-dots button:focus-visible {
+  outline-color: #faf7f2;
+}

@@ -34,15 +34,31 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DIMS = ["autonomy", "pace", "collaboration", "feedback", "innovation", "decision"]
 
 # stage_size=3.0 and comp=3.0 standardize to exactly 0 under the config's fixed scales,
-# and every confounder weight's prior mean is 0 -- so with these values the confounder
-# terms vanish at point weights and the analytic anchors below are exact.
+# and every confounder weight's prior mean is 0 in the neutral priors -- so with these
+# values the confounder terms vanish at point weights and the analytic anchors below
+# are exact.
 NEUTRAL_CONF = {"stage_size": [3.0], "comp": [3.0], "industry": ["tech"]}
+
+# The placeholder weights priors.yaml carried until the expert-elicited values landed
+# (2026-09-17). Kept as the neutral fixture: intercept 0, no asymmetry, no confounder
+# effect -- the only priors under which "perfect match == exactly 0.5" is true.
+NEUTRAL_PRIORS = REPO_ROOT / "causal_graph" / "v1_model" / "priors_placeholder.yaml"
 
 
 def _cfg_pri():
+    """The LIVE priors -- what the model actually serves. The round-trip and seed tests
+    use these, so they prove the real file survives the trip."""
     from match_scoring import load
 
     return load()
+
+
+def _neutral_cfg_pri():
+    """Neutral priors for the analytic anchors in section 2. Those are properties of the
+    predictor, not of any expert's numbers, and must not move when priors.yaml does."""
+    from match_scoring import load
+
+    return load(pri_path=str(NEUTRAL_PRIORS))
 
 
 # ---------------------------------------------------------------------------
@@ -153,7 +169,36 @@ def test_corrupt_weight_rows_refuse_to_serve(client):
 # 2. The scores
 # ---------------------------------------------------------------------------
 
+def test_neutral_fixture_is_actually_neutral():
+    """The anchors below are exact only under intercept 0, zero asymmetry and zero
+    confounder means. Pin that, so nobody "improves" priors_placeholder.yaml into a file
+    that quietly makes them approximate."""
+    _, pri = _neutral_cfg_pri()
+    assert pri["intercept"]["mean"] == 0.0
+    for d in DIMS:
+        assert pri["dimensions"][d]["mag"]["mean"] < 0
+        assert pri["dimensions"][d]["dir"]["mean"] == 0.0
+    for k in ("stage_size", "comp", "industry"):
+        assert pri["confounders"][k]["mean"] == 0.0
+
+
 def test_perfect_match_at_neutral_priors_is_exactly_half():
+    from match_core import point_p_fit, weights_from_priors
+
+    cfg, pri = _neutral_cfg_pri()
+    w = weights_from_priors(cfg, pri)
+    person = {d: [0.5] for d in DIMS}
+    env = {d: [0.5] for d in DIMS}
+    p = point_p_fit(person, env, NEUTRAL_CONF, cfg, w)
+    assert p.shape == (1,)
+    assert p[0] == 0.5  # z is exactly 0: gap 0 everywhere, confounder terms exactly 0
+
+
+def test_live_priors_price_a_perfect_match_at_the_stated_baseline():
+    """Whatever priors.yaml holds, a perfect match at neutral confounders has z ==
+    intercept, so P(fit) is the sigmoid of the intercept and nothing else -- the expert's
+    baseline answer, served back unchanged. Also the one sign every priors file must
+    agree on: a mismatch never raises the odds."""
     from match_core import point_p_fit, weights_from_priors
 
     cfg, pri = _cfg_pri()
@@ -161,8 +206,15 @@ def test_perfect_match_at_neutral_priors_is_exactly_half():
     person = {d: [0.5] for d in DIMS}
     env = {d: [0.5] for d in DIMS}
     p = point_p_fit(person, env, NEUTRAL_CONF, cfg, w)
-    assert p.shape == (1,)
-    assert p[0] == 0.5  # z is exactly 0: gap 0 everywhere, confounder terms exactly 0
+    expected = 1.0 / (1.0 + np.exp(-w["intercept"]["mean"]))
+    assert p[0] == pytest.approx(expected, abs=1e-12)
+
+    for d in DIMS:
+        mag = w["dimensions"][d]["mag"]["mean"]
+        assert mag < 0, f"{d}: mag {mag} says a mismatch IMPROVES the odds"
+        # |dir| <= |mag| keeps BOTH directions of a mismatch costly. Past that, one
+        # direction of being wrong would beat a perfect match.
+        assert abs(w["dimensions"][d]["dir"]["mean"]) <= abs(mag) + 1e-9, d
 
 
 def test_pole_candidate_scores_identically_to_perfect_mid_match():
@@ -184,7 +236,9 @@ def test_pole_candidate_scores_identically_to_perfect_mid_match():
 def test_p_fit_decreases_as_gap_grows():
     from match_core import point_p_fit, weights_from_priors
 
-    cfg, pri = _cfg_pri()
+    # Neutral priors: the rows below differ in gap SIGN as well as size, and monotonicity
+    # in |gap| alone is a property of the symmetric predictor, not of asymmetric priors.
+    cfg, pri = _neutral_cfg_pri()
     w = weights_from_priors(cfg, pri)
     conf = {"stage_size": [3.0] * 3, "comp": [3.0] * 3, "industry": ["tech"] * 3}
     person = {d: [0.5, 0.5, 1.0] for d in DIMS}
@@ -244,8 +298,11 @@ def test_score_with_current_run_end_to_end(client):
         run, scores = score_with_current_run(db, person, env, NEUTRAL_CONF, draws=200, seed=3)
         assert run.model_version == "v1-priors-only"
         assert scores["p_fit_low"][0] < scores["p_fit"][0] < scores["p_fit_high"][0]
-        # Perfect match under symmetric neutral priors: the band straddles 0.5.
-        assert scores["p_fit_low"][0] < 0.5 < scores["p_fit_high"][0]
+        # Perfect match: z is the intercept alone, so the band straddles the live
+        # priors' own baseline -- through the database and back.
+        _, pri = _cfg_pri()
+        baseline = 1.0 / (1.0 + np.exp(-pri["intercept"]["mean"]))
+        assert scores["p_fit_low"][0] < baseline < scores["p_fit_high"][0]
 
 
 # ---------------------------------------------------------------------------

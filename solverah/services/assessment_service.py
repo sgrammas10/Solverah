@@ -38,6 +38,7 @@ from solverah.infra import llm
 from solverah.repositories import (
     assessment_repository,
     intake_repository,
+    path_fit_repository,
     profile_repository,
 )
 from solverah.services import assessment_prompts, path_cache
@@ -236,6 +237,11 @@ def submit_work_pulse(user: User, answers: Any, logger) -> AssessmentResult:
         submission.result = result
         submission.status = "scored"
         submission.scored_at = auth_domain.utcnow()
+        # BUILD_PLAN F-5: the stored Tier-2 deep fits go with the Tier-1 cache.
+        # Inside the same transaction as the write that made them stale, so a
+        # crash between the two cannot leave a changed profile beside fits
+        # computed from the old one.
+        path_fit_repository.invalidate(user.id)
         db.session.commit()
         path_cache.invalidate(user.id)
     except Exception:  # noqa: BLE001 -- see the comment above
@@ -304,6 +310,7 @@ def submit_focus_type(user: User, data: Dict[str, Any]) -> AssessmentResult:
     )
 
     _store(user, "focus_type", answers=data, result=result)
+    path_fit_repository.invalidate(user.id)  # F-5, with the Tier-1 cache below
     db.session.commit()
     path_cache.invalidate(user.id)
 
@@ -357,6 +364,7 @@ def submit_manager_match(user: User, answers: Any, logger) -> AssessmentResult:
         result=result,
         narrative=llm_result["narrative"],
     )
+    path_fit_repository.invalidate(user.id)  # F-5, with the Tier-1 cache below
     db.session.commit()
     path_cache.invalidate(user.id)
 

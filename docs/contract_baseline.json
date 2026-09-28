@@ -923,5 +923,131 @@
     "mimetype": "application/json",
     "cookies_set": [],
     "body": "{\"experiments\":[{\"abandoned_at\":\"<TS>\",\"dimension\":\"autonomy\",\"direction\":\"under\",\"ends_at\":\"<TS>\",\"experiment_name\":\"One piece, your method, for a fortnight\",\"id\":1,\"phase\":\"abandoned\",\"readout\":{\"after_count\":0,\"before_count\":1,\"verdict\":\"not_enough_data\"},\"started_at\":\"<TS>\",\"status\":\"abandoned\"}]}\n"
+  },
+  {
+    "step": "path-fit-malformed-code",
+    "method": "POST",
+    "path": "/api/v1/me/path-fit/not-an-onet-code",
+    "status": 404,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"invalid_onet_code\"}\n"
+  },
+  {
+    "step": "path-fit-corpus-unavailable",
+    "method": "POST",
+    "path": "/api/v1/me/path-fit/15-1252.00",
+    "status": 503,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"corpus_unavailable\"}\n"
+  },
+  {
+    "step": "path-feedback-invalid-verdict",
+    "method": "POST",
+    "path": "/api/v1/me/path-feedback",
+    "status": 400,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"invalid_verdict\"}\n"
+  },
+  {
+    "step": "path-feedback-malformed-code",
+    "method": "POST",
+    "path": "/api/v1/me/path-feedback",
+    "status": 404,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"invalid_onet_code\"}\n"
+  },
+  {
+    "step": "path-feedback-corpus-unavailable",
+    "method": "POST",
+    "path": "/api/v1/me/path-feedback",
+    "status": 503,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"corpus_unavailable\"}\n"
+  },
+  {
+    "step": "delete-path-feedback",
+    "method": "DELETE",
+    "path": "/api/v1/me/path-feedback",
+    "status": 503,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"corpus_unavailable\"}\n"
+  },
+  {
+    "step": "path-wants-corpus-unavailable",
+    "method": "GET",
+    "path": "/api/v1/me/path-wants",
+    "status": 503,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"corpus_unavailable\"}\n"
+  },
+  {
+    "step": "path-wants-put-corpus-unavailable",
+    "method": "PUT",
+    "path": "/api/v1/me/path-wants",
+    "status": 503,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"corpus_unavailable\"}\n"
+  },
+  {
+    "step": "path-wants",
+    "method": "GET",
+    "path": "/api/v1/me/path-wants",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"anchor\":{\"onet_code\":\"15-1243.00\",\"title\":\"Database Architects\"},\"conditions\":[{\"axis\":\"people\",\"label\":\"Time working with other people\",\"verdict\":null},{\"axis\":\"public\",\"label\":\"Dealing with customers or the public\",\"verdict\":null},{\"axis\":\"leading\",\"label\":\"Leading or directing other people\",\"verdict\":null},{\"axis\":\"desk\",\"label\":\"At a desk, rather than on your feet\",\"verdict\":null}],\"status\":\"ok\",\"tasks\":[{\"key\":\"t_54d4f631699f\",\"label\":\"Write down how the data is meant to work\",\"verdict\":null},{\"key\":\"t_0a96b881284e\",\"label\":\"Set up and look after the databases\",\"verdict\":null}]}\n"
+  },
+  {
+    "step": "path-wants-put",
+    "method": "PUT",
+    "path": "/api/v1/me/path-wants",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"anchor\":{\"onet_code\":\"15-1243.00\",\"title\":\"Database Architects\"},\"conditions\":[{\"axis\":\"people\",\"label\":\"Time working with other people\",\"verdict\":\"more\"},{\"axis\":\"public\",\"label\":\"Dealing with customers or the public\",\"verdict\":null},{\"axis\":\"leading\",\"label\":\"Leading or directing other people\",\"verdict\":null},{\"axis\":\"desk\",\"label\":\"At a desk, rather than on your feet\",\"verdict\":null}],\"status\":\"ok\",\"tasks\":[{\"key\":\"t_54d4f631699f\",\"label\":\"Write down how the data is meant to work\",\"verdict\":\"less\"},{\"key\":\"t_0a96b881284e\",\"label\":\"Set up and look after the databases\",\"verdict\":null}]}\n"
+  },
+  {
+    "step": "path-wants-put-unknown-key",
+    "method": "PUT",
+    "path": "/api/v1/me/path-wants",
+    "status": 422,
+    "mimetype": "application/problem+json",
+    "cookies_set": [],
+    "body": "{\"detail\":\"key must name a row this user's current occupation offers. Re-read GET /me/path-wants: the panel is rebuilt from the job they hold now, and a key from a different one is not answerable.\",\"errors\":[{\"code\":\"not_offered\",\"field\":\"answers.0.key\"}],\"instance\":\"/api/v1/me/path-wants\",\"request_id\":\"<RID>\",\"status\":422,\"title\":\"Validation failed\",\"type\":\"https://solverah.com/errors/validation\"}\n"
+  },
+  {
+    "step": "path-wants-put-clear",
+    "method": "PUT",
+    "path": "/api/v1/me/path-wants",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"anchor\":{\"onet_code\":\"15-1243.00\",\"title\":\"Database Architects\"},\"conditions\":[{\"axis\":\"people\",\"label\":\"Time working with other people\",\"verdict\":\"more\"},{\"axis\":\"public\",\"label\":\"Dealing with customers or the public\",\"verdict\":null},{\"axis\":\"leading\",\"label\":\"Leading or directing other people\",\"verdict\":null},{\"axis\":\"desk\",\"label\":\"At a desk, rather than on your feet\",\"verdict\":null}],\"status\":\"ok\",\"tasks\":[{\"key\":\"t_54d4f631699f\",\"label\":\"Write down how the data is meant to work\",\"verdict\":null},{\"key\":\"t_0a96b881284e\",\"label\":\"Set up and look after the databases\",\"verdict\":null}]}\n"
+  },
+  {
+    "step": "path-wants-no-anchor",
+    "method": "GET",
+    "path": "/api/v1/me/path-wants",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"anchor\":null,\"conditions\":[],\"status\":\"no_anchor\",\"tasks\":[]}\n"
+  },
+  {
+    "step": "path-wants-put-no-anchor",
+    "method": "PUT",
+    "path": "/api/v1/me/path-wants",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"anchor\":null,\"conditions\":[],\"status\":\"no_anchor\",\"tasks\":[]}\n"
   }
 ]

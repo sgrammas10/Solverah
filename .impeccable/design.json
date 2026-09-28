@@ -1,0 +1,586 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-28T18:00:00Z",
+  "title": "Design System: Solverah — Landing (\"/\")",
+  "scope": "Landing page route \"/\" (src/features/landing/components/LandingPage.tsx, landing.css, hero/ScrollStory.tsx + scroll-story.css + cards.css + ResultCards.tsx + HeroActions.tsx, ecosystem/EcosystemSection.tsx + ecosystem.css). Colours are the site-wide cream/forest/ink tailwind tokens; Archivo + Public Sans are route-specific (other routes use Playfair Display + DM Sans). The shared IntakeForm/AccountModal in the intake band use Playfair headings and a 12px-radius card: a known type/shape seam, no colour seam. All choices provisional; the ecosystem layout defaults to split (card|flow|off still reachable via ?eco=).",
+  "extensions": {
+    "colorMeta": {
+      "forest-dark": {
+        "role": "primary",
+        "displayName": "Forest Dark",
+        "canonical": "oklch(35% 0.055 163)",
+        "tonalRamp": [
+          "oklch(15% 0.055 163)",
+          "oklch(25% 0.055 163)",
+          "oklch(37% 0.055 163)",
+          "oklch(50% 0.055 163)",
+          "oklch(62% 0.055 163)",
+          "oklch(74% 0.055 163)",
+          "oklch(85% 0.055 163)",
+          "oklch(95% 0.055 163)"
+        ],
+        "alphaUses": {
+          "0.10": "tint of the result cards' ambient shadow (0 10px 30px)"
+        }
+      },
+      "forest-mid": {
+        "role": "primary",
+        "displayName": "Forest Mid",
+        "canonical": "oklch(48% 0.078 162)",
+        "tonalRamp": [
+          "oklch(15% 0.078 162)",
+          "oklch(25% 0.078 162)",
+          "oklch(37% 0.078 162)",
+          "oklch(50% 0.078 162)",
+          "oklch(62% 0.078 162)",
+          "oklch(74% 0.078 162)",
+          "oklch(85% 0.078 162)",
+          "oklch(95% 0.078 162)"
+        ]
+      },
+      "forest-light": {
+        "role": "primary",
+        "displayName": "Forest Light",
+        "canonical": "oklch(60% 0.098 161)",
+        "tonalRamp": [
+          "oklch(15% 0.098 161)",
+          "oklch(25% 0.098 161)",
+          "oklch(37% 0.098 161)",
+          "oklch(50% 0.098 161)",
+          "oklch(62% 0.098 161)",
+          "oklch(74% 0.098 161)",
+          "oklch(85% 0.098 161)",
+          "oklch(95% 0.098 161)"
+        ],
+        "alphaUses": {
+          "0.75": "packet glow (drop-shadow) in the ecosystem diagram",
+          "0.45": "pulsing ring around the ecosystem mark",
+          "0.70": "warmed edge while a packet travels"
+        }
+      },
+      "forest-pale": {
+        "role": "primary",
+        "displayName": "Forest Pale",
+        "canonical": "oklch(94% 0.042 150)",
+        "tonalRamp": [
+          "oklch(15% 0.042 150)",
+          "oklch(25% 0.042 150)",
+          "oklch(37% 0.042 150)",
+          "oklch(50% 0.042 150)",
+          "oklch(62% 0.042 150)",
+          "oklch(74% 0.042 150)",
+          "oklch(85% 0.042 150)",
+          "oklch(95% 0.042 150)"
+        ]
+      },
+      "cream-base": {
+        "role": "neutral",
+        "displayName": "Cream Base",
+        "canonical": "oklch(98% 0.007 81)",
+        "tonalRamp": [
+          "oklch(15% 0.007 81)",
+          "oklch(25% 0.007 81)",
+          "oklch(37% 0.007 81)",
+          "oklch(50% 0.007 81)",
+          "oklch(62% 0.007 81)",
+          "oklch(74% 0.007 81)",
+          "oklch(85% 0.007 81)",
+          "oklch(95% 0.007 81)"
+        ]
+      },
+      "cream-subtle": {
+        "role": "neutral",
+        "displayName": "Cream Subtle",
+        "canonical": "oklch(92% 0.014 78)",
+        "tonalRamp": [
+          "oklch(15% 0.014 78)",
+          "oklch(25% 0.014 78)",
+          "oklch(37% 0.014 78)",
+          "oklch(50% 0.014 78)",
+          "oklch(62% 0.014 78)",
+          "oklch(74% 0.014 78)",
+          "oklch(85% 0.014 78)",
+          "oklch(95% 0.014 78)"
+        ]
+      },
+      "cream-muted": {
+        "role": "neutral",
+        "displayName": "Cream Muted",
+        "canonical": "oklch(86% 0.011 77)",
+        "tonalRamp": [
+          "oklch(15% 0.011 77)",
+          "oklch(25% 0.011 77)",
+          "oklch(37% 0.011 77)",
+          "oklch(50% 0.011 77)",
+          "oklch(62% 0.011 77)",
+          "oklch(74% 0.011 77)",
+          "oklch(85% 0.011 77)",
+          "oklch(95% 0.011 77)"
+        ]
+      },
+      "pane-white": {
+        "role": "neutral",
+        "displayName": "Pane White",
+        "canonical": "oklch(100% 0 0)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(37% 0 0)",
+          "oklch(50% 0 0)",
+          "oklch(62% 0 0)",
+          "oklch(74% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ],
+        "alphaUses": {
+          "0.10": "on-dark secondary button hover; footer rules on ink"
+        }
+      },
+      "ink-primary": {
+        "role": "neutral",
+        "displayName": "Ink Primary",
+        "canonical": "oklch(22% 0 0)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(37% 0 0)",
+          "oklch(50% 0 0)",
+          "oklch(62% 0 0)",
+          "oklch(74% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ],
+        "alphaUses": {
+          "0.12-0.14": "dot grid on the ecosystem field"
+        }
+      },
+      "ink-secondary": {
+        "role": "neutral",
+        "displayName": "Ink Secondary",
+        "canonical": "oklch(45% 0 0)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(37% 0 0)",
+          "oklch(50% 0 0)",
+          "oklch(62% 0 0)",
+          "oklch(74% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "ink-tertiary": {
+        "role": "neutral",
+        "displayName": "Ink Tertiary",
+        "canonical": "oklch(63% 0 0)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(37% 0 0)",
+          "oklch(50% 0 0)",
+          "oklch(62% 0 0)",
+          "oklch(74% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "footer-muted": {
+        "role": "neutral",
+        "displayName": "Footer Muted",
+        "canonical": "oklch(74% 0 0)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(25% 0 0)",
+          "oklch(37% 0 0)",
+          "oklch(50% 0 0)",
+          "oklch(62% 0 0)",
+          "oklch(74% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Hero h1 \"See how you actually work.\"; centred, 18ch cap, text-balanced, one colour."
+      },
+      "display-closing": {
+        "displayName": "Display Closing",
+        "purpose": "Closing headline; 16ch cap, one colour."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Scroll-story step headlines (14ch cap) and every section h2; ends with a full stop."
+      },
+      "title-strong": {
+        "displayName": "Title Strong",
+        "purpose": "Commitment heads; also the wide result card's title when focused."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Ledger row titles, wordmark (800), ecosystem card title (clamp 1.35-1.6rem)."
+      },
+      "title-sm": {
+        "displayName": "Title Small",
+        "purpose": "Result-card titles and pane headings; ecosystem list names at 1.05rem."
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "Scroll-story step paragraphs, 42ch cap; forest-pale on the dark stage."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running copy in ink-secondary, 0.95-1.02rem; caps 36-68ch by context."
+      },
+      "body-emphasis": {
+        "displayName": "Body Emphasis",
+        "purpose": "FAQ question summaries in ink-primary."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Result-card text and rows, promise list, meta lines, footer column heads. Sentence case, never letterspaced."
+      },
+      "nav": {
+        "displayName": "Nav",
+        "purpose": "Nav and footer links."
+      },
+      "fine": {
+        "displayName": "Fine",
+        "purpose": "Example-results note, card check line, copyright, O*NET attribution, ecosystem flow caption."
+      }
+    },
+    "shadows": [
+      {
+        "name": "result-card-ambient",
+        "value": "0 10px 30px rgba(27, 67, 50, 0.1)",
+        "purpose": "The scroll story's example result cards only; forest-tinted, never black, never a hover lift."
+      },
+      {
+        "name": "packet-glow",
+        "value": "filter: drop-shadow(0 0 3px rgba(64,145,108,0.75))",
+        "purpose": "Ecosystem data packets only (on trial)."
+      }
+    ],
+    "elevation": "Mostly flat and tonal. Scroll-story stage changes tone per step (cream-base, cream-subtle, forest-pale, cream-subtle, forest-dark); below it white panes/closing band on cream-base, cream-subtle intake band, ink-primary footer; 2px cream-muted gutters between panes, 1px cream-muted rules elsewhere. Exceptions: result cards' forest-tinted ambient shadow; the ecosystem diagram's dot-grid field, edge fades, packet glow and pulsing ring.",
+    "focus": [
+      {
+        "name": "focus-ring",
+        "value": "outline: 2px solid #40916C; outline-offset: 3px",
+        "purpose": "Every :focus-visible inside .landing, including the step dots, except on the dark story scene."
+      },
+      {
+        "name": "focus-ring-on-dark",
+        "value": "outline-color: #FAF7F2",
+        "purpose": "The dark final story scene (.ss-tone-dark), where forest-light on forest-dark is too faint; step dots included."
+      },
+      {
+        "name": "eco-node-active",
+        "value": "outline: 2px solid #1B4332; outline-offset: 2px",
+        "purpose": "Hub node whose list item is hovered (split layout)."
+      }
+    ],
+    "selection": {
+      "background": "#D8F3DC",
+      "color": "#1B4332"
+    },
+    "scrollbar": {
+      "thumb": "#D4CFC8",
+      "track": "#FAF7F2"
+    },
+    "scrollStory": {
+      "sectionHeight": "calc(100vh + (steps - 1) * 70vh)",
+      "stage": "position: sticky; top: 4rem; height: calc(100vh - 4rem); overflow: hidden",
+      "steps": [
+        {
+          "id": "intro",
+          "tone": "cream-base",
+          "headline": "See how you actually work.",
+          "focus": "pulse"
+        },
+        {
+          "id": "pulse",
+          "tone": "cream-subtle",
+          "headline": "Answer twelve questions.",
+          "focus": "pulse"
+        },
+        {
+          "id": "situation",
+          "tone": "forest-pale",
+          "headline": "See what your job is costing you.",
+          "focus": "situation"
+        },
+        {
+          "id": "playbook",
+          "tone": "cream-subtle",
+          "headline": "Work with the manager you have.",
+          "focus": "playbook"
+        },
+        {
+          "id": "checked",
+          "tone": "forest-dark",
+          "headline": "Checked by a person. Kept from employers.",
+          "focus": "pulse"
+        }
+      ],
+      "cardPlacement": "Desktop (>=900px): per-step table WIDE in ScrollStory.tsx (centre x/y %, scale 0.72-1.28, opacity 0.35 or 1, tilt +/-5deg on the close). Phone: focused card only at x 50%, y 69%, scale 0.9; others opacity 0.",
+      "control": "Scroll position (floor(progress * 5)); desktop step dots smooth-scroll to a step's midpoint."
+    },
+    "motion": [
+      {
+        "name": "ease-house",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Every movement on the page and every ecosystem transition."
+      },
+      {
+        "name": "ss-stage-tone",
+        "value": "background-color 700ms house curve",
+        "purpose": "Stage background shifts between step tones."
+      },
+      {
+        "name": "ss-text",
+        "value": "opacity 500ms + translateY(16px) 600ms, house curve, 120ms enter delay; visibility hides inactive steps",
+        "purpose": "Step words swap."
+      },
+      {
+        "name": "ss-card",
+        "value": "left/top/transform 800ms house curve, opacity 500ms ease",
+        "purpose": "Result cards glide, scale and tilt to per-step places."
+      },
+      {
+        "name": "ss-color",
+        "value": "color 500ms ease",
+        "purpose": "Headline and note colour shift on the dark scene."
+      },
+      {
+        "name": "ss-dot",
+        "value": "background-color, border-color, height 300ms ease",
+        "purpose": "Current step dot fills and stretches."
+      },
+      {
+        "name": "faq-plus",
+        "value": "rotate(45deg), 240ms house curve",
+        "purpose": "FAQ plus turns to a cross on open."
+      },
+      {
+        "name": "color-hover",
+        "value": "150ms (Tailwind transition-colors default)",
+        "purpose": "All colour hovers; nav fill 300ms."
+      },
+      {
+        "name": "eco-node-in",
+        "value": "scale 0.8 to 1 + fade, 500-600ms, 100ms stagger, on scroll into view",
+        "purpose": "Ecosystem nodes arrive once."
+      },
+      {
+        "name": "eco-packet-both",
+        "value": "ease-in-out infinite; in 0-35%, hold, out 50-85%; per-edge --dur 4.0-6.4s, --d 0-3.4s",
+        "purpose": "Data packets travel node to hub and back (hub layouts)."
+      },
+      {
+        "name": "eco-edge-both",
+        "value": "opacity 0 to 0.7 while a packet is on the edge",
+        "purpose": "Edge warms in transit."
+      },
+      {
+        "name": "eco-node-both",
+        "value": "forest-pale fill at 0-8% and 86-100% of the edge cycle",
+        "purpose": "Node lights as its packet leaves and returns."
+      },
+      {
+        "name": "eco-packet-fwd / eco-item-send / eco-item-receive",
+        "value": "one trip 0-40%; inputs light at 0-8%, outputs at 42-52%",
+        "purpose": "Flow layout: one-directional wires."
+      },
+      {
+        "name": "eco-ring",
+        "value": "scale 1 to 1.18, opacity 0.45 to 0, 2.4s infinite",
+        "purpose": "Pulse around the central S mark."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce (Windows reports it when Animation effects is off)",
+        "purpose": "Stops movement only. Story cards and words jump and crossfade (opacity 400ms ease) while the stage background still changes; faq-plus snaps; eco-node-in, packets (hidden) and the ring scale pulse stop. Ecosystem node/item lighting and edge brightening keep cycling; colour change is not motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px",
+        "purpose": "Ecosystem field aspect and node size step; footer 2 columns."
+      },
+      {
+        "name": "md",
+        "value": "768px",
+        "purpose": "Ledgers go two-column, desktop nav appears, section padding 80 to 112px."
+      },
+      {
+        "name": "story",
+        "value": "900px",
+        "purpose": "Scroll story switches from one-card phone layout to the WIDE table; step dots appear."
+      },
+      {
+        "name": "lg",
+        "value": "1024px",
+        "purpose": "Intake ledger goes two-column; footer 2:1:1:1."
+      }
+    ],
+    "container": {
+      "maxWidth": "1180px",
+      "paddingInline": "24px"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Forest-dark action; every primary CTA on the light parts of the route. Colour-only hover.",
+      "html": "<a class=\"ds-btn-primary\" href=\"#\">Get started</a>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; background: #1B4332; color: #FFFFFF; font-family: Archivo, 'Arial Narrow', system-ui, sans-serif; font-weight: 700; font-size: 0.98rem; padding: 14px 28px; border-radius: 4px; text-decoration: none; transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-primary:hover { background: #2D6A4F; } .ds-btn-primary:focus-visible { outline: 2px solid #40916C; outline-offset: 3px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Outlined alternative beside a primary (quiz preview).",
+      "html": "<button class=\"ds-btn-secondary\" type=\"button\">Preview a quiz</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; background: transparent; color: #1B4332; border: 2px solid #1B4332; font-family: 'Public Sans', system-ui, sans-serif; font-weight: 600; font-size: 0.95rem; padding: 12px 24px; border-radius: 4px; cursor: pointer; transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-secondary:hover { background: #D8F3DC; } .ds-btn-secondary:focus-visible { outline: 2px solid #40916C; outline-offset: 3px; }"
+    },
+    {
+      "name": "Hero Actions on the Dark Scene",
+      "kind": "button",
+      "refersTo": "button-primary-on-dark",
+      "description": "The inverted button pair on the story's forest-dark closing step.",
+      "html": "<div class=\"ds-dark-actions\"><a class=\"ds-btn-cream\" href=\"#\">Get started</a><button class=\"ds-btn-ghost-cream\" type=\"button\">Preview a quiz</button></div>",
+      "css": ".ds-dark-actions { display: flex; flex-wrap: wrap; gap: 12px; padding: 32px; background: #1B4332; } .ds-btn-cream { display: inline-flex; align-items: center; justify-content: center; background: #FAF7F2; color: #1B4332; font-family: Archivo, 'Arial Narrow', system-ui, sans-serif; font-weight: 700; font-size: 0.98rem; padding: 14px 28px; border-radius: 4px; text-decoration: none; transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-cream:hover { background: #D8F3DC; } .ds-btn-ghost-cream { display: inline-flex; align-items: center; justify-content: center; background: transparent; color: #FAF7F2; border: 2px solid #FAF7F2; font-family: 'Public Sans', system-ui, sans-serif; font-weight: 600; font-size: 0.95rem; padding: 12px 24px; border-radius: 4px; cursor: pointer; transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-ghost-cream:hover { background: rgba(255,255,255,0.1); } .ds-dark-actions :focus-visible { outline: 2px solid #40916C; outline-offset: 3px; }"
+    },
+    {
+      "name": "Result Card",
+      "kind": "card",
+      "refersTo": "result-card",
+      "description": "Example Situation Report card from the scroll story: icon tile, title, ink-underlined status rows, forest-tinted ambient shadow. The shipped product-name line beside the icon is a kicker and is deliberately omitted (not canonized).",
+      "html": "<div class=\"ds-result\"><span class=\"ds-result-icon\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M12 11h4\"/><path d=\"M12 16h4\"/><path d=\"M8 11h.01\"/><path d=\"M8 16h.01\"/></svg></span><p class=\"ds-result-title\">Where your job fits you</p><ul class=\"ds-rows\"><li><span>Autonomy</span><b class=\"ds-ok\">Aligned</b></li><li><span>Pace</span><b class=\"ds-warn\">Costing you</b></li><li><span>Feedback</span><b class=\"ds-ok\">Aligned</b></li></ul><p class=\"ds-result-check\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 6 9 17l-5-5\"/></svg> Checked by a person</p></div>",
+      "css": ".ds-result { width: 272px; padding: 20px 22px; border: 1px solid #D4CFC8; border-radius: 4px; background: #FFFFFF; box-shadow: 0 10px 30px rgba(27,67,50,0.1); font-family: 'Public Sans', system-ui, sans-serif; } .ds-result-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 4px; background: #D8F3DC; color: #1B4332; } .ds-result-title { margin: 12px 0 0; font-family: Archivo, 'Arial Narrow', system-ui, sans-serif; font-weight: 700; font-size: 1.15rem; line-height: 1.2; color: #1A1A1A; } .ds-rows { margin: 14px 0 0; padding: 0; list-style: none; border-top: 1px solid #EAE4DB; } .ds-rows li { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid #EAE4DB; font-size: 0.86rem; color: #555555; } .ds-rows b { font-weight: 600; color: #1A1A1A; text-align: right; } .ds-rows .ds-ok { color: #2D6A4F; } .ds-rows .ds-warn { color: #1A1A1A; text-decoration: underline; text-decoration-color: #D4CFC8; text-underline-offset: 3px; } .ds-result-check { display: flex; align-items: center; gap: 6px; margin: 14px 0 0; font-size: 0.76rem; font-weight: 600; color: #2D6A4F; }"
+    },
+    {
+      "name": "Story Step Dots",
+      "kind": "nav",
+      "refersTo": "step-dot",
+      "description": "Desktop-only step navigation on the scroll story; the current dot stretches into a capsule.",
+      "html": "<nav class=\"ds-dots\" aria-label=\"Story steps\"><button aria-label=\"Start\"></button><button aria-label=\"Work Pulse\" aria-current=\"step\"></button><button aria-label=\"Situation Report\"></button><button aria-label=\"Manager Decoder\"></button><button aria-label=\"Checked by a person\"></button></nav>",
+      "css": ".ds-dots { display: inline-flex; flex-direction: column; gap: 10px; padding: 16px; background: #EAE4DB; } .ds-dots button { width: 10px; height: 10px; padding: 0; border: 1.5px solid #1B4332; border-radius: 9999px; background: transparent; cursor: pointer; transition: background-color 300ms ease, height 300ms ease; } .ds-dots button[aria-current=\"step\"] { height: 24px; background: #1B4332; } .ds-dots button:focus-visible { outline: 2px solid #40916C; outline-offset: 3px; }"
+    },
+    {
+      "name": "Pane Grid",
+      "kind": "card",
+      "refersTo": "pane",
+      "description": "White panes on a 2px cream-muted gutter; hairline list markers.",
+      "html": "<div class=\"ds-panes\"><div class=\"ds-pane\"><h4>What we read</h4><ul><li><span class=\"ds-mark\"></span>The environment signals in your answers.</li></ul></div><div class=\"ds-pane\"><h4>What we won't do</h4><ul><li><span class=\"ds-mark ds-mark--no\"></span>Rank you against other candidates.</li></ul></div></div>",
+      "css": ".ds-panes { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: #D4CFC8; } .ds-pane { background: #FFFFFF; padding: 28px; } .ds-pane h4 { margin: 0; font-family: Archivo, 'Arial Narrow', system-ui, sans-serif; font-weight: 700; font-size: 1.15rem; color: #1A1A1A; } .ds-pane ul { margin: 16px 0 0; padding: 0; list-style: none; font-family: 'Public Sans', system-ui, sans-serif; font-size: 0.95rem; line-height: 1.55; color: #555555; } .ds-pane li { display: flex; gap: 12px; } .ds-mark { flex-shrink: 0; width: 16px; height: 1px; margin-top: 0.7em; background: #1B4332; } .ds-mark--no { background: #888888; }"
+    },
+    {
+      "name": "Ledger Row",
+      "kind": "custom",
+      "refersTo": "ledger-row",
+      "description": "Workhorse container below the hero: title, meta, body and optional action between hairlines.",
+      "html": "<div class=\"ds-ledger\"><div class=\"ds-row\"><div><h4>Work Pulse&trade;</h4><p class=\"ds-meta\">12 questions &middot; free &middot; account required</p></div><p class=\"ds-row-body\">A full narrative insight, your primary work archetype, and the emerging signals shaping how you experience work.</p></div></div>",
+      "css": ".ds-ledger { border-top: 1px solid #D4CFC8; font-family: 'Public Sans', system-ui, sans-serif; } .ds-row { display: grid; grid-template-columns: 3fr 5fr; gap: 40px; align-items: center; padding: 28px 0; border-bottom: 1px solid #D4CFC8; } .ds-row h4 { margin: 0; font-family: Archivo, 'Arial Narrow', system-ui, sans-serif; font-weight: 700; font-size: 1.35rem; color: #1A1A1A; } .ds-meta { margin: 4px 0 0; font-size: 0.86rem; color: #555555; } .ds-row-body { margin: 0; font-size: 0.97rem; line-height: 1.6; color: #555555; }"
+    },
+    {
+      "name": "Navigation Bar",
+      "kind": "nav",
+      "refersTo": "nav-bar",
+      "description": "64px sticky bar, hairline bottom edge, cream-base once scrolled; the story stage pins beneath it.",
+      "html": "<header class=\"ds-nav\"><span class=\"ds-wordmark\">Solverah</span><nav><a href=\"#\">How it reads</a><a href=\"#\">Work Pulse</a><a href=\"#\">FAQ</a></nav><a class=\"ds-nav-cta\" href=\"#\">Get started</a></header>",
+      "css": ".ds-nav { display: flex; align-items: center; justify-content: space-between; height: 64px; padding: 0 24px; background: #FAF7F2; border-bottom: 1px solid #D4CFC8; font-family: 'Public Sans', system-ui, sans-serif; } .ds-wordmark { font-family: Archivo, 'Arial Narrow', system-ui, sans-serif; font-weight: 800; font-size: 1.35rem; letter-spacing: -0.02em; color: #1A1A1A; } .ds-nav nav { display: flex; gap: 32px; } .ds-nav nav a { font-size: 0.9rem; font-weight: 500; color: #555555; text-decoration: none; transition: color 150ms; } .ds-nav nav a:hover { color: #2D6A4F; } .ds-nav-cta { background: #1B4332; color: #FFFFFF; font-family: Archivo, 'Arial Narrow', system-ui, sans-serif; font-weight: 700; font-size: 0.9rem; padding: 10px 20px; border-radius: 4px; text-decoration: none; transition: background-color 150ms; } .ds-nav-cta:hover { background: #2D6A4F; } .ds-nav a:focus-visible { outline: 2px solid #40916C; outline-offset: 3px; }"
+    },
+    {
+      "name": "FAQ Disclosure",
+      "kind": "custom",
+      "refersTo": "faq",
+      "description": "Native details/summary; plus rotates into a cross on open.",
+      "html": "<details class=\"ds-faq\"><summary>What information does it use?<svg class=\"ds-plus\" width=\"18\" height=\"18\" viewBox=\"0 0 18 18\" fill=\"none\" aria-hidden=\"true\"><path d=\"M9 3v12M3 9h12\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"/></svg></summary><p>Only what you choose to provide: responses, career background, and optional uploads.</p></details>",
+      "css": ".ds-faq { border-top: 1px solid #D4CFC8; border-bottom: 1px solid #D4CFC8; font-family: 'Public Sans', system-ui, sans-serif; } .ds-faq summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px 0; font-size: 1.05rem; font-weight: 600; color: #1A1A1A; cursor: pointer; } .ds-faq summary::-webkit-details-marker { display: none; } .ds-plus { flex-shrink: 0; color: #555555; transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-faq[open] .ds-plus { transform: rotate(45deg); } .ds-faq p { max-width: 68ch; margin: 0; padding: 0 40px 24px 0; font-size: 0.97rem; line-height: 1.65; color: #555555; } .ds-faq summary:focus-visible { outline: 2px solid #40916C; outline-offset: 3px; }"
+    },
+    {
+      "name": "Ecosystem Node with Packet",
+      "kind": "custom",
+      "refersTo": "eco-node",
+      "description": "On trial: a node and its edge; a packet travels in and back out, the edge warms, the node lights at departure and return. Under reduced motion only the packet stops.",
+      "html": "<div class=\"ds-eco\"><svg viewBox=\"0 0 240 80\" fill=\"none\" aria-hidden=\"true\"><path class=\"ds-eco-line\" d=\"M 200 40 H 40\"/><path class=\"ds-eco-glow\" d=\"M 200 40 H 40\"/><path class=\"ds-eco-packet\" d=\"M 200 40 H 40\" pathLength=\"200\"/></svg><div class=\"ds-eco-node\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"/></svg></div><div class=\"ds-eco-mark\">S</div></div>",
+      "css": ".ds-eco { position: relative; width: 240px; height: 80px; background: #EAE4DB; --dur: 4.6s; } .ds-eco > svg { position: absolute; inset: 0; width: 100%; height: 100%; } .ds-eco-line { stroke: #D4CFC8; stroke-width: 1.25; } .ds-eco-glow { stroke: #40916C; stroke-width: 1.5; opacity: 0; animation: ds-edge var(--dur) ease-in-out infinite both; } .ds-eco-packet { stroke: #40916C; stroke-width: 3.5; stroke-linecap: round; stroke-dasharray: 20 180; stroke-dashoffset: -200; filter: drop-shadow(0 0 3px rgba(64,145,108,0.75)); animation: ds-packet var(--dur) ease-in-out infinite both; } .ds-eco-node { position: absolute; left: 40px; top: 50%; transform: translate(-50%, -50%); display: grid; place-items: center; width: 54px; height: 54px; border: 1px solid #D4CFC8; border-radius: 4px; background: #FFFFFF; color: #1A1A1A; animation: ds-node var(--dur) ease-in-out infinite both; } .ds-eco-mark { position: absolute; left: 200px; top: 50%; transform: translate(-50%, -50%); display: grid; place-items: center; width: 44px; height: 44px; border-radius: 4px; background: #1B4332; color: #FAF7F2; font-family: Archivo, 'Arial Narrow', system-ui, sans-serif; font-weight: 800; font-size: 1.6rem; } @keyframes ds-packet { 0% { stroke-dashoffset: -200; } 35%, 50% { stroke-dashoffset: 20; } 85%, 100% { stroke-dashoffset: -200; } } @keyframes ds-edge { 0%, 40%, 50%, 90%, 100% { opacity: 0; } 6%, 32%, 56%, 82% { opacity: 0.7; } } @keyframes ds-node { 0%, 8%, 86%, 100% { background-color: #D8F3DC; border-color: #40916C; color: #1B4332; } 16%, 80% { background-color: #FFFFFF; border-color: #D4CFC8; color: #1A1A1A; } } @media (prefers-reduced-motion: reduce) { .ds-eco-packet { animation: none; opacity: 0; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Scroll Through What You Get",
+    "overview": "This is the visual system of Solverah's public landing page at \"/\", recorded from the shipped code on 2026-09-28. It uses the same cream, forest and ink tokens as the rest of the site (`tailwind.config.js`). An earlier dark \"Amber Noir\" treatment and a later \"A title isn't evidence.\" hero were both removed. What makes the route its own is its type and structure: an Archivo display face, a Public Sans body, and a scroll-story hero followed by hairline ledgers and gap-gridded panes rather than rounded cards. All of these choices are **provisional**; the user has said the design is not final.\n\nThe hero is a scroll story. A tall section pins its stage under the nav, and scrolling through it changes the scene instead of moving down the page. There are five steps. Each one swaps the words, moves three example result cards (a Work Pulse reading, a Situation Report and a manager playbook) to new positions, and shifts the stage background through cream, cream-subtle, forest-pale, cream-subtle and finally forest-dark. The last step, \"Checked by a person. Kept from employers.\", is the page's one dark scene. After it the page scrolls on normally into editorial sections. These sit in a 1180px measure, organised by 1px cream-muted rules and two-column ledgers, with flat white panes on a 2px cream-muted gutter.\n\nType does the heavy lifting. Archivo at 800 gives a compressed, heavy display voice at near-solid leading, and Public Sans carries the body in two ink tones. Headlines are a single colour. Motion uses one easing curve. The hero's motion is tied to scroll position, not timers. The ecosystem diagram is the only thing that loops. Under `prefers-reduced-motion` everything stops gliding, but colour changes (stage backgrounds, lit nodes) continue, because a colour change is not motion.",
+    "keyCharacteristics": [
+      "Cream ground, ink type, forest green as the only hue; the hero's last scene is the one forest-dark field",
+      "A pinned five-step scroll story, driven by scroll position and navigable by step dots on desktop",
+      "Three white example result cards, the only page objects that cast a (faint, forest-tinted) shadow",
+      "Ledger layout below the hero: hairline rules and two-column rows, not rounded cards",
+      "Archivo 800 display at leading 0.98–1.02 with tight negative tracking; Public Sans body",
+      "4px corners on actions, cards and diagram nodes; square panes; full-pill step dots",
+      "One easing curve (0.16, 1, 0.3, 1); reduced motion swaps glides for crossfades and keeps colour change"
+    ],
+    "rules": [
+      {
+        "name": "The One Dark Scene Rule",
+        "body": "Forest dark shows up as a solid fill: a whole button, the mark, or a whole scene. The story's final step is the only forest-dark field bigger than a button. Don't add a second inverted section.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink Ladder Rule",
+        "body": "Text uses two steps: ink-primary for headings, titles and values, and ink-secondary for everything else. Ink tertiary is kept for non-text marks. On the forest-dark stage the ladder becomes cream-base (headline) over forest-pale (lead and small text).",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink-Not-Colour Status Rule",
+        "body": "On the result cards a problem is marked with ink and an underline (\"Costing you\" in ink-primary, underlined in cream-muted), not with a warning hue. Forest-mid marks what is aligned. There is no red, amber or orange on this route.",
+        "section": "colors"
+      },
+      {
+        "name": "The Gap-Not-Border Rule",
+        "body": "Sibling panes in a grid are white tiles on a 2px cream-muted gutter showing from behind them. They never get a border each. The standalone containers (result cards and the ecosystem card) carry a 1px cream-muted border instead.",
+        "section": "colors"
+      },
+      {
+        "name": "The Full Stop Rule",
+        "body": "Display and headline copy is written as sentences and ends with a period, and ledger titles do the same.",
+        "section": "typography"
+      },
+      {
+        "name": "The No-Eyebrow Rule",
+        "body": "No kickers, eyebrows or uppercase tags go above headings. Meta text goes *below* the title it qualifies, in ink-secondary, in sentence case, separated by middle dots (\"12 questions · free · account required\").",
+        "section": "typography"
+      },
+      {
+        "name": "The Two Exceptions Rule",
+        "body": "Only the hero's result cards and the ecosystem diagram carry a shadow, glow or gradient. The shadow is the single forest-tinted ambient value above. Never a black shadow, a hard offset, or a hover lift. Everywhere else a surface is distinguished by tone, a white fill or a hairline.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** use the site-wide cream/forest/ink tokens from `tailwind.config.js`. This route's identity comes from its type and structure, not its own palette.",
+      "**Do** keep forest-dark to buttons, the mark and the story's closing scene. That scene is the only dark field (The One Dark Scene Rule).",
+      "**Do** drive the hero from scroll position, keep every step reachable by scrolling back up, and keep inactive step words out of the focus order.",
+      "**Do** mark status on example cards with ink and an underline, not a warning colour.",
+      "**Do** organise content below the hero as ledgers: a headline column and a stack of hairline-ruled rows, sticky on desktop, one column below 768px.",
+      "**Do** set text in ink-primary and ink-secondary only; ink-tertiary is for marks, not text.",
+      "**Do** end display and headline copy with a full stop.",
+      "**Do** use `cubic-bezier(0.16, 1, 0.3, 1)` for any new motion, and honour reduced motion by stopping movement, not colour change.",
+      "**Do** keep the O*NET attribution in the footer at fine size; it is a licensing obligation.",
+      "**Do** treat every choice here as provisional, and the ecosystem layout as undecided."
+    ],
+    "donts": [
+      "**Don't** reintroduce the removed Amber Noir palette (near-black ground, amber accent). The user rejected it.",
+      "**Don't** add shadows, glows or gradients beyond the result cards' forest-tinted ambient shadow and the ecosystem diagram.",
+      "**Don't** put a pane inside a pane, or give a border to a pane that already sits in a gap grid.",
+      "**Don't** add eyebrows, kickers, uppercase tags or letterspaced labels above headings.",
+      "**Don't** use Playfair Display, DM Sans or the `fade-up` animations in this route's own markup; they belong to other routes.",
+      "**Don't** round anything beyond 4px except the step dots.",
+      "**Don't** restyle `IntakeForm` or `AccountModal` from this route; they are shared with `/start`."
+    ]
+  }
+}

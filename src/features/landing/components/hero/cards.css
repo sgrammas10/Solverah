@@ -1,0 +1,124 @@
+/*
+ * The example result cards and hero buttons used by the scroll story.
+ * Site-wide cream/forest tokens, written out because this is plain CSS.
+ */
+
+.ht-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+.ht-actions--center {
+  justify-content: center;
+}
+
+.ht-result {
+  padding: 1.25rem 1.35rem;
+  border: 1px solid #d4cfc8;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(27, 67, 50, 0.1);
+}
+
+.ht-result-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #2d6a4f;
+}
+
+.ht-result-icon {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 4px;
+  background: #d8f3dc;
+  color: #1b4332;
+}
+
+.ht-result-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.ht-result-title {
+  margin: 0.75rem 0 0;
+  font-family: Archivo, "Arial Narrow", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 1.15rem;
+  line-height: 1.2;
+  color: #1a1a1a;
+}
+
+.ht-result-text {
+  margin: 0.5rem 0 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: #555555;
+}
+
+.ht-rows {
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid #eae4db;
+}
+
+.ht-rows li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eae4db;
+  font-size: 0.86rem;
+  color: #555555;
+}
+
+.ht-rows b {
+  font-weight: 600;
+  color: #1a1a1a;
+  text-align: right;
+}
+
+.ht-rows .ht-ok {
+  color: #2d6a4f;
+}
+
+.ht-rows .ht-warn {
+  color: #1a1a1a;
+  text-decoration: underline;
+  text-decoration-color: #d4cfc8;
+  text-underline-offset: 3px;
+}
+
+.ht-result-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.9rem 0 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #2d6a4f;
+}
+
+.ht-result-check svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.ht-bullets {
+  margin: 0.75rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: #555555;
+}
+
+.ht-bullets li + li {
+  margin-top: 0.35rem;
+}

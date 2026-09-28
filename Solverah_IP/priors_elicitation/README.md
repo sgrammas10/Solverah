@@ -30,6 +30,14 @@ question were.
 deliberate copy. Keep the placeholder file when you do — the difference between the two
 *is* the expert contribution, and you will want to be able to show it.
 
+**Adopted 2026-09-17.** Julie's returned form was converted and its output copied over
+`causal_graph/v1_model/priors.yaml`. The placeholder lives on beside it as
+`priors_placeholder.yaml` — the record of what she changed, and the neutral fixture
+`tests/test_match_scoring.py` uses for its analytic anchors (a perfect match is exactly
+0.5 only under neutral priors; under hers it is her baseline, 0.8). Her twelve answers
+were driven back through the real `match_core.point_p_fit` on the live file and
+reproduced to within 6e-07.
+
 ## How twelve questions become twelve parameters
 
 The model's predictor is `z = intercept + Σ(mag·|g| + dir·g) + Σ(w·conf)`, and a
@@ -76,9 +84,9 @@ the baseline to within 1.7e-07. If the algebra here ever drifts from
   own vignette with a different person and role. Round 1 produced a packet where one
   holistic impression was pasted into all six dimension notes and the six scores stopped
   being six independent reads. This is the cheap structural defence against a repeat.
-- **A repeated question sits after the fourth dimension,** reworded, unflagged. Its delta
-  is the only available read on the noise floor under a single expert's numbers — there is
-  no second expert to compare against. The report prints it.
+- **A repeated question sits after the fourth dimension,** reworded, unflagged. It was
+  meant as the only available read on the noise floor under a single expert's numbers.
+  **In v1 it does not work** — see "Known defect: the re-ask" below.
 - **Abstention is a first-class answer.** "I'd rather not put a number on this" keeps the
   neutral placeholder for that dimension at a wide `sd`, which tells the model to let
   outcome data speak there. It is not a missing value and does not need chasing.
@@ -89,6 +97,20 @@ the baseline to within 1.7e-07. If the algebra here ever drifts from
 - **`industry` is not elicited per level.** Five levels is a lot of judgement for a
   confounder nothing yet consumes; she's asked only whether it matters at all, and her
   answer widens or tightens the prior rather than moving its mean.
+
+## Known defect: the re-ask
+
+The repeated question does not repeat. The original pace/above person is *"at their best
+when priorities move quickly"* — a need. The re-ask person is *"energised by fast
+turnarounds and doesn't mind the target moving"* — a tolerance. Someone who needs speed
+struggles in a slow role; someone who merely doesn't mind it is fine there. Julie
+answered 3/10 and 8/10 (2026-09-17), both defensible, and consistent with her own note
+that a mismatch's cost depends on how much the dimension matters to the person.
+
+So v1 yields **no noise-floor read at all**, and the converter says so instead of
+printing one. If the form is ever re-sent: hold the *strength* of the preference constant
+across the two wordings, and don't aim the re-ask at question one, where the format is
+still being learned.
 
 ## What this does not do
 

@@ -11,4 +11,3 @@
 #
 # FORMAT: P-##<tab or spaces>Company Name<tab or spaces>researched YYYY-MM-DD (vX.Y)
 
-P-11	Regeneron	researched 2026-09-08 (v4.10)

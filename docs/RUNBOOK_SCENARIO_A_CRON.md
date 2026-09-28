@@ -1,4 +1,4 @@
-# Runbook — Scenario A cron jobs (outbox sweep + retention + backups)
+# Runbook — Scenario A cron jobs (outbox sweep + retention + backups + corpus refresh)
 
 **Context.** Production is one Render web service (native Python,
 `gunicorn app:app`) and Postgres. There is no Redis, no Celery worker, no
@@ -19,7 +19,7 @@ makes overlapping runs — cron × cron, or cron × an inline request send — s
 one row, one send. `pg_dump` joins that picture harmlessly: it takes ACCESS
 SHARE, which conflicts only with DDL, so a backup never blocks the app.
 
-## The three cron jobs
+## The cron jobs
 
 Create one Render **Cron Job** service per command. The first two are native
 Python, same repo, same build command (`pip install -r requirements.txt`), same
@@ -32,6 +32,7 @@ its section below.
 | `flask outbox sweep` | every 5 minutes (`*/5 * * * *`) | native python | Retries unpublished outbox rows, respecting attempts + backoff. |
 | `flask retention run` | daily (`30 4 * * *`) | native python | Deletes delivered outbox rows older than 72h, terminal `scoring_jobs` older than 7d, terminal `resume_parse_jobs` older than 30d. |
 | `flask backups run` | daily (`30 3 * * *`) | **docker** (`infra/docker/Dockerfile.backup`) | Dumps the database, verifies the artifact, uploads it off-platform, prunes past 30 days. |
+| `flask corpus refresh` | quarterly (`0 5 1 1,4,7,10 *`) | native python | Rebuilds the O*NET occupation corpus, writes its zone and cluster sidecars, uploads all four to S3 under a new date-stamped key. **Does not put it into service** — see its section below. |
 
 All three print one JSON summary line and share an exit contract, but they
 divide "failure" differently and the difference is deliberate:
@@ -263,6 +264,142 @@ someone's email that failed 8 spaced tries and needs a human:
    running or is crashing — check the cron service's run history and exit
    codes first.
 
+## Corpus refresh (`flask corpus refresh`)
+
+**Workstream F-8 box 1. Not yet created in the dashboard, and not urgent.** The
+artifact only goes stale as fast as O*NET publishes, which is quarterly.
+
+`flask corpus refresh` is four steps invoked in order — it does not
+reimplement them, it calls the same commands:
+
+| Step | Command | Cost |
+|---|---|---|
+| 1 | `flask corpus build` | ~3,073 O*NET requests at 4/s (~13 min), ~$0.01 of `text-embedding-3-small` |
+| 2 | `flask corpus zones` | 11 O*NET requests |
+| 3 | `flask corpus clusters` | none — reads the artifact, fits k-means locally |
+| 4 | `flask corpus publish` | 4 uploads: `.npy`, `.json`, `.zones.json`, `.clusters.json` |
+
+3,084 requests is 6% of O*NET's 50,000/day cap, and the 4/s rate is under their
+documented 5/s threshold. Every request in the run passes through one
+process-wide limiter, so `--workers` changes latency hiding and never the rate.
+
+### It publishes a candidate. It does not deploy one.
+
+This is the part to understand before running it.
+
+`publish` writes to a **new date-stamped key** and never touches the one in
+service. Production keeps serving whatever `SOLVERAH_CORPUS_S3_KEY` names until
+somebody changes that variable. A published version is immutable by rule: a
+worker caches the 6 MB artifact on first fetch and never re-fetches it, so
+replacing the bytes under a key in use would put half the fleet on one corpus
+and half on another — with a row-to-code sidecar that may be indexing the other
+one's matrix. `publish` refuses a key that already exists with different
+content, and skips one that exists with identical bytes (which is what makes a
+refresh that died halfway resumable — nothing else bookkeeps progress).
+
+So the loop is: the cron produces a candidate every quarter, and a person
+promotes it.
+
+    flask corpus clusters --show --corpus <the new .npy>   # cheapest look
+    # then, in Render: set SOLVERAH_CORPUS_S3_KEY to the `corpus_s3_key`
+    # the publish echoed, and redeploy the web service
+
+**Rolling back is pointing that variable at the previous key.** No rebuild, no
+re-upload; the old objects are still there.
+
+If nobody ever promotes a candidate, production keeps serving a known-good
+corpus. That is the right failure mode and it is why this cron is safe to
+schedule before anyone is watching it.
+
+### The first upload is a manual, deliberate act
+
+F-1 deliberately stopped at local files so that a corpus is reviewed before it
+goes anywhere, and that has not changed: **the first real upload is Sebastian's
+trigger.** Nothing in this repo has ever written to S3 with this command.
+
+    # check the plan without touching anything — no S3 call, not even a HEAD
+    FLASK_SKIP_DOTENV=1 flask corpus publish --dry-run \
+      --corpus <dir holding the .npy> --prefix occupation_retrieval
+
+    # the real thing
+    flask corpus publish --corpus <dir> --prefix occupation_retrieval
+
+`--dry-run` is available on `refresh` too, and there it also makes **no**
+network call of any kind: it reports the four keys it would write, the value
+`SOLVERAH_CORPUS_S3_KEY` would need afterwards, and every environment variable
+that is missing. Exit code is non-zero if the run would fail, so it is worth
+running before spending thirteen minutes of O*NET.
+
+### Deploy dependency
+
+Until an artifact is in S3 **and** `SOLVERAH_CORPUS_S3_KEY` points at it, Path
+Intelligence does not work, and it does not fail at boot to tell you —
+`get_corpus()` is lazy and per-worker by design, so the first symptom is a
+user's error page:
+
+- `POST /me/path-fit` → `503 corpus_unavailable`
+- `POST`/`DELETE /me/path-feedback` → `503 corpus_unavailable`
+- the path-suggestions job → `500 Unable to score career paths` (that path has
+  no `CorpusUnavailable` branch; it falls into the generic handler)
+
+F-4 tombstoned the old O*NET job-family funnel, so there is no fallback to
+degrade to. Order on deploy day: **upload, set the key, verify one worker loads
+it, then merge.** The log line to look for is `occupation corpus loaded:`, which
+reports the row count, the dimensions and whether the zone sidecar came down.
+
+### Why all four files, every time
+
+`publish` refuses an incomplete set, because a partially populated bucket fails
+quietly rather than loudly:
+
+- no `.zones.json` → `zone_max` raises `CorpusUnavailable`, so `adjacent` and
+  `fresh_start` fail on **every** request while the bucket looks full
+- no `.clusters.json` → every worker pays a 0.7 s k-means fit *and* the
+  scikit-learn import, on the 512 MB dyno that OOMed on 2026-09-15
+
+The loader is deliberately more forgiving than this — it treats both sidecars as
+optional, because refusing to serve would turn a missing optional file into an
+outage. The publisher is the place that stops the bucket from getting into that
+state in the first place.
+
+### A scikit-learn bump is a corpus job
+
+`<artifact>.clusters.json` records the scikit-learn and numpy versions that
+fitted it (F-8 box 10). `KMeans(random_state=0)` is deterministic for one build
+of the library and makes no promise across builds, and two workers holding
+different cluster labels would show one user two different first pages on
+alternate requests -- with nothing in the logs to say so. So on a version
+mismatch the sidecar is refused and every worker refits in-process.
+
+That refit costs ~0.7 s **and** the scikit-learn import, per worker, on the
+512 MB dyno that OOMed on 2026-09-15. It is the same cost as having no sidecar
+at all, which is what box 9 and box 1 exist to stop.
+
+**So: bumping `scikit-learn` or `numpy` in `requirements.txt` means re-running
+`flask corpus clusters` and publishing the new sidecar.** No rebuild, no O*NET,
+no spend -- the command reads the artifact and writes one 19 KB file. The
+warning in the logs names it:
+
+```
+occupation clusters: sidecar ... was fitted with scikit-learn X / numpy Y,
+this process runs A / B; ... Re-run `flask corpus clusters` and publish the
+sidecar to stop paying for this
+```
+
+Measured 2026-09-16 on the 1.7.2 -> 1.9.0 bump this repo just took: the fresh
+fit reproduced the old labels **exactly**, 941/941 rows. The guard is therefore
+against a hazard that has not fired, kept because the cost of being wrong is
+silent and per-worker while the check is one metadata read.
+
+### Running it locally
+
+The same `.env` trap as every other command here, and one extra edge: a
+populated `.env` gives a local run real `ONET_API_KEY`, `OPENAI_API_KEY` **and**
+`S3_*`, so `flask corpus refresh` on a developer machine will spend thirteen
+minutes of the shared O*NET budget and upload to the real app bucket. Use
+`FLASK_SKIP_DOTENV=1`, and use `--dry-run` for anything that is not a deliberate
+production refresh.
+
 ## Still not scheduled in production (known, deliberate)
 
 - `reap_stalled` for resume/scoring jobs: in Scenario A jobs run inline, so a
@@ -272,6 +409,10 @@ someone's email that failed 8 spaced tries and needs a human:
   orphan sweep): a further cron candidate — it needs the app's S3 credentials
   and was out of scope here.
 - Anything Redis/worker-shaped: out of scope by decision — Scenario A stays.
+- **`solverah-corpus-refresh` itself.** Codified in `render.yaml` and
+  documented above, but not created in the dashboard — and it cannot
+  usefully be until a corpus has been published at all. Quarterly work with
+  a manual promotion step is also reasonable to run by hand the first time.
 - **A restore drill on an artifact this cron produced.** The backup path is
   verified nightly (`pg_restore --list`) but listing an archive is not
   restoring it; the last end-to-end restore was the manual 2026-08-27

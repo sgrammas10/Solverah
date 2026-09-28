@@ -602,16 +602,18 @@ class EnvironmentAssembleResult:
     function -- decide whether to exclude the column, model the missingness, or
     impute. Imputing or dropping HERE would make that decision unrecoverable.
 
-    WHICH MEANS THIS IS NOT YET FEEDABLE STRAIGHT INTO build_model. As of
-    2026-09-11 `match_core.preprocess_conf` handles neither case: a categorical
-    column goes through `levels.index(v)`, which raises on the None that an
-    unasked confounder (`industry`) carries, and a continuous one is
-    standardized arithmetically, which turns a "not sure" comp into a NaN that
-    propagates through the whole logit. Stated here rather than worked around,
-    because the workaround is a decision -- drop the term, add a level, model
-    the missingness -- and it belongs in `solverah_model_config.yaml` with E-5,
-    not in the loader. It is the second of the two things standing between this
-    source and a fit run; the first is the missing OrderedLogistic head (see
+    FEEDABLE INTO build_model AS OF 2026-09-21 -- pass `conf_missing` along.
+    The decision this docstring used to defer was made, in the model and not in
+    this loader: EXCLUDE THE TERM for a masked row, for both kinds.
+    `match_core.preprocess_conf(conf, cfg, conf_missing=...)` zeroes a masked
+    continuous value (a "not sure" comp) and gives a masked categorical one
+    (`industry`, which this source never asks) a `<key>__present` flag that
+    drops its per-level weight from the logit. Without the mask both still
+    fail loudly -- a NaN or a None raises, naming the confounder -- so a caller
+    that forgets `conf_missing` cannot get a silently wrong fit. The
+    OrderedLogistic head the 1-5 outcome needs landed 2026-09-17
+    (`build_model.build_model(head="experienced")`). What still stands between
+    this source and a fit run is data volume, nothing in code (see
     ASSEMBLE_TRAINING_DATA_NOTES.md).
     """
 
