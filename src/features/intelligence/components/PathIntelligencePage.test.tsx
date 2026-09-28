@@ -1142,3 +1142,196 @@ describe("PathIntelligencePage - Show more after a reload (W-15)", () => {
     await waitFor(() => expect(cardTitles()).toHaveLength(6));
   });
 });
+
+// ─── W-16: cards first, sentences after ────────────────────────────────────
+
+const UNWRITTEN_B = { ...CARD_B, why_text: "", profile_dimensions: [] };
+
+function scoredResult(suggestions: unknown[], narrationPending: boolean) {
+  return {
+    suggestions,
+    career_status: "employed",
+    generated_at: "2026-09-01T00:00:00Z",
+    feedback: {},
+    narration_pending: narrationPending,
+  };
+}
+
+function pendingSentences(): Element[] {
+  return Array.from(document.querySelectorAll("[data-sentence-pending]"));
+}
+
+function renderPageWithRerender() {
+  const client = createQueryClient();
+  const tree = () => (
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <PathIntelligencePage />
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+  const view = render(tree());
+  return () => view.rerender(tree());
+}
+
+describe("PathIntelligencePage - cards before their sentences (W-16)", () => {
+  it("renders the cards as soon as the scored result arrives, shimmering only the unwritten sentence", () => {
+    suggestionsSettleAs({
+      job_id: "path-job-1",
+      status: "succeeded",
+      result: scoredResult([CARD_A, UNWRITTEN_B], true),
+      error: null,
+    });
+
+    renderPage();
+
+    expect(cardTitles()).toEqual(["Marketing Managers", "Software Developers"]);
+    expect(screen.queryByLabelText(/loading suggestions/i)).toBeNull();
+    expect(screen.getByText("A")).toBeInTheDocument();
+    const pending = pendingSentences();
+    expect(pending).toHaveLength(1);
+    expect(pending[0].closest("[data-onet-code]")?.getAttribute("data-onet-code")).toBe(
+      "15-1252.00"
+    );
+  });
+
+  it("puts each sentence in place when the narration lands, without moving the cards", async () => {
+    mocks.realJob = true;
+    let polls = 0;
+    mocks.fetchWithAuth.mockImplementation((path: string, init?: RequestInit) => {
+      if (path === "/me/path-suggestion-jobs" && init?.method === "POST") {
+        return Promise.resolve(ACCEPTED);
+      }
+      if (path === "/me/path-suggestion-jobs/path-job-1") {
+        polls += 1;
+        const narrated = polls > 1;
+        return Promise.resolve({
+          job_id: "path-job-1",
+          status: "succeeded",
+          result: scoredResult([CARD_A, narrated ? CARD_B : UNWRITTEN_B], !narrated),
+          error: null,
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    renderPage();
+    await waitFor(() => expect(pendingSentences()).toHaveLength(1));
+    expect(cardTitles()).toEqual(["Marketing Managers", "Software Developers"]);
+
+    await waitFor(() => expect(screen.getByText("B")).toBeInTheDocument(), { timeout: 5000 });
+    expect(pendingSentences()).toHaveLength(0);
+    expect(cardTitles()).toEqual(["Marketing Managers", "Software Developers"]);
+  });
+
+  it("keeps the cards and stops the shimmer when a poll fails mid-narration", () => {
+    suggestionsSettleAs({
+      job_id: "path-job-1",
+      status: "succeeded",
+      result: scoredResult([CARD_A, UNWRITTEN_B], true),
+      error: null,
+    });
+    mocks.job.error = new Error("Too Many Requests");
+
+    renderPage();
+
+    expect(cardTitles()).toEqual(["Marketing Managers", "Software Developers"]);
+    expect(pendingSentences()).toHaveLength(0);
+    expect(screen.queryByText(/couldn't load your path suggestions/i)).toBeNull();
+  });
+
+  it("fills a card a mid-narration tap left empty once the narration is over", async () => {
+    suggestionsSettleAs({
+      job_id: "path-job-1",
+      status: "succeeded",
+      result: scoredResult([CARD_A, UNWRITTEN_B], true),
+      error: null,
+    });
+    routeFetch({
+      "/me/path-feedback": () => ({
+        ...scoredResult([UNWRITTEN_B, CARD_A], true),
+        feedback: { "15-1252.00": "interesting" },
+      }),
+      "/me/path-suggestions": () => ({
+        ...scoredResult([CARD_B, CARD_A], false),
+        feedback: { "15-1252.00": "interesting" },
+      }),
+    });
+
+    const rerender = renderPageWithRerender();
+    fireEvent.click(verdictButtons("interesting")[1]);
+    await waitFor(() =>
+      expect(cardTitles()).toEqual(["Software Developers", "Marketing Managers"])
+    );
+    expect(pendingSentences()).toHaveLength(1);
+    // Still narrating: nothing to read back yet.
+    expect(mocks.fetchWithAuth).not.toHaveBeenCalledWith("/me/path-suggestions", expect.anything());
+
+    // The job's poll reports the narration over.
+    mocks.job.data = {
+      job_id: "path-job-1",
+      status: "succeeded",
+      result: scoredResult([CARD_A, CARD_B], false),
+      error: null,
+    };
+    rerender();
+
+    await waitFor(() => expect(screen.getByText("B")).toBeInTheDocument());
+    expect(pendingSentences()).toHaveLength(0);
+    expect(cardTitles()).toEqual(["Software Developers", "Marketing Managers"]);
+  });
+
+  it("ends the wants panel's busy state when the cards arrive, not when the sentences do", async () => {
+    mocks.realJob = true;
+    let enqueued = 0;
+    let secondJobPolls = 0;
+    mocks.fetchWithAuth.mockImplementation((path: string, init?: RequestInit) => {
+      if (path === "/me/path-wants") return Promise.resolve(WANTS_PANEL);
+      if (path === "/me/path-suggestion-jobs" && init?.method === "POST") {
+        enqueued += 1;
+        return Promise.resolve({ ...ACCEPTED, job_id: `path-job-${enqueued}` });
+      }
+      if (path === "/me/path-suggestion-jobs/path-job-1") {
+        return Promise.resolve({
+          job_id: "path-job-1",
+          status: "succeeded",
+          result: scoredResult([CARD_A, CARD_B], false),
+          error: null,
+        });
+      }
+      if (path === "/me/path-suggestion-jobs/path-job-2") {
+        secondJobPolls += 1;
+        // Queued once, then scored with its sentences still coming -- forever,
+        // so the only way the busy state can end is on the cards.
+        return Promise.resolve(
+          secondJobPolls === 1
+            ? { job_id: "path-job-2", status: "queued", result: null, error: null }
+            : {
+                job_id: "path-job-2",
+                status: "succeeded",
+                result: scoredResult([CARD_B, { ...CARD_A, why_text: "", profile_dimensions: [] }], true),
+                error: null,
+              }
+        );
+      }
+      return Promise.resolve({});
+    });
+
+    renderPage();
+    const control = await screen.findByRole("button", {
+      name: /what should change about your job/i,
+    });
+    fireEvent.click(control);
+    fireEvent.click(
+      document.querySelector<HTMLInputElement>(
+        'input[name="want-condition-people"][value="more"]'
+      )!
+    );
+    fireEvent.click(document.querySelector<HTMLElement>("[data-wants-save]")!);
+
+    await waitFor(() => expect(screen.getByText(/re-sorting your paths/i)).toBeInTheDocument());
+    await waitFor(() => expect(pendingSentences()).toHaveLength(1), { timeout: 8000 });
+    await waitFor(() => expect(screen.queryByText(/re-sorting your paths/i)).toBeNull());
+    expect(pendingSentences()).toHaveLength(1);
+  });
+});

@@ -350,3 +350,61 @@ describe("PathSuggestionCard - opening the deep fit", () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// W-16: the card arrives before its sentence
+// ---------------------------------------------------------------------------
+
+describe("PathSuggestionCard - a sentence still being written (W-16)", () => {
+  const PENDING: PathSuggestion = {
+    ...BASE_SUGGESTION,
+    why_text: "",
+    profile_dimensions: [],
+    sentence_pending: true,
+  };
+
+  it("holds the sentence's place with a placeholder, not a stand-in sentence", () => {
+    const { container } = render(
+      <PathSuggestionCard suggestion={PENDING} currentTitle="Software Engineer" careerStatus="employed" />
+    );
+    expect(container.querySelector("[data-sentence-pending]")).not.toBeNull();
+    expect(screen.getByText("Marketing Managers")).toBeInTheDocument();
+    expect(container.querySelector("p.text-sm")).toBeNull();
+  });
+
+  it("shows no pills while the sentence is pending", () => {
+    render(
+      <PathSuggestionCard
+        suggestion={{ ...PENDING, profile_dimensions: ["Builds on your Python skills"] }}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+      />
+    );
+    expect(screen.queryByText("Builds on your Python skills")).toBeNull();
+  });
+
+  it("renders no empty paragraph when the sentence is empty and nothing is coming", () => {
+    const { container } = render(
+      <PathSuggestionCard
+        suggestion={{ ...PENDING, sentence_pending: false }}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+      />
+    );
+    expect(container.querySelector("[data-sentence-pending]")).toBeNull();
+    expect(container.querySelector("p.text-sm")).toBeNull();
+  });
+
+  it("replaces the placeholder in place when the sentence lands", () => {
+    const { container, rerender } = render(
+      <PathSuggestionCard suggestion={PENDING} currentTitle="Software Engineer" careerStatus="employed" />
+    );
+    rerender(
+      <PathSuggestionCard suggestion={BASE_SUGGESTION} currentTitle="Software Engineer" careerStatus="employed" />
+    );
+    expect(container.querySelector("[data-sentence-pending]")).toBeNull();
+    expect(
+      screen.getByText("Your skills align well with marketing leadership roles.")
+    ).toBeInTheDocument();
+  });
+});

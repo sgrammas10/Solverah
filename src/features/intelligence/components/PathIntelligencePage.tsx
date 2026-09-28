@@ -9,12 +9,15 @@
  * now arrive as a `failed` job carrying the same string in `error`.
  */
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth";
 import { useProfile } from "../../profile";
 import {
   isKnownScoringPhase,
+  isNarrationPending,
+  PATH_NARRATION_MAX_POLLS,
+  pathSuggestionJobKeys,
   usePathSuggestionJobStatus,
   useStartPathSuggestionJob,
   type PathSuggestionJobResult,
@@ -60,6 +63,32 @@ import { careerStatusNavState } from "../../../shared/lib/careerStatusReturn";
  */
 function asPathSuggestions(result: PathSuggestionJobResult): PathSuggestionsResponse {
   return result as unknown as PathSuggestionsResponse;
+}
+
+/**
+ * W-16. *current* with the sentences *fresh* has for its still-empty cards.
+ *
+ * Used for a re-ranked list that came back while the job's narration was still
+ * running: the narration fills the server's copy of that list, and this copies
+ * the sentences across by code. Card ORDER is always *current*'s -- the list
+ * the user is looking at does not move when its sentences land.
+ */
+function withSentencesFrom(
+  current: PathSuggestionsResponse,
+  fresh: PathSuggestionsResponse | null
+): PathSuggestionsResponse {
+  const byCode = new Map((fresh?.suggestions ?? []).map((s) => [s.onet_code, s]));
+  return {
+    ...current,
+    narration_pending: false,
+    suggestions: current.suggestions.map((card) => {
+      if (card.why_text) return card;
+      const written = byCode.get(card.onet_code);
+      return written?.why_text
+        ? { ...card, why_text: written.why_text, profile_dimensions: written.profile_dimensions ?? [] }
+        : card;
+    }),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -264,6 +293,12 @@ export default function PathIntelligencePage() {
         startSuggestions.error instanceof Error ? startSuggestions.error.message : ""
       );
     }
+    const job = suggestionJob.data;
+    // W-16: cards on screen stay on screen. Since the job succeeds as soon as
+    // the list is scored, the poll keeps running for the sentences -- and a
+    // failed poll THEN (a 429, a blip) must not replace a list the user is
+    // reading with an error page. It only stops the shimmer (`narrating`).
+    if (job?.status === "succeeded" && job.result) return "success";
     // A rejected poll (404 on a stale handle) is terminal too: the hook has
     // stopped polling, so the skeletons would otherwise never clear.
     if (suggestionJob.error) {
@@ -271,9 +306,7 @@ export default function PathIntelligencePage() {
         suggestionJob.error instanceof Error ? suggestionJob.error.message : ""
       );
     }
-    const job = suggestionJob.data;
     if (job === undefined) return "loading";
-    if (job.status === "succeeded" && job.result) return "success";
     if (job.status === "failed") return stateForFailure(job.error ?? "");
     // Fail closed: the hook has already stopped polling an unrecognised
     // status, so leaving the skeletons up would hang the screen.
@@ -309,6 +342,54 @@ export default function PathIntelligencePage() {
           : feedbackState ?? jobState;
 
   const feedbackPending = recordFeedback.isPending || clearFeedback.isPending;
+
+  // ---------------------------------------------------------------------
+  // W-16: cards first, sentences after
+  // ---------------------------------------------------------------------
+  //
+  // The job's result says `narration_pending` while the server is still writing
+  // sentences, and the poll keeps going until it stops saying so. If the poll
+  // itself stops first -- an error, or the hook's own cap -- nothing more is
+  // coming to this page, so the shimmer stops too: a card never shimmers
+  // forever. (The server has its own deadline and normally ends the wait
+  // first, with the fallback sentence.)
+  //
+  // The poll count is read off the query's own state: the render that follows
+  // the hook's last permitted poll is the one that sees the cap reached.
+  const queryClient = useQueryClient();
+  const pollCount =
+    (jobId !== null
+      ? queryClient.getQueryState(pathSuggestionJobKeys.status(jobId))?.dataUpdateCount
+      : 0) ?? 0;
+  const pollGaveUp = Boolean(suggestionJob.error) || pollCount >= PATH_NARRATION_MAX_POLLS;
+  const jobNarrating = isNarrationPending(suggestionJob.data) && !pollGaveUp;
+
+  // A tap that landed mid-narration came back with its unwritten cards empty
+  // and `narration_pending` set. The narration fills the SERVER's copy of that
+  // list, so once the job's poll says the narration is over, read the list back
+  // once and copy the sentences into the one on screen, in place.
+  const rerankWaiting = Boolean(rerank?.narration_pending);
+  useEffect(() => {
+    if (!rerankWaiting || jobNarrating) return;
+    let cancelled = false;
+    fetchWithAuth<PathSuggestionsResponse>("/me/path-suggestions", { method: "GET" })
+      .then((fresh) => {
+        if (!cancelled) setRerank((current) => (current ? withSentencesFrom(current, fresh) : current));
+      })
+      .catch(() => {
+        if (!cancelled) setRerank((current) => (current ? withSentencesFrom(current, null) : current));
+      });
+    return () => {
+      cancelled = true;
+    };
+  // `fetchWithAuth` is stable for the session; the two flags are the trigger.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rerankWaiting, jobNarrating]);
+
+  const narrating = rerank ? rerankWaiting : jobNarrating;
+  const shownSuggestions = (data?.suggestions ?? []).map((suggestion) =>
+    narrating && !suggestion.why_text ? { ...suggestion, sentence_pending: true } : suggestion
+  );
 
   /**
    * Record a verdict and swap in the list the server ranks from it.
@@ -617,7 +698,7 @@ export default function PathIntelligencePage() {
               )}
 
               <PathSuggestionList
-                suggestions={data.suggestions}
+                suggestions={shownSuggestions}
                 currentTitle={currentTitle}
                 careerStatus={data.career_status}
                 onOpen={openFit}

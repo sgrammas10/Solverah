@@ -69,7 +69,11 @@ class PathSuggestion(SolverahModel):
     onet_code: Optional[str] = None
     title: Optional[str] = None
     why_text: Optional[str] = Field(
-        default=None, description="LLM-generated rationale for this path."
+        default=None,
+        description=(
+            "LLM-generated rationale for this path. Empty while the response's "
+            "`narration_pending` is true and this card's sentence has not landed."
+        ),
     )
     profile_dimensions: Any = Field(
         default=None, description="Which parts of the profile drove the match."
@@ -86,6 +90,16 @@ class PathSuggestion(SolverahModel):
             "would read the same on most of the page says nothing about any "
             "card and is dropped from all of them (design doc 8.2), and a user "
             "who has stated no wants gets no reason line at all."
+        ),
+    )
+    overlapping_skills: List[str] = Field(
+        default_factory=list,
+        description=(
+            "W-16, additive. The user's own skills this occupation uses, as the "
+            "scorer found them -- the same list the narrator is handed and the "
+            "fallback sentence is built from. Carried on the card because the "
+            "fallback can now be written after the card (when a narration fails "
+            "or never lands). Not rendered by the SPA."
         ),
     )
 
@@ -114,6 +128,21 @@ class PathSuggestionsResponse(SolverahModel):
             "shortlist bent by state they cannot see and cannot reset. Empty "
             "for a user who has judged nothing, which is also the state in which "
             "the ranking is the plain default."
+        ),
+    )
+    narration_pending: bool = Field(
+        default=False,
+        description=(
+            "W-16, additive. True while at least one card's `why_text` is still "
+            "being written: the list is scored and shown first, and the "
+            "narrator's sentences land a few seconds later. A card waiting on "
+            "one has `why_text` \"\" and `profile_dimensions` []; the client "
+            "shows a placeholder line for it and keeps polling. It becomes "
+            "false when the narration lands (sentences filled in place, order "
+            "unchanged), when it fails (the fallback sentence instead), or -- if "
+            "the worker running it died -- on the first read more than 60 s "
+            "after `generated_at`, which serves the fallback sentences. False on "
+            "every payload written before W-16."
         ),
     )
 
@@ -335,7 +364,13 @@ class PathSuggestionJobStatus(SolverahModel):
 
     job_id: str
     status: str = Field(
-        description="queued, running, succeeded or failed. The last two are terminal."
+        description=(
+            "queued, running, succeeded or failed. The last two are terminal for "
+            "the job. W-16: `succeeded` now arrives as soon as the list is "
+            "scored; while `result.narration_pending` is true the result is "
+            "still being updated in place with the cards' sentences, so a client "
+            "keeps polling until it is false."
+        )
     )
     error: Optional[str] = Field(
         default=None,
@@ -505,6 +540,21 @@ class PathFeedbackResponse(SolverahModel):
         description=(
             "Every judgement standing for this user, as onet_code -> verdict. "
             "Empty after a DELETE."
+        ),
+    )
+    narration_pending: bool = Field(
+        default=False,
+        description=(
+            "W-16, additive. True while at least one card's `why_text` is still "
+            "being written: the list is scored and shown first, and the "
+            "narrator's sentences land a few seconds later. A card waiting on "
+            "one has `why_text` \"\" and `profile_dimensions` []; the client "
+            "shows a placeholder line for it and keeps polling. It becomes "
+            "false when the narration lands (sentences filled in place, order "
+            "unchanged), when it fails (the fallback sentence instead), or -- if "
+            "the worker running it died -- on the first read more than 60 s "
+            "after `generated_at`, which serves the fallback sentences. False on "
+            "every payload written before W-16."
         ),
     )
 

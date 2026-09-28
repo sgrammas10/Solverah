@@ -16,6 +16,7 @@ import {
   pathSuggestionJobProgresses,
 } from "../../../tests/msw/scoringJobHandlers";
 import {
+  PATH_NARRATION_MAX_POLLS,
   usePathSuggestionJobStatus,
   useStartPathSuggestionJob,
   type PathSuggestionJobResult,
@@ -32,10 +33,17 @@ const RESULT: PathSuggestionJobResult = {
   career_status: "employed",
   generated_at: "2026-09-01T00:00:00Z",
   suggestions: [],
+  narration_pending: false,
 };
 
+/** W-16: a scored result whose sentences are still being written. */
+const PENDING: PathSuggestionJobResult = { ...RESULT, narration_pending: true };
+
 function StatusHarness({ jobId }: { jobId: string | null }) {
-  const status = usePathSuggestionJobStatus(jobId, { pollIntervalMs: POLL_INTERVAL_MS });
+  const status = usePathSuggestionJobStatus(jobId, {
+    pollIntervalMs: POLL_INTERVAL_MS,
+    narrationPollIntervalMs: POLL_INTERVAL_MS,
+  });
   const label =
     status.data?.status ?? (status.error ? "error" : status.isLoading ? "loading" : "none");
   return <span data-testid="status">{label}</span>;
@@ -82,6 +90,38 @@ describe("usePathSuggestionJobStatus", () => {
     const countAtTerminal = polls().length;
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS * 6));
     expect(polls()).toHaveLength(countAtTerminal);
+  });
+
+  it("keeps polling a succeeded job while its sentences are pending, then stops (W-16)", async () => {
+    server.use(
+      signedIn(),
+      pathSuggestionJobProgresses("path-narr", [
+        { status: "succeeded", result: PENDING },
+        { status: "succeeded", result: PENDING },
+        { status: "succeeded", result: RESULT },
+      ])
+    );
+
+    mountStatus("path-narr");
+    await waitFor(() => expect(polls()).toHaveLength(3));
+
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS * 6));
+    expect(polls()).toHaveLength(3);
+  });
+
+  it("gives up on pending sentences after the cap rather than polling forever (W-16)", async () => {
+    server.use(
+      signedIn(),
+      pathSuggestionJobProgresses("path-stuck", [{ status: "succeeded", result: PENDING }])
+    );
+
+    mountStatus("path-stuck");
+    await waitFor(() => expect(polls()).toHaveLength(PATH_NARRATION_MAX_POLLS), {
+      timeout: 5000,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS * 6));
+    expect(polls()).toHaveLength(PATH_NARRATION_MAX_POLLS);
   });
 
   it("surfaces career_status_not_set as a failed job, not as a thrown error", async () => {

@@ -3430,6 +3430,12 @@
             "title": "Generated At",
             "type": "string"
           },
+          "narration_pending": {
+            "default": false,
+            "description": "W-16, additive. True while at least one card's `why_text` is still being written: the list is scored and shown first, and the narrator's sentences land a few seconds later. A card waiting on one has `why_text` \"\" and `profile_dimensions` []; the client shows a placeholder line for it and keeps polling. It becomes false when the narration lands (sentences filled in place, order unchanged), when it fails (the fallback sentence instead), or -- if the worker running it died -- on the first read more than 60 s after `generated_at`, which serves the fallback sentences. False on every payload written before W-16.",
+            "title": "Narration Pending",
+            "type": "boolean"
+          },
           "suggestions": {
             "items": {
               "$ref": "#/components/schemas/PathSuggestion"
@@ -3749,6 +3755,14 @@
             "default": null,
             "title": "Onet Code"
           },
+          "overlapping_skills": {
+            "description": "W-16, additive. The user's own skills this occupation uses, as the scorer found them -- the same list the narrator is handed and the fallback sentence is built from. Carried on the card because the fallback can now be written after the card (when a narration fails or never lands). Not rendered by the SPA.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Overlapping Skills",
+            "type": "array"
+          },
           "profile_dimensions": {
             "default": null,
             "description": "Which parts of the profile drove the match.",
@@ -3784,7 +3798,7 @@
               }
             ],
             "default": null,
-            "description": "LLM-generated rationale for this path.",
+            "description": "LLM-generated rationale for this path. Empty while the response's `narration_pending` is true and this card's sentence has not landed.",
             "title": "Why Text"
           }
         },
@@ -3853,7 +3867,7 @@
             "description": "Present only on 'succeeded'."
           },
           "status": {
-            "description": "queued, running, succeeded or failed. The last two are terminal.",
+            "description": "queued, running, succeeded or failed. The last two are terminal for the job. W-16: `succeeded` now arrives as soon as the list is scored; while `result.narration_pending` is true the result is still being updated in place with the cards' sentences, so a client keeps polling until it is false.",
             "title": "Status",
             "type": "string"
           }
@@ -3885,6 +3899,12 @@
             "description": "ISO 8601 UTC, second precision.",
             "title": "Generated At",
             "type": "string"
+          },
+          "narration_pending": {
+            "default": false,
+            "description": "W-16, additive. True while at least one card's `why_text` is still being written: the list is scored and shown first, and the narrator's sentences land a few seconds later. A card waiting on one has `why_text` \"\" and `profile_dimensions` []; the client shows a placeholder line for it and keeps polling. It becomes false when the narration lands (sentences filled in place, order unchanged), when it fails (the fallback sentence instead), or -- if the worker running it died -- on the first read more than 60 s after `generated_at`, which serves the fallback sentences. False on every payload written before W-16.",
+            "title": "Narration Pending",
+            "type": "boolean"
           },
           "suggestions": {
             "items": {

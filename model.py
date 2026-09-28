@@ -1969,6 +1969,81 @@ class PathWant(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Path Intelligence: the narrator's sentences, stored -- W-16
+# ---------------------------------------------------------------------------
+# One row per (user, occupation, fingerprint): the `why_text` and tags the
+# narrator (`backend/services/path_narrative`) wrote for one card, filed under a
+# digest of exactly what the prompt fed the model about that card and that
+# person (`path_narrative.narrative_fingerprint`).
+#
+# WHY A TABLE. Until W-16 the only copy lived in `path_cache` -- per worker and
+# lost on every deploy -- so a re-score after a wants save or a tap paid the
+# narrator again for sentences it had already written, and the text changed
+# under the reader on every save. The panel answers and the taps reorder the
+# list but are not narrator inputs, so the sentence for a card is a function of
+# the fingerprint alone and is worth keeping.
+#
+# THE FINGERPRINT IS THE CORRECTNESS, NOT AN INVALIDATION LIST. Nothing calls an
+# `invalidate` here: a profile edit that changes a narrator input changes the
+# fingerprint, and the old row simply stops being asked for. Old rows are bounded
+# by `path_narrative_repository.MAX_AGE` on read and removed by its purge --
+# `path_fits`' 30-day rule, for its reason (the model and O*NET's titles move
+# under a stored sentence with no profile write to say so).
+#
+# APPEND-ONLY IN PRACTICE, KEYED BY FINGERPRINT. Unlike `path_fits`, a new
+# fingerprint is a new row rather than an overwrite: going back to an earlier
+# profile (re-adding a skill) finds its sentences again.
+#
+# DESTROYED ON ACCOUNT DELETION (D-7b). `why_text` is model-written prose ABOUT
+# the person ("uses your Python and SQL"), and free text about a person is never
+# retained de-identified. `account_repository.delete_personal_rows` deletes it
+# explicitly: deletion tombstones the user row, so the cascade below never fires
+# on that path. It is there for a hard delete.
+
+
+class PathNarrative(db.Model):
+    """The narrator's sentence and tags for one card, for one set of inputs (W-16)."""
+
+    __tablename__ = "path_narratives"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True: uq_path_narratives_user_code_fp leads with user_id, and
+    # every read is "these codes for this user" -- PathFit's reasoning.
+    user_id = db.Column(
+        db.BigInteger,
+        db.ForeignKey("users.id", ondelete="CASCADE", name="fk_pathnarrative_user"),
+        nullable=False,
+    )
+    #: O*NET-SOC. No foreign key, for PathFit's reason: occupations live in the
+    #: corpus artifact, not in this database.
+    onet_code = db.Column(db.Text, nullable=False)
+    #: Hex sha256 of the narrator's inputs for this card. See the section comment.
+    fingerprint = db.Column(db.Text, nullable=False)
+    #: Already scrubbed of grades (W-13) before it is written, and never a
+    #: fallback sentence: only prose the narrator wrote is stored.
+    why_text = db.Column(db.Text, nullable=False)
+    profile_dimensions = db.Column(
+        JSONB, nullable=False, server_default=db.text("'[]'::jsonb")
+    )
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "user_id",
+            "onet_code",
+            "fingerprint",
+            name="uq_path_narratives_user_code_fp",
+        ),
+    )
+
+    user = db.relationship(
+        "User", backref=db.backref("path_narratives", passive_deletes=True)
+    )
+
+
+# ---------------------------------------------------------------------------
 # Phase 2a -- profile_data, decomposed (docs/ARCHITECTURE.md Part 4.3)
 # ---------------------------------------------------------------------------
 #

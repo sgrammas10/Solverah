@@ -29,6 +29,19 @@ export interface PathSuggestion {
    * far more often than it renders with two.
    */
   reasons?: string[];
+  /**
+   * W-16. The user's own skills this occupation uses, as the scorer found
+   * them. On the wire so the server can write the fallback sentence after the
+   * card; the SPA does not render it. Optional for `reasons`' reason.
+   */
+  overlapping_skills?: string[];
+  /**
+   * W-16, CLIENT-SIDE ONLY -- the server never sends it. Set by the page on a
+   * card whose `why_text` is still being written, so the card shows a
+   * placeholder line in its place instead of a sentence that would change
+   * under the reader. See `PathIntelligencePage`'s `narrating`.
+   */
+  sentence_pending?: boolean;
 }
 
 export interface PathSuggestionsResponse {
@@ -43,4 +56,11 @@ export interface PathSuggestionsResponse {
    * shape. Absent reads as "no judgements", which is the correct default.
    */
   feedback?: Record<string, string>;
+  /**
+   * W-16. True while some card's `why_text` is still being written: the list
+   * is scored and shown first, and the sentences land in place a few seconds
+   * later. Optional because every payload written before W-16 lacks it, and
+   * absent reads as false -- the correct default for those.
+   */
+  narration_pending?: boolean;
 }

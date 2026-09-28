@@ -60,7 +60,7 @@ from __future__ import annotations
 import datetime
 import logging
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import sqlalchemy as sa
 
@@ -303,27 +303,47 @@ def _score_assessment(
 
 def _score_path_suggestions(
     claimed: Dict[str, Any]
-) -> Tuple[str, Optional[Dict], Optional[str]]:
+) -> Tuple[str, Optional[Dict], Optional[str], Optional[Callable[[], Dict]]]:
     """Run one path-suggestion scoring; the service call warms the cache.
 
     ``intelligence_service.path_suggestions`` populates ``path_cache`` as it
     returns, and since 3c that cache is the *only* thing ``GET
     /me/path-suggestions`` serves -- this job is what stands between a miss
     there and an empty screen.
+
+    The fourth value (W-16) is the narration phase still to run, or None when
+    every sentence was already stored. :func:`run` starts it after the scored
+    result is written.
     """
     from solverah.repositories import user_repository
     from solverah.services import intelligence_service
 
     user = user_repository.find_by_id(claimed["user_id"])
     if user is None:
-        return FAILED, None, GENERIC_FAILURE
+        return FAILED, None, GENERIC_FAILURE, None
 
     outcome = intelligence_service.path_suggestions(user, logger)
     if outcome.status == 200:
-        return SUCCEEDED, outcome.body, None
+        return SUCCEEDED, outcome.body, None, outcome.narration
 
     message = outcome.body.get("error") if isinstance(outcome.body, dict) else None
-    return FAILED, None, message if isinstance(message, str) else GENERIC_FAILURE
+    return FAILED, None, message if isinstance(message, str) else GENERIC_FAILURE, None
+
+
+def _record_narration(job_id: int, result: Dict[str, Any]) -> None:
+    """Replace a succeeded job's scored result with its narrated one (W-16).
+
+    Conditional on the row still being ``succeeded``: a job the purge deleted,
+    or a row that is somehow no longer the success it was a second ago, is left
+    alone rather than resurrected. Its own transaction, like :func:`_finish` --
+    it runs on the narration thread, not inside anybody's request.
+    """
+    with db.engine.begin() as connection:
+        connection.execute(
+            sa.update(_table)
+            .where(_table.c.id == job_id, _table.c.status == SUCCEEDED)
+            .values(result=result)
+        )
 
 
 def run(job_id: int) -> str:
@@ -341,11 +361,12 @@ def run(job_id: int) -> str:
         )
         return "skipped"
 
+    narration = None
     try:
         if claimed["job_type"] == ASSESSMENT:
             status, result, error = _score_assessment(claimed)
         else:
-            status, result, error = _score_path_suggestions(claimed)
+            status, result, error, narration = _score_path_suggestions(claimed)
     except Exception as exc:  # noqa: BLE001 -- the job row is the error channel
         db.session.rollback()
         logger.exception(
@@ -371,6 +392,30 @@ def run(job_id: int) -> str:
             "status": status,
         },
     )
+
+    # W-16. Cards first, sentences after. The scored result is committed above,
+    # so the poll can render the cards from this moment; the narration runs
+    # after, off this thread, and replaces the result with the narrated one when
+    # it lands. In that order and no other: started before `_finish`, a fast
+    # narration could write its result first and then be overwritten by the
+    # scored one, leaving a job that says "pending" about sentences that exist.
+    #
+    # If this process dies mid-narration the row is still `succeeded` -- the
+    # reaper never sees it, because it only fails `queued`/`running` rows -- and
+    # `intelligence_service.resolve_stale_narration` is what ends the wait: every
+    # read past NARRATION_DEADLINE serves the fallback sentences instead.
+    if narration is not None and status == SUCCEEDED:
+        from solverah.services import intelligence_service
+
+        try:
+            intelligence_service.start_narration(
+                narration, lambda final: _record_narration(job_id, final)
+            )
+        except Exception:  # noqa: BLE001 -- the deadline read covers the job
+            logger.exception(
+                "path_narration_not_started",
+                extra={"event": "path_narration_not_started", "job_id": job_id},
+            )
     return status
 
 
@@ -451,7 +496,15 @@ def status_for(job: ScoringJob) -> Dict[str, Any]:
         "error": job.error,
     }
     if job.status == SUCCEEDED and job.result is not None:
-        body["result"] = job.result
+        result = job.result
+        if job.job_type == PATH_SUGGESTIONS:
+            # W-16. A result still saying `narration_pending` past the deadline
+            # belongs to a narration whose worker died; read it with the
+            # fallback sentences filled in so the page stops waiting.
+            from solverah.services import intelligence_service
+
+            result = intelligence_service.resolve_stale_narration(result)
+        body["result"] = result
     return body
 
 

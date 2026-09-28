@@ -759,39 +759,45 @@ def _batching_client(monkeypatch, *, fail_when=None, barrier=None):
 
 
 class TestBatchedNarratives:
-    """W-12: twenty cards narrated as two parallel tens, best-effort per batch.
+    """W-12's twenty cards, as W-16's four parallel batches of five.
 
-    Measured before it was built (three F-2 profiles, the real API): ten cards
-    10.35 / 11.09 / 10.35 s, two batches of ten on threads 11.87 / 9.37 / 9.96 s
-    -- a mean difference of -0.20 s -- and twenty in ONE completion 17.72 /
-    18.58 / 18.87 s.  The parallelism is the whole saving, which is why it is
-    pinned here rather than assumed.
+    W-12 measured two batches of ten on threads against one of ten (no wall-time
+    difference) and twenty in ONE completion (17.72 / 18.58 / 18.87 s).  W-16
+    measured four of five against two of ten on twenty real scored cards, three
+    profiles x three runs: mean 4.36 s against 8.22 s.  The parallelism is the
+    whole saving and the batch size decides how much of it there is, which is
+    why both are pinned here rather than assumed.
     """
 
-    def test_twenty_candidates_go_out_as_two_batches_of_ten(self, monkeypatch):
+    def test_twenty_candidates_go_out_as_four_batches_of_five(self, monkeypatch):
         calls = _batching_client(monkeypatch)
         candidates = _deep_candidates(20)
 
         result = narrative_module.generate_narratives_batched(candidates, user_ctx())
 
-        assert len(calls) == 2, "one completion per batch, and no more"
-        assert sorted(len(codes) for codes in calls) == [10, 10]
+        assert len(calls) == 4, "one completion per batch, and no more"
+        assert sorted(len(codes) for codes in calls) == [5, 5, 5, 5]
         assert sorted(calls, key=lambda codes: codes[0]) == [
-            [c.onet_code for c in candidates[:10]],
-            [c.onet_code for c in candidates[10:]],
+            [c.onet_code for c in candidates[start:start + 5]]
+            for start in (0, 5, 10, 15)
         ]
         assert [s.onet_code for s in result] == [
             c.onet_code for c in candidates
         ], "the caller slices the page off the front, so order survives the fan-out"
 
+    def test_the_batch_is_five_and_the_pool_covers_twenty(self):
+        """The two numbers W-16 measured, pinned where a casual edit would show."""
+        assert narrative_module._BATCH_SIZE == 5
+        assert narrative_module._MAX_WORKERS == 4
+
     def test_the_batches_actually_run_at_the_same_time(self, monkeypatch):
         """A barrier rather than a stopwatch.
 
-        Both calls must be in flight together for the barrier to release; if the
-        second only started after the first returned, it times out and this test
+        All four calls must be in flight together for the barrier to release; if
+        any only started after another returned, it times out and this test
         fails instead of passing slowly.
         """
-        barrier = threading.Barrier(2, timeout=10)
+        barrier = threading.Barrier(4, timeout=10)
         _batching_client(monkeypatch, barrier=barrier)
 
         result = narrative_module.generate_narratives_batched(
@@ -801,24 +807,24 @@ class TestBatchedNarratives:
         assert len(result) == 20
         assert not barrier.broken
 
-    def test_a_failing_second_batch_still_lands_the_first_ten(self, monkeypatch):
+    def test_failing_reserve_batches_still_land_the_page(self, monkeypatch):
         """The reserve is a nice-to-have; the page is the product."""
         candidates = _deep_candidates(20)
-        second = {c.onet_code for c in candidates[10:]}
-        _batching_client(monkeypatch, fail_when=lambda codes: codes[0] in second)
+        reserve = {c.onet_code for c in candidates[10:]}
+        _batching_client(monkeypatch, fail_when=lambda codes: codes[0] in reserve)
 
         result = narrative_module.generate_narratives_batched(candidates, user_ctx())
 
         assert [s.onet_code for s in result] == [c.onet_code for c in candidates[:10]]
 
-    def test_a_failing_first_batch_still_lands_the_second_ten(self, monkeypatch):
-        """This function privileges no batch -- `path_suggestions` is what decides
-        that the missing one was the page and answers 500.  Keeping that judgement
-        in one place is why this one is symmetric.
+    def test_failing_page_batches_still_land_the_reserve(self, monkeypatch):
+        """This function privileges no batch.  Since W-16 nothing downstream
+        treats a missing batch as fatal either: its cards take the fallback
+        sentence in `intelligence_service._fill_payload`.
         """
         candidates = _deep_candidates(20)
-        first = {c.onet_code for c in candidates[:10]}
-        _batching_client(monkeypatch, fail_when=lambda codes: codes[0] in first)
+        page = {c.onet_code for c in candidates[:10]}
+        _batching_client(monkeypatch, fail_when=lambda codes: codes[0] in page)
 
         result = narrative_module.generate_narratives_batched(candidates, user_ctx())
 
@@ -830,7 +836,7 @@ class TestBatchedNarratives:
         """
         mock_client = MagicMock()
         candidates = _deep_candidates(20)
-        second = {c.onet_code for c in candidates[10:]}
+        second = {c.onet_code for c in candidates[15:]}
 
         def create(*, model, messages, response_format, **_):
             codes = _codes_in(messages)
@@ -855,27 +861,39 @@ class TestBatchedNarratives:
 
         result = narrative_module.generate_narratives_batched(candidates, user_ctx())
 
-        assert len(result) == 10
+        assert len(result) == 15, "three good batches of five; the bad one dropped"
 
-    def test_ten_candidates_are_the_same_single_call_as_before(self, monkeypatch):
-        """A job that scores fewer than eleven must be unchanged, not equivalent:
-        no pool, no thread, the one completion `generate_narratives` always made.
+    def test_five_candidates_are_one_call_with_no_pool(self, monkeypatch):
+        """A narration of five or fewer must be unchanged, not equivalent: no
+        pool, no thread, the one completion `generate_narratives` always made.
         """
         calls = _batching_client(monkeypatch)
 
         result = narrative_module.generate_narratives_batched(
-            _deep_candidates(10), user_ctx()
+            _deep_candidates(5), user_ctx()
         )
 
         assert len(calls) == 1
-        assert len(result) == 10
+        assert len(result) == 5
 
     def test_an_uneven_tail_is_its_own_batch(self, monkeypatch):
         calls = _batching_client(monkeypatch)
 
         narrative_module.generate_narratives_batched(_deep_candidates(13), user_ctx())
 
-        assert sorted(len(codes) for codes in calls) == [3, 10]
+        assert sorted(len(codes) for codes in calls) == [3, 5, 5]
+
+    def test_more_batches_than_workers_all_still_run(self, monkeypatch):
+        """Thirty cards is six batches on a pool of four: the extra two wait for
+        a thread rather than opening more sockets, and none is lost."""
+        calls = _batching_client(monkeypatch)
+
+        result = narrative_module.generate_narratives_batched(
+            _deep_candidates(30), user_ctx()
+        )
+
+        assert len(calls) == 6
+        assert len(result) == 30
 
     def test_nothing_to_narrate_is_empty_rather_than_an_error(self, monkeypatch):
         """Unlike `generate_narratives`: here the batches are derived from what
@@ -885,3 +903,158 @@ class TestBatchedNarratives:
 
         assert narrative_module.generate_narratives_batched([], user_ctx()) == []
         assert calls == []
+
+
+# ---------------------------------------------------------------------------
+# narrative_fingerprint (W-16)
+# ---------------------------------------------------------------------------
+
+
+class TestNarrativeFingerprint:
+    """The key a stored sentence is filed under: exactly the narrator's inputs.
+
+    The rule is "same prompt for this card, same key; different prompt,
+    different key", so the tests below mutate one input at a time and check the
+    fingerprint moves if and only if `_build_prompt` for that card moved.  The
+    wants and the taps are not narrator inputs at all -- `UserContext` has no
+    field for them -- and `tests/test_path_suggestions_api.py` pins that end to
+    end: a wants row changes nothing about the key.
+    """
+
+    @staticmethod
+    def _card(**overrides) -> ScoredPath:
+        fields = {
+            "onet_code": "15-1252.00",
+            "title": "Software Developers",
+            "score": 0.8,
+            "overlapping_skills": ["Python", "SQL"],
+        }
+        fields.update(overrides)
+        return ScoredPath(**fields)
+
+    def test_the_same_inputs_give_the_same_key(self):
+        a = narrative_module.narrative_fingerprint(self._card(), user_ctx())
+        b = narrative_module.narrative_fingerprint(self._card(), user_ctx())
+        assert a == b
+        assert re.fullmatch(r"[0-9a-f]{64}", a)
+
+    @pytest.mark.parametrize(
+        "ctx_change",
+        [
+            {"top_skills": ["Python", "SQL", "Docker"]},
+            {"top_skills": ["SQL", "Python"]},  # prompt order is the model's order
+            {"career_status": "between_jobs"},
+            {"archetype": "Connector"},
+            {"management_preferences": {"archetype": "The Coach", "dimension_scores": {}}},
+            {"move_intent": "fresh_start"},
+            {"seniority_intent": "move_up"},
+            {"priority": "work_life_balance"},
+        ],
+    )
+    def test_every_person_side_input_moves_the_key(self, ctx_change):
+        base = narrative_module.narrative_fingerprint(self._card(), user_ctx())
+        changed = narrative_module.narrative_fingerprint(
+            self._card(), user_ctx(**ctx_change)
+        )
+        assert changed != base
+
+    @pytest.mark.parametrize(
+        "card_change",
+        [
+            {"title": "Web Developers"},
+            {"overlapping_skills": ["Python"]},
+            {"onet_code": "15-1254.00"},
+        ],
+    )
+    def test_every_card_side_input_moves_the_key(self, card_change):
+        base = narrative_module.narrative_fingerprint(self._card(), user_ctx())
+        changed = narrative_module.narrative_fingerprint(
+            self._card(**card_change), user_ctx()
+        )
+        assert changed != base
+
+    def test_what_the_prompt_never_sees_does_not_move_the_key(self):
+        """The score left the prompt in W-13 and the reasons were never in it; a
+        re-rank that changes either -- which is what a wants save or a tap does
+        -- must find the same sentence."""
+        base = narrative_module.narrative_fingerprint(self._card(), user_ctx())
+        assert base == narrative_module.narrative_fingerprint(
+            self._card(score=0.1, reasons=["Among the most people-facing jobs"]),
+            user_ctx(),
+        )
+
+    def test_a_manager_score_moves_the_key_only_as_far_as_the_prompt_renders_it(self):
+        """The prompt prints dimension scores to two decimals, so a change in the
+        third decimal is not a change the narrator can see -- and not one that
+        should throw a stored sentence away."""
+        def ctx(score):
+            return user_ctx(
+                management_preferences={"archetype": "A", "dimension_scores": {"autonomy": score}}
+            )
+
+        fp = narrative_module.narrative_fingerprint
+        assert fp(self._card(), ctx(0.751)) == fp(self._card(), ctx(0.749))
+        assert fp(self._card(), ctx(0.75)) != fp(self._card(), ctx(0.80))
+
+    def test_the_key_and_the_prompt_move_together(self):
+        """The key is built from the prompt's own helpers; this is the check that
+        they stay the prompt's helpers.  For each single change: the one-card
+        prompt differs if and only if the fingerprint does."""
+        cases = [
+            (self._card(), user_ctx()),
+            (self._card(score=0.2), user_ctx()),
+            (self._card(title="Other"), user_ctx()),
+            (self._card(), user_ctx(top_skills=["Go"])),
+            (self._card(), user_ctx(priority="pay_title")),
+        ]
+        base_card, base_ctx = cases[0]
+        base_prompt = _build_prompt([base_card], base_ctx)
+        base_fp = narrative_module.narrative_fingerprint(base_card, base_ctx)
+        for card, ctx in cases[1:]:
+            prompt_moved = _build_prompt([card], ctx) != base_prompt
+            key_moved = narrative_module.narrative_fingerprint(card, ctx) != base_fp
+            assert prompt_moved == key_moved, (card, ctx)
+
+
+class TestFallbackIsFlagged:
+    """W-16: a sentence the scrub replaced with the house fallback is marked, so
+    the narration phase can show it without ever storing it as prose."""
+
+    def test_an_all_grade_sentence_comes_back_flagged(self, monkeypatch):
+        _patch_client(
+            monkeypatch,
+            return_json={
+                "suggestions": [
+                    {
+                        "onet_code": "15-1211.00",
+                        "title": "Computer Systems Analysts",
+                        "why_text": "A great fit.",
+                        "profile_dimensions": ["Builds on your Python", "Fits you"],
+                    }
+                ]
+            },
+        )
+
+        [result] = generate_narratives([scored_path("15-1211.00")], user_ctx())
+
+        assert result.is_fallback is True
+        assert result.why_text == "Uses your Python and SQL."
+
+    def test_a_clean_sentence_is_not_flagged(self, monkeypatch):
+        _patch_client(
+            monkeypatch,
+            return_json={
+                "suggestions": [
+                    {
+                        "onet_code": "15-1211.00",
+                        "title": "Computer Systems Analysts",
+                        "why_text": "You would design systems with your SQL.",
+                        "profile_dimensions": ["Builds on your Python", "Fits you"],
+                    }
+                ]
+            },
+        )
+
+        [result] = generate_narratives([scored_path("15-1211.00")], user_ctx())
+
+        assert result.is_fallback is False

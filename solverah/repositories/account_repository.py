@@ -34,7 +34,11 @@ from model import (
     UserSession,
     db,
 )
-from solverah.repositories import assessment_repository, profile_repository
+from solverah.repositories import (
+    assessment_repository,
+    path_narrative_repository,
+    profile_repository,
+)
 
 __all__ = [
     "delete_personal_rows",
@@ -163,6 +167,12 @@ def delete_personal_rows(user_id: int, intakes: List[IntakeSubmission]) -> None:
     # rows for anything but rotating one user's own retrieval query, so a
     # retained row would be retention with no reader.
     PathWant.query.filter_by(user_id=user_id).delete()
+    # Stored narrator sentences (BUILD_PLAN W-16). `why_text` is model-written
+    # prose ABOUT the person -- "uses your Python and SQL" -- and free text about a
+    # person is never retained de-identified: the `path_fits` answer. Explicit
+    # rather than by the `ON DELETE CASCADE` on `fk_pathnarrative_user`, for the
+    # reason the paragraphs above give: deletion tombstones the user row.
+    path_narrative_repository.delete_for_user(user_id)
 
 
 def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_password: str) -> None:

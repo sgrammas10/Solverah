@@ -85,7 +85,22 @@ export default function PathSuggestionCard({
         <p className="text-xs text-ink-secondary mt-0.5">{progressionLine}</p>
       </div>
 
-      <p className="text-sm text-ink-primary leading-relaxed">{suggestion.why_text}</p>
+      {/* W-16: the card arrives before its sentence. While the sentence is
+          being written the card holds its place with a placeholder line --
+          never a stand-in sentence, which would change under the reader when
+          the real one lands. An empty sentence with nothing coming (the poll
+          gave up) renders nothing rather than an empty paragraph. */}
+      {suggestion.sentence_pending ? (
+        <div data-sentence-pending className="space-y-2 py-0.5">
+          <span className="sr-only">Writing a short summary of this path…</span>
+          <div aria-hidden="true" className="h-3 rounded bg-cream-muted animate-pulse w-full" />
+          <div aria-hidden="true" className="h-3 rounded bg-cream-muted animate-pulse w-4/6" />
+        </div>
+      ) : (
+        suggestion.why_text && (
+          <p className="text-sm text-ink-primary leading-relaxed">{suggestion.why_text}</p>
+        )
+      )}
 
       {/* W-5: the reason line, where the percentage used to be (§8.5, ⚑12).
           At most two short phrases saying what is distinctive about THIS card
@@ -108,7 +123,8 @@ export default function PathSuggestionCard({
         </ul>
       )}
 
-      {suggestion.profile_dimensions.length > 0 && (
+      {/* No pills while the sentence is pending: the tags are written with it. */}
+      {!suggestion.sentence_pending && suggestion.profile_dimensions.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {suggestion.profile_dimensions.map((dim) => (
             <span
