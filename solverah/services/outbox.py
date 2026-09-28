@@ -378,7 +378,7 @@ def purge_published(older_than_hours: int = 24) -> int:
 
 
 def unpublished_count(include_parked: bool = True) -> int:
-    """How many rows are still owed. For the readiness probe and for tests."""
+    """How many rows are still owed. For tests; the readiness probe reads :func:`depth`."""
     clauses: List[Any] = [_table.c.published_at.is_(None)]
     if not include_parked:
         clauses.append(_table.c.attempts < MAX_ATTEMPTS)
@@ -401,10 +401,22 @@ def depth() -> Dict[str, int]:
     deep outbox means email is behind, not that the process cannot serve
     traffic, and failing readiness on it would pull the whole service out of
     rotation over a non-fatal condition.
+
+    One statement: both counts come from one pass over the unpublished rows,
+    the ``pending`` half as a ``FILTER``.  Two separate counts cost the probe a
+    second round trip and could disagree -- a row published between them made
+    ``parked`` negative.
     """
-    pending = unpublished_count(include_parked=False)
-    total = unpublished_count(include_parked=True)
-    return {"pending": pending, "parked": total - pending}
+    with db.engine.connect() as connection:
+        row = connection.execute(
+            sa.select(
+                sa.func.count().label("total"),
+                sa.func.count()
+                .filter(_table.c.attempts < MAX_ATTEMPTS)
+                .label("pending"),
+            ).where(_table.c.published_at.is_(None))
+        ).one()
+    return {"pending": int(row.pending), "parked": int(row.total) - int(row.pending)}
 
 
 def entry_state(entry_id: int) -> Optional[Dict[str, Any]]:

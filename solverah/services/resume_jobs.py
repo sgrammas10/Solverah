@@ -102,6 +102,14 @@ def create(
     same reason: a worker that receives the message before the row is visible
     finds nothing, and the answer to "what if the enqueue fails" has to be a row
     a sweep can find rather than a message that was never sent.
+
+    Returns the job *detached*, holding its columns as written.  ``id`` and
+    ``public_id`` are server-generated and come back on the INSERT's
+    ``RETURNING``; detaching before the commit keeps them readable afterwards.
+    Left attached, the commit would expire them, and the first read after it --
+    the enqueue below, or the route's ``public_id`` -- would reload a row this
+    function had just written.  The ``status`` it reports is therefore always
+    ``queued``, the state it was written in, which is what the ``202`` means.
     """
     job = ResumeParseJob(
         user_id=user.id,
@@ -112,6 +120,8 @@ def create(
         status=QUEUED,
     )
     db.session.add(job)
+    db.session.flush()
+    db.session.expunge(job)
     db.session.commit()
 
     from solverah.infra.queue import enqueue

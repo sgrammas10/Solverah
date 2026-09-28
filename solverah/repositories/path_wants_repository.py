@@ -42,7 +42,10 @@ from __future__ import annotations
 import datetime
 import hashlib
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
+
+import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from model import PathWant, db
 
@@ -59,6 +62,7 @@ __all__ = [
     "item_key_for_task",
     "list_for_anchor",
     "set_answer",
+    "set_answers",
     "wants_for_anchor",
 ]
 
@@ -211,6 +215,9 @@ def set_answer(
     rather than only on insert: a sidecar rebuild that rewords a statement
     without changing its normalised digest should leave the newer text stored.
 
+    :func:`set_answers` for one item, so it is one statement with no read first:
+    an ``INSERT ... ON CONFLICT DO UPDATE``, or a ``DELETE`` when clearing.
+
     Does not commit -- the service owns the transaction boundary.
 
     Raises:
@@ -220,42 +227,92 @@ def set_answer(
             not enforced by the column (see the migration for why), which makes
             it this function's job.
     """
-    if kind not in KINDS:
-        raise ValueError("unknown want kind %r" % (kind,))
-    if verdict is not None and verdict not in VERDICTS:
-        raise ValueError("unknown want verdict %r" % (verdict,))
+    written = set_answers(
+        user_id, anchor_onet_code, [(kind, item_key, verdict, item_text)]
+    )
+    return written.get((kind, item_key))
 
-    row = PathWant.query.filter_by(
-        user_id=user_id,
-        anchor_onet_code=anchor_onet_code,
-        kind=kind,
-        item_key=item_key,
-    ).first()
 
-    if verdict is None:
-        if row is not None:
-            db.session.delete(row)
-        return None
+def set_answers(
+    user_id: int,
+    anchor_onet_code: str,
+    answers: Iterable[Tuple[str, str, Optional[str], str]],
+) -> Dict[Tuple[str, str], PathWant]:
+    """Apply many answers about one anchor in at most two statements.
+
+    *answers* holds ``(kind, item_key, verdict, item_text)`` per item --
+    :func:`set_answer`'s per-item parameters in its order, and the tuples
+    ``path_wants_service`` validates a PUT body into.  Each item means what
+    :func:`set_answer` says: a verdict upserts the row, ``None`` (*fine*)
+    deletes it, and clearing a row that is not there is a no-op.
+
+    Every answered item goes into ONE ``INSERT ... ON CONFLICT DO UPDATE`` and
+    every cleared one into ONE ``DELETE ... WHERE (kind, item_key) IN (...)``,
+    with no read first.  The statement count does not grow with the panel, and
+    two overlapping saves converge instead of one failing on
+    ``uq_path_wants_user_anchor_item``.  The whole body is checked before any
+    statement is sent, so a refused call writes nothing.
+
+    Returns the written rows keyed by ``(kind, item_key)``; a cleared item is
+    absent, which is *fine* by construction.  The rows come back through
+    ``RETURNING``, refreshing any copies already in the session.  Does not commit.
+
+    Raises:
+        ValueError: an unknown *kind* or *verdict*, for :func:`set_answer`'s
+            reason, or one item named twice -- a single INSERT cannot touch a row
+            twice, and the service refuses that body with a 422 first.
+    """
+    decided: Dict[Tuple[str, str], Tuple[Optional[str], str]] = {}
+    for kind, item_key, verdict, item_text in answers:
+        if kind not in KINDS:
+            raise ValueError("unknown want kind %r" % (kind,))
+        if verdict is not None and verdict not in VERDICTS:
+            raise ValueError("unknown want verdict %r" % (verdict,))
+        if (kind, item_key) in decided:
+            raise ValueError("want %r answered twice in one call" % ((kind, item_key),))
+        decided[(kind, item_key)] = (verdict, item_text or "")
+
+    cleared = [item for item, (verdict, _) in decided.items() if verdict is None]
+    if cleared:
+        db.session.execute(
+            sa.delete(PathWant).where(
+                PathWant.user_id == user_id,
+                PathWant.anchor_onet_code == anchor_onet_code,
+                sa.tuple_(PathWant.kind, PathWant.item_key).in_(cleared),
+            )
+        )
 
     now = datetime.datetime.now(datetime.timezone.utc)
-    if row is None:
-        row = PathWant(
-            user_id=user_id,
-            anchor_onet_code=anchor_onet_code,
-            kind=kind,
-            item_key=item_key,
-            item_text=item_text or "",
-            verdict=verdict,
-            created_at=now,
-            updated_at=now,
-        )
-        db.session.add(row)
-        return row
+    values = [
+        {
+            "user_id": user_id,
+            "anchor_onet_code": anchor_onet_code,
+            "kind": kind,
+            "item_key": item_key,
+            "item_text": item_text,
+            "verdict": verdict,
+            "created_at": now,
+            "updated_at": now,
+        }
+        for (kind, item_key), (verdict, item_text) in decided.items()
+        if verdict is not None
+    ]
+    if not values:
+        return {}
 
-    row.verdict = verdict
-    row.item_text = item_text or ""
-    row.updated_at = now
-    return row
+    statement = pg_insert(PathWant).values(values)
+    statement = statement.on_conflict_do_update(
+        index_elements=["user_id", "anchor_onet_code", "kind", "item_key"],
+        set_={
+            "verdict": statement.excluded.verdict,
+            "item_text": statement.excluded.item_text,
+            "updated_at": statement.excluded.updated_at,
+        },
+    )
+    rows = db.session.scalars(
+        statement.returning(PathWant), execution_options={"populate_existing": True}
+    ).all()
+    return {(row.kind, row.item_key): row for row in rows}
 
 
 def any_for_user(user_id: int) -> bool:

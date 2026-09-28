@@ -208,10 +208,12 @@ def finalize(data: Dict[str, Any]) -> IntakeResult:
 
     intake_repository.insert_submission(fields, email=fields.email, status="uploaded")
 
-    # The notification and the submission row are one commit. Previously the row
-    # was committed by insert_submission and the email followed it, so a Resend
-    # outage left a submission nobody was told about -- recoverable only by
-    # someone thinking to query the table.
+    # The notification and the submission row are one commit: insert_submission
+    # runs in this session's transaction, so a failure before the commit below --
+    # the outbox write included -- leaves neither. Until 2026-09-28 it committed
+    # the row on a connection of its own, and this comment claimed a single commit
+    # that did not exist: a failed outbox write left a submission nobody was told
+    # about, recoverable only by someone thinking to query the table.
     entry_id = outbox.enqueue(
         outbox.TOPIC_EMAIL_INTAKE_NOTIFICATION,
         {
@@ -299,22 +301,21 @@ def create_account(
     entry_id = outbox.enqueue(
         outbox.TOPIC_EMAIL_VERIFICATION, {"to": new_user.email, "code": code}
     )
+    # Read before the commit, which expires the instance: afterwards the first
+    # attribute read is a refresh SELECT.
+    body = {
+        "message": "registered",
+        "user": {
+            "id": new_user.id,
+            "email": new_user.email,
+            "name": new_user.name,
+            "role": new_user.role,
+        },
+    }
     db.session.commit()
     outbox.publish_soon(entry_id)
 
-    return IntakeResult(
-        status=201,
-        body={
-            "message": "registered",
-            "user": {
-                "id": new_user.id,
-                "email": new_user.email,
-                "name": new_user.name,
-                "role": new_user.role,
-            },
-        },
-        user=new_user,
-    )
+    return IntakeResult(status=201, body=body, user=new_user)
 
 
 def sign_in(data: Dict[str, Any], *, check_password) -> IntakeResult:
@@ -381,22 +382,19 @@ def sign_in(data: Dict[str, Any], *, check_password) -> IntakeResult:
         resource="intake",
         metadata={"submission_id": intake.id, "user_id": user.id},
     )
+    # Before the commit, for the reason given in create_account.
+    body = {
+        "message": "signed in",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+        },
+    }
     db.session.commit()
 
-    return IntakeResult(
-        status=200,
-        body={
-            "message": "signed in",
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "name": user.name,
-                "role": user.role,
-            },
-        },
-        user=user,
-        issue_token=True,
-    )
+    return IntakeResult(status=200, body=body, user=user, issue_token=True)
 
 
 def link_account(user: User, current_email: str, data: Dict[str, Any]) -> IntakeResult:
@@ -405,6 +403,12 @@ def link_account(user: User, current_email: str, data: Dict[str, Any]) -> Intake
     The row is recorded against the JWT identity, not against any email in the
     body -- otherwise a signed-in user could file a submission under someone
     else's address.
+
+    The row, the profile merge, the new name and the audit event are one commit,
+    so a failure part-way leaves none of them. Until 2026-09-28 the row committed
+    on its own connection first -- a failed merge then left it behind, and a
+    retry hit its primary key -- and the audit event was added after the only
+    commit, so it was rolled back with the session and never recorded.
     """
     fields = domain.parse_submission(data)
     problem = domain.validate_submission(
@@ -421,20 +425,18 @@ def link_account(user: User, current_email: str, data: Dict[str, Any]) -> Intake
     if upload_problem:
         return _error(400, upload_problem)
 
-    intake_repository.insert_submission(
+    # The profile is built from the values just inserted, not from a read-back
+    # of the row: `fields` already held every one of them.
+    intake = intake_repository.insert_submission(
         fields, email=current_email, status="account_linked"
     )
-
-    intake = intake_repository.find_submission(fields.submission_id)
-    if intake:
-        intake_profile = resume_service.build_profile_from_intake(intake)
-        profile_repository.update_document(
-            user.id, lambda existing: {**existing, **intake_profile}
-        )
-        full_name = ("%s %s" % (fields.first_name, fields.last_name)).strip()
-        if full_name:
-            user.name = full_name
-        db.session.commit()
+    intake_profile = resume_service.build_profile_from_intake(intake)
+    profile_repository.update_document(
+        user.id, lambda existing: {**existing, **intake_profile}
+    )
+    full_name = ("%s %s" % (fields.first_name, fields.last_name)).strip()
+    if full_name:
+        user.name = full_name
 
     audit.log_audit_event(
         action="intake_link_account",
@@ -442,6 +444,7 @@ def link_account(user: User, current_email: str, data: Dict[str, Any]) -> Intake
         resource="intake",
         metadata={"submission_id": fields.submission_id, "email": current_email},
     )
+    db.session.commit()
 
     return IntakeResult(status=200, body={"ok": True})
 
@@ -494,12 +497,11 @@ def save_to_account(user: User, data: Dict[str, Any]) -> IntakeResult:
             "answer_count": len(wpll_answers),
         },
     )
+    # Before the commit, for the reason given in create_account.
+    wpll_completed = submission.completed_at is not None
     db.session.commit()
 
     return IntakeResult(
         status=200,
-        body={
-            "message": "Intake saved",
-            "wpll_completed": submission.completed_at is not None,
-        },
+        body={"message": "Intake saved", "wpll_completed": wpll_completed},
     )

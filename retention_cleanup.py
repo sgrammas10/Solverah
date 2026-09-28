@@ -52,7 +52,9 @@ def _referenced_resume_keys(db, IntakeSubmission, ResumeParseCorrection, User) -
     for (key,) in db.session.query(IntakeSubmission.resume_key).all():
         if key:
             keys.add(key)
-    for (key,) in db.session.query(ResumeParseCorrection.resume_key).all():
+    # DISTINCT: corrections are one row per (user, resume, field), so each key
+    # would otherwise come back once per corrected field.
+    for (key,) in db.session.query(ResumeParseCorrection.resume_key).distinct().all():
         if key:
             keys.add(key)
     from solverah.repositories import profile_repository
@@ -71,10 +73,14 @@ def _iter_bucket_objects(s3, bucket: str):
 
 
 def run_cleanup(dry_run_sweep: bool = False) -> dict:
-    from app import app, get_s3_client
+    # `get_s3_client` came from `app` until app.py became a thin shell over the
+    # factory (bb67227) and stopped exporting it; from then until 2026-09-28 this
+    # import raised and no rule here could run.
+    from app import app
     from model import (AuditLog, IntakeSubmission, ResumeParseCorrection,
                        User, db)
-    from sqlalchemy import func
+    from solverah.infra.storage import get_s3_client
+    from sqlalchemy import delete, func, select
 
     now = datetime.datetime.now(datetime.timezone.utc)
     summary = {"abandoned_intakes_deleted": 0, "r2_objects_deleted": 0,
@@ -83,31 +89,46 @@ def run_cleanup(dry_run_sweep: bool = False) -> dict:
 
     with app.app_context():
         # ── Rule 1: abandoned intakes ─────────────────────────────────────
+        # "Abandoned" = no account exists for this email. Account-attached
+        # intakes are governed by account deletion instead. One anti-join
+        # finds them, where this used to ask `users` once per stale row, and
+        # only the two columns the loop reads come back.
         cutoff = now - datetime.timedelta(days=ABANDONED_INTAKE_DAYS)
-        stale = IntakeSubmission.query.filter(IntakeSubmission.created_at < cutoff).all()
+        has_account = (
+            select(User.id)
+            .where(func.lower(User.email) == func.lower(IntakeSubmission.email))
+            .exists()
+        )
+        stale = db.session.execute(
+            select(IntakeSubmission.id, IntakeSubmission.resume_key)
+            .where(IntakeSubmission.created_at < cutoff, ~has_account)
+        ).all()
 
         s3 = None
         bucket = os.environ.get("S3_BUCKET_NAME")
-        for intake in stale:
-            # "Abandoned" = no account exists for this email. Account-attached
-            # intakes are governed by account deletion instead.
-            has_account = (
-                User.query.filter(func.lower(User.email) == (intake.email or "").lower()).first()
-                is not None
-            )
-            if has_account:
-                continue
-            if intake.resume_key and bucket:
+        abandoned = []
+        for intake_id, resume_key in stale:
+            if resume_key and bucket:
                 try:
                     if s3 is None:
                         s3 = get_s3_client()
-                    s3.delete_object(Bucket=bucket, Key=intake.resume_key)
+                    s3.delete_object(Bucket=bucket, Key=resume_key)
                     summary["r2_objects_deleted"] += 1
                 except Exception:
                     summary["r2_delete_failures"] += 1
                     continue  # keep the row so the next run retries the object
-            db.session.delete(intake)
-            summary["abandoned_intakes_deleted"] += 1
+            abandoned.append(intake_id)
+
+        # Every object's outcome is known by now, so the rows go in one DELETE.
+        # Each row still goes only after its object did: deleting the row first
+        # would leave an object that nothing points at.
+        if abandoned:
+            db.session.execute(
+                delete(IntakeSubmission)
+                .where(IntakeSubmission.id.in_(abandoned))
+                .execution_options(synchronize_session=False)
+            )
+        summary["abandoned_intakes_deleted"] = len(abandoned)
 
         # ── Rule 2: audit-log PII minimization ────────────────────────────
         audit_cutoff = now - datetime.timedelta(days=AUDIT_PII_DAYS)
@@ -147,12 +168,18 @@ def _sweep_orphans(now, bucket, get_s3_client, db,
     Returns:
         Dict with ``orphans_deleted`` and ``orphan_delete_failures`` counts.
     """
+    from sqlalchemy import or_, select
+
     out = {"orphans_deleted": 0, "orphan_delete_failures": 0}
 
     # Circuit breaker: an empty database would make every object look orphaned.
     # If there are no users and no intakes, assume this is pointed at the wrong
-    # database rather than that the bucket is legitimately all garbage.
-    if User.query.count() == 0 and IntakeSubmission.query.count() == 0:
+    # database rather than that the bucket is legitimately all garbage. One
+    # EXISTS each, not two count(*)s: the question is whether any row exists.
+    populated = db.session.execute(
+        select(or_(select(User.id).exists(), select(IntakeSubmission.id).exists()))
+    ).scalar()
+    if not populated:
         out["orphan_sweep_skipped"] = "empty database"
         return out
 

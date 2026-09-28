@@ -10,7 +10,9 @@ without a database.
 
 Two things in here are load-bearing.
 
-**Every write goes through :func:`update_document`.**  There is no setter and no
+**Every write goes through :func:`update_document`** -- or, for one of the
+:data:`NARROW_EXTRA_KEYS`, through :func:`update_extra_key`, which is the same
+compare-and-swap on the same ``profiles.version``.  There is no setter and no
 way to assign a document, because a caller holding a document it read a moment
 ago is exactly the read-modify-write that made P0-1 a lost update.  The mutate
 callback is re-run against a fresh read whenever another writer got there first.
@@ -19,21 +21,25 @@ callback is re-run against a fresh read whenever another writer got there first.
 what the other writer committed, and an ORM instance in the identity map does
 not go and look.  Core `select()` always does.
 
-The queries here are deliberately plain.  ``load_document`` is seven round trips
+The queries here are deliberately plain.  ``load_document`` is six round trips
 where the blob was zero, because the blob rode along on the user row that was
-already loaded.  Five of those are Phase 2a's decomposition; the other two are
-Phase 2d fetching the FocusType and ManagerMatch results, which were blob keys
-and are now rows.  The whole cost is paid on ``GET /me/profile``, not on the boot
-path -- ``GET /auth/session`` never touches this module.  Phase 3's cache is
-where it gets paid back.
+already loaded.  Five of those are Phase 2a's decomposition; the sixth is Phase
+2d fetching the FocusType and ManagerMatch results, which were blob keys and are
+now rows -- both in one query, and none for a caller that passes
+``include_assessments=False``.  A caller that needs only one of the
+:data:`NARROW_EXTRA_KEYS` needs none of it: :func:`read_extra_key` is one SELECT.
+The whole cost is paid on ``GET /me/profile``, not on the boot path --
+``GET /auth/session`` never touches this module.  Phase 3's cache is where it
+gets paid back.
 """
 
 from __future__ import annotations
 
 import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from model import (
@@ -61,16 +67,20 @@ from solverah.repositories import assessment_repository
 
 __all__ = [
     "MAX_WRITE_ATTEMPTS",
+    "NARROW_EXTRA_KEYS",
     "ConcurrentProfileUpdate",
     "count_job_recommendations",
     "current_resume",
     "find_correction",
     "has_intake_submission",
     "load_document",
+    "read_extra_key",
+    "read_extra_key_for_users",
     "record_resume_corrections",
     "referenced_resume_keys",
     "resume_corrections_for_user",
     "update_document",
+    "update_extra_key",
     "user_ids_missing",
 ]
 
@@ -81,6 +91,30 @@ __all__ = [
 #: stale on the first attempt rather than spinning. Five is a backstop against a
 #: pathological pile-up, not a tuning parameter.
 MAX_WRITE_ATTEMPTS = 5
+
+#: ``profiles.extra`` keys that may be read and written on their own, without
+#: assembling or decomposing the rest of the document.
+#:
+#: Each was checked for the three things that would let a one-key read or write
+#: disagree with :func:`load_document` / :func:`update_document`, and
+#: ``tests/test_dbopt_profile_repository.py`` re-checks all three:
+#: ``decompose`` never promotes it to a column or a child row, so it lives in
+#: ``extra`` verbatim whatever its value; ``assemble`` lays ``extra`` down first
+#: and writes none of these keys over it; and it is not one of
+#: ``PROFILE_COMPLETION_FIELDS``, so ``completeness`` cannot depend on it. None
+#: is one of the two assessment result keys ``load_document`` merges from rows,
+#: either. A key failing any of those belongs to the whole-document path.
+NARROW_EXTRA_KEYS = frozenset(
+    {"pulse_settings", "culture_preferences", "path_preferences", "quizInsights"}
+)
+
+
+def _require_narrow_key(key: str) -> None:
+    if key not in NARROW_EXTRA_KEYS:
+        raise ValueError(
+            "%r is not one of NARROW_EXTRA_KEYS %s; read or write it through the "
+            "whole document" % (key, sorted(NARROW_EXTRA_KEYS))
+        )
 
 
 class ConcurrentProfileUpdate(RuntimeError):
@@ -206,7 +240,7 @@ def _read_state(user_id: int) -> Tuple[ProfileState, Optional[int]]:
     return state, row.version
 
 
-def load_document(user_id: int) -> Dict[str, Any]:
+def load_document(user_id: int, *, include_assessments: bool = True) -> Dict[str, Any]:
     """The profile document for *user_id*, or ``{}`` when there is none.
 
     Byte-for-byte what ``users.profile_data`` used to hold. Everything that used
@@ -221,7 +255,8 @@ def load_document(user_id: int) -> Dict[str, Any]:
     instruments' results already live. They are still in this document because
     ``GET /me/profile`` and ``GET /me/export`` still return them and
     ``intelligence_service`` still reads them from here -- a storage change that
-    dropped two keys off the wire would not be a storage change.
+    dropped two keys off the wire would not be a storage change. Both rows come
+    back from one :func:`assessment_repository.current_submissions` query.
 
     Merged after :func:`assemble` rather than inside it, and merged
     unconditionally, so the row is the only source: a stale copy left behind in
@@ -229,12 +264,23 @@ def load_document(user_id: int) -> Dict[str, Any]:
     ordering is what makes a missed one harmless rather than silently
     authoritative.) Neither key is client-writable -- ``clean_profile_data``'s
     allowlist has never included them -- so nothing can put one back.
+
+    ``include_assessments=False`` is for a caller that never sends either key
+    anywhere: the assessment query is skipped and the document comes back
+    without both keys -- exactly this document minus those two, never a stale
+    copy from ``extra`` in their place.
     """
     state, _version = _read_state(user_id)
     document = document_domain.assemble(state)
 
-    for kind, key in document_domain.ASSESSMENT_RESULT_KEYS.items():
-        submission = assessment_repository.current_submission(user_id, kind)
+    result_keys = document_domain.ASSESSMENT_RESULT_KEYS
+    submissions = (
+        assessment_repository.current_submissions(user_id, tuple(result_keys))
+        if include_assessments
+        else {}
+    )
+    for kind, key in result_keys.items():
+        submission = submissions.get(kind)
         result = submission.result if submission is not None else None
         if result is None:
             document.pop(key, None)
@@ -242,6 +288,46 @@ def load_document(user_id: int) -> Dict[str, Any]:
             document[key] = result
 
     return document
+
+
+def read_extra_key(user_id: int, key: str) -> Any:
+    """``load_document(user_id).get(key)`` for one of :data:`NARROW_EXTRA_KEYS`.
+
+    One SELECT of the one value, where the document is six. None when there is
+    no ``profiles`` row, when the key is absent and when it holds JSON ``null``
+    -- the three cases ``.get`` on the document does not tell apart either.
+
+    Raises:
+        ValueError: *key* is not in :data:`NARROW_EXTRA_KEYS`.
+    """
+    _require_narrow_key(key)
+    return db.session.execute(
+        sa.select(Profile.extra[key]).where(Profile.user_id == user_id)
+    ).scalar_one_or_none()
+
+
+def read_extra_key_for_users(user_ids: Sequence[int], key: str) -> Dict[int, Any]:
+    """:func:`read_extra_key` for many users at once: ``{user_id: value}``, one SELECT.
+
+    A user with no ``profiles`` row, or whose ``extra`` lacks the key, is left
+    out rather than mapped to None, so ``result.get(user_id)`` reads the same as
+    :func:`read_extra_key` either way; a key holding JSON ``null`` is present and
+    maps to None. Sends nothing at all for an empty *user_ids*.
+
+    Raises:
+        ValueError: *key* is not in :data:`NARROW_EXTRA_KEYS`.
+    """
+    _require_narrow_key(key)
+    ids = list(user_ids)
+    if not ids:
+        return {}
+    rows = db.session.execute(
+        sa.select(Profile.user_id, Profile.extra[key]).where(
+            Profile.user_id.in_(ids),
+            Profile.extra.has_key(key),  # noqa: W601 -- JSONB `?`, not dict
+        )
+    )
+    return {user_id: value for user_id, value in rows}
 
 
 def current_resume(user_id: int) -> Optional[Resume]:
@@ -273,16 +359,23 @@ def referenced_resume_keys() -> set:
         if key:
             keys.add(key)
 
-    for (extra,) in db.session.execute(sa.select(Profile.extra)):
-        if not isinstance(extra, dict):
-            continue
-        # A profile carried over by the migration and never rewritten still has
-        # its resumeKey in `extra` rather than in a `resumes` row.
-        if extra.get("resumeKey"):
-            keys.add(extra["resumeKey"])
-        snapshot = extra.get("_parsedResumeSnapshot")
-        if isinstance(snapshot, dict) and snapshot.get("resumeKey"):
-            keys.add(snapshot["resumeKey"])
+    # A profile carried over by the migration and never rewritten still has its
+    # resumeKey in `extra` rather than in a `resumes` row. Both keys are pulled
+    # out of `extra` in SQL, so the sweep reads two short strings per profile
+    # instead of every profile's whole document. The JSON path is NULL wherever
+    # a key is missing or a step is not an object -- the cases the Python walk
+    # this replaced skipped with isinstance checks -- and an empty string is
+    # skipped as before. The one difference is a value that is not a string: it
+    # comes back as its JSON text, so `0` or `false` is named where the walk
+    # skipped it and a list is named where the walk crashed. For a sweep that
+    # deletes whatever is *not* named, naming an extra key is the safe way to
+    # differ.
+    legacy = Profile.extra["resumeKey"].astext
+    snapshot = Profile.extra["_parsedResumeSnapshot"]["resumeKey"].astext
+    for row in db.session.execute(
+        sa.select(legacy, snapshot).where(sa.or_(legacy.isnot(None), snapshot.isnot(None)))
+    ):
+        keys.update(key for key in row if key)
 
     return keys
 
@@ -312,6 +405,11 @@ def _skill_ids(rows: List[SkillRow]) -> Dict[str, int]:
     skill differently does not rename the dimension; the spelling is appended to
     ``aliases`` instead, so the trigram index can find "Node.JS" on a row whose
     label says "Node.js".
+
+    Three statements however many skills there are. The alias append is one
+    UPDATE joined to the unnested ``(slug, label)`` pairs, not one per skill (an
+    executemany is a round trip per row); ``by_slug`` holds each slug once, so no
+    ``skills`` row can match two pairs.
     """
     if not rows:
         return {}
@@ -328,11 +426,13 @@ def _skill_ids(rows: List[SkillRow]) -> Dict[str, int]:
 
     db.session.execute(
         sa.text(
-            "UPDATE skills SET aliases = aliases || ARRAY[:label]::text[] "
-            "WHERE slug = :slug AND label <> :label "
-            "AND NOT (:label = ANY(aliases))"
+            "UPDATE skills SET aliases = skills.aliases || ARRAY[spelt.label]::text[] "
+            "FROM unnest(CAST(:slugs AS text[]), CAST(:labels AS text[])) "
+            "AS spelt(slug, label) "
+            "WHERE skills.slug = spelt.slug AND skills.label <> spelt.label "
+            "AND NOT (spelt.label = ANY(skills.aliases))"
         ),
-        [{"slug": slug, "label": label} for slug, label in by_slug.items()],
+        {"slugs": list(by_slug), "labels": list(by_slug.values())},
     )
 
     return {
@@ -343,27 +443,97 @@ def _skill_ids(rows: List[SkillRow]) -> Dict[str, int]:
     }
 
 
-def _write_children(user_id: int, state: ProfileState) -> None:
-    """Replace this user's experience, education, skill and resume rows.
+def _json_identical(left: Any, right: Any) -> bool:
+    """``left == right``, with the JSON types required to match as well.
 
-    Delete-then-insert rather than a diff. The document has no stable identity
-    per entry -- the frontend's list ``id`` is a timestamp for a new row and an
-    array index for a parsed one -- so there is nothing to diff against, and a
-    profile save has always been a wholesale replacement of these lists.
+    Python holds ``1 == 1.0 == True``; JSONB stores three different values. A
+    list judged unchanged by ``==`` alone would never be written when the new
+    document swapped one of those for another.
+    """
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict):
+        return left.keys() == right.keys() and all(
+            _json_identical(value, right[key]) for key, value in left.items()
+        )
+    if isinstance(left, list):
+        return len(left) == len(right) and all(
+            _json_identical(a, b) for a, b in zip(left, right)
+        )
+    return left == right
+
+
+def _same_rows(stored: Sequence[Any], wanted: Sequence[Any]) -> bool:
+    """Whether writing *wanted* over *stored* would store exactly what is there.
+
+    The rows are frozen dataclasses, so ``==`` compares every field the insert
+    writes; ``extra`` is additionally compared type-strictly. Columns an insert
+    leaves to their defaults (``id``, ``public_id``, the timestamps, and
+    ``profile_skills.years``, which nothing writes) are the only ones a rewrite
+    would change -- and not changing them is the point.
+    """
+    return len(stored) == len(wanted) and all(
+        a == b and _json_identical(getattr(a, "extra", None), getattr(b, "extra", None))
+        for a, b in zip(stored, wanted)
+    )
+
+
+def _by_slug(rows: Sequence[SkillRow]) -> List[SkillRow]:
+    """Skill rows in a canonical order.
+
+    ``_read_state`` returns the rated-but-unlisted rows sorted by label and
+    ``decompose`` emits them in ``skill_levels`` order. Each row carries its own
+    ordinal and a slug is unique per user, so sorting both sides by slug
+    compares the rows rather than the order they were produced in.
+    """
+    return sorted(rows, key=lambda row: row.slug)
+
+
+def _write_children(user_id: int, state: ProfileState, stored: ProfileState) -> None:
+    """Bring the experience, education, skill and resume rows in line with *state*.
+
+    *stored* is what this attempt read, and a list equal to its stored rows is
+    not touched (``_same_rows`` defines equal). So an ``extra``-only save -- quiz
+    insights, pulse settings, career status, the common case -- rewrites no child
+    row at all, the lists a save did not change keep their ids, and the resume
+    keeps its ``parsed_at``. The comparison is with the *rows*, not with the old
+    document, which is what keeps lazy promotion working: a list the migration
+    left riding in ``extra`` has no rows, so it differs, and its first write
+    promotes it.
+
+    A list that did change is replaced wholesale -- delete, then insert -- rather
+    than diffed entry by entry. The document has no stable identity per entry --
+    the frontend's list ``id`` is a timestamp for a new row and an array index
+    for a parsed one -- so there is nothing to diff against.
 
     The consequence, stated so it is not discovered later: ``public_id`` on an
-    experience or education row is **not** a stable handle. It becomes one when
-    Part 5.2's ``/me/experiences`` lands and an entry is addressed and edited
-    individually instead of arriving inside a whole document.
+    experience or education row is **not** a stable handle; any change to its
+    list reissues it. It becomes one when Part 5.2's ``/me/experiences`` lands and
+    an entry is addressed and edited individually instead of arriving inside a
+    whole document.
 
     Safe under concurrency only because the caller has already won the
     compare-and-swap on ``profiles.version``, which holds a row lock for the rest
-    of the transaction.
+    of the transaction. The same win is what makes *stored* trustworthy: it
+    proves no other profile write committed between the read and the swap, and
+    nothing writes these rows except after winning one.
     """
+    if not _same_rows(stored.experiences, state.experiences):
+        _write_experiences(user_id, state.experiences)
+    if not _same_rows(stored.educations, state.educations):
+        _write_educations(user_id, state.educations)
+    if not _same_rows(_by_slug(stored.skills), _by_slug(state.skills)):
+        _write_skills(user_id, state.skills)
+    if stored.resume != state.resume:
+        _write_resume(user_id, state.resume)
+
+
+def _write_experiences(user_id: int, rows: List[ExperienceRow]) -> None:
+    """Replace this user's ``profile_experiences`` rows with *rows*."""
     db.session.execute(
         sa.delete(ProfileExperience).where(ProfileExperience.user_id == user_id)
     )
-    if state.experiences:
+    if rows:
         db.session.execute(
             sa.insert(ProfileExperience),
             [
@@ -379,14 +549,17 @@ def _write_children(user_id: int, state: ProfileState) -> None:
                     "ordinal": row.ordinal,
                     "extra": row.extra,
                 }
-                for row in state.experiences
+                for row in rows
             ],
         )
 
+
+def _write_educations(user_id: int, rows: List[EducationRow]) -> None:
+    """Replace this user's ``profile_educations`` rows with *rows*."""
     db.session.execute(
         sa.delete(ProfileEducation).where(ProfileEducation.user_id == user_id)
     )
-    if state.educations:
+    if rows:
         db.session.execute(
             sa.insert(ProfileEducation),
             [
@@ -413,15 +586,18 @@ def _write_children(user_id: int, state: ProfileState) -> None:
                     "ordinal": row.ordinal,
                     "extra": row.extra,
                 }
-                for row in state.educations
+                for row in rows
             ],
         )
 
+
+def _write_skills(user_id: int, rows: List[SkillRow]) -> None:
+    """Replace this user's ``profile_skills`` rows with *rows*."""
     db.session.execute(
         sa.delete(ProfileSkill).where(ProfileSkill.user_id == user_id)
     )
-    if state.skills:
-        skill_ids = _skill_ids(state.skills)
+    if rows:
+        skill_ids = _skill_ids(rows)
         db.session.execute(
             sa.insert(ProfileSkill),
             [
@@ -433,11 +609,9 @@ def _write_children(user_id: int, state: ProfileState) -> None:
                     "ordinal": row.ordinal,
                     "source": row.source,
                 }
-                for row in state.skills
+                for row in rows
             ],
         )
-
-    _write_resume(user_id, state.resume)
 
 
 def _write_resume(user_id: int, resume: Optional[ResumeRecord]) -> None:
@@ -446,6 +620,10 @@ def _write_resume(user_id: int, resume: Optional[ResumeRecord]) -> None:
     Rows for keys the profile no longer names are deleted rather than kept, so
     the retention sweep can still reclaim a superseded upload. See the docstring
     on :class:`model.Resume`.
+
+    Called only when the resume changed, so ``parsed_at`` -- stamped whenever a
+    parsed resume is written here -- is when the resume was parsed, not when the
+    profile was last saved.
     """
     if resume is None:
         db.session.execute(sa.delete(Resume).where(Resume.user_id == user_id))
@@ -511,6 +689,11 @@ def update_document(
     again. Writing the children first would mean unwinding them, and unwinding
     inside a transaction the caller may also be using is not something this
     function is in a position to do.
+
+    After a won swap, only the child lists that differ from the ones this
+    attempt read are rewritten (see ``_write_children``). A save that changed
+    nothing but ``extra`` or a scalar is the swap and nothing more: seven
+    statements, where every save used to rewrite all four child tables.
     """
     _ensure_row(user_id)
 
@@ -544,19 +727,96 @@ def update_document(
             # has been written, so re-read and re-apply against what they left.
             continue
 
-        _write_children(user_id, new_state)
+        _write_children(user_id, new_state, state)
         # The dashboard reads this document, so every successful swap retires its
-        # cached payload (Phase 3). Registered here, in the one write path Phase
-        # 2a left, rather than at each of the dozen callers -- an invalidation a
-        # caller can forget is one that will be forgotten, and the symptom is a
-        # stale number nobody reports. Dropped after the caller's commit, never
-        # before: see solverah/infra/cache.py.
+        # cached payload (Phase 3). Registered here, in the write paths Phase 2a
+        # left (this one and `update_extra_key`), rather than at each of the dozen
+        # callers -- an invalidation a caller can forget is one that will be
+        # forgotten, and the symptom is a stale number nobody reports. Dropped
+        # after the caller's commit, never before: see solverah/infra/cache.py.
         cache.invalidate_on_commit(cache.dashboard_key(user_id))
         return new_document
 
     raise ConcurrentProfileUpdate(
         "gave up writing the profile for user %s after %d attempts"
         % (user_id, MAX_WRITE_ATTEMPTS)
+    )
+
+
+def update_extra_key(user_id: int, key: str, mutate: Callable[[Any], Any]) -> Any:
+    """:func:`update_document` for one of :data:`NARROW_EXTRA_KEYS`, without the document.
+
+    Args:
+        user_id: Whose profile.
+        key: The ``profiles.extra`` key to rewrite.
+        mutate: A pure function from the stored value -- None when the key is
+            absent, as ``document.get(key)`` would give -- to the value that
+            should replace it. Re-run against a fresh read after every lost
+            swap, so the same rules apply as to ``update_document``'s.
+
+    Returns:
+        The value that was written.
+
+    Raises:
+        ValueError: *key* is not in :data:`NARROW_EXTRA_KEYS`.
+        ConcurrentProfileUpdate: after ``MAX_WRITE_ATTEMPTS`` lost swaps.
+
+    The same compare-and-swap on the same ``profiles.version``, in the same
+    order, so this and :func:`update_document` serialise against each other and
+    neither can lose the other's write. It leaves out only what the key cannot
+    affect -- the verification is on :data:`NARROW_EXTRA_KEYS` -- namely the
+    other keys, the scalar columns, ``completeness`` and the child rows. That is
+    three statements: the row guarantee, a read of the one value and the
+    version, and the swap, which merges ``{key: value}`` into ``extra`` with
+    JSONB ``||`` so the rest of ``extra`` never travels in either direction.
+
+    Does not commit, and queues the same dashboard invalidation.
+
+    One difference, by design: a profile the Phase 2a migration carried into
+    ``extra`` verbatim, and nobody has saved since, stays that way -- nothing
+    here decomposes it, so its lists are not promoted to rows. ``assemble``
+    reads both shapes identically, so no reader can tell.
+    """
+    _require_narrow_key(key)
+    _ensure_row(user_id)
+
+    for _attempt in range(MAX_WRITE_ATTEMPTS):
+        row = db.session.execute(
+            sa.select(Profile.extra[key], Profile.version).where(
+                Profile.user_id == user_id
+            )
+        ).one_or_none()
+        if row is None:
+            # As in update_document: _ensure_row ran, so the user was deleted
+            # between the two statements.
+            raise ConcurrentProfileUpdate(
+                "profiles row for user %s disappeared mid-write" % user_id
+            )
+        stored, version = row
+        value = mutate(stored)
+
+        result = db.session.execute(
+            sa.update(Profile)
+            .where(Profile.user_id == user_id, Profile.version == version)
+            .values(
+                extra=Profile.extra.op("||", return_type=JSONB)(
+                    sa.bindparam("extra_patch", {key: value}, type_=JSONB)
+                ),
+                version=Profile.version + 1,
+            )
+            .execution_options(synchronize_session=False)
+        )
+
+        if result.rowcount == 0:
+            # Lost the swap: nothing of ours was written. Re-read, re-apply.
+            continue
+
+        cache.invalidate_on_commit(cache.dashboard_key(user_id))
+        return value
+
+    raise ConcurrentProfileUpdate(
+        "gave up writing profile key %r for user %s after %d attempts"
+        % (key, user_id, MAX_WRITE_ATTEMPTS)
     )
 
 
@@ -581,39 +841,65 @@ def record_resume_corrections(
     resume_key: str,
     corrections: List[tuple],
 ) -> int:
-    """Upsert one ``ResumeParseCorrection`` per changed field.
+    """Upsert one ``ResumeParseCorrection`` per changed field, in one statement.
 
     Args:
         corrections: ``(field, parsed_value, corrected_value)`` triples, as
             produced by :func:`solverah.domain.profile.resume_field_corrections`.
 
     Returns:
-        How many rows were written or updated.
+        How many rows were written or updated -- one per triple.
 
     Note:
         ``parsed_value`` is only set on insert.  On a second edit of the same
         field the original parser output is preserved and only the corrected
         value moves -- otherwise the row would end up comparing the user's first
         edit to their second, and the parser signal would be lost.
+
+    One ``INSERT ... ON CONFLICT (user_id, resume_key, field) DO UPDATE`` for all
+    the fields together, where there was a SELECT and a write per field. The
+    unique key the per-field lookup used to check by hand now arbitrates, so of
+    two saves racing on one new field the second takes the update branch rather
+    than failing its commit on ``uq_correction_user_resume_field``. Both branches
+    store what the ORM path stored: an insert takes both values as given (None
+    as JSON ``null``) and the columns' server defaults; a conflict moves
+    ``corrected_value`` and stamps ``updated_at`` with naive UTC, leaving
+    ``parsed_value`` and ``created_at`` alone. A field named twice in one call
+    keeps its first parsed value and its last corrected value, as the loop's
+    second pass over it did -- and has to be merged here first, because one
+    statement cannot update the same row twice.
     """
-    written = 0
+    if not corrections:
+        return 0
+
+    rows: Dict[str, Dict[str, Any]] = {}
     for field, parsed_value, corrected_value in corrections:
-        existing = find_correction(user_id, resume_key, field)
-        if existing:
-            existing.corrected_value = corrected_value
-            existing.updated_at = datetime.datetime.utcnow()
+        if field in rows:
+            rows[field]["corrected_value"] = corrected_value
         else:
-            db.session.add(
-                ResumeParseCorrection(
-                    user_id=user_id,
-                    resume_key=resume_key,
-                    field=field,
-                    parsed_value=parsed_value,
-                    corrected_value=corrected_value,
-                )
-            )
-        written += 1
-    return written
+            rows[field] = {
+                "user_id": user_id,
+                "resume_key": resume_key,
+                "field": field,
+                "parsed_value": parsed_value,
+                "corrected_value": corrected_value,
+            }
+
+    statement = pg_insert(ResumeParseCorrection).values(list(rows.values()))
+    db.session.execute(
+        statement.on_conflict_do_update(
+            index_elements=["user_id", "resume_key", "field"],
+            set_={
+                "corrected_value": statement.excluded.corrected_value,
+                # What `datetime.utcnow()` returned for the ORM path, without the
+                # call Python 3.12 deprecated.
+                "updated_at": datetime.datetime.now(datetime.timezone.utc).replace(
+                    tzinfo=None
+                ),
+            },
+        )
+    )
+    return len(corrections)
 
 
 def resume_corrections_for_user(user_id: int) -> List[ResumeParseCorrection]:
@@ -668,5 +954,12 @@ def has_intake_submission(email: str) -> bool:
     -- a real bug, fixed by Phase 2's ``citext`` columns rather than by changing
     the comparison here, since changing it would alter which dashboards show the
     intake banner.
+
+    An ``EXISTS`` probe: the answer is one boolean, so no row is loaded to
+    produce it.
     """
-    return IntakeSubmission.query.filter_by(email=email).first() is not None
+    return bool(
+        db.session.execute(
+            sa.select(sa.exists().where(IntakeSubmission.email == email))
+        ).scalar()
+    )

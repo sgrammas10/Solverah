@@ -62,15 +62,29 @@ def set_pin(db, user_id: int, submission_id: str) -> dict[str, Any]:
     decides whether this is worth calling at all (it skips the write, and the
     audit log entry, when the target is already where the effective pin sits --
     ⚑5's idempotence rule).
+
+    One `INSERT ... ON CONFLICT (user_id) DO UPDATE` with no read first: two
+    concurrent first recalibrates converge on one row instead of the second
+    failing on the unique `user_id`. `pinned_at` is the column default on insert
+    and `now()` on a move, as before. The row comes back through `RETURNING`,
+    which also refreshes a copy `explicit_pin` already loaded into the session.
     """
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
     from model import SituationReportPin
 
-    row = SituationReportPin.query.filter_by(user_id=user_id).first()
-    if row is None:
-        row = SituationReportPin(user_id=user_id, submission_id=submission_id)
-        db.session.add(row)
-    else:
-        row.submission_id = submission_id
-        row.pinned_at = db.func.now()
-    db.session.flush()
+    statement = pg_insert(SituationReportPin).values(
+        user_id=user_id, submission_id=submission_id
+    )
+    statement = statement.on_conflict_do_update(
+        index_elements=["user_id"],
+        set_={
+            "submission_id": statement.excluded.submission_id,
+            "pinned_at": db.func.now(),
+        },
+    )
+    row = db.session.scalars(
+        statement.returning(SituationReportPin),
+        execution_options={"populate_existing": True},
+    ).one()
     return _serialize(row)

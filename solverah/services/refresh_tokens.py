@@ -225,37 +225,56 @@ def issue(user: User) -> IssuedSession:
     the user holds a token the database has never heard of, and the next thing
     that token does is trip reuse detection against a row that does not exist.
 
+    One statement.  ``family_id`` is a server default, so it comes back on the
+    INSERT's ``RETURNING`` rather than from reading the row after the commit
+    has expired it.  The user's id comes from the identity map rather than
+    ``user.id``: OTP sign-in and the intake sign-in claim both commit before
+    calling this, and reading an attribute off the expired instance they hand
+    in would reload the whole row.
+
     Returns:
         An :class:`IssuedSession`.  Its ``token`` is the only copy that will
         ever exist outside the caller's cookie; the database gets the digest.
     """
     raw = domain.generate_refresh_token()
-    session = UserSession(
-        user_id=user.id,
-        token_hash=domain.hash_refresh_token(raw),
-        expires_at=_utcnow() + datetime.timedelta(days=REFRESH_TOKEN_DAYS),
-    )
-    db.session.add(session)
+    user_id = sa.inspect(user).identity[0]
+    family_id = db.session.execute(
+        sa.insert(_table)
+        .values(
+            user_id=user_id,
+            token_hash=domain.hash_refresh_token(raw),
+            expires_at=_utcnow() + datetime.timedelta(days=REFRESH_TOKEN_DAYS),
+        )
+        .returning(_table.c.family_id)
+    ).scalar_one()
     db.session.commit()
     logger.info(
         "refresh_session_issued",
         extra={
             "event": "refresh_session_issued",
-            "user_id": user.id,
-            "family_id": str(session.family_id),
+            "user_id": user_id,
+            "family_id": str(family_id),
         },
     )
-    return IssuedSession(token=raw, family_id=str(session.family_id))
+    return IssuedSession(token=raw, family_id=str(family_id))
 
 
 def _row_for(raw_token: str):
-    """The `user_sessions` row a raw token hashes to, or None."""
+    """The `user_sessions` row a raw token hashes to, or None.
+
+    The row also carries ``account_id``: the owning ``users.id`` from an outer
+    join, or None when the account is gone.  That answers :func:`rotate`'s
+    orphan check in the same round trip, so the user row itself is read once,
+    after the rotation commits, instead of once before it and again after the
+    commit expired it.
+    """
     if not raw_token:
         return None
+    users = User.__table__
     return db.session.execute(
-        sa.select(_table).where(
-            _table.c.token_hash == domain.hash_refresh_token(raw_token)
-        )
+        sa.select(_table, users.c.id.label("account_id"))
+        .select_from(_table.outerjoin(users, users.c.id == _table.c.user_id))
+        .where(_table.c.token_hash == domain.hash_refresh_token(raw_token))
     ).one_or_none()
 
 
@@ -276,23 +295,29 @@ def rotate(raw_token: str) -> RefreshOutcome:
        revoked family is ever in grace, whenever it is presented: the user said
        the session was over.
     3. Past ``expires_at`` -> ``expired``, stamped as such, family untouched.
-    4. Otherwise rotate: claim the row, mint the successor, link the two.
+    4. Otherwise rotate: mint the successor, then claim the presented row and
+       link it to the successor in one statement.
 
     The claim in step 4 is a conditional ``UPDATE ... WHERE retired_at IS
     NULL``, not a read-then-write.  Two simultaneous requests both pass step 2
     -- neither row is retired yet -- and without the condition both would mint a
     successor, leaving two live tokens in one family and a jar holding whichever
-    response landed last.  The loser of the race sees zero rows updated and
-    falls back into step 2's logic against the now-retired row, which is exactly
-    where it belongs: it is the second half of a stampede, and it gets the grace
-    answer.
+    response landed last.  The loser of the race sees zero rows updated, rolls
+    back -- which discards the successor it had minted, so only the winner's
+    ever commits -- and falls back into step 2's logic against the now-retired
+    row, which is exactly where it belongs: it is the second half of a
+    stampede, and it gets the grace answer.
+
+    The account is read once, after the commit, so the row handed back is not
+    one the commit has just expired.  Before that only its existence matters,
+    and that comes with the session row (see :func:`_row_for`).
     """
     row = _row_for(raw_token)
     if row is None:
         logger.info("refresh_token_unknown", extra={"event": "refresh_token_unknown"})
         return RefreshOutcome(status="unknown")
 
-    if db.session.get(User, row.user_id) is None:
+    if row.account_id is None:
         # A session whose account is gone. Very nearly unreachable -- `user_id`
         # cascades, and account *deletion* removes these rows explicitly because
         # it tombstones rather than deletes -- but "very nearly" is not a thing
@@ -319,21 +344,9 @@ def rotate(raw_token: str) -> RefreshOutcome:
     if _aware(row.expires_at) <= _utcnow():
         return _expire(row)
 
-    claimed = db.session.execute(
-        sa.update(_table)
-        .where(_table.c.id == row.id, _table.c.retired_at.is_(None))
-        .values(retired_at=_utcnow(), retired_reason=REASON_ROTATED)
-    )
-    if not claimed.rowcount:
-        # Lost the race with a concurrent refresh. Re-read and answer on the
-        # row as it now stands -- which is retired-by-rotation seconds ago, so
-        # this is the grace path and not a false theft alarm.
-        db.session.rollback()
-        reread = _row_for(raw_token)
-        if reread is None:  # pragma: no cover - a delete mid-rotation
-            return RefreshOutcome(status="unknown")
-        return _outcome_for_retired(reread) or RefreshOutcome(status="unknown")
-
+    # The successor goes in first so the claim can link it: one UPDATE retires
+    # the presented row and names its successor. Nothing is visible to anyone
+    # else until the commit, and a lost claim rolls the successor back.
     raw = domain.generate_refresh_token()
     successor_id = db.session.execute(
         sa.insert(_table)
@@ -346,9 +359,24 @@ def rotate(raw_token: str) -> RefreshOutcome:
         )
         .returning(_table.c.id)
     ).scalar_one()
-    db.session.execute(
-        sa.update(_table).where(_table.c.id == row.id).values(successor_id=successor_id)
+    claimed = db.session.execute(
+        sa.update(_table)
+        .where(_table.c.id == row.id, _table.c.retired_at.is_(None))
+        .values(
+            retired_at=_utcnow(),
+            retired_reason=REASON_ROTATED,
+            successor_id=successor_id,
+        )
     )
+    if not claimed.rowcount:
+        # Lost the race with a concurrent refresh. Re-read and answer on the
+        # row as it now stands -- which is retired-by-rotation seconds ago, so
+        # this is the grace path and not a false theft alarm.
+        db.session.rollback()
+        reread = _row_for(raw_token)
+        if reread is None:  # pragma: no cover - a delete mid-rotation
+            return RefreshOutcome(status="unknown")
+        return _outcome_for_retired(reread) or RefreshOutcome(status="unknown")
     db.session.commit()
 
     return RefreshOutcome(

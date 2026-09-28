@@ -30,15 +30,18 @@ the same one-release stay ``users.profile_data`` is serving.
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Dict, Optional, Sequence
 
 import sqlalchemy as sa
+from sqlalchemy.orm import load_only
 
 from model import AssessmentForm, AssessmentSubmission, db
 
 __all__ = [
     "completed_kinds",
+    "current_result",
     "current_submission",
+    "current_submissions",
     "delete_for_user",
     "open_current",
 ]
@@ -47,6 +50,34 @@ __all__ = [
 #: is the exception and appends -- see ``AssessmentSubmission``'s docstring for
 #: why the schema draws that line rather than a comment.
 _SINGLE_ROW_KINDS = ("work_pulse", "wpll", "focus_type", "manager_match")
+
+#: What "current" means, as an ORDER BY within one kind: the most recently
+#: completed sitting, an unfinished one after every finished one, and the newest
+#: row among ties. One definition, because three readers below apply it.
+_CURRENT_ORDER = (
+    AssessmentSubmission.completed_at.desc().nullslast(),
+    AssessmentSubmission.id.desc(),
+)
+
+#: The columns :func:`current_result` loads: every one a result reader branches
+#: on or returns -- ``result``; ``completed_at``, which splits Work Pulse's "not
+#: taken" 404 from its "complete but not scored" 422; and ``answers``, which
+#: ManagerMatch's precondition diffs a manager profile against -- plus the row's
+#: identity and status. Not ``narrative``: the one large column none of them
+#: reads, and for both instruments that have one, a copy of
+#: ``result["narrative"]``.
+_RESULT_COLUMNS = (
+    AssessmentSubmission.public_id,
+    AssessmentSubmission.user_id,
+    AssessmentSubmission.kind,
+    AssessmentSubmission.form_version,
+    AssessmentSubmission.status,
+    AssessmentSubmission.result,
+    AssessmentSubmission.answers,
+    AssessmentSubmission.started_at,
+    AssessmentSubmission.completed_at,
+    AssessmentSubmission.scored_at,
+)
 
 
 def current_submission(user_id: int, kind: str) -> Optional[AssessmentSubmission]:
@@ -64,10 +95,57 @@ def current_submission(user_id: int, kind: str) -> Optional[AssessmentSubmission
                 AssessmentSubmission.user_id == user_id,
                 AssessmentSubmission.kind == kind,
             )
-            .order_by(
-                AssessmentSubmission.completed_at.desc().nullslast(),
-                AssessmentSubmission.id.desc(),
+            .order_by(*_CURRENT_ORDER)
+            .limit(1)
+        )
+        .scalars()
+        .first()
+    )
+
+
+def current_submissions(
+    user_id: int, kinds: Sequence[str]
+) -> Dict[str, AssessmentSubmission]:
+    """This user's current sitting of each of *kinds*, in one query.
+
+    ``{kind: submission}``, holding for each kind the row
+    :func:`current_submission` would return, and no entry for a kind the user
+    has never sat. ``DISTINCT ON (kind)`` keeps the first row of each kind under
+    the same ``_CURRENT_ORDER``, so the two cannot disagree about which row is
+    current. Sends nothing at all for an empty *kinds*.
+    """
+    wanted = list(dict.fromkeys(kinds))
+    if not wanted:
+        return {}
+    rows = db.session.execute(
+        sa.select(AssessmentSubmission)
+        .where(
+            AssessmentSubmission.user_id == user_id,
+            AssessmentSubmission.kind.in_(wanted),
+        )
+        .order_by(AssessmentSubmission.kind, *_CURRENT_ORDER)
+        .distinct(AssessmentSubmission.kind)
+    ).scalars()
+    return {row.kind: row for row in rows}
+
+
+def current_result(user_id: int, kind: str) -> Optional[AssessmentSubmission]:
+    """:func:`current_submission` for a caller that reads the result, not the prose.
+
+    The same row by the same rule, loaded with ``_RESULT_COLUMNS`` only. It is an
+    ordinary instance in the session: touching ``narrative`` lazy-loads it (one
+    more query rather than an error), and a later full read of the same row
+    fills it in.
+    """
+    return (
+        db.session.execute(
+            sa.select(AssessmentSubmission)
+            .options(load_only(*_RESULT_COLUMNS))
+            .where(
+                AssessmentSubmission.user_id == user_id,
+                AssessmentSubmission.kind == kind,
             )
+            .order_by(*_CURRENT_ORDER)
             .limit(1)
         )
         .scalars()
