@@ -1,36 +1,534 @@
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
-import LandingNav from "../../../shared/ui/LandingNav";
+import { ReactNode, Suspense, lazy, useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { IntakeForm, AccountModal, useIntakeForm, useEarlyAccess } from "../../intake";
 import EarlyAccessModal from "./EarlyAccessModal";
+import ScrollStory from "./hero/ScrollStory";
+import "./landing.css";
 
-const faqs = [
+// Below the fold and still on trial, so it ships in its own chunk with its own
+// stylesheet rather than in the entry bundle.
+const EcosystemSection = lazy(() => import("./ecosystem/EcosystemSection"));
+
+
+/**
+ * The public landing page at "/".
+ *
+ * The hero is a scroll story (hero/ScrollStory.tsx): the top of the page pins
+ * while the visitor scrolls through what Solverah produces, then the rest of
+ * the page explains how a reading is made, what it will never be used for,
+ * and where to start.
+ *
+ * The file name is historical (it began as the prelaunch page); the route,
+ * the intake flow, the account modals and the account-deletion notice all
+ * still live here, unchanged in behaviour.
+ */
+
+const CONTAINER = "mx-auto w-full max-w-[1180px] px-6";
+
+const PRIMARY =
+  "inline-flex items-center justify-center rounded-[4px] bg-forest-dark px-7 py-3.5 font-headline text-[0.98rem] font-bold text-white transition-colors hover:bg-forest-mid";
+
+const SECONDARY =
+  "inline-flex items-center justify-center rounded-[4px] border-2 border-forest-dark px-6 py-3 text-[0.95rem] font-semibold text-forest-dark transition-colors hover:bg-forest-pale";
+
+const H2 =
+  "font-headline text-[clamp(2rem,4.2vw,3.1rem)] font-extrabold leading-[1.02] tracking-[-0.02em] text-balance";
+
+const STEPS = [
+  {
+    title: "Your answers are evidence, not conclusions.",
+    body: "Work Pulse and the other assessments are structured questions, not a chat. Each answer is one data point about how you work: pace, structure, autonomy, feedback, recognition, how you handle change. None of them is a verdict on its own.",
+  },
+  {
+    title: "Read against conditions, not templates.",
+    body: "Frameworks turn those answers into a reading on each dimension and set it beside the conditions where people do their best work. No rank against other people. No single number.",
+  },
+  {
+    title: "Checked by a person before it reaches you.",
+    body: "Every submission gets a human review. Automated analysis is where a reading starts. Someone's judgment is where it finishes.",
+  },
+];
+
+const WE_READ = [
+  "Your work history, and the scope of responsibility behind each title.",
+  "The environment signals in your answers.",
+  "The conditions that were present when you did your best work.",
+  "Only what you choose to give us: responses, background, optional uploads.",
+];
+
+const WE_WONT = [
+  "Assign you a type, a tier, or a numeric score.",
+  "Rank you against other candidates.",
+  "Make hiring, promotion, or pay decisions.",
+  "Sell your data, or show it to an employer.",
+];
+
+const COMMITMENTS = [
+  {
+    head: "Never sold.",
+    body: "Your data is yours. We don't sell it and we don't trade it.",
+  },
+  {
+    head: "Never shown to employers.",
+    body: "No recruiter, hiring manager, or company sees your profile. That rule is enforced in the code, not just written in a policy.",
+  },
+  {
+    head: "Never a decision.",
+    body: "Solverah doesn't make hiring, promotion, or pay decisions. A reading is something for you to think with.",
+  },
+];
+
+const FAQS = [
   {
     q: "What is Authentic Intelligence?",
     a: "Authentic Intelligence is Solverah's approach to generating insights that respect human complexity. It uses structured frameworks, rules-based logic, and automated analysis to surface patterns about how people work and where environments support or create friction.",
   },
   {
     q: "Is this the same as artificial intelligence?",
-    a: "It may use automated systems and AI-supported techniques, but it isn't designed to replace human judgment. It supports reflection and understanding — not decisions.",
+    a: "It may use automated systems and AI-supported techniques, but it isn't designed to replace human judgment. It supports reflection and understanding, not decisions.",
   },
   {
     q: "What information does it use?",
-    a: "Only what you choose to provide — responses, career background, and optional uploads. It may also use contextual information about roles or environments to generate insights.",
+    a: "Only what you choose to provide: responses, career background, and optional uploads. It may also use contextual information about roles or environments to generate insights.",
   },
   {
     q: "Does it make career or employment decisions?",
-    a: "No. Solverah does not make hiring, promotion, compensation, or career decisions. Insights are advisory and interpretive. Final decisions remain with you or your organization.",
+    a: "No. Solverah does not make hiring, promotion, compensation, or career decisions. Insights are advisory and interpretive. Final decisions remain with you.",
   },
   {
     q: "Are the insights personalized?",
-    a: "Yes — they reflect the factors you provide and how they interact. But personalization is not prediction. Insights describe patterns and possibilities, not outcomes.",
+    a: "Yes. They reflect the factors you provide and how they interact. But personalization is not prediction. Insights describe patterns and possibilities, not outcomes.",
   },
   {
     q: "Why focus on conditions instead of labels?",
     a: "Because environments matter. Solverah emphasizes conditions, fit, and context so insights stay humane, flexible, and useful across situations.",
   },
 ];
+
+function PlusIcon() {
+  return (
+    <svg
+      className="lp-plus shrink-0 text-ink-secondary"
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path d="M9 3v12M3 9h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+const NAV_LINKS = [
+  { label: "How it reads", href: "#how-it-reads" },
+  { label: "Work Pulse", href: "#work-pulse" },
+  { label: "FAQ", href: "#faq" },
+];
+
+function LandingPageNav() {
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <header
+      className={`sticky top-0 z-40 border-b border-cream-muted transition-colors duration-300 ${
+        scrolled ? "bg-cream-base" : "bg-transparent"
+      }`}
+    >
+      <div className={`${CONTAINER} flex h-16 items-center justify-between`}>
+        <Link
+          to="/"
+          className="font-headline text-[1.35rem] font-extrabold tracking-[-0.02em] text-ink-primary"
+        >
+          Solverah
+        </Link>
+
+        <nav aria-label="Primary" className="hidden items-center gap-8 md:flex">
+          {NAV_LINKS.map(({ label, href }) => (
+            <a
+              key={label}
+              href={href}
+              className="text-[0.9rem] font-medium text-ink-secondary transition-colors hover:text-forest-mid"
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+
+        <div className="hidden items-center gap-3 md:flex">
+          <Link
+            to="/login"
+            className="px-3 py-2 text-[0.9rem] font-medium text-ink-secondary transition-colors hover:text-forest-mid"
+          >
+            Sign in
+          </Link>
+          <a
+            href="#intake"
+            className="inline-flex items-center rounded-[4px] bg-forest-dark px-5 py-2.5 font-headline text-[0.9rem] font-bold text-white transition-colors hover:bg-forest-mid"
+          >
+            Get started
+          </a>
+        </div>
+
+        <button
+          type="button"
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
+          aria-controls="landing-mobile-menu"
+          onClick={() => setMenuOpen((v) => !v)}
+          className="-mr-2 flex flex-col gap-1.5 p-2 md:hidden"
+        >
+          <span
+            className={`block h-0.5 w-6 bg-ink-primary transition-transform duration-200 ${
+              menuOpen ? "translate-y-2 rotate-45" : ""
+            }`}
+          />
+          <span
+            className={`block h-0.5 w-6 bg-ink-primary transition-opacity duration-200 ${menuOpen ? "opacity-0" : ""}`}
+          />
+          <span
+            className={`block h-0.5 w-6 bg-ink-primary transition-transform duration-200 ${
+              menuOpen ? "-translate-y-2 -rotate-45" : ""
+            }`}
+          />
+        </button>
+      </div>
+
+      {menuOpen && (
+        <div
+          id="landing-mobile-menu"
+          className="border-t border-cream-muted bg-cream-base px-6 py-5 md:hidden"
+        >
+          <nav aria-label="Primary, mobile" className="flex flex-col">
+            {NAV_LINKS.map(({ label, href }) => (
+              <a
+                key={label}
+                href={href}
+                onClick={() => setMenuOpen(false)}
+                className="border-b border-cream-muted py-3.5 text-[1rem] font-medium text-ink-primary"
+              >
+                {label}
+              </a>
+            ))}
+            <Link
+              to="/login"
+              className="border-b border-cream-muted py-3.5 text-[1rem] font-medium text-ink-primary"
+            >
+              Sign in
+            </Link>
+          </nav>
+          <a
+            href="#intake"
+            onClick={() => setMenuOpen(false)}
+            className={`${PRIMARY} mt-5 w-full`}
+          >
+            Get started
+          </a>
+        </div>
+      )}
+    </header>
+  );
+}
+
+function HowItReads() {
+  return (
+    <section id="how-it-reads" className="scroll-mt-16 border-t border-cream-muted">
+      <div
+        className={`${CONTAINER} grid gap-12 py-20 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:gap-20 md:py-28`}
+      >
+        <div className="md:sticky md:top-24 md:self-start">
+          <h2 className={H2}>What a reading is made of.</h2>
+          <p className="mt-5 max-w-[42ch] text-[1.02rem] leading-[1.6] text-ink-secondary">
+            Solverah doesn't score you against a template, and it doesn't hand you a percentage. It
+            reads for conditions: the scope you had, the pace you keep, the structure you need, and
+            what the words on your resume were standing in for.
+          </p>
+        </div>
+
+        <div className="border-t border-cream-muted">
+          {STEPS.map((step) => (
+            <article
+              key={step.title}
+              className="grid gap-3 border-b border-cream-muted py-8 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:gap-10"
+            >
+              <h3 className="font-headline text-[1.35rem] font-bold leading-tight text-balance">
+                {step.title}
+              </h3>
+              <p className="text-[0.98rem] leading-[1.65] text-ink-secondary">{step.body}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+
+      <div className={`${CONTAINER} pb-20 md:pb-28`}>
+        <div className="grid gap-[2px] bg-cream-muted md:grid-cols-2">
+          <div className="bg-white p-7">
+            <h3 className="font-headline text-[1.15rem] font-bold">What we read</h3>
+            <ul className="mt-4 space-y-2.5 text-[0.95rem] leading-[1.55] text-ink-secondary">
+              {WE_READ.map((item) => (
+                <li key={item} className="flex gap-3">
+                  <span className="mt-[0.7em] h-px w-4 shrink-0 bg-forest-dark" aria-hidden="true" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="bg-white p-7">
+            <h3 className="font-headline text-[1.15rem] font-bold">What we won't do</h3>
+            <ul className="mt-4 space-y-2.5 text-[0.95rem] leading-[1.55] text-ink-secondary">
+              {WE_WONT.map((item) => (
+                <li key={item} className="flex gap-3">
+                  <span className="mt-[0.7em] h-px w-4 shrink-0 bg-ink-tertiary" aria-hidden="true" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WorkPulse({ navigate }: { navigate: (to: string) => void }) {
+  return (
+    <section id="work-pulse" className="scroll-mt-16 border-t border-cream-muted">
+      <div className={`${CONTAINER} py-20 md:py-28`}>
+        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between md:gap-12">
+          <h2 className={H2}>Start with Work Pulse™.</h2>
+          <p className="max-w-[40ch] text-[1.02rem] leading-[1.6] text-ink-secondary">
+            Twelve questions about how you actually work. Free, with an account, so your reading
+            has somewhere to live.
+          </p>
+        </div>
+
+        <div className="mt-12 border-t border-cream-muted">
+          <div className="grid gap-4 border-b border-cream-muted py-7 md:grid-cols-[minmax(0,3fr)_minmax(0,5fr)_auto] md:items-center md:gap-10">
+            <div>
+              <h3 className="font-headline text-[1.35rem] font-bold">Work Pulse™</h3>
+              <p className="mt-1 text-[0.86rem] text-ink-secondary">12 questions · free · account required</p>
+            </div>
+            <p className="text-[0.97rem] leading-[1.6] text-ink-secondary">
+              A full narrative insight, your primary work archetype, and the emerging signals shaping
+              how you experience work. It also starts your Solverah profile.
+            </p>
+            <button type="button" onClick={() => navigate("/register")} className={PRIMARY}>
+              Create an account
+            </button>
+          </div>
+
+          <div className="grid gap-4 border-b border-cream-muted py-7 md:grid-cols-[minmax(0,3fr)_minmax(0,5fr)_auto] md:items-center md:gap-10">
+            <div>
+              <h3 className="font-headline text-[1.35rem] font-bold">Quiz previews</h3>
+              <p className="mt-1 text-[0.86rem] text-ink-secondary">No account · a few minutes</p>
+            </div>
+            <p className="text-[0.97rem] leading-[1.6] text-ink-secondary">
+              Short reflection quizzes you can take without signing up, one for each career stage.
+              A taste of the questions, not a full reading.
+            </p>
+            <button type="button" onClick={() => navigate("/quiz-preview")} className={SECONDARY}>
+              Preview a quiz
+            </button>
+          </div>
+
+          <div className="grid gap-4 border-b border-cream-muted py-7 md:grid-cols-[minmax(0,3fr)_minmax(0,5fr)_auto] md:items-center md:gap-10">
+            <div>
+              <h3 className="font-headline text-[1.35rem] font-bold text-ink-secondary">Work Pulse Pro™</h3>
+              <p className="mt-1 text-[0.86rem] text-ink-secondary">On the roadmap</p>
+            </div>
+            <p className="text-[0.97rem] leading-[1.6] text-ink-secondary">
+              Deeper pattern analysis and company-environment matching. Not available yet. When it
+              is, it will say so here, and not before.
+            </p>
+            <p className="text-[0.86rem] font-semibold text-ink-secondary md:text-right">Not yet available</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Commitments() {
+  return (
+    <section aria-labelledby="commitments-heading" className="border-t border-cream-muted">
+      <div className={`${CONTAINER} py-16 md:py-20`}>
+        <h2 id="commitments-heading" className="sr-only">
+          What Solverah will never do with your data
+        </h2>
+        <div className="border-t border-cream-muted">
+          {COMMITMENTS.map((c) => (
+            <div
+              key={c.head}
+              className="grid gap-2 border-b border-cream-muted py-6 md:grid-cols-[minmax(0,3fr)_minmax(0,5fr)] md:items-baseline md:gap-10"
+            >
+              <p className="font-headline text-[1.6rem] font-extrabold leading-tight tracking-[-0.01em]">
+                {c.head}
+              </p>
+              <p className="max-w-[60ch] text-[0.97rem] leading-[1.6] text-ink-secondary">{c.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Faq() {
+  return (
+    <section id="faq" className="scroll-mt-16 border-t border-cream-muted">
+      <div
+        className={`${CONTAINER} grid gap-10 py-20 md:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] md:gap-20 md:py-28`}
+      >
+        <div>
+          <h2 className={H2}>Questions we get.</h2>
+          <p className="mt-5 max-w-[36ch] text-[1.02rem] leading-[1.6] text-ink-secondary">
+            Plain answers about what Solverah is, what it uses, and what it will never decide for
+            you.
+          </p>
+        </div>
+        <div className="border-t border-cream-muted">
+          {FAQS.map((item) => (
+            <details key={item.q} className="border-b border-cream-muted">
+              <summary className="flex cursor-pointer items-center justify-between gap-6 py-5 text-[1.05rem] font-semibold text-ink-primary">
+                {item.q}
+                <PlusIcon />
+              </summary>
+              <p className="max-w-[68ch] pb-6 pr-10 text-[0.97rem] leading-[1.65] text-ink-secondary">
+                {item.a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Closing({ navigate }: { navigate: (to: string) => void }) {
+  return (
+    <section className="border-t border-cream-muted bg-white">
+      <div className={`${CONTAINER} py-20 md:py-28`}>
+        <h2 className="max-w-[16ch] text-balance font-headline text-[clamp(2.2rem,5.5vw,4rem)] font-extrabold leading-[1] tracking-[-0.025em]">
+          Your title is where the reading starts, not where it ends.
+        </h2>
+        <div className="mt-9 flex flex-wrap items-center gap-x-5 gap-y-4">
+          <a href="#intake" className={PRIMARY}>
+            Get started
+          </a>
+          <button type="button" onClick={() => navigate("/quiz-preview")} className={SECONDARY}>
+            Preview a quiz first
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FooterColumn({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <p className="text-[0.86rem] font-semibold text-white">{title}</p>
+      <div className="mt-3 flex flex-col gap-2">{children}</div>
+    </div>
+  );
+}
+
+const FOOTER_LINK = "text-[0.9rem] text-[#AAA] transition-colors hover:text-white";
+
+function Footer() {
+  return (
+    <footer className="border-t border-white/10 bg-ink-primary">
+      <div className={`${CONTAINER} grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]`}>
+        <div>
+          <span className="font-headline text-[1.35rem] font-extrabold tracking-[-0.02em] text-white">
+            Solverah
+          </span>
+          <p className="mt-3 max-w-[28ch] text-[0.9rem] leading-[1.6] text-[#AAA]">
+            Career readings built from conditions and context, checked by a person, and kept away
+            from employers.
+          </p>
+        </div>
+        <FooterColumn title="This page">
+          {NAV_LINKS.map(({ label, href }) => (
+            <a key={label} href={href} className={FOOTER_LINK}>
+              {label}
+            </a>
+          ))}
+        </FooterColumn>
+        <FooterColumn title="Account">
+          <Link to="/login" className={FOOTER_LINK}>
+            Sign in
+          </Link>
+          <Link to="/register" className={FOOTER_LINK}>
+            Create an account
+          </Link>
+          <Link to="/quiz-preview" className={FOOTER_LINK}>
+            Preview a quiz
+          </Link>
+        </FooterColumn>
+        <FooterColumn title="Legal">
+          <Link to="/privacy" className={FOOTER_LINK}>
+            Privacy policy
+          </Link>
+          <Link to="/terms" className={FOOTER_LINK}>
+            Terms
+          </Link>
+          <Link to="/how-matching-works" className={FOOTER_LINK}>
+            How matching works
+          </Link>
+        </FooterColumn>
+      </div>
+      <div className="border-t border-white/10">
+        <div className={`${CONTAINER} py-5`}>
+          <p className="text-[0.76rem] text-[#AAA]">
+            © {new Date().getFullYear()} Solverah. All rights reserved.
+          </p>
+        </div>
+      </div>
+      <div className="border-t border-white/10">
+        <div className="mx-auto max-w-[760px] px-6 py-5">
+          <p className="text-[0.76rem] leading-[1.6] text-[#AAA]">
+            This page includes information from the{" "}
+            <a
+              href="https://www.onetcenter.org/database.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 transition-colors hover:text-white"
+            >
+              O*NET 30.3 Database
+            </a>{" "}
+            by the U.S. Department of Labor, Employment and Training Administration (USDOL/ETA).
+            Used under the{" "}
+            <a
+              href="https://creativecommons.org/licenses/by/4.0/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 transition-colors hover:text-white"
+            >
+              CC BY 4.0
+            </a>{" "}
+            license. O*NET® is a trademark of USDOL/ETA. Solverah has modified all or some of this
+            information. USDOL/ETA has not approved, endorsed, or tested these modifications.
+          </p>
+        </div>
+      </div>
+    </footer>
+  );
+}
 
 function PrelaunchLandingPage() {
   const navigate = useNavigate();
@@ -62,10 +560,10 @@ function PrelaunchLandingPage() {
   }, [earlyAccess.isOpen, intake.accountModalOpen]);
 
   return (
-    <div className="min-h-screen bg-cream-base font-sans text-ink-primary" style={{ zoom: 0.8 }}>
+    <div className="landing min-h-screen bg-cream-base font-body text-ink-primary antialiased">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:bg-forest-dark focus:text-white focus:px-4 focus:py-2 focus:rounded"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:rounded-[4px] focus:bg-forest-dark focus:px-4 focus:py-2 focus:font-semibold focus:text-white"
       >
         Skip to main content
       </a>
@@ -73,16 +571,16 @@ function PrelaunchLandingPage() {
       {showDeletionNote && (
         <div
           role="status"
-          className="border-b border-cream-muted bg-forest-pale px-6 py-3 text-sm text-ink-primary"
+          className="border-b border-cream-muted bg-white px-6 py-3 text-[0.9rem] text-ink-primary"
         >
-          <div className="mx-auto flex max-w-7xl items-start justify-between gap-4">
+          <div className="mx-auto flex max-w-[1180px] items-start justify-between gap-4">
             <p>
               Your account has been deleted.
               {deletion?.filesLeftBehind && (
                 <>
                   {" "}
-                  One or more uploaded files couldn't be removed from storage yet — email{" "}
-                  <a href="mailto:info@solverah.com" className="font-medium underline">
+                  One or more uploaded files couldn't be removed from storage yet. Email{" "}
+                  <a href="mailto:info@solverah.com" className="font-medium underline underline-offset-2">
                     info@solverah.com
                   </a>{" "}
                   and we'll confirm once they're gone.
@@ -93,7 +591,7 @@ function PrelaunchLandingPage() {
               type="button"
               onClick={() => setDeletionDismissed(true)}
               aria-label="Dismiss"
-              className="shrink-0 font-medium text-ink-secondary hover:text-forest-mid"
+              className="shrink-0 font-medium text-ink-secondary transition-colors hover:text-forest-mid"
             >
               Dismiss
             </button>
@@ -101,473 +599,63 @@ function PrelaunchLandingPage() {
         </div>
       )}
 
-      <LandingNav />
+      <LandingPageNav />
 
       <main id="main">
-        {/* ─── HERO ─── */}
-        <section className="bg-cream-base" style={{ minHeight: "88vh", paddingTop: "80px", paddingBottom: "80px" }}>
-          <div className="mx-auto max-w-7xl px-6">
-            <div className="grid grid-cols-1 gap-12 lg:grid-cols-[55fr_45fr] lg:gap-16 items-center">
+        <ScrollStory />
+        <HowItReads />
+        <Suspense fallback={<div aria-hidden="true" style={{ minHeight: "40rem" }} />}>
+          <EcosystemSection />
+        </Suspense>
+        <WorkPulse navigate={navigate} />
 
-              {/* Left — Copy */}
-              <div className="space-y-8">
-                <span className="inline-block text-xs font-semibold uppercase tracking-[0.08em] bg-forest-pale text-forest-mid px-3 py-1 rounded animate-fade-up opacity-0">
-                  AI-Native Career Platform
-                </span>
-                <h1 className="font-display text-[clamp(2.5rem,5vw,4.5rem)] font-bold leading-[1.1] text-ink-primary max-w-[640px] animate-fade-up-slow opacity-0">
-                  Modern careers deserve more than keywords.
-                </h1>
-                <p className="text-[clamp(1rem,2vw,1.25rem)] leading-relaxed text-ink-secondary max-w-[520px] animate-fade-up-slower opacity-0">
-                  Solverah blends structured frameworks with Authentic Intelligence to understand how you actually work — and where you're built to thrive.
-                </p>
-                <div className="flex flex-wrap gap-3 animate-fade-up-slower opacity-0">
-                  {["Early preview", "Human-led evaluation"].map((badge) => (
-                    <span key={badge} className="text-sm text-ink-secondary border border-cream-muted rounded-full px-4 py-1.5">
-                      {badge}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex flex-wrap items-center gap-4 animate-fade-up-slower opacity-0">
-                  <button
-                    type="button"
-                    onClick={() => navigate("/start")}
-                    className="bg-forest-dark text-white font-semibold text-base px-7 py-3.5 rounded hover:bg-forest-mid transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
-                  >
-                    Request early access
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/quiz-preview")}
-                    className="border-2 border-forest-dark text-forest-dark font-semibold text-base px-7 py-3.5 rounded hover:bg-forest-pale transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
-                  >
-                    Preview what you'll unlock
-                  </button>
-                  <a href="#features" className="text-sm font-semibold text-forest-mid hover:underline underline-offset-4 transition-colors">
-                    See how it works
-                  </a>
-                </div>
-              </div>
-
-              {/* Right — Intake Form */}
-              <IntakeForm
-                formData={intake.formData}
-                onInputChange={intake.handleInputChange}
-                privacyConsent={intake.privacyConsent}
-                setPrivacyConsent={intake.setPrivacyConsent}
-                infoOptIn={intake.infoOptIn}
-                setInfoOptIn={intake.setInfoOptIn}
-                setResumeFile={intake.setResumeFile}
-                selectedFileName={intake.selectedFileName}
-                setSelectedFileName={intake.setSelectedFileName}
-                submissionStatus={intake.submissionStatus}
-                errorMessage={intake.errorMessage}
-                onSubmit={intake.handleSubmit}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* ─── STATS BAR ─── */}
-        <section className="bg-cream-subtle border-y border-cream-muted">
-          <div className="mx-auto max-w-7xl px-6 py-12">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-0 sm:divide-x sm:divide-cream-muted">
-              {[
-                { stat: "Human-Led", label: "Every submission reviewed by a person, not an algorithm" },
-                { stat: "Context-First", label: "We read your full picture, not just your last title" },
-                /* Claim aligned with practice 2026-08-20 (GAP-02): both halves are
-                   true and enforced — no data sales, and the employer-visibility
-                   test suite (D-01) guarantees the second half. */
-                { stat: "Private by Design", label: "Your data is never sold — and never shown to employers" },
-              ].map(({ stat, label }) => (
-                <div key={stat} className="flex flex-col items-center text-center sm:px-8">
-                  <span className="font-display text-3xl font-bold text-forest-dark mb-2">{stat}</span>
-                  <span className="text-sm text-ink-secondary leading-relaxed max-w-[200px]">{label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ─── FEATURES (BENTO) ─── */}
-        <section id="features" className="relative overflow-hidden bg-cream-base py-24 px-6">
-          <HeroNetworkAnimation theme="light" />
-          <div className="relative z-10 mx-auto max-w-7xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-3">What We Offer</p>
-            <h2 className="font-display text-[clamp(2rem,4vw,2.75rem)] font-bold text-ink-primary mb-12 max-w-[480px] leading-snug">
-              Built around how people actually grow.
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 auto-rows-auto">
-              <div className="md:col-span-4 md:row-span-2 border border-cream-muted rounded-xl bg-white p-8 flex flex-col justify-between group hover:border-forest-light transition-colors" style={{ minHeight: "320px" }}>
-                <div>
-                  <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.08em] bg-forest-pale text-forest-mid px-2.5 py-1 rounded mb-5">Core Experience</span>
-                  <h3 className="font-display text-[1.75rem] font-semibold text-ink-primary leading-snug mb-3 max-w-[420px]">
-                    Matching built around how you actually work
-                  </h3>
-                  <p className="text-base text-ink-secondary leading-relaxed max-w-[420px]">
-                    Solverah reads beyond job titles and buzzwords to understand your work style, values, and the environments where you genuinely thrive.
-                  </p>
-                </div>
-                <a href="#how-it-works" className="mt-8 flex items-center gap-2 text-sm font-semibold text-forest-mid hover:underline underline-offset-4">
-                  <span>Learn how it works</span>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="transition-transform group-hover:translate-x-1" aria-hidden="true">
-                    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </a>
-              </div>
-              <div className="md:col-span-2 border border-cream-muted rounded-xl bg-white p-6 group hover:border-forest-light transition-colors">
-                <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.08em] bg-forest-pale text-forest-mid px-2.5 py-1 rounded mb-4">AI-Native</span>
-                <h3 className="font-display text-[1.25rem] font-semibold text-ink-primary leading-snug mb-2">Authentic Intelligence</h3>
-                <p className="text-sm text-ink-secondary leading-relaxed">Structured frameworks, not black-box scores. Insights that describe patterns and possibilities.</p>
-              </div>
-              <div className="md:col-span-1 border border-cream-muted rounded-xl bg-forest-pale p-5 group hover:border-forest-light transition-colors">
-                <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.08em] text-forest-mid mb-3">Privacy</span>
-                <h3 className="font-display text-[1.1rem] font-semibold text-ink-primary leading-snug mb-2">Private by default</h3>
-                <p className="text-xs text-ink-secondary leading-relaxed">You control what's shared. We store only what you choose to provide.</p>
-              </div>
-              <div className="md:col-span-1 border border-cream-muted rounded-xl bg-forest-dark p-5 group">
-                <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.08em] text-forest-pale mb-3">Philosophy</span>
-                <h3 className="font-display text-[1.1rem] font-semibold text-white leading-snug mb-2">Context before automation</h3>
-                <p className="text-xs text-forest-pale leading-relaxed">Human review pairs with every insight we generate.</p>
-              </div>
-              <div className="md:col-span-2 border border-cream-muted rounded-xl bg-white p-6 group hover:border-forest-light transition-colors">
-                <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.08em] bg-forest-pale text-forest-mid px-2.5 py-1 rounded mb-4">Approach</span>
-                <h3 className="font-display text-[1.25rem] font-semibold text-ink-primary leading-snug mb-2">Conditions over labels</h3>
-                <p className="text-sm text-ink-secondary leading-relaxed">Environments shape outcomes. We look at fit, context, and conditions — not just your last job title.</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ─── WORK PULSE ─── */}
-        <section id="work-pulse" className="bg-cream-subtle border-t border-cream-muted py-24 px-6">
-          <div className="mx-auto max-w-7xl">
-            <div className="mb-12">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-3">Work Pulse™</p>
-              <h2 className="font-display text-[clamp(2rem,4vw,2.75rem)] font-bold text-ink-primary leading-snug mb-4 max-w-[580px]">
-                Understand how you work — before your next move
-              </h2>
-              <p className="text-base text-ink-secondary leading-relaxed max-w-[560px]">
-                Work Pulse™ maps your sustainability signals, work rhythm, and environment needs so you can make smarter career decisions.
+        <section id="intake" className="scroll-mt-16 border-t border-cream-muted bg-cream-subtle text-ink-primary">
+          <div
+            className={`${CONTAINER} grid gap-12 py-20 md:py-28 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16`}
+          >
+            <div className="lg:sticky lg:top-24 lg:self-start">
+              <h2 className={H2}>Start your reading.</h2>
+              <p className="mt-5 max-w-[44ch] text-[1.02rem] leading-[1.6] text-ink-secondary">
+                Share your resume and a little context. You set up your account in the same step,
+                and a person reviews what you send before anything comes back to you.
               </p>
+              <ul className="mt-8 space-y-3 border-t border-cream-muted pt-6 text-[0.95rem] leading-[1.55] text-ink-secondary">
+                <li>Resume as PDF or DOCX. We read it for context, not to score you.</li>
+                <li>Your file goes to private storage and is never shown to employers.</li>
+                <li>
+                  Already have an account?{" "}
+                  <Link to="/login" className="font-semibold text-ink-primary underline underline-offset-4">
+                    Sign in
+                  </Link>
+                  .
+                </li>
+              </ul>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Work Pulse Lite */}
-              <div className="rounded-xl border border-cream-muted bg-white p-8 flex flex-col">
-                <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.08em] bg-forest-pale text-forest-mid px-2.5 py-1 rounded mb-5 self-start">
-                  Free · No account needed
-                </span>
-                <h3 className="font-display text-xl font-semibold text-ink-primary mb-3">Work Pulse Lite™</h3>
-                <p className="text-sm text-ink-secondary leading-relaxed mb-6">
-                  5 questions. Get an instant read on your primary work friction signal — no sign-up required. Takes under 2 minutes.
-                </p>
-                <ul className="space-y-2.5 mb-8 flex-1">
-                  {["Instant friction signal", "Rules-based insight", "No account needed", "Takes under 2 minutes"].map((item) => (
-                    <li key={item} className="flex items-start gap-2.5 text-sm text-ink-secondary">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-forest-light" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  type="button"
-                  onClick={() => navigate("/start")}
-                  className="border-2 border-forest-dark text-forest-dark font-semibold px-5 py-2.5 rounded hover:bg-forest-pale transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
-                >
-                  Try it free
-                </button>
-              </div>
-
-              {/* Work Pulse (highlighted) */}
-              <div className="relative rounded-xl border border-forest-light bg-white p-8 flex flex-col">
-                <span className="absolute top-4 right-4 text-[10px] font-semibold uppercase tracking-[0.08em] bg-forest-dark text-white px-2 py-0.5 rounded">
-                  Most popular
-                </span>
-                <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.08em] bg-forest-pale text-forest-mid px-2.5 py-1 rounded mb-5 self-start">
-                  Free · Account required
-                </span>
-                <h3 className="font-display text-xl font-semibold text-ink-primary mb-3">Work Pulse™</h3>
-                <p className="text-sm text-ink-secondary leading-relaxed mb-6">
-                  12 questions. Receive a full narrative insight, your primary work archetype, and the emerging signals shaping how you experience work.
-                </p>
-                <ul className="space-y-2.5 mb-8 flex-1">
-                  {["Full narrative insight", "Work archetype", "Emerging signals", "Partial Solverah profile", "Personalized career intelligence"].map((item) => (
-                    <li key={item} className="flex items-start gap-2.5 text-sm text-ink-secondary">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-forest-mid" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  type="button"
-                  onClick={() => navigate("/register")}
-                  className="bg-forest-dark text-white font-semibold px-5 py-2.5 rounded hover:bg-forest-mid transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-light focus-visible:ring-offset-2"
-                >
-                  Get started
-                </button>
-              </div>
-
-              {/* Work Pulse Pro (muted / coming soon) */}
-              <div className="rounded-xl border border-cream-muted bg-cream-subtle p-8 flex flex-col">
-                <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-tertiary px-2.5 py-1 rounded border border-cream-muted mb-5 self-start">
-                  Coming soon
-                </span>
-                <h3 className="font-display text-xl font-semibold text-ink-primary mb-3">Work Pulse Pro™</h3>
-                <p className="text-sm text-ink-secondary leading-relaxed mb-6">
-                  Deeper pattern analysis, company environment matching via CompanyLens™, and long-term career alignment intelligence.
-                </p>
-                <ul className="space-y-2.5 mb-8 flex-1 opacity-60">
-                  {["Full archetype integration", "CompanyLens™ company matching", "Leadership fit analysis", "Sustainability and career direction", "Layered pattern interpretation"].map((item) => (
-                    <li key={item} className="flex items-start gap-2.5 text-sm text-ink-secondary">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-tertiary" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  type="button"
-                  disabled
-                  className="border-2 border-cream-muted text-ink-tertiary font-semibold px-5 py-2.5 rounded cursor-not-allowed opacity-50"
-                >
-                  Coming soon
-                </button>
-              </div>
-            </div>
+            <IntakeForm
+              formData={intake.formData}
+              onInputChange={intake.handleInputChange}
+              privacyConsent={intake.privacyConsent}
+              setPrivacyConsent={intake.setPrivacyConsent}
+              infoOptIn={intake.infoOptIn}
+              setInfoOptIn={intake.setInfoOptIn}
+              setResumeFile={intake.setResumeFile}
+              selectedFileName={intake.selectedFileName}
+              setSelectedFileName={intake.setSelectedFileName}
+              submissionStatus={intake.submissionStatus}
+              errorMessage={intake.errorMessage}
+              onSubmit={intake.handleSubmit}
+            />
           </div>
         </section>
 
-        {/* ─── HOW IT WORKS ─── */}
-        <section id="how-it-works" className="bg-forest-mid border-t border-forest-light/30 py-24 px-6">
-          <div className="mx-auto max-w-7xl">
-            <div className="text-center max-w-[600px] mx-auto mb-16 space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-pale">The Process</p>
-              <h2 className="font-display text-[clamp(2rem,4vw,2.75rem)] font-bold text-cream-base leading-snug">
-                From your story to actionable insight.
-              </h2>
-              <p className="text-base text-cream-subtle leading-relaxed">
-                Solverah doesn't score you against a template. It reads the full picture of how you work.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-16">
-              {[
-                { step: "01", title: "You share your context", body: "Your resume, background, and optionally your LinkedIn or portfolio. We ask only for what's useful.", accent: "bg-forest-pale" },
-                { step: "02", title: "Structured frameworks map your signal", body: "Our system applies a layered set of frameworks to translate unstructured career history into meaningful dimensions.", accent: "bg-forest-pale" },
-                { step: "03", title: "Patterns are identified, not invented", body: "We surface what the information already suggests — about your work style, environment preferences, and conditions.", accent: "bg-forest-pale" },
-                { step: "04", title: "A human reviews before anything reaches you", body: "Every insight set is reviewed by a person before delivery. Automated analysis is a starting point — editorial judgment is the finish line.", accent: "bg-forest-dark" },
-              ].map(({ step, title, body, accent }) => (
-                <div key={step} className="relative rounded-xl border border-forest-light/40 bg-white p-6 hover:border-forest-light transition-colors flex flex-col gap-4">
-                  <span className={`inline-flex items-center justify-center w-9 h-9 rounded-full ${accent} font-display text-sm font-bold ${accent === "bg-forest-dark" ? "text-white" : "text-forest-mid"} shrink-0`}>{step}</span>
-                  <div>
-                    <h3 className="font-display text-[1.05rem] font-semibold text-ink-primary leading-snug mb-2">{title}</h3>
-                    <p className="text-sm text-ink-secondary leading-relaxed">{body}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[
-                { label: "What we look at", content: "Work history, scope of responsibility, environment signals, and the conditions that appear when people do their best work." },
-                { label: "What we don't do", content: "We don't assign you a type, a tier, or a numeric score. We don't compare you to a benchmark or rank you against other candidates." },
-                { label: "Why this matters", content: "Most career tools optimize for searchability. Solverah optimizes for understanding." },
-              ].map(({ label, content }) => (
-                <div key={label} className="rounded-xl border border-forest-light/40 bg-white p-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-3">{label}</p>
-                  <p className="text-sm text-ink-secondary leading-relaxed">{content}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ─── ABOUT ─── */}
-        <section id="about" className="bg-cream-subtle border-t border-cream-muted py-24 px-6">
-          <div className="mx-auto max-w-7xl">
-            <div className="grid gap-12 lg:grid-cols-2 lg:gap-20 items-start">
-              <div className="space-y-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light">Why Solverah</p>
-                <h2 className="font-display text-[clamp(2rem,4vw,2.75rem)] font-bold text-ink-primary leading-snug">
-                  Career intelligence that stays human.
-                </h2>
-                <p className="text-base text-ink-secondary leading-relaxed max-w-[540px]">
-                  Solverah reads beyond job titles and buzzwords to understand how you work, what you value, and where you thrive.
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2 pt-2">
-                  {[
-                    { title: "Context before automation", body: "Thoughtful patterns and editorial clarity — not speed-optimized sorting." },
-                    { title: "Signals over scores", body: "What makes you effective matters more than a numeric ranking." },
-                    { title: "Careful by design", body: "Built to support reflection and understanding, not replace it." },
-                    { title: "Private by default", body: "Responsible handling of every detail you choose to share." },
-                  ].map(({ title, body }) => (
-                    <div key={title} className="rounded-lg border border-cream-muted bg-white p-4 hover:border-forest-pale transition-colors">
-                      <p className="text-sm font-semibold text-ink-primary mb-1">{title}</p>
-                      <p className="text-sm text-ink-secondary leading-relaxed">{body}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="rounded-xl border border-cream-muted bg-white p-8 space-y-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light">Prelaunch status</p>
-                <h3 className="font-display text-[1.5rem] font-semibold text-ink-primary">Early intake is live</h3>
-                <p className="text-sm text-ink-secondary leading-relaxed">
-                  The broader platform remains gated while we learn. You should know what's happening with your data and why.
-                </p>
-                <div className="space-y-4 pt-1">
-                  {[
-                    { color: "bg-forest-light", text: "Soft-launch intake only. No production accounts or feeds are available." },
-                    { color: "bg-forest-mid", text: "Manual review of submissions while we tune Authentic Intelligence with real context." },
-                    { color: "bg-forest-pale border border-forest-light", text: "Clear Insights. You should feel informed, not pushed." },
-                  ].map(({ color, text }, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${color}`} />
-                      <p className="text-sm text-ink-secondary leading-relaxed">{text}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ─── FAQ ─── */}
-        <section id="faq" className="relative overflow-hidden bg-cream-base py-24 px-6">
-          <HeroNetworkAnimation theme="light" />
-          <div className="relative z-10 mx-auto max-w-7xl">
-            <div className="grid gap-12 lg:grid-cols-[1fr_2fr] lg:gap-20 items-start">
-              <div className="space-y-4 lg:sticky lg:top-24">
-                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light">Questions we hear</p>
-                <h2 className="font-display text-[clamp(1.75rem,3vw,2.25rem)] font-bold text-ink-primary leading-snug">
-                  A brief FAQ for early collaborators
-                </h2>
-                <p className="text-sm text-ink-secondary leading-relaxed">
-                  Straightforward answers so you know how Solverah works at this stage.
-                </p>
-              </div>
-              <div className="grid gap-4">
-                {faqs.map((item) => (
-                  <div key={item.q} className="rounded-lg border border-cream-muted bg-white p-5 hover:border-forest-pale transition-colors">
-                    <p className="text-sm font-semibold text-ink-primary mb-2">{item.q}</p>
-                    <p className="text-sm text-ink-secondary leading-relaxed">{item.a}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ─── CTA ─── */}
-        <section className="bg-forest-dark py-24 px-6">
-          <div className="mx-auto max-w-4xl text-center space-y-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-pale">Ready to be seen differently</p>
-            <h2 className="font-display text-[clamp(2rem,4vw,3rem)] font-bold text-white leading-snug">
-              Your career is more than your last job title.
-            </h2>
-            <p className="text-lg text-forest-pale leading-relaxed max-w-[520px] mx-auto">
-              Join the early cohort. Share your story, and let us find the conditions where you do your best work.
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
-              <button
-                type="button"
-                onClick={() => navigate("/start")}
-                className="bg-white text-forest-dark font-semibold text-base px-8 py-4 rounded hover:bg-cream-subtle transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-forest-dark"
-              >
-                Request early access
-              </button>
-              <a
-                href="#waitlist"
-                className="border border-white/30 text-white font-semibold text-base px-8 py-4 rounded hover:bg-white/10 transition-colors"
-              >
-                Submit your intake now
-              </a>
-            </div>
-          </div>
-        </section>
+        <Commitments />
+        <Faq />
+        <Closing navigate={navigate} />
       </main>
 
-      {/* ─── FOOTER ─── */}
-      <footer className="bg-ink-primary text-white">
-        <div className="mx-auto max-w-7xl px-6 py-16">
-          <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-3">
-              <span className="font-display text-2xl font-bold text-white">Solverah</span>
-              <p className="text-sm text-[#AAA] leading-relaxed max-w-[200px]">
-                Human-centered career intelligence for the people who deserve better.
-              </p>
-            </div>
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#888]">Navigate</p>
-              {[
-                { label: "How it works", href: "#features" },
-                { label: "About", href: "#about" },
-                { label: "FAQ", href: "#faq" },
-              ].map(({ label, href }) => (
-                <a key={label} href={href} className="block text-sm text-[#AAA] hover:text-white transition-colors leading-relaxed">
-                  {label}
-                </a>
-              ))}
-            </div>
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#888]">Join</p>
-              <button
-                type="button"
-                onClick={() => navigate("/start")}
-                className="block text-sm text-[#AAA] hover:text-white transition-colors leading-relaxed text-left"
-              >
-                Request early access
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/quiz-preview")}
-                className="block text-sm text-[#AAA] hover:text-white transition-colors leading-relaxed text-left"
-              >
-                Preview the platform
-              </button>
-            </div>
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#888]">Status</p>
-              <p className="text-sm text-[#AAA] leading-relaxed">
-                Soft launch — broader access remains closed. Early cohort intake is open.
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="border-t border-white/10">
-          <div className="mx-auto max-w-7xl px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <p className="text-xs text-[#888]">© {new Date().getFullYear()} Solverah. All rights reserved.</p>
-            <div className="flex gap-6">
-              <a href="/privacy" className="text-xs text-[#888] hover:text-white transition-colors">Privacy Policy</a>
-              <a href="/terms" className="text-xs text-[#888] hover:text-white transition-colors">Terms</a>
-              <a href="/how-matching-works" className="text-xs text-[#888] hover:text-white transition-colors">How matching works</a>
-            </div>
-          </div>
-          <div className="border-t border-white/5">
-            <div className="mx-auto max-w-3xl px-6 py-4">
-              <p className="text-xs text-[#555] leading-relaxed text-center">
-                This page includes information from the{" "}
-                <a
-                  href="https://www.onetcenter.org/database.html"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-[#888] transition-colors"
-                >
-                  O*NET 30.3 Database
-                </a>{" "}
-                by the U.S. Department of Labor, Employment and Training Administration (USDOL/ETA). Used under the{" "}
-                <a
-                  href="https://creativecommons.org/licenses/by/4.0/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-[#888] transition-colors"
-                >
-                  CC BY 4.0
-                </a>{" "}
-                license. O*NET® is a trademark of USDOL/ETA. Solverah has modified all or some of this information. USDOL/ETA has not approved, endorsed, or tested these modifications.
-              </p>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
-      {/* ─── MODALS ─── */}
       <EarlyAccessModal
         isOpen={earlyAccess.isOpen}
         onClose={() => earlyAccess.setIsOpen(false)}

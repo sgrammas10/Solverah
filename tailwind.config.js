@@ -6,6 +6,9 @@ export default {
       fontFamily: {
         display: ['"Playfair Display"', 'Georgia', 'serif'],
         sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
+        // Landing page ("/"): Archivo display over Public Sans body.
+        headline: ['Archivo', '"Arial Narrow"', 'system-ui', 'sans-serif'],
+        body: ['"Public Sans"', 'system-ui', 'sans-serif'],
       },
       colors: {
         cream: {

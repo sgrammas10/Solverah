@@ -1,0 +1,20 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "playfair display",
+        "createdAt": "2026-09-28T17:27:37.122Z",
+        "reason": "Sebastian's other routes use Playfair Display site-wide (predates this work); DESIGN.md documents only the landing page and names it other-route material"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "dm sans",
+        "createdAt": "2026-09-28T17:27:37.371Z",
+        "reason": "site-wide body face for routes other than /, predates this work; DESIGN.md names it other-route material"
+      }
+    ]
+  }
+}

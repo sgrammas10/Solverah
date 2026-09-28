@@ -1,0 +1,708 @@
+/*
+ * Ecosystem section on the landing page. Loaded with its lazy chunk, so none
+ * of this reaches the entry stylesheet. Colours are the site-wide cream/forest
+ * tokens from tailwind.config.js, written out because this file is plain CSS.
+ *
+ * Motion: every edge carries a packet of light from its node into the hub and,
+ * later in the same cycle, back out again. The edge warms while a packet is on
+ * it, and the node lights as the packet leaves and as it returns. Each edge has
+ * its own cycle length and start (--dur, --d), set inline, so the lights fall
+ * out of step with each other the way real traffic does. See the
+ * reduced-motion block at the end for what still runs when motion is reduced.
+ */
+
+.eco {
+  --eco-base: #faf7f2;
+  --eco-subtle: #eae4db;
+  --eco-muted: #d4cfc8;
+  --eco-card: #ffffff;
+  --eco-ink: #1a1a1a;
+  --eco-ink-2: #555555;
+  --eco-forest: #1b4332;
+  --eco-forest-mid: #2d6a4f;
+  --eco-forest-light: #40916c;
+  --eco-forest-pale: #d8f3dc;
+  --eco-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------- the dotted field the hub sits on ---------- */
+
+.eco-visual {
+  position: relative;
+  display: flex;
+  width: 100%;
+  aspect-ratio: 564 / 460;
+  padding: 2rem;
+  overflow: hidden;
+  background: var(--eco-subtle);
+}
+
+@media (min-width: 640px) {
+  .eco-visual {
+    aspect-ratio: 564 / 410;
+  }
+}
+
+.eco-visual::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(26, 26, 26, 0.14) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.eco-visual::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(234, 228, 219, 0.8) 10%,
+    transparent 50%,
+    rgba(234, 228, 219, 0.8) 90%
+  );
+}
+
+.eco-hub {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+}
+
+.eco-hub > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* ---------- edges ---------- */
+
+.eco-line-base {
+  stroke: var(--eco-muted);
+  stroke-width: 1.25;
+  fill: none;
+}
+
+/* The edge itself warms while a packet is travelling on it. */
+.eco-edge-glow {
+  stroke: var(--eco-forest-light);
+  stroke-width: 1.5;
+  fill: none;
+  opacity: 0;
+  animation: eco-edge-both var(--dur, 5s) ease-in-out infinite both;
+  animation-delay: var(--d, 0s);
+}
+
+/* The packet: a short bright dash that runs the length of the edge. */
+.eco-packet {
+  stroke: var(--eco-forest-light);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-dasharray: 20 180;
+  stroke-dashoffset: -200;
+  fill: none;
+  filter: drop-shadow(0 0 3px rgba(64, 145, 108, 0.75));
+  animation: eco-packet-both var(--dur, 5s) ease-in-out infinite both;
+  animation-delay: var(--d, 0s);
+}
+
+.eco-line-active {
+  stroke: var(--eco-forest);
+  stroke-width: 1.75;
+  fill: none;
+  opacity: 0;
+  transition: opacity 240ms var(--eco-ease);
+}
+
+.eco-line-active[data-active="true"] {
+  opacity: 1;
+}
+
+/*
+ * Hub edges are drawn centre -> node, so a dash offset of -200 is the node end
+ * (just past it, hidden) and 20 is the centre end (just before it, hidden).
+ * In: node to centre over the first 35%. Out: centre to node, 50% to 85%.
+ */
+@keyframes eco-packet-both {
+  0% {
+    stroke-dashoffset: -200;
+  }
+  35% {
+    stroke-dashoffset: 20;
+  }
+  50% {
+    stroke-dashoffset: 20;
+  }
+  85% {
+    stroke-dashoffset: -200;
+  }
+  100% {
+    stroke-dashoffset: -200;
+  }
+}
+
+@keyframes eco-edge-both {
+  0%,
+  40%,
+  50%,
+  90%,
+  100% {
+    opacity: 0;
+  }
+  6%,
+  32%,
+  56%,
+  82% {
+    opacity: 0.7;
+  }
+}
+
+/* Flow wires are drawn in the direction data moves: one trip, 0% to 40%. */
+@keyframes eco-packet-fwd {
+  0% {
+    stroke-dashoffset: 20;
+  }
+  40%,
+  100% {
+    stroke-dashoffset: -200;
+  }
+}
+
+@keyframes eco-edge-fwd {
+  0%,
+  44%,
+  100% {
+    opacity: 0;
+  }
+  6%,
+  36% {
+    opacity: 0.7;
+  }
+}
+
+.eco-wire .eco-packet {
+  animation-name: eco-packet-fwd;
+  stroke-dashoffset: 20;
+}
+
+.eco-wire .eco-edge-glow {
+  animation-name: eco-edge-fwd;
+}
+
+/* ---------- nodes ---------- */
+
+.eco-node {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--eco-muted);
+  border-radius: 4px;
+  background: var(--eco-card);
+  color: var(--eco-ink);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.8);
+  transition:
+    opacity 500ms var(--eco-ease),
+    transform 600ms var(--eco-ease);
+  transition-delay: var(--in, 0s);
+  animation: eco-node-both var(--dur, 5s) ease-in-out infinite both;
+  animation-delay: var(--d, 0s);
+}
+
+.eco-node svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.is-in .eco-node {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* Hovering the matching list item (split layout) rings the node. */
+.eco-node[data-active="true"] {
+  outline: 2px solid var(--eco-forest);
+  outline-offset: 2px;
+}
+
+/* Lit as the packet leaves (0%) and as it comes home (85%), and in between
+   the two the node rests. The 86% -> 8% stretch wraps round the loop. */
+@keyframes eco-node-both {
+  0%,
+  8%,
+  86%,
+  100% {
+    background-color: var(--eco-forest-pale);
+    border-color: var(--eco-forest-light);
+    color: var(--eco-forest);
+  }
+  16%,
+  80% {
+    background-color: var(--eco-card);
+    border-color: var(--eco-muted);
+    color: var(--eco-ink);
+  }
+}
+
+@media (min-width: 640px) {
+  .eco-node {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .eco-node svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .eco-node {
+    width: 3.375rem;
+    height: 3.375rem;
+  }
+}
+
+/* ---------- the Solverah mark at the centre ---------- */
+
+.eco-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  padding: 0.25rem;
+  border: 1px solid var(--eco-muted);
+  border-radius: 4px;
+  background: var(--eco-card);
+  transform: translate(-50%, -50%);
+}
+
+.eco-center--static {
+  position: relative;
+  left: auto;
+  top: auto;
+  transform: none;
+}
+
+.eco-mark {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 4px;
+  background: var(--eco-forest);
+  color: var(--eco-base);
+  font-family: Archivo, "Arial Narrow", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.eco-ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(64, 145, 108, 0.45);
+  border-radius: inherit;
+  animation: eco-ring 2.4s ease-in-out infinite;
+}
+
+@keyframes eco-ring {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+
+@media (min-width: 640px) {
+  .eco-center {
+    padding: 0.5rem;
+  }
+
+  .eco-mark {
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: 1.6rem;
+  }
+}
+
+/* ---------- variant: card ---------- */
+
+.eco-card {
+  max-width: 35.25rem;
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid var(--eco-muted);
+  background: var(--eco-card);
+}
+
+.eco-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  border-top: 1px solid var(--eco-muted);
+}
+
+@media (min-width: 640px) {
+  .eco-card-body {
+    gap: 2rem;
+    padding: 2rem;
+  }
+}
+
+.eco-card-title {
+  margin: 0;
+  font-family: Archivo, "Arial Narrow", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(1.35rem, 3vw, 1.6rem);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--eco-ink);
+}
+
+.eco-body {
+  margin: 0;
+  max-width: 60ch;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--eco-ink-2);
+}
+
+/* ---------- variant: split ---------- */
+
+.eco-split {
+  display: grid;
+  gap: 3rem;
+}
+
+@media (min-width: 768px) {
+  .eco-split {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 4rem;
+    align-items: center;
+  }
+}
+
+.eco-list {
+  margin: 2rem 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--eco-muted);
+}
+
+.eco-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 1rem;
+  align-items: start;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--eco-muted);
+}
+
+.eco-list-icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--eco-muted);
+  border-radius: 4px;
+  background: var(--eco-card);
+  color: var(--eco-ink);
+  transition:
+    border-color 240ms var(--eco-ease),
+    background-color 240ms var(--eco-ease),
+    color 240ms var(--eco-ease);
+}
+
+.eco-list-icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.eco-list li[data-active="true"] .eco-list-icon {
+  border-color: var(--eco-forest-light);
+  background: var(--eco-forest-pale);
+  color: var(--eco-forest);
+}
+
+.eco-list-name {
+  margin: 0;
+  font-family: Archivo, "Arial Narrow", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  line-height: 1.3;
+  color: var(--eco-ink);
+}
+
+.eco-list-line {
+  margin: 0.15rem 0 0;
+  font-size: 0.93rem;
+  line-height: 1.55;
+  color: var(--eco-ink-2);
+}
+
+/* ---------- variant: flow ---------- */
+
+.eco-field {
+  position: relative;
+  margin-top: 3rem;
+  padding: 1.5rem;
+  border: 1px solid var(--eco-muted);
+  background: var(--eco-subtle);
+  overflow: hidden;
+}
+
+.eco-field::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(26, 26, 26, 0.12) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+@media (min-width: 768px) {
+  .eco-field {
+    padding: 2.5rem;
+  }
+}
+
+.eco-flow {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .eco-flow {
+    grid-template-columns: minmax(0, 1fr) 5rem auto 5rem minmax(0, 1fr);
+    gap: 0;
+    align-items: stretch;
+  }
+}
+
+.eco-col-label {
+  margin: 0 0 0.75rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--eco-ink);
+}
+
+.eco-col {
+  display: grid;
+  grid-auto-rows: 1fr;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.eco-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.3rem 0;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--eco-muted);
+  background: var(--eco-card);
+  color: var(--eco-ink);
+  font-size: 0.93rem;
+  font-weight: 600;
+  animation: eco-item-send var(--dur, 5s) ease-in-out infinite both;
+  animation-delay: var(--d, 0s);
+}
+
+.eco-item svg {
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--eco-forest-mid);
+}
+
+.eco-item--out {
+  animation-name: eco-item-receive;
+}
+
+/* An input lights as its packet leaves (cycle start). */
+@keyframes eco-item-send {
+  0%,
+  8% {
+    background-color: var(--eco-forest-pale);
+    border-color: var(--eco-forest-light);
+  }
+  18%,
+  100% {
+    background-color: var(--eco-card);
+    border-color: var(--eco-muted);
+  }
+}
+
+/* An output lights as its packet arrives (40% of its cycle). */
+@keyframes eco-item-receive {
+  0%,
+  36%,
+  62%,
+  100% {
+    background-color: var(--eco-card);
+    border-color: var(--eco-muted);
+  }
+  42%,
+  52% {
+    background-color: var(--eco-forest-pale);
+    border-color: var(--eco-forest-light);
+  }
+}
+
+.eco-wire {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .eco-wire {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+}
+
+.eco-wire-cell {
+  display: none;
+}
+
+.eco-flow-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Mobile: a short rule above and below the mark carries the flow downward. */
+.eco-flow-center::before,
+.eco-flow-center::after {
+  content: "";
+  width: 1px;
+  height: 1.25rem;
+  background: var(--eco-muted);
+}
+
+.eco-flow-hub {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding-block: 0.6rem;
+}
+
+.eco-flow-caption {
+  margin: 0;
+  max-width: 14ch;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--eco-ink-2);
+}
+
+@media (min-width: 768px) {
+  /* Wires and hub start below the column labels, so their 50% line is the
+     middle of the item rows. The caption hangs below the mark so the mark
+     itself sits on that line, where the wires converge. */
+  .eco-wire-cell {
+    display: block;
+    padding-top: 2rem;
+  }
+
+  .eco-flow-center {
+    justify-content: center;
+    padding-top: 2rem;
+  }
+
+  .eco-flow-center::before,
+  .eco-flow-center::after {
+    display: none;
+  }
+
+  .eco-flow-hub {
+    position: relative;
+    padding-block: 0;
+  }
+
+  .eco-flow-caption {
+    position: absolute;
+    top: calc(100% + 0.6rem);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 14ch;
+  }
+}
+
+/* ---------- dev-only variant switcher ---------- */
+
+.eco-switch {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--eco-muted);
+  border-radius: 4px;
+  background: var(--eco-card);
+  color: var(--eco-ink-2);
+  font-size: 0.76rem;
+}
+
+.eco-switch button {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--eco-muted);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--eco-ink-2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.eco-switch button[aria-pressed="true"] {
+  border-color: var(--eco-forest);
+  background: var(--eco-forest);
+  color: var(--eco-base);
+  font-weight: 700;
+}
+
+/*
+ * Reduced motion (which Windows reports whenever "Animation effects" is off):
+ * nothing moves across the screen, so the travelling packets and the ring's
+ * scale pulse stop. Colour is not motion, though, so nodes and items still
+ * light up in turn and edges still brighten, each on its own cycle, and the
+ * diagram still reads as traffic.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .eco-packet {
+    animation: none;
+    opacity: 0;
+  }
+
+  .eco-ring {
+    animation: none;
+  }
+
+  .eco-node {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+    transition: none;
+  }
+}
