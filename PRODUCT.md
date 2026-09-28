@@ -43,7 +43,7 @@ Name: Solverah. "Work Pulse™" and "Authentic Intelligence" are established pro
 
 ## Evidence on Hand
 
-- O*NET 30.3 Database attribution (CC BY 4.0, USDOL/ETA) is a real licensing obligation that must stay on any page using O*NET-derived content — currently in the footer of `prelaunchlandingpage.tsx`.
+- O*NET 30.3 Database attribution (CC BY 4.0, USDOL/ETA) is a real licensing obligation that must stay on any page using O*NET-derived content — currently in the footer of `LandingPage.tsx`.
 - Existing FAQ content (what Authentic Intelligence is, how it differs from AI, what data it uses, that it doesn't make employment decisions) reflects real product policy — preserve the substance; copy wording itself may be rewritten.
 
 ## Product Principles

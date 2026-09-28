@@ -530,7 +530,7 @@ function Footer() {
   );
 }
 
-function PrelaunchLandingPage() {
+function LandingPage() {
   const navigate = useNavigate();
   const intake = useIntakeForm();
   const earlyAccess = useEarlyAccess();
@@ -694,4 +694,4 @@ function PrelaunchLandingPage() {
   );
 }
 
-export default PrelaunchLandingPage;
+export default LandingPage;

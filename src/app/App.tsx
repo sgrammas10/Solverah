@@ -2,8 +2,7 @@
  * App.tsx — Root React component and client-side routing configuration.
  *
  * Route structure:
- *   /                         PrelaunchLandingPage (public, has its own nav)
- *   /landing                  LandingPage (public)
+ *   /                         LandingPage (public, has its own nav)
  *   /login, /register         Auth pages (public)
  *   /verify-email             OTP confirmation page (public)
  *   /quiz-preview/*           Guest quiz previews (public, rate-limited on backend)
@@ -37,8 +36,8 @@
  *   skeleton while the probe is out. See RedirectIfAuthenticated.tsx.
  *
  * Header visibility:
- *   The global Header is hidden on the "/" route because PrelaunchLandingPage
- *   renders its own navigation (LandingNav).  All other routes show the Header.
+ *   The global Header is hidden on the "/" route because LandingPage
+ *   renders its own navigation (LandingPageNav).  All other routes show the Header.
  */
 import React, { lazy } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -75,7 +74,7 @@ import { createQueryClient } from "../shared/api/queryClient";
  */
 
 // ── Eager: the entry surface ────────────────────────────────────────────────
-import PrelaunchLandingPage from "../features/landing/components/prelaunchlandingpage";
+import LandingPage from "../features/landing/components/LandingPage";
 import Login from "../features/auth/components/Login";
 import Register from "../features/auth/components/Register";
 import ConfirmEmail from "../features/auth/components/ConfirmEmail";
@@ -91,7 +90,6 @@ const SolverahYourFutureYourWayQuiz = lazy(
 );
 
 // ── Lazy: public pages behind an in-app navigation ──────────────────────────
-const LandingPage = lazy(() => import("../features/landing/components/LandingPage"));
 const GuestQuizPreview = lazy(() => import("../features/intelligence/components/GuestQuizPreview"));
 const GuestQuizInsights = lazy(() => import("../features/intelligence/components/GuestQuizInsights"));
 const CareerIntakePage = lazy(() => import("../features/intake/components/CareerIntakePage"));
@@ -162,9 +160,9 @@ function OnetAttribution() {
 /**
  * AppShell — Layout wrapper that conditionally renders the global Header and Footer.
  *
- * The Header is suppressed on the pre-launch landing page ("/") because
- * that page has its own LandingNav component. The global footer is suppressed
- * on "/" for the same reason — PrelaunchLandingPage renders its own footer
+ * The Header is suppressed on the landing page ("/") because
+ * that page has its own LandingPageNav component. The global footer is suppressed
+ * on "/" for the same reason — LandingPage renders its own footer
  * which includes the O*NET attribution inline.
  *
  * Phase 4b put `RouteErrorBoundary` *between* the chrome and the routes rather
@@ -222,13 +220,12 @@ function App() {
                   dashboard rather than shown the landing page or a sign-in
                   form. See RedirectIfAuthenticated.tsx. */}
               <Route element={<RedirectIfAuthenticated />}>
-                <Route path="/" element={<PrelaunchLandingPage />} />
+                <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
               </Route>
 
               {/* Public routes */}
-              <Route path="/landing" element={<LandingPage />} />
               <Route path="/quiz-preview" element={<GuestQuizPreview />} />
               <Route path="/quiz-preview/insights" element={<GuestQuizInsights />} />
               <Route path="/start" element={<CareerIntakePage />} />

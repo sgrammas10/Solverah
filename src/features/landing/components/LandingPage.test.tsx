@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, within, configure } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
-import PrelaunchLandingPage from "./prelaunchlandingpage";
+import LandingPage from "./LandingPage";
 import { createQueryClient } from "../../../shared/api/queryClient";
 
 // The ecosystem section is a lazy chunk. The first test to render it pays
@@ -26,7 +26,7 @@ function renderPage(state?: unknown, search = "") {
   render(
     <QueryClientProvider client={createQueryClient()}>
       <MemoryRouter initialEntries={[{ pathname: "/", search, state }]}>
-        <PrelaunchLandingPage />
+        <LandingPage />
       </MemoryRouter>
     </QueryClientProvider>
   );

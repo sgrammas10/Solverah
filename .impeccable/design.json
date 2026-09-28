@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "generatedAt": "2026-09-28T18:00:00Z",
   "title": "Design System: Solverah — Landing (\"/\")",
-  "scope": "Landing page route \"/\" (src/features/landing/components/prelaunchlandingpage.tsx, landing.css, hero/ScrollStory.tsx + scroll-story.css + cards.css + ResultCards.tsx + HeroActions.tsx, ecosystem/EcosystemSection.tsx + ecosystem.css). Colours are the site-wide cream/forest/ink tailwind tokens; Archivo + Public Sans are route-specific (other routes use Playfair Display + DM Sans). The shared IntakeForm/AccountModal in the intake band use Playfair headings and a 12px-radius card: a known type/shape seam, no colour seam. All choices provisional; the ecosystem layout (card|split|flow|off) is undecided.",
+  "scope": "Landing page route \"/\" (src/features/landing/components/LandingPage.tsx, landing.css, hero/ScrollStory.tsx + scroll-story.css + cards.css + ResultCards.tsx + HeroActions.tsx, ecosystem/EcosystemSection.tsx + ecosystem.css). Colours are the site-wide cream/forest/ink tailwind tokens; Archivo + Public Sans are route-specific (other routes use Playfair Display + DM Sans). The shared IntakeForm/AccountModal in the intake band use Playfair headings and a 12px-radius card: a known type/shape seam, no colour seam. All choices provisional; the ecosystem layout (card|split|flow|off) is undecided.",
   "extensions": {
     "colorMeta": {
       "forest-dark": {
