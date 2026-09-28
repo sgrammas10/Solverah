@@ -326,6 +326,76 @@ class TestScrubGrades:
         assert _scrub_grades("   ") == ""
 
 
+class TestFourthUserTestPhrasings:
+    """W-15: three phrasings the fourth user test found on real narrator output.
+
+    The list had "well aligned" but not the verb the other way round, and it
+    had no family for praising the MOVE ("a great opportunity") rather than the
+    fit. The tester's words are embedded verbatim; the prose around each is the
+    shape the narrator writes.
+    """
+
+    def test_aligning_well_with_your_technical_skills_is_cut(self):
+        assert (
+            _scrub_grades(
+                "Data engineers build the pipelines that move data between "
+                "systems, aligning well with your technical skills."
+            )
+            == "Data engineers build the pipelines that move data between systems."
+        )
+
+    def test_its_a_great_opportunity_is_dropped(self):
+        assert (
+            _scrub_grades(
+                "You would design cloud infrastructure for product teams. "
+                "It's a great opportunity to use your AWS experience."
+            )
+            == "You would design cloud infrastructure for product teams."
+        )
+
+    def test_its_an_excellent_way_to_grow_is_dropped(self):
+        assert (
+            _scrub_grades(
+                "You would plan and track releases across several teams. "
+                "It's an excellent way to grow your leadership skills."
+            )
+            == "You would plan and track releases across several teams."
+        )
+
+    @pytest.mark.parametrize(
+        "sentence",
+        [
+            "It aligns closely with your SQL work.",
+            "Your background aligned perfectly with this.",
+            "This aligns strongly with your experience.",
+            "A perfect step for you.",
+            "A fantastic move for someone like you.",
+            "An ideal path forward.",
+            "A wonderful chance to lead.",
+            "An amazing option for you.",
+            "You are well positioned for this.",
+            "You are perfectly placed to do it.",
+            "You are ideally equipped for the work.",
+        ],
+    )
+    def test_the_rest_of_each_new_family_is_scrubbed(self, sentence):
+        assert _scrub_grades(sentence) == ""
+
+    @pytest.mark.parametrize(
+        "tag", ["Fits your AWS experience", "Matches your Deep Diver archetype"]
+    )
+    def test_tags_that_name_a_skill_or_trait_survive(self, tag):
+        assert _scrub_grades(tag) == tag
+
+    def test_the_prompt_no_longer_asks_for_encouraging_prose(self):
+        system = _build_prompt(DEFAULT_CANDIDATES, user_ctx())[0]["content"]
+        assert "encouraging" not in system.lower()
+        assert (
+            "concrete: what the work involves and which of their skills it uses"
+            in system
+        )
+
+
 class TestGradesNeverReachTheWire:
     """End to end through the fake client: what `generate_narratives` returns."""
 

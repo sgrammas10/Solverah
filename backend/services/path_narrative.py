@@ -145,7 +145,8 @@ def _build_prompt(
         "CRITICAL RULES — follow exactly:\n"
         "1. Write a narrative for EVERY candidate in the list — do not skip any.\n"
         "2. Preserve the exact order of the candidates as given.\n"
-        "3. why_text: 1–2 sentences, plain language, specific to this user, encouraging.\n"
+        "3. why_text: 1–2 sentences, plain language, specific to this user, "
+        "concrete: what the work involves and which of their skills it uses.\n"
         "4. profile_dimensions: a list of exactly 2 or 3 short tags (5–8 words each) "
         "that reference the user's actual skills, archetype, or preferences. "
         "Examples: 'Builds on your Python skills', 'Fits your autonomy preference', "
@@ -317,6 +318,15 @@ _GRADE_PHRASES: tuple[str, ...] = (
     r"%",
     r"\d+\s*(?:out\s+of|/)\s*\d+",
     r"(?:match|fit|compatibility|alignment)\s+(?:score|rating|percentage)",
+    # W-15, from the fourth user test. The verb the other way round from "well
+    # aligned": "...aligning well with your technical skills."
+    r"align(?:s|ed|ing)?\s+(?:well|closely|perfectly|strongly)",
+    # Praise for the MOVE rather than the fit: "It's a great opportunity...",
+    # "It's an excellent way to grow...". The old rule 3 asked for
+    # "encouraging" prose, which invited exactly this.
+    r"(?:great|excellent|fantastic|ideal|perfect|wonderful|amazing)\s+"
+    r"(?:opportunity|way|step|move|path|chance|option)",
+    r"(?:well|perfectly|ideally)\s+(?:positioned|placed|equipped)",
 )
 
 _GRADE_RE = re.compile(

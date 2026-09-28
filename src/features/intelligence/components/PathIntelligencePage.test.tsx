@@ -27,6 +27,12 @@ const mocks = vi.hoisted(() => ({
   profile: { path_preferences: { move_type: "stay_in_field" } } as Record<string, unknown>,
   /** What `usePathSuggestionJobStatus` reports on the next render. */
   job: { data: undefined as any, error: null as Error | null },
+  /**
+   * W-15: run the REAL job hooks over the mocked transport instead of the
+   * doubles above. The doubles hand back one constant object, which cannot
+   * reproduce anything that depends on the query's own lifecycle.
+   */
+  realJob: false,
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -54,8 +60,12 @@ vi.mock("../usePathSuggestionJob", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../usePathSuggestionJob")>();
   return {
     ...actual,
-    useStartPathSuggestionJob: () => ({ mutate: mocks.startSuggestionsMutate, ...mocks.start }),
-    usePathSuggestionJobStatus: () => mocks.job,
+    useStartPathSuggestionJob: () =>
+      mocks.realJob
+        ? actual.useStartPathSuggestionJob()
+        : { mutate: mocks.startSuggestionsMutate, ...mocks.start },
+    usePathSuggestionJobStatus: (jobId: string | null) =>
+      mocks.realJob ? actual.usePathSuggestionJobStatus(jobId) : mocks.job,
   };
 });
 
@@ -111,6 +121,7 @@ beforeEach(() => {
   mocks.start.error = null;
   mocks.job.data = undefined;
   mocks.job.error = null;
+  mocks.realJob = false;
   // The enqueue lands but nothing terminal follows: the page stays pending.
   suggestionsSettleAs({ job_id: "path-job-1", status: "queued", result: null, error: null });
 });
@@ -993,5 +1004,65 @@ describe("PathIntelligencePage - judgements that outlive a page load", () => {
       "aria-pressed",
       "false"
     );
+  });
+});
+
+// --- W-15: "Show 3 more paths" after a full reload -------------------------
+//
+// Fourth user test: reload /intelligence/paths, three cards show, "Show 3 more
+// paths" does nothing however often it is clicked. The job doubles above hand
+// back one constant object, so this runs the real enqueue + poll hooks over
+// the mocked transport, with a job that is already `succeeded` on its first
+// poll -- which is what a warm `path_cache` produces.
+//
+// NOT REPRODUCED (W-15): this passes on HEAD, and so did six reload scenarios
+// driven in real Chrome against the real stack. It stays as the guard for the
+// claim "a warm-cache mount pages correctly", which the doubles cannot make.
+
+function tenCards() {
+  return Array.from({ length: 10 }, (_, i) => ({
+    onet_code: `11-10${String(i).padStart(2, "0")}.00`,
+    title: `Path ${i}`,
+    why_text: `why ${i}`,
+    profile_dimensions: ["x", "y"],
+    match_score: 0.9 - i * 0.01,
+  }));
+}
+
+describe("PathIntelligencePage - Show more after a reload (W-15)", () => {
+  it("reveals six cards on a warm-cache job", async () => {
+    mocks.realJob = true;
+    const result = {
+      suggestions: tenCards(),
+      career_status: "employed",
+      generated_at: "2026-09-01T00:00:00Z",
+      feedback: {},
+    };
+    mocks.fetchWithAuth.mockImplementation((path: string, init?: RequestInit) => {
+      if (path === "/me/path-suggestion-jobs" && init?.method === "POST") {
+        return Promise.resolve(ACCEPTED);
+      }
+      if (path === "/me/path-suggestion-jobs/path-job-1") {
+        return Promise.resolve({
+          job_id: "path-job-1",
+          status: "succeeded",
+          result,
+          error: null,
+        });
+      }
+      if (path.startsWith("/me/path-fit/")) {
+        return Promise.resolve(fitPayload(path.split("/").pop()!, "x"));
+      }
+      return Promise.resolve({});
+    });
+
+    renderPage();
+    await waitFor(() => expect(cardTitles()).toHaveLength(3));
+    // Let the prefetches for the first three land before the click.
+    await waitFor(() => expect(fitRequests()).toHaveLength(3));
+
+    fireEvent.click(screen.getByRole("button", { name: /show 3 more paths/i }));
+
+    await waitFor(() => expect(cardTitles()).toHaveLength(6));
   });
 });
