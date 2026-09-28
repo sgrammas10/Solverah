@@ -109,7 +109,13 @@ time" promotes them. The ruling as written can't remove them; only the pool can:
   (W-11 found their pools never reach that boundary), so it would be judged on your case
   and on reading the lists, not on the harness.
 
-**Your answer:**
+**Your answer:** Leave it for now (2026-09-28). Sebastian doesn't have the domain knowledge
+to judge which neighbouring jobs belong under "Stay"; once this is on main, Julie tests it
+and flags lists that look wrong. Options on file if she does: (a) smaller pool 30 → 20,
+(b) same SOC family only (cuts promotion paths into 11-xxxx), (c) soft penalty for
+off-family jobs — overseer's pick, (d) cap how far answers can lift a card on Stay.
+Judge any change by reading lists for 4–5 job types, not the harness (W-11: the labelled
+Stay profiles never reach the pool's edge).
 
 ---
 
