@@ -220,6 +220,22 @@ const COMPLETE_NEEDS_FORWARD: SituationComplete = {
   events_since_report: [],
 };
 
+/** Open every strained card's guidance, the way a reader would: one click
+ *  per card toggle. The panels stay in the DOM while closed (print shows them),
+ *  so role queries -- which skip `hidden` content -- are the ones that need this. */
+function expandAll() {
+  screen
+    .getAllByRole("button", { name: /^Show guidance for/ })
+    .forEach((toggle) => fireEvent.click(toggle));
+}
+
+/** The summary's grouped rows, as [label, names] pairs. */
+function summaryRows(): [string, string][] {
+  const section = screen.getByRole("region", { name: "In short" });
+  const terms = within(section).getAllByRole("term");
+  return terms.map((dt) => [dt.textContent ?? "", dt.nextElementSibling?.textContent ?? ""]);
+}
+
 /** No digit from `env_score` or `rank` may appear anywhere on the page. */
 function expectNoScoresLeaked() {
   const text = document.body.textContent ?? "";
@@ -340,36 +356,138 @@ describe("SituationReportPage", () => {
       expect(screen.getByText("More than you need")).toBeInTheDocument();
     });
 
-    it("renders the at-a-glance strip in document order, words only and no digits", async () => {
+    it("leads with a summary built from the payload, grouped in document order, no digits", async () => {
       serve(COMPLETE);
       renderPage();
 
-      const heading = await screen.findByText("At a glance");
-      const strip = heading.closest("section");
-      expect(strip).not.toBeNull();
-
-      const chips = within(strip as HTMLElement).getAllByRole("listitem");
-      expect(chips.map((chip) => chip.textContent)).toEqual([
-        "Autonomy — Straining",
-        "Feedback — Notable",
-        "Pace — Aligned",
+      const summary = await screen.findByRole("region", { name: "In short" });
+      // The first strained row is the most strained: document order IS the ranking.
+      expect(within(summary).getByText("Autonomy is under the most strain.")).toBeInTheDocument();
+      expect(
+        within(summary).getByText("The role decides more of the how than you want decided"),
+      ).toBeInTheDocument();
+      expect(summaryRows()).toEqual([
+        ["Under most strain", "Autonomy"],
+        ["Worth watching", "Feedback"],
+        ["Working well", "Pace"],
       ]);
-      expect(strip?.textContent ?? "").not.toMatch(/\d/);
+      expect(summary.textContent ?? "").not.toMatch(/\d/);
+      // The summary sits above the dimension cards.
+      const firstCard = screen.getByRole("heading", { level: 3, name: "Autonomy" });
+      expect(summary.compareDocumentPosition(firstCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("shows each strained dimension compactly: name, bucket, direction, headline", async () => {
+      serve(COMPLETE);
+      renderPage();
+
+      const heading = await screen.findByRole("heading", { level: 3, name: "Autonomy" });
+      const card = heading.closest("article") as HTMLElement;
+      expect(within(card).getByText("Straining")).toBeVisible();
+      expect(within(card).getByText("Less than you need")).toBeVisible();
+      expect(
+        within(card).getByText("The role decides more of the how than you want decided"),
+      ).toBeVisible();
+      // The guidance itself is behind the disclosure until asked for.
+      expect(within(card).getByText("Change it in place")).not.toBeVisible();
+      expect(
+        within(card).getByText("This role settles more of that before it reaches you."),
+      ).not.toBeVisible();
+    });
+
+    it("expands and collapses a card's guidance with an accessible disclosure", async () => {
+      serve(COMPLETE);
+      renderPage();
+
+      const toggle = await screen.findByRole("button", { name: "Show guidance for Autonomy" });
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      const panel = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
+      expect(panel).not.toBeNull();
+      expect(panel).not.toBeVisible();
+
+      fireEvent.click(toggle);
+      expect(toggle).toHaveAttribute("aria-expanded", "true");
+      expect(toggle).toHaveAccessibleName("Hide guidance for Autonomy");
+      expect(panel).toBeVisible();
+      expect(within(panel as HTMLElement).getByText("Negotiate it")).toBeVisible();
+      // Only the card that was asked for opens.
+      expect(screen.getByRole("button", { name: "Show guidance for Feedback" })).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+
+      fireEvent.click(toggle);
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      expect(panel).not.toBeVisible();
+    });
+
+    it("opens and closes every card at once", async () => {
+      serve(COMPLETE);
+      renderPage();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Show all guidance" }));
+      expect(screen.getByRole("button", { name: "Hide guidance for Autonomy" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+      expect(screen.getByRole("button", { name: "Hide guidance for Feedback" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Hide all guidance" }));
+      expect(screen.getAllByRole("button", { name: /^Show guidance for/ })).toHaveLength(2);
+    });
+
+    it("prints every card expanded, with the toggles hidden", async () => {
+      serve(COMPLETE);
+      renderPage();
+
+      const toggles = await screen.findAllByRole("button", { name: /^Show guidance for/ });
+      expect(toggles).toHaveLength(2);
+      toggles.forEach((toggle) => {
+        // Collapsed on screen, but `print:block` overrides `hidden` on paper.
+        const panel = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
+        expect(panel).toHaveAttribute("hidden");
+        expect(panel).toHaveClass("print:block");
+        expect(toggle).toHaveClass("print:hidden");
+      });
+      expect(screen.getByRole("button", { name: "Show all guidance" })).toHaveClass("print:hidden");
+      expect(screen.getByRole("button", { name: "Print this report" }).parentElement).toHaveClass(
+        "print:hidden",
+      );
     });
 
     it("renders all three guidance registers on a straining dimension", async () => {
       serve(COMPLETE);
       renderPage();
 
-      expect(await screen.findByText("Change it in place")).toBeInTheDocument();
-      expect(screen.getByText("Negotiate it")).toBeInTheDocument();
-      expect(screen.getAllByText("This one rarely moves").length).toBeGreaterThan(0);
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expandAll();
 
-      expect(screen.getByText("One piece, your method, for a fortnight")).toBeInTheDocument();
-      expect(screen.getByText("Name the piece before you start.")).toBeInTheDocument();
-      expect(screen.getByText(/I'd like to own the approach on X end to end/)).toBeInTheDocument();
-      expect(screen.getByText(/Ask whether the constraint is real/)).toBeInTheDocument();
-      expect(screen.getByText(/How you'll know it worked/)).toBeInTheDocument();
+      expect(screen.getByText("Change it in place")).toBeVisible();
+      expect(screen.getByText("Negotiate it")).toBeVisible();
+      const rarely = screen.getAllByText("This one rarely moves");
+      expect(rarely.length).toBeGreaterThan(0);
+      rarely.forEach((h) => expect(h).toBeVisible());
+
+      expect(screen.getByText("This role settles more of that before it reaches you.")).toBeVisible();
+      expect(screen.getByText("One piece, your method, for a fortnight")).toBeVisible();
+      expect(
+        screen.getByText("Pick one live piece of work and run the approach yourself."),
+      ).toBeVisible();
+      expect(screen.getByText("Name the piece before you start.")).toBeVisible();
+      expect(screen.getByText("Put one checkpoint in the middle.")).toBeVisible();
+      expect(screen.getByText("How many decisions you made without waiting.")).toBeVisible();
+      expect(screen.getByText("Whoever sets the approach on your work.")).toBeVisible();
+      expect(screen.getByText("Open on the work rather than on how it feels.")).toBeVisible();
+      expect(screen.getByText(/I'd like to own the approach on X end to end/)).toBeVisible();
+      expect(screen.getByText(/Ask whether the constraint is real/)).toBeVisible();
+      expect(screen.getAllByText(/Decision rights are usually set well above/)[0]).toBeVisible();
+      expect(screen.getByText(/A running commentary you brace for/)).toBeVisible();
+      expect(screen.getByText(/The judgement you are best at does not get exercised/)).toBeVisible();
+      expect(screen.getByText(/A question about fit and not a failure/)).toBeVisible();
+      expect(screen.getByText(/How you'll know it worked/)).toBeVisible();
     });
 
     it("renders the aligned note on an aligned dimension, and no registers", async () => {
@@ -387,20 +505,25 @@ describe("SituationReportPage", () => {
       serve(COMPLETE);
       renderPage();
 
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expandAll();
       expect(
-        await screen.findByText(/How feedback actually reaches you is enacted by one person/),
-      ).toBeInTheDocument();
+        screen.getByText(/How feedback actually reaches you is enacted by one person/),
+      ).toBeVisible();
       expect(
         screen.getByText(/Some of what limits your latitude may be your manager/),
-      ).toBeInTheDocument();
+      ).toBeVisible();
     });
 
     it("routes the manager links to the profile flow when there is no profile yet", async () => {
       serve(COMPLETE);
       renderPage();
 
-      const links = await screen.findAllByRole("link", { name: /Profile your manager/ });
-      expect(links.length).toBeGreaterThan(0);
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expandAll();
+      const links = screen.getAllByRole("link", { name: /Profile your manager/ });
+      // The manager section plus both Decoder hand-offs inside the cards.
+      expect(links).toHaveLength(3);
       links.forEach((link) => expect(link).toHaveAttribute("href", "/manager-profile"));
       expect(screen.queryByRole("link", { name: /Open your playbook/ })).not.toBeInTheDocument();
     });
@@ -409,8 +532,10 @@ describe("SituationReportPage", () => {
       serve({ ...COMPLETE, manager: { has_profile: true } });
       renderPage();
 
-      const links = await screen.findAllByRole("link", { name: /Open your playbook/ });
-      expect(links.length).toBeGreaterThan(0);
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expandAll();
+      const links = screen.getAllByRole("link", { name: /Open your playbook/ });
+      expect(links).toHaveLength(3);
       links.forEach((link) =>
         expect(link).toHaveAttribute("href", "/manager-profile/playbook"),
       );
@@ -435,7 +560,7 @@ describe("SituationReportPage", () => {
       renderPage();
 
       expect(await screen.findByText(/Nothing is straining/)).toBeInTheDocument();
-      expect(screen.queryByText("At a glance")).not.toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "In short" })).not.toBeInTheDocument();
       expectNoScoresLeaked();
     });
   });
@@ -458,9 +583,10 @@ describe("SituationReportPage", () => {
       renderPage();
 
       await screen.findByRole("heading", { name: "What to look for next" });
+      expandAll();
 
       // change_in_place is reduced to its signal, under a forward-facing heading.
-      expect(screen.getByText(/What to watch for next time/)).toBeInTheDocument();
+      expect(screen.getByText(/What to watch for next time/)).toBeVisible();
       expect(screen.queryByText(/How you'll know it worked/)).not.toBeInTheDocument();
       // negotiate is gone entirely, and so is the Decoder cross-reference.
       expect(screen.queryByText("Negotiate it")).not.toBeInTheDocument();
@@ -468,7 +594,7 @@ describe("SituationReportPage", () => {
         screen.queryByText(/Some of what limits your latitude may be your manager/),
       ).not.toBeInTheDocument();
       // rarely_moves carries over unchanged.
-      expect(screen.getByText("This one rarely moves")).toBeInTheDocument();
+      expect(screen.getByText("This one rarely moves")).toBeVisible();
       // No aligned card, because the server dropped those rows.
       expect(screen.queryByText("Aligned")).not.toBeInTheDocument();
       expectNoScoresLeaked();
@@ -480,14 +606,14 @@ describe("SituationReportPage", () => {
       expect(await screen.findByText("Less than you needed")).toBeInTheDocument();
     });
 
-    it("shows fewer chips in the strip rather than backfilling the dropped aligned dimension", async () => {
+    it("summarises in the past tense without backfilling the dropped aligned dimension", async () => {
       serve(COMPLETE_NEEDS_FORWARD);
       renderPage();
 
-      const heading = await screen.findByText("At a glance");
-      const strip = heading.closest("section");
-      const chips = within(strip as HTMLElement).getAllByRole("listitem");
-      expect(chips.map((chip) => chip.textContent)).toEqual(["Autonomy — Straining"]);
+      const summary = await screen.findByRole("region", { name: "In short" });
+      expect(within(summary).getByText("Autonomy was under the most strain.")).toBeInTheDocument();
+      expect(summaryRows()).toEqual([["Strained most", "Autonomy"]]);
+      expect(screen.queryByRole("heading", { name: "What's working" })).not.toBeInTheDocument();
     });
   });
 
@@ -724,6 +850,7 @@ describe("SituationReportPage", () => {
       serveWithExperiments([]);
       renderPage();
 
+      fireEvent.click(await screen.findByRole("button", { name: "Show all guidance" }));
       const buttons = await screen.findAllByRole("button", { name: /Try this for two weeks/ });
       expect(buttons).toHaveLength(2);
       buttons.forEach((button) => expect(button).not.toBeDisabled());
@@ -733,6 +860,7 @@ describe("SituationReportPage", () => {
       serveWithExperiments([]);
       renderPage();
 
+      fireEvent.click(await screen.findByRole("button", { name: "Show all guidance" }));
       const [firstButton] = await screen.findAllByRole("button", { name: /Try this for two weeks/ });
       fireEvent.click(firstButton);
 
@@ -752,7 +880,8 @@ describe("SituationReportPage", () => {
       ]);
       renderPage();
 
-      expect(await screen.findByText(/Running since/)).toBeInTheDocument();
+      fireEvent.click(await screen.findByRole("button", { name: "Show all guidance" }));
+      expect(await screen.findByText(/Running since/)).toBeVisible();
       const otherButton = await screen.findByRole("button", { name: /Try this for two weeks/ });
       expect(otherButton).toBeDisabled();
       expect(
@@ -772,6 +901,7 @@ describe("SituationReportPage", () => {
       ]);
       renderPage();
 
+      fireEvent.click(await screen.findByRole("button", { name: "Show all guidance" }));
       const abandon = await screen.findByRole("button", { name: "Abandon" });
       // No modal, no window.confirm -- one click is the whole interaction.
       fireEvent.click(abandon);
@@ -828,6 +958,7 @@ describe("SituationReportPage", () => {
       renderPage();
 
       await screen.findByRole("heading", { name: "What to look for next" });
+      expandAll();
       expect(
         screen.queryByRole("button", { name: /Try this for two weeks/ }),
       ).not.toBeInTheDocument();
@@ -857,6 +988,7 @@ describe("SituationReportPage", () => {
       renderPage();
 
       await screen.findByRole("heading", { name: "You, and this job" });
+      expandAll();
       // Without the fix, `experiments ?? []` reads a failed fetch as "nothing
       // running" and both cells offer their button anyway.
       expect(
@@ -883,6 +1015,7 @@ describe("SituationReportPage", () => {
       renderPage();
 
       await screen.findByRole("heading", { name: "You, and this job" });
+      expandAll();
       expect(
         screen.queryByRole("button", { name: /Try this for two weeks/ }),
       ).not.toBeInTheDocument();
