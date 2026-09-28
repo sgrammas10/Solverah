@@ -74,7 +74,11 @@ PATH_PRIORITIES = {
 #: Values of ``endDate`` that mean the user still holds the role.
 _CURRENT_ROLE_MARKERS = ("present", "current")
 
-#: W-12.  How many cards BELOW the page the scoring job narrates and caches.
+#: W-12.  How many cards BELOW the page the scoring job scores and narrates.
+#:
+#: It is the depth of the *scoring* reserve, not the size of the narrative store:
+#: since W-14 `path_cache.store_reserve` holds all ``PAGE_SIZE + RESERVE_DEPTH``
+#: narratives, page included, so a removed-and-restored card finds its prose too.
 #:
 #: Ten, measured rather than picked.  Replaying three taps the way `_rescore`
 #: does, on three F-2 profiles, surfaced 12, 14 and 20 distinct occupations --
@@ -301,8 +305,26 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
     # because it already defers every other heavy import in the function.
     from solverah.services import path_wants_service
 
+    # W-14. A hit is only a hit if the thing cached was NARRATED.
+    #
+    # `_rescore` writes into this cache too, and on a cold worker it has no
+    # reserve and no payload to carry prose from, so what it writes is ten
+    # fallback sentences with no pills. Before this check the next job read that
+    # back and served it -- and so did every reload after it, until an unrelated
+    # profile write happened to invalidate the entry. In production that is
+    # every user's first tap after a deploy or a worker recycle: the list they
+    # came back to had lost its prose and could not get it back.
+    #
+    # Of the two shapes the brief offered, this is the one that keeps the other
+    # three promises intact. Having `_rescore` skip the store instead would also
+    # stop the poisoning, but it would take `GET /me/path-suggestions` back to a
+    # miss straight after a tap and drop `feedback` off the payload a reload
+    # polls -- W-13's finding, re-opened. Storing it and declining to *serve it
+    # as narration* separates the two jobs the cache does: it is still the
+    # record of what the user is looking at, and it is no longer an excuse to
+    # skip the narrator.
     cached = path_cache.get(user.id)
-    if cached is not None:
+    if cached is not None and path_cache.is_narrated(user.id):
         return IntelligenceResult(status=200, body=cached)
 
     profile = profile_repository.load_document(user.id)
@@ -424,13 +446,25 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
         )
         return _error(500, "Unable to generate path narratives")
 
+    # W-14. **Every** narrative this job wrote, the page included -- not just the
+    # ten below it, which is what W-12 stored.
+    #
+    # The page cards' prose is also on the payload, and `_describe` carries it
+    # forward from there, so storing it twice looks redundant. It is redundant
+    # right up to the moment a card LEAVES the page: a "Not for me" tap drops it
+    # from the payload, "Start over" brings it back, and a reserve defined as the
+    # complement of the page has no entry for it either. The card returned
+    # reading "Uses your SQL." with no pills beside its narrated neighbours --
+    # W-14's first bug, found driving the real stack after the fourth user test.
+    #
+    # The rule this restores is the simple one: a card that ever had prose in
+    # this job gets that prose back, whichever half of the list it came from.
     reserve_narratives = {
         s.onet_code: {
             "why_text": s.why_text,
             "profile_dimensions": list(s.profile_dimensions),
         }
         for s in narrated
-        if s.onet_code not in page_codes
     }
 
     score_map = {path.onet_code: path.score for path in scored}
@@ -804,8 +838,9 @@ def _rescore(
         )
         return _error(500, "Unable to score career paths")
 
+    suggestions, narrated = _describe(user, scored)
     payload = {
-        "suggestions": _describe(user, scored),
+        "suggestions": suggestions,
         "career_status": career_status,
         "generated_at": datetime.datetime.now(datetime.timezone.utc).strftime(
             "%Y-%m-%dT%H:%M:%SZ"
@@ -831,7 +866,12 @@ def _rescore(
         # disagree about what was computed.
         "feedback": judgements,
     }
-    path_cache.store(user.id, payload)
+    # W-14. Stored either way -- the GET and the job a reload polls both read
+    # this, and the list the user is looking at is this one -- but flagged with
+    # whether any of it was written by the narrator. A fallback-only page is a
+    # true record of the screen and a false basis for skipping the next job's
+    # narration, and `path_suggestions` is where those two part company.
+    path_cache.store(user.id, payload, narrated=narrated)
     return IntelligenceResult(status=200, body=payload)
 
 
@@ -848,8 +888,9 @@ def _overlap_sentence(overlapping_skills: List[str]) -> str:
     return "Uses your %s and %s." % (", ".join(names[:-1]), names[-1])
 
 
-def _describe(user: User, scored) -> List[Dict[str, Any]]:
-    """The re-ranked list, with a "why" for every card and NO LLM call.
+def _describe(user: User, scored) -> Tuple[List[Dict[str, Any]], bool]:
+    """The re-ranked list with a "why" for every card and NO LLM call, and
+    whether any of those "why"s came from the narrator (W-14).
 
     ── WHY THE NARRATOR IS NOT ON THIS PATH, MEASURED ─────────────────────────
 
@@ -878,11 +919,14 @@ def _describe(user: User, scored) -> List[Dict[str, Any]]:
 
     Three sources, in this order:
 
-    1. **The reserve (W-12).** The scoring job narrates twenty and shows ten;
-       the other ten are in `path_cache.get_reserve`, written by the same
-       narrator, from the same profile, in the same job. A card promoted out of
-       the reserve therefore arrives reading like the cards beside it, which is
-       what F-8 routed onward and what the first browser test asked for.
+    1. **The reserve (W-12, widened by W-14).** The scoring job narrates twenty
+       and shows ten; ALL TWENTY are in `path_cache.get_reserve`, written by the
+       same narrator, from the same profile, in the same job. A card promoted out
+       of the reserve therefore arrives reading like the cards beside it, which
+       is what F-8 routed onward and what the first browser test asked for --
+       and a card that was on the page, was removed by a tap, and came back on
+       "Start over" finds its prose here too, which is what the fourth one
+       asked for.
 
        **This is consulted BEFORE the carry-forward, and that order is the fix
        rather than a detail.** The carry-forward keeps any truthy `why_text`,
@@ -908,9 +952,21 @@ def _describe(user: User, scored) -> List[Dict[str, Any]]:
     `profile_dimensions` is left empty for those cards rather than filled with
     invented tags: an empty list renders nothing, and a fabricated tag is worse
     than a missing one.
+
+    ── THE SECOND RETURN VALUE (W-14) ─────────────────────────────────────────
+
+    True when at least one card took its prose from source 1 or from a source-2
+    payload that was itself narrated; False when every card fell through to
+    source 3. That is the difference between a re-rank of a narrated list and a
+    re-rank of nothing, and `path_suggestions` needs it to decide whether the
+    cache entry `_rescore` is about to write is worth serving in place of a
+    narrator run. It is computed here rather than sniffed off the finished list
+    because a fallback sentence is indistinguishable from prose once written:
+    only the site that chose the source knows which it used.
     """
     reserve = path_cache.get_reserve(user.id)
     cached = path_cache.get(user.id) or {}
+    cached_narrated = path_cache.is_narrated(user.id)
     carried = {
         item.get("onet_code"): item
         for item in cached.get("suggestions") or []
@@ -918,8 +974,18 @@ def _describe(user: User, scored) -> List[Dict[str, Any]]:
     }
 
     out: List[Dict[str, Any]] = []
+    narrated = False
     for path in scored:
-        prior = reserve.get(path.onet_code) or carried.get(path.onet_code)
+        prior = reserve.get(path.onet_code)
+        if prior is not None:
+            narrated = True
+        else:
+            prior = carried.get(path.onet_code)
+            # A carried sentence is only narrator prose if the payload it came
+            # off was. Tap twice on a cold worker and the second tap carries the
+            # first tap's fallbacks forward -- truthy, and still not narration.
+            if prior is not None and cached_narrated:
+                narrated = True
         out.append(
             {
                 "onet_code": path.onet_code,
@@ -943,4 +1009,4 @@ def _describe(user: User, scored) -> List[Dict[str, Any]]:
                 "reasons": path.reasons,
             }
         )
-    return out
+    return out, narrated

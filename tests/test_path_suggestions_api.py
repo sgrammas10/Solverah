@@ -615,7 +615,17 @@ def test_only_the_page_reaches_the_wire(client, monkeypatch):
     assert all("Narrated" in s["why_text"] for s in body["suggestions"])
 
 
-def test_the_other_ten_are_in_the_reserve(client, monkeypatch):
+def test_every_narrative_the_job_wrote_is_in_the_reserve(client, monkeypatch):
+    """All TWENTY, the page included -- W-14 widened this from the other ten.
+
+    W-12 stored the reserve as the complement of the page, because a page card's
+    prose is on the payload and `_describe` carries it forward from there. That
+    holds until the card is removed: "Not for me" on card 9 drops it from the
+    payload, "Start over" puts it back on the page, and a reserve defined to
+    exclude the page has nothing for it either -- so it came back reading "Uses
+    your SQL." with no pills. `test_a_removed_card_comes_back_with_the_job_prose`
+    in `test_path_feedback_api.py` is that walk; this is the store it reads.
+    """
     from app import app
     from model import User
     from solverah.services import path_cache
@@ -629,12 +639,13 @@ def test_the_other_ten_are_in_the_reserve(client, monkeypatch):
         user = User.query.filter_by(email="w12stash@example.com").one()
         reserve = path_cache.get_reserve(user.id)
 
-    assert sorted(reserve) == ["15-00%02d.00" % i for i in range(10, 20)]
-    assert reserve["15-0011.00"]["why_text"] == "Narrated 15-0011.00."
-    assert reserve["15-0011.00"]["profile_dimensions"] == [
-        "Builds on your Python",
-        "Fits you",
-    ]
+    assert sorted(reserve) == ["15-00%02d.00" % i for i in range(20)]
+    for code in ("15-0003.00", "15-0011.00"):  # one from the page, one below it
+        assert reserve[code]["why_text"] == "Narrated %s." % code
+        assert reserve[code]["profile_dimensions"] == [
+            "Builds on your Python",
+            "Fits you",
+        ]
 
 
 def test_a_failing_reserve_batch_does_not_fail_the_job(client, monkeypatch):
@@ -664,7 +675,10 @@ def test_a_failing_reserve_batch_does_not_fail_the_job(client, monkeypatch):
     assert all("Narrated" in s["why_text"] for s in body["suggestions"])
     with app.app_context():
         user = User.query.filter_by(email="w12halfdown@example.com").one()
-        assert path_cache.get_reserve(user.id) == {}
+        reserve = path_cache.get_reserve(user.id)
+    # W-14: the reserve is now every narrative the job wrote, so the page's ten
+    # are in it and the ten that failed are not. Before W-14 this read `== {}`.
+    assert sorted(reserve) == ["15-00%02d.00" % i for i in range(10)]
 
 
 def test_a_failing_page_batch_still_fails_the_job(client, monkeypatch):

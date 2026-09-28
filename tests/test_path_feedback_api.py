@@ -1055,3 +1055,198 @@ def test_a_reserve_miss_is_an_empty_mapping_not_an_error():
     from solverah.services import path_cache
 
     assert path_cache.get_reserve(999_999) == {}
+
+
+# ---------------------------------------------------------------------------
+# W-14 -- the two tap-path bugs the fourth browser test found
+# ---------------------------------------------------------------------------
+#
+# Both were found by driving a local API against a real profile, and both are
+# about the seam between the scoring job (which narrates) and this route (which
+# never does).
+#
+#   1. "Start over" handed back the two cards the taps had removed reading
+#      "Uses your SQL." with no pills, beside eight narrated neighbours.
+#   2. A tap or a reset on a COLD worker wrote a fallback-only page into
+#      `path_cache`, and the next job served it as a hit -- ten fallbacks, zero
+#      pills, and every reload after it the same, until an unrelated profile
+#      write invalidated the entry. In production: every user's first tap after
+#      a deploy or a worker recycle.
+#
+# These run the real job (`scoring_jobs._score_path_suggestions` ->
+# `path_suggestions`) against the doubled scorer and narrator, because the bugs
+# are in what the job leaves behind for the tap, and a test that hand-builds the
+# reserve cannot see either of them.
+
+
+def _run_job():
+    """``(status, result, error)`` from the job a page load posts and polls."""
+    from app import app
+    from model import User
+    from solverah.services import scoring_jobs
+
+    with app.app_context():
+        user = User.query.filter_by(email=EMAIL).first()
+        return scoring_jobs._score_path_suggestions({"user_id": user.id})
+
+
+def _reserve():
+    from app import app
+    from solverah.services import path_cache
+
+    with app.app_context():
+        return path_cache.get_reserve(_user_id())
+
+
+def test_a_removed_card_comes_back_with_the_job_prose(
+    client, signed_in, corpus, mock_scorer, mock_narrator
+):
+    """Bug 1, the whole walk: job, tap, "Start over".
+
+    The card was on the page, so the job's prose for it lived on the payload and
+    nowhere else. The tap dropped it from the payload. "Start over" put it back
+    on the page with its prose gone -- W-12's reserve was defined as the ten
+    BELOW the page, so it had nothing for a card that had been on it.
+
+    The fix is at the store rather than at this seam: the reserve now holds every
+    narrative the job wrote, so `_describe`'s first source (which already runs
+    first) finds it. Red before that change: "Uses your Python and SQL.", no
+    pills.
+    """
+    from solverah.services import scoring_jobs
+
+    mock_scorer.return_value = _scored(CODE, OTHER)
+    status, result, _ = _run_job()
+    assert status == scoring_jobs.SUCCEEDED
+    assert all("Because" in s["why_text"] for s in result["suggestions"])
+
+    # "Not for me" on a card the job narrated: the re-rank drops it, and with it
+    # the only copy of its prose the payload carried.
+    mock_scorer.return_value = _scored(OTHER)
+    tapped = _post(client, signed_in, code=CODE, verdict="not_for_me").get_json()
+    assert [s["onet_code"] for s in tapped["suggestions"]] == [OTHER]
+
+    # "Start over": the card is back on the page, and must read as it did.
+    mock_scorer.return_value = _scored(CODE, OTHER)
+    restored = _delete(client, signed_in).get_json()
+
+    card = next(s for s in restored["suggestions"] if s["onet_code"] == CODE)
+    assert card["why_text"] == "Because %s." % CODE
+    assert card["profile_dimensions"] == ["a", "b"]
+    assert mock_narrator.call_count == 1, "the job narrated once; nothing else did"
+
+
+def test_a_tap_on_a_cold_cache_does_not_poison_the_next_job(
+    client, signed_in, corpus, mock_scorer, mock_narrator
+):
+    """Bug 2, the failure itself.
+
+    A tap on a worker with nothing cached scores, describes every card with the
+    fallback sentence -- there is no reserve and no payload to carry from -- and
+    stores that page. Before W-14 the next job took it as a hit and served ten
+    fallbacks with zero pills, and so did every reload after it. The narrator
+    was never called for that user again on that worker.
+    """
+    _post(client, signed_in, code=CODE, verdict="not_for_me")
+    assert mock_narrator.call_count == 0, "the tap itself is still LLM-free"
+
+    _, result, _ = _run_job()
+
+    assert mock_narrator.call_count == 1, "the job must still narrate"
+    assert all("Because" in s["why_text"] for s in result["suggestions"])
+    assert all(s["profile_dimensions"] == ["a", "b"] for s in result["suggestions"])
+
+
+def test_the_job_after_a_cold_tap_builds_the_reserve(
+    client, signed_in, corpus, mock_scorer, mock_narrator
+):
+    """The other half of bug 2, and the half the user feels on the NEXT tap.
+
+    A job that never ran wrote no reserve, so even once the page looked right
+    again the first tap after it would surface bare cards. Both halves come back
+    together or neither is fixed.
+    """
+    _post(client, signed_in, code=CODE, verdict="not_for_me")
+    assert _reserve() == {}
+
+    _run_job()
+
+    assert sorted(_reserve()) == sorted([CODE, OTHER])
+
+
+def test_a_tap_on_a_cold_cache_still_answers_from_the_skills_it_matched(
+    client, signed_in, corpus, mock_scorer, mock_narrator
+):
+    """What the fix must NOT cost: the tap stays synchronous and LLM-free.
+
+    The tempting repair for bug 2 is to narrate when there is nothing to carry
+    forward. Measured, that is 1.4-4 seconds on a control the user presses
+    repeatedly (`_describe` has the table). A cold tap still answers in
+    microseconds with the F-6 sentence; it is the JOB that owes prose.
+    """
+    body = _post(client, signed_in, code=CODE, verdict="too_similar").get_json()
+
+    assert [s["why_text"] for s in body["suggestions"]] == [
+        "Uses your Python and SQL."
+    ] * 2
+    assert all(s["profile_dimensions"] == [] for s in body["suggestions"])
+    assert mock_narrator.call_count == 0
+
+
+def test_a_narrated_payload_is_still_served_warm(
+    client, signed_in, corpus, mock_scorer, mock_narrator
+):
+    """The other thing the fix must not cost: the cache still works.
+
+    "Treat a fallback-only page as a miss" is one character away from "treat
+    every page as a miss", which would put a ten-second narrator call on every
+    reload. A second job for a user whose page was narrated serves the cached
+    one and calls nothing.
+    """
+    mock_scorer.return_value = _scored(CODE, OTHER)
+    _run_job()
+    assert mock_narrator.call_count == 1
+
+    _, result, _ = _run_job()
+
+    assert mock_narrator.call_count == 1
+    assert all("Because" in s["why_text"] for s in result["suggestions"])
+
+
+def test_a_tap_on_a_narrated_list_leaves_the_cache_warm(
+    client, signed_in, corpus, mock_scorer, mock_narrator
+):
+    """The flag has to travel with the prose, not with the writer.
+
+    `_rescore` wrote this payload, so a rule as coarse as "anything the tap path
+    stored is suspect" would re-narrate on every reload after every tap -- the
+    common case, and ten seconds of it. What the cache records is whether the
+    cards carry narrator prose, and after a tap on a narrated list they do.
+    """
+    mock_scorer.return_value = _scored(CODE, OTHER)
+    _run_job()
+    _post(client, signed_in, code=CODE, verdict="interesting")
+
+    _, result, _ = _run_job()
+
+    assert mock_narrator.call_count == 1, "the reload served the warm cache"
+    assert all("Because" in s["why_text"] for s in result["suggestions"])
+
+
+def test_the_cache_records_whether_a_payload_was_narrated():
+    """The distinction itself, at the module that keeps it.
+
+    It is not a key on the payload because the payload IS the wire -- the cached
+    dict is the response body of `GET /me/path-suggestions` and the job's stored
+    result -- so a new key in it is a new field on a published contract.
+    """
+    from solverah.services import path_cache
+
+    path_cache.store(4243, {"suggestions": []}, narrated=False)
+    assert path_cache.is_narrated(4243) is False
+
+    path_cache.store(4243, {"suggestions": []})
+    assert path_cache.is_narrated(4243) is True, "the job's write is the default"
+
+    path_cache.invalidate(4243)
+    assert path_cache.is_narrated(4243) is False, "a miss is not narrated either"

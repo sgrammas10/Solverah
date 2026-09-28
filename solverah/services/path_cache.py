@@ -45,6 +45,7 @@ from typing import Dict, Optional
 __all__ = [
     "get",
     "invalidate",
+    "is_narrated",
     "store",
     "clear",
     "snapshot",
@@ -63,18 +64,49 @@ __all__ = [
 #: measurement, since three workers pay it independently.
 MAX_ENTRIES = 500
 
-_cache: "OrderedDict[int, dict]" = OrderedDict()  # user_id -> response payload
+#: ``user_id -> (payload, narrated)``.
+#:
+#: **The second half is W-14.**  Two different things get stored under one key.
+#: The scoring job narrates and stores a page of written cards; ``_rescore`` -- a
+#: tap, or "Start over" -- also stores, and on a cold worker it has nothing to
+#: write from, so what it stores is ten fallback sentences with no pills.  Before
+#: W-14 the next job read that back as a hit and served it, and so did every
+#: reload after it, until some unrelated profile write invalidated the entry.  In
+#: production that was every user's first tap after a deploy or a worker recycle.
+#:
+#: A key on the *payload* would have recorded it in one place, but the payload
+#: **is the wire** (see `_reserve` below), so the flag rides beside the payload
+#: in the entry instead: :func:`store` sets it and :func:`is_narrated` answers
+#: it.  Inside the entry rather than in a second dict keyed by user, so that it
+#: is evicted, invalidated and cleared by construction: this module is the one
+#: that filled a worker until production was SIGKILLed, and a parallel
+#: per-user structure maintained by hand is exactly how that comes back.
+#: :func:`get` and :func:`snapshot` unwrap, so every existing caller still sees
+#: the payload alone.
+_cache: "OrderedDict[int, tuple]" = OrderedDict()
 
-#: W-12.  ``user_id -> {onet_code: {"why_text", "profile_dimensions"}}`` for the
-#: cards BELOW the ten the payload above holds.
+#: W-12, widened by W-14.  ``user_id -> {onet_code: {"why_text",
+#: "profile_dimensions"}}`` for **every** card the scoring job narrated -- the
+#: ten on the page and the ten below it.
 #:
 #: **Why it lives in this module and not next to it.** The scoring job narrates
-#: twenty cards and shows ten; the other ten are written so that a tap promoting
-#: one of them finds prose instead of "Uses your SQL." (F-8, routed onward, now
-#: wanted).  They cannot go in the payload: ``cached_path_suggestions`` returns
-#: the cached dict as the response body and the job stores it as its result, so
-#: **this cache is the wire** and a new key in it is a new field on
-#: ``GET /me/path-suggestions``.
+#: twenty cards and shows ten; all twenty are written down so that a tap which
+#: promotes one of them finds prose instead of "Uses your SQL." (F-8, routed
+#: onward, now wanted).  They cannot go in the payload:
+#: ``cached_path_suggestions`` returns the cached dict as the response body and
+#: the job stores it as its result, so **this cache is the wire** and a new key
+#: in it is a new field on ``GET /me/path-suggestions``.
+#:
+#: **Why all twenty and not only the ten below the page** (W-14).  W-12 stored
+#: the reserve as the complement of the page, on the reasoning that a page card's
+#: prose is already on the payload and can be carried forward.  It is -- until the
+#: card is *removed*.  Tap "Not for me" on card 9 and the payload that replaces
+#: the cached one no longer carries it; press "Start over" and card 9 is back on
+#: the page with its prose nowhere: not on the payload, and not in a reserve that
+#: was defined to exclude it.  It returned reading "Uses your SQL." with no pills
+#: next to nine narrated neighbours.  Holding every narrative the job wrote costs
+#: ten more small dicts per user and makes "a card that ever had prose gets it
+#: back" true by construction rather than by which half of the list it was in.
 #:
 #: What they must share with the payload is a LIFETIME.  A narrative is written
 #: against one profile, and a profile edit that drops the shortlist has to drop
@@ -97,19 +129,44 @@ def get(user_id: int) -> Optional[dict]:
     user's entry would be evicted on age alone while idle ones survived.
     """
     with _lock:
-        payload = _cache.get(user_id)
-        if payload is not None:
-            _cache.move_to_end(user_id)
-        return payload
+        entry = _cache.get(user_id)
+        if entry is None:
+            return None
+        _cache.move_to_end(user_id)
+        return entry[0]
 
 
-def store(user_id: int, payload: dict) -> None:
-    """Cache *payload* for *user_id*, evicting the least recently used if full."""
+def store(user_id: int, payload: dict, narrated: bool = True) -> None:
+    """Cache *payload* for *user_id*, evicting the least recently used if full.
+
+    *narrated* (W-14) says whether this payload carries prose the narrator wrote,
+    and only the tap path has reason to pass ``False``: the scoring job always
+    narrates its page or fails, so ``True`` is the default and the job does not
+    restate it. See :data:`_cache` for what the flag is for and
+    :func:`is_narrated` for who reads it.
+    """
     with _lock:
-        _cache[user_id] = payload
+        _cache[user_id] = (payload, narrated)
         _cache.move_to_end(user_id)
         while len(_cache) > MAX_ENTRIES:
             _cache.popitem(last=False)
+
+
+def is_narrated(user_id: int) -> bool:
+    """Was *user_id*'s cached payload written with narrator prose on it? (W-14)
+
+    False for a miss as well as for a fallback-only page: both mean "there is
+    nothing here worth serving instead of narrating", which is the one question
+    ``path_suggestions`` asks before it decides to run the narrator.
+
+    Deliberately not folded into :func:`get`: the GET and the job disagree about
+    what to do with a fallback-only payload -- the GET serves it, because it is
+    what the user is looking at, and the job ignores it and narrates -- so the
+    two facts are asked for separately.
+    """
+    with _lock:
+        entry = _cache.get(user_id)
+        return bool(entry and entry[1])
 
 
 def invalidate(user_id: int) -> None:
@@ -135,9 +192,14 @@ def clear() -> None:
 
 
 def snapshot() -> Dict[int, dict]:
-    """A copy of the current contents, for assertions and diagnostics."""
+    """A copy of the current payloads, for assertions and diagnostics.
+
+    Payloads only, not the W-14 ``narrated`` flag beside them: this answers
+    "what is cached", which is what its callers in ``tests/test_cache_bounds.py``
+    are counting. :func:`is_narrated` answers the other question.
+    """
     with _lock:
-        return dict(_cache)
+        return {user_id: payload for user_id, (payload, _) in _cache.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -146,11 +208,12 @@ def snapshot() -> Dict[int, dict]:
 
 
 def store_reserve(user_id: int, narratives: Dict[str, dict]) -> None:
-    """Cache the below-the-page narratives for *user_id*.
+    """Cache every narrative one job wrote for *user_id*.
 
     Same LRU bound and the same ``MAX_ENTRIES`` as the payloads: one entry is
-    ten ``{"why_text", "profile_dimensions"}`` dicts, smaller than the payload
-    it accompanies, and a worker that holds one should hold the other.
+    twenty ``{"why_text", "profile_dimensions"}`` dicts (W-14 widened it from
+    ten), smaller than the payload it accompanies, and a worker that holds one
+    should hold the other.
     """
     with _lock:
         _reserve[user_id] = narratives

@@ -120,6 +120,18 @@ time" promotes them. The ruling as written can't remove them; only the pool can:
   surface after a tap — the job narrates twenty in two parallel batches at no extra job time,
   ~$0.0007 per job; fit panel shows each tool once). Backend suite 3,806 / 0 failed, Vitest
   1,018 / 1,018, type-check clean — re-run by me. W-9 is your commit `ada024f`.
+- **Fourth run (section O) was against the OLD API:** Flask started 13:30, W-13 was written
+  14:10–14:43 — so O1, O2, O5 showed pre-W-13 behaviour and don't count. Rule from now on:
+  I check the API process start time against the file times before handing over a test
+  prompt. Re-run O after W-14 lands and a restart.
+- **W-14 landed and reviewed** (found by me on the real stack, not by the tester): (1) Start
+  over returned the cards you'd removed as fallback sentences with no pills; (2) a tap or
+  Start over on a cold cache (right after an API restart) cached a page of ten fallbacks and
+  the next job served it as if narrated. Both fixed and re-proven on the real stack; full
+  suite 3,855 / 0. **Staging list:** `solverah/services/intelligence_service.py`,
+  `solverah/services/path_cache.py`, `tests/test_path_feedback_api.py`,
+  `tests/test_path_suggestions_api.py`; docs: `BUILD_PLAN.md`, `PATH_WANTS_DECISIONS.md`.
+  Then restart Flask and run section O.
 - **Third-run user tests** are section N of `docs/PATH_WANTS_USER_TESTS.md` (27 checks).
 - **Third run done (60 → 25/27):** its two failures + three notes became **W-13, landed and
   reviewed 2026-09-22** — the narrator no longer sees a score and its output is scrubbed
