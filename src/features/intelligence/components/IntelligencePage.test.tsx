@@ -276,9 +276,17 @@ describe("IntelligencePage - completed without a narrative", () => {
     // coming-soon regardless of wp_v2_completed.
     renderIntelligencePage();
     expect(screen.getByText(/CompanyLens™/)).toBeInTheDocument();
-    expect(screen.getByText(/Coming soon/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Coming soon" })).toBeDisabled();
     expect(screen.queryByText(/matches are ready/i)).toBeNull();
     expect(screen.queryByRole("button", { name: /open companylens/i })).toBeNull();
+  });
+
+  it("labels the Pro badge as coming soon, not as a bare tier", () => {
+    // Pro is visible but not purchasable yet (product owner, 2026-09-28); a
+    // bare "Pro" badge read as a paywall on a card whose button works.
+    renderIntelligencePage();
+    expect(screen.getByText("Pro · coming soon")).toBeInTheDocument();
+    expect(screen.queryByText(/^Pro$/)).toBeNull();
   });
 
   it("links to the trust page from the hub footer", () => {

@@ -53,6 +53,10 @@ import {
 import type { EnvironmentReportSubmission } from "../useSituationReport";
 import { ENV_FORM_STEPS, ENV_ITEMS } from "../data/envQuestions";
 import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
+import ResumePrompt from "../../../shared/ui/ResumePrompt";
+import { firstUnansweredIndex, useResumePrompt } from "../../../shared/lib/resumeDraft";
+import type { EnvReportDraft } from "../useEnvReport";
+import type { EnvStep } from "../data/envQuestions";
 
 /** `work_pulse.situation_items.TENSE_BY_CAREER_STATUS`, client side. Unknown
  *  or unset statuses render present tense -- the common case by far, and the
@@ -62,6 +66,13 @@ function isPastTense(careerStatus: string | undefined): boolean {
 }
 
 type Phase = "intro" | "questions";
+
+/** Answered = key PRESENCE (see useEnvReport: comp's "not sure" is a stored null). */
+function isStepAnswered(draft: EnvReportDraft, step: EnvStep): boolean {
+  return step.kind === "dimension"
+    ? draft.answers[step.item.itemId] !== undefined
+    : Object.prototype.hasOwnProperty.call(draft.context, step.item.itemId);
+}
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -126,7 +137,12 @@ function CareerStatusNeeded() {
           type="button"
           onClick={() =>
             navigate("/job-seeker/profile?tab=experience", {
-              state: { showCareerStatusModal: true },
+              // returnTo: the profile page offers to bring the user back here
+              // once the status is saved (shared/lib/careerStatusReturn).
+              state: {
+                showCareerStatusModal: true,
+                returnTo: { path: "/environment-report", label: "your Situation Report" },
+              },
             })
           }
           className="w-full bg-forest-dark text-white font-semibold py-3 rounded hover:bg-forest-mid transition-colors"
@@ -190,6 +206,24 @@ export default function EnvironmentReportPage() {
 
   const [phase, setPhase] = useState<Phase>("intro");
   const [stepIndex, setStepIndex] = useState(0);
+  // A saved draft gets the shared resume prompt in place of the intro.
+  const { showResumePrompt, dismissResumePrompt } = useResumePrompt(
+    () => Object.keys(draft.answers).length + Object.keys(draft.context).length > 0
+  );
+  const draftAnsweredCount = ENV_FORM_STEPS.filter((st) => isStepAnswered(draft, st)).length;
+
+  function handleResume() {
+    setStepIndex(firstUnansweredIndex(ENV_FORM_STEPS, (st) => isStepAnswered(draft, st)));
+    setPhase("questions");
+    dismissResumePrompt();
+  }
+
+  function handleStartOver() {
+    reset();
+    setStepIndex(0);
+    setPhase("questions");
+    dismissResumePrompt();
+  }
 
   // `ProfileData` is an open `Record<string, unknown>`, so this narrows rather
   // than trusting the index signature.
@@ -219,10 +253,7 @@ export default function EnvironmentReportPage() {
   const total = ENV_FORM_STEPS.length;
   const isLast = stepIndex === total - 1;
 
-  const isAnswered =
-    step.kind === "dimension"
-      ? draft.answers[step.item.itemId] !== undefined
-      : Object.prototype.hasOwnProperty.call(draft.context, step.item.itemId);
+  const isAnswered = isStepAnswered(draft, step);
 
   function handleNext() {
     if (!isLast) {
@@ -282,6 +313,21 @@ export default function EnvironmentReportPage() {
         <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
         <p className="text-sm text-ink-secondary">Building your Situation Report…</p>
       </div>
+    );
+  }
+
+  // ── A saved draft: ask before resuming ──
+  if (showResumePrompt && draftAnsweredCount > 0) {
+    return (
+      <Shell>
+        <ResumePrompt
+          title="Situation Report"
+          answeredCount={draftAnsweredCount}
+          total={total}
+          onResume={handleResume}
+          onStartOver={handleStartOver}
+        />
+      </Shell>
     );
   }
 

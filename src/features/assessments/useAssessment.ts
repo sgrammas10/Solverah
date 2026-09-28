@@ -158,6 +158,12 @@ export function useAssessment() {
     setAnswers((prev) => ({ ...prev, [token]: optionKey }));
   }, []);
 
+  /** "Start over" on the resume prompt: drop the draft. The persist effect above then
+   *  writes the empty object back, which reads as "no draft" on the next visit. */
+  const clearAnswers = useCallback(() => {
+    setAnswers({});
+  }, []);
+
   const answeredCount = items
     ? items.filter((i) => answers[i.token] !== undefined).length
     : 0;
@@ -209,6 +215,7 @@ export function useAssessment() {
     submitError,
     submitting,
     setAnswer,
+    clearAnswers,
     submit,
     /** Retries the form fetch -- the "Try again" on a failed load. */
     reloadForm: formQuery.refetch,

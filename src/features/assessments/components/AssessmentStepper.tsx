@@ -22,6 +22,9 @@ interface AssessmentStepperProps {
   onComplete: () => void;
   submitting?: boolean;
   submitError?: string | null;
+  /** Where to open. The resume prompt passes the first unanswered question; a fresh
+   *  attempt opens at 0. Read once, on mount. */
+  initialIndex?: number;
 }
 
 export default function AssessmentStepper({
@@ -31,8 +34,11 @@ export default function AssessmentStepper({
   onComplete,
   submitting = false,
   submitError = null,
+  initialIndex = 0,
 }: AssessmentStepperProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(() =>
+    Math.min(Math.max(initialIndex, 0), Math.max(items.length - 1, 0))
+  );
 
   const item = items[currentIndex];
   const currentAnswer = answers[item.token];
@@ -55,7 +61,7 @@ export default function AssessmentStepper({
 
   return (
     <div className="space-y-4">
-      <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
+      <p className="text-xs font-semibold uppercase tracking-widest text-forest-mid">
         Question {currentIndex + 1} of {total}
       </p>
 

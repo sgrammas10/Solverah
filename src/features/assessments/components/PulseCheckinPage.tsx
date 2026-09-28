@@ -98,9 +98,18 @@ function LikertRow({
   );
 }
 
+/**
+ * How many points the confirmation chart shows, the new check-in included. The
+ * chart used to plot only [prior, current] -- after a third check-in the user
+ * saw two dots and read it as lost data. A cap keeps the compact chart legible
+ * and the request small; the full series lives at /pulse/trend.
+ */
+export const CONFIRMATION_CHART_POINTS = 12;
+
 interface Confirmation {
   sequenceBefore: number;
-  prior: PulseCheckinRecord | null;
+  /** Check-ins before this one, newest first (the wire order), capped. */
+  history: PulseCheckinRecord[];
   current: PulseCheckinRecord;
 }
 
@@ -112,7 +121,13 @@ function directionWord(current: number, prior: number): string {
 
 function Confirmation({ confirmation }: { confirmation: Confirmation }) {
   const navigate = useNavigate();
-  const { sequenceBefore, prior, current } = confirmation;
+  const { sequenceBefore, history, current } = confirmation;
+  const prior = history[0] ?? null;
+  // Oldest first, left to right, then this check-in at the end.
+  const points = [
+    ...[...history].reverse().map((c) => ({ date: c.taken_at ?? "", value: c.experienced })),
+    { date: current.taken_at ?? new Date().toISOString(), value: current.experienced },
+  ];
   const tier = sequenceBefore === 0 || !prior ? "first" : sequenceBefore === 1 ? "second" : "later";
 
   return (
@@ -133,12 +148,9 @@ function Confirmation({ confirmation }: { confirmation: Confirmation }) {
           </h1>
           <div className="rounded-xl border border-cream-muted bg-white px-5 py-4">
             <PulseSparkline
-              ariaLabel="How work's working for you, last check-in to this one"
+              ariaLabel="How work's working for you, your recent check-ins up to this one"
               compact
-              points={[
-                { date: prior!.taken_at ?? "", value: prior!.experienced },
-                { date: current.taken_at ?? new Date().toISOString(), value: current.experienced },
-              ]}
+              points={points}
             />
           </div>
           <p className="text-sm text-ink-secondary leading-relaxed">
@@ -166,16 +178,16 @@ function Confirmation({ confirmation }: { confirmation: Confirmation }) {
 
 export default function PulseCheckinPage() {
   const nextCheckinQuery = usePulseNextCheckin();
-  const historyQuery = usePulseHistory({ limit: 1 });
+  const historyQuery = usePulseHistory({ limit: CONFIRMATION_CHART_POINTS - 1 });
   const submitMutation = useSubmitPulseCheckin();
 
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
 
-  const priorRef = useRef<PulseCheckinRecord | null>(null);
+  const priorRef = useRef<PulseCheckinRecord[]>([]);
   useEffect(() => {
     if (historyQuery.data) {
-      priorRef.current = historyQuery.data.checkins[0] ?? null;
+      priorRef.current = historyQuery.data.checkins;
     }
   }, [historyQuery.data]);
 
@@ -233,7 +245,7 @@ export default function PulseCheckinPage() {
       { item_scores: itemScores, experienced: experiencedValue },
       {
         onSuccess: (result) => {
-          setConfirmation({ sequenceBefore: sequence, prior: priorSnapshot, current: result });
+          setConfirmation({ sequenceBefore: sequence, history: priorSnapshot, current: result });
         },
       },
     );

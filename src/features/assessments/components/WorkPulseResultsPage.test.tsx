@@ -249,6 +249,19 @@ describe("WorkPulseResultsPage", () => {
     expect(mocks.fetchWithAuth).not.toHaveBeenCalled();
   });
 
+  it("labels Pro and CompanyLens as coming soon, with no dead unlock buttons", () => {
+    // Regression: "Unlock Work Pulse Pro" was a button with no onClick, and
+    // "Unlock CompanyLens" a disabled one -- both clickable-looking and dead.
+    mocks.wpState.cachedResult = MOCK_RESULT;
+    mocks.user = { wpl_completed: true };
+    renderPage();
+
+    expect(screen.getByText("Work Pulse Pro · coming soon")).toBeInTheDocument();
+    expect(screen.getByText("CompanyLens™ · Pro · coming soon")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /unlock/i })).toBeNull();
+    expect(screen.queryByText(/unlock (work pulse pro|companylens)/i)).toBeNull();
+  });
+
   // ── Failed state ───────────────────────────────────────────────────────────
 
   it("shows the failed state — not the scoring one — when the job fails", async () => {

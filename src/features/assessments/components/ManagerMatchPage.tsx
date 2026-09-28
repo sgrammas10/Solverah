@@ -22,6 +22,8 @@ import {
 } from "../useScoringJob";
 import { MM_QUESTIONS } from "../data/mmQuestions";
 import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
+import ResumePrompt from "../../../shared/ui/ResumePrompt";
+import { firstUnansweredIndex, useResumePrompt } from "../../../shared/lib/resumeDraft";
 
 /**
  * Only the two genuinely local UI phases remain. "Submitting" and "error" are
@@ -97,16 +99,13 @@ export default function ManagerMatchPage() {
   // which would carry prompt fragments and therefore the respondent's answers.
   const scoringError = jobFailed ? (job.data?.error ?? null) : null;
 
-  const [phase, setPhase] = useState<Phase>(() => {
-    if (isRetake) return 'intro';
-    if (state.answers.length > 0 && state.answers.length < 15) return 'questions';
-    return 'intro';
-  });
-
-  const [questionIndex, setQuestionIndex] = useState(() => {
-    if (isRetake) return 0;
-    return state.answers.length < 15 ? state.answers.length : 0;
-  });
+  // A part-finished draft used to resume silently. It now asks first: the
+  // shared resume prompt stands in for the intro until the user chooses.
+  const { showResumePrompt, dismissResumePrompt } = useResumePrompt(
+    () => !isRetake && state.answers.length > 0 && state.answers.length < MM_QUESTIONS.length
+  );
+  const [phase, setPhase] = useState<Phase>('intro');
+  const [questionIndex, setQuestionIndex] = useState(0);
 
   const hasFiredRef = useRef(false);
   // Local accumulator — source of truth for the final submission payload.
@@ -185,6 +184,21 @@ export default function ManagerMatchPage() {
     }
   }
 
+  function handleResume() {
+    const answered = new Set(answersRef.current.map((a) => a.questionId));
+    setQuestionIndex(firstUnansweredIndex(MM_QUESTIONS, (q) => answered.has(q.id)));
+    setPhase('questions');
+    dismissResumePrompt();
+  }
+
+  function handleStartOver() {
+    reset();
+    answersRef.current = [];
+    setQuestionIndex(0);
+    setPhase('questions');
+    dismissResumePrompt();
+  }
+
   function handleRetry() {
     // Cleared so the guard lets the retry enqueue — it exists to stop a
     // double-fire of one submission, not to make failure final.
@@ -232,14 +246,33 @@ export default function ManagerMatchPage() {
     );
   }
 
+  // ── A saved draft: ask before resuming ──
+  if (showResumePrompt) {
+    return (
+      <div className="min-h-screen bg-cream-base">
+        <div className="mx-auto max-w-lg px-6 pt-16 pb-20">
+          <ResumePrompt
+            title="ManagerMatch™"
+            answeredCount={state.answers.length}
+            total={MM_QUESTIONS.length}
+            onResume={handleResume}
+            onStartOver={handleStartOver}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // ── Intro ──
   if (phase === 'intro') {
     return (
       <div className="min-h-screen bg-cream-base">
         <div className="mx-auto max-w-lg px-6 pt-16 pb-20">
           <div className="space-y-8">
+            {/* Was "WorkPulse Pro": ManagerMatch is free and live, and Pro is
+                not purchasable yet, so the eyebrow no longer names a tier. */}
             <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
-              WorkPulse Pro
+              Manager fit
             </p>
 
             <div className="space-y-4">

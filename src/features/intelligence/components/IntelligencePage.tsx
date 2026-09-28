@@ -538,7 +538,7 @@ export default function IntelligencePage() {
             <div className="flex items-center gap-2 mb-1">
               <p className="text-sm font-semibold text-ink-primary">Path Intelligence</p>
               <span className="rounded-full bg-forest-pale border border-forest-light px-2 py-0.5 text-xs font-semibold text-forest-mid">
-                Pro
+                Pro · coming soon
               </span>
             </div>
             <p className="text-xs text-ink-secondary mt-0.5 mb-2">

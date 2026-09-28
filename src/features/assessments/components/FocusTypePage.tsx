@@ -9,6 +9,8 @@ import Scene3 from "./focustype/Scene3";
 import Scene4 from "./focustype/Scene4";
 import Scene5 from "./focustype/Scene5";
 import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
+import ResumePrompt from "../../../shared/ui/ResumePrompt";
+import { firstUnansweredIndex, useResumePrompt } from "../../../shared/lib/resumeDraft";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,6 +44,46 @@ export interface FocusTypeResult {
   archetype: string;
   dimension_scores: Record<string, number>;
   recommendations: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Draft persistence -- sessionStorage, like every other quiz's in-progress
+// answers, so a reload mid-simulator no longer throws finished scenes away.
+// ---------------------------------------------------------------------------
+
+export const FOCUS_TYPE_DRAFT_KEY = "focus_type_draft";
+const SCENE_NUMBERS = [1, 2, 3, 4, 5] as const;
+
+function readDraft(): ScenePayloads {
+  try {
+    const raw = sessionStorage.getItem(FOCUS_TYPE_DRAFT_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return parsed as ScenePayloads;
+  } catch {
+    return {};
+  }
+}
+
+function writeDraft(payloads: ScenePayloads) {
+  try {
+    sessionStorage.setItem(FOCUS_TYPE_DRAFT_KEY, JSON.stringify(payloads));
+  } catch {
+    // A full or disabled sessionStorage costs the resume and nothing else.
+  }
+}
+
+function clearDraft() {
+  try {
+    sessionStorage.removeItem(FOCUS_TYPE_DRAFT_KEY);
+  } catch {
+    // As above.
+  }
+}
+
+function hasScene(payloads: ScenePayloads, n: number): boolean {
+  return payloads[`scene_${n}` as keyof ScenePayloads] !== undefined;
 }
 
 /** `submitting` and `error` are no longer members: the POST lives on a
@@ -86,7 +128,19 @@ export default function FocusTypePage() {
 
   const [phase, setPhase] = useState<Phase>("intro");
   const [currentScene, setCurrentScene] = useState(1);
-  const [scenePayloads, setScenePayloads] = useState<ScenePayloads>({});
+  // A retake starts clean; anything else picks up the stored draft (if any),
+  // and the resume prompt below decides what happens to it.
+  const [scenePayloads, setScenePayloads] = useState<ScenePayloads>(() => {
+    if (isRetake) {
+      clearDraft();
+      return {};
+    }
+    return readDraft();
+  });
+  const draftSceneCount = SCENE_NUMBERS.filter((n) => hasScene(scenePayloads, n)).length;
+  const { showResumePrompt, dismissResumePrompt } = useResumePrompt(
+    () => draftSceneCount > 0
+  );
 
   const savedResult = profile?.focus_type_result as FocusTypeResult | undefined;
   useEffect(() => {
@@ -102,6 +156,7 @@ export default function FocusTypePage() {
         body: JSON.stringify(payloads),
       }),
     onSuccess: (result) => {
+      clearDraft();
       updateProfileData({ focus_type_result: result });
       navigate("/focus-type/results", { state: { result } });
     },
@@ -118,12 +173,35 @@ export default function FocusTypePage() {
     const key = `scene_${sceneNum}` as keyof ScenePayloads;
     const updated = { ...scenePayloads, [key]: payload } as ScenePayloads;
     setScenePayloads(updated);
+    writeDraft(updated);
 
     if (sceneNum < 5) {
       setCurrentScene(sceneNum + 1);
     } else {
       submit(updated);
     }
+  }
+
+  function handleResume() {
+    dismissResumePrompt();
+    const allDone = SCENE_NUMBERS.every((n) => hasScene(scenePayloads, n));
+    if (allDone) {
+      // Every scene was finished but the submit never landed (a reload in the
+      // gap): send it rather than replay the last scene.
+      submit(scenePayloads);
+      return;
+    }
+    const idx = firstUnansweredIndex(SCENE_NUMBERS, (n) => hasScene(scenePayloads, n));
+    setCurrentScene(SCENE_NUMBERS[idx]);
+    setPhase("scenes");
+  }
+
+  function handleStartOver() {
+    clearDraft();
+    setScenePayloads({});
+    setCurrentScene(1);
+    setPhase("scenes");
+    dismissResumePrompt();
   }
 
   // ── Submitting ──
@@ -165,6 +243,24 @@ export default function FocusTypePage() {
     return (
       <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
         <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  // ── A saved draft: ask before resuming ──
+  if (phase === "intro" && showResumePrompt && !(savedResult && !isRetake)) {
+    return (
+      <div className="min-h-screen bg-cream-base">
+        <div className="mx-auto max-w-lg px-6 pt-16 pb-20">
+          <ResumePrompt
+            title="FocusType™"
+            answeredCount={draftSceneCount}
+            total={SCENE_NUMBERS.length}
+            unit="scene"
+            onResume={handleResume}
+            onStartOver={handleStartOver}
+          />
+        </div>
       </div>
     );
   }

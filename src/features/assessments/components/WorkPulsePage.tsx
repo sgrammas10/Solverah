@@ -43,6 +43,8 @@ import { Link, useNavigate } from "react-router-dom";
 
 import AssessmentStepper from "./AssessmentStepper";
 import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
+import ResumePrompt from "../../../shared/ui/ResumePrompt";
+import { firstUnansweredIndex, useResumePrompt } from "../../../shared/lib/resumeDraft";
 import { useAssessment } from "../useAssessment";
 import { useAuth } from "../../auth";
 
@@ -62,9 +64,37 @@ function WorkPulseForm({
     submitError,
     submitting,
     setAnswer,
+    clearAnswers,
     submit,
     reloadForm,
   } = useAssessment();
+
+  // A draft found on arrival (answers are read from sessionStorage synchronously, so
+  // the first render already holds them) gets the resume prompt instead of a silent
+  // drop back at question 1 with old answers pre-selected.
+  const { showResumePrompt, dismissResumePrompt } = useResumePrompt(
+    () => Object.keys(answers).length > 0
+  );
+  const [startIndex, setStartIndex] = useState(0);
+  // Counted against the loaded form, not the raw draft: the hook prunes answers whose
+  // tokens are not in this form, and a draft pruned to nothing is no draft at all.
+  const answeredCount = items
+    ? items.filter((i) => answers[i.token] !== undefined).length
+    : 0;
+  const promptVisible = showResumePrompt && items !== null && answeredCount > 0;
+
+  function handleResume() {
+    if (items) {
+      setStartIndex(firstUnansweredIndex(items, (i) => answers[i.token] !== undefined));
+    }
+    dismissResumePrompt();
+  }
+
+  function handleStartOver() {
+    clearAnswers();
+    setStartIndex(0);
+    dismissResumePrompt();
+  }
 
   async function handleComplete() {
     const result = await submit();
@@ -128,8 +158,19 @@ function WorkPulseForm({
         <p className="text-sm text-ink-secondary">Loading…</p>
       )}
 
-      {items !== null && items.length > 0 && (
+      {promptVisible && items !== null && (
+        <ResumePrompt
+          title="Work Pulse"
+          answeredCount={answeredCount}
+          total={items.length}
+          onResume={handleResume}
+          onStartOver={handleStartOver}
+        />
+      )}
+
+      {!promptVisible && items !== null && items.length > 0 && (
         <AssessmentStepper
+          initialIndex={startIndex}
           items={items}
           answers={answers}
           onAnswer={setAnswer}
@@ -160,10 +201,18 @@ export default function WorkPulsePage() {
   return (
     <div className="relative min-h-screen bg-cream-base overflow-hidden">
       <HeroNetworkAnimation theme="light" />
-      <div className="relative z-10 mx-auto max-w-2xl px-6 pt-12 pb-16">
+      {/* The content sits on a near-solid panel rather than straight over the
+          animation: small ink-secondary copy drawn across moving network lines
+          dropped below WCAG AA in user testing. The animation itself is shared
+          with the landing page and stays untouched. */}
+      <div className="relative z-10 mx-auto max-w-2xl px-4 sm:px-6 pt-12 pb-16">
+        <div
+          data-testid="work-pulse-panel"
+          className="rounded-xl border border-cream-muted bg-cream-base/95 backdrop-blur-sm px-5 py-8 sm:px-8 shadow-sm"
+        >
         {isCompleted ? (
           <div className="space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
+            <p className="text-xs font-semibold uppercase tracking-widest text-forest-mid">
               ✦ Work Pulse Complete
             </p>
             <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
@@ -224,6 +273,7 @@ export default function WorkPulsePage() {
         ) : (
           <WorkPulseForm showLegacyLink={hasLegacyResults} onCompleted={handleCompleted} />
         )}
+        </div>
       </div>
     </div>
   );

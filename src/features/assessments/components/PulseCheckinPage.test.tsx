@@ -96,7 +96,7 @@ interface ServeOptions {
 function serve({ nextCheckin = NEXT_CHECKIN, history = HISTORY_ONE_PRIOR, submitResult }: ServeOptions = {}) {
   mocks.fetchWithAuth.mockImplementation((path: string, init?: RequestInit) => {
     if (path === "/me/pulse/next-checkin") return Promise.resolve(nextCheckin);
-    if (path === "/me/pulse/history?limit=1") return Promise.resolve(history);
+    if (path === "/me/pulse/history?limit=11") return Promise.resolve(history);
     if (path === "/me/pulse/checkins" && init?.method === "POST") {
       if (submitResult) return submitResult instanceof Error ? Promise.reject(submitResult) : Promise.resolve(submitResult);
       const body = JSON.parse(init.body as string);
@@ -223,5 +223,31 @@ describe("PulseCheckinPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("We couldn't save that just now");
     const firstGroup = screen.getByRole("radiogroup", { name: NEXT_CHECKIN.items[0].stem });
     expect(within(firstGroup).getByRole("radio", { name: "4" })).toHaveAttribute("aria-checked", "true");
+  });
+  it("plots every recent check-in plus the new one, not just the last two", async () => {
+    // Regression: after the third check-in the chart showed 2 points, because
+    // the page fetched history with limit=1 and drew [prior, current].
+    const rec = (id: number, day: string, experienced: number) => ({
+      id,
+      taken_at: `2026-09-${day}T00:00:00Z`,
+      sequence: id,
+      item_scores: {},
+      experienced,
+      version: "pulse-v1-2026-09-11",
+    });
+    serve({
+      nextCheckin: { ...NEXT_CHECKIN, sequence: 2 },
+      // Newest first, as the wire sends it.
+      history: { checkins: [rec(2, "04", 3), rec(1, "01", 2)], events: [] },
+    });
+    renderPage();
+    await answerAll(5);
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+
+    const chart = await screen.findByRole("img", { name: /recent check-ins/ });
+    expect(chart.querySelectorAll("circle")).toHaveLength(3);
+    // Compared against the newest prior (3), not the oldest (2).
+    expect(screen.getByText(/is up from last week\./)).toBeInTheDocument();
+    expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/me/pulse/history?limit=11", expect.anything());
   });
 });

@@ -220,4 +220,14 @@ describe("AssessmentStepper", () => {
     renderStepper(ALL_ANSWERED, { submitError: "Could not submit the assessment." });
     expect(screen.getByRole("alert")).toHaveTextContent("Could not submit the assessment.");
   });
+  it("opens at initialIndex when resuming a draft", () => {
+    renderStepper({ "tok-zulu": "A" }, { initialIndex: 1 });
+    expect(screen.getByText("Question 2 of 3")).toBeInTheDocument();
+    expect(screen.getByText("Mike prompt")).toBeInTheDocument();
+  });
+
+  it("clamps an out-of-range initialIndex to the last question", () => {
+    renderStepper(ALL_ANSWERED, { initialIndex: 99 });
+    expect(screen.getByText("Question 3 of 3")).toBeInTheDocument();
+  });
 });

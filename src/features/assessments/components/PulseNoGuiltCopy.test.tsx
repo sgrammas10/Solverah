@@ -98,7 +98,7 @@ function serve({
 }: ServeOptions = {}) {
   mocks.fetchWithAuth.mockImplementation((path: string, init?: RequestInit) => {
     if (path === "/me/pulse/next-checkin") return Promise.resolve(NEXT_CHECKIN);
-    if (path === "/me/pulse/history?limit=1") return Promise.resolve(checkinHistory);
+    if (path === "/me/pulse/history?limit=11") return Promise.resolve(checkinHistory);
     if (path === "/me/pulse/history?limit=2") return Promise.resolve(cardHistory);
     if (path === "/me/pulse/history") return Promise.resolve(trendHistory);
     if (path === "/me/pulse/settings" && (!init || init.method === undefined || init.method === "GET")) {

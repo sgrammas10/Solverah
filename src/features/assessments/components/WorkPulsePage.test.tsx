@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
     submitError: null as string | null,
     submitting: false,
     setAnswer: vi.fn(),
+    clearAnswers: vi.fn(),
     submit: vi.fn(),
     reloadForm: vi.fn(),
   },
@@ -65,6 +66,7 @@ beforeEach(() => {
   mocks.assessment.submitting = false;
   mocks.assessment.submit = vi.fn();
   mocks.assessment.reloadForm = vi.fn();
+  mocks.assessment.clearAnswers = vi.fn();
   mocks.stepperProps = null;
 });
 
@@ -230,5 +232,77 @@ describe("WorkPulsePage — completion", () => {
     expect(screen.getByRole("button", { name: /start focustype/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /start managermatch/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /back to dashboard/i })).toBeInTheDocument();
+  });
+});
+
+const THREE = [
+  { token: "t1", prompt: "Q1", options: [{ key: "A", text: "a" }, { key: "B", text: "b" }] },
+  { token: "t2", prompt: "Q2", options: [{ key: "A", text: "a" }, { key: "B", text: "b" }] },
+  { token: "t3", prompt: "Q3", options: [{ key: "A", text: "a" }, { key: "B", text: "b" }] },
+];
+
+describe("WorkPulsePage — resume prompt for a saved draft", () => {
+  it("asks before resuming instead of dropping the user into the stepper", () => {
+    // Regression: a saved draft used to open the stepper at question 1 with the
+    // old answers silently pre-selected.
+    mocks.assessment.items = THREE;
+    mocks.assessment.answers = { t1: "A", t2: "B" };
+    renderPage();
+    expect(screen.getByRole("button", { name: "Pick up where you left off" })).toBeInTheDocument();
+    expect(screen.getByText(/2 of 3 questions/)).toBeInTheDocument();
+    expect(screen.queryByTestId("assessment-stepper")).toBeNull();
+  });
+
+  it("'Pick up where you left off' opens the stepper at the first unanswered question", () => {
+    mocks.assessment.items = THREE;
+    mocks.assessment.answers = { t1: "A", t3: "B" };
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Pick up where you left off" }));
+    expect(screen.getByTestId("assessment-stepper")).toBeInTheDocument();
+    expect(mocks.stepperProps.initialIndex).toBe(1);
+    expect(mocks.assessment.clearAnswers).not.toHaveBeenCalled();
+  });
+
+  it("'Start over' clears the draft and opens at question 1", () => {
+    mocks.assessment.items = THREE;
+    mocks.assessment.answers = { t1: "A", t2: "B" };
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+    expect(mocks.assessment.clearAnswers).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("assessment-stepper")).toBeInTheDocument();
+    expect(mocks.stepperProps.initialIndex).toBe(0);
+  });
+
+  it("no draft: no prompt, straight to question 1", () => {
+    mocks.assessment.items = THREE;
+    renderPage();
+    expect(screen.queryByRole("button", { name: "Start over" })).toBeNull();
+    expect(mocks.stepperProps.initialIndex).toBe(0);
+  });
+
+  it("a draft whose tokens are not in this form is no draft (no prompt)", () => {
+    mocks.assessment.items = THREE;
+    mocks.assessment.answers = { stale: "A" };
+    renderPage();
+    expect(screen.queryByRole("button", { name: "Start over" })).toBeNull();
+    expect(screen.getByTestId("assessment-stepper")).toBeInTheDocument();
+  });
+});
+
+describe("WorkPulsePage — readability over the animation", () => {
+  it("puts the form on a near-solid panel rather than straight over the animation", () => {
+    // Regression: small ink-secondary copy sat directly on HeroNetworkAnimation.
+    renderPage();
+    const panel = screen.getByTestId("work-pulse-panel");
+    expect(panel.className.split(" ")).toContain("bg-cream-base/95");
+    expect(panel).toContainElement(screen.getByText(/There are no right answers/i));
+  });
+
+  it("wraps the completion state in the same panel", () => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
+    renderPage();
+    expect(screen.getByTestId("work-pulse-panel")).toContainElement(
+      screen.getByText(/Work Pulse Complete/i)
+    );
   });
 });

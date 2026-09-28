@@ -313,7 +313,10 @@ describe("EnvironmentReportPage", () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Set your career status/ }));
     expect(mocks.navigate).toHaveBeenCalledWith("/job-seeker/profile?tab=experience", {
-      state: { showCareerStatusModal: true },
+      state: {
+        showCareerStatusModal: true,
+        returnTo: { path: "/environment-report", label: "your Situation Report" },
+      },
     });
   });
 
@@ -391,5 +394,57 @@ describe("EnvironmentReportPage", () => {
         screen.queryByRole("heading", { name: /Now the other half/ }),
       ).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("EnvironmentReportPage — resume prompt for a saved draft", () => {
+  const total = ENV_FORM_STEPS.length;
+
+  function seedDraft() {
+    // Steps 1 and 2 (stage_size, comp) answered; comp as "not sure" (null),
+    // which must still count as answered -- key presence, not truthiness.
+    const [stage, comp] = ENV_FORM_STEPS;
+    sessionStorage.setItem(
+      "env_report_answers",
+      JSON.stringify({ answers: {}, context: { [stage.item.itemId]: 3, [comp.item.itemId]: null } }),
+    );
+  }
+
+  it("asks before resuming instead of opening the intro at question 1", async () => {
+    // Regression: stepIndex always started at 0 behind the intro.
+    seedDraft();
+    serve();
+    renderPage();
+    expect(
+      await screen.findByRole("button", { name: "Pick up where you left off" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`2 of ${total} questions`))).toBeInTheDocument();
+  });
+
+  it("'Pick up where you left off' lands on the first unanswered step", async () => {
+    seedDraft();
+    serve();
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Pick up where you left off" }));
+    expect(await screen.findByText(`Question 3 of ${total}`)).toBeInTheDocument();
+  });
+
+  it("'Start over' clears the draft and lands on question 1", async () => {
+    seedDraft();
+    serve();
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Start over" }));
+    expect(await screen.findByText(`Question 1 of ${total}`)).toBeInTheDocument();
+    expect(sessionStorage.getItem("env_report_answers")).toBeNull();
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+  });
+
+  it("no draft: the intro, not the prompt", async () => {
+    serve();
+    renderPage();
+    expect(
+      await screen.findByRole("heading", { name: "Now the other half — your job" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Start over" })).toBeNull();
   });
 });

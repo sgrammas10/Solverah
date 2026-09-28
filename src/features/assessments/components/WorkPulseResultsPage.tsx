@@ -358,9 +358,10 @@ export default function WorkPulseResultsPage() {
                 Your {topSignalTitle} signals may reveal something about company fit.
               </h2>
               <p className="text-sm text-ink-secondary leading-relaxed mt-2">
-                Work Pulse Pro maps your work patterns against real company environments.
-                Some companies consistently amplify the friction you described. Others
-                are built in ways that reduce it. CompanyLens shows you which is which.
+                Work Pulse Pro, coming soon, will map your work patterns against real
+                company environments. Some companies consistently amplify the friction you
+                described. Others are built in ways that reduce it. CompanyLens will show
+                you which is which.
               </p>
               <div className="grid grid-cols-2 gap-3 mt-4">
                 <div className="rounded-lg border border-cream-muted bg-cream-subtle px-4 py-3">
@@ -372,13 +373,11 @@ export default function WorkPulseResultsPage() {
                   <span className="text-xs text-ink-tertiary">Fit score: --</span>
                 </div>
               </div>
-              <button
-                type="button"
-                disabled
-                className="w-full mt-4 bg-forest-dark text-white font-semibold py-3.5 rounded cursor-not-allowed opacity-80"
-              >
-                Unlock CompanyLens™
-              </button>
+              {/* Pro is visible but not buyable yet (product owner, 2026-09-28):
+                  a label, not a button, so nothing looks clickable-but-dead. */}
+              <p className="mt-4 rounded-[4px] border border-dashed border-cream-muted bg-cream-base px-4 py-3 text-center text-sm font-semibold text-ink-secondary">
+                CompanyLens™ · Pro · coming soon
+              </p>
             </div>
           );
         })()}
@@ -386,14 +385,11 @@ export default function WorkPulseResultsPage() {
         {/* Tier progression */}
         <TierBar nextTierIndex={2} />
 
-        {/* Upgrade CTA */}
+        {/* Pro teaser -- a label, not a button: there is nothing to buy yet. */}
         <div className="pt-2">
-          <button
-            type="button"
-            className="w-full border-2 border-forest-dark text-forest-dark font-semibold py-3.5 rounded hover:bg-forest-pale transition-colors"
-          >
-            Unlock Work Pulse Pro
-          </button>
+          <p className="rounded-[4px] border border-dashed border-cream-muted bg-white px-4 py-3.5 text-center text-sm font-semibold text-ink-secondary">
+            Work Pulse Pro · coming soon
+          </p>
           <p className="text-xs text-ink-tertiary text-center mt-2">
             Deeper analysis, personalised recommendations, and more.
           </p>

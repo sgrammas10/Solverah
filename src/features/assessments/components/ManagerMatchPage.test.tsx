@@ -118,6 +118,12 @@ async function answerEveryQuestion() {
 // ── intro phase ───────────────────────────────────────────────────────────────
 
 describe("ManagerMatchPage - intro phase", () => {
+  it("does not brand the free, live quiz as a Pro tier", () => {
+    renderPage();
+    expect(screen.queryByText(/WorkPulse Pro|Work Pulse Pro/)).toBeNull();
+    expect(screen.getByText("Manager fit")).toBeInTheDocument();
+  });
+
   it("renders intro screen with disclaimer text visible", () => {
     renderPage();
     expect(screen.getByRole("heading", { name: "ManagerMatch™" })).toBeInTheDocument();
@@ -319,5 +325,44 @@ describe("ManagerMatchPage - retake flow", () => {
     renderPage({ retake: true });
     expect(screen.getByRole("heading", { name: "ManagerMatch™" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Start ManagerMatch™/i })).toBeInTheDocument();
+  });
+});
+
+// ── resume prompt ─────────────────────────────────────────────────────────────
+
+describe("ManagerMatchPage - resume prompt for a saved draft", () => {
+  function draftOf(n: number) {
+    return MM_QUESTIONS.slice(0, n).map((q) => ({ questionId: q.id, choice: "a" as const }));
+  }
+
+  it("asks before resuming rather than jumping silently into the questions", () => {
+    // Regression: a 4-answer draft used to open straight on "Question 5 of 15".
+    mocks.mmState = { answers: draftOf(4), cachedResult: null };
+    renderPage();
+    expect(screen.getByRole("button", { name: "Pick up where you left off" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start over" })).toBeInTheDocument();
+    expect(screen.queryByText(/Question 5 of 15/)).toBeNull();
+  });
+
+  it("'Pick up where you left off' lands on the first unanswered question", () => {
+    mocks.mmState = { answers: draftOf(4), cachedResult: null };
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Pick up where you left off" }));
+    expect(screen.getByText(/Question 5 of 15/)).toBeInTheDocument();
+    expect(mocks.reset).not.toHaveBeenCalled();
+  });
+
+  it("'Start over' clears the draft and lands on question 1", () => {
+    mocks.mmState = { answers: draftOf(4), cachedResult: null };
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+    expect(mocks.reset).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/Question 1 of 15/)).toBeInTheDocument();
+  });
+
+  it("a retake never shows the prompt", () => {
+    mocks.mmState = { answers: draftOf(4), cachedResult: null };
+    renderPage({ retake: true });
+    expect(screen.queryByRole("button", { name: "Start over" })).toBeNull();
   });
 });

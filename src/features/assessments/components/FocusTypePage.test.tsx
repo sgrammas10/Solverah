@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
-import FocusTypePage from "./FocusTypePage";
+import FocusTypePage, { FOCUS_TYPE_DRAFT_KEY } from "./FocusTypePage";
 import { createQueryClient } from "../../../shared/api/queryClient";
 
 const mocks = vi.hoisted(() => ({
@@ -70,6 +70,7 @@ beforeEach(() => {
   mocks.user = null;
   mocks.profile = {};
   mocks.locationState = null;
+  sessionStorage.clear();
 });
 
 /** The submit mutation needs a client; fresh per render, per the
@@ -232,5 +233,64 @@ describe("FocusTypePage - error phase", () => {
         expect.anything()
       )
     );
+  });
+});
+
+// ─── draft persistence + resume prompt ───────────────────────────────────────
+
+describe("FocusTypePage - saved draft and resume prompt", () => {
+  const TWO_SCENES = {
+    scene_1: ["choice1"],
+    scene_2: { now: [], later: [], ignore: [] },
+  };
+
+  it("persists each finished scene to sessionStorage", () => {
+    // Regression: scenes lived in memory only, so a reload lost them.
+    renderFocusTypePage();
+    fireEvent.click(screen.getByRole("button", { name: "Begin" }));
+    fireEvent.click(screen.getByText("Complete Scene 1"));
+    const stored = JSON.parse(sessionStorage.getItem(FOCUS_TYPE_DRAFT_KEY)!);
+    expect(stored).toEqual({ scene_1: ["choice1"] });
+  });
+
+  it("offers the resume prompt for a saved draft instead of the intro", () => {
+    sessionStorage.setItem(FOCUS_TYPE_DRAFT_KEY, JSON.stringify(TWO_SCENES));
+    renderFocusTypePage();
+    expect(screen.getByRole("button", { name: "Pick up where you left off" })).toBeInTheDocument();
+    expect(screen.getByText(/2 of 5 scenes/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Begin" })).toBeNull();
+  });
+
+  it("'Pick up where you left off' opens the first unfinished scene and submits the whole draft", async () => {
+    sessionStorage.setItem(FOCUS_TYPE_DRAFT_KEY, JSON.stringify(TWO_SCENES));
+    mocks.fetchWithAuth.mockResolvedValue({ archetype: "X", dimension_scores: {}, recommendations: [] });
+    renderFocusTypePage();
+    fireEvent.click(screen.getByRole("button", { name: "Pick up where you left off" }));
+    expect(screen.getByText("Scene 3 of 5")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Complete Scene 3"));
+    fireEvent.click(screen.getByText("Complete Scene 4"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("Complete Scene 5"));
+    });
+    const body = JSON.parse(mocks.fetchWithAuth.mock.calls[0][1].body);
+    expect(body.scene_1).toEqual(["choice1"]);
+    expect(body.scene_2).toEqual({ now: [], later: [], ignore: [] });
+    expect(body.scene_5).toEqual(["end"]);
+    await waitFor(() => expect(sessionStorage.getItem(FOCUS_TYPE_DRAFT_KEY)).toBeNull());
+  });
+
+  it("'Start over' clears the draft and opens scene 1", () => {
+    sessionStorage.setItem(FOCUS_TYPE_DRAFT_KEY, JSON.stringify(TWO_SCENES));
+    renderFocusTypePage();
+    fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+    expect(screen.getByText("Scene 1 of 5")).toBeInTheDocument();
+    expect(sessionStorage.getItem(FOCUS_TYPE_DRAFT_KEY)).toBeNull();
+  });
+
+  it("a retake discards the draft and shows the intro", () => {
+    sessionStorage.setItem(FOCUS_TYPE_DRAFT_KEY, JSON.stringify(TWO_SCENES));
+    renderFocusTypePage({ retake: true });
+    expect(screen.getByRole("button", { name: "Begin" })).toBeInTheDocument();
+    expect(sessionStorage.getItem(FOCUS_TYPE_DRAFT_KEY)).toBeNull();
   });
 });
